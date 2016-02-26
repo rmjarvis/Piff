@@ -83,14 +83,14 @@ class OutputFile(OutputHandler):
 
     :param file_name:   The file name to write the data to.
     """
-    def __init__(file_name):
+    def __init__(self, file_name):
         self.file_name = file_name
 
 
     def write(self, psf):
         """Write a PSF object to the output file.
         """
-        pass
+        open(self.file_name, 'w').write(str(psf))
 
     def read(self):
         """Read a PSF object that was written to an output file back in.
