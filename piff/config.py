@@ -17,8 +17,6 @@
 """
 
 from __future__ import print_function
-import piff
-import yaml
 
 def setup_logger(verbosity=1, log_file=None):
     """Build a logger object to use for logging progress
@@ -60,10 +58,11 @@ def parse_variables(config, variables, logger):
 
         config['interp']['order'] = 2
 
-    :param config:      The configuration dict to wich to write the key,value pairs.
+    :param config:      The configuration dict to which to write the key,value pairs.
     :param varaibles:   A list of (typically command line) variables to parse.
     :param logger:      A logger object for logging debug info.
     """
+    import yaml
     for v in variables:
         logger.debug('Parsing additional variable: %s',v)
         if '=' not in v:
@@ -82,6 +81,7 @@ def read_config(file_name):
 
     :param file_name:   The file name from which the configuration dict should be read.
     """
+    import yaml
     with open(file_name) as fin:
         config = yaml.load(f.read())
     return config
@@ -93,37 +93,32 @@ def piffify(config, logger):
     :param config:      The configuration file that defines how to build the model
     :param logger:      A logger object for logging progress
     """
+    import piff
 
     for key in ['input', 'output', 'model', 'interp']:
         if key not in config:
             raise ValueError("%s field is required in config dict"%key)
 
-    extra_kwargs = {}
-
     # read in the input images
-    images, stars, kwargs = piff.process_input(config['input'], logger)
-    extre_kwargs.update(kwargs)
+    images, stars = piff.process_input(config['input'], logger)
 
     # make a Model object to use for the individual stellar fitting
-    model, kwargs = piff.process_model(config['model'], logger)
-    extre_kwargs.update(kwargs)
+    model = piff.process_model(config['model'], logger)
 
     # make an Interp object to use for the interpolation
-    interp, kwargs = piff.process_interp(config['interp'], logger)
-    extre_kwargs.update(kwargs)
+    interp = piff.process_interp(config['interp'], logger)
 
-    # if given, make and Optics object to use as the prior information about the optics.
+    # if given, make a Optics object to use as the prior information about the optics.
     if 'optics' in config:
-        optics, kwargs = piff.process_optics(config['optics'], logger)
-        extre_kwargs.update(kwargs)
+        optics = piff.process_optics(config['optics'], logger)
     else:
         optics = None
 
     # build the PSF model
     psf = build_psf(images=images, stars=stars, model=model, interp=interp, optics=optics,
-                    logger=logger, **extra_kwargs)
+                    logger=logger)
 
     # write it out to a file
-    output, kwargs = piff.process_output(config['output'], logger)
-    output.write(psf, **kwargs)
+    output = piff.process_output(config['output'], logger)
+    output.write(psf)
 
