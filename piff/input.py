@@ -116,6 +116,7 @@ class InputFiles(InputHandler):
 
         :returns: a list of galsim.Image instances
         """
+        import galsim
         images = [ galsim.fits.read(fname, hdu=self.image_hdu) for fname in self.image_files ]
         return images
 
