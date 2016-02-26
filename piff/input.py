@@ -116,6 +116,7 @@ class InputFiles(InputHandler):
 
         :returns: a list of galsim.Image instances
         """
+        import galsim
         images = [ galsim.fits.read(fname, hdu=self.image_hdu) for fname in self.image_files ]
         return images
 
@@ -125,12 +126,12 @@ class InputFiles(InputHandler):
         :returns: a list of lists of galsim.PositionD instances
         """
         import fitsio
-        import galsim
         cats = []
-        for fname in self.cat_files:
+        # assuming that the order of cat_files corresponds in some way to the ccd
+        for ccd, fname in enumerate(self.cat_files):
             fits = fitsio.FITS(fname)
             xlist = fits[self.cat_hdu].read_column(self.xcol)
             ylist = fits[self.cat_hdu].read_column(self.ycol)
-            cats.append([ galsim.PositionD(float(x),float(y)) for x,y in zip(xlist,ylist) ])
+            for x,y in zip(xlist,ylist):
+                cats += [x, y, ccd]
         return cats
-
