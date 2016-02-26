@@ -120,6 +120,6 @@ def piffify(config, logger):
                     logger=logger)
 
     # write it out to a file
-    output = piff.process_output(config['output'], logger)
+    output = piff.process_output(config, logger)
     output.write(psf)
 
