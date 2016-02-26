@@ -76,6 +76,7 @@ from model_gaussian import Gaussian
 
 from interp import Interp, process_interp
 from interp_mean import Mean
+from interp_polynomial import Polynomial
 
 from input import InputHandler, process_input
 from output import OutputHandler, process_output
