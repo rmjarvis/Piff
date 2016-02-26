@@ -36,9 +36,10 @@ py_version = "%d.%d"%sys.version_info[0:2]  # we check things based on the major
 #scripts = ['corr2', 'corr3']
 #scripts = [ os.path.join('scripts',f) for f in scripts ]
 
-#sources = glob.glob(os.path.join('src','*.cpp'))
+sources = glob.glob(os.path.join('src','*.c'))
+sources += glob.glob(os.path.join('src','*.cpp'))
 
-#headers = glob.glob(os.path.join('include','*.h'))
+headers = glob.glob(os.path.join('include','*.h'))
 
 undef_macros = []
 
@@ -283,7 +284,7 @@ dist = setup(name="Piff",
       version="0.1",
       author="Mike Jarvis",
       author_email="michael@jarvis.net",
-      description="PSFs in the Full FOV"
+      description="PSFs in the Full FOV",
       long_description=long_description,
       license = "BSD License",
       url="https://github.com/rmjarvis/Piff",
