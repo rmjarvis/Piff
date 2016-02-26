@@ -17,6 +17,7 @@
 """
 
 from __future__ import print_function
+import glob
 
 def process_input(config, logger):
     """Parse the input field of the config dict.
@@ -115,7 +116,7 @@ class InputFiles(InputHandler):
 
         :returns: a list of galsim.Image instances
         """
-        images = [ galsim.fits.read(fname, hdu=self.image_hdu) for fname in image_files ]
+        images = [ galsim.fits.read(fname, hdu=self.image_hdu) for fname in self.image_files ]
         return images
 
     def readStarCatalogs(self):
@@ -124,11 +125,12 @@ class InputFiles(InputHandler):
         :returns: a list of lists of galsim.PositionD instances
         """
         import fitsio
+        import galsim
         cats = []
-        for fname in cat_files:
+        for fname in self.cat_files:
             fits = fitsio.FITS(fname)
             xlist = fits[self.cat_hdu].read_column(self.xcol)
             ylist = fits[self.cat_hdu].read_column(self.ycol)
-            cats.append([ galsim.Position(x,y) for x,y in zip(xlist,ylist) ])
+            cats.append([ galsim.PositionD(float(x),float(y)) for x,y in zip(xlist,ylist) ])
         return cats
 

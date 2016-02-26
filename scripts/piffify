@@ -79,7 +79,7 @@ def main():
     logger.debug('Successfully read config file %s'%args.config_file)
 
     # Add the additional variables to the config file
-    piff.config.parse_variables(config, args.variables)
+    piff.config.parse_variables(config, args.variables, logger)
 
     # Run the piffify function
     piff.piffify(config, logger)

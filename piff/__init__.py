@@ -79,3 +79,6 @@ from interp_mean import Mean
 
 from input import InputHandler, process_input
 from output import OutputHandler, process_output
+
+from input import InputFiles
+from output import OutputFile
