@@ -108,8 +108,9 @@ def build_psf(images, stars, model, interp, optics,logger):
         #So these are the parameters of all the stars for this image
         image_parameters = []
         for star_position in star_positions:
+
             #Get the cutout for a particular star
-            print(star_position)
+            #Box size chosen arbitrarily
             xs = int(star_position.x)
             ys = int(star_position.y)
             bounds = galsim.BoundsI(xs-16,xs+16,ys-16,ys+16)
@@ -126,7 +127,7 @@ def build_psf(images, stars, model, interp, optics,logger):
         interp.fitData(image_parameters, star_positions)
         
         #accumulate the parameters for output
-        parameters.append(image_parameters)
+        parameters.append(interp.getParameters())
 
     return parameters
 
