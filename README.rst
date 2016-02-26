@@ -36,9 +36,10 @@ But for now, only the setup.py installation is available::
 
     python setup.py install
 
-To install into a specific directory rather than the default Python
-installation directory, use::
+Depending on your setup, you might prefer/need one of these variants::
 
+    sudo python setup.py install
+    python setup.py install --user
     python setup.py install --prefix=PREFIX
 
 
