@@ -18,15 +18,18 @@
 
 from __future__ import print_function
 
-def process_model(config, logger):
+def process_model(config, logger=None):
     """Parse the model field of the config dict.
 
     :param config:      The configuration dict.
-    :param logger:      A logger object for logging debug info.
+    :param logger:      A logger object for logging debug info. [default: None]
 
     :returns: a Model instance
     """
     import piff
+
+    if logger is None:
+        logger = config.setup_logger(verbosity=0)
 
     if 'model' not in config:
         raise ValueError("config dict has no model field")

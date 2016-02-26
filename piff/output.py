@@ -18,15 +18,18 @@
 
 from __future__ import print_function
 
-def process_output(config, logger):
+def process_output(config, logger=None):
     """Parse the output field of the config dict.
 
     :param config:      The configuration dict.
-    :param logger:      A logger object for logging debug info.
+    :param logger:      A logger object for logging debug info. [default: None]
 
-    :returns: images, stars, kwargs
+    :returns: an OutputHandler
     """
     import piff
+
+    if logger is None:
+        logger = config.setup_logger(verbosity=0)
 
     if 'output' not in config:
         raise ValueError("config dict has no output field")

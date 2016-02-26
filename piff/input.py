@@ -19,15 +19,18 @@
 from __future__ import print_function
 import glob
 
-def process_input(config, logger):
+def process_input(config, logger=None):
     """Parse the input field of the config dict.
 
     :param config:      The configuration dict.
-    :param logger:      A logger object for logging debug info.
+    :param logger:      A logger object for logging debug info. [default: None]
 
-    :returns: images, stars, kwargs
+    :returns: images, pos
     """
     import piff
+
+    if logger is None:
+        logger = config.setup_logger(verbosity=0)
 
     if 'input' not in config:
         raise ValueError("config dict has no input field")
