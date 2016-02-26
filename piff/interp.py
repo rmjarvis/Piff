@@ -26,6 +26,8 @@ def process_interp(config, logger):
 
     :returns: an Interp instance
     """
+    import piff
+
     if 'interp' not in config:
         raise ValueError("config dict has no interp field")
     config_interp = config['interp']
@@ -35,7 +37,7 @@ def process_interp(config, logger):
 
     # Get the class to use for the interp
     # Not sure if this is what we'll always want, but it would be simple if we can make it work.
-    interp_class = eval('piff.' + config_interp['type'])
+    interp_class = eval('piff.' + config_interp.pop('type'))
 
     # Read any other kwargs in the interp field
     kwargs = interp_class.parseKwargs(config_interp)
@@ -52,7 +54,7 @@ class Interp(object):
     implemented by any derived class.
     """
     @classmethod
-    def parseKwargs(config_interp):
+    def parseKwargs(cls, config_interp):
         """Parse the interp field of a configuration dict and return the kwargs to use for
         initializing an instance of the class.
 

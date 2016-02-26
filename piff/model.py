@@ -26,6 +26,8 @@ def process_model(config, logger):
 
     :returns: a Model instance
     """
+    import piff
+
     if 'model' not in config:
         raise ValueError("config dict has no model field")
     config_model = config['model']
@@ -35,7 +37,7 @@ def process_model(config, logger):
 
     # Get the class to use for the model
     # Not sure if this is what we'll always want, but it would be simple if we can make it work.
-    model_class = eval('piff.' + config_model['type'])
+    model_class = eval('piff.' + config_model.pop('type'))
 
     # Read any other kwargs in the model field
     kwargs = model_class.parseKwargs(config_model)
@@ -52,7 +54,7 @@ class Model(object):
     implemented by any derived class.
     """
     @classmethod
-    def parseKwargs(config_model):
+    def parseKwargs(cls, config_model):
         """Parse the model field of a configuration dict and return the kwargs to use for
         initializing an instance of the class.
 

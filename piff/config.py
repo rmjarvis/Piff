@@ -30,12 +30,13 @@ def setup_logger(verbosity=1, log_file=None):
 
     :returns: a logging.Logger instance
     """
+    import logging
     # Parse the integer verbosity level from the command line args into a logging_level string
     logging_levels = { 0: logging.CRITICAL,
                        1: logging.WARNING,
                        2: logging.INFO,
                        3: logging.DEBUG }
-    logging_level = logging_levels[args.verbosity]
+    logging_level = logging_levels[verbosity]
                                                                                                         # Setup logging to go to sys.stdout or (if requested) to an output file
     logger = logging.getLogger('piff')
     if len(logger.handlers) == 0:  # only add handler once!
@@ -100,17 +101,17 @@ def piffify(config, logger):
             raise ValueError("%s field is required in config dict"%key)
 
     # read in the input images
-    images, stars = piff.process_input(config['input'], logger)
+    images, stars = piff.process_input(config, logger)
 
     # make a Model object to use for the individual stellar fitting
-    model = piff.process_model(config['model'], logger)
+    model = piff.process_model(config, logger)
 
     # make an Interp object to use for the interpolation
-    interp = piff.process_interp(config['interp'], logger)
+    interp = piff.process_interp(config, logger)
 
     # if given, make a Optics object to use as the prior information about the optics.
     if 'optics' in config:
-        optics = piff.process_optics(config['optics'], logger)
+        optics = piff.process_optics(config, logger)
     else:
         optics = None
 

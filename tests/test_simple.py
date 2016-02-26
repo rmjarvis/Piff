@@ -49,6 +49,21 @@ def test_Gaussian():
     numpy.testing.assert_almost_equal(e1, model.shape.e1, decimal=7)
     numpy.testing.assert_almost_equal(e2, model.shape.e2, decimal=7)
 
+    # Now test running it via the config parser
+    config = {
+        'model' : {
+            'type' : 'Gaussian'
+        }
+    }
+    logger = piff.config.setup_logger()
+    model = piff.process_model(config, logger)
+    model.fitImage(image)
+
+    # Same tests.
+    numpy.testing.assert_almost_equal(sigma, model.sigma, decimal=7)
+    numpy.testing.assert_almost_equal(e1, model.shape.e1, decimal=7)
+    numpy.testing.assert_almost_equal(e2, model.shape.e2, decimal=7)
+
 
 if __name__ == '__main__':
     test_Gaussian()

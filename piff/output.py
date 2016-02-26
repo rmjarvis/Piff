@@ -26,6 +26,8 @@ def process_output(config, logger):
 
     :returns: images, stars, kwargs
     """
+    import piff
+
     if 'output' not in config:
         raise ValueError("config dict has no output field")
     config_output = config['output']
@@ -50,7 +52,7 @@ class OutputHandler(object):
     implemented by any derived class.
     """
     @classmethod
-    def parseKwargs(config_output):
+    def parseKwargs(cls, config_output):
         """Parse the output field of a configuration dict and return the kwargs to use for
         initializing an instance of the class.
 

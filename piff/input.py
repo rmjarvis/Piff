@@ -26,6 +26,8 @@ def process_input(config, logger):
 
     :returns: images, stars, kwargs
     """
+    import piff
+
     if 'input' not in config:
         raise ValueError("config dict has no input field")
     config_input = config['input']
@@ -53,7 +55,7 @@ class InputHandler(object):
     implemented by any derived class.
     """
     @classmethod
-    def parseKwargs(config_input):
+    def parseKwargs(cls, config_input):
         """Parse the input field of a configuration dict and return the kwargs to use for
         initializing an instance of the class.
 
