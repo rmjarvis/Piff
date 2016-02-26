@@ -33,8 +33,8 @@ except:
 print('Python version = ',sys.version)
 py_version = "%d.%d"%sys.version_info[0:2]  # we check things based on the major.minor version.
 
-#scripts = ['corr2', 'corr3']
-#scripts = [ os.path.join('scripts',f) for f in scripts ]
+scripts = ['piffify']
+scripts = [ os.path.join('scripts',f) for f in scripts ]
 
 sources = glob.glob(os.path.join('src','*.c'))
 sources += glob.glob(os.path.join('src','*.cpp'))
@@ -229,8 +229,9 @@ int main() {
 #os.environ['OPT'] = " ".join( flag for flag in opt.split() if flag != '-Wstrict-prototypes')
 
 # Make a subclass of build_ext so we can do different things depending on which compiler we have.
-# In particular, we want to use different compiler options for OpenMP in each case.
+# In particular, we may want to use different compiler options for OpenMP in each case.
 # cf. http://stackoverflow.com/questions/724664/python-distutils-how-to-get-a-compiler-that-is-going-to-be-used
+# We're not currently using OpenMP, but with this bit we'll be ready.
 class my_builder( build_ext ):
     def build_extensions(self):
         # Figure out what compiler it will use
@@ -277,6 +278,14 @@ dependencies = ['numpy', 'six', 'cffi', 'fitsio']
 if py_version < '2.7':
     dependencies += ['argparse']
 
+try:
+    import galsim
+except ImportError:
+    print('Piff requires that GalSim be installed on your system.')
+    print('Please install GalSim before proceeding:')
+    print('    https://github.com/GalSim-developers/GalSim')
+    raise
+
 with open('README.rst') as file:
     long_description = file.read()
 
@@ -307,18 +316,16 @@ dist = setup(name="Piff",
       # like this here.  But for now, just comment them out.
       #data_files=[('piff/include',headers)],
       #ext_modules=[ext],
-      #cmdclass = {'build_ext': my_builder,
-                  #'install_scripts': my_install_scripts,
-                  #'easy_install': my_easy_install,
-                  #},
+      cmdclass = {'build_ext': my_builder,
+                  'install_scripts': my_install_scripts,
+                  'easy_install': my_easy_install,
+                  },
       #headers=headers,
-      #scripts=scripts
+      scripts=scripts
       )
 
 # Check that the path includes the directory where the scripts are installed.
-# No scripts currently.  Enable this if we decide to have any.
-if False:
-#if dist.script_install_dir not in os.environ['PATH'].split(':'):
+if dist.script_install_dir not in os.environ['PATH'].split(':'):
     print('\nWARNING: The Piff executables were installed in a directory not in your PATH')
     print('         If you want to use the executables, you should add the directory')
     print('\n             ',dist.script_install_dir,'\n')

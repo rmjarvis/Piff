@@ -69,4 +69,5 @@ if False:
 
 
 # Import things from the other files that we want in the piff namespace
-#...
+from config import piffify
+
