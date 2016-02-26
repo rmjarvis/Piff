@@ -65,6 +65,46 @@ def test_Gaussian():
     numpy.testing.assert_almost_equal(e2, model.shape.e2, decimal=7)
 
 
+def test_Mean():
+    """For the interpolation, the simplest possible model is just a mean value, which barely
+    even qualifies as doing any kind of interpolating.  But it tests the basic glue software.
+    """
+    import numpy
+    # Make a list of data vectors to "interpolate"
+    numpy.random.seed(123)
+    nstars = 100
+    nchips = 10
+    data = [ [ numpy.random.random(10) for i in range(nstars) ] for j in range(nchips) ]
+    mean = numpy.mean(data, axis=(0,1))
+
+    # Give each data vector a position
+    pos = [ [ galsim.PositionD(numpy.random.random()*2048, numpy.random.random()*2048)
+              for i in range(nstars) ] for j in range(nchips) ]
+
+    # Use the piff.Mean interpolator
+    interp = piff.Mean()
+    interp.fitData(data, pos)
+
+    print('True mean = ',mean)
+    print('Interp mean = ',interp.mean)
+
+    # This should be exactly equal, since we did the same calculation.  But use almost_equal
+    # anyway, just in case we decide to do something slightly different, but equivalent.
+    numpy.testing.assert_almost_equal(mean, interp.mean)
+
+    # Now test running it via the config parser
+    config = {
+        'interp' : {
+            'type' : 'Mean'
+        }
+    }
+    logger = piff.config.setup_logger()
+    interp = piff.process_interp(config, logger)
+    interp.fitData(data, pos)
+    numpy.testing.assert_almost_equal(mean, interp.mean)
+
+
 if __name__ == '__main__':
     test_Gaussian()
+    test_Mean()
 

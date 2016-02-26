@@ -70,8 +70,12 @@ if False:
 
 # Import things from the other files that we want in the piff namespace
 from config import piffify
+
 from model import Model, process_model
 from model_gaussian import Gaussian
+
 from interp import Interp, process_interp
+from interp_mean import Mean
+
 from input import InputHandler, process_input
 from output import OutputHandler, process_output

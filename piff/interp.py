@@ -67,4 +67,21 @@ class Interp(object):
         """
         return config_interp
 
+    def fitData(self, data, pos):
+        """Fit for the interpolation coefficients given some data.
 
+        :param data:        A list of lists of data vectors (numpy arrays) for each star
+        :param pos:         A list of lists of positions of the stars
+        """
+        raise NotImplemented("Derived classes must define the fitData function")
+
+    def interpolate(self, image_num, pos):
+        """Perform the interpolation to find the interpolated data vector at some position in
+        some image.
+
+        :param image_num:   The index of the image in the original list of data vectors.
+        :param pos:         The position to which to interpolate.
+
+        :returns: the data vector (a numpy array) interpolated to the given position.
+        """
+        raise NotImplemented("Derived classes must define the interpolate function")
