@@ -1,5 +1,5 @@
 from __future__ import print_function
-import sys,os,glob
+import sys,os,glob,re
 
 
 try:
@@ -280,15 +280,27 @@ if py_version < '2.7':
 with open('README.rst') as file:
     long_description = file.read()
 
+# Read in the piff version from piff/_version.py
+# cf. http://stackoverflow.com/questions/458550/standard-way-to-embed-version-into-python-package
+version_file=os.path.join('piff','_version.py')
+verstrline = open(version_file, "rt").read()
+VSRE = r"^__version__ = ['\"]([^'\"]*)['\"]"
+mo = re.search(VSRE, verstrline, re.M)
+if mo:
+    piff_version = mo.group(1)
+else:
+    raise RuntimeError("Unable to find version string in %s." % (version_file,))
+print('Piff version is %s'%(piff_version))
+
 dist = setup(name="Piff", 
-      version="0.1",
+      version=piff_version,
       author="Mike Jarvis",
       author_email="michael@jarvis.net",
       description="PSFs in the Full FOV",
       long_description=long_description,
       license = "BSD License",
       url="https://github.com/rmjarvis/Piff",
-      download_url="https://github.com/rmjarvis/Piff/releases/tag/v0.1.0.zip",
+      download_url="https://github.com/rmjarvis/Piff/releases/tag/v%s.zip"%piff_version,
       packages=['piff'],
       install_requires=dependencies,
       # The rest of these are used by TreeCorr.  We might at some point want to do something

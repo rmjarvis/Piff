@@ -42,6 +42,13 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
+# The version is stored in _version.py as recommended here:
+# http://stackoverflow.com/questions/458550/standard-way-to-embed-version-into-python-package
+from _version import __version__, __version_info__
+
+# Also let piff.version show the version.
+version = __version__
+
 # We don't have any C functions, but once we do, I recommend using cffi to
 # wrap them.  This is the entire code we need to get C functions into Python.
 if False:
