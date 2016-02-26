@@ -103,7 +103,6 @@ def build_psf(images, stars, model, interp, optics,logger):
     parameters = []
     print("Will be analyzing {} images and {} stars".format(len(images), len(stars)))
     for (image, star_positions) in zip(images, stars):
-        print(len(star_positions))
         #We will for the moment just separately analyze each image.
         #So these are the parameters of all the stars for this image
         image_parameters = []
