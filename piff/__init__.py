@@ -70,4 +70,8 @@ if False:
 
 # Import things from the other files that we want in the piff namespace
 from config import piffify
-
+from model import Model
+from model_gaussian import Gaussian
+from interp import Interp
+from input import InputHandler
+from output import OutputHandler

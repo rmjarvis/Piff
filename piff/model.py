@@ -70,7 +70,7 @@ class Model(object):
         """
         raise NotImplemented("Derived classes must define the fitImage function")
 
-    def getProfile(self)
+    def getProfile(self):
         """Get a version of the PSF model as a GalSim GSObject
 
         :returns: a galsim.GSObject instance
