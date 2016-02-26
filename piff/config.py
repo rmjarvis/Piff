@@ -84,7 +84,7 @@ def read_config(file_name):
     """
     import yaml
     with open(file_name) as fin:
-        config = yaml.load(f.read())
+        config = yaml.load(fin.read())
     return config
 
 
