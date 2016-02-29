@@ -79,7 +79,7 @@ class StarData(object):
         self.image = image
         self.image_pos = image_pos
         # Make sure we have a local wcs in case the provided image is more complex.
-        self.wcs = image.wcs.local(image_pos)
+        self.local_wcs = image.wcs.local(image_pos)
 
         if weight is None:
             self.weight = galsim.Image(numpy.ones_like(image.array))
@@ -109,7 +109,7 @@ class StarData(object):
 
         # Make sure the user didn't provide their own x,y,u,v in properties.
         for key in ['x', 'y', 'u', 'v']:
-            if key in properties:
+            if properties is not None and key in properties:
                 raise AttributeError("Cannot provide property %s in properties dict."%key)
 
         self.properties['x'] = self.image_pos.x
@@ -152,15 +152,15 @@ class StarData(object):
         #ny, nx = self.image.array.shape
 
         # Image coordinates of pixels relative to nominal center
-        xvals = numpy.arange(self.image.bounds.xmin, self.image.bounds.xmax+1)
-        yvals = numpy.arange(self.image.bounds.ymin, self.image.bounds.ymax+1)
+        xvals = numpy.arange(self.image.bounds.xmin, self.image.bounds.xmax+1, dtype=float)
+        yvals = numpy.arange(self.image.bounds.ymin, self.image.bounds.ymax+1, dtype=float)
         x,y = numpy.meshgrid(xvals, yvals)
         x -= self.image_pos.x
         y -= self.image_pos.y
 
         # Convert to u,v coords
-        u = self.wcs._u(x,y)
-        v = self.wcs._v(x,y)
+        u = self.local_wcs._u(x,y)
+        v = self.local_wcs._v(x,y)
 
         # Get flat versions of everything
         u = u.flatten()
