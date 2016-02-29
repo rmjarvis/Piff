@@ -99,7 +99,7 @@ def test_init():
     print("Passed basic initialization of StarData")
 
 
-def test_Euclidean():
+def test_euclidean():
     """Test a slightly more complicated WCS and an object not centered at the center of the image.
     """
 
@@ -166,6 +166,73 @@ def test_Euclidean():
     print("Passed tests of StarData with EuclideanWCS")
 
 
+def test_celestial():
+    """Test using a (realistic) CelestialWCS for the main image.
+    """
+
+    # Make a CelestialWCS.  The simplest kind to make from scratch is a TanWCS.
+    affine = galsim.AffineTransform(0.26, -0.02, 0.03, 0.28,
+                                    world_origin=galsim.PositionD(912.4, -833.1))
+    ra = 13.2343 * galsim.hours
+    dec = -39.8484 * galsim.degrees
+    pointing = galsim.CelestialCoord(ra,dec)
+    wcs = galsim.TanWCS(affine, world_origin=pointing)
+    print('wcs = ',wcs)
+
+    # Start with a larger image from which we will cut out the postage stamp
+    full_image = galsim.Image(2048,2048, wcs=wcs)
+    full_weight = galsim.ImageS(2048,2048, wcs=wcs, init_value=1)
+
+    # Make a postage stamp cutout
+    # This next bit is the same as we did for the EuclideanWCS
+    size = 64
+    image_pos = galsim.PositionD(1083.9, 617.3)
+    sky_pos = wcs.toWorld(image_pos)
+    field_pos = pointing.project(sky_pos)
+    icen = int(image_pos.x)
+    jcen = int(image_pos.y)
+
+    bounds = galsim.BoundsI(icen-size//2+1, icen+size//2, jcen-size//2+1, jcen+size//2)
+    image = full_image[bounds]
+    weight = full_weight[bounds]
+
+    galsim.Gaussian(sigma=5).drawImage(image)
+    weight += image
+
+    # With a CelestialWCS, we need to supply a pointing
+    stardata = piff.StarData(image, image_pos, weight=weight, pointing=pointing)
+
+    # Test properties
+    print('props = ',stardata.properties)
+    numpy.testing.assert_equal(stardata['x'], image_pos.x)
+    numpy.testing.assert_equal(stardata['y'], image_pos.y)
+    numpy.testing.assert_equal(stardata['u'], field_pos.x)
+    numpy.testing.assert_equal(stardata['v'], field_pos.y)
+    numpy.testing.assert_equal(stardata['ra'], sky_pos.ra)
+    numpy.testing.assert_equal(stardata['dec'], sky_pos.dec)
+
+    # Test access via getImage method:
+    im, wt, pos = stardata.getImage()
+    numpy.testing.assert_array_equal(im.array, image.array)
+    numpy.testing.assert_array_equal(wt.array, weight.array)
+    numpy.testing.assert_equal(pos, image_pos)
+
+    # Test access via getDataVector method:
+    for data, wt, u, v in numpy.array(stardata.getDataVector()).T:
+        # u,v values should correspond to image coordinates via wcs
+        uv = galsim.PositionD(u,v) + field_pos
+        radec = pointing.deproject(uv)
+        xy = wcs.toImage(radec)
+        # These should now be integers, but round in case of numerical inaccuracy.
+        ix = int(round(xy.x))
+        jy = int(round(xy.y))
+        numpy.testing.assert_equal(data, image(ix,jy))
+        numpy.testing.assert_equal(wt, weight(ix,jy))
+
+    print("Passed tests of StarData with CelestialWCS")
+
+
 if __name__ == '__main__':
     test_init()
-    test_Euclidean()
+    test_euclidean()
+    test_celestial()
