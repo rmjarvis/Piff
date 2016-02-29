@@ -72,14 +72,17 @@ if False:
 # Import things from the other files that we want in the piff namespace
 from config import piffify
 
+# Models
 from model import Model, process_model
 from model_gaussian import Gaussian
 
+# Interpolators
 from interp import Interp, process_interp
 from interp_mean import Mean
 
-from input import InputHandler, process_input
-from output import OutputHandler, process_output
+# Inputs
+from input import InputHandler, process_input, InputFiles
+from stardata import StarData
 
-from input import InputFiles
-from output import OutputFile
+# Outputs
+from output import OutputHandler, process_output, OutputFile
