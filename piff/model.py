@@ -78,3 +78,10 @@ class Model(object):
         :returns: a galsim.GSObject instance
         """
         raise NotImplemented("Derived classes must define the getProfile function")
+
+    def getParameters(self):
+        """Get the parameters of the model, to be used by the interpolator.
+
+        :returns: a numpy array of the model parameters
+        """
+        raise NotImplemented("Derived classes must define the getParameters function")

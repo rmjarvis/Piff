@@ -38,6 +38,9 @@ class Mean(Interp):
         import numpy
         self.mean = numpy.mean(data, axis=(0,1))
 
+    def getParameters(self):
+        return [self.mean]
+
     def interpolate(self, image_num, pos):
         """Perform the interpolation to find the interpolated data vector at some position in
         some image.

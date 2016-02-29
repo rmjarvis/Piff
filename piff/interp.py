@@ -75,6 +75,13 @@ class Interp(object):
         """
         raise NotImplemented("Derived classes must define the fitData function")
 
+    def getParameters(self):
+        """After fitting, get the parameter describing the shape of the PSF variation across the field
+
+        :returns:  A sequence of parameters depending on the interpolation model
+        """
+        raise NotImplemented("Derived classes must define the fitData function")
+
     def interpolate(self, image_num, pos):
         """Perform the interpolation to find the interpolated data vector at some position in
         some image.

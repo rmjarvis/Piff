@@ -87,6 +87,48 @@ def read_config(file_name):
         config = yaml.load(fin.read())
     return config
 
+def build_psf(images, stars, model, interp, optics,logger):
+    """The main workhorse, which build the PSF.
+
+    :param images: A list of full exposure images
+    :param stars: A list of lists of galsim.PositionD objects with star positions.
+    :param model: An instance of a Model subclass
+    :param interp: An instance of an Interp subclass
+    :param optics: An instance of an Optics subclass (maybe None)
+    :param logger: A python logging.Logger object
+    """
+    import galsim
+    #Get the star cutout images out if the full images
+    #Fit the model to each of them
+    parameters = []
+    print("Will be analyzing {} images and {} stars".format(len(images), len(stars)))
+    for (image, star_positions) in zip(images, stars):
+        #We will for the moment just separately analyze each image.
+        #So these are the parameters of all the stars for this image
+        image_parameters = []
+        for star_position in star_positions:
+
+            #Get the cutout for a particular star
+            #Box size chosen arbitrarily
+            xs = int(star_position.x)
+            ys = int(star_position.y)
+            bounds = galsim.BoundsI(xs-16,xs+16,ys-16,ys+16)
+            cutout = image[bounds]
+        
+            #Fit this star image
+            model.fitImage(cutout)
+
+            #Get the fitted parameters
+            params = model.getParameters()
+            image_parameters.append(params)
+
+        #Use the interpolator to fit this model
+        interp.fitData(image_parameters, star_positions)
+        
+        #accumulate the parameters for output
+        parameters.append(interp.getParameters())
+
+    return parameters
 
 def piffify(config, logger):
     """Build a Piff model according to the specifications in a config dict.

@@ -19,7 +19,7 @@
 from __future__ import print_function
 
 from .model import Model
-
+import numpy
 class Gaussian(Model):
     """An extremely simple PSF model that just considers the PSF as a sheared Gaussian.
     """
@@ -55,3 +55,6 @@ class Gaussian(Model):
         import galsim
         prof = galsim.Gaussian(sigma=self.sigma).shear(self.shape)
         return prof
+    
+    def getParameters(self):
+        return numpy.array([self.sigma, self.shape.g1, self.shape.g2])
