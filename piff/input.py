@@ -48,10 +48,10 @@ def process_input(config, logger=None):
     input_handler = input_handler_class(**kwargs)
 
     # read the image data
-    input_handler.readimages(logger)
+    input_handler.readImages(logger)
 
     # read the input catalogs
-    input_handler.readstarcatalogs(logger)
+    input_handler.readStarCatalogs(logger)
 
     # Creat a lit of StarData objects
     stars = input_handler.makeStarData(logger)
@@ -114,8 +114,9 @@ class InputHandler(object):
         :returns: a list of StarData instances
         """
         import galsim
-        stars = []
+        import piff
 
+        stars = []
         if logger:
             logger.info("Making star list from %d catalog(s)", len(self.cats))
         for image,wt,cat in zip(self.images, self.weight, self.cats):
@@ -157,10 +158,14 @@ class InputFiles(InputHandler):
                         weight == 0. [default: None]
     :param cat_hdu:     The hdu to use in the catalgo files. [default: 1]
     :param stamp_size:  The size of the postage stamps to use for the cutouts.  Note: some
-                        stamps may be smaller than this is the star is near a chip boundary.
+                        stamps may be smaller than this if the star is near a chip boundary.
                         [default: 32]
     """
-    def __init__(self, images, cats, xcol='x', ycol='y', image_hdu=None, cat_hdu=1, stamp_size=32):
+    def __init__(self, images, cats,
+                 x_col='x', y_col='y', flag_col=None, use_col=None,
+                 image_hdu=None, weight_hdu=None, badpix_hdu=None, cat_hdu=1,
+                 stamp_size=32):
+
         if isinstance(images, basestring):
             self.image_files = glob.glob(images)
         else:
@@ -187,10 +192,13 @@ class InputFiles(InputHandler):
         :returns: a list of galsim.Image instances
         """
         import galsim
+
+        # Read in the images from the files
         if logger:
             logger.info("Reading image files %s",self.image_files)
         self.images = [ galsim.fits.read(fname, hdu=self.image_hdu) for fname in self.image_files ]
 
+        # Either read in the weight image, or build a dummy one
         if self.weight_hdu is None:
             if logger:
                 logger.debug("Making trivial (wt==1) weight images")
@@ -201,6 +209,7 @@ class InputFiles(InputHandler):
             self.weight = [ galsim.fits.read(fname, hdu=self.weight_hdu)
                             for fname in self.image_files ]
 
+        # If requested, set wt=0 for any bad pixels
         if self.badpix_hdu is not None:
             if logger:
                 logger.info("Reading badpix images from hdu %d.",self.badpix_hdu)
@@ -217,13 +226,19 @@ class InputFiles(InputHandler):
         """
         import fitsio
         import galsim
+
+        # Read in the star catalogs from the files
         if logger:
             logger.info("Reading star catalogs %s.",self.cat_files)
         self.cats = [ fitsio.read(fname) for fname in self.cat_files ]
+
+        # Remove any objects with flag != 0
         if self.flag_col is not None:
             if logger:
                 logger.info("Removing objects with %s != 0",self.flag_col)
             self.cats = [ cat[cat[self.flag_col]==0] for cat in self.cats ]
+
+        # Remove any objects with use == 0
         if self.use_col is not None:
             if logger:
                 logger.info("Removing objects with %s == 0",self.use_col)

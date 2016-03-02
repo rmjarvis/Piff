@@ -17,6 +17,7 @@
 """
 
 from __future__ import print_function
+import numpy
 
 from .interp import Interp
 
@@ -36,7 +37,6 @@ class Mean(Interp):
         :param vectors:     A list of parameter vectors (numpy arrays) for each star.
         :param logger:      A logger object for logging debug info. [default: None]
         """
-        import numpy
         self.mean = numpy.mean(vectors, axis=0)
 
     def interpolate(self, pos, logger=None):

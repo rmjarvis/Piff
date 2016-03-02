@@ -17,6 +17,7 @@
 """
 
 from __future__ import print_function
+import numpy
 
 def process_interp(config, logger=None):
     """Parse the interp field of the config dict.

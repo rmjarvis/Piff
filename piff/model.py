@@ -74,6 +74,8 @@ class Model(object):
         """Fit the model parameters to the data for a single star.
 
         :param star:    A StarData instance
+
+        :returns: self (for convenience of stringing together operations)
         """
         raise NotImplemented("Derived classes must define the fitImage function")
 
@@ -83,6 +85,8 @@ class Model(object):
         :param image:   A galsim.Image on which to draw the model.
         :param pos:     The position on the image at which to place the nominal center.
                         [default: None, which means to use the center of the image.]
+
+        :returns: image
         """
         raise NotImplemented("Derived classes must define the getProfile function")
 
@@ -97,5 +101,7 @@ class Model(object):
         """Set the parameters of the model, typically provided by an interpolator.
 
         :param params:  A numpy array of the model parameters
+
+        :returns: self
         """
         raise NotImplemented("Derived classes must define the setParameters function")
