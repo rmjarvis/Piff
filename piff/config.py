@@ -73,7 +73,7 @@ def parse_variables(config, variables, logger):
             # Use YAML parser to evaluate the string in case it is a list for instance.
             value = yaml.load(value)
         except:
-            logger.debug('Unable to parse %s.  Treating it as a string.'%value)
+            logger.debug('Unable to parse %s.  Treating it as a string.',value)
         config[key] = value
 
 
@@ -146,13 +146,13 @@ def piffify(config, logger=None):
             raise ValueError("%s field is required in config dict"%key)
 
     # read in the input images
-    images, stars = piff.process_input(config, logger)
+    stars = piff.process_input(config, logger=logger)
 
     # make a Model object to use for the individual stellar fitting
-    model = piff.process_model(config, logger)
+    model = piff.process_model(config, logger=logger)
 
     # make an Interp object to use for the interpolation
-    interp = piff.process_interp(config, logger)
+    interp = piff.process_interp(config, logger=logger)
 
     # if given, make a Optics object to use as the prior information about the optics.
     if 'optics' in config:
@@ -165,6 +165,6 @@ def piffify(config, logger=None):
                     logger=logger)
 
     # write it out to a file
-    output = piff.process_output(config, logger)
+    output = piff.process_output(config, logger=logger)
     output.write(psf)
 

@@ -70,15 +70,19 @@ class Model(object):
         """
         return config_model
 
-    def fitImage(self, image, weight=None):
-        """Fit a single image of a PSF according to whatever model is being used.
+    def fitStar(self, star):
+        """Fit the model parameters to the data for a single star.
+
+        :param star:    A StarData instance
         """
         raise NotImplemented("Derived classes must define the fitImage function")
 
-    def getProfile(self):
-        """Get a version of the PSF model as a GalSim GSObject
+    def drawImage(self, image, pos=None):
+        """Draw the model on the given image.
 
-        :returns: a galsim.GSObject instance
+        :param image:   A galsim.Image on which to draw the model.
+        :param pos:     The position on the image at which to place the nominal center.
+                        [default: None, which means to use the center of the image.]
         """
         raise NotImplemented("Derived classes must define the getProfile function")
 
@@ -88,3 +92,10 @@ class Model(object):
         :returns: a numpy array of the model parameters
         """
         raise NotImplemented("Derived classes must define the getParameters function")
+
+    def setParameters(self, params):
+        """Set the parameters of the model, typically provided by an interpolator.
+
+        :param params:  A numpy array of the model parameters
+        """
+        raise NotImplemented("Derived classes must define the setParameters function")

@@ -26,17 +26,21 @@ class Gaussian(Model):
     def __init__(self):
         pass
 
-    def fitImage(self, image, weight=None):
+
+    def fitStar(self, star):
         """Fit the image by running the HSM adaptive moments code on the image and using
         the resulting moments as an estimate of the Gaussian size/shape.
+
+        :param star:    A StarData instance
         """
         import galsim
+        image, weight, image_pos = star.getImage()
         mom = image.FindAdaptiveMom(weight=weight)
         self.sigma = mom.moments_sigma
         self.shape = mom.observed_shape
         # These are in pixel coordinates.  Need to convert to world coords.
-        self.jac = image.wcs.jacobian(image_pos=image.center())
-        scale, shear, theta, flip = self.jac.getDecomposition()
+        jac = image.wcs.jacobian(image_pos=image_pos)
+        scale, shear, theta, flip = jac.getDecomposition()
         # Fix sigma
         self.sigma *= scale
         # Fix shear.  First the flip, if any.
@@ -55,6 +59,30 @@ class Gaussian(Model):
         import galsim
         prof = galsim.Gaussian(sigma=self.sigma).shear(self.shape)
         return prof
-    
+
+    def drawImage(self, image, pos=None):
+        """Draw the model on the given image.
+
+        :param image:   A galsim.Image on which to draw the model.
+        :param pos:     The position on the image at which to place the nominal center.
+                        [default: None, which means to use the center of the image.]
+        """
+        prof = self.getProfile()
+        if pos is not None:
+            offset = pos - image.trueCenter()
+        else:
+            offset = None
+        prof.drawImage(image, draw_method='no_pixel', offset=offset)
+   
     def getParameters(self):
         return numpy.array([self.sigma, self.shape.g1, self.shape.g2])
+
+    def setParameters(self, params):
+        """Set the parameters of the model, typically provided by an interpolator.
+
+        :param params:  A numpy array of the model parameters
+        """
+        sigma, g1, g2 = params
+        self.sigma = sigma
+        self.shape = galsim.Shear(g1=g1,g2=g2)
+

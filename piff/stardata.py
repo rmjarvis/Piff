@@ -25,7 +25,7 @@ class StarData(object):
     This includes:
       - a postage stamp of the imaging data
       - the weight map for these pixels (zero weight means the pixel is masked or otherwise bad)
-      - the position of the star on the chip
+      - the position of the star on the image
       - the position of the star in the full field-of-view (local tangent plane projection)
       - possibly extra information, such as colors
 
@@ -59,7 +59,7 @@ class StarData(object):
     rather just some position in image coordinates to use as the origin of the model.
 
     :param image:       A postage stamp image that includes the star
-    :param image_pos:   The position in chip coordinates to use as the "center" of the star.
+    :param image_pos:   The position in image coordinates to use as the "center" of the star.
                         Note: this does not have to be the centroid or anything specific about the
                         star.  It is merely the image position of the (0,0) coordinate for the
                         model's internal coordinate system.
@@ -92,20 +92,7 @@ class StarData(object):
             self.properties = properties
 
         self.pointing = pointing
-        # Calculate the field_pos, the position in the fov coordinates
-        if pointing is None:
-            if image.wcs.isCelestial():
-                raise AttributeError("If the image uses a CelestialWCS then pointing is required.")
-            self.field_pos = image.wcs.toWorld(image_pos)
-        else:
-            if not image.wcs.isCelestial():
-                raise AttributeError("Cannot provide pointing unless the image uses a CelestialWCS")
-            self.sky_pos = image.wcs.toWorld(image_pos)
-            self.field_pos = pointing.project(self.sky_pos)
-            if 'ra' not in self.properties:
-                self.properties['ra'] = self.sky_pos.ra
-            if 'dec' not in self.properties:
-                self.properties['dec'] = self.sky_pos.dec
+        self.field_pos = self.calculateFieldPos(image_pos, image.wcs, pointing, self.properties)
 
         # Make sure the user didn't provide their own x,y,u,v in properties.
         for key in ['x', 'y', 'u', 'v']:
@@ -117,13 +104,45 @@ class StarData(object):
         self.properties['u'] = self.field_pos.x
         self.properties['v'] = self.field_pos.y
 
+    @staticmethod
+    def calculateFieldPos(image_pos, wcs, pointing, properties=None):
+        """
+        Convert from image coordinates to field coordinates.
+
+        :param image_pos:   The position in image coordinates.
+        :param wcs:         The wcs to use to connect image coordinates with sky coordinates:
+        :param pointing:    A galsim.CelestialCoord representing the pointing coordinate of the
+                            exposure.  This is required if image.wcs is a CelestialWCS, but should
+                            be None if image.wcs is a EuclideanWCS. [default: None]
+        :param properties:  If properties is provided, and the wcs is a CelestialWCS, then add
+                            'ra', 'dec' properties based on the sky coordinates. [default: None]
+        """
+        # Calculate the field_pos, the position in the fov coordinates
+        if pointing is None:
+            if wcs.isCelestial():
+                raise AttributeError("If the image uses a CelestialWCS then pointing is required.")
+            return wcs.toWorld(image_pos)
+        else:
+            if not wcs.isCelestial():
+                raise AttributeError("Cannot provide pointing unless the image uses a CelestialWCS")
+            sky_pos = wcs.toWorld(image_pos)
+            if properties is not None:
+                if 'ra' not in properties:
+                    properties['ra'] = sky_pos.ra
+                if 'dec' not in properties:
+                    properties['dec'] = sky_pos.dec
+            return pointing.project(sky_pos)
+
     def __getitem__(self, key):
         """Get a property of the star.
-
 
         This may be one of the values in the properties dict that was given when the object
         was initialized, or one of 'x', 'y', 'u', 'v', where x,y are the position in image
         coordinates and u,v are teh position in field coordinates.
+
+        :param key:     The name of the property to return
+
+        :returns: the value of the given property.
         """
         return self.properties[key]
 
@@ -133,7 +152,7 @@ class StarData(object):
         Also returns the weight image and the origin position (the position in x,y coordinates
         to use as the origin of the PSF model).
 
-        :returns: image, weight, origin
+        :returns: image, weight, image_pos
         """
         return self.image, self.weight, self.image_pos
 

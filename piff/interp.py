@@ -53,6 +53,16 @@ def process_interp(config, logger=None):
 class Interp(object):
     """The base class for interpolating a set of data vectors across the field of view.
 
+    In general, the interpolator is agnostic as to the meaning of the parameter vectors.
+    These parameter vectors are passed as simple numpy arrays.  They are imbued meaning by
+    a Model instance.  Thus, the same interpolators may be used with many different Model
+    types.
+
+    The principal ways that interpolators will differ are
+
+    1. Which properties of the star are used for ther interpolation
+    2. What functional form (or algorithm) is used to interpolate between measurements.
+
     This is essentially an abstract base class intended to define the methods that should be
     implemented by any derived class.
     """
@@ -70,28 +80,68 @@ class Interp(object):
         """
         return config_interp
 
-    def fitData(self, data, pos):
-        """Fit for the interpolation coefficients given some data.
+    def getStarPosition(self, star):
+        """Extract the appropriate information out of a StarData object to create some sort
+        of position object.
 
-        :param data:        A list of lists of data vectors (numpy arrays) for each star
-        :param pos:         A list of lists of positions of the stars
+        The base class implementation returns the field position (u,v) as numpy.array.
+        The returned object will only be used by the Interp instance, so it may define this to
+        be whatever type is appropriate for its interpolation scheme.
+
+        :param star:        A StarData instances from which to extract the relevant properties.
+
+        :returns: some kind of Position object; in the base class, a numpy.array instance.
         """
-        raise NotImplemented("Derived classes must define the fitData function")
+        return numpy.array([ star['u'], star['v'] ])
 
-    def getParameters(self):
-        """After fitting, get the parameter describing the shape of the PSF variation across the field
+    def getTargetPosition(self, image_pos, wcs, pointing, properties):
+        """Get an appropriate position to use for an interpolation target.
 
-        :returns:  A sequence of parameters depending on the interpolation model
+        The base class implementation returns the field position corresponding to a given
+        image position.
+
+        :param image_pos:   The position in chip coordinates to use as the target location.
+        :param wcs:         The wcs to use to connect image coordinates with sky coordinates.
+        :param pointing:    A galsim.CelestialCoord representing the pointing coordinate of the
+                            exposure.  This is required if wcs is a CelestialWCS, but should
+                            be None if wcs is a EuclideanWCS. [default: None]
+        :param properties:  A dict containing other properties that the interpolator needs to
+                            perform the interpolation. [default: None]
+
+        :returns: the same kind of Position object that getStarPosition returns.
         """
-        raise NotImplemented("Derived classes must define the fitData function")
+        field_pos = piff.StarData.calculateFieldPos(image_pos, wcs, pointing)
+        return numpy.array([ field_pos.x, field_pos.y ])
 
-    def interpolate(self, image_num, pos):
-        """Perform the interpolation to find the interpolated data vector at some position in
-        some image.
+    def solve(self, pos, vectors, logger=None):
+        """Solve for the interpolation coefficients given some data.
 
-        :param image_num:   The index of the image in the original list of data vectors.
+        :param pos:         A list of positions to use for the interpolation.
+        :param vectors:     A list of parameter vectors (numpy arrays) for each star.
+        :param logger:      A logger object for logging debug info. [default: None]
+        """
+        raise NotImplemented("Derived classes must define the solve function")
+
+    def interpolate(self, pos, logger=None):
+        """Perform the interpolation to find the interpolated parameter vector at some position.
+
         :param pos:         The position to which to interpolate.
+        :param logger:      A logger object for logging debug info. [default: None]
 
-        :returns: the data vector (a numpy array) interpolated to the given position.
+        :returns: the parameter vector (a numpy array) interpolated to the given position.
         """
         raise NotImplemented("Derived classes must define the interpolate function")
+
+    def interpolateList(self, pos_list, logger=None):
+        """Perform the interpolation for a list of positions.
+
+        The base class just calls interpolate(pos) for each position in the list, but in many
+        cases, this may be more efficiently done with a matrix operation, so we make it
+        available for derived classes to override.
+
+        :param pos_list:    A list (or numpy.array) of positions to which to interpolate.
+        :param logger:      A logger object for logging debug info. [default: None]
+
+        :returns: a numpy array of parameter vectors for the given positions.
+        """
+        return numpy.array([ self.interpolate(pos) for pos in pos_list ])

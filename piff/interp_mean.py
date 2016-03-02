@@ -21,33 +21,31 @@ from __future__ import print_function
 from .interp import Interp
 
 class Mean(Interp):
-    """The simplest possible interpolation scheme.  It just finds the mean of the data
-    and uses that at every position.
+    """The simplest possible interpolation scheme.  It just finds the mean of the parameter
+    vectors and uses that at every position.
     """
     def __init__(self):
         pass
 
-    def fitData(self, data, pos):
-        """Fit for the interpolation coefficients given some data.
+    def solve(self, pos, vectors, logger=None):
+        """Solve for the interpolation coefficients given some data.
 
-        Here the "fit" is just the mean.
+        Here the "solution" is just the mean.
 
-        :param data:        A list of lists of data vectors (numpy arrays) for each star
-        :param pos:         A list of lists of positions of the stars
+        :param pos:         A list of positions to use for the interpolation.
+        :param vectors:     A list of parameter vectors (numpy arrays) for each star.
+        :param logger:      A logger object for logging debug info. [default: None]
         """
         import numpy
-        self.mean = numpy.mean(data, axis=(0,1))
+        self.mean = numpy.mean(vectors, axis=0)
 
-    def getParameters(self):
-        return [self.mean]
+    def interpolate(self, pos, logger=None):
+        """Perform the interpolation to find the interpolated parameter vector at some position.
 
-    def interpolate(self, image_num, pos):
-        """Perform the interpolation to find the interpolated data vector at some position in
-        some image.
-
-        :param image_num:   The index of the image in the original list of data vectors.
         :param pos:         The position to which to interpolate.
+        :param logger:      A logger object for logging debug info. [default: None]
 
-        :returns: the data vector (a numpy array) interpolated to the given position.
+        :returns: the parameter vector (a numpy array) interpolated to the given position.
         """
         return self.mean
+

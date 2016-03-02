@@ -35,9 +35,12 @@ def test_Gaussian():
     # This is only going to come out right if we (unphysically) don't convolve by the pixel.
     psf.drawImage(image, method='no_pixel')
 
+    # Make a StarData instance for this image
+    star = piff.StarData(image, image.center())
+
     # Fit the model from the image
     model = piff.Gaussian()
-    model.fitImage(image)
+    model.fitStar(star)
 
     print('True sigma = ',sigma,', model sigma = ',model.sigma)
     print('True e1 = ',e1,', model e1 = ',model.shape.e1)
@@ -57,7 +60,7 @@ def test_Gaussian():
     }
     logger = piff.config.setup_logger()
     model = piff.process_model(config, logger)
-    model.fitImage(image)
+    model.fitStar(star)
 
     # Same tests.
     numpy.testing.assert_almost_equal(sigma, model.sigma, decimal=7)
@@ -70,20 +73,19 @@ def test_Mean():
     even qualifies as doing any kind of interpolating.  But it tests the basic glue software.
     """
     import numpy
-    # Make a list of data vectors to "interpolate"
+    # Make a list of paramter vectors to "interpolate"
     numpy.random.seed(123)
     nstars = 100
-    nchips = 10
-    data = [ [ numpy.random.random(10) for i in range(nstars) ] for j in range(nchips) ]
-    mean = numpy.mean(data, axis=(0,1))
+    vectors = [ numpy.random.random(10) for i in range(nstars) ]
+    mean = numpy.mean(vectors, axis=0)
 
-    # Give each data vector a position
-    pos = [ [ galsim.PositionD(numpy.random.random()*2048, numpy.random.random()*2048)
-              for i in range(nstars) ] for j in range(nchips) ]
+    # Give each parameter vector a position
+    pos = [ galsim.PositionD(numpy.random.random()*2048, numpy.random.random()*2048)
+            for i in range(nstars) ]
 
     # Use the piff.Mean interpolator
     interp = piff.Mean()
-    interp.fitData(data, pos)
+    interp.solve(pos, vectors)
 
     print('True mean = ',mean)
     print('Interp mean = ',interp.mean)
@@ -100,7 +102,7 @@ def test_Mean():
     }
     logger = piff.config.setup_logger()
     interp = piff.process_interp(config, logger)
-    interp.fitData(data, pos)
+    interp.solve(pos, vectors)
     numpy.testing.assert_almost_equal(mean, interp.mean)
 
 
