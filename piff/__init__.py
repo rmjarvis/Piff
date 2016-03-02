@@ -74,11 +74,11 @@ from config import piffify
 
 # Models
 from model import Model, process_model
-from model_gaussian import Gaussian
+from gaussian_model import Gaussian
 
 # Interpolators
 from interp import Interp, process_interp
-from interp_mean import Mean
+from mean_interp import Mean
 
 # Inputs
 from input import InputHandler, process_input, InputFiles
