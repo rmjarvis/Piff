@@ -86,3 +86,6 @@ from stardata import StarData
 
 # Outputs
 from output import OutputHandler, process_output, OutputFile
+
+# PSF
+from psf import PSF

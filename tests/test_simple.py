@@ -212,12 +212,10 @@ def test_single_image():
     logger = piff.config.setup_logger()
     stars = piff.process_input(config, logger)
 
-    vectors = [ model.fitStar(star).getParameters() for star in stars ]
-    pos = [ interp.getStarPosition(star) for star in stars ]
-    interp.solve(pos, vectors)
-    test_params = interp.interpolate(target)
+    # Use the PSF builder to process the stars data this time.
+    psf = piff.PSF.build(stars, model, interp, logger)
+    test_params = psf.interp.interpolate(target)
     numpy.testing.assert_almost_equal(test_params, true_params, decimal=5)
-
 
 if __name__ == '__main__':
     test_Gaussian()
