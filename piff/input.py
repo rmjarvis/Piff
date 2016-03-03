@@ -140,9 +140,9 @@ class InputHandler(object):
 class InputFiles(InputHandler):
     """An InputHandler than just takes a list of image files and catalog files.
 
-    :param images:      Either a string (e.g. "some_dir/*.fits.fz") or a list of strings
+    :param images:      Either a string (e.g. ``some_dir/*.fits.fz``) or a list of strings
                         (e.g. ["file1.fits", "file2.fits"]) listing the image files to read.
-    :param cats:        Either a string (e.g. "some_dir/*.fits.fz") or a list of strings
+    :param cats:        Either a string (e.g. ``some_dir/*.fits.fz``) or a list of strings
                         (e.g. ["file1.fits", "file2.fits"]) listing the catalog files to read.
     :param x_col:       The name of the X column in the input catalogs. [default: 'x']
     :param y_col:       The name of the Y column in the input catalogs. [default: 'y']
