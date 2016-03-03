@@ -26,7 +26,7 @@ class Mean(Interp):
     vectors and uses that at every position.
     """
     def __init__(self):
-        pass
+        self.kwargs = {}
 
     def solve(self, pos, vectors, logger=None):
         """Solve for the interpolation coefficients given some data.
@@ -48,4 +48,24 @@ class Mean(Interp):
         :returns: the parameter vector (a numpy array) interpolated to the given position.
         """
         return self.mean
+
+    def writeSolution(self, fits, extname):
+        """Read the solution from a FITS binary table.
+
+        :param fits:        An open fitsio.FITS object.
+        :param extname:     The name of the extension with the interp information.
+        """
+        cols = [ self.mean ]
+        dtypes = [ ('mean', float) ]
+        data = numpy.array(zip(*cols), dtype=dtypes)
+        fits.write_table(data, extname=extname)
+
+    def readSolution(self, fits, extname):
+        """Read the solution from a FITS binary table.
+
+        :param fits:        An open fitsio.FITS object.
+        :param extname:     The name of the extension with the interp information.
+        """
+        data = fits[extname].read()
+        self.mean = data['mean']
 

@@ -68,37 +68,53 @@ class OutputHandler(object):
         """
         return config_output
 
-    def write(self, psf):
+    def write(self, psf, logger=None):
         """Write a PSF object to the output file.
+
+        :param psf:         A piff.PSF instance
+        :param logger:      A logger object for logging debug info. [default: None]
         """
         raise NotImplemented("Derived classes must define the write function")
 
-    def read(self):
+    def read(self, logger=None):
         """Read a PSF object that was written to an output file back in.
+
+        :param logger:      A logger object for logging debug info. [default: None]
 
         :returns: a piff.PSF instance
         """
         raise NotImplemented("Derived classes must define the read function")
 
 
+# Note: I'm having a hard time imagining what other kinds of output handlers we'd want
+#       here, so this whole idea of an OutputHandler might be overkill.  For now, I'm
+#       keeping the code for writing and reading PSF objects to a file in the PSF class,
+#       so this class is really bare-bones, just farming out the work to PSF.
 class OutputFile(OutputHandler):
     """An OutputHandler that just writes to a FITS file.
 
     :param file_name:   The file name to write the data to.
+    :param logger:      A logger object for logging debug info. [default: None]
     """
-    def __init__(self, file_name):
+    def __init__(self, file_name, logger=None):
         self.file_name = file_name
 
-
-    def write(self, psf):
+    def write(self, psf, logger=None):
         """Write a PSF object to the output file.
-        """
-        open(self.file_name, 'w').write(str(psf))
 
-    def read(self):
+        :param psf:         A piff.PSF instance
+        :param logger:      A logger object for logging debug info. [default: None]
+        """
+        if logger:
+            logger.info("Writing PSF to %s", file_name)
+        psf.write(self.file_name)
+
+    def read(self, logger=None):
         """Read a PSF object that was written to an output file back in.
+
+        :param logger:      A logger object for logging debug info. [default: None]
 
         :returns: a piff.PSF instance
         """
-        pass
+        piff.PSF.read(self.file_name)
 

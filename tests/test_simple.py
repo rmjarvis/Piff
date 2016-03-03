@@ -217,6 +217,16 @@ def test_single_image():
     test_params = psf.interp.interpolate(target)
     numpy.testing.assert_almost_equal(test_params, true_params, decimal=5)
 
+    # Round trip to a file
+    psf_file = os.path.join('data','simple_psf.fits')
+    psf.write(psf_file, logger)
+    psf = piff.PSF.read(psf_file, logger)
+    assert type(psf.model) is piff.Gaussian
+    assert type(psf.interp) is piff.Mean
+    test_params = psf.interp.interpolate(target, logger)
+    numpy.testing.assert_almost_equal(test_params, true_params, decimal=5)
+
+
 if __name__ == '__main__':
     test_Gaussian()
     test_Mean()

@@ -111,6 +111,8 @@ class Interp(object):
 
         :returns: the same kind of Position object that getStarPosition returns.
         """
+        import piff
+
         field_pos = piff.StarData.calculateFieldPos(image_pos, wcs, pointing)
         return numpy.array([ field_pos.x, field_pos.y ])
 
@@ -146,3 +148,117 @@ class Interp(object):
         :returns: a numpy array of parameter vectors for the given positions.
         """
         return numpy.array([ self.interpolate(pos) for pos in pos_list ])
+
+    def write(self, fits, extname):
+        """Write an Interp to a FITS file.
+
+        Note: this only writes the initialization kwargs to the fits extension, not the parameters.
+
+        The base class implemenation works if the class has a self.kwargs attribute and these
+        are all simple values (str, float, or int).
+
+        However, the derived class will need to implement writeSolution to write the solution
+        parameters to a binary table.
+
+        :param fits:        An open fitsio.FITS object
+        :param extname:     The name of the extension to write the interp information.
+        """
+        # TODO: The I/O routines for Model and Interp share a lot of code.  Probably could move
+        #       a lot of it into utility functions that both of them call.
+
+        # First write the basic kwargs
+        # Start with 'type', since that always needs to be in the table.
+        interp_type = self.__class__.__name__
+        cols = [ [interp_type] ]
+        dtypes = [ ('type', str, len(interp_type) ) ]
+        for key, value in self.kwargs.items():
+            t = type(value)
+            dt = numpy.dtype(t) # just used to categorize the type into int, float, str
+            if dt.kind in numpy.typecodes['AllInteger']:
+                i = int(value)
+                dtypes.append( (key, int) )
+                cols.append([i])
+            elif dt.kind in numpy.typecodes['AllFloat']:
+                f = float(value)
+                dtypes.append( (key, float) )
+                cols.append([f])
+            else:
+                s = str(value)
+                dtypes.append( (key, str, len(s)) )
+                cols.append([s])
+        data = numpy.array(zip(*cols), dtype=dtypes)
+        fits.write_table(data, extname=extname)
+
+        # Now write the solution parameters
+        self.writeSolution(fits, extname + '_solution')
+
+    def writeSolution(self, fits, extname):
+        """Write the solution parameters to a FITS file.
+
+        :param fits:        An open fitsio.FITS object
+        :param extname:     The name of the extension to write the solution.
+        """
+        raise NotImplemented("Derived classes must define the writeSolution function")
+
+    @classmethod
+    def readKwargs(cls, fits, extname):
+        """Read the kwargs from the data in a FITS binary table.
+
+        The base class implementation just reads each value in the table and uses the column
+        name for the name of the kwarg.  However, derived classes may want to do something more
+        sophisticated.  Also, they may want to read other extensions from the fits file
+        besides just extname.
+
+        :param fits:        An open fitsio.FITS object.
+        :param extname:     The name of the extension with the interp information.
+
+        :returns: a kwargs dict to use to initialize the interp
+        """
+        cols = fits[extname].get_colnames()
+        # Remove 'type'
+        assert 'type' in cols
+        cols = [ col for col in cols if col != 'type' ]
+
+        data = fits[extname].read()
+        assert len(data) == 1
+        kwargs = dict([ (col, data[col][0]) for col in cols ])
+        return kwargs
+
+    @classmethod
+    def read(cls, fits, extname):
+        """Read an Interp from a FITS file.
+
+        :param fits:        An open fitsio.FITS object
+        :param extname:     The name of the extension with the interp information.
+
+        :returns: an interpolator built with a information in the FITS file.
+        """
+        import piff
+
+        assert extname in fits
+        assert 'type' in fits[extname].get_colnames()
+        assert 'type' in fits[extname].read().dtype.names
+        # interp_type = fits[extname].read_column('type')
+        interp_type = fits[extname].read()['type']
+        assert len(interp_type) == 1
+        interp_type = interp_type[0]
+
+        # Check that interp_type is a valid Interp type.
+        valid_interp_types = dict([ (cls.__name__, cls) for cls in piff.Interp.__subclasses__() ])
+        if interp_type not in valid_interp_types:
+            raise ValueError("interp type %s is not a valid Piff Interp")
+        interp_cls = valid_interp_types[interp_type]
+
+        kwargs = interp_cls.readKwargs(fits, extname)
+        interp = interp_cls(**kwargs)
+        interp.readSolution(fits, extname + '_solution')
+        return interp
+
+    def readSolution(self, fits, extname):
+        """Read the solution from a FITS binary table.
+
+        :param fits:        An open fitsio.FITS object.
+        :param extname:     The name of the extension with the interp information.
+        """
+        raise NotImplemented("Derived classes must define the readSolution function")
+

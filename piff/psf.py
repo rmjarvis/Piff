@@ -83,9 +83,13 @@ class PSF(object):
         :param file_name:   The name of the file to write to.
         :param logger:      A logger object for logging debug info. [default: None]
         """
+        import fitsio
         if logger:
             logger.info("Writing PSF to file %s",file_name)
-        open(self.file_name, 'w').write(str(psf))
+
+        with fitsio.FITS(file_name,'rw',clobber=True) as f:
+            self.model.write(f, extname='model')
+            self.interp.write(f, extname='interp')
 
     @classmethod
     def read(cls, file_name, logger=None):
@@ -96,5 +100,20 @@ class PSF(object):
 
         :returns: a PSF instance
         """
-        raise NotImplemented()
+        import fitsio
+        import piff
+        if logger:
+            logger.info("Reading PSF from file %s",file_name)
+
+        with fitsio.FITS(file_name,'r') as f:
+            if logger:
+                logger.debug('opened FITS file')
+            model = piff.Model.read(f, 'model')
+            if logger:
+                logger.debug("model = %s",model)
+            interp = piff.Interp.read(f, 'interp')
+            if logger:
+                logger.debug("interp = %s",interp)
+        return cls(model,interp)
+
 

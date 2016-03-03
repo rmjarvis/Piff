@@ -25,7 +25,7 @@ class Gaussian(Model):
     """An extremely simple PSF model that just considers the PSF as a sheared Gaussian.
     """
     def __init__(self):
-        pass
+        self.kwargs = {}
 
 
     def fitStar(self, star):
