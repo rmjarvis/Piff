@@ -226,6 +226,17 @@ def test_single_image():
     test_params = psf.interp.interpolate(target, logger)
     numpy.testing.assert_almost_equal(test_params, true_params, decimal=5)
 
+    # Do the whole thing with the config parser
+    os.remove(psf_file)
+    config['model'] = { 'type' : 'Gaussian' }
+    config['interp'] = { 'type' : 'Mean' }
+    config['output'] = { 'file_name' : psf_file }
+
+    piff.piffify(config)
+    psf = piff.PSF.read(psf_file)
+    test_params = psf.interp.interpolate(target)
+    numpy.testing.assert_almost_equal(test_params, true_params, decimal=5)
+
 
 if __name__ == '__main__':
     test_Gaussian()
