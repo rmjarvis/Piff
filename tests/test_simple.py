@@ -222,7 +222,7 @@ def test_single_image():
     numpy.testing.assert_almost_equal(test_params, true_params, decimal=5)
 
     # Round trip to a file
-    psf_file = os.path.join('data','simple_psf.fits')
+    psf_file = os.path.join('output','simple_psf.fits')
     psf.write(psf_file, logger)
     psf = piff.PSF.read(psf_file, logger)
     assert type(psf.model) is piff.Gaussian
