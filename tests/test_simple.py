@@ -17,7 +17,11 @@ import galsim
 import numpy
 import piff
 import os
+import subprocess
+import yaml
 import fitsio
+
+from test_helper import get_script_name
 
 def test_Gaussian():
     """This is about the simplest possible model I could think of.  It just uses the
@@ -233,6 +237,17 @@ def test_single_image():
     config['output'] = { 'file_name' : psf_file }
 
     piff.piffify(config)
+    psf = piff.PSF.read(psf_file)
+    test_params = psf.interp.interpolate(target)
+    numpy.testing.assert_almost_equal(test_params, true_params, decimal=5)
+
+    # Finally, test using the piffify executable
+    os.remove(psf_file)
+    with open('simple.yaml','w') as f:
+        f.write(yaml.dump(config, default_flow_style=False))
+    piffify_exe = get_script_name('piffify')
+    p = subprocess.Popen( [piffify_exe, 'simple.yaml'] )
+    p.communicate()
     psf = piff.PSF.read(psf_file)
     test_params = psf.interp.interpolate(target)
     numpy.testing.assert_almost_equal(test_params, true_params, decimal=5)

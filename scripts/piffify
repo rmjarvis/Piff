@@ -45,7 +45,7 @@ def parse_args():
             help='additional variables or modifications to variables in the config file. ' +
             'e.g. `piffify psf.params interp.order=3`')
     parser.add_argument(
-            '-v', '--verbosity', type=int, action='store', default=None, choices=(0, 1, 2, 3),
+            '-v', '--verbosity', type=int, action='store', default=0, choices=(0, 1, 2, 3),
             help='integer verbosity level: min=0, max=3 [default=1]')
     parser.add_argument(
             '-l', '--log_file', type=str, action='store', default=None,

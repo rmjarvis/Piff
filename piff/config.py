@@ -95,6 +95,10 @@ def piffify(config, logger=None):
     :param logger:      A logger object for logging progress. [default: None]
     """
     import piff
+    import copy
+
+    # Make a copy to make sure we don't change the original.
+    config = copy.deepcopy(config)
 
     if logger is None:
         logger = setup_logger(verbosity=0)
