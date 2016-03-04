@@ -325,3 +325,8 @@ class FocalStats(HSM):
             z_av = field['z'].values
 
         return x_av, y_av, z_av
+
+
+#TODO: Fill this out using decamutil
+def convert_pixel_to_mm(xpix, ypix, ext):
+    pass
