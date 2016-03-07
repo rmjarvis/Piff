@@ -15,6 +15,11 @@
 
 """
 .. module:: stats
+
+
+TODO: Rewrite the Stats object below to use the PSF class as base class. Then,
+when you do the statistics, add in an additional Gaussian model that takes the
+interpolated images and measures the moments.
 """
 
 from __future__ import print_function
