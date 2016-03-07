@@ -9,7 +9,7 @@
 #    list of conditions and the disclaimer given in the accompanying LICENSE
 #    file.
 # 2. Redistributions in binary form must reproduce the above copyright notice,
-#    this list of conditions and the following disclaimer in the documentation
+#    this list of conditions and the disclaimer given in the documentation
 #    and/or other materials provided with the distribution.
 
 """
@@ -73,7 +73,7 @@ def parse_variables(config, variables, logger):
             # Use YAML parser to evaluate the string in case it is a list for instance.
             value = yaml.load(value)
         except:
-            logger.debug('Unable to parse %s.  Treating it as a string.'%value)
+            logger.debug('Unable to parse %s.  Treating it as a string.',value)
         config[key] = value
 
 
@@ -88,38 +88,38 @@ def read_config(file_name):
     return config
 
 
-def piffify(config, logger):
+def piffify(config, logger=None):
     """Build a Piff model according to the specifications in a config dict.
 
     :param config:      The configuration file that defines how to build the model
-    :param logger:      A logger object for logging progress
+    :param logger:      A logger object for logging progress. [default: None]
     """
     import piff
+    import copy
+
+    # Make a copy to make sure we don't change the original.
+    config = copy.deepcopy(config)
+
+    if logger is None:
+        logger = setup_logger(verbosity=0)
 
     for key in ['input', 'output', 'model', 'interp']:
         if key not in config:
             raise ValueError("%s field is required in config dict"%key)
 
     # read in the input images
-    images, stars = piff.process_input(config, logger)
+    stars = piff.process_input(config, logger=logger)
 
     # make a Model object to use for the individual stellar fitting
-    model = piff.process_model(config, logger)
+    model = piff.process_model(config, logger=logger)
 
     # make an Interp object to use for the interpolation
-    interp = piff.process_interp(config, logger)
-
-    # if given, make a Optics object to use as the prior information about the optics.
-    if 'optics' in config:
-        optics = piff.process_optics(config, logger)
-    else:
-        optics = None
+    interp = piff.process_interp(config, logger=logger)
 
     # build the PSF model
-    psf = build_psf(images=images, stars=stars, model=model, interp=interp, optics=optics,
-                    logger=logger)
+    psf = piff.PSF.build(stars=stars, model=model, interp=interp, logger=logger)
 
     # write it out to a file
-    output = piff.process_output(config, logger)
+    output = piff.process_output(config, logger=logger)
     output.write(psf)
 

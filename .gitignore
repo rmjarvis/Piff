@@ -63,3 +63,10 @@ target/
 
 # Vim swap files
 .*.swp
+
+# Sphinx documentation is in gh-pages directory on my Mac.
+# It's really another repo, not part of this one, so don't include it in this repo.
+# cf. http://raxcloud.blogspot.com/2013/02/documenting-python-code-using-sphinx.html
+# for instructions about how to set this up.  (Although now that it's been set up once,
+# just do `git checkout gh-pages` in that directory, not --orphan.)
+gh-pages
