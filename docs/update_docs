@@ -1,0 +1,5 @@
+# cf. http://raxcloud.blogspot.com/2013/02/documenting-python-code-using-sphinx.html
+
+make clean
+make html
+echo "Don't forget to go to gh-pages directory and push the changes"

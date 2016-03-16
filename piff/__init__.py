@@ -9,7 +9,7 @@
 #    list of conditions and the disclaimer given in the accompanying LICENSE
 #    file.
 # 2. Redistributions in binary form must reproduce the above copyright notice,
-#    this list of conditions and the following disclaimer in the documentation
+#    this list of conditions and the disclaimer given in the documentation
 #    and/or other materials provided with the distribution.
 
 """
@@ -28,7 +28,8 @@ conditions are met:
    list of conditions and the disclaimer given in the accompanying LICENSE
    file.
 2. Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
+   this list of conditions and the following disclaimer and/or other materials
+   provided with the distribution.
 
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -71,15 +72,22 @@ if False:
 # Import things from the other files that we want in the piff namespace
 from config import piffify
 
+# Models
 from model import Model, process_model
-from model_gaussian import Gaussian
+from gaussian_model import Gaussian
 
+# Interpolators
 from interp import Interp, process_interp
-from interp_mean import Mean
+
+from mean_interp import Mean
 from interp_polynomial import Polynomial
 
-from input import InputHandler, process_input
-from output import OutputHandler, process_output
+# Inputs
+from input import InputHandler, process_input, InputFiles
+from stardata import StarData
 
-from input import InputFiles
-from output import OutputFile
+# Outputs
+from output import OutputHandler, process_output, OutputFile
+
+# PSF
+from psf import PSF

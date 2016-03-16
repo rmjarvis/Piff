@@ -9,7 +9,7 @@
 #    list of conditions and the disclaimer given in the accompanying LICENSE
 #    file.
 # 2. Redistributions in binary form must reproduce the above copyright notice,
-#    this list of conditions and the following disclaimer in the documentation
+#    this list of conditions and the disclaimer given in the documentation
 #    and/or other materials provided with the distribution.
 
 """
@@ -73,7 +73,7 @@ def parse_variables(config, variables, logger):
             # Use YAML parser to evaluate the string in case it is a list for instance.
             value = yaml.load(value)
         except:
-            logger.debug('Unable to parse %s.  Treating it as a string.'%value)
+            logger.debug('Unable to parse %s.  Treating it as a string.',value)
         config[key] = value
 
 
@@ -87,81 +87,39 @@ def read_config(file_name):
         config = yaml.load(fin.read())
     return config
 
-def build_psf(images, stars, model, interp, optics,logger):
-    """The main workhorse, which build the PSF.
 
-    :param images: A list of full exposure images
-    :param stars: A list of lists of galsim.PositionD objects with star positions.
-    :param model: An instance of a Model subclass
-    :param interp: An instance of an Interp subclass
-    :param optics: An instance of an Optics subclass (maybe None)
-    :param logger: A python logging.Logger object
-    """
-    import galsim
-    #Get the star cutout images out if the full images
-    #Fit the model to each of them
-    parameters = []
-    print("Will be analyzing {} images and {} stars".format(len(images), len(stars)))
-    for (image, star_positions) in zip(images, stars):
-        #We will for the moment just separately analyze each image.
-        #So these are the parameters of all the stars for this image
-        image_parameters = []
-        for star_position in star_positions:
-
-            #Get the cutout for a particular star
-            #Box size chosen arbitrarily
-            xs = int(star_position.x)
-            ys = int(star_position.y)
-            bounds = galsim.BoundsI(xs-16,xs+16,ys-16,ys+16)
-            cutout = image[bounds]
-        
-            #Fit this star image
-            model.fitImage(cutout)
-
-            #Get the fitted parameters
-            params = model.getParameters()
-            image_parameters.append(params)
-
-        #Use the interpolator to fit this model
-        interp.fitData(image_parameters, star_positions)
-        
-        #accumulate the parameters for output
-        parameters.append(interp.getParameters())
-
-    return parameters
-
-def piffify(config, logger):
+def piffify(config, logger=None):
     """Build a Piff model according to the specifications in a config dict.
 
     :param config:      The configuration file that defines how to build the model
-    :param logger:      A logger object for logging progress
+    :param logger:      A logger object for logging progress. [default: None]
     """
     import piff
+    import copy
+
+    # Make a copy to make sure we don't change the original.
+    config = copy.deepcopy(config)
+
+    if logger is None:
+        logger = setup_logger(verbosity=0)
 
     for key in ['input', 'output', 'model', 'interp']:
         if key not in config:
             raise ValueError("%s field is required in config dict"%key)
 
     # read in the input images
-    images, stars = piff.process_input(config, logger)
+    stars = piff.process_input(config, logger=logger)
 
     # make a Model object to use for the individual stellar fitting
-    model = piff.process_model(config, logger)
+    model = piff.process_model(config, logger=logger)
 
     # make an Interp object to use for the interpolation
-    interp = piff.process_interp(config, logger)
-
-    # if given, make a Optics object to use as the prior information about the optics.
-    if 'optics' in config:
-        optics = piff.process_optics(config, logger)
-    else:
-        optics = None
+    interp = piff.process_interp(config, logger=logger)
 
     # build the PSF model
-    psf = build_psf(images=images, stars=stars, model=model, interp=interp, optics=optics,
-                    logger=logger)
+    psf = piff.PSF.build(stars=stars, model=model, interp=interp, logger=logger)
 
     # write it out to a file
-    output = piff.process_output(config, logger)
+    output = piff.process_output(config, logger=logger)
     output.write(psf)
 

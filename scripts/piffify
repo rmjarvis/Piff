@@ -10,7 +10,7 @@
 #    list of conditions and the disclaimer given in the accompanying LICENSE
 #    file.
 # 2. Redistributions in binary form must reproduce the above copyright notice,
-#    this list of conditions and the following disclaimer in the documentation
+#    this list of conditions and the disclaimer given in the documentation
 #    and/or other materials provided with the distribution.
 
 from __future__ import print_function
@@ -45,7 +45,7 @@ def parse_args():
             help='additional variables or modifications to variables in the config file. ' +
             'e.g. `piffify psf.params interp.order=3`')
     parser.add_argument(
-            '-v', '--verbosity', type=int, action='store', default=None, choices=(0, 1, 2, 3),
+            '-v', '--verbosity', type=int, action='store', default=0, choices=(0, 1, 2, 3),
             help='integer verbosity level: min=0, max=3 [default=1]')
     parser.add_argument(
             '-l', '--log_file', type=str, action='store', default=None,
