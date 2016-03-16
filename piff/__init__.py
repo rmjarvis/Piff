@@ -80,7 +80,7 @@ from gaussian_model import Gaussian
 from interp import Interp, process_interp
 
 from mean_interp import Mean
-from interp_polynomial import Polynomial
+from polynomial_interp import Polynomial
 
 # Inputs
 from input import InputHandler, process_input, InputFiles
