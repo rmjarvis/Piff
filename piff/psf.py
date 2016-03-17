@@ -116,4 +116,34 @@ class PSF(object):
                 logger.debug("interp = %s",interp)
         return cls(model,interp)
 
+    def generate_image(self, position, image, logger=None):
+        """Generates pixel array for star given position and galsim Image
 
+        :param position:    Position we are interpolating to.
+        :param image:       Galsim Image object on which we draw
+        :param logger:      A logger object for logging debug info. [default: None]
+
+        :returns: a galsim image of the PSF
+        """
+
+        interpolated_params = self.interp.interpolate(position)
+        # set the parameters on the psf model, which gives a new model instance
+        interpolated_model = self.model.setParameters(interpolated_params)
+        # create the galsim image container on 64x64 grid with some wcs system
+        interpolated_image = interpolated_model.drawImage(image)
+        return interpolated_image
+
+    def generate_star(self, position, logger=None, **kwargs):
+        """Generates star given position and galsim Image
+
+        :param position:    Position we are interpolating to.
+        :param logger:      A logger object for logging debug info. [default: None]
+
+        :returns: a star
+        """
+        from .stardata import StarData
+        # TODO: not sure what to do about image? for now just make a random galsim image
+        import galsim
+        image = galsim.Image(32, 32)
+        return StarData(self.generate_image(position, image, logger=logger),
+                        position, logger=logger, **kwargs)

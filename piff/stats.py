@@ -16,15 +16,48 @@
 """
 .. module:: stats
 
+TODO: This should really be a PSF object where you now also give stars_test
 
 TODO: Rewrite the Stats object below to use the PSF class as base class. Then,
 when you do the statistics, add in an additional Gaussian model that takes the
 interpolated images and measures the moments.
+
+
+psf = piff.PSF.build(stars, model, interp, logger)
+# given list of positions, interpolate parameters
+interpolated_params = psf.interp.interpolate(position)
+# set the parameters on the psf model, which gives a new model instance
+interpolated_model = psf.model.setParameters(interpolated_params)
+# create the galsim image container on 64x64 grid with some wcs system
+interpolated_image = galsim.Image(64,64, wcs=wcs)
+# use the model to draw the image
+interpolated_image = interpolated_model.drawImage(interpolated_image)
+
+
+
+
+@cpadavis has started work on branch psf_stats building an analysis framework
+for testing how good a model is on a given set of data.
+
+This will simplify a lot of the analysis that has previously required several
+different pieces of software. It would be nice to be able to
+
+  build the PSF model
+  measure some aspects of the model and stars (e.g. size, e1, e2, maybe others)
+  compute some statistics of these (e.g. rho statistics)
+  plot the results
+
+all from within Piff. For now, I would focus on the path of information flow.
+Having a single choice for each step (e.g. hsm for measurements, rho1 and rho2
+for stats) is fine. Then once we settle on the design of this, we can work on
+adding more statistics and measurements that we might want.
+
 """
 
 from __future__ import print_function
-
 import numpy as np
+
+from .psf import PSF
 
 def process_stats(config, logger):
     """Parse the stats field of the config dict.
@@ -75,56 +108,61 @@ class Stats(object):
         """
         return config_stats
 
-    def stats(self, **kwargs):
+    def __init__(self, psf):
+        self.psf = psf
+
+    @classmethod
+    def build(cls, stars, model, interp, logger=None):
+        """The main driver function to build a Stats framework from data.
+
+        :param stars:       A list of StarData instances. Builds the PSF
+        :param model:       A Model instance that defines how to model the
+                            individual PSFs at the location of each star.
+        :param interp:      An Interp instance that defines how to do the
+                            interpolation of the data vectors (produced by
+                            model for each star).
+        :param logger:      A logger object for logging debug info.
+                            [default: None]
+
+        :returns: a Stats instance
+        """
+        # build PSF
+        psf = PSF.build(stars, model, interp, logger)
+        return cls(psf)
+
+    @classmethod
+    def read(cls, file_name, logger=None):
+        """Read a Stas object from a stats file.
+
+        :param file_name:   The name of the file to write to.
+        :param logger:      A logger object for logging debug info. [default: None]
+
+        :returns: a PSF instance
+        """
+        # read psf
+        psf = PSF.read(file_name, logger=logger)
+        return cls(psf)
+
+    def stats(self, stars, logger=None, **kwargs):
         """Perform your operation on the stars.
 
+        :param stars:       A list of StarData instances.
+        :param logger:      A logger object for logging debug info. [default: None]
         :params kwargs:     Potential other parameters we might need to input. Images, coordinates, et cetera.
 
         :returns:           Some kind of data vector.
         """
         raise NotImplemented("Derived classes must define the stats function")
 
-
-class HSM(Stats):
-    """Returns galsim hsm shapes and sizes
-    """
-
-    @staticmethod
-    def _hsm(image):
-        """Run the hsm algorithm
-
-        :param image:       Galsim Image to analyze
-
-        :returns: sigma, g1, g2 from hsm adaptive moments algorithm
-        """
-        import galsim
-        shape = galsim.hsm.FindAdaptiveMom(image)
-        return shape.moments_sigma, shape.observed_shape.g1, shape.observed_shape.g2
-
-    def stats(self, images, coordinates=None):
-        """Run the hsm algorithm on all the images
-
-        :param images:      Set of galsim images
-
-        :returns: (N,3) datavector of sigma, g1, g2
-
-        Note: doesn't use the coordinates parameter.
-        """
-        shapes = np.array([self._hsm(image) for image in images])
-
-        return shapes
-
-class RhoStatistics(HSM):
+class RhoStatistics(Stats):
     """Returns rho statistics using TreeCorr
     """
 
-    def stats(self, images, coordinates, images_truth,
+    def stats(self, stars,
               min_sep=1, max_sep=150, bin_size=0.1):
         """
 
-        :param images:              Set of galsim model images
-        :param images_truth:        Set of galsim true psf images
-        :param coordinates:         The coordinates used.
+        :param stars:               Stars
 
         :param min_sep:             Minimum separation (in arcmin) for pairs
         :param max_sep:             Maximum separation (in arcmin) for pairs
@@ -158,15 +196,23 @@ class RhoStatistics(HSM):
         or in other words that < e* de > -> xip - i xip_im
 
         """
+        from .gaussian_model import Gaussian
         import treecorr
 
-        # construct the shapes from the hsm algorithm
-        shapes_model = np.array([self._hsm(image) for image in images])
-        shapes_truth = np.array([self._hsm(image) for image in images_truth])
+        hsm = Gaussian()
+
+        # from stars get positions and images
+        positions = [ self.psf.interp.getStarPosition(star) for star in stars ]
+        # measure moments with Gaussian on image
+        shapes_truth = np.array([ hsm.fitStar(star).getParameters() for star in stars ])
+        stars_model = np.array([ self.psf.generate_star(position) for position in positions ])
+        # measure moments with Gaussian on interpolated model image
+        shapes_model = np.array([ hsm.fitStar(star).getParameters() for star in stars_model ])
 
         # define terms for the catalogs
-        ra = coordinates[:, 0]
-        dec = coordinates[:, 1]
+        # TODO: This is probably incorrect!!
+        ra = positions[:, 0]
+        dec = positions[:, 1]
         T = shapes_truth[:, 0]
         g1 = shapes_truth[:, 1]
         g2 = shapes_truth[:, 2]
