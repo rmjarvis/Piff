@@ -168,7 +168,8 @@ class RhoStatistics(Stats):
         xi.xim[k] += g1rg2r - g1ig2i;       // g1 * g2
         xi.xim_im[k] += g1ig2r + g1rg2i;
 
-        or in other words that < e* de > -> xip - i xip_im
+        so since we probably really want, e.g. 0.5 < e* de + de* e >, then we
+        can just use xip.
 
         """
         from .gaussian_model import Gaussian
@@ -176,10 +177,11 @@ class RhoStatistics(Stats):
 
         hsm = Gaussian()
 
-        # from stars get positions and images
-        positions = [ self.psf.interp.getStarPosition(star) for star in stars ]
         # measure moments with Gaussian on image
         shapes_truth = np.array([ hsm.fitStar(star).getParameters() for star in stars ])
+        # from stars get positions
+        positions = [ self.psf.interp.getStarPosition(star) for star in stars ]
+        # generate the model stars
         stars_model = np.array([ self.psf.generate_star(position) for position in positions ])
         # measure moments with Gaussian on interpolated model image
         shapes_model = np.array([ hsm.fitStar(star).getParameters() for star in stars_model ])
