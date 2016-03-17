@@ -16,42 +16,6 @@
 """
 .. module:: stats
 
-TODO: This should really be a PSF object where you now also give stars_test
-
-TODO: Rewrite the Stats object below to use the PSF class as base class. Then,
-when you do the statistics, add in an additional Gaussian model that takes the
-interpolated images and measures the moments.
-
-
-psf = piff.PSF.build(stars, model, interp, logger)
-# given list of positions, interpolate parameters
-interpolated_params = psf.interp.interpolate(position)
-# set the parameters on the psf model, which gives a new model instance
-interpolated_model = psf.model.setParameters(interpolated_params)
-# create the galsim image container on 64x64 grid with some wcs system
-interpolated_image = galsim.Image(64,64, wcs=wcs)
-# use the model to draw the image
-interpolated_image = interpolated_model.drawImage(interpolated_image)
-
-
-
-
-@cpadavis has started work on branch psf_stats building an analysis framework
-for testing how good a model is on a given set of data.
-
-This will simplify a lot of the analysis that has previously required several
-different pieces of software. It would be nice to be able to
-
-  build the PSF model
-  measure some aspects of the model and stars (e.g. size, e1, e2, maybe others)
-  compute some statistics of these (e.g. rho statistics)
-  plot the results
-
-all from within Piff. For now, I would focus on the path of information flow.
-Having a single choice for each step (e.g. hsm for measurements, rho1 and rho2
-for stats) is fine. Then once we settle on the design of this, we can work on
-adding more statistics and measurements that we might want.
-
 """
 
 from __future__ import print_function
@@ -153,6 +117,17 @@ class Stats(object):
         :returns:           Some kind of data vector.
         """
         raise NotImplemented("Derived classes must define the stats function")
+
+    def plot(self, stars, logger=None, **kwargs):
+        """Perform your operation on the stars.
+
+        :param stars:       A list of StarData instances.
+        :param logger:      A logger object for logging debug info. [default: None]
+        :params kwargs:     Potential other parameters we might need to input. Images, coordinates, et cetera.
+
+        :returns:           Some kind of data vector.
+        """
+        raise NotImplemented("Derived classes must define the plot function")
 
 class RhoStatistics(Stats):
     """Returns rho statistics using TreeCorr

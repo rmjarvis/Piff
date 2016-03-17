@@ -129,7 +129,7 @@ class PSF(object):
         interpolated_params = self.interp.interpolate(position)
         # set the parameters on the psf model, which gives a new model instance
         interpolated_model = self.model.setParameters(interpolated_params)
-        # create the galsim image container on 64x64 grid with some wcs system
+        # draw on the galsim image container
         interpolated_image = interpolated_model.drawImage(image)
         return interpolated_image
 
