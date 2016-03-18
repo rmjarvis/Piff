@@ -21,8 +21,15 @@ from __future__ import print_function
 from .interp import Interp
 import numpy
 from numpy.polynomial.polynomial import polyval2d
+from numpy.polynomial.chebyshev import chebval2d
+from numpy.polynomial.legendre import legval2d
+from numpy.polynomial.laguerre import lagval2d
+from numpy.polynomial.hermite import hermval2d
+
+
 
 class Polynomial(Interp):
+    polynomial_type="POLY"
     """
     An interpolator that uses  scipy curve_fit command to fit a polynomial 
     surface to each parameter passed in independently.
@@ -233,7 +240,8 @@ class Polynomial(Interp):
 
         #We will need some more identifying information that this!
         #I would suggest some kind of standard piff
-        header={"NPARAM":self.nparam, "NVAR":self.nvariable, "ORDER":self.order}
+        header={"NPARAM":self.nparam, "NVAR":self.nvariable, "ORDER":self.order, 
+        "POLYTYPE":self.polynomial_type}
         data = numpy.array(zip(*cols), dtype=dtypes)
         fits.write_table(data, extname=extname, header=header)
 
@@ -252,6 +260,10 @@ class Polynomial(Interp):
         self.order = header['ORDER']
         self.nvariable = header['NVAR']
         self.nparam = header['NPARAM']
+        check = header['POLYTYPE'].strip()
+        assert check==self.polynomial_type, "Tried to read a saved FITS \
+            " "polynomial interp of type {} into one of type {}".format(
+                check, self.polynomial_type)
         self.coeffs = []
         self.generate_indices()
 
@@ -270,3 +282,36 @@ class Polynomial(Interp):
         """
         p = [self.interpolationModel(pos, self.coeffs[i]) for i in xrange(self.nparam)]
         return numpy.array(p)
+
+
+class ChebyshevPolynomial(Polynomial):
+    polynomial_type="CHEBYSHEV"
+    def interpolationModel(self, pos, C):
+        u = pos[0]
+        v = pos[1]
+        f = chebval2d(u, v, C)
+        return f
+
+class LaguerrePolynomial(Polynomial):
+    polynomial_type="HERMITE"
+    def interpolationModel(self, pos, C):
+        u = pos[0]
+        v = pos[1]
+        f = lagval2d(u, v, C)
+        return f
+
+class HermitePolynomial(Polynomial):
+    polynomial_type="HERMITE"
+    def interpolationModel(self, pos, C):
+        u = pos[0]
+        v = pos[1]
+        f = hermval2d(u, v, C)
+        return f
+
+class LegendrePolynomial(Polynomial):
+    polynomial_type="LEGENDRE"
+    def interpolationModel(self, pos, C):
+        u = pos[0]
+        v = pos[1]
+        f = legval2d(u, v, C)
+        return f

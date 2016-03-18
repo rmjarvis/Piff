@@ -57,7 +57,7 @@ def test_poly_indexing():
     unpacked_test_2 = interp.unpack_coefficients(packed_test_2)
     assert (unpacked_test_2 == unpacked_test).all()
 
-def test_poly_interp():
+def test_poly_mean():
     #Zero'th order polynomial fitting should be pretty trivial, just
     #the same as the mean fitting. So much of this code is just taken from
     #the mean testing in test_simple
@@ -96,7 +96,7 @@ def test_poly_interp():
         assert numpy.allclose(v, mean)
 
 
-def test_poly_linear():
+def sub_poly_linear(type1):
     #Now lets do something more interesting - test a linear model.
     #with no noise this should fit really well, though again not
     #numerically perfectly.
@@ -104,7 +104,7 @@ def test_poly_linear():
     nparam = 3
     N = 1
     nstars=50   
-    interp = piff.Polynomial(N)
+    interp = type1(N)
     X = 10.0 #size of the field
     Y = 10.0
 
@@ -135,6 +135,12 @@ def test_poly_linear():
         p=(numpy.random.random()*X, numpy.random.random()*Y)
         assert numpy.allclose(f(p), interp.interpolate(p))
 
+def test_poly_linear():
+    sub_poly_linear(piff.Polynomial)
+    sub_poly_linear(piff.HermitePolynomial)
+    sub_poly_linear(piff.ChebyshevPolynomial)
+    sub_poly_linear(piff.LaguerrePolynomial)
+    sub_poly_linear(piff.LegendrePolynomial)
 
 def test_poly_quadratic():
     #This is basically the same as linear but with
