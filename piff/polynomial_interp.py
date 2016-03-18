@@ -261,9 +261,10 @@ class Polynomial(Interp):
         self.nvariable = header['NVAR']
         self.nparam = header['NPARAM']
         check = header['POLYTYPE'].strip()
-        assert check==self.polynomial_type, "Tried to read a saved FITS \
-            " "polynomial interp of type {} into one of type {}".format(
+        if check!=self.polynomial_type:
+            msg = "Tried to read a saved FITS polynomial interp of type {} into one of type {}".format(
                 check, self.polynomial_type)
+            raise TypeError(msg)
         self.coeffs = []
         self.generate_indices()
 
@@ -293,7 +294,7 @@ class ChebyshevPolynomial(Polynomial):
         return f
 
 class LaguerrePolynomial(Polynomial):
-    polynomial_type="HERMITE"
+    polynomial_type="LAGUERRE"
     def interpolationModel(self, pos, C):
         u = pos[0]
         v = pos[1]

@@ -1,5 +1,9 @@
 import numpy
 import piff
+PolynomialsTypes = [piff.Polynomial, piff.HermitePolynomial, piff.LaguerrePolynomial, 
+piff.LegendrePolynomial, piff.ChebyshevPolynomial]
+
+
 
 def test_poly_indexing():
     #Some indexing tests for a polynomial up to order 3
@@ -100,7 +104,7 @@ def sub_poly_linear(type1):
     #Now lets do something more interesting - test a linear model.
     #with no noise this should fit really well, though again not
     #numerically perfectly.
-    numpy.random.seed(1234)
+    numpy.random.seed(12834)
     nparam = 3
     N = 1
     nstars=50   
@@ -136,11 +140,8 @@ def sub_poly_linear(type1):
         assert numpy.allclose(f(p), interp.interpolate(p))
 
 def test_poly_linear():
-    sub_poly_linear(piff.Polynomial)
-    sub_poly_linear(piff.HermitePolynomial)
-    sub_poly_linear(piff.ChebyshevPolynomial)
-    sub_poly_linear(piff.LaguerrePolynomial)
-    sub_poly_linear(piff.LegendrePolynomial)
+    for poly_type in PolynomialsTypes:
+        sub_poly_linear(poly_type)
 
 def test_poly_quadratic():
     #This is basically the same as linear but with
@@ -206,7 +207,7 @@ def test_poly_guess():
 
 
 
-def test_poly_load_save():
+def poly_load_save_sub(type1, type2):
     #Test that we can serialize and deserialize a polynomial 
     #interpolator correctly.  Copying all this stuff from above:
 
@@ -214,7 +215,7 @@ def test_poly_load_save():
     nparam = 3
     N = 2
     nstars=50   
-    interp = piff.Polynomial(N)
+    interp = type1(N)
     X = 10.0 #size of the field
     Y = 10.0
 
@@ -242,7 +243,7 @@ def test_poly_load_save():
     interp.solve(pos, vectors)
 
     #We should overwrite the order parameter when we load in
-    interp2 = piff.Polynomial(0)
+    interp2 = type2(0)
 
     import tempfile
     import os
@@ -268,3 +269,14 @@ def test_poly_load_save():
         p=(numpy.random.random()*X, numpy.random.random()*Y)
         assert numpy.allclose(interp.interpolate(p),interp2.interpolate(p))
 
+def test_poly_load_save():
+    for poly_type in PolynomialsTypes:
+        poly_load_save_sub(poly_type,poly_type)
+
+def test_poly_load_err():
+    from nose.tools import assert_raises
+    for poly_type1 in PolynomialsTypes[:]:
+        for poly_type2 in PolynomialsTypes[:]:
+            if poly_type1!=poly_type2:
+                assert_raises(TypeError, poly_load_save_sub, 
+                    poly_type1,poly_type2)
