@@ -1,7 +1,6 @@
 import numpy
 import piff
-PolynomialsTypes = [piff.Polynomial, piff.HermitePolynomial, piff.LaguerrePolynomial, 
-piff.LegendrePolynomial, piff.ChebyshevPolynomial]
+PolynomialsTypes = piff.POLYNOMIAL_TYPES.keys()
 
 
 
@@ -108,7 +107,7 @@ def sub_poly_linear(type1):
     nparam = 3
     N = 1
     nstars=50   
-    interp = type1(N)
+    interp = piff.Polynomial(N, poly_type=type1)
     X = 10.0 #size of the field
     Y = 10.0
 
@@ -215,7 +214,7 @@ def poly_load_save_sub(type1, type2):
     nparam = 3
     N = 2
     nstars=50   
-    interp = type1(N)
+    interp = piff.Polynomial(N, poly_type=type1)
     X = 10.0 #size of the field
     Y = 10.0
 
@@ -243,7 +242,8 @@ def poly_load_save_sub(type1, type2):
     interp.solve(pos, vectors)
 
     #We should overwrite the order parameter when we load in
-    interp2 = type2(0)
+    interp2 = piff.Polynomial(0, poly_type=type2)
+
 
     import tempfile
     import os
@@ -258,7 +258,8 @@ def poly_load_save_sub(type1, type2):
     os.remove(filename)
     os.rmdir(dirname)
 
-
+    #The type and other parameters should now have been overwritten
+    assert interp2.poly_type == interp.poly_type
     assert interp2.order==N
     assert interp2.nvariable==interp.nvariable
     assert interp2.indices==interp.indices
@@ -278,5 +279,4 @@ def test_poly_load_err():
     for poly_type1 in PolynomialsTypes[:]:
         for poly_type2 in PolynomialsTypes[:]:
             if poly_type1!=poly_type2:
-                assert_raises(TypeError, poly_load_save_sub, 
-                    poly_type1,poly_type2)
+                poly_load_save_sub(poly_type1,poly_type2)

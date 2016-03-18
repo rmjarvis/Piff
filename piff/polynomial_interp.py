@@ -26,10 +26,16 @@ from numpy.polynomial.legendre import legval2d
 from numpy.polynomial.laguerre import lagval2d
 from numpy.polynomial.hermite import hermval2d
 
+POLYNOMIAL_TYPES = {
+    "POLY":polyval2d,
+    "CHEBYSHEV":chebval2d,
+    "LEGENDRE":legval2d,
+    "LAGUERRE":lagval2d,
+    "HERMITE":hermval2d,
+}
 
 
 class Polynomial(Interp):
-    polynomial_type="POLY"
     """
     An interpolator that uses  scipy curve_fit command to fit a polynomial 
     surface to each parameter passed in independently.
@@ -38,7 +44,7 @@ class Polynomial(Interp):
     bits that allow you to use curve_fit from the specific polynomial model
     used here.
     """
-    def __init__(self, order):
+    def __init__(self, order, poly_type="POLY"):
         self.order=order
         #The total number of variables per parameters.
         #We want to go up to a maximum total power of
@@ -48,7 +54,18 @@ class Polynomial(Interp):
         #coeffs
         self.coeffs = None
         self.generate_indices()
+        self.set_function(poly_type)
         self.nvariable=len(self.indices)
+
+    def set_function(self, poly_type):
+        self.polynomial_type=poly_type
+        self.function = POLYNOMIAL_TYPES.get(poly_type)
+        if self.function is None:
+            valid_types = ', '.join(POLYNOMIAL_TYPES.keys())
+            raise ValueError(
+                "poly_type argument must be one of: {}, not {}".format(
+                valid_types, poly_type))
+        self.poly_type=poly_type
 
     def generate_indices(self):
         """Generate, for internal use, the exponents i,j used in the polynomial model
@@ -241,7 +258,7 @@ class Polynomial(Interp):
         #We will need some more identifying information that this!
         #I would suggest some kind of standard piff
         header={"NPARAM":self.nparam, "NVAR":self.nvariable, "ORDER":self.order, 
-        "POLYTYPE":self.polynomial_type}
+        "POLYTYPE":self.poly_type}
         data = numpy.array(zip(*cols), dtype=dtypes)
         fits.write_table(data, extname=extname, header=header)
 
@@ -260,11 +277,8 @@ class Polynomial(Interp):
         self.order = header['ORDER']
         self.nvariable = header['NVAR']
         self.nparam = header['NPARAM']
-        check = header['POLYTYPE'].strip()
-        if check!=self.polynomial_type:
-            msg = "Tried to read a saved FITS polynomial interp of type {} into one of type {}".format(
-                check, self.polynomial_type)
-            raise TypeError(msg)
+        poly_type = header['POLYTYPE'].strip()
+        self.set_function(poly_type)
         self.coeffs = []
         self.generate_indices()
 
@@ -283,36 +297,3 @@ class Polynomial(Interp):
         """
         p = [self.interpolationModel(pos, self.coeffs[i]) for i in xrange(self.nparam)]
         return numpy.array(p)
-
-
-class ChebyshevPolynomial(Polynomial):
-    polynomial_type="CHEBYSHEV"
-    def interpolationModel(self, pos, C):
-        u = pos[0]
-        v = pos[1]
-        f = chebval2d(u, v, C)
-        return f
-
-class LaguerrePolynomial(Polynomial):
-    polynomial_type="LAGUERRE"
-    def interpolationModel(self, pos, C):
-        u = pos[0]
-        v = pos[1]
-        f = lagval2d(u, v, C)
-        return f
-
-class HermitePolynomial(Polynomial):
-    polynomial_type="HERMITE"
-    def interpolationModel(self, pos, C):
-        u = pos[0]
-        v = pos[1]
-        f = hermval2d(u, v, C)
-        return f
-
-class LegendrePolynomial(Polynomial):
-    polynomial_type="LEGENDRE"
-    def interpolationModel(self, pos, C):
-        u = pos[0]
-        v = pos[1]
-        f = legval2d(u, v, C)
-        return f
