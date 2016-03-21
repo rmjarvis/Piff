@@ -241,7 +241,7 @@ def test_single_image():
     test_params = psf.interp.interpolate(target)
     numpy.testing.assert_almost_equal(test_params, true_params, decimal=5)
 
-    # Finally, test using the piffify executable
+    # Test using the piffify executable
     os.remove(psf_file)
     with open('simple.yaml','w') as f:
         f.write(yaml.dump(config, default_flow_style=False))
@@ -252,6 +252,15 @@ def test_single_image():
     test_params = psf.interp.interpolate(target)
     numpy.testing.assert_almost_equal(test_params, true_params, decimal=5)
 
+    # Test that we can make rho statistics
+    stats = piff.RhoStatistics.read(psf_file)
+    logr, rho1, rho2, rho3, rho4, rho5 = stats.stats(stars, logger=logger, max_sep=5000)
+
+    # Test that we can make the rho plots
+    rho = stats.rho[1]
+    fig, ax = stats.plot(rho)
+    import matplotlib.pyplot as plt
+    plt.show()
 
 if __name__ == '__main__':
     test_Gaussian()

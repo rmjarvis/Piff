@@ -146,4 +146,4 @@ class PSF(object):
         import galsim
         image = galsim.Image(32, 32)
         return StarData(self.generate_image(position, image, logger=logger),
-                        position, logger=logger, **kwargs)
+                        galsim.PositionD(*position), logger=logger, **kwargs)

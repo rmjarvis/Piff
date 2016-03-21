@@ -52,60 +52,11 @@ def process_stats(config, logger):
 
     return stats
 
-class Stats(object):
+class Statistics(PSF):
     """The base class for getting the statistics of a set of stars.
 
-    This is essentially an abstract base class intended to define the methods that should be
-    implemented by any derived class.
+    It seems reasonable to use the PSF class as our base and build on top of that.
     """
-    @classmethod
-    def parseKwargs(cls, config_stats):
-        """Parse the stats field of a configuration dict and return the kwargs to use for
-        initializing an instance of the class.
-
-        The base class implementation just returns the kwargs as they are, but derived classes
-        might want to override this if they need to do something more sophisticated with them.
-
-        :param config_stats:   The stats field of the configuration dict, config['stats']
-
-        :returns: a kwargs dict to pass to the initializer
-        """
-        return config_stats
-
-    def __init__(self, psf):
-        self.psf = psf
-
-    @classmethod
-    def build(cls, stars, model, interp, logger=None):
-        """The main driver function to build a Stats framework from data.
-
-        :param stars:       A list of StarData instances. Builds the PSF
-        :param model:       A Model instance that defines how to model the
-                            individual PSFs at the location of each star.
-        :param interp:      An Interp instance that defines how to do the
-                            interpolation of the data vectors (produced by
-                            model for each star).
-        :param logger:      A logger object for logging debug info.
-                            [default: None]
-
-        :returns: a Stats instance
-        """
-        # build PSF
-        psf = PSF.build(stars, model, interp, logger)
-        return cls(psf)
-
-    @classmethod
-    def read(cls, file_name, logger=None):
-        """Read a Stas object from a stats file.
-
-        :param file_name:   The name of the file to write to.
-        :param logger:      A logger object for logging debug info. [default: None]
-
-        :returns: a PSF instance
-        """
-        # read psf
-        psf = PSF.read(file_name, logger=logger)
-        return cls(psf)
 
     def stats(self, stars, logger=None, **kwargs):
         """Perform your operation on the stars.
@@ -118,10 +69,11 @@ class Stats(object):
         """
         raise NotImplemented("Derived classes must define the stats function")
 
-    def plot(self, stars, logger=None, **kwargs):
-        """Perform your operation on the stars.
+    def plot(self, fig=None, ax=None, logger=None, **kwargs):
+        """Make your plots.
 
-        :param stars:       A list of StarData instances.
+        :param fig:         A Matplotlib Figure object. [default: None]
+        :param ax:          A Matplotlib Axis object. [default: None]
         :param logger:      A logger object for logging debug info. [default: None]
         :params kwargs:     Potential other parameters we might need to input. Images, coordinates, et cetera.
 
@@ -129,24 +81,35 @@ class Stats(object):
         """
         raise NotImplemented("Derived classes must define the plot function")
 
-class RhoStatistics(Stats):
+class RhoStatistics(Statistics):
     """Returns rho statistics using TreeCorr
     """
 
-    def stats(self, stars,
-              min_sep=1, max_sep=150, bin_size=0.1):
+    def stats(self, stars, min_sep=1, max_sep=150, bin_size=0.1,
+              sky_coordinates=False, sep_units='rad',
+              ra_units='deg', dec_units='deg', logger=None):
         """
 
-        :param stars:               Stars
+        :param stars:       A list of StarData instances.
+        :param logger:      A logger object for logging debug info. [default: None]
+        :param min_sep:     Minimum separation (in arcmin) for pairs
+        :param max_sep:     Maximum separation (in arcmin) for pairs
+        :param bin_size:    Logarithmic size of separation bins.
+        :param sky_coordinates: Are we in sky coordinates or otherwise? [default: False]
+        :param sep_units:   I think only matters if in sky_coordinates.
+                            Can be 'rad', 'arcmin', 'deg', etc.
+                            Sets the units of separation in min_sep, max_sep
+        :param ra_units:    I think only matters if in sky_coordinates.
+                            Can be 'rad', 'arcmin', 'deg', etc.
+                            Says what the units of the ra coordinate is.
+        :param dec_units:   I think only matters if in sky_coordinates.
+                            Can be 'rad', 'arcmin', 'deg', etc.
+                            Says what the units of the dec coordinate is.
 
-        :param min_sep:             Minimum separation (in arcmin) for pairs
-        :param max_sep:             Maximum separation (in arcmin) for pairs
-        :param bin_size:            Logarithmic size of separation bins.
+        note: assumes coord[:,0] = ra, coord[:,1] = dec or x/y
 
-        note: assumes coord[:,0] = ra, coord[:,1] = dec
+        :returns: logr, rho1, rho2, rho3, rho4, rho5 correlation functions
 
-        :returns: rho1, rho2, rho3, rho4, rho5 treecorr correlation functions
-            These have properties like rho1.xip, rho1.meanlogr, rho1.xip_im...
 
         Notes
         -----
@@ -178,16 +141,27 @@ class RhoStatistics(Stats):
         hsm = Gaussian()
 
         # measure moments with Gaussian on image
+        if logger:
+            logger.info("Measuring Stars")
         shapes_truth = np.array([ hsm.fitStar(star).getParameters() for star in stars ])
         # from stars get positions
-        positions = [ self.psf.interp.getStarPosition(star) for star in stars ]
+        if logger:
+            logger.info("Getting Star Positions")
+        positions = np.array([ self.interp.getStarPosition(star) for star in stars ])
         # generate the model stars
-        stars_model = np.array([ self.psf.generate_star(position) for position in positions ])
+        if logger:
+            logger.info("Generating Model Stars")
+        # stars_model = []
+        # for position in positions:
+        #     print(position)
+        #     stars_model.append(self.generate_star(position))
+        stars_model = np.array([ self.generate_star(position) for position in positions ])
         # measure moments with Gaussian on interpolated model image
+        if logger:
+            logger.info("Measuring Model Stars")
         shapes_model = np.array([ hsm.fitStar(star).getParameters() for star in stars_model ])
 
         # define terms for the catalogs
-        # TODO: This is probably incorrect!!
         ra = positions[:, 0]
         dec = positions[:, 1]
         T = shapes_truth[:, 0]
@@ -198,13 +172,35 @@ class RhoStatistics(Stats):
         dg2 = g2 - shapes_model[:, 2]
 
         # make the treecorr catalogs
-        cat_g = treecorr.Catalog(ra=ra, dec=dec, g1=g1, g2=g2)
-        cat_dg = treecorr.Catalog(ra=ra, dec=dec, g1=dg1, g2=dg2)
-        cat_gdTT = treecorr.Catalog(ra=ra, dec=dec, g1=g1 * dT / T, g2=g2 * dT / T)
         corr_dict = {'min_sep': min_sep, 'max_sep': max_sep,
-                     'bin_size': bin_size}
+                     'bin_size': bin_size, 'sep_units': sep_units,
+                     }
+        if logger:
+            logger.info("Creating Treecorr Catalogs")
+
+        if sky_coordinates:
+            cat_g = treecorr.Catalog(ra=ra, dec=dec,
+                                     g1=g1, g2=g2,
+                                     ra_units=ra_units, dec_units=dec_units)
+            cat_dg = treecorr.Catalog(ra=ra, dec=dec,
+                                      g1=dg1, g2=dg2,
+                                      ra_units=ra_units, dec_units=dec_units)
+            cat_gdTT = treecorr.Catalog(ra=ra, dec=dec,
+                                        g1=g1 * dT / T, g2=g2 * dT / T,
+                                        ra_units=ra_units, dec_units=dec_units)
+        else:
+            cat_g = treecorr.Catalog(x=ra, y=dec,
+                                     g1=g1, g2=g2)
+            cat_dg = treecorr.Catalog(x=ra, y=dec,
+                                      g1=dg1, g2=dg2)
+            cat_gdTT = treecorr.Catalog(x=ra, y=dec,
+                                        g1=g1 * dT / T, g2=g2 * dT / T)
 
         # setup and run the correlations
+        if logger:
+            logger.info("Processing rho PSF statistics")
+
+        # save the rho objects
         rho1 = treecorr.GGCorrelation(**corr_dict)
         rho1.process(cat_dg)
         rho2 = treecorr.GGCorrelation(**corr_dict)
@@ -216,4 +212,53 @@ class RhoStatistics(Stats):
         rho5 = treecorr.GGCorrelation(**corr_dict)
         rho5.process(cat_g, cat_gdTT)
 
-        return rho1, rho2, rho3, rho4, rho5
+        # save the rhos for later
+        self.rho = {1: rho1,
+                    2: rho2,
+                    3: rho3,
+                    4: rho4,
+                    5: rho5}
+
+        # return directly the correlation functions
+        return rho1.logr, rho1.xip, rho2.xip, rho3.xip, rho4.xip, rho5.xip
+
+    def plot(self, rho, fig=None, ax=None, logger=None, **kwargs):
+        """Make your plots.
+
+        :param rho:         A treecorr GGCorrelation object.
+        :param fig:         A Matplotlib Figure object. [default: None]
+        :param ax:          A Matplotlib Axis object. [default: None]
+        :param logger:      A logger object for logging debug info. [default: None]
+        :params kwargs:     kwargs go into the plotting.
+
+        :returns: fig, ax
+        """
+
+        # make a figure if the fig and ax are not specified
+        if ax is None:
+            import matplotlib.pyplot as plt
+            fig, ax = plt.subplots(figsize=(10, 5))
+            # put in some labels
+            ax.set_xlabel('log $r$')
+            ax.set_ylabel(r'$\rho$')
+            # set the scale
+            ax.set_xscale("log", nonposx='clip')
+            ax.set_yscale("log", nonposy='clip')
+
+        r = np.exp(rho.logr)
+        xi = rho.xip
+        # now separate the xi into positive and negative components
+        xi_neg = np.ma.masked_where(xi > 0, -xi)
+        xi_pos = np.ma.masked_where(xi < 0, xi)
+
+        if 'color' not in kwargs.keys():
+            # set color to k
+            color = 'k'
+        else:
+            # let the kwargs specify the color
+            color = kwargs.pop('color')
+        # do the plots
+        ax.plot(r, xi_pos, color=color, linestyle='-', **kwargs)
+        ax.plot(r, xi_neg, color=color, linestyle='--', **kwargs)
+
+        return fig, ax
