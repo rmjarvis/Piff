@@ -79,7 +79,7 @@ class Gaussian(Model):
             offset = pos - image.trueCenter()
         else:
             offset = None
-        return prof.drawImage(image, draw_method='no_pixel', offset=offset)
+        return prof.drawImage(image, method='no_pixel', offset=offset)
    
     def getParameters(self):
         """Get the parameters of the model, to be used by the interpolator.
@@ -95,6 +95,7 @@ class Gaussian(Model):
 
         :returns: self
         """
+        import galsim
         sigma, g1, g2 = params
         self.sigma = sigma
         self.shape = galsim.Shear(g1=g1,g2=g2)
