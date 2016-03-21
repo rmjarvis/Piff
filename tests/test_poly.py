@@ -7,7 +7,8 @@ PolynomialsTypes = piff.POLYNOMIAL_TYPES.keys()
 def test_poly_indexing():
     #Some indexing tests for a polynomial up to order 3
     N = 3
-    interp = piff.Polynomial(N)
+    interp = piff.Polynomial([N])
+    interp.current_parameter = 0
 
     #We expect there to be these coefficients:
     # x^0 y^0   1
@@ -25,16 +26,16 @@ def test_poly_indexing():
     # x^3 y^0   10 
 
     #Check that we have the indices we expect
-    assert interp.indices == [
+    assert interp.indices[0] == [
         (0,0),
         (0,1), (1,0),
         (0,2), (1,1), (2,0),
         (0,3), (1,2), (2,1), (3,0)
     ]
-    assert interp.nvariable==10
+    assert interp.nvariables[0]==10
 
     #check the packing then unpacking a 
-    packed = numpy.random.uniform(size=interp.nvariable)
+    packed = numpy.random.uniform(size=interp.nvariables[0])
     unpacked = interp.unpack_coefficients(packed)
     packed_test = interp.pack_coefficients(unpacked)
 
@@ -65,9 +66,10 @@ def test_poly_mean():
     #the same as the mean fitting. So much of this code is just taken from
     #the mean testing in test_simple
     N = 0
-    interp = piff.Polynomial(N)
-    nstars = 100
     nparam = 5
+    orders = [N for i in xrange(nparam)]
+    interp = piff.Polynomial(orders)
+    nstars = 100
 
     #Choose some random values of star parameters
     vectors = [ numpy.random.random(size=nparam) for i in range(nstars) ]
@@ -107,7 +109,8 @@ def sub_poly_linear(type1):
     nparam = 3
     N = 1
     nstars=50   
-    interp = piff.Polynomial(N, poly_type=type1)
+    orders = [N for i in xrange(nparam)]
+    interp = piff.Polynomial(orders, poly_type=type1)
     X = 10.0 #size of the field
     Y = 10.0
 
@@ -148,8 +151,9 @@ def test_poly_quadratic():
     numpy.random.seed(1234)
     nparam = 3
     N = 2
-    nstars=50   
-    interp = piff.Polynomial(N)
+    nstars=50
+    orders = [N for i in xrange(nparam)]
+    interp = piff.Polynomial(orders)
     X = 10.0 #size of the field
     Y = 10.0
 
@@ -185,16 +189,18 @@ def test_poly_guess():
     #test that our initial guess gives us a flat function given
     #by the mean
     numpy.random.seed(12434)
-    nparam = 10
     N = 2
     X = 10.0
     Y = 10.0
-    nstars=50   
-    interp = piff.Polynomial(N)
+    nstars=50
+    nparam = 10
+    orders = [N for i in xrange(nparam)]
+    interp = piff.Polynomial(orders)
     pos = [ (numpy.random.random()*X, numpy.random.random()*Y)
             for i in range(nstars) ]
 
     for i in xrange(nparam):
+        interp.current_parameter = i
         param = numpy.random.random(size=nstars)
         p0 = interp.initialGuess(pos, param)
         mu = param.mean()
@@ -212,9 +218,10 @@ def poly_load_save_sub(type1, type2):
 
     numpy.random.seed(12434)
     nparam = 3
-    N = 2
     nstars=50   
-    interp = piff.Polynomial(N, poly_type=type1)
+    #Use three different sizes to test everything
+    orders = [1,2,3]
+    interp = piff.Polynomial(orders, poly_type=type1)
     X = 10.0 #size of the field
     Y = 10.0
 
@@ -237,12 +244,11 @@ def poly_load_save_sub(type1, type2):
     #Simulate the vectors under this model
     vectors = [f(p) for p in pos]
 
-    #Fit them. Linear fitting is quite easy so this should 
-    #be okay
+    #Fit them!
     interp.solve(pos, vectors)
 
     #We should overwrite the order parameter when we load in
-    interp2 = piff.Polynomial(0, poly_type=type2)
+    interp2 = piff.Polynomial([0], poly_type=type2)
 
 
     import tempfile
@@ -258,10 +264,11 @@ def poly_load_save_sub(type1, type2):
     os.remove(filename)
     os.rmdir(dirname)
 
-    #The type and other parameters should now have been overwritten
+
+    #The type and other parameters should now have been overwritten and updated
     assert interp2.poly_type == interp.poly_type
-    assert interp2.order==N
-    assert interp2.nvariable==interp.nvariable
+    assert interp2.orders==interp.orders
+    assert interp2.nvariables==interp.nvariables
     assert interp2.indices==interp.indices
 
     #Check that the old and new interpolators generate the same
