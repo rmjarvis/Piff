@@ -45,6 +45,8 @@ class Polynomial(Interp):
     used here.
     """
     def __init__(self, order, poly_type="POLY"):
+        """Create 
+        """
         self.order=order
         #The total number of variables per parameters.
         #We want to go up to a maximum total power of
@@ -58,13 +60,21 @@ class Polynomial(Interp):
         self.nvariable=len(self.indices)
 
     def set_function(self, poly_type):
-        self.polynomial_type=poly_type
-        self.function = POLYNOMIAL_TYPES.get(poly_type)
-        if self.function is None:
+        """An internal function that sets the type of the polynomial 
+        interpolation used. The options are the keys in POLYNOMIAL_TYPES.
+
+        :param poly_type:   A string value, one of the keys from POLYNOMIAL_TYPES
+        """
+        function = POLYNOMIAL_TYPES.get(poly_type)
+        #Raise an error if this is not a valid type, in which case the lookup
+        #in the line above will return None.
+        if function is None:
             valid_types = ', '.join(POLYNOMIAL_TYPES.keys())
             raise ValueError(
                 "poly_type argument must be one of: {}, not {}".format(
                 valid_types, poly_type))
+        #If all is valid, set the appropriate values on self.
+        self.function=function
         self.poly_type=poly_type
 
     def generate_indices(self):
@@ -144,9 +154,15 @@ class Polynomial(Interp):
                            the p functions are polynomials.
 
         """
+        #Take the u and v components (x and y in the tangent plane)
+        #as our interpolants
         u = pos[0]
         v = pos[1]
-        f = polyval2d(u, v, C)
+        #Call the appropriate function to generate the polynomial model.
+        #By default this is numpy.polyval. Note that despite appearances
+        #this is not a method call - function is a normal python attribute
+        #that happens to be a function.
+        f = self.function(u, v, C)
         return f
 
     def initialGuess(self, positions, parameter):
@@ -167,7 +183,7 @@ class Polynomial(Interp):
         """        
         #We need a starting point for the fitter.
         #Use a constant value over the whole field as 
-        #a guess.
+        #a reasonable guess.
         C = numpy.zeros((self.order+1, self.order+1))
         C[0,0] = parameter.mean()
         return C
@@ -256,7 +272,8 @@ class Polynomial(Interp):
             cols.append(col)
 
         #We will need some more identifying information that this!
-        #I would suggest some kind of standard piff
+        #I would suggest some kind of standard piff collection of header
+        #values.
         header={"NPARAM":self.nparam, "NVAR":self.nvariable, "ORDER":self.order, 
         "POLYTYPE":self.poly_type}
         data = numpy.array(zip(*cols), dtype=dtypes)
@@ -274,14 +291,18 @@ class Polynomial(Interp):
         header = fits[extname].read_header()
         data = fits[extname].read()
 
+        #Load the same standard header variables that we saved above.
+        #Must keep these in sync
         self.order = header['ORDER']
         self.nvariable = header['NVAR']
         self.nparam = header['NPARAM']
         poly_type = header['POLYTYPE'].strip()
-        self.set_function(poly_type)
-        self.coeffs = []
-        self.generate_indices()
 
+        #Configure self - same methods that are run in __init__
+        self.set_function(poly_type)
+        self.generate_indices()
+        #Finally load coefficients from the FITS file.
+        self.coeffs = []
         for i in xrange(self.nparam):
             col = data["coeff_{}".format(i)]
             self.coeffs.append(self.unpack_coefficients(col))
