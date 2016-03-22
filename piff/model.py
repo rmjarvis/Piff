@@ -80,6 +80,18 @@ class Model(object):
         """
         raise NotImplemented("Derived classes must define the fitImage function")
 
+    def getFit(self, star):
+        """Return dependence of chi^2 = -2 log L(D|p) on parameters for single star.
+        Returns the quadratic form chi^2 = dp^T*alpha*dp - 2*beta*dp + gamma,
+        where dp is the *shift* from current parameter values.  Quadratic is exact for
+        linear models, an approximation more generally.
+
+        :param star:   A StarData instance
+
+        :returns: alpha, beta, gamma 
+        """
+        raise NotImplemented("Derived classes must define the getFit function")
+
     def drawImage(self, image, pos=None):
         """Draw the model on the given image.
 
