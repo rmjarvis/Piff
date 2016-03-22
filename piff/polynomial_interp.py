@@ -94,7 +94,7 @@ class Polynomial(Interp):
                 indices.append((i,j))
         return indices
 
-    def pack_coefficients(self, C):
+    def pack_coefficients(self, parameter_index, C):
         """Pack the 2D matrix of coefficients used as the model fit parameters
         into a vector of coefficients, either so this can be passed as a starting
         point into the curve_fit routine or for serialization to file.
@@ -106,23 +106,26 @@ class Polynomial(Interp):
         as long as pack_coefficients can convert this into a 1D array and unpack_coefficients
         convert it the other way.
 
+        :param parameter_index: The integer index of the parameter; the lets us 
+                                find the order of the parameter from self.
         :param C:          A 2D matrix of polynomial coefficients in the form that
                            the numpy polynomial form is expecting:
                            p(x,y,c) = sum_{i,j} c_{ij} x^i y^j
         :returns coeffs:    A 1D numpy array of coefficients of length self.nvariable
         """
-        coeffs = numpy.zeros(self.nvariables[self.current_parameter])
-        for k,(i,j) in enumerate(self.indices[self.current_parameter]):
+        coeffs = numpy.zeros(self.nvariables[parameter_index])
+        for k,(i,j) in enumerate(self.indices[parameter_index]):
             coeffs[k] = C[i,j]
         return coeffs
 
 
-    def unpack_coefficients(self, coeffs):
+    def unpack_coefficients(self, parameter_index, coeffs):
         """Unpack a sequence of parameters into the 2D matrix for the 
-        currently active parameter (which determines the order of the matrix)
+        given parameter_index (which determines the order of the matrix)
 
         This function is the inverse of pack_coefficients
                            
+        :param parameter_index: The integer index of the parameter being used
         :param coeffs:     A 1D numpy array of coefficients  of length self.nvariable
         :returns:          A 2D matrix of polynomial coefficients in the form that
                            the numpy polynomial form is expecting:
@@ -130,10 +133,9 @@ class Polynomial(Interp):
 
         """
         k=0
-        p=self.current_parameter
-        n=self.orders[self.current_parameter]+1
+        n=self.orders[parameter_index]+1
         C = numpy.zeros((n, n))
-        for k,(i,j) in enumerate(self.indices[p]):
+        for k,(i,j) in enumerate(self.indices[parameter_index]):
                 C[i,j] = coeffs[k]
                 k+=1
         return C
@@ -149,7 +151,7 @@ class Polynomial(Interp):
         is expecting this.
 
         This is an internal method used during the fitting.
-        :param pos:         A numpy array of the u,v positions at which to build 
+        :param pos:        A numpy array of the u,v positions at which to build 
                            the model
         :param C:          A 2D matrix of polynomial coefficients in the form that
                            the numpy polynomial form is expecting:
@@ -170,7 +172,7 @@ class Polynomial(Interp):
         f = self.function(u, v, C)
         return f
 
-    def initialGuess(self, positions, parameter):
+    def initialGuess(self, positions, parameter,parameter_index):
         """Make an initial guess for a set of parameters
         to use in the fit for your model. This is passed
         to curve_fit as a starting point.
@@ -189,7 +191,7 @@ class Polynomial(Interp):
         #We need a starting point for the fitter.
         #Use a constant value over the whole field as 
         #a reasonable guess.
-        n = self.orders[self.current_parameter]+1
+        n = self.orders[parameter_index]+1
         C = numpy.zeros((n,n))
         C[0,0] = parameter.mean()
         return C
@@ -227,19 +229,20 @@ class Polynomial(Interp):
         #into the form that the scipy curve_fit function is expecting.
         #It just needs to unpack a linear exploded list of coefficients
         #into the matrix form that interpolationModel wants.
-        def model(uv,*coeffs):
-            C = self.unpack_coefficients(coeffs)
-            return self.interpolationModel(uv,C)
 
 
         #Loop through the parameters
         for i, parameter in enumerate(parameters):
-            self.current_parameter = i
+
+            def model(uv,*coeffs):
+                C = self.unpack_coefficients(i, coeffs)
+                return self.interpolationModel(uv,C)
+
             #To replace the polynomial function in this code
             #with another model it should only be necessary to 
             #override the methods, initial_guess, fit_function,
             #and perhaps the pack and unpack methods
-            p0 = self.pack_coefficients(self.initialGuess(positions, parameter))
+            p0 = self.pack_coefficients(i, self.initialGuess(positions, parameter, i))
             #print(p0)
             # Black boxes curve fitter from scipy!
             # We may want to look into the tolerance and other parameters
@@ -247,9 +250,8 @@ class Polynomial(Interp):
             p,covmat=scipy.optimize.curve_fit(model, positions, parameter, p0)
             
             #Build up the list of outputs, one for each parameter
-            coeffs.append(self.unpack_coefficients(p))
+            coeffs.append(self.unpack_coefficients(i,p))
 
-        self.current_parameter = None
         #Each of these is now a list of length nparam, each element
         #of which is a 2D array of coefficients to the corresponding 
         #exponents. Where "corresponding" is as-defined in 
@@ -287,9 +289,8 @@ class Polynomial(Interp):
             #This is a bit ugly, but we still have to tell self
             #what parameter we are using so the system knows the
             #order of the parameter. Hmm.
-            self.current_parameter = p
             #Now we pack the coeffecients into a 1D vector
-            coeffs = self.pack_coefficients(self.coeffs[p])
+            coeffs = self.pack_coefficients(p, self.coeffs[p])
             n = len(coeffs)
             #And build up the columns we will be saving.
             param_col.append(numpy.repeat(p, n))
@@ -343,10 +344,9 @@ class Polynomial(Interp):
         coeff_data = data['COEFF']
         self.coeffs = []
         for p in xrange(self.nparam):
-            self.current_parameter = p
             this_param_range = param_indices==p
             col = coeff_data[this_param_range]
-            self.coeffs.append(self.unpack_coefficients(col))
+            self.coeffs.append(self.unpack_coefficients(p,col))
 
 
     def interpolate(self, pos, logger=None):
@@ -357,5 +357,5 @@ class Polynomial(Interp):
 
         :returns: the parameter vector (a numpy array) interpolated to the given position.
         """
-        p = [self.interpolationModel(pos, coeff) for coeff in self.coeffs]
+        p = [self.interpolationModel(pos, coeff) for i,coeff in enumerate(self.coeffs)]
         return numpy.array(p)

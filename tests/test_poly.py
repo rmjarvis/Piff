@@ -8,7 +8,6 @@ def test_poly_indexing():
     #Some indexing tests for a polynomial up to order 3
     N = 3
     interp = piff.Polynomial([N])
-    interp.current_parameter = 0
 
     #We expect there to be these coefficients:
     # x^0 y^0   1
@@ -36,8 +35,8 @@ def test_poly_indexing():
 
     #check the packing then unpacking a 
     packed = numpy.random.uniform(size=interp.nvariables[0])
-    unpacked = interp.unpack_coefficients(packed)
-    packed_test = interp.pack_coefficients(unpacked)
+    unpacked = interp.unpack_coefficients(0,packed)
+    packed_test = interp.pack_coefficients(0,unpacked)
 
     #Check that the shape is 4*4 in the unpacked (because we
     #want space for all the terms), and that we can unpack and
@@ -57,8 +56,8 @@ def test_poly_indexing():
 
     #Now do the test the other way around, checking that 
     #we can pack and then unpack
-    packed_test_2 = interp.pack_coefficients(unpacked_test)
-    unpacked_test_2 = interp.unpack_coefficients(packed_test_2)
+    packed_test_2 = interp.pack_coefficients(0,unpacked_test)
+    unpacked_test_2 = interp.unpack_coefficients(0,packed_test_2)
     assert (unpacked_test_2 == unpacked_test).all()
 
 def test_poly_mean():
@@ -200,9 +199,8 @@ def test_poly_guess():
             for i in range(nstars) ]
 
     for i in xrange(nparam):
-        interp.current_parameter = i
         param = numpy.random.random(size=nstars)
-        p0 = interp.initialGuess(pos, param)
+        p0 = interp.initialGuess(pos, param, i)
         mu = param.mean()
         assert numpy.isclose(p0[0,0],mu)
         assert (p0[0,1:]==0.0).all()
