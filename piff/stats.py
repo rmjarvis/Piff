@@ -21,8 +21,6 @@
 from __future__ import print_function
 import numpy as np
 
-from .psf import PSF
-
 def process_stats(config, logger):
     """Parse the stats field of the config dict.
 
@@ -52,22 +50,24 @@ def process_stats(config, logger):
 
     return stats
 
-class Statistics(PSF):
+class Statistics(object):
     """The base class for getting the statistics of a set of stars.
 
-    It seems reasonable to use the PSF class as our base and build on top of that.
+    Takes in a psf and a list of stars and performs an analysis on it that can
+    then be plotted or otherwise saved to disk.
     """
 
-    def stats(self, stars, logger=None, **kwargs):
-        """Perform your operation on the stars.
+    def __init__(self, psf, stars, logger=None, **kwargs):
+        """Perform your statistical operation on the stars.
 
+        :param psf:         A PSF Object
         :param stars:       A list of StarData instances.
         :param logger:      A logger object for logging debug info. [default: None]
         :params kwargs:     Potential other parameters we might need to input. Images, coordinates, et cetera.
 
         :returns:           Some kind of data vector.
         """
-        raise NotImplemented("Derived classes must define the stats function")
+        raise NotImplemented("Derived classes must define the statistical operation!")
 
     def plot(self, fig=None, ax=None, logger=None, **kwargs):
         """Make your plots.
@@ -77,42 +77,87 @@ class Statistics(PSF):
         :param logger:      A logger object for logging debug info. [default: None]
         :params kwargs:     Potential other parameters we might need to input. Images, coordinates, et cetera.
 
-        :returns:           Some kind of data vector.
+        :returns:           fig and ax
         """
         raise NotImplemented("Derived classes must define the plot function")
+
+    def write(self, file_name, fig=None, ax=None, logger=None, **kwargs):
+        """Write stats plots to file.
+
+        :param file_name:   The name of the file to write to.
+        :param logger:      A logger object for logging debug info. [default: None]
+        """
+        if logger:
+            logger.info("Creating Plot")
+        if fig is None and ax is None:
+            # make figure and axis object if none specified
+            import matplotlib.pyplot as plt
+            fig, ax = plt.subplots()
+        fig, ax = self.plot(fig=fig, ax=ax, logger=logger, **kwargs)
+
+        if logger:
+            logger.info("Writing Statistics Plot to file %s",file_name)
+        # save fig to file_name
+        fig.savefig(file_name)
+
+    def hsm(self, star, **kwargs):
+        """Return HSM Shape Measurements
+
+        :param star:        A StarData object
+        :param kwargs:      Anything to pass to Gaussian()
+
+        :returns sigma, g1, g2: HSM Shape measurements
+        """
+        import piff
+
+        return piff.Gaussian(**kwargs).fitStar(star).getParameters()
+
+    def measureShapes(self, psf, stars, logger=None):
+        """Compare PSF and true star shapes with HSM algorithm
+
+        :param psf:         A PSF Object
+        :param stars:       A list of StarData instances.
+        :param logger:      A logger object for logging debug info. [default: None]
+
+        :returns:           positions of stars, shapes of stars, and shapes of
+                            models of stars (sigma, g1, g2)
+        """
+        # measure moments with Gaussian on image
+        if logger:
+            logger.info("Measuring Stars")
+        shapes_truth = np.array([ self.hsm(star) for star in stars ])
+        # from stars get positions
+        if logger:
+            logger.info("Getting Star Positions")
+        positions = np.array([ psf.interp.getStarPosition(star) for star in stars ])
+        # generate the model stars measure moments with Gaussian on
+        # interpolated model image
+        if logger:
+            logger.info("Generating and Measuring Model Stars")
+        shapes_model = np.array([ self.hsm(psf.drawImage(position)) for position in positions ])
+
+        return positions, shapes_truth, shapes_model
 
 class RhoStatistics(Statistics):
     """Returns rho statistics using TreeCorr
     """
 
-    def stats(self, stars, min_sep=1, max_sep=150, bin_size=0.1,
-              sky_coordinates=False, sep_units='rad',
-              ra_units='deg', dec_units='deg', logger=None):
+    def __init__(self, psf, stars, min_sep=1, max_sep=150, bin_size=0.1, logger=None):
         """
 
+        :param psf:         A PSF Object
         :param stars:       A list of StarData instances.
         :param logger:      A logger object for logging debug info. [default: None]
         :param min_sep:     Minimum separation (in arcmin) for pairs
         :param max_sep:     Maximum separation (in arcmin) for pairs
         :param bin_size:    Logarithmic size of separation bins.
-        :param sky_coordinates: Are we in sky coordinates or otherwise? [default: False]
-        :param sep_units:   I think only matters if in sky_coordinates.
-                            Can be 'rad', 'arcmin', 'deg', etc.
-                            Sets the units of separation in min_sep, max_sep
-        :param ra_units:    I think only matters if in sky_coordinates.
-                            Can be 'rad', 'arcmin', 'deg', etc.
-                            Says what the units of the ra coordinate is.
-        :param dec_units:   I think only matters if in sky_coordinates.
-                            Can be 'rad', 'arcmin', 'deg', etc.
-                            Says what the units of the dec coordinate is.
-
-        note: assumes coord[:,0] = ra, coord[:,1] = dec or x/y
-
-        :returns: logr, rho1, rho2, rho3, rho4, rho5 correlation functions
 
 
         Notes
         -----
+        Assumes first two coordinates of star position are u, v
+
+
         From Jarvis:2015 p 10, eqs 3-18 - 3-22.
         e = e_psf ; de = e_psf - e_model
         T is size
@@ -135,35 +180,14 @@ class RhoStatistics(Statistics):
         can just use xip.
 
         """
-        from .gaussian_model import Gaussian
         import treecorr
 
-        hsm = Gaussian()
-
-        # measure moments with Gaussian on image
-        if logger:
-            logger.info("Measuring Stars")
-        shapes_truth = np.array([ hsm.fitStar(star).getParameters() for star in stars ])
-        # from stars get positions
-        if logger:
-            logger.info("Getting Star Positions")
-        positions = np.array([ self.interp.getStarPosition(star) for star in stars ])
-        # generate the model stars
-        if logger:
-            logger.info("Generating Model Stars")
-        # stars_model = []
-        # for position in positions:
-        #     print(position)
-        #     stars_model.append(self.generate_star(position))
-        stars_model = np.array([ self.generate_star(position) for position in positions ])
-        # measure moments with Gaussian on interpolated model image
-        if logger:
-            logger.info("Measuring Model Stars")
-        shapes_model = np.array([ hsm.fitStar(star).getParameters() for star in stars_model ])
+        # get the shapes
+        positions, shapes_truth, shapes_model = self.measureShapes(psf, stars, logger=logger)
 
         # define terms for the catalogs
-        ra = positions[:, 0]
-        dec = positions[:, 1]
+        u = positions[:, 0]
+        v = positions[:, 1]
         T = shapes_truth[:, 0]
         g1 = shapes_truth[:, 1]
         g2 = shapes_truth[:, 2]
@@ -173,54 +197,33 @@ class RhoStatistics(Statistics):
 
         # make the treecorr catalogs
         corr_dict = {'min_sep': min_sep, 'max_sep': max_sep,
-                     'bin_size': bin_size, 'sep_units': sep_units,
+                     'bin_size': bin_size, 'sep_units': 'arcmin',
                      }
         if logger:
             logger.info("Creating Treecorr Catalogs")
 
-        if sky_coordinates:
-            cat_g = treecorr.Catalog(ra=ra, dec=dec,
-                                     g1=g1, g2=g2,
-                                     ra_units=ra_units, dec_units=dec_units)
-            cat_dg = treecorr.Catalog(ra=ra, dec=dec,
-                                      g1=dg1, g2=dg2,
-                                      ra_units=ra_units, dec_units=dec_units)
-            cat_gdTT = treecorr.Catalog(ra=ra, dec=dec,
-                                        g1=g1 * dT / T, g2=g2 * dT / T,
-                                        ra_units=ra_units, dec_units=dec_units)
-        else:
-            cat_g = treecorr.Catalog(x=ra, y=dec,
-                                     g1=g1, g2=g2)
-            cat_dg = treecorr.Catalog(x=ra, y=dec,
-                                      g1=dg1, g2=dg2)
-            cat_gdTT = treecorr.Catalog(x=ra, y=dec,
-                                        g1=g1 * dT / T, g2=g2 * dT / T)
+        cat_g = treecorr.Catalog(x=u, y=v, x_units='arcsec', y_units='arcsec',
+                                 g1=g1, g2=g2)
+        cat_dg = treecorr.Catalog(x=u, y=v, x_units='arcsec', y_units='arcsec',
+                                  g1=dg1, g2=dg2)
+        cat_gdTT = treecorr.Catalog(x=u, y=v, x_units='arcsec', y_units='arcsec',
+                                    g1=g1 * dT / T, g2=g2 * dT / T)
 
         # setup and run the correlations
         if logger:
             logger.info("Processing rho PSF statistics")
 
         # save the rho objects
-        rho1 = treecorr.GGCorrelation(**corr_dict)
-        rho1.process(cat_dg)
-        rho2 = treecorr.GGCorrelation(**corr_dict)
-        rho2.process(cat_g, cat_dg)
-        rho3 = treecorr.GGCorrelation(**corr_dict)
-        rho3.process(cat_gdTT)
-        rho4 = treecorr.GGCorrelation(**corr_dict)
-        rho4.process(cat_dg, cat_gdTT)
-        rho5 = treecorr.GGCorrelation(**corr_dict)
-        rho5.process(cat_g, cat_gdTT)
-
-        # save the rhos for later
-        self.rho = {1: rho1,
-                    2: rho2,
-                    3: rho3,
-                    4: rho4,
-                    5: rho5}
-
-        # return directly the correlation functions
-        return rho1.logr, rho1.xip, rho2.xip, rho3.xip, rho4.xip, rho5.xip
+        self.rho1 = treecorr.GGCorrelation(**corr_dict)
+        self.rho1.process(cat_dg)
+        self.rho2 = treecorr.GGCorrelation(**corr_dict)
+        self.rho2.process(cat_g, cat_dg)
+        self.rho3 = treecorr.GGCorrelation(**corr_dict)
+        self.rho3.process(cat_gdTT)
+        self.rho4 = treecorr.GGCorrelation(**corr_dict)
+        self.rho4.process(cat_dg, cat_gdTT)
+        self.rho5 = treecorr.GGCorrelation(**corr_dict)
+        self.rho5.process(cat_g, cat_gdTT)
 
     def plot(self, rho, fig=None, ax=None, logger=None, **kwargs):
         """Make your plots.
@@ -239,7 +242,7 @@ class RhoStatistics(Statistics):
             import matplotlib.pyplot as plt
             fig, ax = plt.subplots(figsize=(10, 5))
             # put in some labels
-            ax.set_xlabel('log $r$')
+            ax.set_xlabel('log $r$ [arcmin]')
             ax.set_ylabel(r'$\rho$')
             # set the scale
             ax.set_xscale("log", nonposx='clip')

@@ -116,34 +116,28 @@ class PSF(object):
                 logger.debug("interp = %s",interp)
         return cls(model,interp)
 
-    def generate_image(self, position, image, logger=None):
-        """Generates pixel array for star given position and galsim Image
+    def drawImage(self, position, offset=(0, 0), logger=None, **kwargs):
+        """Generates star given position and galsim Image
 
         :param position:    Position we are interpolating to.
-        :param image:       Galsim Image object on which we draw
+        :param offset:      Set the nominal center of the image relative to
+                            actual center of image [Default: (0, 0)]
         :param logger:      A logger object for logging debug info. [default: None]
 
-        :returns: a galsim image of the PSF
+        :returns: a star
         """
+        import piff
+        import galsim
+        image = galsim.Image(32, 32)
 
+        # interpolate params
         interpolated_params = self.interp.interpolate(position)
         # set the parameters on the psf model, which gives a new model instance
         interpolated_model = self.model.setParameters(interpolated_params)
         # draw on the galsim image container
         interpolated_image = interpolated_model.drawImage(image)
-        return interpolated_image
 
-    def generate_star(self, position, logger=None, **kwargs):
-        """Generates star given position and galsim Image
+        offset_galsim = galsim.PositionD(*offset)
 
-        :param position:    Position we are interpolating to.
-        :param logger:      A logger object for logging debug info. [default: None]
-
-        :returns: a star
-        """
-        from .stardata import StarData
-        # TODO: not sure what to do about image? for now just make a random galsim image
-        import galsim
-        image = galsim.Image(32, 32)
-        return StarData(self.generate_image(position, image, logger=logger),
-                        galsim.PositionD(*position), logger=logger, **kwargs)
+        drawn_image = piff.StarData(interpolated_image, interpolated_image.trueCenter() + offset_galsim)
+        return drawn_image

@@ -253,14 +253,34 @@ def test_single_image():
     numpy.testing.assert_almost_equal(test_params, true_params, decimal=5)
 
     # Test that we can make rho statistics
-    stats = piff.RhoStatistics.read(psf_file)
-    logr, rho1, rho2, rho3, rho4, rho5 = stats.stats(stars, logger=logger, max_sep=5000)
+    min_sep = 1
+    max_sep = 100
+    bin_size = 0.1
+    stats = piff.RhoStatistics(psf, stars, min_sep=min_sep, max_sep=max_sep, bin_size=bin_size)
+
+    rhos = [stats.rho1, stats.rho2, stats.rho3, stats.rho4, stats.rho5]
+    import numpy as np
+    for rho in rhos:
+        # Test the range of separations
+        radius = np.exp(rho.logr)
+        # last bin can be one bigger than max_sep
+        np.testing.assert_array_less(radius, np.exp(np.log(max_sep) + bin_size))
+        np.testing.assert_array_less(min_sep, radius)
+        np.testing.assert_array_almost_equal(np.diff(rho.logr), bin_size, decimal=5)
+
+        # Test that the max absolute value of each rho isn't crazy
+        np.testing.assert_array_less(np.abs(rho.xip), 1)
+
+        # Check that each rho isn't precisely zero. This means the sum of abs > 0
+        np.testing.assert_array_less(0, np.sum(np.abs(rho.xip)))
 
     # Test that we can make the rho plots
-    rho = stats.rho[1]
-    fig, ax = stats.plot(rho)
-    import matplotlib.pyplot as plt
-    plt.show()
+    fig, ax = stats.plot(stats.rho1, label='rho1', color='r')
+    # Test that we can pass a figure in
+    fig, ax = stats.plot(stats.rho2, fig=fig, ax=ax, label='rho2', color='b')
+    # Test the writing
+    psf_file = os.path.join('output','simple_psf_rhostats.png')
+    stats.write(psf_file, rho=stats.rho3, fig=fig, ax=ax, label='rho3', color='k')
 
 if __name__ == '__main__':
     test_Gaussian()
