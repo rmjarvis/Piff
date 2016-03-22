@@ -40,10 +40,6 @@ class Polynomial(Interp):
     An interpolator that uses  scipy curve_fit command to fit a polynomial 
     surface to each parameter passed in independently.
 
-    TODO: This code is written so we can refactor to pull out the general
-    bits that allow you to use curve_fit from the specific polynomial model
-    used here.
-
     :param orders:  List/array of integers, one for each parameter 
                     to be interpolated.
     """
@@ -201,7 +197,9 @@ class Polynomial(Interp):
 
 
     def solve(self, pos, vectors, logger=None):
-        """Solve for the interpolation coefficients given some data.
+        """Solve for the interpolation coefficients given some data,
+        using the scipy.optimize.curve_fit routine, which uses Levenberg-Marquardt
+        to find the least-squares solution.
 
         This currently assumes that our positions pos are just u and v.
 
@@ -217,11 +215,11 @@ class Polynomial(Interp):
         parameters = numpy.array(vectors).T
         positions = numpy.array(pos).T
        
-        #It seems like we can't get the number of parameters (which
-        #depends on what model we have fitted) before we get to this
-        # point. That's a little awkward.
+        #We should have the same number of parameters as number of polynomial 
+        #orders with which we were created here.
         nparam = len(parameters)
-        assert nparam==self.nparam, "Must create Polynomial interpolator with the same order as the input vectors ({}!={})".format(nparam,self.nparam)
+        assert nparam==self.nparam, """Must create Polynomial interpolator 
+        with the same order as the input vectors ({}!={})""".format(nparam,self.nparam)
 
         coeffs = []
 
@@ -359,5 +357,5 @@ class Polynomial(Interp):
 
         :returns: the parameter vector (a numpy array) interpolated to the given position.
         """
-        p = [self.interpolationModel(pos, self.coeffs[i]) for i in xrange(self.nparam)]
+        p = [self.interpolationModel(pos, coeff) for coeff in self.coeffs]
         return numpy.array(p)
