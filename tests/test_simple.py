@@ -274,13 +274,44 @@ def test_single_image():
         # Check that each rho isn't precisely zero. This means the sum of abs > 0
         np.testing.assert_array_less(0, np.sum(np.abs(rho.xip)))
 
-    # Test that we can make the rho plots
-    fig, ax = stats.plot(stats.rho1, label='rho1', color='r')
-    # Test that we can pass a figure in
-    fig, ax = stats.plot(stats.rho2, fig=fig, ax=ax, label='rho2', color='b')
-    # Test the writing
-    psf_file = os.path.join('output','simple_psf_rhostats.png')
-    stats.write(psf_file, rho=stats.rho3, fig=fig, ax=ax, label='rho3', color='k')
+    # Test the plotting and writing
+    rho_psf_file = os.path.join('output','simple_psf_rhostats.png')
+    stats.write(rho_psf_file)
+
+    # Test that we can make summary shape statistics, using HSM
+    shapeStats = piff.ShapeStatistics(psf, stars)
+
+    # test their characteristics
+    np.testing.assert_array_almost_equal(sigma, shapeStats.T, decimal=4)
+    np.testing.assert_array_almost_equal(sigma, shapeStats.T_model, decimal=4)
+    np.testing.assert_array_almost_equal(g1, shapeStats.g1, decimal=4)
+    np.testing.assert_array_almost_equal(g1, shapeStats.g1_model, decimal=4)
+    np.testing.assert_array_almost_equal(g2, shapeStats.g2, decimal=4)
+    np.testing.assert_array_almost_equal(g2, shapeStats.g2_model, decimal=4)
+
+    shape_psf_file = os.path.join('output','simple_psf_shapestats.png')
+    shapeStats.write(shape_psf_file)
+
+    # Test that we can use the config parser for both RhoStatistics and ShapeStatistics
+    config['stats'] = [{'type': 'ShapeStatistics',
+                        'output': {'file_name': shape_psf_file}},
+                       {'type': 'RhoStatistics',
+                        'output': {'file_name': rho_psf_file}}]
+
+    os.remove(psf_file)
+    os.remove(rho_psf_file)
+    os.remove(shape_psf_file)
+    piff.piffify(config)
+
+    # Test using the piffify executable
+    os.remove(psf_file)
+    os.remove(rho_psf_file)
+    os.remove(shape_psf_file)
+    with open('simple.yaml','w') as f:
+        f.write(yaml.dump(config, default_flow_style=False))
+    piffify_exe = get_script_name('piffify')
+    p = subprocess.Popen( [piffify_exe, 'simple.yaml'] )
+    p.communicate()
 
 if __name__ == '__main__':
     test_Gaussian()

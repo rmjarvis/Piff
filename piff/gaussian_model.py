@@ -80,7 +80,7 @@ class Gaussian(Model):
         else:
             offset = None
         return prof.drawImage(image, method='no_pixel', offset=offset)
-   
+
     def getParameters(self):
         """Get the parameters of the model, to be used by the interpolator.
 

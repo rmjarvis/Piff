@@ -123,3 +123,7 @@ def piffify(config, logger=None):
     output = piff.process_output(config, logger=logger)
     output.write(psf)
 
+    if 'stats' in config:
+        stats_list = piff.process_stats(config, logger=logger)
+        for output, stats in stats_list:
+            output.write(stats(psf, stars))

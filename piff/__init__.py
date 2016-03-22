@@ -91,4 +91,4 @@ from output import OutputHandler, process_output, OutputFile
 from psf import PSF
 
 # Stats
-from stats import process_stats, Statistics, RhoStatistics
+from stats import process_stats, Statistics, RhoStatistics, ShapeStatistics
