@@ -256,12 +256,16 @@ class RhoStatistics(Statistics):
 
         if 'color' not in kwargs.keys():
             # set color to k
-            color = 'k'
+            kwargs['color'] = 'k'
+        # catch linestyles, but otherwise default to - and -- for positive and negative values
+        if 'linestyle' in kwargs.keys():
+            linestyle_pos = kwargs.pop('linestyle')
+            linestyle_neg = linestyle_pos
         else:
-            # let the kwargs specify the color
-            color = kwargs.pop('color')
+            linestyle_pos = '-'
+            linestyle_neg = '--'
         # do the plots
-        ax.plot(r, xi_pos, color=color, linestyle='-', **kwargs)
-        ax.plot(r, xi_neg, color=color, linestyle='--', **kwargs)
+        ax.plot(r, xi_pos, linestyle=linestyle_pos, **kwargs)
+        ax.plot(r, xi_neg, linestyle=linestyle_neg, **kwargs)
 
         return fig, ax
