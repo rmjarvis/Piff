@@ -46,17 +46,17 @@ class Polynomial(Interp):
     def __init__(self, orders, poly_type="POLY"):
         """Create 
         """
-        self.set_orders(orders)
-        self.set_function(poly_type)
+        self._set_orders(orders)
+        self._set_function(poly_type)
         self.coeffs = None
 
-    def set_orders(self, orders):
+    def _set_orders(self, orders):
         self.orders=orders
-        self.indices = [self.generate_indices(order) for order in self.orders]
+        self.indices = [self._generate_indices(order) for order in self.orders]
         self.nvariables = [len(indices) for indices in self.indices]        
         self.nparam=len(orders)
 
-    def set_function(self, poly_type):
+    def _set_function(self, poly_type):
         """An internal function that sets the type of the polynomial 
         interpolation used. The options are the keys in POLYNOMIAL_TYPES.
 
@@ -76,7 +76,7 @@ class Polynomial(Interp):
 
         self.current_parameter=None
 
-    def generate_indices(self, order):
+    def _generate_indices(self, order):
         """Generate, for internal use, the exponents i,j used in the polynomial model
         p(u,v) = sum c_{ij} u^i v^j
 
@@ -94,16 +94,16 @@ class Polynomial(Interp):
                 indices.append((i,j))
         return indices
 
-    def pack_coefficients(self, parameter_index, C):
+    def _pack_coefficients(self, parameter_index, C):
         """Pack the 2D matrix of coefficients used as the model fit parameters
         into a vector of coefficients, either so this can be passed as a starting
         point into the curve_fit routine or for serialization to file.
 
         For subclasses, the 2D matrix format could be whatever you wanted as long
-        as initialGuess, interpolationModel, and the pack and unpack functions are 
-        consistent. The intialGuess method can return and the interpolationModel can
+        as _initialGuess, _interpolationModel, and the pack and unpack functions are 
+        consistent. The intialGuess method can return and the _interpolationModel can
         accept parameters in whatever form you like (e.g. could be a dict if you want)
-        as long as pack_coefficients can convert this into a 1D array and unpack_coefficients
+        as long as _pack_coefficients can convert this into a 1D array and _unpack_coefficients
         convert it the other way.
 
         :param parameter_index: The integer index of the parameter; the lets us 
@@ -119,11 +119,11 @@ class Polynomial(Interp):
         return coeffs
 
 
-    def unpack_coefficients(self, parameter_index, coeffs):
+    def _unpack_coefficients(self, parameter_index, coeffs):
         """Unpack a sequence of parameters into the 2D matrix for the 
         given parameter_index (which determines the order of the matrix)
 
-        This function is the inverse of pack_coefficients
+        This function is the inverse of _pack_coefficients
                            
         :param parameter_index: The integer index of the parameter being used
         :param coeffs:     A 1D numpy array of coefficients  of length self.nvariable
@@ -141,7 +141,7 @@ class Polynomial(Interp):
         return C
 
     
-    def interpolationModel(self, pos, C):
+    def _interpolationModel(self, pos, C):
         """Generate the polynomial variation of some quantity at x and y
         coordinates for a given coefficient matrix.
 
@@ -172,7 +172,7 @@ class Polynomial(Interp):
         f = self.function(u, v, C)
         return f
 
-    def initialGuess(self, positions, parameter,parameter_index):
+    def _initialGuess(self, positions, parameter,parameter_index):
         """Make an initial guess for a set of parameters
         to use in the fit for your model. This is passed
         to curve_fit as a starting point.
@@ -225,24 +225,24 @@ class Polynomial(Interp):
 
         coeffs = []
 
-        #This model function adapts our interpolationModel method
+        #This model function adapts our _interpolationModel method
         #into the form that the scipy curve_fit function is expecting.
         #It just needs to unpack a linear exploded list of coefficients
-        #into the matrix form that interpolationModel wants.
+        #into the matrix form that _interpolationModel wants.
 
 
         #Loop through the parameters
         for i, parameter in enumerate(parameters):
 
             def model(uv,*coeffs):
-                C = self.unpack_coefficients(i, coeffs)
-                return self.interpolationModel(uv,C)
+                C = self._unpack_coefficients(i, coeffs)
+                return self._interpolationModel(uv,C)
 
             #To replace the polynomial function in this code
             #with another model it should only be necessary to 
             #override the methods, initial_guess, fit_function,
             #and perhaps the pack and unpack methods
-            p0 = self.pack_coefficients(i, self.initialGuess(positions, parameter, i))
+            p0 = self._pack_coefficients(i, self._initialGuess(positions, parameter, i))
             #print(p0)
             # Black boxes curve fitter from scipy!
             # We may want to look into the tolerance and other parameters
@@ -250,12 +250,12 @@ class Polynomial(Interp):
             p,covmat=scipy.optimize.curve_fit(model, positions, parameter, p0)
             
             #Build up the list of outputs, one for each parameter
-            coeffs.append(self.unpack_coefficients(i,p))
+            coeffs.append(self._unpack_coefficients(i,p))
 
         #Each of these is now a list of length nparam, each element
         #of which is a 2D array of coefficients to the corresponding 
         #exponents. Where "corresponding" is as-defined in 
-        #self.unpack_coefficients
+        #self._unpack_coefficients
         self.coeffs = coeffs
 
     def writeSolution(self, fits, extname):
@@ -290,7 +290,7 @@ class Polynomial(Interp):
             #what parameter we are using so the system knows the
             #order of the parameter. Hmm.
             #Now we pack the coeffecients into a 1D vector
-            coeffs = self.pack_coefficients(p, self.coeffs[p])
+            coeffs = self._pack_coefficients(p, self.coeffs[p])
             n = len(coeffs)
             #And build up the columns we will be saving.
             param_col.append(numpy.repeat(p, n))
@@ -331,22 +331,22 @@ class Polynomial(Interp):
         orders = [header["ORDER_{}".format(p)] for p in xrange(self.nparam)]
 
         #Configure self - same methods that are run in __init__
-        self.set_function(poly_type)
-        self.set_orders(orders)
+        self._set_function(poly_type)
+        self._set_orders(orders)
 
 
         #Finally load coefficients from the FITS file.
         #Although we have saved the u and exponents in another
         #column we don't actually use them here - we just use the fact
-        #that we know the ordering was made by pack_coefficients and so
-        #we can re-order using unpack_coefficients
+        #that we know the ordering was made by _pack_coefficients and so
+        #we can re-order using _unpack_coefficients
         param_indices = data['PARAM']
         coeff_data = data['COEFF']
         self.coeffs = []
         for p in xrange(self.nparam):
             this_param_range = param_indices==p
             col = coeff_data[this_param_range]
-            self.coeffs.append(self.unpack_coefficients(p,col))
+            self.coeffs.append(self._unpack_coefficients(p,col))
 
 
     def interpolate(self, pos, logger=None):
@@ -357,5 +357,5 @@ class Polynomial(Interp):
 
         :returns: the parameter vector (a numpy array) interpolated to the given position.
         """
-        p = [self.interpolationModel(pos, coeff) for i,coeff in enumerate(self.coeffs)]
+        p = [self._interpolationModel(pos, coeff) for i,coeff in enumerate(self.coeffs)]
         return numpy.array(p)

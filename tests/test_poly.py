@@ -35,8 +35,8 @@ def test_poly_indexing():
 
     #check the packing then unpacking a 
     packed = numpy.random.uniform(size=interp.nvariables[0])
-    unpacked = interp.unpack_coefficients(0,packed)
-    packed_test = interp.pack_coefficients(0,unpacked)
+    unpacked = interp._unpack_coefficients(0,packed)
+    packed_test = interp._pack_coefficients(0,unpacked)
 
     #Check that the shape is 4*4 in the unpacked (because we
     #want space for all the terms), and that we can unpack and
@@ -56,8 +56,8 @@ def test_poly_indexing():
 
     #Now do the test the other way around, checking that 
     #we can pack and then unpack
-    packed_test_2 = interp.pack_coefficients(0,unpacked_test)
-    unpacked_test_2 = interp.unpack_coefficients(0,packed_test_2)
+    packed_test_2 = interp._pack_coefficients(0,unpacked_test)
+    unpacked_test_2 = interp._unpack_coefficients(0,packed_test_2)
     assert (unpacked_test_2 == unpacked_test).all()
 
 def test_poly_mean():
@@ -200,13 +200,13 @@ def test_poly_guess():
 
     for i in xrange(nparam):
         param = numpy.random.random(size=nstars)
-        p0 = interp.initialGuess(pos, param, i)
+        p0 = interp._initialGuess(pos, param, i)
         mu = param.mean()
         assert numpy.isclose(p0[0,0],mu)
         assert (p0[0,1:]==0.0).all()
         assert (p0[1,0]==0.0).all()
         assert (p0[1:,1:]==0.0).all()
-        assert numpy.allclose(interp.interpolationModel(pos, p0), mu)
+        assert numpy.allclose(interp._interpolationModel(pos, p0), mu)
 
 
 
