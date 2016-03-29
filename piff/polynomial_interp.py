@@ -39,24 +39,35 @@ class Polynomial(Interp):
     """
     An interpolator that uses  scipy curve_fit command to fit a polynomial 
     surface to each parameter passed in independently.
-
-    :param orders:  List/array of integers, one for each parameter 
-                    to be interpolated.
-    :param poly_type: A string, one of the keys in the polynomial_types
-                      dictionary. By default these are "poly" (ordinary 
-                      polynomials), "chebyshev", "legendre", "laguerre",
-                      "hermite". To add more you can add a key to 
-                      polynomial_types with the value of a function with
-                      the signature of numpy.polynomial.polynomial.polyval2d
     """
     def __init__(self, orders, poly_type="poly"):
-        """Create 
+        """Create a Polynomial interpolator.
+
+        :param orders:  List/array of integers, one for each parameter 
+                        to be interpolated. The maximum total order of the 
+                        polynomial for that parameter; i.e. the maximum values
+                        of i+j where p(x,y) = sum c^{ij} x^i * y^j
+        :param poly_type: A string, one of the keys in the polynomial_types
+                          dictionary. By default these are "poly" (ordinary 
+                          polynomials), "chebyshev", "legendre", "laguerre",
+                          "hermite". To add more you can add a key to 
+                          polynomial_types with the value of a function with
+                          the signature of numpy.polynomial.polynomial.polyval2d
+
         """
         self._set_orders(orders)
         self._set_function(poly_type)
         self.coeffs = None
 
     def _set_orders(self, orders):
+        """An internal function that sets up the indices and orders of the 
+
+        :param orders:  List/array of integers, one for each parameter 
+                        to be interpolated. The maximum total order of the 
+                        polynomial for that parameter; i.e. the maximum values
+                        of i+j where p(x,y) = sum c^{ij} x^i * y^j
+
+        """
         self.orders=orders
         self.indices = [self._generate_indices(order) for order in self.orders]
         self.nvariables = [len(indices) for indices in self.indices]        
