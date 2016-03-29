@@ -48,9 +48,12 @@ def test_poly_indexing():
 
     # check that we have zeros for the terms that should be zero in the matrix.
     # We don't want any terms with total exponent > N.
+    # The variabled "unpacked" was created above by unpacking a random vector.
+    # it should be zero where i+j>3 and have the random valus below that.
     for i in xrange(N+1):
         for j in xrange(N+1):
-            if i+j>3:
+            if i+j>N:
+                #Note we have two arrays, unpacked and unpacked_test
                 assert unpacked[i,j]==0.0
                 unpacked_test[i,j]=0.0
 
