@@ -189,7 +189,7 @@ class Polynomial(Interp):
         f = self.function(u, v, C)
         return f
 
-    def _initialGuess(self, positions, parameter,parameter_index):
+    def _initialGuess(self, positions, parameter, parameter_index):
         """Make an initial guess for a set of parameters
         to use in the fit for your model. This is passed
         to curve_fit as a starting point.
@@ -197,7 +197,8 @@ class Polynomial(Interp):
         :param positions:  A list of positions ((u,v) in this case) of stars.
         :param parameter:  A numpy array of the measured values of a parameter
                            for each star
-                           
+        :param parameter_index: The integer index of the parameter being used
+
         :returns:          A guess for the parameters. In this case a 2D matrix
                            which is zero everywhere except for (0,0).  This should
                            correspond to a flat function of the parameters with 
