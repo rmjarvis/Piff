@@ -41,7 +41,7 @@ def test_poly_indexing():
     # Check that the shape is 4*4 in the unpacked (because we
     # want space for all the terms), and that we can unpack and
     # repack successfully.
-    assert (packed==packed_test).all()
+    numpy.testing.assert_array_equal(packed,packed_test)
     assert unpacked.shape == (N+1,N+1)
 
     unpacked_test = numpy.zeros_like(unpacked)
@@ -58,7 +58,7 @@ def test_poly_indexing():
     # we can pack and then unpack
     packed_test_2 = interp._pack_coefficients(0,unpacked_test)
     unpacked_test_2 = interp._unpack_coefficients(0,packed_test_2)
-    assert (unpacked_test_2 == unpacked_test).all()
+    numpy.testing.assert_array_equal(unpacked_test_2,unpacked_test)
 
 def test_poly_mean():
     # Zero'th order polynomial fitting should be pretty trivial, just
@@ -97,7 +97,7 @@ def test_poly_mean():
     for i in xrange(30):
         p=(numpy.random.random()*10, numpy.random.random()*10)
         v = interp.interpolate(p)
-        assert numpy.allclose(v, mean)
+        numpy.testing.assert_almost_equal(v, mean)
 
 
 def sub_poly_linear(type1):
@@ -138,7 +138,7 @@ def sub_poly_linear(type1):
     # Check that the interpolation recovers the desired function
     for i in xrange(30):
         p=(numpy.random.random()*X, numpy.random.random()*Y)
-        assert numpy.allclose(f(p), interp.interpolate(p))
+        numpy.testing.assert_almost_equal(f(p), interp.interpolate(p))
 
 def test_poly_linear():
     for poly_type in PolynomialsTypes:
@@ -182,7 +182,7 @@ def test_poly_quadratic():
     # Check that the interpolation recovers the desired function
     for i in xrange(30):
         p=(numpy.random.random()*X, numpy.random.random()*Y)
-        assert numpy.allclose(f(p), interp.interpolate(p))
+        numpy.testing.assert_almost_equal(f(p), interp.interpolate(p))
 
 def test_poly_guess():
     # test that our initial guess gives us a flat function given
@@ -203,10 +203,11 @@ def test_poly_guess():
         p0 = interp._initialGuess(pos, param, i)
         mu = param.mean()
         assert numpy.isclose(p0[0,0],mu)
-        assert (p0[0,1:]==0.0).all()
-        assert (p0[1,0]==0.0).all()
-        assert (p0[1:,1:]==0.0).all()
-        assert numpy.allclose(interp._interpolationModel(pos, p0), mu)
+
+        numpy.testing.assert_array_equal(p0[0,1:],0.0)
+        numpy.testing.assert_array_equal(p0[1,0],0.0)
+        numpy.testing.assert_array_equal(p0[1:,1:],0.0)
+        numpy.testing.assert_almost_equal(interp._interpolationModel(pos, p0), mu)
 
 
 
@@ -273,7 +274,7 @@ def poly_load_save_sub(type1, type2):
     # value
     for i in xrange(30):
         p=(numpy.random.random()*X, numpy.random.random()*Y)
-        assert numpy.allclose(interp.interpolate(p),interp2.interpolate(p))
+        numpy.testing.assert_almost_equal(interp.interpolate(p),interp2.interpolate(p))
 
 def test_poly_load_save():
     for poly_type in PolynomialsTypes:
