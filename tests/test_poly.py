@@ -289,8 +289,15 @@ def test_poly_load_save():
         poly_load_save_sub(poly_type,poly_type)
 
 def test_poly_load_err():
-    from nose.tools import assert_raises
     for poly_type1 in PolynomialsTypes[:]:
         for poly_type2 in PolynomialsTypes[:]:
             if poly_type1!=poly_type2:
                 poly_load_save_sub(poly_type1,poly_type2)
+
+if __name__ == '__main__':
+    test_poly_load_err()
+    test_poly_linear()
+    test_poly_mean()
+    test_poly_indexing()
+    test_poly_load_save()
+    test_poly_guess()
