@@ -372,5 +372,5 @@ class Polynomial(Interp):
 
         :returns: the parameter vector (a numpy array) interpolated to the given position.
         """
-        p = [self._interpolationModel(pos, coeff) for i,coeff in enumerate(self.coeffs)]
+        p = [self._interpolationModel(pos, coeff) for coeff in self.coeffs]
         return numpy.array(p)
