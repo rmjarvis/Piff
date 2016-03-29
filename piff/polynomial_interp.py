@@ -42,6 +42,12 @@ class Polynomial(Interp):
 
     :param orders:  List/array of integers, one for each parameter 
                     to be interpolated.
+    :param poly_type: A string, one of the keys in the polynomial_types
+                      dictionary. By default these are "poly" (ordinary 
+                      polynomials), "chebyshev", "legendre", "laguerre",
+                      "hermite". To add more you can add a key to 
+                      polynomial_types with the value of a function with
+                      the signature of numpy.polynomial.polynomial.polyval2d
     """
     def __init__(self, orders, poly_type="poly"):
         """Create 
@@ -58,9 +64,9 @@ class Polynomial(Interp):
 
     def _set_function(self, poly_type):
         """An internal function that sets the type of the polynomial 
-        interpolation used. The options are the keys in POLYNOMIAL_TYPES.
+        interpolation used. The options are the keys in polynomial_types.
 
-        :param poly_type:   A string value, one of the keys from POLYNOMIAL_TYPES
+        :param poly_type:   A string value, one of the keys from polynomial_types
         """
         function = polynomial_types.get(poly_type)
         #Raise an error if this is not a valid type, in which case the lookup
