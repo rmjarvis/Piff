@@ -26,12 +26,12 @@ from numpy.polynomial.legendre import legval2d
 from numpy.polynomial.laguerre import lagval2d
 from numpy.polynomial.hermite import hermval2d
 
-POLYNOMIAL_TYPES = {
-    "POLY":polyval2d,
-    "CHEBYSHEV":chebval2d,
-    "LEGENDRE":legval2d,
-    "LAGUERRE":lagval2d,
-    "HERMITE":hermval2d,
+polynomial_types = {
+    "poly":polyval2d,
+    "chebyshev":chebval2d,
+    "legendre":legval2d,
+    "laguerre":lagval2d,
+    "hermite":hermval2d,
 }
 
 
@@ -43,7 +43,7 @@ class Polynomial(Interp):
     :param orders:  List/array of integers, one for each parameter 
                     to be interpolated.
     """
-    def __init__(self, orders, poly_type="POLY"):
+    def __init__(self, orders, poly_type="poly"):
         """Create 
         """
         self._set_orders(orders)
@@ -62,11 +62,11 @@ class Polynomial(Interp):
 
         :param poly_type:   A string value, one of the keys from POLYNOMIAL_TYPES
         """
-        function = POLYNOMIAL_TYPES.get(poly_type)
+        function = polynomial_types.get(poly_type)
         #Raise an error if this is not a valid type, in which case the lookup
         #in the line above will return None.
         if function is None:
-            valid_types = ', '.join(POLYNOMIAL_TYPES.keys())
+            valid_types = ', '.join(polynomial_types.keys())
             raise ValueError(
                 "poly_type argument must be one of: {}, not {}".format(
                 valid_types, poly_type))

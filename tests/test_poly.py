@@ -1,6 +1,6 @@
 import numpy
 import piff
-PolynomialsTypes = piff.POLYNOMIAL_TYPES.keys()
+PolynomialsTypes = piff.polynomial_types.keys()
 
 
 
