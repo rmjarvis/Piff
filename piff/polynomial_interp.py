@@ -240,6 +240,11 @@ class Polynomial(Interp):
         assert nparam==self.nparam, """Must create Polynomial interpolator 
         with the same order as the input vectors ({}!={})""".format(nparam,self.nparam)
 
+        if logger:
+            logger.info("Fitting %d parameter vectors using "\
+                "polynomial type %s with %d positions",
+                nparam,self.poly_type)
+
         coeffs = []
 
         # This model function adapts our _interpolationModel method
@@ -251,6 +256,7 @@ class Polynomial(Interp):
         # Loop through the parameters
         for i, parameter in enumerate(parameters):
 
+
             def model(uv,*coeffs):
                 C = self._unpack_coefficients(i, coeffs)
                 return self._interpolationModel(uv,C)
@@ -258,6 +264,11 @@ class Polynomial(Interp):
             # Convert the structure the coefficients are held in into
             # a single parameter vector for scipy to fit.
             p0 = self._pack_coefficients(i, self._initialGuess(positions, parameter, i))
+
+            if logger:
+                logger.debug("Fitting parameter %d from initial guess %s "\
+                    "with polynomial order %d", i, p0, self.orders[i])
+
 
             # Black box curve fitter from scipy!
             # We may want to look into the tolerance and other parameters
@@ -298,6 +309,7 @@ class Polynomial(Interp):
         u_exponent_col = []
         v_exponent_col = []
         coeff_col = []
+
 
         #
         for p in xrange(self.nparam):
