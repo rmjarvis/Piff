@@ -147,7 +147,7 @@ def test_poly_linear():
     for poly_type in PolynomialsTypes:
         sub_poly_linear(poly_type)
 
-def test_poly_quadratic():
+def sub_poly_quadratic(type1):
     # This is basically the same as linear but with
     # quadratic variation
     numpy.random.seed(1234)
@@ -155,7 +155,7 @@ def test_poly_quadratic():
     N = 2
     nstars=50
     orders = [N for i in xrange(nparam)]
-    interp = piff.Polynomial(orders)
+    interp = piff.Polynomial(orders, poly_type=type1)
     X = 10.0 # size of the field
     Y = 10.0
 
@@ -186,6 +186,11 @@ def test_poly_quadratic():
     for i in xrange(30):
         p=(numpy.random.random()*X, numpy.random.random()*Y)
         numpy.testing.assert_almost_equal(f(p), interp.interpolate(p))
+
+def test_poly_linear():
+    for poly_type in PolynomialsTypes:
+        sub_poly_quadratic(poly_type)
+
 
 def test_poly_guess():
     # test that our initial guess gives us a flat function given
