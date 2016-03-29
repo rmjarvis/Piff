@@ -5,11 +5,11 @@ PolynomialsTypes = piff.polynomial_types.keys()
 
 
 def test_poly_indexing():
-    #Some indexing tests for a polynomial up to order 3
+    # Some indexing tests for a polynomial up to order 3
     N = 3
     interp = piff.Polynomial([N])
 
-    #We expect there to be these coefficients:
+    # We expect there to be these coefficients:
     # x^0 y^0   1
 
     # x^0 y^1   2
@@ -24,7 +24,7 @@ def test_poly_indexing():
     # x^2 y^1   9
     # x^3 y^0   10 
 
-    #Check that we have the indices we expect
+    # Check that we have the indices we expect
     assert interp.indices[0] == [
         (0,0),
         (0,1), (1,0),
@@ -33,67 +33,67 @@ def test_poly_indexing():
     ]
     assert interp.nvariables[0]==10
 
-    #check the packing then unpacking a 
+    # check the packing then unpacking a 
     packed = numpy.random.uniform(size=interp.nvariables[0])
     unpacked = interp._unpack_coefficients(0,packed)
     packed_test = interp._pack_coefficients(0,unpacked)
 
-    #Check that the shape is 4*4 in the unpacked (because we
-    #want space for all the terms), and that we can unpack and
-    #repack successfully.
+    # Check that the shape is 4*4 in the unpacked (because we
+    # want space for all the terms), and that we can unpack and
+    # repack successfully.
     assert (packed==packed_test).all()
     assert unpacked.shape == (N+1,N+1)
 
     unpacked_test = numpy.zeros_like(unpacked)
 
-    #check that we have zeros for the terms that should be zero in the matrix.
-    #We don't want any terms with total exponent > N.
+    # check that we have zeros for the terms that should be zero in the matrix.
+    # We don't want any terms with total exponent > N.
     for i in xrange(N+1):
         for j in xrange(N+1):
             if i+j>3:
                 assert unpacked[i,j]==0.0
                 unpacked_test[i,j]=0.0
 
-    #Now do the test the other way around, checking that 
-    #we can pack and then unpack
+    # Now do the test the other way around, checking that 
+    # we can pack and then unpack
     packed_test_2 = interp._pack_coefficients(0,unpacked_test)
     unpacked_test_2 = interp._unpack_coefficients(0,packed_test_2)
     assert (unpacked_test_2 == unpacked_test).all()
 
 def test_poly_mean():
-    #Zero'th order polynomial fitting should be pretty trivial, just
-    #the same as the mean fitting. So much of this code is just taken from
-    #the mean testing in test_simple
+    # Zero'th order polynomial fitting should be pretty trivial, just
+    # the same as the mean fitting. So much of this code is just taken from
+    # the mean testing in test_simple
     N = 0
     nparam = 5
     orders = [N for i in xrange(nparam)]
     interp = piff.Polynomial(orders)
     nstars = 100
 
-    #Choose some random values of star parameters
+    # Choose some random values of star parameters
     vectors = [ numpy.random.random(size=nparam) for i in range(nstars) ]
 
-    #take the mean of them. Our curve fit should be able to reproduce this.
+    # take the mean of them. Our curve fit should be able to reproduce this.
     mean = numpy.mean(vectors, axis=0)
 
-    #Choose some random positions in the field.
-    #NB think more about bounds and 
+    # Choose some random positions in the field.
+    # NB think more about bounds and 
     pos = [ (numpy.random.random()*10, numpy.random.random()*10)
             for i in range(nstars) ]
 
     # Run our solver.
     interp.solve(pos, vectors)
 
-    #we expect one set of coefficients per object
+    # we expect one set of coefficients per object
     assert len(interp.coeffs)==5
 
-    #We should have very close values (not necessarily identical) since
-    #we calculate these in numerically different ways.
+    # We should have very close values (not necessarily identical) since
+    # we calculate these in numerically different ways.
     for mu, val in zip(mean, interp.coeffs):
         assert numpy.isclose(mu, val[0,0])
 
-    #We also expect that if we interpolate to any point we just
-    #get the mean as well
+    # We also expect that if we interpolate to any point we just
+    # get the mean as well
     for i in xrange(30):
         p=(numpy.random.random()*10, numpy.random.random()*10)
         v = interp.interpolate(p)
@@ -101,24 +101,24 @@ def test_poly_mean():
 
 
 def sub_poly_linear(type1):
-    #Now lets do something more interesting - test a linear model.
-    #with no noise this should fit really well, though again not
-    #numerically perfectly.
+    # Now lets do something more interesting - test a linear model.
+    # with no noise this should fit really well, though again not
+    # numerically perfectly.
     numpy.random.seed(12834)
     nparam = 3
     N = 1
     nstars=50   
     orders = [N for i in xrange(nparam)]
     interp = piff.Polynomial(orders, poly_type=type1)
-    X = 10.0 #size of the field
+    X = 10.0 # size of the field
     Y = 10.0
 
     pos = [ (numpy.random.random()*X, numpy.random.random()*Y)
             for i in range(nstars) ]
 
 
-    #Let's make a function that is linear just as a function of one parameter
-    #These are the linear fit parameters for each parameter in turn
+    # Let's make a function that is linear just as a function of one parameter
+    # These are the linear fit parameters for each parameter in turn
     m1 = numpy.random.uniform(size=nparam)
     m2 = numpy.random.uniform(size=nparam)
     c = numpy.random.uniform(size=nparam)
@@ -128,14 +128,14 @@ def sub_poly_linear(type1):
         r = m1*u+m2*v+c
         return r
 
-    #Simulate the vectors under this model
+    # Simulate the vectors under this model
     vectors = [f(p) for p in pos]
 
-    #Fit them. Linear fitting is quite easy so this should 
-    #be okay
+    # Fit them. Linear fitting is quite easy so this should 
+    # be okay
     interp.solve(pos, vectors)
 
-    #Check that the interpolation recovers the desired function
+    # Check that the interpolation recovers the desired function
     for i in xrange(30):
         p=(numpy.random.random()*X, numpy.random.random()*Y)
         assert numpy.allclose(f(p), interp.interpolate(p))
@@ -145,23 +145,23 @@ def test_poly_linear():
         sub_poly_linear(poly_type)
 
 def test_poly_quadratic():
-    #This is basically the same as linear but with
-    #quadratic variation
+    # This is basically the same as linear but with
+    # quadratic variation
     numpy.random.seed(1234)
     nparam = 3
     N = 2
     nstars=50
     orders = [N for i in xrange(nparam)]
     interp = piff.Polynomial(orders)
-    X = 10.0 #size of the field
+    X = 10.0 # size of the field
     Y = 10.0
 
     pos = [ (numpy.random.random()*X, numpy.random.random()*Y)
             for i in range(nstars) ]
 
 
-    #Let's make a function that is linear just as a function of one parameter
-    #These are the linear fit parameters for each parameter in turn
+    # Let's make a function that is linear just as a function of one parameter
+    # These are the linear fit parameters for each parameter in turn
     m1 = numpy.random.uniform(size=nparam)
     m2 = numpy.random.uniform(size=nparam)
     q1 = numpy.random.uniform(size=nparam)
@@ -172,21 +172,21 @@ def test_poly_quadratic():
         r = q1*u*v+ m1*u+m2*v+c
         return r
 
-    #Simulate the vectors under this model
+    # Simulate the vectors under this model
     vectors = [f(p) for p in pos]
 
-    #Fit them. Linear fitting is quite easy so this should 
-    #be okay
+    # Fit them. Linear fitting is quite easy so this should 
+    # be okay
     interp.solve(pos, vectors)
 
-    #Check that the interpolation recovers the desired function
+    # Check that the interpolation recovers the desired function
     for i in xrange(30):
         p=(numpy.random.random()*X, numpy.random.random()*Y)
         assert numpy.allclose(f(p), interp.interpolate(p))
 
 def test_poly_guess():
-    #test that our initial guess gives us a flat function given
-    #by the mean
+    # test that our initial guess gives us a flat function given
+    # by the mean
     numpy.random.seed(12434)
     N = 2
     X = 10.0
@@ -211,23 +211,23 @@ def test_poly_guess():
 
 
 def poly_load_save_sub(type1, type2):
-    #Test that we can serialize and deserialize a polynomial 
-    #interpolator correctly.  Copying all this stuff from above:
+    # Test that we can serialize and deserialize a polynomial 
+    # interpolator correctly.  Copying all this stuff from above:
 
     numpy.random.seed(12434)
     nparam = 3
     nstars=50   
-    #Use three different sizes to test everything
+    # Use three different sizes to test everything
     orders = [1,2,3]
     interp = piff.Polynomial(orders, poly_type=type1)
-    X = 10.0 #size of the field
+    X = 10.0 # size of the field
     Y = 10.0
 
     pos = [ (numpy.random.random()*X, numpy.random.random()*Y)
             for i in range(nstars) ]
 
-    #Let's make a function that is linear just as a function of one parameter
-    #These are the linear fit parameters for each parameter in turn
+    # Let's make a function that is linear just as a function of one parameter
+    # These are the linear fit parameters for each parameter in turn
     m1 = numpy.random.uniform(size=nparam)
     m2 = numpy.random.uniform(size=nparam)
     q1 = numpy.random.uniform(size=nparam)
@@ -239,13 +239,13 @@ def poly_load_save_sub(type1, type2):
         r = q1*u*v+ m1*u+m2*v+c
         return r
 
-    #Simulate the vectors under this model
+    # Simulate the vectors under this model
     vectors = [f(p) for p in pos]
 
-    #Fit them!
+    # Fit them!
     interp.solve(pos, vectors)
 
-    #We should overwrite the order parameter when we load in
+    # We should overwrite the order parameter when we load in
     interp2 = piff.Polynomial([0], poly_type=type2)
 
 
@@ -263,14 +263,14 @@ def poly_load_save_sub(type1, type2):
     os.rmdir(dirname)
 
 
-    #The type and other parameters should now have been overwritten and updated
+    # The type and other parameters should now have been overwritten and updated
     assert interp2.poly_type == interp.poly_type
     assert interp2.orders==interp.orders
     assert interp2.nvariables==interp.nvariables
     assert interp2.indices==interp.indices
 
-    #Check that the old and new interpolators generate the same
-    #value
+    # Check that the old and new interpolators generate the same
+    # value
     for i in xrange(30):
         p=(numpy.random.random()*X, numpy.random.random()*Y)
         assert numpy.allclose(interp.interpolate(p),interp2.interpolate(p))
