@@ -80,14 +80,14 @@ class Polynomial(Interp):
         :param poly_type:   A string value, one of the keys from polynomial_types
         """
         function = polynomial_types.get(poly_type)
-        #Raise an error if this is not a valid type, in which case the lookup
-        #in the line above will return None.
+        # Raise an error if this is not a valid type, in which case the lookup
+        # in the line above will return None.
         if function is None:
             valid_types = ', '.join(polynomial_types.keys())
             raise ValueError(
                 "poly_type argument must be one of: {}, not {}".format(
                 valid_types, poly_type))
-        #If all is valid, set the appropriate values on self.
+        # If all is valid, set the appropriate values on self.
         self.function=function
         self.poly_type=poly_type
 
@@ -178,14 +178,14 @@ class Polynomial(Interp):
                            the p functions are polynomials.
 
         """
-        #Take the u and v components (x and y in the tangent plane)
-        #as our interpolants
+        # Take the u and v components (x and y in the tangent plane)
+        # as our interpolants
         u = pos[0]
         v = pos[1]
-        #Call the appropriate function to generate the polynomial model.
-        #By default this is numpy.polyval. Note that despite appearances
-        #this is not a method call - function is a normal python attribute
-        #that happens to be a function.
+        # Call the appropriate function to generate the polynomial model.
+        # By default this is numpy.polyval. Note that despite appearances
+        # this is not a method call - function is a normal python attribute
+        # that happens to be a function.
         f = self.function(u, v, C)
         return f
 
@@ -205,9 +205,9 @@ class Polynomial(Interp):
 
 
         """        
-        #We need a starting point for the fitter.
-        #Use a constant value over the whole field as 
-        #a reasonable guess.
+        # We need a starting point for the fitter.
+        # Use a constant value over the whole field as 
+        # a reasonable guess.
         n = self.orders[parameter_index]+1
         C = numpy.zeros((n,n))
         C[0,0] = parameter.mean()
@@ -228,51 +228,51 @@ class Polynomial(Interp):
         """
         import scipy.optimize
 
-        #We will want to index things later, so useful
-        #to convert these to numpy arrays and transpose
-        #them to the order we need.
+        # We will want to index things later, so useful
+        # to convert these to numpy arrays and transpose
+        # them to the order we need.
         parameters = numpy.array(vectors).T
         positions = numpy.array(pos).T
        
-        #We should have the same number of parameters as number of polynomial 
-        #orders with which we were created here.
+        # We should have the same number of parameters as number of polynomial 
+        # orders with which we were created here.
         nparam = len(parameters)
         assert nparam==self.nparam, """Must create Polynomial interpolator 
         with the same order as the input vectors ({}!={})""".format(nparam,self.nparam)
 
         coeffs = []
 
-        #This model function adapts our _interpolationModel method
-        #into the form that the scipy curve_fit function is expecting.
-        #It just needs to unpack a linear exploded list of coefficients
-        #into the matrix form that _interpolationModel wants.
+        # This model function adapts our _interpolationModel method
+        # into the form that the scipy curve_fit function is expecting.
+        # It just needs to unpack a linear exploded list of coefficients
+        # into the matrix form that _interpolationModel wants.
 
 
-        #Loop through the parameters
+        # Loop through the parameters
         for i, parameter in enumerate(parameters):
 
             def model(uv,*coeffs):
                 C = self._unpack_coefficients(i, coeffs)
                 return self._interpolationModel(uv,C)
 
-            #To replace the polynomial function in this code
-            #with another model it should only be necessary to 
-            #override the methods, initial_guess, fit_function,
-            #and perhaps the pack and unpack methods
+            # To replace the polynomial function in this code
+            # with another model it should only be necessary to 
+            # override the methods, initial_guess, fit_function,
+            # and perhaps the pack and unpack methods
             p0 = self._pack_coefficients(i, self._initialGuess(positions, parameter, i))
-            #print(p0)
-            # Black boxes curve fitter from scipy!
+
+            # Black box curve fitter from scipy!
             # We may want to look into the tolerance and other parameters
             # of this function.
             p,covmat=scipy.optimize.curve_fit(model, positions, parameter, p0)
             
-            #Build up the list of outputs, one for each parameter
+            # Build up the list of outputs, one for each parameter
             coeffs.append(self._unpack_coefficients(i,p))
 
-        #Each of these is now a list of length nparam, each element
-        #of which is a 2D array of coefficients to the corresponding 
-        #exponents. Where "corresponding" is as-defined in 
-        #self._unpack_coefficients
+        # Each of these is now a list of length nparam, each element
+        # of which is a 2D array of coefficients to the corresponding 
+        # exponents. Where "corresponding" is as-defined in 
+        # self._unpack_coefficients
         self.coeffs = coeffs
 
     def writeSolution(self, fits, extname):
@@ -285,17 +285,17 @@ class Polynomial(Interp):
         :param extname:     The name of the extension with the interp information.
         """
 
-        #We will try to be as explicit as possible when saving the 
-        #coefficients to file - for each coefficient we spell out in
-        #full the parameter index and exponent it corresponds to.
-        #We don't actually use this information in the readSolution
-        #below, but when we want to generalize or plot things it
-        #will be invaluable.
+        # We will try to be as explicit as possible when saving the 
+        # coefficients to file - for each coefficient we spell out in
+        # full the parameter index and exponent it corresponds to.
+        # We don't actually use this information in the readSolution
+        # below, but when we want to generalize or plot things it
+        # will be invaluable.
         dtypes = [('PARAM', int), ('U_EXPONENT', int), ('V_EXPONENT', int), 
         ('COEFF', float)]
 
-        #We will build up the data columns parameter by parameter
-        #and concatenate the results
+        # We will build up the data columns parameter by parameter
+        # and concatenate the results
         param_col = []
         u_exponent_col = []
         v_exponent_col = []
@@ -303,29 +303,29 @@ class Polynomial(Interp):
 
         #
         for p in xrange(self.nparam):
-            #This is a bit ugly, but we still have to tell self
-            #what parameter we are using so the system knows the
-            #order of the parameter. Hmm.
-            #Now we pack the coeffecients into a 1D vector
+            # This is a bit ugly, but we still have to tell self
+            # what parameter we are using so the system knows the
+            # order of the parameter. Hmm.
+            # Now we pack the coeffecients into a 1D vector
             coeffs = self._pack_coefficients(p, self.coeffs[p])
             n = len(coeffs)
-            #And build up the columns we will be saving.
+            # And build up the columns we will be saving.
             param_col.append(numpy.repeat(p, n))
             u_exponent_col.append([ind[0] for ind in self.indices[p]])
             v_exponent_col.append([ind[1] for ind in self.indices[p]])
             coeff_col.append(coeffs)
 
-        #This is all the table data we'll actually be saving.
+        # This is all the table data we'll actually be saving.
         cols = [numpy.concatenate(c) for c in (param_col, u_exponent_col, v_exponent_col, coeff_col)]
 
-        #We will need some more identifying information that this!
-        #I would suggest some kind of standard piff collection of header
-        #values.
+        # We will need some more identifying information that this!
+        # I would suggest some kind of standard piff collection of header
+        # values.
         header={"NPARAM":self.nparam, "POLYTYPE":self.poly_type}
         for i,order in enumerate(self.orders):
             header["ORDER_{}".format(i)] = order
 
-        #Finally, write all of this to a FITS table.
+        # Finally, write all of this to a FITS table.
         data = numpy.array(zip(*cols), dtype=dtypes)
         fits.write_table(data, extname=extname, header=header)
 
@@ -341,8 +341,8 @@ class Polynomial(Interp):
         header = fits[extname].read_header()
         data = fits[extname].read()
 
-        #Load the same standard header variables that we saved above.
-        #Must keep these in sync
+        # Load the same standard header variables that we saved above.
+        # Must keep these in sync
         self.nparam = header['NPARAM']
         poly_type = header['POLYTYPE'].strip()
         orders = [header["ORDER_{}".format(p)] for p in xrange(self.nparam)]
@@ -352,11 +352,11 @@ class Polynomial(Interp):
         self._set_orders(orders)
 
 
-        #Finally load coefficients from the FITS file.
-        #Although we have saved the u and exponents in another
-        #column we don't actually use them here - we just use the fact
-        #that we know the ordering was made by _pack_coefficients and so
-        #we can re-order using _unpack_coefficients
+        # Finally load coefficients from the FITS file.
+        # Although we have saved the u and exponents in another
+        # column we don't actually use them here - we just use the fact
+        # that we know the ordering was made by _pack_coefficients and so
+        # we can re-order using _unpack_coefficients
         param_indices = data['PARAM']
         coeff_data = data['COEFF']
         self.coeffs = []
