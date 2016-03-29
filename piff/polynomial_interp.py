@@ -255,10 +255,8 @@ class Polynomial(Interp):
                 C = self._unpack_coefficients(i, coeffs)
                 return self._interpolationModel(uv,C)
 
-            # To replace the polynomial function in this code
-            # with another model it should only be necessary to 
-            # override the methods, initial_guess, fit_function,
-            # and perhaps the pack and unpack methods
+            # Convert the structure the coefficients are held in into
+            # a single parameter vector for scipy to fit.
             p0 = self._pack_coefficients(i, self._initialGuess(positions, parameter, i))
 
             # Black box curve fitter from scipy!
