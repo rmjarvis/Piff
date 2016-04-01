@@ -1,5 +1,7 @@
 import numpy
 import piff
+from nose.tools import assert_raises
+
 PolynomialsTypes = piff.polynomial_types.keys()
 
 
@@ -283,6 +285,25 @@ def poly_load_save_sub(type1, type2):
     for i in xrange(30):
         p=(numpy.random.random()*X, numpy.random.random()*Y)
         numpy.testing.assert_almost_equal(interp.interpolate(p),interp2.interpolate(p))
+
+def test_poly_raise():
+    # Test that we can serialize and deserialize a polynomial 
+    # interpolator correctly.  Copying all this stuff from above:
+
+    numpy.random.seed(12434)
+    nparam = 3
+    nstars = 50
+
+    # Use three different sizes to test everything
+    orders = [1,2,3]
+    interp = piff.Polynomial(orders)
+    pos = [ (numpy.random.random()*10, numpy.random.random()*10)
+            for i in range(nstars) ]
+    #use the wrong number of parameters here so that we raise an error
+    vectors = [ numpy.random.random(size=nparam+1) for i in range(nstars) ]
+    assert_raises(ValueError, interp.solve, pos, vectors)
+
+
 
 def test_poly_load_save():
     for poly_type in PolynomialsTypes:

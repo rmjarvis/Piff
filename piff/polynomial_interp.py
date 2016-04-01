@@ -238,8 +238,10 @@ class Polynomial(Interp):
         # We should have the same number of parameters as number of polynomial 
         # orders with which we were created here.
         nparam = len(parameters)
-        assert nparam==self.nparam, """Must create Polynomial interpolator 
-        with the same order as the input vectors ({}!={})""".format(nparam,self.nparam)
+        if nparam!=self.nparam:
+            raise ValueError("Must create Polynomial interpolator with the"
+                "same order as the input vectors ({}!={})".format(nparam,
+                self.nparam))
 
         if logger:
             logger.info("Fitting %d parameter vectors using "\
