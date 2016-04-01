@@ -345,8 +345,8 @@ class RhoStatistics(Statistics):
                 r = np.exp(rho.logr)
                 xi = rho.xip
                 # now separate the xi into positive and negative components
-                xi_neg = np.ma.masked_where(xi > 0, -xi)
-                xi_pos = np.ma.masked_where(xi < 0, xi)
+                pos = xi > 0
+                neg = xi < 0
 
                 # catch linestyles, but otherwise default to - and -- for positive and negative values
                 if 'linestyle' in kwargs.keys():
@@ -356,9 +356,9 @@ class RhoStatistics(Statistics):
                     linestyle_pos = '-'
                     linestyle_neg = '--'
                 # do the plots
-                ax.plot(r, xi_pos, linestyle=linestyle_pos, color=color, label=label, **kwargs)
+                ax.plot(r[pos], xi[pos], linestyle=linestyle_pos, color=color, label=label, **kwargs)
                 # no label for the negative values
-                ax.plot(r, xi_neg, linestyle=linestyle_neg, color=color, **kwargs)
+                ax.plot(r[neg], xi[neg], linestyle=linestyle_neg, color=color, **kwargs)
             ax.legend(loc='upper right')
 
         return fig, axs
