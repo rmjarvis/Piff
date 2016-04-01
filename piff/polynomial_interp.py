@@ -153,8 +153,8 @@ class Polynomial(Interp):
         n=self.orders[parameter_index]+1
         C = numpy.zeros((n, n))
         for k,(i,j) in enumerate(self.indices[parameter_index]):
-                C[i,j] = coeffs[k]
-                k+=1
+            C[i,j] = coeffs[k]
+            k+=1
         return C
 
     
