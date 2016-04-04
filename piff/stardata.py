@@ -191,3 +191,18 @@ class StarData(object):
         mask = wt != 0.
 
         return pix[mask], wt[mask], u[mask], v[mask]
+
+    def setData(self, data):
+        """Set the pixel data from a numpy array. 
+        
+        Also returns the weight values and the local u,v coordinates of the pixels.
+        Any pixels with zero weight (e.g. from masking in the original image) will not be
+        included in the returned arrays.
+
+        :param data: A numpy array (1d or 2d) that can be reshaped to match the image
+        
+        :returns: None
+        """
+        numpy.copyto(self.image.array, data.reshape(self.image.array.shape))
+        return
+    

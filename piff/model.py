@@ -19,6 +19,42 @@
 from __future__ import print_function
 import numpy
 
+class Star(object):
+    """Structure that combines the data for a star with the results of fitting it.
+
+    We will expect it to have the following attributes:
+    data:   the StarData pixel data
+    params: parameters of the PSF that apply to this star
+    flux:   flux of the star (PSF is normalized to unit flux)
+    center: (u,v) tuple giving position of stellar center (interaction with StarData??)
+
+    The attributes will be needed if the interpolator is using the chisq expansion instead of
+    just parameter vectors:
+    
+    alpha, beta, gamma: matrix, vector, scalar giving Taylor expansion of chisq wrt params
+
+    Also can hold intermediate data useful to the Model that one wants to save during
+    iteration of the fit.
+
+    """
+    def __init__(self, data, params, flux=0., center=(0.,0.)):
+        """Constructor for base version of Star
+
+        :param data:   A StarData instance
+        :param params: An array holding PSF parameters for this star.  Size of array should be set at construction.
+        :param flux:   Estimated flux for this star
+        :param center: Estimated or fixed center position of this star
+        """
+        
+        self.data = data: 
+        self.params = params
+        self.flux = flux
+        self.center = center
+        self.alpha = None
+        self.beta = None
+        self.gamma = None
+        return
+    
 def process_model(config, logger=None):
     """Parse the model field of the config dict.
 
@@ -71,53 +107,61 @@ class Model(object):
         """
         return config_model
 
-    def fitStar(self, star):
-        """Fit the model parameters to the data for a single star.
+    def makeStar(self, data, flux=0., center=(0.,0.)):
+        """Create a Star instance that this Model can manipulate, include any setup needed
+        before fitting.
 
-        :param star:    A StarData instance
+        :param data:    A StarData instance
+        :param flux:    Initial estimate of stellar flux
+        :param center:  Initial estimate of stellar center in world coord system
 
-        :returns: self (for convenience of stringing together operations)
+        :returns: Star instance
         """
-        raise NotImplemented("Derived classes must define the fitImage function")
+        raise NotImplemented("Derived classes must define the makeStar function")
 
-    def getFit(self, star):
-        """Return dependence of chi^2 = -2 log L(D|p) on parameters for single star.
-        Returns the quadratic form chi^2 = dp^T*alpha*dp - 2*beta*dp + gamma,
-        where dp is the *shift* from current parameter values.  Quadratic is exact for
-        linear models, an approximation more generally.
+    def fit(self, star):
+        """Fit the Model to the star's data and save results in its params attribute.
+        Also updates the star's flux (and center if requested).  
 
-        :param star:   A StarData instance
+        :param star:   A Star instance
 
-        :returns: alpha, beta, gamma 
+        :returns: None 
         """
-        raise NotImplemented("Derived classes must define the getFit function")
+        raise NotImplemented("Derived classes must define the fit function")
 
-    def drawImage(self, image, pos=None):
-        """Draw the model on the given image.
+    def reflux(self, star):
+        """Fit the Model to the star's data, varying only the flux (and
+        center, if it is free).  Flux and center are updated in the Star's
+        attributes.
 
-        :param image:   A galsim.Image on which to draw the model.
-        :param pos:     The position on the image at which to place the nominal center.
-                        [default: None, which means to use the center of the image.]
+        :param star:   A Star instance
 
-        :returns: image
+        :returns: chi-squared, dof of the fit to the data. ??
         """
-        raise NotImplemented("Derived classes must define the getProfile function")
+        raise NotImplemented("Derived classes must define the reflux function")
 
-    def getParameters(self):
-        """Get the parameters of the model, to be used by the interpolator.
+    def chisq(self, star):
+        """Calculate dependence of chi^2 = -2 log L(D|p) on PSF parameters for single star.
+        as a quadratic form chi^2 = dp^T*alpha*dp - 2*beta*dp + gamma,
+        where dp is the *shift* from current parameter values.  Marginalization over
+        flux (and, optionally, center) should be done by this routine. Results are saved in
+        alpha,beta,gamma,flux, (center) attributes of Star.
 
-        :returns: a numpy array of the model parameters
+        :param star:   A Star instance
+
+        :returns: None
         """
-        raise NotImplemented("Derived classes must define the getParameters function")
+        raise NotImplemented("Derived classes must define the chisq function")
 
-    def setParameters(self, params):
-        """Set the parameters of the model, typically provided by an interpolator.
+    def draw(self, star):
+        """Fill the star's pixel data array with a rendering of the PSF specified by
+        its current parameters.
 
-        :param params:  A numpy array of the model parameters
+        :param star:   A Star instance
 
-        :returns: self
+        :returns: None
         """
-        raise NotImplemented("Derived classes must define the setParameters function")
+        raise NotImplemented("Derived classes must define the draw function")
 
     def write(self, fits, extname):
         """Write a Model to a FITS file.
