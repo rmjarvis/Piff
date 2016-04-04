@@ -203,6 +203,8 @@ class StarData(object):
         
         :returns: None
         """
+        # ??? Do we want to set data only at pixels with nonzero weight
+        # to make this symmetric with what emerges from getDataVector???
         numpy.copyto(self.image.array, data.reshape(self.image.array.shape))
         return
     
