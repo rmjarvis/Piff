@@ -96,7 +96,7 @@ class PixelModel(Model):
         # ??? Could have some type of window function here, for now just
         # ??? using unweighted flux & centroid
         A = np.zeros( (self._constraints, self._constraints + self._nparams), dtype=float)
-        B = np.zeros( (self._constraints,) dtype=float)
+        B = np.zeros( (self._constraints,), dtype=float)
         A[0,:] = 1.
         B[0] = 1.  # That's the flux constraint - sum pixels to unity.  ??? Pixel area factor???
         
@@ -153,7 +153,7 @@ class PixelModel(Model):
         # where the mask is False:
         return i[ np.where(self._mask, self._indices, len(i)-1)]
 
-    def _indexFromPsfxy(self, psfx, psfy)
+    def _indexFromPsfxy(self, psfx, psfy):
         """ Turn arrays of coordinates of the PSF array into a single same-shape
         array of indices into a 1d parameter vector.  The index is <0 wherever
         the psf x,y values were outside the PSF mask.
@@ -368,7 +368,7 @@ class PixelModel(Model):
 
         return 
         
-    def draw(self, star)
+    def draw(self, star):
         """Fill the star's pixel data array with a rendering of the PSF specified by
         its current parameters, flux, and center.
 
@@ -532,17 +532,35 @@ def Lanczos(Interpolant):
         """
         return np.where( abs(u)>0.001, sin(u)/u, 1-(np.PI*np.PI/6.)*u*u)
 
-    @classmethod
-    def _dsinc(cls, u):
-        """Calculate d sinc(u) / du for elements of array u
+    def _kernel1d(self, u):
+        """ Calculate the 1d interpolation kernel at each value in array u.
 
-        :param u   Numpy array of floats
+        :param u: 1d array of (u_dest-u_src) spanning the footprint of the kernel.
 
-        :returns:  Array of derivatives 
+        :returns: interpolation kernel values at these grid points 
         """
-        return np.where( abs(u)>0.001, (u*cos(u)-sin(u))/(u*u), u/3.)
-        
+        # ??? Do we want to normalize Lanczos to unit sum over kernel elements???
+        return self._sinc(u) * self._sinc(u/self.order)
+
     def __call__(self, u, v):
+        return self._calculate(u,v,derivs=False)
+
+    def derivatives(self, u, v):
+        return self._calculate(u,v,derivs=True)
+
+    def _calculate(self, u, v, derivs=False):
+        """ Routine which does the kernel calculations.  Uses finite differences to
+        calculate derivatives, if requested.
+
+        :param u,v:    1d arrays of coordinates to which we are interpolating
+        :param derivs: Set to true if outputs should include derivatives w.r.t. u,v
+        
+        :returns: coeffs, [dcoeff/du, dcoeff/dv,] x, y where each is a 2d array of
+        dimensions (len(u), # of kernel elements), holding coefficients of each grid point
+        for interpolation to each destination point, [derivatives of these], and x,y are
+        the integer coordinates of the grid points.
+        """
+        
         # Get integer and fractional parts of u, v
         u_ceil = np.ceil(u).astype(int)
         v_ceil = np.ceil(v).astype(int)
@@ -554,15 +572,20 @@ def Lanczos(Interpolant):
         argu = (u_ceil-u)[:,np.newaxis] + self._duv
         argv = (v_ceil-v)[:,np.newaxis] + self._duv
         # Calculate the Lanczos function each axis:
-        ku = self._sinc(argu) * self._sinc(argu/self.order)
-        kv = self._sinc(argv) * self._sinc(argv/self.order)
+        ku = self._kernel1d(argu)
+        kv = self._kernel1d(argv)
         # Then take outer products to produce kernel
         coeffs = (ku[:,np.newaxis,:] * kv[:,:,np.newaxis]).reshape(x.shape)
-        return coeffs, x, y
 
-    def derivatives(self, u, v):
-        # Get integer and fractional parts of u, v
-        # Set up coordinate arrays
-        # Calculate Lanczos function and derivatives
-        return coeffs, dcdu, dcdv, x, y
+        if derivs:
+            # Take derivatives with respect to u
+            duv = 0.01   # Step for finite differences
+            dku = (self._kernel1d(argu+duv)-self._kernel1d(argu-duv)) / (2*duv)
+            dcdu = (dku[:,np.newaxis,:] * kv[:,:,np.newaxis]).reshape(x.shape)
+            # and v
+            dkv = (self._kernel1d(argv+duv)-self._kernel1d(argv-duv)) / (2*duv)
+            dcdv = (ku[:,np.newaxis,:] * dkv[:,:,np.newaxis]).reshape(x.shape)
+            return coeffs, dcdu, dcdv, x, y
+        else:
+            return coeffs, x, y
     

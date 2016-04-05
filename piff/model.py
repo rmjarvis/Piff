@@ -37,7 +37,7 @@ class Star(object):
     iteration of the fit.
 
     """
-    def __init__(self, data, params, flux=0., center=(0.,0.)):
+    def __init__(self, data, params, flux=1., center=(0.,0.)):
         """Constructor for base version of Star
 
         :param data:   A StarData instance
@@ -46,7 +46,7 @@ class Star(object):
         :param center: Estimated or fixed center position of this star
         """
         
-        self.data = data: 
+        self.data = data
         self.params = params
         self.flux = flux
         self.center = center
@@ -107,7 +107,7 @@ class Model(object):
         """
         return config_model
 
-    def makeStar(self, data, flux=0., center=(0.,0.)):
+    def makeStar(self, data, flux=1., center=(0.,0.)):
         """Create a Star instance that this Model can manipulate, include any setup needed
         before fitting.
 
