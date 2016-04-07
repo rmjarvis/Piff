@@ -38,7 +38,7 @@ def process_output(config, logger=None):
     # Get the class to use for handling the output data
     # Default type is 'File'
     # Not sure if this is what we'll always want, but it would be simple if we can make it work.
-    output_handler_class = eval('piff.Output' + config_output.pop('type','File'))
+    output_handler_class = getattr(piff, 'Output' + config_output.pop('type','File'))
 
     # Read any other kwargs in the output field
     kwargs = output_handler_class.parseKwargs(config_output)
