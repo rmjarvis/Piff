@@ -189,7 +189,7 @@ def sub_poly_quadratic(type1):
         p=(numpy.random.random()*X, numpy.random.random()*Y)
         numpy.testing.assert_almost_equal(f(p), interp.interpolate(p))
 
-def test_poly_linear():
+def test_poly_quadratic():
     for poly_type in PolynomialsTypes:
         sub_poly_quadratic(poly_type)
 
@@ -316,9 +316,11 @@ def test_poly_load_err():
                 poly_load_save_sub(poly_type1,poly_type2)
 
 if __name__ == '__main__':
-    test_poly_load_err()
-    test_poly_linear()
-    test_poly_mean()
     test_poly_indexing()
-    test_poly_load_save()
+    test_poly_mean()
+    test_poly_linear()
+    test_poly_quadratic()
     test_poly_guess()
+    test_poly_raise()
+    test_poly_load_save()
+    test_poly_load_err()
