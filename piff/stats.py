@@ -43,7 +43,7 @@ def process_stats(config, logger):
 
         # Get the class to use for the stats
         # Not sure if this is what we'll always want, but it would be simple if we can make it work.
-        stats_class = eval('piff.' + config_stats.pop('type'))
+        stats_class = getattr(piff, config_stats.pop('type'))
 
         if 'output' not in config_stats:
             raise ValueError("config['stats'] has no output field")

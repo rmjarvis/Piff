@@ -41,7 +41,7 @@ def process_interp(config, logger=None):
 
     # Get the class to use for the interp
     # Not sure if this is what we'll always want, but it would be simple if we can make it work.
-    interp_class = eval('piff.' + config_interp.pop('type'))
+    interp_class = getattr(piff, config_interp.pop('type'))
 
     # Read any other kwargs in the interp field
     kwargs = interp_class.parseKwargs(config_interp)

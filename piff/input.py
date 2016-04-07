@@ -39,7 +39,7 @@ def process_input(config, logger=None):
     # Get the class to use for handling the input data
     # Default type is 'Files'
     # Not sure if this is what we'll always want, but it would be simple if we can make it work.
-    input_handler_class = eval('piff.Input' + config_input.pop('type','Files'))
+    input_handler_class = getattr(piff, 'Input' + config_input.pop('type','Files'))
 
     # Read any other kwargs in the input field
     kwargs = input_handler_class.parseKwargs(config_input)
