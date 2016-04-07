@@ -20,6 +20,7 @@ from __future__ import print_function
 
 from .interp import Interp
 import numpy
+import warnings
 from numpy.polynomial.polynomial import polyval2d
 from numpy.polynomial.chebyshev import chebval2d
 from numpy.polynomial.legendre import legval2d
@@ -276,7 +277,11 @@ class Polynomial(Interp):
             # Black box curve fitter from scipy!
             # We may want to look into the tolerance and other parameters
             # of this function.
-            p,covmat=scipy.optimize.curve_fit(model, positions, parameter, p0)
+            # MJ: There are much faster ways to do this, but this is fine for now.
+            with warnings.catch_warnings():
+                # scipy.optimize has a tendency to emit warnings.  Let's ignore them.
+                warnings.simplefilter("ignore", scipy.optimize.OptimizeWarning)
+                p,covmat=scipy.optimize.curve_fit(model, positions, parameter, p0)
             
             # Build up the list of outputs, one for each parameter
             coeffs.append(self._unpack_coefficients(i,p))
