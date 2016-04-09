@@ -43,7 +43,8 @@ class Star(object):
         :param data:   A StarData instance
         :param params: An array holding PSF parameters for this star.  Size of array should be set at construction.
         :param flux:   Estimated flux for this star
-        :param center: Estimated or fixed center position of this star
+        :param center: Estimated or fixed center position (u,v) of this star relative to
+        the origin of the system returned by StarData.
         """
         
         self.data = data

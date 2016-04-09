@@ -148,3 +148,41 @@ def test_pix2():
     star2.flux = star.flux
     mod.draw(star2)
     return star,star2,mod
+
+def test_center():
+    # Fit with centroid free and PSF center constrained
+    import pixelmodel as pm
+    influx = 150.
+    g = GaussFunc(2.0, 0.6, 0.6, influx)
+    s = SimpleData(np.zeros((32,32),dtype=float),0.1, 8., 8., du=0.5)
+    s.fillFrom(g)
+
+    # And an identical blank to fill with PSF model
+    s2 = SimpleData(np.zeros((32,32),dtype=float),0.1, 8., 8., du=0.5)
+
+    # Pixelized model with Lanczos 3 interp, coarser pix scale, smaller
+    # than the data
+    interp = pm.Lanczos(3)
+    # Want an odd-sized model when center=True
+    mod = pm.PixelModel(0.5, 29, interp, force_model_center=True, start_sigma=1.5)
+    star = mod.makeStar(s)
+    star.flux = np.sum(star.data.data)
+    star2 = mod.makeStar(s2)
+
+    mod.reflux(star, fit_center=False)
+    mod.reflux(star)
+    print('Flux, ctr after reflux:',star.flux,star.center)
+    mod.fit(star)
+    print('Flux, ctr after fit 1:',star.flux,star.center)
+    mod.reflux(star, fit_center=False)
+    mod.reflux(star)
+    print('Flux, ctr after reflux 1:',star.flux,star.center)
+    mod.fit(star)
+    print('Flux, ctr after fit 2:',star.flux,star.center)
+    mod.reflux(star, fit_center=False)
+    mod.reflux(star)
+    print('Flux, ctr after reflux 2:',star.flux,star.center)
+    star2.params = star.params.copy()
+    star2.flux = star.flux
+    mod.draw(star2)
+    return star,star2,mod
