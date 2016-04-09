@@ -36,25 +36,35 @@ class PixelModel(Model):
     PixelModel also needs an Interpolant on construction to specify how to determine
     values between grid points.
 
+    Stellar data is assumed either to be in flux units (with default sb=False), such that
+    flux is defined as sum of pixel values; or in surface brightness units (sb=True), such
+    that flux is (sum of pixels)*(pixel area).  Internally the sb convention is used.
+
     """
 
-    def __init__(self, du, n_side, interp, mask=None, force_model_center=False):
+    def __init__(self, du, n_side, interp, mask=None, force_model_center=False,
+                 sb=False):
         """Constructor for PixelModel defines the PSF pitch, size, and interpolator.
 
         If a mask is given, n_side is ignored, and the PSF origin is taken to be
-        at pixel [shape/2].  
+        at pixel [shape/2].
 
         :param du: PSF model grid pitch (in uv units)
         :param n_side: number of PSF model points on each side of square array
         :param interp: an Interpolator to be used
         :param mask: optional square boolean 2d array, True where we want a non-zero value
         :param force_model_center: If True, PSF model centroid is fixed at origin and
+        :param sb:  choose whether input & output images are flux or surface brightness
+        
         PSF fitting will marginalize over stellar position.  If False, stellar position is
         fixed at input value and the fitted PSF may be off-center.
         """
         self.du = du
+        self.pixel_area = self.du*self.du
         self.interp = interp
         self._force_model_center = force_model_center
+        self.sb = sb
+        
         if mask is None:
             if n_side <= 0:
                 raise AttributeError("Non-positive PixelModel size {:d}".format(n_side))
@@ -100,7 +110,7 @@ class PixelModel(Model):
         A = np.zeros( (self._constraints, self._constraints + self._nparams), dtype=float)
         B = np.zeros( (self._constraints,), dtype=float)
         A[0,:] = 1.
-        B[0] = 1.  # That's the flux constraint - sum pixels to unity.  ??? Pixel area factor???
+        B[0] = 1./self.pixel_area  # That's the flux constraint - sum(pixels) * pixel_area=1 
         
         if self._force_model_center:
             # Generate linear center constraints too
@@ -210,8 +220,8 @@ class PixelModel(Model):
         params = self._1dFrom2d(in2d)
 
         # Renormalize to get unity flux
-        params /= np.sum(params)
-        # ??? Allow for other flux norms, pixel size, check centering ???
+        params /= np.sum(params)*self.pixel_area
+        # ??? check centering ???
 
         star.params[:] = params[self._constraints:]  # Omit the constrained pixels
         return
@@ -257,7 +267,16 @@ class PixelModel(Model):
 
         # Start by getting all interpolation coefficients for all observed points
         data, weight, u, v = star.data.getDataVector()
-        # ??? Subtract star.center from u, v ???
+        if not self.sb:
+            # If the images are flux instead of surface brightness, convert
+            # them into SB
+            star_pix_area = star.data['pixel_area']
+            data /= star_pix_area
+            weight *= star_pix_area*star_pix_area
+        # Subtract star.center from u, v:
+        u -= star.center[0]
+        v -= star.center[1]
+        
         if self._force_model_center:
             coeffs, dcdu, dcdv, psfx, psfy = self.interp.derivs(u/self.du, v/self.du)
             dcdu /= self.du
@@ -306,17 +325,18 @@ class PixelModel(Model):
 
         # Add derivs wrt flux
         derivs[:,coeffs.shape[1]] = mod
-        indices[:,coeffs.shape[1]] = len(pvals)
+        dflux_index = self._nparams + self._constraints
+        indices[:,coeffs.shape[1]] = dflux_index
         if self._force_model_center:
             # Derivs w.r.t. center shift:
             derivs[:,coeffs.shape[1]+1] = dmdu
             derivs[:,coeffs.shape[1]+2] = dmdv
-            indices[:,coeffs.shape[1]+1] = len(pvals)+1
-            indices[:,coeffs.shape[1]+2] = len(pvals)+2
+            indices[:,coeffs.shape[1]+1] = dflux_index+1
+            indices[:,coeffs.shape[1]+2] = dflux_index+2
         
         # Accumulate alpha and beta point by point.  I don't
         # know how to do it purely with numpy calls instead of a loop over data points
-        nderivs = len(pvals) + self._constraints
+        nderivs = self._nparams + 2*self._constraints
         beta = np.zeros(nderivs, dtype=float)
         alpha = np.zeros( (nderivs,nderivs), dtype=float)
         for i in range(len(data)):
@@ -333,6 +353,7 @@ class PixelModel(Model):
         # using the linear constraints that dp0 = - _a * dp1 
         s0 = slice(None, self._constraints)  # parameters to eliminate
         s1 = slice(self._constraints, None)  # parameters to keep
+        print(self._constraints, beta.shape, self._a.shape,derivs.shape) ###
         beta = beta[s1] - np.dot(beta[s0], self._a).T
         alpha = alpha[s1,s1] \
           - np.dot( self._a.T, alpha[s0,s1]) \
@@ -346,9 +367,12 @@ class PixelModel(Model):
         # missing pixel data or otherwise unspecified PSF
         # ??? make these properties of the Model???
         fractional_flux_prior = 0.1 # prior of 10% on pre-existing flux
+        fractional_flux_prior = 0.5 # prior of 10% on pre-existing flux ???
         center_shift_prior = 0.1*self.du #prior of 0.1 uv-plane pixels
         alpha[self._nparams, self._nparams] += (fractional_flux_prior*star.flux)**(-2.)
-        alpha[self._nparams, self._nparams] += (center_shift_prior)**(-2.)
+        if self._force_model_center:
+            alpha[self._nparams+1, self._nparams+1] += (center_shift_prior)**(-2.)
+            alpha[self._nparams+2, self._nparams+2] += (center_shift_prior)**(-2.)
 
         s0 = slice(None, self._nparams)  # parameters to keep
         s1 = slice(self._nparams, None)  # parameters to marginalize
@@ -380,7 +404,10 @@ class PixelModel(Model):
        """
         # Start by getting all interpolation coefficients for all observed points
         data, weight, u, v = star.data.getDataVector()
-        # ??? Subtract star.center from u, v ???
+        # Subtract star.center from u, v
+        u -= star.center[0]
+        v -= star.center[1]
+        
         coeffs, psfx, psfy = self.interp(u/self.du, v/self.du)
         # Turn the (psfy,psfx) coordinates into an index into 1d parameter vector.
         index1d = self._indexFromPsfxy(psfx, psfy)
@@ -392,7 +419,9 @@ class PixelModel(Model):
 
         pvals = self._fullPsf1d(star)[index1d]
         model = star.flux * np.sum(coeffs*pvals, axis=1)
-
+        if not self.sb:
+            # Change data from surface brightness into flux
+            model *= star.data['pixel_area']
         star.data.setData(model)
         return
 
@@ -412,6 +441,12 @@ class PixelModel(Model):
         for iteration in range(max_iterations):
             # Start by getting all interpolation coefficients for all observed points
             data, weight, u, v = star.data.getDataVector()
+            if not self.sb:
+                # If the images are flux instead of surface brightness, convert
+                # them into SB
+                star_pix_area = star.data['pixel_area']
+                data /= star_pix_area
+                weight *= star_pix_area*star_pix_area
             u -= star.center[0]
             v -= star.center[1]
             if self._force_model_center:
@@ -536,7 +571,8 @@ class Lanczos(Interpolant):
 
         :returns:  Array of sinc(u)
         """
-        return np.where( abs(u)>0.001, np.sin(u)/u, 1-(np.pi*np.pi/6.)*u*u)
+        x = np.pi * u
+        return np.where( abs(x)>0.001, np.sin(x)/x, 1-x*x/6.)
 
     def _kernel1d(self, u):
         """ Calculate the 1d interpolation kernel at each value in array u.

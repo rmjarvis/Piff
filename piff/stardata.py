@@ -43,6 +43,7 @@ class StarData(object):
       - y
       - u
       - v
+      - pixel_area  (area of a pixel, in the uv units)
 
     And anything else you want to store.  e.g.
 
@@ -95,7 +96,7 @@ class StarData(object):
         self.field_pos = self.calculateFieldPos(image_pos, image.wcs, pointing, self.properties)
 
         # Make sure the user didn't provide their own x,y,u,v in properties.
-        for key in ['x', 'y', 'u', 'v']:
+        for key in ['x', 'y', 'u', 'v','pixel_area']:
             if properties is not None and key in properties:
                 raise AttributeError("Cannot provide property %s in properties dict."%key)
 
@@ -103,6 +104,7 @@ class StarData(object):
         self.properties['y'] = self.image_pos.y
         self.properties['u'] = self.field_pos.x
         self.properties['v'] = self.field_pos.y
+        self.properties['pixel_area'] = self._calculate_pixel_area()
 
     @staticmethod
     def calculateFieldPos(image_pos, wcs, pointing, properties=None):
@@ -138,7 +140,7 @@ class StarData(object):
 
         This may be one of the values in the properties dict that was given when the object
         was initialized, or one of 'x', 'y', 'u', 'v', where x,y are the position in image
-        coordinates and u,v are teh position in field coordinates.
+        coordinates and u,v are the position in field coordinates.
 
         :param key:     The name of the property to return
 
@@ -155,6 +157,23 @@ class StarData(object):
         :returns: image, weight, image_pos
         """
         return self.image, self.weight, self.image_pos
+
+    def _calculate_pixel_area(self):
+        """Calculate uv-plane pixel area from a finite difference
+
+        :returns: pixel area
+        """
+        dpix = 5.
+        x = numpy.array([-dpix,+dpix,0.,0.])
+        x = numpy.array([0.,0.,-dpix,+dpix])
+        # Convert to u,v coords
+        u = self.local_wcs._u(x,y)
+        v = self.local_wcs._v(x,y)
+        dudx = (u[1]-u[0])/(2*dpix)
+        dvdx = (u[3]-u[2])/(2*dpix)
+        dvdx = (v[1]-v[0])/(2*dpix)
+        dvdy = (v[3]-v[2])/(2*dpix)
+        return dudx*dvdy - dudy*dvdx
 
     def getDataVector(self):
         """Get the pixel data as a numpy array. 

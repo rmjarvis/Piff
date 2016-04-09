@@ -41,7 +41,11 @@ class SimpleData(object):
         self.du = du
         self.u = du * np.ones_like(self.data) * np.arange(self.data.shape[1]) - self.u0
         self.v = du * np.ones_like(self.data) * np.arange(self.data.shape[0])[:,np.newaxis] - self.v0
+        self.properties = {'pixel_area':self.du*self.du}
         
+    def __getitem__(self,key):
+        return self.properties[key]
+    
     def addNoise(self):
         """Add noise realization to the image
         """
@@ -85,7 +89,7 @@ class GaussFunc(object):
 def test_pix():
     import pixelmodel as pm
     # Test: make a noiseless centered Gaussian, flux = 15
-    g = GaussFunc(2.0, 0., 0., 15.)
+    g = GaussFunc(2.0, 0., 0., 150.)
     s = SimpleData(np.zeros((32,32),dtype=float),0.1, 8., 8., du=0.5)
     s.fillFrom(g)
 
@@ -96,8 +100,8 @@ def test_pix():
     interp = pm.Lanczos(3)
     mod = pm.PixelModel(0.5, 32,interp)
     star = mod.makeStar(s)
+    star.flux = np.sum(star.data.data)
     star2 = mod.makeStar(s2)
-    star.flux = 10.
     star2.flux = 1.
 
     mod.fit(star)
@@ -106,6 +110,41 @@ def test_pix():
     print('Flux after reflux:',star.flux)
     mod.fit(star)
     print('Flux after fit 2:',star.flux)
+    mod.reflux(star)
+    print('Flux after reflux 2:',star.flux)
     star2.params = star.params.copy()
+    star2.flux = star.flux
+    mod.draw(star2)
+    return star,star2,mod
+
+def test_pix2():
+    # Fit to oversampled data
+    import pixelmodel as pm
+    influx = 150.
+    g = GaussFunc(2.0, 0.5, 0.5, influx)
+    s = SimpleData(np.zeros((64,64),dtype=float),0.1, 8., 8., du=0.25)
+    s.fillFrom(g)
+
+    # And an identical blank to fill with PSF model
+    s2 = SimpleData(np.zeros((64,64),dtype=float),0.1, 8., 8., du=0.25)
+
+    # Pixelized model with Lanczos 3 interp, coarser pix scale
+    interp = pm.Lanczos(3)
+    mod = pm.PixelModel(0.5, 32,interp)
+    star = mod.makeStar(s)
+    star.flux = np.sum(star.data.data)
+    star2 = mod.makeStar(s2)
+    star2.flux = 1.
+
+    mod.fit(star)
+    print('Flux after fit 1:',star.flux)
+    mod.reflux(star)
+    print('Flux after reflux:',star.flux)
+    mod.fit(star)
+    print('Flux after fit 2:',star.flux)
+    mod.reflux(star)
+    print('Flux after reflux 2:',star.flux)
+    star2.params = star.params.copy()
+    star2.flux = star.flux
     mod.draw(star2)
     return star,star2,mod
