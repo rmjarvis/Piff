@@ -19,7 +19,8 @@
 from __future__ import print_function
 import numpy as np
 
-from model import Model,Star
+from model import Model
+from starfit import Star,StarFit
 
 class PixelModel(Model):
     """A PSF modeled as interpolation between a grid of points.
@@ -46,11 +47,12 @@ class PixelModel(Model):
 
     """
 
-    def __init__(self, du, n_side, interp, mask=None, start_sigma=1., force_model_center=False,
-                 sb=False):
+    def __init__(self, du, n_side, interp, mask=None, start_sigma=1.,
+                 force_model_center=False):
         """Constructor for PixelModel defines the PSF pitch, size, and interpolator.
 
-        If a mask is given, n_side is ignored, and the PSF origin is taken to be
+        If a mask array is given, it defines the size of the modeled pixel, otherwise
+        a square of side n_side is taken.  The origin of PSF is always placed
         at pixel [shape/2].
 
         :param du: PSF model grid pitch (in uv units)
@@ -61,14 +63,11 @@ class PixelModel(Model):
         :param force_model_center: If True, PSF model centroid is fixed at origin and
         PSF fitting will marginalize over stellar position.  If False, stellar position is
         fixed at input value and the fitted PSF may be off-center.
-        :param sb:  choose whether input & output images are flux or surface brightness
-        
         """
         self.du = du
         self.pixel_area = self.du*self.du
         self.interp = interp
         self._force_model_center = force_model_center
-        self.sb = sb
         
         if mask is None:
             if n_side <= 0:
@@ -227,8 +226,8 @@ class PixelModel(Model):
         
         :returns: 1d array of all PSF values at grid points in mask
         """
-        constrained = self._b - np.dot(self._a[:,:self._nparams], star.params)
-        return np.concatenate((constrained, star.params))
+        constrained = self._b - np.dot(self._a[:,:self._nparams], star.fit.params)
+        return np.concatenate((constrained, star.fit.params))
         
 
     def fillPSF(self, star, in2d):
@@ -240,6 +239,7 @@ class PixelModel(Model):
         :param in2d:    2d input array matching the PSF uv-plane grid
 
         :returns: None
+        ??? Return a new one instead???
         """
         params = self._1dFrom2d(in2d)
 
@@ -247,7 +247,7 @@ class PixelModel(Model):
         params /= np.sum(params)*self.pixel_area
         # ??? check centering ???
 
-        star.params[:] = params[self._constraints:]  # Omit the constrained pixels
+        star.fit.params[:] = params[self._constraints:]  # Omit the constrained pixels
         return
         
     def makeStar(self, data, flux=1., center=(0.,0.)):
@@ -257,49 +257,74 @@ class PixelModel(Model):
         :param flux:    Initial estimate of stellar flux
         :param center:  Initial estimate of stellar center in world coord system
 
-        :returns: Star instance
+        :returns:       Star instance
         """
-        return Star(data, self._initial_params, flux, center)
+        return Star(data, StarFit(self._initial_params, flux, center))
 
     def fit(self, star):
-        """Fit the model parameters to the data for a single Star, updating its parameters,
-        flux, and (optionally) center.
-
-        :param star:    A Star instance
-
-        :returns: None
-        """
-        self.chisq(star)  # Get chisq for linearized model and solve for parameters
-        # That call will also update the flux (and center) of the Star
-        dparam = np.linalg.solve(star.alpha, star.beta)
-        # ??? Trap exception for singular matrix here?
-        # ??? dparam = scipy.linalg.solve(alpha, beta, sym_pos=True) would be faster
-        star.params += dparam
-        return
-
-    def chisq(self, star):
-        """Calculate dependence of chi^2 = -2 log L(D|p) on PSF parameters for single star.
-        as a quadratic form chi^2 = dp^T*alpha*dp - 2*beta*dp + gamma,
-        where dp is the *shift* from current parameter values.  Marginalization over
-        flux (and, optionally, center) are done by this routine. Results are saved in
-        alpha,beta,gamma,flux, (center) attributes of Star.
+        """Fit the Model to the star's data to yield iterative improvement on
+        its PSF parameters, their uncertainties, and flux (and center, if free).  
 
         :param star:   A Star instance
 
-        :returns: None
+        :returns:      New Star instance with updated fit information
+        """
+        star1 = self.chisq(star)  # Get chisq Taylor expansion for linearized model
+        # star1 has marginalized over flux (& center, if free), and updated these
+        # for best linearized fit at the input parameter values.
+        try:
+            dparam = np.linalg.solve(star1.fit.alpha, star1.fit.beta)
+            # ??? dparam = scipy.linalg.solve(alpha, beta, sym_pos=True) would be faster
+        except numpy.LinAlgError:
+            # Trap exception for singular matrix here, try SVD and retain
+            # input values for degenerate parameter combinations
+            # ??? Tell logger about this?
+            U,S,Vt = numpy.svd(star1.fit.alpha)
+            # Invert, while zeroing small elements of s.  
+            # "Small" will be taken to be causing a small chisq change
+            # when corresponding PSF component changes by the full flux of PSF
+            small = 0.01 * self.pixel_area * self.pixel_area
+            if np.any(s < -small):
+                raise ValueError("Negative singular value in alpha matrix")
+            invs = np.where(np.abs(s)>small, 1./s, 0.)
+            # answer = V * S^{-1} * U^T * beta
+            dparam = np.dot(Vt.T, invs[:,np.newaxis] * np.dot(U.T,star1.fit.beta))
+            
+        # Create new StarFit, update the chisq value.  Note no beta is returned as
+        # the quadratic Taylor expansion was about the old parameters, not these.
+        starfit2 = StarFit(star1.fit.params + dparam,
+                           flux = star1.fit.flux,
+                           center = star1.fit.center,
+                           alpha = star1.fit.alpha,  # Inverse covariance matrix
+                           chisq = star1.fit.chisq \
+                                   + np.dot(dparam, np.dot(star1.fit.alpha, dparam)) \
+                                   - 2 * np.dot(star1.fit.beta, dparam))
+        return Star(star1.data, starfit2)
+
+    def chisq(self, star):
+        """Calculate dependence of chi^2 = -2 log L(D|p) on PSF parameters for single star.
+        as a quadratic form chi^2 = dp^T*alpha*dp - 2*beta*dp + chisq,
+        where dp is the *shift* from current parameter values.  Marginalization over
+        flux (and center, if free) should be done by this routine. Returned Star
+        instance has the resultant alpha, beta, chisq, flux, center) attributes,
+        but params vector has not have been updated yet (could be degenerate).
+
+        :param star:   A Star instance
+
+        :returns:      New Star instance with updated StarFit
         """
 
         # Start by getting all interpolation coefficients for all observed points
         data, weight, u, v = star.data.getDataVector()
-        if not self.sb:
+        if not star.data.values_are_sb:
             # If the images are flux instead of surface brightness, convert
             # them into SB
-            star_pix_area = star.data['pixel_area']
+            star_pix_area = star.data.pixel_area
             data /= star_pix_area
             weight *= star_pix_area*star_pix_area
-        # Subtract star.center from u, v:
-        u -= star.center[0]
-        v -= star.center[1]
+        # Subtract star.fit.center from u, v:
+        u -= star.fit.center[0]
+        v -= star.fit.center[1]
         
         if self._force_model_center:
             coeffs, dcdu, dcdv, psfx, psfy = self.interp.derivatives(u/self.du, v/self.du)
@@ -323,14 +348,14 @@ class PixelModel(Model):
         pvals = self._fullPsf1d(star)[index1d]
         mod = np.sum(coeffs*pvals, axis=1)
         if self._force_model_center:
-            dmdu = star.flux * np.sum(dcdu*pvals, axis=1)
-            dmdv = star.flux * np.sum(dcdv*pvals, axis=1)
-        resid = data - mod*star.flux
+            dmdu = star.fit.flux * np.sum(dcdu*pvals, axis=1)
+            dmdv = star.fit.flux * np.sum(dcdv*pvals, axis=1)
+        resid = data - mod*star.fit.flux
 
-        # Now begin construction of alpha/beta/gamma that give
+        # Now begin construction of alpha/beta/chisq that give
         # chisq vs linearized model.
         rw = resid * weight
-        gamma = np.sum(resid * rw)
+        chisq = np.sum(resid * rw)
 
         # To begin with, we build alpha and beta over all PSF points
         # within mask, *and* the flux (and center) shifts.  Then
@@ -344,7 +369,7 @@ class PixelModel(Model):
                            dtype=float)
         indices = np.zeros( (index1d.shape[0], index1d.shape[1]+self._constraints),
                             dtype=int)
-        derivs[:, :coeffs.shape[1]] = star.flux * coeffs  #derivs wrt PSF elements
+        derivs[:, :coeffs.shape[1]] = star.fit.flux * coeffs  #derivs wrt PSF elements
         indices[:,:index1d.shape[1]] = index1d
 
         # Add derivs wrt flux
@@ -389,11 +414,9 @@ class PixelModel(Model):
         # to avoid numerical instabilities when these are degenerate because of
         # missing pixel data or otherwise unspecified PSF
         # ??? make these properties of the Model???
-        fractional_flux_prior = 0.1 # prior of 10% on pre-existing flux
-        fractional_flux_prior = 0.5 # prior of 10% on pre-existing flux ???
-        center_shift_prior = 0.1*self.du #prior of 0.1 uv-plane pixels
-        center_shift_prior = 0.5*self.du #prior of 0.1 uv-plane pixels ???
-        alpha[self._nparams, self._nparams] += (fractional_flux_prior*star.flux)**(-2.)
+        fractional_flux_prior = 0.5 # prior of 50% on pre-existing flux ???
+        center_shift_prior = 0.5*self.du #prior of 0.5 uv-plane pixels ???
+        alpha[self._nparams, self._nparams] += (fractional_flux_prior*star.fit.flux)**(-2.)
         if self._force_model_center:
             alpha[self._nparams+1, self._nparams+1] += (center_shift_prior)**(-2.)
             alpha[self._nparams+2, self._nparams+2] += (center_shift_prior)**(-2.)
@@ -404,33 +427,45 @@ class PixelModel(Model):
         # Calculate shift in flux - ??? Note that this is the solution for shift
         # when PSF parameters do *not* move; so if we subsequently update
         # the PSF params, we miss shifts due to covariances between flux and PSF.
+
         df = np.dot(a11inv, beta[s1])
-        star.flux += df[0]
+        outflux = star.fit.flux + df[0]
         if self._force_model_center:
-            star.center = (star.center[0] + df[1],
-                           star.center[1] + df[2])  # ?? check u,v ordering
+            outcenter = (star.fit.center[0] + df[1],
+                         star.fit.center[1] + df[2])
+        else:
+            outcenter = star.fit.center
 
-        # Now get the final alpha, beta, gamma for the remaining PSF params
-        star.gamma = gamma - np.dot(beta[s1].T,np.dot(a11inv, beta[s1]))
+        # Now get the final alpha, beta, chisq for the remaining PSF params
+        outchisq = chisq - np.dot(beta[s1].T,np.dot(a11inv, beta[s1]))
         tmp = np.dot(a11inv, alpha[s1,s0])
-        star.beta = beta[s0] - np.dot(beta[s1].T,tmp)
-        star.alpha = alpha[s0,s0] - np.dot(alpha[s0,s1],tmp)
+        outbeta = beta[s0] - np.dot(beta[s1].T,tmp)
+        outalpha = alpha[s0,s0] - np.dot(alpha[s0,s1],tmp)
 
-        return 
+        outfit = StarFit(star.fit.params,
+                         flux = outflux,
+                         center = outcenter,
+                         chisq = outchisq,
+                         dof = np.count_nonzero(weight) - self._nparams,
+                         alpha = outalpha,
+                         beta = outbeta)
+        
+        return Star(star.data, outfit)
         
     def draw(self, star):
-        """Fill the star's pixel data array with a rendering of the PSF specified by
-        its current parameters, flux, and center.
+        """Create new Star instance that has StarData filled with a rendering
+        of the PSF specified by the current StarFit parameters, flux, and center.
+        Coordinate mapping of the current StarData is assumed.
 
         :param star:   A Star instance
 
-        :returns: None
-       """
-        # Start by getting all interpolation coefficients for all observed points
+        :returns:      New Star instance with rendered PSF in StarData
+        """
+         # Start by getting all interpolation coefficients for all observed points
         data, weight, u, v = star.data.getDataVector()
-        # Subtract star.center from u, v
-        u -= star.center[0]
-        v -= star.center[1]
+        # Subtract star.fit.center from u, v
+        u -= star.fit.center[0]
+        v -= star.fit.center[1]
         
         coeffs, psfx, psfy = self.interp(u/self.du, v/self.du)
         # Turn the (psfy,psfx) coordinates into an index into 1d parameter vector.
@@ -442,39 +477,42 @@ class PixelModel(Model):
         coeffs = np.where(nopsf, 0., coeffs)
 
         pvals = self._fullPsf1d(star)[index1d]
-        model = star.flux * np.sum(coeffs*pvals, axis=1)
-        if not self.sb:
+        model = star.fit.flux * np.sum(coeffs*pvals, axis=1)
+        if not star.data.values_are_sb:
             # Change data from surface brightness into flux
-            model *= star.data['pixel_area']
-        star.data.setData(model)
-        return
+            model *= star.data.pixel_area
+        
+        return Star(star.data.setData(model), star.fit)
 
     def reflux(self, star, fit_center=True):
         """Fit the Model to the star's data, varying only the flux (and
         center, if it is free).  Flux and center are updated in the Star's
         attributes.  This is a single-step solution if only solving for flux,
-        otherwise an iterative operation.
+        otherwise an iterative operation.  DOF in the result assume
+        only flux (& center) are free parameters.
 
-        :param star:   A Star instance
+        :param star:       A Star instance
         :param fit_center: If False, disable any motion of center
 
-        :returns: chi-squared, dof of the fit to the data. ??
+        :returns:          New Star instance, with updated flux, center, chisq, dof
         """
         # This will be an iterative process if the centroid is free.
         max_iterations = 100    # Max iteration count
         chisq_tolerance = 0.01 # Quit when chisq changes less than this
         do_center = fit_center and self._force_model_center
+        flux = star.fit.flux
+        center = star.fit.center
         for iteration in range(max_iterations):
             # Start by getting all interpolation coefficients for all observed points
             data, weight, u, v = star.data.getDataVector()
-            if not self.sb:
+            if not star.data.values_are_sb:
                 # If the images are flux instead of surface brightness, convert
                 # them into SB
-                star_pix_area = star.data['pixel_area']
+                star_pix_area = star.data.pixel_area
                 data /= star_pix_area
                 weight *= star_pix_area*star_pix_area
-            u -= star.center[0]
-            v -= star.center[1]
+            u -= center[0]
+            v -= center[1]
             if do_center:
                 coeffs, dcdu, dcdv, psfx, psfy = self.interp.derivatives(u/self.du, v/self.du)
                 dcdu /= self.du
@@ -497,32 +535,38 @@ class PixelModel(Model):
             pvals = self._fullPsf1d(star)[index1d]
             mod = np.sum(coeffs*pvals, axis=1)
             if do_center:
-                dmdu = star.flux * np.sum(dcdu*pvals, axis=1)
-                dmdv = star.flux * np.sum(dcdv*pvals, axis=1)
+                dmdu = flux * np.sum(dcdu*pvals, axis=1)
+                dmdv = flux * np.sum(dcdv*pvals, axis=1)
                 derivs = np.vstack( (mod, dmdu, dmdv)).T
             else:
                 derivs = mod.reshape(mod.shape+(1,))
                 # derivs should end up with shape (npts, nconstraints)
-            resid = data - mod*star.flux
+            resid = data - mod*flux
 
-            # Now begin construction of alpha/beta/gamma that give
+            # Now begin construction of alpha/beta/chisq that give
             # chisq vs linearized model.
             rw = resid * weight
-            gamma = np.sum(resid * rw)
+            chisq = np.sum(resid * rw)
             beta = np.dot( derivs.T,rw)
             alpha = np.dot( derivs.T*weight, derivs)
             df = np.linalg.solve(alpha, beta)
             dchi = np.dot(beta, df)
-            chisq = gamma - dchi
+            chisq = chisq - dchi
             # update the flux (and center) of the star
-            star.flux += df[0]
-            print(iteration,'chisq',chisq,star.flux,star.center,df) ###
+            flux += df[0]
+            ###print(iteration,'chisq',chisq,flux,center,df) ###
             if do_center:
-                star.center = (star.center[0]+df[1],
-                               star.center[1]+df[2])
+                center = (center[0]+df[1],
+                          center[1]+df[2])
             if abs(dchi) < chisq_tolerance or not do_center:
-                # Quit iterating (flux alone is linear and requires no iteration)
-                return chisq, np.count_nonzero(weight) - self._constraints
+                # Done with iterations.  Return new Star with updated information
+                return Star(star.data, StarFit(star.fit.params,
+                                               flux = flux,
+                                               center = center,
+                                               chisq = chisq,
+                                               dof = np.count_nonzero(weight) - self._constraints,
+                                               alpha = star.fit.alpha,
+                                               beta = star.fit.beta))
 
         raise RuntimeError("Maximum number of iterations exceeded in PixelModel.reflux()")
 

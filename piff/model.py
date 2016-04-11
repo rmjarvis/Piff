@@ -19,43 +19,6 @@
 from __future__ import print_function
 import numpy
 
-class Star(object):
-    """Structure that combines the data for a star with the results of fitting it.
-
-    We will expect it to have the following attributes:
-    data:   the StarData pixel data
-    params: parameters of the PSF that apply to this star
-    flux:   flux of the star (PSF is normalized to unit flux)
-    center: (u,v) tuple giving position of stellar center (interaction with StarData??)
-
-    The attributes will be needed if the interpolator is using the chisq expansion instead of
-    just parameter vectors:
-    
-    alpha, beta, gamma: matrix, vector, scalar giving Taylor expansion of chisq wrt params
-
-    Also can hold intermediate data useful to the Model that one wants to save during
-    iteration of the fit.
-
-    """
-    def __init__(self, data, params, flux=1., center=(0.,0.)):
-        """Constructor for base version of Star
-
-        :param data:   A StarData instance
-        :param params: An array holding PSF parameters for this star.  Size of array should be set at construction.
-        :param flux:   Estimated flux for this star
-        :param center: Estimated or fixed center position (u,v) of this star relative to
-        the origin of the system returned by StarData.
-        """
-        
-        self.data = data
-        self.params = params
-        self.flux = flux
-        self.center = center
-        self.alpha = None
-        self.beta = None
-        self.gamma = None
-        return
-    
 def process_model(config, logger=None):
     """Parse the model field of the config dict.
 
@@ -109,7 +72,7 @@ class Model(object):
         return config_model
 
     def makeStar(self, data, flux=1., center=(0.,0.)):
-        """Create a Star instance that this Model can manipulate, include any setup needed
+        """Create a Star instance that this Model can read, include any setup needed
         before fitting.
 
         :param data:    A StarData instance
@@ -121,23 +84,22 @@ class Model(object):
         raise NotImplemented("Derived classes must define the makeStar function")
 
     def fit(self, star):
-        """Fit the Model to the star's data and save results in its params attribute.
-        Also updates the star's flux (and center if requested).  
+        """Fit the Model to the star's data to yield iterative improvement on
+        its PSF parameters, their uncertainties, and flux (and center, if free).  
 
         :param star:   A Star instance
 
-        :returns: None 
+        :returns:      New Star instance with updated fit information
         """
         raise NotImplemented("Derived classes must define the fit function")
 
     def reflux(self, star):
-        """Fit the Model to the star's data, varying only the flux (and
-        center, if it is free).  Flux and center are updated in the Star's
-        attributes.
+        """Fit the Model to the star's data, varying the flux (and
+        iterating the center, if it is free) at fixed PSF shape.
 
         :param star:   A Star instance
 
-        :returns: chi-squared, dof of the fit to the data. ??
+        :returns:      New star instance, with updated flux, center, chisq, dof
         """
         raise NotImplemented("Derived classes must define the reflux function")
 
@@ -145,22 +107,24 @@ class Model(object):
         """Calculate dependence of chi^2 = -2 log L(D|p) on PSF parameters for single star.
         as a quadratic form chi^2 = dp^T*alpha*dp - 2*beta*dp + gamma,
         where dp is the *shift* from current parameter values.  Marginalization over
-        flux (and, optionally, center) should be done by this routine. Results are saved in
-        alpha,beta,gamma,flux, (center) attributes of Star.
+        flux (and center, if free) should be done by this routine. Returned Star
+        instance has the resultant alpha, beta, gamma, flux, (center) attributes of Star,
+        but parameters need not have been updated as they may be degenerate.
 
         :param star:   A Star instance
 
-        :returns: None
+        :returns:      New Star instance with updated StarFit
         """
         raise NotImplemented("Derived classes must define the chisq function")
 
     def draw(self, star):
-        """Fill the star's pixel data array with a rendering of the PSF specified by
-        its current parameters.
+        """Create new Star instance that has StarData filled with a rendering
+        of the PSF specified by the current StarFit parameters, flux, and center.
+        Coordinate mapping of the current StarData is assumed.
 
         :param star:   A Star instance
 
-        :returns: None
+        :returns:      New Star instance with rendered PSF in StarData
         """
         raise NotImplemented("Derived classes must define the draw function")
 

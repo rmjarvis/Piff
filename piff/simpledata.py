@@ -23,33 +23,34 @@ class SimpleData(object):
     """A very simple, galsim-free implementation of the StarData class, for basic
     tests of the PixelModel class.
     """
-    def __init__(self, data, sigma, u0, v0, du=1.):
+    def __init__(self, data, noise, u0, v0, du=1., values_are_sb = False):
         """
 
         :param data:  2d numpy array holding the pixel data
-        :param sigma: noise to be assumed on each pixel
+        :param noise: RMS Gaussian noise to be assumed on each pixel
         :param u0, v0: nominal center of the star relative to lower-left pixel
         :param du:    pixel size in "wcs" units
+        :param values_are_sb: True if pixel data give surface brightness, False if they're flux
+                          [default: False]
+
 
         :returns: None
         """
         self.data = np.copy(data)
-        self.sigma = sigma
-        self.weight = np.ones_like(data) * (1./sigma/sigma)
+        self.noise = noise
+        self.weight = np.ones_like(data) * (1./noise/noise)
         self.u0 = u0
         self.v0 = v0
         self.du = du
         self.u = du * np.ones_like(self.data) * np.arange(self.data.shape[1]) - self.u0
         self.v = du * np.ones_like(self.data) * np.arange(self.data.shape[0])[:,np.newaxis] - self.v0
-        self.properties = {'pixel_area':self.du*self.du}
+        self.pixel_area = self.du*self.du
+        self.values_are_sb = values_are_sb
         
-    def __getitem__(self,key):
-        return self.properties[key]
-    
     def addNoise(self):
         """Add noise realization to the image
         """
-        self.data += np.random.normal(scale=self.sigma, size=self.data.shape)
+        self.data += np.random.normal(scale=self.noise, size=self.data.shape)
         return
 
     def fillFrom(self,function):
@@ -67,9 +68,15 @@ class SimpleData(object):
         """Fill 2d array from 1d array
         """
         mask = self.weight>0.
-        self.data[mask] = data
-        self.data[np.logical_not(mask)] = 0.
-        return
+        newdata = np.zeros_like(self.data)
+        print(newdata.shape, mask.shape, self.weight.shape, data.shape)###
+        newdata[mask] = data
+        return  SimpleData(newdata,
+                           noise = self.noise,
+                           u0 = self.u0,
+                           v0 = self.v0,
+                           du = self.du,
+                           values_are_sb = self.values_are_sb)
 
 class GaussFunc(object):
     """ Gaussian builder to use in SimpleData.fillFrom()
@@ -86,79 +93,71 @@ class GaussFunc(object):
         return out
     
 
-def test_pix():
+def test_simplest():
+    """Fit a PSF to noiseless Gaussian data at same sampling
+    """
     import pixelmodel as pm
-    # Test: make a noiseless centered Gaussian, flux = 15
-    g = GaussFunc(2.0, 0., 0., 150.)
-    s = SimpleData(np.zeros((32,32),dtype=float),0.1, 8., 8., du=0.5)
+    influx = 150.
+    du = 0.5
+    g = GaussFunc(2.0, 0., 0., influx)
+    s = SimpleData(np.zeros((32,32),dtype=float),0.1, 8., 8., du=du)
     s.fillFrom(g)
-
-    # And an identical blank to fill with PSF model
-    s2 = SimpleData(np.zeros((32,32),dtype=float),0.1, 8., 8., du=0.5)
 
     # Pixelized model with Lanczos 3 interp
     interp = pm.Lanczos(3)
-    mod = pm.PixelModel(0.5, 32,interp)
+    mod = pm.PixelModel(du, 32,interp, start_sigma=1.5)
     star = mod.makeStar(s)
-    star.flux = np.sum(star.data.data)
-    star2 = mod.makeStar(s2)
-    star2.flux = 1.
+    star.fit.flux = np.sum(star.data.data)  # Violating the invariance of Star here!
 
-    mod.fit(star)
-    print('Flux after fit 1:',star.flux)
-    mod.reflux(star)
-    print('Flux after reflux:',star.flux)
-    mod.fit(star)
-    print('Flux after fit 2:',star.flux)
-    mod.reflux(star)
-    print('Flux after reflux 2:',star.flux)
-    star2.params = star.params.copy()
-    star2.flux = star.flux
-    mod.draw(star2)
+    star = mod.fit(star)
+    print('Flux after fit 1:',star.fit.flux)
+    star = mod.reflux(star)
+    print('Flux after reflux:',star.fit.flux)
+    star = mod.fit(star)
+    print('Flux after fit 2:',star.fit.flux)
+    star = mod.reflux(star)
+    print('Flux after reflux 2:',star.fit.flux)
+    star2 = mod.draw(star)
     return star,star2,mod
 
-def test_pix2():
-    # Fit to oversampled data
+def test_oversample():
+    """Fit to oversampled data, decentered PSF.
+    Residual image should be checkeboard from limitations of interpolator.
+    """
+    
     import pixelmodel as pm
     influx = 150.
-    g = GaussFunc(2.0, 0.5, 0.5, influx)
-    s = SimpleData(np.zeros((64,64),dtype=float),0.1, 8., 8., du=0.25)
+    du = 0.25
+    nside = 64
+    g = GaussFunc(2.0, 0.5, -0.25, influx)
+    s = SimpleData(np.zeros((nside,nside),dtype=float),0.1, du*nside/2, du*nside/2, du=du)
     s.fillFrom(g)
-
-    # And an identical blank to fill with PSF model
-    s2 = SimpleData(np.zeros((64,64),dtype=float),0.1, 8., 8., du=0.25)
 
     # Pixelized model with Lanczos 3 interp, coarser pix scale
     interp = pm.Lanczos(3)
-    mod = pm.PixelModel(0.5, 32,interp)
+    mod = pm.PixelModel(2*du, nside/2,interp, start_sigma=1.5)
     star = mod.makeStar(s)
-    star.flux = np.sum(star.data.data)
-    star2 = mod.makeStar(s2)
-    star2.flux = 1.
+    star.fit.flux = np.sum(star.data.data) # Violating invariance!!
 
-    mod.fit(star)
-    print('Flux after fit 1:',star.flux)
-    mod.reflux(star)
-    print('Flux after reflux:',star.flux)
-    mod.fit(star)
-    print('Flux after fit 2:',star.flux)
-    mod.reflux(star)
-    print('Flux after reflux 2:',star.flux)
-    star2.params = star.params.copy()
-    star2.flux = star.flux
-    mod.draw(star2)
+    for i in range(2):
+        star = mod.fit(star)
+        print('Flux after fit {:d}:'.format(i),star.fit.flux)
+        star = mod.reflux(star)
+        print('Flux after reflux {:d}:'.format(i),star.fit.flux)
+    star2 = mod.draw(star)
     return star,star2,mod
 
 def test_center():
-    # Fit with centroid free and PSF center constrained
+    """Fit with centroid free and PSF center constrained to an initially
+    mis-registered PSF.  Residual image when done should be dominated but
+    structure off the edge of the fitted region.
+    """
+    
     import pixelmodel as pm
     influx = 150.
     g = GaussFunc(2.0, 0.6, -0.4, influx)
     s = SimpleData(np.zeros((32,32),dtype=float),0.1, 8., 8., du=0.5)
     s.fillFrom(g)
-
-    # And an identical blank to fill with PSF model
-    s2 = SimpleData(np.zeros((32,32),dtype=float),0.1, 8., 8., du=0.5)
 
     # Pixelized model with Lanczos 3 interp, coarser pix scale, smaller
     # than the data
@@ -166,23 +165,13 @@ def test_center():
     # Want an odd-sized model when center=True
     mod = pm.PixelModel(0.5, 29, interp, force_model_center=True, start_sigma=1.5)
     star = mod.makeStar(s)
-    star.flux = np.sum(star.data.data)
-    star2 = mod.makeStar(s2)
-
-    mod.reflux(star, fit_center=False)
-    mod.reflux(star)
-    print('Flux, ctr after reflux:',star.flux,star.center)
-    mod.fit(star)
-    print('Flux, ctr after fit 1:',star.flux,star.center)
-    mod.reflux(star, fit_center=False)
-    mod.reflux(star)
-    print('Flux, ctr after reflux 1:',star.flux,star.center)
-    mod.fit(star)
-    print('Flux, ctr after fit 2:',star.flux,star.center)
-    mod.reflux(star, fit_center=False)
-    mod.reflux(star)
-    print('Flux, ctr after reflux 2:',star.flux,star.center)
-    star2.params = star.params.copy()
-    star2.flux = star.flux
-    mod.draw(star2)
+    star = mod.reflux(star, fit_center=False) # Start with a sensible flux
+    star = mod.reflux(star) # and center too
+    print('Flux, ctr after reflux:',star.fit.flux,star.fit.center)
+    for i in range(3):
+        star = mod.fit(star)
+        print('Flux, ctr, chisq after fit {:d}:'.format(i),star.fit.flux,star.fit.center, star.fit.chisq)
+        star = mod.reflux(star)
+        print('Flux, ctr, chisq after reflux {:d}'.format(i),star.fit.flux,star.fit.center, star.fit.chisq)
+    star2 = mod.draw(star)
     return star,star2,mod

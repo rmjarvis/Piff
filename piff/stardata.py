@@ -22,9 +22,13 @@ import numpy
 class StarData(object):
     """A class that encapsulates all the relevant information about an observed star.
 
+    **Class intended to be invariant once returned from the method that creates it.**
+
     This includes:
       - a postage stamp of the imaging data
       - the weight map for these pixels (zero weight means the pixel is masked or otherwise bad)
+      - whether the pixel values represent flux or surface brightness
+      - the pixel area on the sky
       - the position of the star on the image
       - the position of the star in the full field-of-view (local tangent plane projection)
       - possibly extra information, such as colors
@@ -36,6 +40,12 @@ class StarData(object):
 
     Different use cases may prefer the data in one of these forms or the other.
 
+    A StarData object also must have these two properties:
+      :property values_are_sb: True (False) if pixel values are in surface
+      brightness (flux) units.
+      :property pixel_area:    Solid angle on sky subtended by each pixel,
+      in units of the uv system.
+      
     The other information is stored in a dict.  This dict will include at least the following
     items:
 
@@ -43,7 +53,6 @@ class StarData(object):
       - y
       - u
       - v
-      - pixel_area  (area of a pixel, in the uv units)
 
     And anything else you want to store.  e.g.
 
@@ -72,13 +81,16 @@ class StarData(object):
                         if image.wcs is a EuclideanWCS. [default: None]
     :param properties:  A dict containing other properties about the star that might be of 
                         interest. [default: None]
+    :param values_are_sb: True if pixel data give surface brightness, False if they're flux
+                          [default: False]
     """
-    def __init__(self, image, image_pos, weight=None, pointing=None, properties=None,
-                 logger=None):
+    def __init__(self, image, image_pos, weight=None, pointing=None, values_are_sb=False,
+                 properties=None, logger=None):
         import galsim
         # Save all of these as attributes.
         self.image = image
         self.image_pos = image_pos
+        sef.values_are_sb = values_are_sb
         # Make sure we have a local wcs in case the provided image is more complex.
         self.local_wcs = image.wcs.local(image_pos)
 
@@ -94,9 +106,10 @@ class StarData(object):
 
         self.pointing = pointing
         self.field_pos = self.calculateFieldPos(image_pos, image.wcs, pointing, self.properties)
+        self.pixel_area = self._calculate_pixel_area()
 
         # Make sure the user didn't provide their own x,y,u,v in properties.
-        for key in ['x', 'y', 'u', 'v','pixel_area']:
+        for key in ['x', 'y', 'u', 'v']:
             if properties is not None and key in properties:
                 raise AttributeError("Cannot provide property %s in properties dict."%key)
 
@@ -104,7 +117,6 @@ class StarData(object):
         self.properties['y'] = self.image_pos.y
         self.properties['u'] = self.field_pos.x
         self.properties['v'] = self.field_pos.y
-        self.properties['pixel_area'] = self._calculate_pixel_area()
 
     @staticmethod
     def calculateFieldPos(image_pos, wcs, pointing, properties=None):
@@ -212,18 +224,24 @@ class StarData(object):
         return pix[mask], wt[mask], u[mask], v[mask]
 
     def setData(self, data):
-        """Set the pixel data from a numpy array. 
-        
-        Also returns the weight values and the local u,v coordinates of the pixels.
-        Any pixels with zero weight (e.g. from masking in the original image) will not be
-        included in the returned arrays.
+        """Return new StarData with data values replaced by elements of provided 1d array.
+        The array should match the ordering of the one that is produced by getDataVector().
 
-        :param data: A numpy array (1d or 2d) that can be reshaped to match the image
+        :param data: A 1d numpy array with new values for the image data.
         
-        :returns: None
+        :returns:    New StarData structure
         """
-        # ??? Do we want to set data only at pixels with nonzero weight
-        # to make this symmetric with what emerges from getDataVector???
-        numpy.copyto(self.image.array, data.reshape(self.image.array.shape))
-        return
-    
+        # ??? Do we need a way to fill in pixels that have zero weight and
+        # don't get passed out by getDataVector()???
+
+        newimage = self.image.copy()
+        ignore = self.weight==0.
+        newimage.array[ignore] = 0.
+        newimage.array[numpy.logical_not(ignore)] = data
+        return StarData(image=newimage,
+                        image_pos=self.image_pos,
+                        weight=self.weight,
+                        pointing=self.pointing,
+                        values_are_sb=self.values_are_sb,
+                        properties=self.properties,
+                        logger=self.logger)
