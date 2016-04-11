@@ -153,7 +153,7 @@ def test_center():
     # Fit with centroid free and PSF center constrained
     import pixelmodel as pm
     influx = 150.
-    g = GaussFunc(2.0, 0.6, 0.6, influx)
+    g = GaussFunc(2.0, 0.6, -0.4, influx)
     s = SimpleData(np.zeros((32,32),dtype=float),0.1, 8., 8., du=0.5)
     s.fillFrom(g)
 
