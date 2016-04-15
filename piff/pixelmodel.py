@@ -48,7 +48,7 @@ class PixelModel(Model):
     """
 
     def __init__(self, du, n_side, interp, mask=None, start_sigma=1.,
-                 force_model_center=False):
+                 force_model_center=False, degenerate=True):
         """Constructor for PixelModel defines the PSF pitch, size, and interpolator.
 
         If a mask array is given, it defines the size of the modeled pixel, otherwise
@@ -61,6 +61,8 @@ class PixelModel(Model):
         :param mask: optional square boolean 2d array, True where we want a non-zero value
         :param start_sigma: sigma of a 2d Gaussian installed as 1st guess for all stars (1.)
         :param force_model_center: If True, PSF model centroid is fixed at origin and
+        :param degenerate:  Is it possible that individual stars give degenerate PSF sol'n?
+               Default is True; if you give False, runs faster but fails on degeneracies.
         PSF fitting will marginalize over stellar position.  If False, stellar position is
         fixed at input value and the fitted PSF may be off-center.
         """
@@ -68,6 +70,7 @@ class PixelModel(Model):
         self.pixel_area = self.du*self.du
         self.interp = interp
         self._force_model_center = force_model_center
+        self._degenerate = degenerate
         
         if mask is None:
             if n_side <= 0:
@@ -272,24 +275,26 @@ class PixelModel(Model):
         star1 = self.chisq(star)  # Get chisq Taylor expansion for linearized model
         # star1 has marginalized over flux (& center, if free), and updated these
         # for best linearized fit at the input parameter values.
-        try:
-            dparam = np.linalg.solve(star1.fit.alpha, star1.fit.beta)
-            # ??? dparam = scipy.linalg.solve(alpha, beta, sym_pos=True) would be faster
-        except numpy.LinAlgError:
-            # Trap exception for singular matrix here, try SVD and retain
+        if self._degenerate:
+            # Do SVD and retain
             # input values for degenerate parameter combinations
             # ??? Tell logger about this?
-            U,S,Vt = numpy.svd(star1.fit.alpha)
+            U,S,Vt = np.linalg.svd(star1.fit.alpha)
             # Invert, while zeroing small elements of s.  
             # "Small" will be taken to be causing a small chisq change
             # when corresponding PSF component changes by the full flux of PSF
             small = 0.01 * self.pixel_area * self.pixel_area
-            if np.any(s < -small):
+            if np.any(S < -small):
                 raise ValueError("Negative singular value in alpha matrix")
-            invs = np.where(np.abs(s)>small, 1./s, 0.)
+            invs = np.where(np.abs(S)>small, 1./S, 0.)
+            ###print('S/zero:',S.shape,np.count_nonzero(np.abs(S)<=small),'small=',small) ###
+            ###print(' ',np.max(S[np.abs(S)<=small]),np.min(S[np.abs(S)>small])) ##
             # answer = V * S^{-1} * U^T * beta
-            dparam = np.dot(Vt.T, invs[:,np.newaxis] * np.dot(U.T,star1.fit.beta))
-            
+            dparam = np.dot(Vt.T, invs * np.dot(U.T,star1.fit.beta))
+        else:
+            # If it is known there are no degeneracies, we can skip SVD
+            dparam = np.linalg.solve(star1.fit.alpha, star1.fit.beta)
+            # ??? dparam = scipy.linalg.solve(alpha, beta, sym_pos=True) would be faster
         # Create new StarFit, update the chisq value.  Note no beta is returned as
         # the quadratic Taylor expansion was about the old parameters, not these.
         starfit2 = StarFit(star1.fit.params + dparam,
