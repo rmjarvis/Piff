@@ -116,4 +116,29 @@ class PSF(object):
                 logger.debug("interp = %s",interp)
         return cls(model,interp)
 
+    def drawImage(self, position, offset=None, logger=None, **kwargs):
+        """Generates star given position and galsim Image
 
+        :param position:    Position we are interpolating to.
+        :param offset:      Tuple; sett the nominal center of the image
+                            relative to actual center of image [Default: None]
+        :param logger:      A logger object for logging debug info. [default: None]
+
+        :returns: a galsim image
+        """
+        import galsim
+        image = galsim.Image(32, 32)
+
+        # interpolate params
+        interpolated_params = self.interp.interpolate(position)
+        # set the parameters on the psf model, which gives a new model instance
+        interpolated_model = self.model.setParameters(interpolated_params)
+        # pass offset pos
+        if offset is not None:
+            pos = galsim.PositionD(*offset) + image.trueCenter()
+        else:
+            pos = None
+        # draw on the galsim image container
+        interpolated_image = interpolated_model.drawImage(image, pos=pos)
+
+        return interpolated_image

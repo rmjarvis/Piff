@@ -241,7 +241,7 @@ def test_single_image():
     test_params = psf.interp.interpolate(target)
     numpy.testing.assert_almost_equal(test_params, true_params, decimal=5)
 
-    # Finally, test using the piffify executable
+    # Test using the piffify executable
     os.remove(psf_file)
     with open('simple.yaml','w') as f:
         f.write(yaml.dump(config, default_flow_style=False))
@@ -252,6 +252,66 @@ def test_single_image():
     test_params = psf.interp.interpolate(target)
     numpy.testing.assert_almost_equal(test_params, true_params, decimal=5)
 
+    # Test that we can make rho statistics
+    min_sep = 1
+    max_sep = 100
+    bin_size = 0.1
+    stats = piff.RhoStatistics(psf, stars, min_sep=min_sep, max_sep=max_sep, bin_size=bin_size)
+
+    rhos = [stats.rho1, stats.rho2, stats.rho3, stats.rho4, stats.rho5]
+    import numpy as np
+    for rho in rhos:
+        # Test the range of separations
+        radius = np.exp(rho.logr)
+        # last bin can be one bigger than max_sep
+        np.testing.assert_array_less(radius, np.exp(np.log(max_sep) + bin_size))
+        np.testing.assert_array_less(min_sep, radius)
+        np.testing.assert_array_almost_equal(np.diff(rho.logr), bin_size, decimal=5)
+
+        # Test that the max absolute value of each rho isn't crazy
+        np.testing.assert_array_less(np.abs(rho.xip), 1)
+
+        # Check that each rho isn't precisely zero. This means the sum of abs > 0
+        np.testing.assert_array_less(0, np.sum(np.abs(rho.xip)))
+
+    # Test the plotting and writing
+    rho_psf_file = os.path.join('output','simple_psf_rhostats.png')
+    stats.write(rho_psf_file)
+
+    # Test that we can make summary shape statistics, using HSM
+    shapeStats = piff.ShapeStatistics(psf, stars)
+
+    # test their characteristics
+    np.testing.assert_array_almost_equal(sigma, shapeStats.T, decimal=4)
+    np.testing.assert_array_almost_equal(sigma, shapeStats.T_model, decimal=4)
+    np.testing.assert_array_almost_equal(g1, shapeStats.g1, decimal=4)
+    np.testing.assert_array_almost_equal(g1, shapeStats.g1_model, decimal=4)
+    np.testing.assert_array_almost_equal(g2, shapeStats.g2, decimal=4)
+    np.testing.assert_array_almost_equal(g2, shapeStats.g2_model, decimal=4)
+
+    shape_psf_file = os.path.join('output','simple_psf_shapestats.png')
+    shapeStats.write(shape_psf_file)
+
+    # Test that we can use the config parser for both RhoStatistics and ShapeStatistics
+    config['stats'] = [{'type': 'ShapeStatistics',
+                        'output': {'file_name': shape_psf_file}},
+                       {'type': 'RhoStatistics',
+                        'output': {'file_name': rho_psf_file}}]
+
+    os.remove(psf_file)
+    os.remove(rho_psf_file)
+    os.remove(shape_psf_file)
+    piff.piffify(config)
+
+    # Test using the piffify executable
+    os.remove(psf_file)
+    os.remove(rho_psf_file)
+    os.remove(shape_psf_file)
+    with open('simple.yaml','w') as f:
+        f.write(yaml.dump(config, default_flow_style=False))
+    piffify_exe = get_script_name('piffify')
+    p = subprocess.Popen( [piffify_exe, 'simple.yaml'] )
+    p.communicate()
 
 if __name__ == '__main__':
     test_Gaussian()

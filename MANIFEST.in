@@ -1,0 +1,5 @@
+include *.rst
+include LICENSE
+include docs/*.rst
+include tests/*.py
+recursive-include include *.h

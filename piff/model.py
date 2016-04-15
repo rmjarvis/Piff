@@ -41,7 +41,7 @@ def process_model(config, logger=None):
 
     # Get the class to use for the model
     # Not sure if this is what we'll always want, but it would be simple if we can make it work.
-    model_class = eval('piff.' + config_model.pop('type'))
+    model_class = getattr(piff, config_model.pop('type'))
 
     # Read any other kwargs in the model field
     kwargs = model_class.parseKwargs(config_model)
