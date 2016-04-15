@@ -18,7 +18,10 @@
 
 from __future__ import print_function
 
-from .interp import Interp
+# ???from .interp import Interpolator
+from interp import Interpolator
+from starfit import Star
+
 import numpy
 import warnings
 from numpy.polynomial.polynomial import polyval2d
@@ -36,7 +39,7 @@ polynomial_types = {
 }
 
 
-class Polynomial(Interp):
+class Polynomial(Interpolator):
     """
     An interpolator that uses  scipy curve_fit command to fit a polynomial 
     surface to each parameter passed in independently.
@@ -217,15 +220,14 @@ class Polynomial(Interp):
 
 
 
-    def solve(self, pos, vectors, logger=None):
+    def solve(self, stars, logger=None):
         """Solve for the interpolation coefficients given some data,
         using the scipy.optimize.curve_fit routine, which uses Levenberg-Marquardt
         to find the least-squares solution.
 
         This currently assumes that our positions pos are just u and v.
 
-        :param pos:         A list of positions to use for the interpolation.
-        :param vectors:     A list of parameter vectors (numpy arrays) for each star.
+        :param stars:       A list of Star instances to use for the interpolation.
         :param logger:      A logger object for logging debug info. [default: None]
         """
         import scipy.optimize
@@ -233,8 +235,8 @@ class Polynomial(Interp):
         # We will want to index things later, so useful
         # to convert these to numpy arrays and transpose
         # them to the order we need.
-        parameters = numpy.array(vectors).T
-        positions = numpy.array(pos).T
+        parameters = numpy.array([s.fit.params for s in stars]).T
+        positions = numpy.array([self.getStarPosition(s.data) for s in stars]).T
        
         # We should have the same number of parameters as number of polynomial 
         # orders with which we were created here.
@@ -384,13 +386,15 @@ class Polynomial(Interp):
             self.coeffs.append(self._unpack_coefficients(p,col))
 
 
-    def interpolate(self, pos, logger=None):
+    def interpolate(self, star, logger=None):
         """Perform the interpolation to find the interpolated parameter vector at some position.
 
-        :param pos:         The position to which to interpolate.
+        :param star:        A Star instance to which one wants to interpolate
         :param logger:      A logger object for logging debug info. [default: None]
 
-        :returns: the parameter vector (a numpy array) interpolated to the given position.
+        :returns: a new Star instance with its StarFit member holding the interpolated parameters
         """
+        pos = self.getStarPosition(star.data)
         p = [self._interpolationModel(pos, coeff) for coeff in self.coeffs]
-        return numpy.array(p)
+        return Star(star.data, star.fit.newParams(p))
+

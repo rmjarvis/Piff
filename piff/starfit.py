@@ -84,4 +84,16 @@ class StarFit(object):
         self.dof = dof
         return
 
+    def newParams(self, p):
+        """Return new StarFit that has the array p installed as new parameters.
+
+        :param params:  A 1d array holding new parameters; must match size of current ones
+
+        :returns:  New StarFit object with altered parameters.  All chisq-related parameters
+                   are set to None since they are no longer valid.
+        """
+        npp = numpy.array(p)
+        if not npp.shape==self.params.shape:
+            raise TypeError('new StarFit parameters do not match dimensions of old ones')
+        return StarFit(npp, flux=self.flux, center=self.center)
     

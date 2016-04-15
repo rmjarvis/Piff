@@ -34,7 +34,7 @@ class PixelModel(Model):
     of the PSF pixel values will be missing from the parameter vector as they are determined
     by the flux (and centroid) constraints. And there is more covariance between pixel values.
 
-    PixelModel also needs an Interpolant on construction to specify how to determine
+    PixelModel also needs an PixelInterpolant on construction to specify how to determine
     values between grid points.
 
     Stellar data is assumed either to be in flux units (with default sb=False), such that
@@ -570,7 +570,7 @@ class PixelModel(Model):
 
         raise RuntimeError("Maximum number of iterations exceeded in PixelModel.reflux()")
 
-class Interpolant(object):
+class PixelInterpolant(object):
     """Interface for interpolators
     """
     
@@ -613,7 +613,7 @@ class Interpolant(object):
         """
         raise NotImplemented("Derived classes must define the derivatives function")
         
-class Lanczos(Interpolant):
+class Lanczos(PixelInterpolant):
     """Lanczos interpolator in 2 dimensions.
     """
     def __init__(self, order=3):
