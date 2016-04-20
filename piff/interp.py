@@ -81,40 +81,17 @@ class Interpolator(object):
         """
         return config_interpolator
 
-    def getStarPosition(self, sdata):
-        """Extract the appropriate information out of a StarData object to create some sort
-        of position object.
+    def getKeys(self, sdata):
+        """Extract the quantities to use as interpolation keys for a particular star's data
 
-        The base class implementation returns the field position (u,v) as numpy.array.
-        The returned object will only be used by the Interpolator instance, so it may define this to
-        be whatever type is appropriate for its interpolation scheme.
+        The base class implementation returns the field position (u,v) as a 1d numpy array.
 
-        :param sdata:        A StarData instances from which to extract the relevant properties.
+        :param sdata:        A StarData instances from which to extract the properties used
+                             for interpolation.
 
-        :returns: some kind of Position object; in the base class, a numpy.array instance.
+        :returns:            A numpy vector of these properties.
         """
         return numpy.array([ sdata['u'], sdata['v'] ])
-
-    def getTargetPosition(self, image_pos, wcs, pointing, properties):
-        """Get an appropriate position to use for an interpolation target.
-
-        The base class implementation returns the field position corresponding to a given
-        image position.
-
-        :param image_pos:   The position in chip coordinates to use as the target location.
-        :param wcs:         The wcs to use to connect image coordinates with sky coordinates.
-        :param pointing:    A galsim.CelestialCoord representing the pointing coordinate of the
-                            exposure.  This is required if wcs is a CelestialWCS, but should
-                            be None if wcs is a EuclideanWCS. [default: None]
-        :param properties:  A dict containing other properties that the interpolator needs to
-                            perform the interpolation. [default: None]
-
-        :returns: the same kind of Position object that getStarPosition returns.
-        """
-        import piff
-
-        field_pos = piff.StarData.calculateFieldPos(image_pos, wcs, pointing)
-        return numpy.array([ field_pos.x, field_pos.y ])
 
     def solve(self, star_list, logger=None):
         """Solve for the interpolation coefficients given some data.

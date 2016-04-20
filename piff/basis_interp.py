@@ -36,7 +36,8 @@ class BasisInterpolator(Interpolator):
     K when given the StarData as a function argument. It should also have a method
     basis.constant(c) which returns the coefficient vector that generates a constant
     value c across the focal plane (which will be used for initialization of the q
-    vector)
+    vector), and a basis.getKeys() method that extracts the vector of quantities
+    used as inputs to the basis functions.
 
     Internally we'll store the interpolation coefficients in a 2d array of dimensions
     (nparams, nbases)
@@ -51,6 +52,17 @@ class BasisInterpolator(Interpolator):
         """
         self._basis = basis
         self.q = star.fit.params[:,numpy.newaxis] * basis.constant(1.)[numpy.newaxis,:]
+        
+    def getKeys(self, sdata):
+        """Extract the quantities to use as interpolation keys for a particular star's data.
+        Obtains this from the Basis object.
+
+        :param sdata:        A StarData instances from which to extract the properties used
+                             for interpolation.
+
+        :returns:            A numpy vector of these properties.
+        """
+        return self._basis.getKeys(sdata)
         
     def solve(self, star_list, logger=None):
         """Solve for the interpolation coefficients given some data.
@@ -93,23 +105,58 @@ class BasisInterpolator(Interpolator):
         return Star(star.data, star.fit.newParams(p))
 
 
-class UVPolyBasis(object):
-    """A class to generate polynomials in u & v as bases for LinearInterpolator.
-    For now, it's assuming 2d, and order is max sum of powers.
-    Nothing fancy with domain yet either.
+class PolyBasis(object):
+    """A class to generate polynomials bases for LinearInterpolator.
+    All combinations of powers of keys that have total order <=maxorder
+    are used.  Maximum orders for each key can be specified.  Ranges
+    for each key can be given which are rescaled into the [-1,1] interval that
+    will help keep polynomial arguments at O(1).
     """
 
-    def __init__(self,order):
-        """Set up 2d polynomial basis function calculator
+    def __init__(self, maxorder, keys=('u','v'), orders=None, ranges=None):
+        """Set up a polynomial basis function calculator.
 
-        :param order: maximum sum of orders of u,v
+        :param maxorder: maximum sum of orders of all keys
+        :param keys:     array of keys for StarData properties that will be used as the
+                         polynomial arguments.  Defaults to using focal plane position (u,v)
+        :param orders:   Maximum allowed order for each key.  Can be a single value (applied
+                         to all keys) or an array matching number of keys.  Each value is
+                         either a non-negative integer, or None, which will default to maxorder.
+        :param ranges:   Range to be linearly remapped to [-1,1] interval before calculating
+                         polynomials.  Can be a single tuple (which will be used for all dimensions)
+                         or an array with a tuple for each key.  Any value of None will default
+                         to range=(-1,1), i.e. no rescaling.
         """
-        self._order = order
-        i = numpy.arange(order+1, dtype=int)[:,numpy.newaxis] * numpy.ones(order+1,dtype=int)
-        j = numpy.arange(order+1, dtype=int) * numpy.ones(order+1,dtype=int)[:,numpy.newaxis]
-        self._mask = (i+j) <= order
-        return
+        self._maxorder = maxorder
+        self._keys = keys
+        if orders is None:
+            self._orders = (self._maxorder,) * len(keys)
+        elif type(orders) is int:
+            self._orders = (orders,) * len(keys)
+        elif not len(orders)==len(keys):
+            raise ValueError('Number of provided orders does not match number of keys')
+        else:
+            # Replace all None entries in the orders array with maxorder
+            self._orders=()
+            for o in orders:
+                if o is None:
+                    self._orders = self._orders + (self._maxorder,)
+                else:
+                    self._orders = self._orders + (o,)
+        if self._maxorder<0 or numpy.any(numpy.array(self._orders) < 0):
+            # Exception if we have any requests for negative orders
+            raise ValueError('Negative polynomial order specified')
 
+        # Now build a mask that picks the desired polynomial products
+        # Start with 1d arrays giving orders in all dimensions
+        ord = [numpy.arange(o+1,dtype=int) for o in self._orders]
+        # Nifty trick to produce n-dim array holding total order
+        sumorder = reduce(numpy.add, numpy.ix_(*ord))
+        self._mask = sumorder <= self._maxorder
+
+    def getKeys(self,sdata):
+        return numpy.array([sdata[k] for k in self._keys], dtype=float)
+    
     def __call__(self,sdata):
         """Return 1d array of polynomial basis values for this star
 
@@ -117,19 +164,24 @@ class UVPolyBasis(object):
 
         :returns:      1d numpy array with values of u^i v^j for 0<i+j<=order
         """
-        upow = numpy.ones(self._order+1, dtype=float)
-        upow[1:] = sdata['u']
-        upow = numpy.cumprod(upow)
-        vpow = numpy.ones(self._order+1, dtype=float)
-        vpow[1:] = sdata['v']
-        vpow = numpy.cumprod(vpow)
-        uvpow = upow[:,numpy.newaxis] * vpow
-        return uvpow[self._mask]
+        # Get the interpolation key values
+        vals = self.getKeys(sdata)
+        
+        # Make 1d arrays of all needed powers of keys
+        pows1d = []
+        for i,o in enumerate(self._orders):
+            p = numpy.ones(o+1,dtype=float)
+            p[1:] = vals[i]
+            pows1d.append(numpy.cumprod(p))
+        # Use trick to produce outer product of all these powers
+        pows2d = reduce(numpy.multiply, numpy.ix_(*pows1d))
+        # Return linear array of terms making total power constraint
+        return pows2d[self._mask]
 
     def constant(self,c=1.):
         """Return 1d array of coefficients that represent a polynomial
         with constant value c
         """
-        out = numpy.zeros( (self._order+1)*(self._order+2)/2, dtype=float)
+        out = numpy.zeros( numpy.count_nonzero(self._mask), dtype=float)
         out[0] = c  # The constant term is always first.
         return out
