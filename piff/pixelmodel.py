@@ -273,24 +273,32 @@ class PixelModel(Model):
         :returns:      New Star instance with updated fit information
         """
         star1 = self.chisq(star)  # Get chisq Taylor expansion for linearized model
+        ### Check for non-pos-def
+        ###S = np.linalg.svd(star1.fit.alpha,compute_uv=False)
+        ###print("  .in fit(), min SV:",np.min(S))###
+        ###U,S,Vt = np.linalg.svd(star1.fit.alpha,compute_uv=True)
+        ###print("  ..in fit(), min SV:",np.min(S))###
+        
         # star1 has marginalized over flux (& center, if free), and updated these
         # for best linearized fit at the input parameter values.
         if self._degenerate:
             # Do SVD and retain
             # input values for degenerate parameter combinations
-            # ??? Tell logger about this?
-            U,S,Vt = np.linalg.svd(star1.fit.alpha)
-            # Invert, while zeroing small elements of s.  
+            # U,S,Vt = np.linalg.svd(star1.fit.alpha)
+            S,U = np.linalg.eigh(star1.fit.alpha)
+            # Invert, while zeroing small elements of S.  
             # "Small" will be taken to be causing a small chisq change
             # when corresponding PSF component changes by the full flux of PSF
-            small = 0.01 * self.pixel_area * self.pixel_area
+            small = 0.2 * self.pixel_area * self.pixel_area
             if np.any(S < -small):
+                print("negative: ",np.min(S),"small:",small)###
                 raise ValueError("Negative singular value in alpha matrix")
             invs = np.where(np.abs(S)>small, 1./S, 0.)
             ###print('S/zero:',S.shape,np.count_nonzero(np.abs(S)<=small),'small=',small) ###
             ###print(' ',np.max(S[np.abs(S)<=small]),np.min(S[np.abs(S)>small])) ##
             # answer = V * S^{-1} * U^T * beta
-            dparam = np.dot(Vt.T, invs * np.dot(U.T,star1.fit.beta))
+            # dparam = np.dot(Vt.T, invs * np.dot(U.T,star1.fit.beta))
+            dparam = np.dot(U, invs * np.dot(U.T,star1.fit.beta))
         else:
             # If it is known there are no degeneracies, we can skip SVD
             dparam = np.linalg.solve(star1.fit.alpha, star1.fit.beta)
@@ -402,7 +410,7 @@ class PixelModel(Model):
             dalpha = cc[np.newaxis,:]*cc[:,np.newaxis] * weight[i]
             iouter = np.broadcast_to(ii, (len(ii),len(ii)))
             alpha[iouter.flatten(), iouter.T.flatten()] += dalpha.flatten()
-
+        
         # Next we eliminate the first _constraints PSF values from the parameters
         # using the linear constraints that dp0 = - _a * dp1 
         s0 = slice(None, self._constraints)  # parameters to eliminate

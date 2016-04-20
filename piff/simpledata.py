@@ -21,7 +21,7 @@ import numpy as np
 
 class SimpleData(object):
     """A very simple, galsim-free implementation of the StarData class, for basic
-    tests of the PixelModel class.
+    tests of the PixelModel class.  u is first index of internal 2d array, v is second.
     """
     def __init__(self, data, noise, u0, v0, du=1., values_are_sb = False, fpu=0., fpv=0.):
         """
@@ -43,8 +43,8 @@ class SimpleData(object):
         self.u0 = u0
         self.v0 = v0
         self.du = du
-        self.u = du * np.ones_like(self.data) * np.arange(self.data.shape[1]) - self.u0
-        self.v = du * np.ones_like(self.data) * np.arange(self.data.shape[0])[:,np.newaxis] - self.v0
+        self.v = du * np.ones_like(self.data) * np.arange(self.data.shape[1]) - self.v0
+        self.u = du * np.ones_like(self.data) * np.arange(self.data.shape[0])[:,np.newaxis] - self.u0
         self.pixel_area = self.du*self.du
         self.values_are_sb = values_are_sb
         self.properties = {'u':fpu, 'v':fpv}
@@ -75,7 +75,7 @@ class SimpleData(object):
         mask = self.weight>0.
         newdata = np.zeros_like(self.data)
         newdata[mask] = data
-        return  SimpleData(newdata,
+        out =   SimpleData(newdata,
                            noise = self.noise,
                            u0 = self.u0,
                            v0 = self.v0,
@@ -83,6 +83,8 @@ class SimpleData(object):
                            values_are_sb = self.values_are_sb,
                            fpu = self.properties['u'],
                            fpv = self.properties['v'])
+        out.weight = self.weight
+        return out
 
 class GaussFunc(object):
     """ Gaussian builder to use in SimpleData.fillFrom()
@@ -377,5 +379,224 @@ def test_gradient():
     s1 = mod.reflux(s1)
     s1 = mod.draw(s1)
     return s0,s1,mod,interp
+
+def test_undersamp():
+    """Next: fit PSF to undersampled, dithered data with fixed centroids
+    """
+    from polynomial_interp import Polynomial
+    import pixelmodel as pm
+    
+    # Pixelized model with Lanczos 3 interpolation, slightly smaller than data
+    # than the data
+    pixinterp = pm.Lanczos(3)
+    du = 0.5
+    mod = pm.PixelModel(0.25, 25, pixinterp, start_sigma=1.01)##
+    ##,force_model_center=True)
+
+    # Interpolator will be constant
+    interp = Polynomial( np.zeros(mod._nparams, dtype=int) )
+    
+    # Draw stars on a 2d grid of "focal plane" with 0<=u,v<=1
+    positions = np.linspace(0.,1.,4)
+    influx = 150.
+    stars = []
+    g = GaussFunc(1.0, 0., 0., influx)
+    for u in positions:
+        for v in positions:
+            # Dither centers by 1 pixel
+            phase = (0.5 - np.random.rand(2))*du
+            if u==0. and v==0.:
+                phase=(0.,0.)
+            s = SimpleData(np.zeros((32,32),dtype=float),0.1,
+                           8.+phase[0], 8.+phase[1], du=du,
+                           fpu = u, fpv=v)
+            s.fillFrom(g)
+            s.addNoise()
+            s = mod.makeStar(s)
+            s = mod.reflux(s, fit_center=False) # Start with a sensible flux
+            print("phase:",phase,'flux',s.fit.flux)###
+            stars.append(s)
+    # Also store away a noiseless copy of the PSF, origin of focal plane
+    g = GaussFunc(1.0, 0., 0., influx)
+    s0 = SimpleData(np.zeros((32,32),dtype=float),0.1, 8., 8., du=0.5,fpu=0., fpv=0.)
+    s0.fillFrom(g)
+    s0 = mod.makeStar(s0)
+    
+    oldchi = 0.
+    # Iterate solution using interpolator
+    for iteration in range(1): ###
+        # Refit PSFs star by star:
+        stars = [mod.fit(s) for s in stars]
+        # Run the interpolator
+        interp.solve(stars)
+        # Install interpolator solution into each
+        # star, recalculate flux, report chisq
+        chisq = 0.
+        dof = 0
+        for i,s in enumerate(stars):
+            s = interp.interpolate(s)
+            s = mod.reflux(s)
+            chisq += s.fit.chisq
+            dof += s.fit.dof
+            stars[i] = s
+            print('   chisq=',s.fit.chisq, 'dof=',s.fit.dof, 'flux=',s.fit.flux)
+        print('iteration',iteration,'chisq=',chisq, 'dof=',dof)
+        if oldchi>0 and np.abs(oldchi-chisq) < 1.:
+            break
+        else:
+            oldchi = chisq
+    # Now use the interpolator to produce a noiseless rendering
+    s1 = interp.interpolate(s0)
+    s1 = mod.reflux(s1)
+    s1 = mod.draw(s1)
+    return s0,s1,mod,interp,stars
+
+def test_undersamp_shift():
+    """Next: fit PSF to undersampled, dithered data with variable centroids,
+    this time using chisq() and summing alpha,beta instead of fit() per star
+    """
+    from polynomial_interp import Polynomial
+    import pixelmodel as pm
+    
+    # Pixelized model with Lanczos 3 interpolation, slightly smaller than data
+    # than the data
+    pixinterp = pm.Lanczos(3)
+    du = 0.5
+    mod = pm.PixelModel(0.3, 25, pixinterp, start_sigma=1.3,force_model_center=True)
+
+    # Interpolator will be constant
+    interp = Polynomial( np.zeros(mod._nparams, dtype=int) )
+    
+    # Draw stars on a 2d grid of "focal plane" with 0<=u,v<=1
+    positions = np.linspace(0.,1.,8)
+    influx = 150.
+    stars = []
+    for u in positions:
+        for v in positions:
+            # Nominal star centers move by +-1/2 pix, real centers another 1/2 pix
+            phase1 = (0.5 - np.random.rand(2))*du
+            phase2 = (0.5 - np.random.rand(2))*du
+            if u==0. and v==0.:
+                phase1 = phase2 =(0.,0.)
+            g = GaussFunc(1.0, phase2[0], phase2[1], influx)
+            s = SimpleData(np.zeros((32,32),dtype=float),0.1,
+                           8.+phase1[0], 8.+phase1[1], du=du,
+                           fpu = u, fpv=v)
+            s.fillFrom(g)
+            s.addNoise()
+            s = mod.makeStar(s)
+            s = mod.reflux(s, fit_center=False) # Start with a sensible flux
+            print("phase:",phase2,'flux',s.fit.flux)###
+            stars.append(s)
+    # Also store away a noiseless copy of the PSF, origin of focal plane
+    g = GaussFunc(1.0, 0., 0., influx)
+    s0 = SimpleData(np.zeros((32,32),dtype=float),0.1, 8., 8., du=0.5,fpu=0., fpv=0.)
+    s0.fillFrom(g)
+    s0 = mod.makeStar(s0)
+    params = s0.fit.params.copy()
+    
+    oldchi = 0.
+    # Iterate solution using mean of chisq
+    for iteration in range(10):
+        # Refit PSFs star by star:
+        stars = [mod.chisq(s) for s in stars]
+        # take mean alpha, beta
+        alpha = np.mean(np.stack([s.fit.alpha for s in stars]),axis=0)
+        beta = np.mean(np.stack([s.fit.beta for s in stars]),axis=0)
+        dparam = np.linalg.solve(alpha,beta)
+        params += dparam
+        chisq = 0.
+        dof = 0
+        for i,s in enumerate(stars):
+            s.fit.params = params
+            s = mod.reflux(s)
+            chisq += s.fit.chisq
+            dof += s.fit.dof
+            stars[i] = s
+            ###print('   chisq=',s.fit.chisq, 'dof=',s.fit.dof, 'flux=',s.fit.flux, 'center=',s.fit.center)
+        print('iteration',iteration,'chisq=',chisq, 'dof=',dof)
+        if oldchi>0 and np.abs(oldchi-chisq) < 1.:
+            break
+        else:
+            oldchi = chisq
+    # Now use the interpolator to produce a noiseless rendering
+    s0.fit.params = params.copy()
+    s1 = mod.reflux(s0)
+    s1 = mod.draw(s1)
+    return s0,s1,mod,stars
+
+def test_undersamp2():
+    """Next: fit PSF to undersampled, dithered data with fixed centroids,
+    this time using chisq() and summing alpha,beta instead of fit() per star
+    """
+    from polynomial_interp import Polynomial
+    import pixelmodel as pm
+    
+    # Pixelized model with Lanczos 3 interpolation, slightly smaller than data
+    # than the data
+    pixinterp = pm.Lanczos(3)
+    du = 0.5
+    mod = pm.PixelModel(0.25, 25, pixinterp, start_sigma=1.3)##
+    ##,force_model_center=True)
+
+    # Interpolator will be constant
+    interp = Polynomial( np.zeros(mod._nparams, dtype=int) )
+    
+    # Draw stars on a 2d grid of "focal plane" with 0<=u,v<=1
+    positions = np.linspace(0.,1.,8)
+    influx = 150.
+    stars = []
+    g = GaussFunc(1.0, 0., 0., influx)
+    for u in positions:
+        for v in positions:
+            # Dither centers by 1 pixel
+            phase = (0.5 - np.random.rand(2))*du
+            if u==0. and v==0.:
+                phase=(0.,0.)
+            s = SimpleData(np.zeros((32,32),dtype=float),0.1,
+                           8.+phase[0], 8.+phase[1], du=du,
+                           fpu = u, fpv=v)
+            s.fillFrom(g)
+            s.addNoise()
+            s = mod.makeStar(s)
+            s = mod.reflux(s, fit_center=False) # Start with a sensible flux
+            print("phase:",phase,'flux',s.fit.flux)###
+            stars.append(s)
+    # Also store away a noiseless copy of the PSF, origin of focal plane
+    g = GaussFunc(1.0, 0., 0., influx)
+    s0 = SimpleData(np.zeros((32,32),dtype=float),0.1, 8., 8., du=0.5,fpu=0., fpv=0.)
+    s0.fillFrom(g)
+    s0 = mod.makeStar(s0)
+    params = s0.fit.params.copy()
+    
+    oldchi = 0.
+    # Iterate solution using mean of chisq
+    for iteration in range(10):
+        # Refit PSFs star by star:
+        stars = [mod.chisq(s) for s in stars]
+        # take mean alpha, beta
+        alpha = np.mean(np.stack([s.fit.alpha for s in stars]),axis=0)
+        beta = np.mean(np.stack([s.fit.beta for s in stars]),axis=0)
+        dparam = np.linalg.solve(alpha,beta)
+        params += dparam
+        chisq = 0.
+        dof = 0
+        for i,s in enumerate(stars):
+            s.fit.params = params
+            s = mod.reflux(s)
+            chisq += s.fit.chisq
+            dof += s.fit.dof
+            stars[i] = s
+            print('   chisq=',s.fit.chisq, 'dof=',s.fit.dof, 'flux=',s.fit.flux)
+        print('iteration',iteration,'chisq=',chisq, 'dof=',dof)
+        if oldchi>0 and np.abs(oldchi-chisq) < 1.:
+            break
+        else:
+            oldchi = chisq
+    # Now use the interpolator to produce a noiseless rendering
+    s0.fit.params = params
+    s1 = mod.reflux(s0)
+    s1 = mod.draw(s1)
+    return s0,s1,mod,stars
 
             
