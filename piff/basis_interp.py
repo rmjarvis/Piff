@@ -154,6 +154,29 @@ class PolyBasis(object):
         sumorder = reduce(numpy.add, numpy.ix_(*ord))
         self._mask = sumorder <= self._maxorder
 
+        # Set up the ranges: save the additive and multiplicative factors
+        if ranges is None:
+            # All dimensions take default
+            rr = ((-1.,1.),) * len(keys)
+        else if type(ranges[0]) is int and type(ranges[1]) is int:
+            # Replicate a single range pair
+            rr = (ranges,) * len(keys)
+        else if not len(ranges)==len(keys):
+             raise ValueError('Number of provided ranges does not match number of keys')
+
+        # Copy all ranges, None means -1,1
+        left=[]
+        right=[]
+        for r in ranges:
+            if r is None:
+                left.append(-1.)
+                right.append(1.)
+            else:
+                left.append(r[0])
+                right.append(r[1])
+        self._center = (np.array(right)+np.array(left))/2.
+        self._scale =  (np.array(righht)-np.array(left))/2.
+                    
     def getKeys(self,sdata):
         return numpy.array([sdata[k] for k in self._keys], dtype=float)
     
@@ -166,7 +189,8 @@ class PolyBasis(object):
         """
         # Get the interpolation key values
         vals = self.getKeys(sdata)
-        
+        # Rescale to nominal (-1,1) interval
+        vals = self._scale * (vals-self._center)
         # Make 1d arrays of all needed powers of keys
         pows1d = []
         for i,o in enumerate(self._orders):
