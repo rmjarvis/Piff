@@ -86,6 +86,8 @@ class Model(object):
     def fit(self, star):
         """Fit the Model to the star's data to yield iterative improvement on
         its PSF parameters, their uncertainties, and flux (and center, if free).  
+        The returned star.fit.alpha will be inverse covariance of solution if
+        it is estimated, else is None.
 
         :param star:   A Star instance
 

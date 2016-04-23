@@ -90,12 +90,14 @@ class StarData(object):
         # Save all of these as attributes.
         self.image = image
         self.image_pos = image_pos
-        sef.values_are_sb = values_are_sb
+        self.values_are_sb = values_are_sb
         # Make sure we have a local wcs in case the provided image is more complex.
         self.local_wcs = image.wcs.local(image_pos)
 
         if weight is None:
             self.weight = galsim.Image(numpy.ones_like(image.array))
+        elif type(weight) is float:
+            self.weight = galsim.Image(numpy.ones_like(image.array)*weight)
         else:
             self.weight = weight
 
@@ -177,12 +179,12 @@ class StarData(object):
         """
         dpix = 5.
         x = numpy.array([-dpix,+dpix,0.,0.])
-        x = numpy.array([0.,0.,-dpix,+dpix])
+        y = numpy.array([0.,0.,-dpix,+dpix])
         # Convert to u,v coords
         u = self.local_wcs._u(x,y)
         v = self.local_wcs._v(x,y)
         dudx = (u[1]-u[0])/(2*dpix)
-        dvdx = (u[3]-u[2])/(2*dpix)
+        dudy = (u[3]-u[2])/(2*dpix)
         dvdx = (v[1]-v[0])/(2*dpix)
         dvdy = (v[3]-v[2])/(2*dpix)
         return dudx*dvdy - dudy*dvdx
@@ -235,13 +237,18 @@ class StarData(object):
         # don't get passed out by getDataVector()???
 
         newimage = self.image.copy()
-        ignore = self.weight==0.
+        ignore = self.weight.array==0.
+        print('ignore:',ignore.shape,numpy.count_nonzero(ignore))
         newimage.array[ignore] = 0.
         newimage.array[numpy.logical_not(ignore)] = data
+        
+        props = self.properties.copy()
+        for key in ['x', 'y', 'u', 'v']:
+            # Get rid of keys that constructor doesn't want to see:
+            props.pop(key,None)
         return StarData(image=newimage,
                         image_pos=self.image_pos,
                         weight=self.weight,
                         pointing=self.pointing,
                         values_are_sb=self.values_are_sb,
-                        properties=self.properties,
-                        logger=self.logger)
+                        properties=props)

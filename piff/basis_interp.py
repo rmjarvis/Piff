@@ -17,8 +17,8 @@
 """
 
 from __future__ import print_function
-from interp import Interpolator
-from starfit import Star
+from .interp import Interpolator
+from .starfit import Star
 import numpy
 
 class BasisInterpolator(Interpolator):
@@ -158,10 +158,10 @@ class PolyBasis(object):
         if ranges is None:
             # All dimensions take default
             rr = ((-1.,1.),) * len(keys)
-        else if type(ranges[0]) is int and type(ranges[1]) is int:
+        elif type(ranges[0]) is int and type(ranges[1]) is int:
             # Replicate a single range pair
             rr = (ranges,) * len(keys)
-        else if not len(ranges)==len(keys):
+        elif not len(ranges)==len(keys):
              raise ValueError('Number of provided ranges does not match number of keys')
 
         # Copy all ranges, None means -1,1
