@@ -47,7 +47,7 @@ class BasisInterpolator(Interpolator):
     (nparams, nbases)
     """
 
-    def __init__(self, basis):
+    def __init__(self, basis, logger=None):
         """Initialize a new linear interpolator.
         :param basis:   An object which returns values of the basis functions for
         a specified star.
@@ -78,8 +78,8 @@ class BasisInterpolator(Interpolator):
         :returns:           A new list of Stars which have their parameters initialized.
         """
 
-        c = star_list[0].params.copy()
-        self.q = c[:,numpy.newaxis] * basis.constant(1.)[numpy.newaxis,:]
+        c = star_list[0].fit.params.copy()
+        self.q = c[:,numpy.newaxis] * self._basis.constant(1.)[numpy.newaxis,:]
 
         return [Star(s.data, s.fit.newParams(c)) for s in star_list]
     
@@ -192,15 +192,15 @@ class PolyBasis(object):
         # Copy all ranges, None means -1,1
         left=[]
         right=[]
-        for r in ranges:
+        for r in rr:
             if r is None:
                 left.append(-1.)
                 right.append(1.)
             else:
                 left.append(r[0])
                 right.append(r[1])
-        self._center = (np.array(right)+np.array(left))/2.
-        self._scale =  (np.array(righht)-np.array(left))/2.
+        self._center = (numpy.array(right)+numpy.array(left))/2.
+        self._scale =  (numpy.array(right)-numpy.array(left))/2.
                     
     def getKeys(self,sdata):
         return numpy.array([sdata[k] for k in self._keys], dtype=float)

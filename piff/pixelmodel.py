@@ -48,7 +48,8 @@ class PixelModel(Model):
     """
 
     def __init__(self, du, n_side, interp, mask=None, start_sigma=1.,
-                 force_model_center=False, degenerate=True):
+                 force_model_center=False, degenerate=True,
+                 logger=None):
         """Constructor for PixelModel defines the PSF pitch, size, and interpolator.
 
         If a mask array is given, it defines the size of the modeled pixel, otherwise
@@ -528,7 +529,7 @@ class PixelModel(Model):
         :param star:       A Star instance
         :param fit_center: If False, disable any motion of center
 
-        :returns:          New Star instance, with updated flux, center, chisq, dof
+        :returns:          New Star instance, with updated flux, center, chisq, dof, worst
         """
         # This will be an iterative process if the centroid is free.
         max_iterations = 100    # Max iteration count
@@ -586,6 +587,11 @@ class PixelModel(Model):
             df = np.linalg.solve(alpha, beta)
             dchi = np.dot(beta, df)
             chisq = chisq - dchi
+            # Record worst single pixel chisq:
+            resid -= np.dot(derivs,df)
+            rw = resid * weight
+            worst_chisq = np.max(resid * rw)
+            
             # update the flux (and center) of the star
             flux += df[0]
             ###print(iteration,'chisq',chisq,flux,center,df) ###
@@ -598,6 +604,7 @@ class PixelModel(Model):
                                                flux = flux,
                                                center = center,
                                                chisq = chisq,
+                                               worst_chisq = chisq,
                                                dof = np.count_nonzero(weight) - self._constraints,
                                                alpha = star.fit.alpha,
                                                beta = star.fit.beta))

@@ -63,7 +63,8 @@ class StarFit(object):
     The params and alpha,beta,chisq are assumed to be marginalized over flux (and over center,
     if it is free to vary).
     """
-    def __init__(self, params, flux=1., center=(0.,0.), alpha=None, beta=None, chisq=None, dof=None):
+    def __init__(self, params, flux=1., center=(0.,0.), alpha=None, beta=None, chisq=None, dof=None,
+                 worst_chisq=None):
         """Constructor for base version of StarFit
 
         :param params: A 1d numpy array holding estimated PSF parameters
@@ -73,6 +74,7 @@ class StarFit(object):
         :param alpha:  Quadratic dependence of chi-squared on params about current values
         :param beta:   Linear dependence of chi-squared on params about current values
         :param chisq:  chi-squared value at current parameters.
+        :param worst_chisq:  highest chi-squared in any single pixel, after reflux()
         """
         
         self.params = params
@@ -82,6 +84,7 @@ class StarFit(object):
         self.beta = beta
         self.chisq = chisq
         self.dof = dof
+        self.worst_chisq = worst_chisq
         return
 
     def newParams(self, p):

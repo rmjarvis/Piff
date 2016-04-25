@@ -32,16 +32,21 @@ class PSF(object):
     However, it is also possible to construct a PSF from a model instance and an interp instance.
     Any existing parameters in the model instance are ignored.  The model just determines how
     interpolated parameters are to be interpreted.
+
+    The stars member is a list holding the Star instances for all measurement points being fit.
+    At the end of a fit, it contains the PSF parameters at each star and information on what
+    was clipped and how good the fit is.
     """
-    def __init__(self, model, interp):
+    def __init__(self, model, interp, stars=None):
         self.model = model
         self.interp = interp
+        self.stars = stars
 
     @classmethod
-    def build(cls, stars, model, interp, logger=None):
+    def build(cls, data, model, interp, logger=None):
         """The main driver function to build a PSF model from data.
 
-        :param stars:       A list of StarData instances.
+        :param data:        A list of StarData instances.
         :param model:       A Model instance that defines how to model the individual PSFs
                             at the location of each star.
         :param interp:      An Interp instance that defines how to do the interpolation of the
@@ -51,31 +56,99 @@ class PSF(object):
         :returns: a PSF instance
         """
         if logger:
-            logger.info("Start building PSF using %s stars", len(stars))
+            logger.info("Start building PSF using %s stars", len(data))
             logger.debug("Model is %s", model)
             logger.debug("Interp is %s", interp)
 
-        # Fit the model to each star
+        psf = cls(model,interp)
         if logger:
-            logger.debug("Making model vectors")
-        vectors = [ model.fitStar(star).getParameters() for star in stars ]
-
-        # Get the "positions" to use for interpolation.
-        # (The "position" may include non-spatial information like color, but we use the position
-        # nomenclature throughout to refer to the position in some arbitrary-dimensional space.)
-        if logger:
-            logger.debug("Getting star positions")
-        pos = [ interp.getStarPosition(star) for star in stars ]
-
-        # Use the interpolator to fit the parameter vectors
-        if logger:
-            logger.debug("Performing interpolation")
-        interp.solve(pos, vectors)
-
-        # Return this as a PSF instance
+            logger.info("Fitting PSF model")
+        psf.fit(data, logger=logger)
         if logger:
             logger.debug("Done building PSF")
-        return cls(model, interp)
+        return psf
+
+    def fit(self, data, logger=None):
+        """Fit interpolated PSF model to data using standard sequence of operations.
+
+        :param data:     List of StarData instances holding images to be fit.
+        :param logger:   A logger object for logging debug info. [default: None]
+        """
+
+        import numpy
+        
+        if logger:
+            logger.debug("Making Star structures")
+        self.stars = [self.model.makeStar(s, mask=True) for s in data]  #?? mask optional?
+
+        if logger:
+            logger.debug("Initializing fluxes")
+        self.stars = [self.model.reflux(s, fit_center=False) for s in self.stars]
+
+        if logger:
+            logger.debug("Initializing interpolator")
+        self.stars = self.interp.initialize(self.stars, logger=logger)
+
+        # Begin iterations.  Very simple convergence criterion right now.
+        # ??? Also will need to include outlier rejection here.
+        # ??? Make these convergence constants program options???
+        max_iterations = 30
+        chisq_threshold = 0.5
+
+        oldchi = 0.
+        for iteration in range(max_iterations):
+            if logger:
+                logger.debug("Fitting stars, iteration %d", iteration)
+            if self.interp.degenerate_points:
+                # Use quadratic form for chisq at each sample
+                self.stars = [self.model.chisq(s) for s in self.stars]
+            else:
+                # Get full parameter vector at each sample
+                self.stars = [self.model.fit(s) for s in self.stars]
+
+            if logger:
+                logger.debug("Interpolator solving, iteration %d", iteration)
+            self.interp.solve(self.stars)
+
+            # Refit and recenter all stars, collect stats
+            if logger:
+                logger.debug("Re-fluxing stars, iteration %d", iteration)
+            self.stars = [self.model.reflux(self.interp.interpolate(s)) for s in self.stars]
+            chisq = numpy.sum([s.fit.chisq for s in self.stars])
+            dof   = numpy.sum([s.fit.dof for s in self.stars])
+            if logger:
+                logger.info('Iteration {:d} chisq= {:.2f} / {:d} dof'.format(iteration,
+                                                                             chisq,dof))
+
+            # ??? This is where we should do some outlier rejection.
+
+            # ??? Very simple convergence test here:
+            if oldchi>0 and numpy.abs(oldchi-chisq) < chisq_threshold:
+                break
+            if iteration+1>=max_iterations and logger:
+                logger.warning('PSF fit did not converge')
+            oldchi = chisq
+        
+    def draw(self, data, flux=1., center=(0.,0.), logger=None):
+        """Generates PSF image from interpolated model
+
+        :param data:        StarData instance holding information needed for
+                            interpolation as well as an image/WCS into which
+                            PSF will be rendered.
+        :param flux:        Flux of PSF to be drawn
+        :param center:      (u,v) tuple giving position of stellar center relative
+                            to data.image_pos [default: (0.,0.)]
+        :param logger:      A logger object for logging debug info. [default: None]
+
+        :returns:           StarData instance with its image filled with rendered star
+        """
+
+        # Make a Star structure
+        s = self.model.makeStar(data, flux=flux, center=center)
+        # Interpolate parameters to this position/properties:
+        s = self.interp.interpolate(s)
+        # Render the image
+        return self.model.draw(s)
 
     def write(self, file_name, logger=None):
         """Write a PSF object to a file.
@@ -116,29 +189,3 @@ class PSF(object):
                 logger.debug("interp = %s",interp)
         return cls(model,interp)
 
-    def drawImage(self, position, offset=None, logger=None, **kwargs):
-        """Generates star given position and galsim Image
-
-        :param position:    Position we are interpolating to.
-        :param offset:      Tuple; sett the nominal center of the image
-                            relative to actual center of image [Default: None]
-        :param logger:      A logger object for logging debug info. [default: None]
-
-        :returns: a galsim image
-        """
-        import galsim
-        image = galsim.Image(32, 32)
-
-        # interpolate params
-        interpolated_params = self.interp.interpolate(position)
-        # set the parameters on the psf model, which gives a new model instance
-        interpolated_model = self.model.setParameters(interpolated_params)
-        # pass offset pos
-        if offset is not None:
-            pos = galsim.PositionD(*offset) + image.trueCenter()
-        else:
-            pos = None
-        # draw on the galsim image container
-        interpolated_image = interpolated_model.drawImage(image, pos=pos)
-
-        return interpolated_image
