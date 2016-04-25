@@ -22,7 +22,7 @@ import numpy
 class StarData(object):
     """A class that encapsulates all the relevant information about an observed star.
 
-    **Class intended to be invariant once returned from the method that creates it.**
+    **Class intended to be immutable once returned from the method that creates it.**
 
     This includes:
       - a postage stamp of the imaging data
@@ -61,6 +61,7 @@ class StarData(object):
       - dec
       - color_ri
       - color_iz
+      - gain
 
     Any of these values may be used for interpolation.  The most typical choices would be either
     (x,y) or (u,v).  The choice of what values to use is made by the interpolator.
@@ -238,7 +239,6 @@ class StarData(object):
 
         newimage = self.image.copy()
         ignore = self.weight.array==0.
-        print('ignore:',ignore.shape,numpy.count_nonzero(ignore))
         newimage.array[ignore] = 0.
         newimage.array[numpy.logical_not(ignore)] = data
         
@@ -252,3 +252,98 @@ class StarData(object):
                         pointing=self.pointing,
                         values_are_sb=self.values_are_sb,
                         properties=props)
+
+    def addPoisson(self, signal=None, gain=None):
+        """Return new StarData with the weight values altered to reflect
+        Poisson shot noise from a signal source, e.g. when the weight
+        only contains variance from background and read noise.
+
+        :param signal:    The signal (in ADU) from which the Poisson variance is extracted.
+                          If this is a 2d array or Image it is assumed to match the weight image.
+                          If it is a 1d array, it is assumed to match the vectors returned by
+                          getDataVector().  If None, the self.image is used.  All signals are
+                          clipped from below at zero.
+        :param gain:      The gain, in e per ADU, assumed in calculating new weights.  If None
+                          is given, then the 'gain' property is used, else defaults gain=1.
+
+        :returns:         A new StarData instance with updated weight array.
+        """
+
+        # Mark the pixels that are not already worthless
+        use = self.weight.array!=0.
+        
+        # Get the signal data
+        if signal is None:
+            variance = self.image.array[use]
+        elif isinstance(signal, galsim.image.Image):
+            variance = signal.array[use]
+        elif len(signal.shape)==2:
+            variance = signal[use]
+        else: 
+            # Insert 1d vector into currently valid pixels
+            variance = signal
+            
+        # Scale by gain
+        if gain is None:
+            try:
+                g = self.properties['gain']
+            except KeyError:
+                g = 1.
+        else:
+            g = gain
+
+        # Add to weight
+        newweight = self.weight.copy()
+        newweight.array[use] = 1. / (1./self.weight.array[use] + variance / g)
+
+        # Return new object
+        props = self.properties.copy()
+        for key in ['x', 'y', 'u', 'v']:
+            # Get rid of keys that constructor doesn't want to see:
+            props.pop(key,None)
+        return StarData(image=self.image,
+                        image_pos=self.image_pos,
+                        weight=newweight,
+                        pointing=self.pointing,
+                        values_are_sb=self.values_are_sb,
+                        properties=props)
+
+    def maskPixels(self, mask):
+        """Return new StarData with weight nulled at pixels marked as False in the mask.
+        Note that this cannot un-mask any previously nulled pixels.
+
+        :param mask:      Boolean array with False marked in pixels that should henceforth
+                          be ignored in fitting.
+                          If this is a 2d array it is assumed to match the weight image.
+                          If it is a 1d array, it is assumed to match the vectors returned by
+                          getDataVector().  If None, the self.image is used, clipped from below
+
+        :returns:         A new StarData instance with updated weight array.
+        """
+
+        # Mark the pixels that are not already worthless
+        use = self.weight.array!=0.
+        
+        # Get the signal data
+        if len(mask.shape)==2:
+            m = mask[use]
+        else: 
+            # Insert 1d vector into currently valid pixels
+            m = mask
+            
+        # Zero appropriate weight pixels in new copy
+        newweight = self.weight.copy()
+        newweight.array[use] = numpy.where(m, self.weight.array[use], 0.)
+
+        # Return new object
+        props = self.properties.copy()
+        for key in ['x', 'y', 'u', 'v']:
+            # Get rid of keys that constructor doesn't want to see:
+            props.pop(key,None)
+        return StarData(image=self.image,
+                        image_pos=self.image_pos,
+                        weight=newweight,
+                        pointing=self.pointing,
+                        values_are_sb=self.values_are_sb,
+                        properties=props)
+        

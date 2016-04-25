@@ -63,6 +63,10 @@ class Interpolator(object):
 
     1. Which properties of the star are used for ther interpolation
     2. What functional form (or algorithm) is used to interpolate between measurements.
+    3. Whether the interpolator assumes each sample has a non-degenerate parameter fit, vs
+       getting a differential quadratic form for chisq from each sample.
+
+    This answer to #3 is given in a boolean property degenerate_points.
 
     This is essentially an abstract base class intended to define the methods that should be
     implemented by any derived class.
@@ -93,6 +97,18 @@ class Interpolator(object):
         """
         return numpy.array([ sdata['u'], sdata['v'] ])
 
+    def initialize(self, star_list, logger=None):
+        """Initialize the interpolator and the parameter values in the Stars,
+        prefatory to any solve iterations.  Nature of the initialization is
+        specific to the derived classes.
+
+        :param star_list:   A list of Star instances to use to initialize.
+        :param logger:      A logger object for logging debug info. [default: None]
+
+        :returns:           A new list of Stars which have their parameters initialized.
+        """
+        raise NotImplemented("Derived classes must define the initialize function")
+    
     def solve(self, star_list, logger=None):
         """Solve for the interpolation coefficients given some data.
 

@@ -71,14 +71,15 @@ class Model(object):
         """
         return config_model
 
-    def makeStar(self, data, flux=1., center=(0.,0.)):
+    def makeStar(self, data, flux=1., center=(0.,0.), mask=True):
         """Create a Star instance that this Model can read, include any setup needed
         before fitting.
 
         :param data:    A StarData instance
         :param flux:    Initial estimate of stellar flux
         :param center:  Initial estimate of stellar center in world coord system
-
+        :param mask:    If True, set data.weight to zero at pixels that are outside
+                        the range of the model.
         :returns: Star instance
         """
         raise NotImplemented("Derived classes must define the makeStar function")

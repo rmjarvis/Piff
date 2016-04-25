@@ -76,7 +76,7 @@ from config import piffify
 
 # Models
 from .model import Model, process_model
-from .pixelmodel import PixelModel, Lanczos
+from .pixelmodel import PixelModel, Lanczos, Bilinear
 from gaussian_model import Gaussian
 
 # Interpolators

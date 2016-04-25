@@ -253,16 +253,37 @@ class PixelModel(Model):
         star.fit.params[:] = params[self._constraints:]  # Omit the constrained pixels
         return
         
-    def makeStar(self, data, flux=1., center=(0.,0.)):
+    def makeStar(self, data, flux=1., center=(0.,0.), mask=True):
         """Create a Star instance that PixelModel can manipulate.
 
         :param data:    A StarData instance
         :param flux:    Initial estimate of stellar flux
         :param center:  Initial estimate of stellar center in world coord system
+        :param mask:    If True, set data.weight to zero at pixels that are outside
+                        the range of the model.
 
         :returns:       Star instance
         """
-        return Star(data, StarFit(self._initial_params, flux, center))
+
+        fit = StarFit(self._initial_params, flux, center)
+        if mask:
+            # Null weight at pixels where interpolation coefficients
+            # come up short of specified fraction of the total kernel
+            required_kernel_fraction = 0.7
+            
+            _, _, u, v = data.getDataVector()
+            # Subtract star.fit.center from u, v:
+            u -= fit.center[0]
+            v -= fit.center[1]
+            coeffs, psfx, psfy = self.interp(u/self.du, v/self.du)
+            # Turn the (psfx,psfy) coordinates into an index into 1d parameter vector.
+            index1d = self._indexFromPsfxy(psfx, psfy)
+            # All invalid pixel references now have negative index;
+            # Null the coefficients for such pixels
+            coeffs = np.where(index1d < 0, 0., coeffs)
+            use = np.sum(coeffs,axis=1) > required_kernel_fraction
+            data = data.maskPixels(use)
+        return Star(data, fit)
 
     def fit(self, star):
         """Fit the Model to the star's data to yield iterative improvement on
@@ -663,8 +684,9 @@ class Lanczos(PixelInterpolant):
 
         :returns: interpolation kernel values at these grid points 
         """
-        # ??? Do we want to normalize Lanczos to unit sum over kernel elements???
-        return self._sinc(u) * self._sinc(u/self.order)
+        # Normalize Lanczos to unit sum over kernel elements
+        k =  self._sinc(u) * self._sinc(u/self.order)
+        return k / np.sum(k,axis=1)[:,np.newaxis]
 
     def __call__(self, u, v):
         return self._calculate(u,v,derivs=False)
@@ -712,4 +734,79 @@ class Lanczos(PixelInterpolant):
             return coeffs, dcdu, dcdv, x, y
         else:
             return coeffs, x, y
+
+class Bilinear(PixelInterpolant):
+    """Lanczos interpolator in 2 dimensions.
+    """
+    def __init__(self):
+        """Initialize - "order" is the range, 1 pixel here
+        """
+        self.order = 1
+        # Here is range of pixels to use in each dimension relative to ceil(u,v)
+        self._duv = np.arange(-self.order, self.order, dtype=int)
+        # And here are flattened arrays of u, v displacement for whole footprint
+        self._du = np.ones( (2*self.order,2*self.order), dtype=int) * self._duv
+        self._du = self._du.flatten()
+        self._dv = np.ones( (2*self.order,2*self.order), dtype=int) * \
+          self._duv[:,np.newaxis]
+        self._dv = self._dv.flatten()
     
+    def range(self):
+        return self.order
+
+    def _kernel1d(self, u):
+        """ Calculate the 1d interpolation kernel at each value in array u.
+
+        :param u: 1d array of (u_dest-u_src) spanning the footprint of the kernel.
+
+        :returns: interpolation kernel values at these grid points 
+        """
+        return 1. - np.abs(u)
+
+    def __call__(self, u, v):
+        return self._calculate(u,v,derivs=False)
+
+    def derivatives(self, u, v):
+        return self._calculate(u,v,derivs=True)
+
+    def _calculate(self, u, v, derivs=False):
+        """ Routine which does the kernel calculations.  Uses finite differences to
+        calculate derivatives, if requested.
+
+        :param u,v:    1d arrays of coordinates to which we are interpolating
+        :param derivs: Set to true if outputs should include derivatives w.r.t. u,v
+        
+        :returns: coeffs, [dcoeff/du, dcoeff/dv,] x, y where each is a 2d array of
+        dimensions (len(u), # of kernel elements), holding coefficients of each grid point
+        for interpolation to each destination point, [derivatives of these], and x,y are
+        the integer coordinates of the grid points.
+        """
+        
+        # Get integer and fractional parts of u, v
+        u_ceil = np.ceil(u).astype(int)
+        v_ceil = np.ceil(v).astype(int)
+        # Make arrays giving coordinates of grid points within footprint
+        x = u_ceil[:,np.newaxis] + self._du[np.newaxis,:]
+        y = v_ceil[:,np.newaxis] + self._dv[np.newaxis,:]
+        # Make npts x (2*order) arrays holding 1d displacements
+        # to be arguments of the 1d kernel functions
+        argu = (u_ceil-u)[:,np.newaxis] + self._duv
+        argv = (v_ceil-v)[:,np.newaxis] + self._duv
+        # Calculate the 1d function each axis:
+        ku = self._kernel1d(argu)
+        kv = self._kernel1d(argv)
+        # Then take outer products to produce kernel
+        coeffs = (ku[:,np.newaxis,:] * kv[:,:,np.newaxis]).reshape(x.shape)
+
+        if derivs:
+            # Take derivatives with respect to u
+            duv = 0.01   # Step for finite differences
+            dku = (self._kernel1d(argu+duv)-self._kernel1d(argu-duv)) / (2*duv)
+            dcdu = (dku[:,np.newaxis,:] * kv[:,:,np.newaxis]).reshape(x.shape)
+            # and v
+            dkv = (self._kernel1d(argv+duv)-self._kernel1d(argv-duv)) / (2*duv)
+            dcdv = (ku[:,np.newaxis,:] * dkv[:,:,np.newaxis]).reshape(x.shape)
+            return coeffs, dcdu, dcdv, x, y
+        else:
+            return coeffs, x, y
+            

@@ -39,19 +39,22 @@ class BasisInterpolator(Interpolator):
     vector), and a basis.getKeys() method that extracts the vector of quantities
     used as inputs to the basis functions.
 
+    The property degenerate_points is set to True to indicate that this interpolator
+    uses the alpha/beta quadratic form of chisq for each sample, rather than assuming
+    that a best-fit parameter vector is available at every sample.
+    
     Internally we'll store the interpolation coefficients in a 2d array of dimensions
     (nparams, nbases)
-
     """
-    def __init__(self, basis, star):
+
+    def __init__(self, basis):
         """Initialize a new linear interpolator.
         :param basis:   An object which returns values of the basis functions for
         a specified star.
-        :param star:    A Star instance whose parameter vector will be assumed to
-        specify the initial PSF for all stars in the subsequent solve().
         """
         self._basis = basis
-        self.q = star.fit.params[:,numpy.newaxis] * basis.constant(1.)[numpy.newaxis,:]
+        self.degenerate_points = True  # This Interpolator uses chisq quadratic forms
+        self.q = None
         
     def getKeys(self, sdata):
         """Extract the quantities to use as interpolation keys for a particular star's data.
@@ -64,6 +67,22 @@ class BasisInterpolator(Interpolator):
         """
         return self._basis.getKeys(sdata)
         
+    def initialize(self, star_list, logger=None):
+        """Initialize the interpolator and the parameter values in the Stars,
+        prefatory to any solve iterations.  This class will initialize everything
+        to have constant PSF parameter vector taken from the first Star in the list.
+
+        :param star_list:   A list of Star instances to use to initialize.
+        :param logger:      A logger object for logging debug info. [default: None]
+
+        :returns:           A new list of Stars which have their parameters initialized.
+        """
+
+        c = star_list[0].params.copy()
+        self.q = c[:,numpy.newaxis] * basis.constant(1.)[numpy.newaxis,:]
+
+        return [Star(s.data, s.fit.newParams(c)) for s in star_list]
+    
     def solve(self, star_list, logger=None):
         """Solve for the interpolation coefficients given some data.
         The StarFit element of each Star in the list is assumed to hold valid
@@ -73,6 +92,9 @@ class BasisInterpolator(Interpolator):
         :param star_list:   A list of Star instances to interpolate between
         :param logger:      A logger object for logging debug info. [default: None]
         """
+
+        if self.q is None:
+            raise RuntimeError("Attempt to solve() before initialize() of BasisInterpolator")
 
         # Empty A and B
         A = numpy.zeros( self.q.shape+self.q.shape, dtype=float)
@@ -100,6 +122,9 @@ class BasisInterpolator(Interpolator):
 
         :returns: a new Star instance with its StarFit member holding the interpolated parameters
         """
+        if self.q is None:
+            raise RuntimeError("Attempt to interpolate() before initialize() of BasisInterpolator")
+
         K = self._basis(star.data)
         p = numpy.dot(self.q,K)
         return Star(star.data, star.fit.newParams(p))
