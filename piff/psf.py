@@ -70,10 +70,11 @@ class PSF(object):
             logger.debug("Done building PSF")
         return psf
 
-    def fit(self, data, logger=None):
+    def fit(self, data, chisq_threshold=1., logger=None):
         """Fit interpolated PSF model to data using standard sequence of operations.
 
         :param data:     List of StarData instances holding images to be fit.
+        :param chisq_threshold:  Change in chisq at which iteration will terminate.
         :param logger:   A logger object for logging debug info. [default: None]
         """
 
@@ -99,7 +100,6 @@ class PSF(object):
         # ??? Also will need to include outlier rejection here.
         # ??? Make these convergence constants program options???
         max_iterations = 30
-        chisq_threshold = 0.5
 
         oldchi = 0.
         for iteration in range(max_iterations):
@@ -114,7 +114,7 @@ class PSF(object):
 
             if logger:
                 logger.debug("Interpolator solving, iteration %d", iteration)
-            self.interp.solve(self.stars)
+            self.interp.solve(self.stars,logger=logger)
 
             # Refit and recenter all stars, collect stats
             if logger:
