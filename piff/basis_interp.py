@@ -68,8 +68,8 @@ class BasisInterpolator(Interpolator):
         return self._basis.getKeys(sdata)
         
     def initialize(self, star_list, logger=None):
-        """Initialize the interpolator and the parameter values in the Stars,
-        prefatory to any solve iterations.  This class will initialize everything
+        """Initialize the interpolator prefatory to any solve iterations.
+        This class will initialize everything
         to have constant PSF parameter vector taken from the first Star in the list.
 
         :param star_list:   A list of Star instances to use to initialize.
@@ -80,8 +80,6 @@ class BasisInterpolator(Interpolator):
 
         c = star_list[0].fit.params.copy()
         self.q = c[:,numpy.newaxis] * self._basis.constant(1.)[numpy.newaxis,:]
-
-        return [Star(s.data, s.fit.newParams(c)) for s in star_list]
     
     def solve(self, star_list, logger=None):
         """Solve for the interpolation coefficients given some data.
@@ -111,7 +109,11 @@ class BasisInterpolator(Interpolator):
         B = B.flatten()
         nq = B.shape[0]
         A = A.reshape(nq,nq)
+        if logger:
+            logger.debug('Beginning solution of matrix size %d',A.shape[0])
         dq = numpy.linalg.solve(A,B)
+        if logger:
+            logger.debug('...finished solution')
         self.q += dq.reshape(self.q.shape)
 
     def interpolate(self, star, logger=None):
@@ -188,6 +190,8 @@ class PolyBasis(object):
             rr = (ranges,) * len(keys)
         elif not len(ranges)==len(keys):
              raise ValueError('Number of provided ranges does not match number of keys')
+        else:
+            rr = ranges
 
         # Copy all ranges, None means -1,1
         left=[]

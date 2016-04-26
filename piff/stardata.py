@@ -188,7 +188,7 @@ class StarData(object):
         dudy = (u[3]-u[2])/(2*dpix)
         dvdx = (v[1]-v[0])/(2*dpix)
         dvdy = (v[3]-v[2])/(2*dpix)
-        return dudx*dvdy - dudy*dvdx
+        return numpy.abs(dudx*dvdy - dudy*dvdx)
 
     def getDataVector(self):
         """Get the pixel data as a numpy array. 

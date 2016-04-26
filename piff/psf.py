@@ -18,6 +18,8 @@
 
 from __future__ import print_function
 
+from .starfit import Star, StarFit
+
 class PSF(object):
     """A class that encapsulates the full interpolated PSF model.
 
@@ -82,12 +84,16 @@ class PSF(object):
         self.stars = [self.model.makeStar(s, mask=True) for s in data]  #?? mask optional?
 
         if logger:
-            logger.debug("Initializing fluxes")
-        self.stars = [self.model.reflux(s, fit_center=False) for s in self.stars]
+            logger.debug("Initializing interpolator")
+        self.interp.initialize(self.stars, logger=logger)
+
+        # Before beginning iterative solutions, install the interpolator
+        # state into the parameter vectors of all Stars
+        self.stars = self.interp.interpolateList(self.stars)
 
         if logger:
-            logger.debug("Initializing interpolator")
-        self.stars = self.interp.initialize(self.stars, logger=logger)
+            logger.debug("Initializing fluxes")
+        self.stars = [self.model.reflux(s, fit_center=False) for s in self.stars]
 
         # Begin iterations.  Very simple convergence criterion right now.
         # ??? Also will need to include outlier rejection here.

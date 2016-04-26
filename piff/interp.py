@@ -97,15 +97,14 @@ class Interpolator(object):
         """
         return numpy.array([ sdata['u'], sdata['v'] ])
 
-    def initialize(self, star_list, logger=None):
-        """Initialize the interpolator and the parameter values in the Stars,
+    def initialize(self, star_list=None, logger=None):
+        """Initialize the interpolator solution to some state
         prefatory to any solve iterations.  Nature of the initialization is
         specific to the derived classes.
 
         :param star_list:   A list of Star instances to use to initialize.
         :param logger:      A logger object for logging debug info. [default: None]
 
-        :returns:           A new list of Stars which have their parameters initialized.
         """
         raise NotImplemented("Derived classes must define the initialize function")
     

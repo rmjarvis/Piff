@@ -604,7 +604,7 @@ class PixelModel(Model):
                                                flux = flux,
                                                center = center,
                                                chisq = chisq,
-                                               worst_chisq = chisq,
+                                               worst_chisq = worst_chisq,
                                                dof = np.count_nonzero(weight) - self._constraints,
                                                alpha = star.fit.alpha,
                                                beta = star.fit.beta))
