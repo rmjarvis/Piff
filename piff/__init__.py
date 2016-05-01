@@ -80,7 +80,7 @@ from .pixelmodel import PixelModel, Lanczos, Bilinear
 from gaussian_model import Gaussian
 
 # Interpolators
-from .interp import Interpolator, process_interpolator
+from .interp import Interp, process_interp
 from .basis_interp import BasisInterpolator, PolyBasis
 
 ##from mean_interp import Mean

@@ -17,12 +17,12 @@
 """
 
 from __future__ import print_function
-from .interp import Interpolator
+from .interp import Interp
 from .starfit import Star
 import numpy
 
-class BasisInterpolator(Interpolator):
-    """An Interpolator class that works whenever the interpolating functions are
+class BasisInterpolator(Interp):
+    """An Interp class that works whenever the interpolating functions are
     linear sums of basis functions.  Does things the "slow way" to be stable to
     degenerate fits to individual stars, instead of fitting to parameter sets
     produced by single stars.
@@ -55,7 +55,7 @@ class BasisInterpolator(Interpolator):
         self._basis = basis
         self.degenerate_points = True  # This Interpolator uses chisq quadratic forms
         self.q = None
-        
+
     def getKeys(self, sdata):
         """Extract the quantities to use as interpolation keys for a particular star's data.
         Obtains this from the Basis object.

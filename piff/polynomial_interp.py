@@ -18,9 +18,8 @@
 
 from __future__ import print_function
 
-# ???from .interp import Interpolator
-from interp import Interpolator
-from starfit import Star
+from .interp import Interp
+from .starfit import Star
 
 import numpy
 import warnings
@@ -39,7 +38,7 @@ polynomial_types = {
 }
 
 
-class Polynomial(Interpolator):
+class Polynomial(Interp):
     """
     An interpolator that uses  scipy curve_fit command to fit a polynomial 
     surface to each parameter passed in independently.

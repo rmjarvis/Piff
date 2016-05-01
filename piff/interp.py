@@ -19,39 +19,39 @@
 from __future__ import print_function
 import numpy
 
-def process_interpolator(config, logger=None):
-    """Parse the interpolator field of the config dict.
+def process_interp(config, logger=None):
+    """Parse the interp field of the config dict.
 
     :param config:      The configuration dict.
     :param logger:      A logger object for logging debug info. [default: None]
 
-    :returns: an Interpolator instance
+    :returns: an Interp instance
     """
     import piff
 
     if logger is None:
         logger = config.setup_logger(verbosity=0)
 
-    if 'interpolator' not in config:
-        raise ValueError("config dict has no interpolator field")
-    config_interpolator = config['interpolator']
+    if 'interp' not in config:
+        raise ValueError("config dict has no interp field")
+    config_interp = config['interp']
 
-    if 'type' not in config_interpolator:
-        raise ValueError("config['interpolator'] has no type field")
+    if 'type' not in config_interp:
+        raise ValueError("config['interp'] has no type field")
 
     # Get the class to use for the interpolator
     # Not sure if this is what we'll always want, but it would be simple if we can make it work.
-    interpolator_class = getattr(piff, config_interpolator.pop('type'))
+    interp_class = getattr(piff, config_interp.pop('type'))
 
-    # Read any other kwargs in the interpolator field
-    kwargs = interpolator_class.parseKwargs(config_interpolator)
+    # Read any other kwargs in the interp field
+    kwargs = interp_class.parseKwargs(config_interp)
 
-    # Build interpolator object
-    interpolator = interpolator_class(**kwargs)
+    # Build interp object
+    interp = interp_class(**kwargs)
 
-    return interpolator
+    return interp
 
-class Interpolator(object):
+class Interp(object):
     """The base class for interpolating a set of data vectors across the field of view.
 
     In general, the interpolator is agnostic as to the meaning of the parameter vectors.
@@ -72,18 +72,18 @@ class Interpolator(object):
     implemented by any derived class.
     """
     @classmethod
-    def parseKwargs(cls, config_interpolator):
-        """Parse the interpolator field of a configuration dict and return the kwargs to use for
+    def parseKwargs(cls, config_interp):
+        """Parse the interp field of a configuration dict and return the kwargs to use for
         initializing an instance of the class.
 
         The base class implementation just returns the kwargs as they are, but derived classes
         might want to override this if they need to do something more sophisticated with them.
 
-        :param config_interpolator:   The interpolator field of the configuration dict, config['interpolator']
+        :param config_interp:   The interpolator field of the configuration dict, config['interp']
 
         :returns: a kwargs dict to pass to the initializer
         """
-        return config_interpolator
+        return config_interp
 
     def getKeys(self, sdata):
         """Extract the quantities to use as interpolation keys for a particular star's data
@@ -141,7 +141,7 @@ class Interpolator(object):
         return numpy.array([ self.interpolate(star) for star in star_list ])
 
     def write(self, fits, extname):
-        """Write an Interpolator to a FITS file.
+        """Write an Interp to a FITS file.
 
         Note: this only writes the initialization kwargs to the fits extension, not the parameters.
 
@@ -154,14 +154,14 @@ class Interpolator(object):
         :param fits:        An open fitsio.FITS object
         :param extname:     The name of the extension to write the interpolator information.
         """
-        # TODO: The I/O routines for Model and Interpolator share a lot of code.  Probably could move
-        #       a lot of it into utility functions that both of them call.
+        # TODO: The I/O routines for Model and Interp share a lot of code.
+        #       Probably could move a lot of it into utility functions that both of them call.
 
         # First write the basic kwargs
         # Start with 'type', since that always needs to be in the table.
-        interpolator_type = self.__class__.__name__
-        cols = [ [interpolator_type] ]
-        dtypes = [ ('type', str, len(interpolator_type) ) ]
+        interp_type = self.__class__.__name__
+        cols = [ [interp_type] ]
+        dtypes = [ ('type', str, len(interp_type) ) ]
         for key, value in self.kwargs.items():
             t = type(value)
             dt = numpy.dtype(t) # just used to categorize the type into int, float, str
@@ -217,7 +217,7 @@ class Interpolator(object):
 
     @classmethod
     def read(cls, fits, extname):
-        """Read an Interpolator from a FITS file.
+        """Read an Interp from a FITS file.
 
         :param fits:        An open fitsio.FITS object
         :param extname:     The name of the extension with the interpolator information.
@@ -229,21 +229,23 @@ class Interpolator(object):
         assert extname in fits
         assert 'type' in fits[extname].get_colnames()
         assert 'type' in fits[extname].read().dtype.names
-        # interpolator_type = fits[extname].read_column('type')
-        interpolator_type = fits[extname].read()['type']
-        assert len(interpolator_type) == 1
-        interpolator_type = interpolator_type[0]
+        # interp_type = fits[extname].read_column('type')
+        interp_type = fits[extname].read()['type']
+        assert len(interp_type) == 1
+        interp_type = interp_type[0]
 
-        # Check that interpolator_type is a valid Interpolator type.
-        valid_interpolator_types = dict([ (cls.__name__, cls) for cls in piff.Interpolator.__subclasses__() ])
-        if interpolator_type not in valid_interpolator_types:
+        # Check that interp_type is a valid Interp type.
+        valid_interp_types = dict([ 
+                (cls.__name__, cls) for cls in piff.Interp.__subclasses__()
+                ])
+        if interp_type not in valid_interp_types:
             raise ValueError("interpolator type %s is not a valid Piff Interpolator")
-        interpolator_cls = valid_interpolator_types[interpolator_type]
+        interp_cls = valid_interp_types[interp_type]
 
-        kwargs = interpolator_cls.readKwargs(fits, extname)
-        interpolator = interpolator_cls(**kwargs)
-        interpolator.readSolution(fits, extname + '_solution')
-        return interpolator
+        kwargs = interp_cls.readKwargs(fits, extname)
+        interp = interp_cls(**kwargs)
+        interp.readSolution(fits, extname + '_solution')
+        return interp
 
     def readSolution(self, fits, extname):
         """Read the solution from a FITS binary table.

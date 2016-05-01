@@ -53,7 +53,7 @@ class Mean(Interp):
         """Read the solution from a FITS binary table.
 
         :param fits:        An open fitsio.FITS object.
-        :param extname:     The name of the extension with the interp information.
+        :param extname:     The name of the extension with the interpolator information.
         """
         cols = [ self.mean ]
         dtypes = [ ('mean', float) ]
@@ -64,7 +64,7 @@ class Mean(Interp):
         """Read the solution from a FITS binary table.
 
         :param fits:        An open fitsio.FITS object.
-        :param extname:     The name of the extension with the interp information.
+        :param extname:     The name of the extension with the interpolator information.
         """
         data = fits[extname].read()
         self.mean = data['mean']
