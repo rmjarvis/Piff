@@ -92,34 +92,42 @@ class PSF(object):
         # state into the parameter vectors of all Stars
         self.stars = self.interp.interpolateList(self.stars)
 
-        if logger:
-            logger.debug("Initializing fluxes")
-        self.stars = [self.model.reflux(s, fit_center=False) for s in self.stars]
+        if hasattr(self.model, 'reflux'):
+            if logger:
+                logger.debug("Initializing fluxes")
+            self.stars = [self.model.reflux(s, fit_center=False) for s in self.stars]
 
         # Begin iterations.  Very simple convergence criterion right now.
         # ??? Also will need to include outlier rejection here.
         # ??? Make these convergence constants program options???
         max_iterations = 30
 
+        # For basis models, we can compute a quadratic form for chisq, and if we are using
+        # a basis interpolator, then we can use it.  It's kind of ugly to query this, but
+        # the double dispatch makes it tricky to implement this with class heirarchy, so for
+        # now we just check if we have all the required parts to use the quadratic form
+        quadratic_chisq = hasattr(self.model, 'chisq') and self.interp.degenerate_points
+
         oldchi = 0.
         for iteration in range(max_iterations):
             if logger:
                 logger.debug("Fitting stars, iteration %d", iteration)
-            if self.interp.degenerate_points:
-                # Use quadratic form for chisq at each sample
+
+            if quadratic_chisq:
                 self.stars = [self.model.chisq(s) for s in self.stars]
             else:
-                # Get full parameter vector at each sample
                 self.stars = [self.model.fit(s) for s in self.stars]
 
             if logger:
                 logger.debug("Interpolator solving, iteration %d", iteration)
-            self.interp.solve(self.stars,logger=logger)
+            self.interp.solve(self.stars, logger=logger)
 
             # Refit and recenter all stars, collect stats
             if logger:
                 logger.debug("Re-fluxing stars, iteration %d", iteration)
-            self.stars = [self.model.reflux(self.interp.interpolate(s)) for s in self.stars]
+
+            if hasattr(self.model, 'reflux'):
+                self.stars = [self.model.reflux(self.interp.interpolate(s)) for s in self.stars]
             chisq = numpy.sum([s.fit.chisq for s in self.stars])
             dof   = numpy.sum([s.fit.dof for s in self.stars])
             if logger:
@@ -131,7 +139,7 @@ class PSF(object):
             # ??? Very simple convergence test here:
             if oldchi>0 and numpy.abs(oldchi-chisq) < chisq_threshold:
                 break
-            if iteration+1>=max_iterations and logger:
+            if logger and iteration+1 >= max_iterations:
                 logger.warning('PSF fit did not converge')
             oldchi = chisq
         

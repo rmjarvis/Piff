@@ -20,6 +20,8 @@ from __future__ import print_function
 import numpy
 
 from .model import Model
+from .stardata import StarData
+from .starfit import Star, StarFit
 
 class Gaussian(Model):
     """An extremely simple PSF model that just considers the PSF as a sheared Gaussian.
@@ -27,77 +29,73 @@ class Gaussian(Model):
     def __init__(self):
         self.kwargs = {}
 
-
-    def fitStar(self, star):
+    def fit(self, star):
         """Fit the image by running the HSM adaptive moments code on the image and using
         the resulting moments as an estimate of the Gaussian size/shape.
 
-        :param star:    A StarData instance
+        :param star:    A Star instance
 
-        :returns: self
+        :returns: a new Star with the fitted parameters in star.fit
         """
         import galsim
-        image, weight, image_pos = star.getImage()
+        image, weight, image_pos = star.data.getImage()
         mom = image.FindAdaptiveMom(weight=weight)
-        self.sigma = mom.moments_sigma
-        self.shape = mom.observed_shape
+
+        sigma = mom.moments_sigma
+        shape = mom.observed_shape
         # These are in pixel coordinates.  Need to convert to world coords.
         jac = image.wcs.jacobian(image_pos=image_pos)
         scale, shear, theta, flip = jac.getDecomposition()
         # Fix sigma
-        self.sigma *= scale
+        sigma *= scale
         # Fix shear.  First the flip, if any.
         if flip:
-            self.shape = galsim.Shear(g1 = -self.shape.g1, g2 = self.shape.g2)
+            shape = galsim.Shear(g1 = -shape.g1, g2 = shape.g2)
         # Next the rotation
-        self.shape = galsim.Shear(g = self.shape.g, beta = self.shape.beta + theta)
+        shape = galsim.Shear(g = shape.g, beta = shape.beta + theta)
         # Finally the shear
-        self.shape = shear + self.shape
+        shape = shear + shape
 
-        return self
+        # Make a StarFit object with these parameters
+        params = numpy.array([ sigma, shape.g1, shape.g2 ])
 
-    def getProfile(self):
-        """Get a version of the PSF model as a GalSim GSObject
+        flux = mom.moments_amp
+        center = mom.moments_centroid
 
+        # Also need to compute chisq
+        prof = self.getProfile(params) * flux
+        offset = center - image.trueCenter()
+        model_image = prof.drawImage(image.copy(), method='no_pixel', offset=offset)
+        chisq = numpy.std(image.array - model_image.array)
+        dof = numpy.count_nonzero(weight.array) - 6
+
+        fit = StarFit(params, flux=flux, center=center-image_pos, chisq=chisq, dof=dof)
+        return Star(star.data, fit)
+
+    def getProfile(self, params):
+        """Get a version of the model as a GalSim GSObject
+
+        :param params:      A numpy array with [ sigma, g1, g2 ]
+         
         :returns: a galsim.GSObject instance
         """
         import galsim
-        prof = galsim.Gaussian(sigma=self.sigma).shear(self.shape)
+        prof = galsim.Gaussian(sigma=params[0])
+        prof = prof.shear(g1=params[1], g2=params[2])
         return prof
 
-    def drawImage(self, image, pos=None):
+    def draw(self, star):
         """Draw the model on the given image.
 
-        :param image:   A galsim.Image on which to draw the model.
-        :param pos:     The position on the image at which to place the nominal center.
-                        [default: None, which means to use the center of the image.]
+        :param star:    A Star instance with the fitted parameters to use for drawing and a 
+                        data field that acts as a template image for the drawn model.
 
-        :returns: image
-        """
-        prof = self.getProfile()
-        if pos is not None:
-            offset = pos - image.trueCenter()
-        else:
-            offset = None
-        return prof.drawImage(image, method='no_pixel', offset=offset)
-
-    def getParameters(self):
-        """Get the parameters of the model, to be used by the interpolator.
-
-        :returns: a numpy array of the model parameters
-        """
-        return numpy.array([self.sigma, self.shape.g1, self.shape.g2])
-
-    def setParameters(self, params):
-        """Set the parameters of the model, typically provided by an interpolator.
-
-        :param params:  A numpy array of the model parameters
-
-        :returns: self
+        :returns: a new Star instance with the data field having an image of the drawn model.
         """
         import galsim
-        sigma, g1, g2 = params
-        self.sigma = sigma
-        self.shape = galsim.Shear(g1=g1,g2=g2)
-
-        return self
+        prof = self.getProfile(star.fit.params)
+        center = galsim.PositionD(*star.fit.center)
+        offset = star.data.image_pos + center - star.data.image.trueCenter()
+        image = prof.drawImage(star.data.image.copy(), method='no_pixel', offset=offset)
+        data = StarData(image, star.data.image_pos, star.data.weight)
+        return Star(data, star.fit)

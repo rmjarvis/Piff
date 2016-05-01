@@ -117,7 +117,7 @@ def piffify(config, logger=None):
     interp = piff.process_interp(config, logger=logger)
 
     # build the PSF model
-    psf = piff.PSF.build(stars=stars, model=model, interp=interp, logger=logger)
+    psf = piff.PSF.build(stars, model, interp, logger=logger)
 
     # write it out to a file
     output = piff.process_output(config, logger=logger)

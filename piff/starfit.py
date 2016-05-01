@@ -99,4 +99,7 @@ class StarFit(object):
         if not npp.shape==self.params.shape:
             raise TypeError('new StarFit parameters do not match dimensions of old ones')
         return StarFit(npp, flux=self.flux, center=self.center)
-    
+ 
+    def copy(self):
+        return StarFit(self.params, self.flux, self.center, self.alpha, self.beta,
+                       self.chisq, self.dof, self.worst_chisq)

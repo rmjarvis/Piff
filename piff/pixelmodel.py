@@ -19,8 +19,8 @@
 from __future__ import print_function
 import numpy as np
 
-from model import Model
-from starfit import Star,StarFit
+from .model import Model
+from .starfit import Star,StarFit
 
 class PixelModel(Model):
     """A PSF modeled as interpolation between a grid of points.

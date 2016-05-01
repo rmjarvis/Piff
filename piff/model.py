@@ -19,6 +19,9 @@
 from __future__ import print_function
 import numpy
 
+from .stardata import StarData
+from .starfit import Star, StarFit
+
 def process_model(config, logger=None):
     """Parse the model field of the config dict.
 
@@ -75,14 +78,20 @@ class Model(object):
         """Create a Star instance that this Model can read, include any setup needed
         before fitting.
 
+        The base class implementation uses None for the fit.params value, leaving that to 
+        be filled in by a subsequent model.fit() call.
+
         :param data:    A StarData instance
         :param flux:    Initial estimate of stellar flux
         :param center:  Initial estimate of stellar center in world coord system
         :param mask:    If True, set data.weight to zero at pixels that are outside
                         the range of the model.
+
         :returns: Star instance
         """
-        raise NotImplemented("Derived classes must define the makeStar function")
+        fit = StarFit(None, flux, center)
+        return Star(data, fit)
+
 
     def fit(self, star):
         """Fit the Model to the star's data to yield iterative improvement on
@@ -95,30 +104,6 @@ class Model(object):
         :returns:      New Star instance with updated fit information
         """
         raise NotImplemented("Derived classes must define the fit function")
-
-    def reflux(self, star):
-        """Fit the Model to the star's data, varying the flux (and
-        iterating the center, if it is free) at fixed PSF shape.
-
-        :param star:   A Star instance
-
-        :returns:      New star instance, with updated flux, center, chisq, dof
-        """
-        raise NotImplemented("Derived classes must define the reflux function")
-
-    def chisq(self, star):
-        """Calculate dependence of chi^2 = -2 log L(D|p) on PSF parameters for single star.
-        as a quadratic form chi^2 = dp^T*alpha*dp - 2*beta*dp + gamma,
-        where dp is the *shift* from current parameter values.  Marginalization over
-        flux (and center, if free) should be done by this routine. Returned Star
-        instance has the resultant alpha, beta, gamma, flux, (center) attributes of Star,
-        but parameters need not have been updated as they may be degenerate.
-
-        :param star:   A Star instance
-
-        :returns:      New Star instance with updated StarFit
-        """
-        raise NotImplemented("Derived classes must define the chisq function")
 
     def draw(self, star):
         """Create new Star instance that has StarData filled with a rendering
