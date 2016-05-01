@@ -49,14 +49,14 @@ class StarFit(object):
     to carry information of use to a given Model instance (such as intermediate
     results), but interpolators will be looking for some subset of these properties:
     
-    -params:      numpy vector of parameters of the PSF that apply to this star
-    -flux:        flux of the star
-    -center:      (u,v) tuple giving position of stellar center (relative
+    :params:      numpy vector of parameters of the PSF that apply to this star
+    :flux:        flux of the star
+    :center:      (u,v) tuple giving position of stellar center (relative
                   to data.image_pos)
-    -chisq:       Chi-squared of  fit to the data (if any) with current params
-    -dof:         Degrees of freedom in the fit (will depend on whether last fit had
+    :chisq:       Chi-squared of  fit to the data (if any) with current params
+    :dof:         Degrees of freedom in the fit (will depend on whether last fit had
                   parameters free or just the flux/center).
-    -alpha, beta: matrix, vector, giving Taylor expansion of chisq wrt params about
+    :alpha, beta: matrix, vector, giving Taylor expansion of chisq wrt params about
                   their current values. The alpha matrix also is the inverse covariance
                   matrix of the params.
 
