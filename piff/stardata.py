@@ -96,9 +96,9 @@ class StarData(object):
         self.local_wcs = image.wcs.local(image_pos)
 
         if weight is None:
-            self.weight = galsim.Image(numpy.ones_like(image.array))
+            self.weight = galsim.Image(image.bounds, init_value=1, wcs=image.wcs)
         elif type(weight) is float:
-            self.weight = galsim.Image(numpy.ones_like(image.array)*weight)
+            self.weight = galsim.Image(image.bounds, init_value=weight, wcs=image.wcs)
         else:
             self.weight = weight
 

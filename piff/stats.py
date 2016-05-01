@@ -117,9 +117,9 @@ class Statistics(object):
             image_pos = image.trueCenter()
 
         # turn into star for piffy Gaussian model to interpret
-        star = piff.StarData(image, image_pos, weight)
+        star = piff.Star(piff.StarData(image, image_pos, weight), None)
 
-        return piff.Gaussian(**kwargs).fitStar(star).getParameters()
+        return piff.Gaussian(**kwargs).fit(star).fit.params
 
     def measureShapes(self, psf, stars, logger=None):
         """Compare PSF and true star shapes with HSM algorithm
@@ -131,19 +131,30 @@ class Statistics(object):
         :returns:           positions of stars, shapes of stars, and shapes of
                             models of stars (sigma, g1, g2)
         """
+        import piff
         # measure moments with Gaussian on image
         if logger:
             logger.info("Measuring Stars")
         shapes_truth = np.array([ self.hsm(*star.getImage()) for star in stars ])
-        # from stars get positions
+
+        # Pull out the positions to return
+        positions = np.array([ (star.properties['u'], star.properties['v']) for star in stars ])
+
+        # get target stars with same properies as real stars, but blank image
         if logger:
-            logger.info("Getting Star Positions")
-        positions = np.array([ psf.interp.getStarPosition(star) for star in stars ])
+            logger.info("Making images of model")
+        stamp_size = np.max( [star.image.array.shape for star in stars ] )
+        test_stars = [ piff.Star(piff.StarData.makeTarget(
+                            properties=star.properties, stamp_size=stamp_size), None)
+                       for star in stars ]
+        test_stars = psf.interp.interpolateList(test_stars)
+
         # generate the model stars measure moments with Gaussian on
         # interpolated model image
         if logger:
             logger.info("Generating and Measuring Model Stars")
-        shapes_model = np.array([ self.hsm(psf.drawImage(position)) for position in positions ])
+        shapes_model = np.array([ self.hsm(*psf.model.draw(star).data.getImage())
+                                  for star in test_stars ])
 
         return positions, shapes_truth, shapes_model
 
@@ -358,7 +369,7 @@ class RhoStatistics(Statistics):
                 # do the plots
                 ax.plot(r[pos], xi[pos], linestyle=linestyle_pos, color=color, label=label, **kwargs)
                 # no label for the negative values
-                ax.plot(r[neg], xi[neg], linestyle=linestyle_neg, color=color, **kwargs)
+                ax.plot(r[neg], -xi[neg], linestyle=linestyle_neg, color=color, **kwargs)
             ax.legend(loc='upper right')
 
         return fig, axs
