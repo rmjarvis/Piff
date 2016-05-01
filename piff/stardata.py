@@ -121,6 +121,84 @@ class StarData(object):
         self.properties['u'] = self.field_pos.x
         self.properties['v'] = self.field_pos.y
 
+    @classmethod
+    def makeTarget(cls, x=None, y=None, u=None, v=None, properties={}, wcs=None, scale=None,
+                   stamp_size=48):
+        """
+        Make a target StarData object with the requested properties.
+
+        The image will be blank (all zeros), and the properties field will match the given
+        input properties.
+
+        The input properties must have either 'x' and 'y' or 'u' and 'v'.  The other pair will
+        be calculated from the wcs if one is provided, or you may pass in both sets of coordinates
+        and leave out the wcs
+
+        :param x:           The image x position. [optional, see above; may also be given as part
+                            of the :properties: dict.]
+        :param y:           The image y position. [optional, see above; may also be given as part
+                            of the :properties: dict.]
+        :param u:           The image u position. [optional, see above; may also be given as part
+                            of the :properties: dict.]
+        :param v:           The image v position. [optional, see above; may also be given as part
+                            of the :properties: dict.]
+        :param properties:  The requested properties for the target star, including any other 
+                            requested properties besides x,y,u,v.  You may also provide x,y,u,v
+                            in this dict rather than explicitly as kwargs. [default: None]
+        :param wcs:         The requested WCS.  [optional; invalid if both (x,y) and (u,v) are
+                            given.]
+        :param scale:       If wcs is None, you may instead provide a pixel scale. [default: None]
+        :param stamp_size:  The size in each direction of the (blank) image. [default: 48]
+        
+        :returns:   A StarData instance
+        """
+        import galsim
+        # Check than input parameters are valid
+        for param in ['x', 'y', 'u', 'v']:
+            if eval(param) is not None and param in properties:
+                raise AttributeError("%s may not be given both as a kwarg and in properties"%param)
+        properties = properties.copy()  # So we can modify it and not mess up the caller.
+        x = properties.pop('x', x)
+        y = properties.pop('y', y)
+        u = properties.pop('u', u)
+        v = properties.pop('v', v)
+        if (x is None) != (y is None):
+            raise AttributeError("Eitehr x and y must both be given, or neither.")
+        if (u is None) != (v is None):
+            raise AttributeError("Eitehr u and v must both be given, or neither.")
+        if x is None and u is None:
+            raise AttributeError("Some kind of position must be given")
+        if x is not None and u is not None and wcs is not None:
+            raise AttributeError("wcs may not be given along with (x,y) and (u,v)")
+        if wcs is not None and scale is not None:
+            raise AttributeError("scale is invalid when also providing wcs")
+        if wcs is not None and wcs.isCelestial():
+            raise AttributeError("A CelestialWCS is not allowed")
+
+        # Figure out what the wcs should be if not provided
+        if wcs is None:
+            if scale is None:
+                scale = 1.
+            wcs = galsim.PixelScale(scale)
+            if x is not None and u is not None:
+                wcs = wcs.withOrigin(galsim.PositionD(x,y), galsim.PositionD(u,v))
+
+        # Make the blank image
+        image = galsim.Image(stamp_size, stamp_size, wcs=wcs)
+
+        # Figure out the image_pos
+        if x is None:
+            image_pos = wcs.toImage(galsim.PositionD(u,v))
+        else:
+            image_pos = galsim.PositionD(x,y)
+
+        # Make the center of the iamge (close to) the image_pos
+        image.setCenter(int(x)+1, int(y)+1)
+
+        # Build the StarDat instance
+        return cls(image, image_pos, properties=properties)
+
+
     @staticmethod
     def calculateFieldPos(image_pos, wcs, pointing, properties=None):
         """
