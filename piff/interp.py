@@ -85,28 +85,29 @@ class Interp(object):
         """
         return config_interp
 
-    def getKeys(self, sdata):
-        """Extract the quantities to use as interpolation keys for a particular star's data
+    def getProperties(self, star):
+        """Extract the appropriate properties to use as the independent variables for the 
+        interpolation.
 
         The base class implementation returns the field position (u,v) as a 1d numpy array.
 
-        :param sdata:        A StarData instances from which to extract the properties used
-                             for interpolation.
+        :param star:    A Star instances from which to extract the properties to use.
 
-        :returns:            A numpy vector of these properties.
+        :returns:       A numpy vector of these properties.
         """
-        return numpy.array([ sdata['u'], sdata['v'] ])
+        return numpy.array([ star.data['u'], star.data['v'] ])
 
     def initialize(self, star_list=None, logger=None):
         """Initialize the interpolator solution to some state
         prefatory to any solve iterations.  Nature of the initialization is
         specific to the derived classes.
 
+        The base class implentation is a no op.
+
         :param star_list:   A list of Star instances to use to initialize.
         :param logger:      A logger object for logging debug info. [default: None]
-
         """
-        raise NotImplemented("Derived classes must define the initialize function")
+        pass
     
     def solve(self, star_list, logger=None):
         """Solve for the interpolation coefficients given some data.
@@ -138,7 +139,7 @@ class Interp(object):
 
         :returns: a list of new Star instances with interpolated parameters
         """
-        return numpy.array([ self.interpolate(star) for star in star_list ])
+        return [ self.interpolate(star) for star in star_list ]
 
     def write(self, fits, extname):
         """Write an Interp to a FITS file.

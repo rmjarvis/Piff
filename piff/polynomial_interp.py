@@ -58,6 +58,7 @@ class Polynomial(Interp):
                           the signature of numpy.polynomial.polynomial.polyval2d
 
         """
+        self.degenerate_points = False
         self._set_orders(orders)
         self._set_function(poly_type)
         self.coeffs = None

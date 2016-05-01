@@ -70,32 +70,30 @@ if False:
 
 
 # Import things from the other files that we want in the piff namespace
-from config import piffify
-
-
+from .config import piffify
 
 # Models
 from .model import Model, process_model
 from .pixelmodel import PixelModel, Lanczos, Bilinear
-from gaussian_model import Gaussian
+from .gaussian_model import Gaussian
 
 # Interpolators
 from .interp import Interp, process_interp
 from .basis_interp import BasisInterpolator, PolyBasis
 
-##from mean_interp import Mean
-##from polynomial_interp import Polynomial, polynomial_types
+from .mean_interp import Mean
+from .polynomial_interp import Polynomial, polynomial_types
 
 # Inputs
-from input import InputHandler, process_input, InputFiles
+from .input import InputHandler, process_input, InputFiles
 from .stardata import StarData
 from .starfit import StarFit, Star
 
 # Outputs
-from output import OutputHandler, process_output, OutputFile
+from .output import OutputHandler, process_output, OutputFile
 
 # PSF
-from psf import PSF
+from .psf import PSF
 
 # Stats
-from stats import process_stats, Statistics, RhoStatistics, ShapeStatistics
+from .stats import process_stats, Statistics, RhoStatistics, ShapeStatistics

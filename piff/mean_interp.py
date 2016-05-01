@@ -13,41 +13,48 @@
 #    and/or other materials provided with the distribution.
 
 """
-.. module:: interp_mean
+.. module:: mean_interp
 """
 
 from __future__ import print_function
 import numpy
 
 from .interp import Interp
+from .starfit import Star, StarFit
 
 class Mean(Interp):
     """The simplest possible interpolation scheme.  It just finds the mean of the parameter
     vectors and uses that at every position.
     """
     def __init__(self):
+        self.degenerate_points = False
         self.kwargs = {}
+        self.mean = None
 
-    def solve(self, pos, vectors, logger=None):
+    def solve(self, stars, logger=None):
         """Solve for the interpolation coefficients given some data.
 
         Here the "solution" is just the mean.
 
-        :param pos:         A list of positions to use for the interpolation.
-        :param vectors:     A list of parameter vectors (numpy arrays) for each star.
+        :param stars:       A list of stars with fitted parameters to interpolate.
         :param logger:      A logger object for logging debug info. [default: None]
         """
-        self.mean = numpy.mean(vectors, axis=0)
+        self.mean = numpy.mean([star.fit.params for star in stars], axis=0)
 
-    def interpolate(self, pos, logger=None):
+    def interpolate(self, star, logger=None):
         """Perform the interpolation to find the interpolated parameter vector at some position.
 
-        :param pos:         The position to which to interpolate.
+        :param star:        A Star instance to which one wants to interpolate
         :param logger:      A logger object for logging debug info. [default: None]
 
-        :returns: the parameter vector (a numpy array) interpolated to the given position.
+        :returns: a new Star instance with its StarFit member holding the interpolated parameters
         """
-        return self.mean
+        if star.fit is None:
+            fit = StarFit(self.mean)
+        else:
+            fit = star.fit.copy()
+            fit.params = self.mean
+        return Star(star.data, fit)
 
     def writeSolution(self, fits, extname):
         """Read the solution from a FITS binary table.
