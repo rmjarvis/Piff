@@ -129,7 +129,7 @@ def test_simplest():
     influx = 150.
     du = 0.5
     g = GaussFunc(2.0, 0., 0., influx)
-    s = SimpleData(np.zeros((32,32),dtype=float),0.1, 8., 8., du=du)
+    s = SimpleData(np.zeros((32,32),dtype=float), 0.1, 8., 8., du=du)
     s.fillFrom(g)
 
     # Pixelized model with Lanczos 3 interp
@@ -168,7 +168,7 @@ def test_oversample():
     du = 0.25
     nside = 64
     g = GaussFunc(2.0, 0.5, -0.25, influx)
-    s = SimpleData(np.zeros((nside,nside),dtype=float),0.1, du*nside/2, du*nside/2, du=du)
+    s = SimpleData(np.zeros((nside,nside),dtype=float), 0.1, du*nside/2, du*nside/2, du=du)
     s.fillFrom(g)
 
     # Pixelized model with Lanczos 3 interp, coarser pix scale
@@ -199,7 +199,7 @@ def test_center():
     """
     influx = 150.
     g = GaussFunc(2.0, 0.6, -0.4, influx)
-    s = SimpleData(np.zeros((32,32),dtype=float),0.1, 8., 8., du=0.5)
+    s = SimpleData(np.zeros((32,32),dtype=float), 0.1, 8., 8., du=0.5)
     s.fillFrom(g)
 
     # Pixelized model with Lanczos 3 interp, coarser pix scale, smaller
@@ -246,15 +246,17 @@ def test_interp():
     influx = 150.
     g = GaussFunc(1.0, 0., 0., influx)
     stars = []
+    np.random.seed(1234)
     for u in positions:
         for v in positions:
             # Draw stars in focal plane positions around a unit ring
-            s = SimpleData(np.zeros((32,32),dtype=float),0.1, 8., 8., du=0.5, fpu=u, fpv=v)
+            s = SimpleData(np.zeros((32,32),dtype=float), 0.1, 8., 8., du=0.5, fpu=u, fpv=v)
             s.fillFrom(g)
             s.addNoise()
             s = mod.makeStar(s)
             s = mod.reflux(s, fit_center=False) # Start with a sensible flux
             stars.append(s)
+
     # Also store away a noiseless copy of the PSF, origin of focal plane
     s0 = SimpleData(np.zeros((32,32),dtype=float), 0.1, 8., 8., du=0.5)
     s0.fillFrom(g)
@@ -308,11 +310,11 @@ def test_missing():
     influx = 150.
     g = GaussFunc(1.0, 0., 0., influx)
     stars = []
+    np.random.seed(1234)
     for u in positions:
         for v in positions:
             # Draw stars in focal plane positions around a unit ring
-            s = SimpleData(np.zeros((32,32),dtype=float),0.1, 8., 8., du=0.5,
-                        fpu = u, fpv=v)
+            s = SimpleData(np.zeros((32,32),dtype=float), 0.1, 8., 8., du=0.5, fpu=u, fpv=v)
             s.fillFrom(g)
             s.addNoise()
             s = mod.makeStar(s)
@@ -322,8 +324,9 @@ def test_missing():
             s.data.data = np.where(good, s.data.data, -999.)
             s = mod.reflux(s, fit_center=False) # Start with a sensible flux
             stars.append(s)
+
     # Also store away a noiseless copy of the PSF, origin of focal plane
-    s0 = SimpleData(np.zeros((32,32),dtype=float),0.1, 8., 8., du=0.5)
+    s0 = SimpleData(np.zeros((32,32),dtype=float), 0.1, 8., 8., du=0.5)
     s0.fillFrom(g)
     s0 = mod.makeStar(s0)
     
@@ -351,11 +354,20 @@ def test_missing():
             break
         else:
             oldchi = chisq
+
     # Now use the interpolator to produce a noiseless rendering
     s1 = interp.interpolate(s0)
     s1 = mod.reflux(s1)
+    print('Flux, ctr after interpolation: ',s1.fit.flux, s1.fit.center, s1.fit.chisq)
+    # Less than 2 dp of accuracy here!
+    np.testing.assert_almost_equal(s1.fit.flux/influx, 1.0, decimal=1)
+
     s1 = mod.draw(s1)
-    return s0,s1,mod
+    print('max image abs diff = ',np.max(np.abs(s1.data.data-s0.data.data)))
+    print('max image abs value = ',np.max(np.abs(s0.data.data)))
+    peak = np.max(np.abs(s0.data.data))
+    np.testing.assert_almost_equal(s1.data.data/peak, s0.data.data/peak, decimal=1)
+
 
 def test_gradient():
     """Next: fit spatially-varying PSF to multiple images.
@@ -372,21 +384,22 @@ def test_gradient():
     positions = np.linspace(0.,1.,4)
     influx = 150.
     stars = []
+    np.random.seed(1234)
     for u in positions:
         # Put gradient in pixel size
         g = GaussFunc(1.0+u*0.1, 0., 0., influx)
         for v in positions:
             # Draw stars in focal plane positions around a unit ring
-            s = SimpleData(np.zeros((32,32),dtype=float),0.1, 8., 8., du=0.5,
-                        fpu = u, fpv=v)
+            s = SimpleData(np.zeros((32,32),dtype=float), 0.1, 8., 8., du=0.5, fpu=u, fpv=v)
             s.fillFrom(g)
             s.addNoise()
             s = mod.makeStar(s)
             s = mod.reflux(s, fit_center=False) # Start with a sensible flux
             stars.append(s)
+
     # Also store away a noiseless copy of the PSF, origin of focal plane
     g = GaussFunc(1.0, 0., 0., influx)
-    s0 = SimpleData(np.zeros((32,32),dtype=float),0.1, 8., 8., du=0.5)
+    s0 = SimpleData(np.zeros((32,32),dtype=float), 0.1, 8., 8., du=0.5)
     s0.fillFrom(g)
     s0 = mod.makeStar(s0)
     
@@ -414,11 +427,20 @@ def test_gradient():
             break
         else:
             oldchi = chisq
+
     # Now use the interpolator to produce a noiseless rendering
     s1 = interp.interpolate(s0)
     s1 = mod.reflux(s1)
+    print('Flux, ctr after interpolation: ',s1.fit.flux, s1.fit.center, s1.fit.chisq)
+    # Less than 2 dp of accuracy here!
+    np.testing.assert_almost_equal(s1.fit.flux/influx, 1.0, decimal=1)
+
     s1 = mod.draw(s1)
-    return s0,s1,mod,interp
+    print('max image abs diff = ',np.max(np.abs(s1.data.data-s0.data.data)))
+    print('max image abs value = ',np.max(np.abs(s0.data.data)))
+    peak = np.max(np.abs(s0.data.data))
+    np.testing.assert_almost_equal(s1.data.data/peak, s0.data.data/peak, decimal=1)
+
 
 def test_undersamp():
     """Next: fit PSF to undersampled, dithered data with fixed centroids
@@ -439,24 +461,25 @@ def test_undersamp():
     influx = 150.
     stars = []
     g = GaussFunc(1.0, 0., 0., influx)
+    np.random.seed(1234)
     for u in positions:
         for v in positions:
             # Dither centers by 1 pixel
             phase = (0.5 - np.random.rand(2))*du
             if u==0. and v==0.:
                 phase=(0.,0.)
-            s = SimpleData(np.zeros((32,32),dtype=float),0.1,
-                           8.+phase[0], 8.+phase[1], du=du,
-                           fpu = u, fpv=v)
+            s = SimpleData(np.zeros((32,32),dtype=float), 0.1,
+                           8.+phase[0], 8.+phase[1], du=du, fpu=u, fpv=v)
             s.fillFrom(g)
             s.addNoise()
             s = mod.makeStar(s)
             s = mod.reflux(s, fit_center=False) # Start with a sensible flux
-            print("phase:",phase,'flux',s.fit.flux)###
+            print("phase:",phase,'flux',s.fit.flux)
             stars.append(s)
+
     # Also store away a noiseless copy of the PSF, origin of focal plane
     g = GaussFunc(1.0, 0., 0., influx)
-    s0 = SimpleData(np.zeros((32,32),dtype=float),0.1, 8., 8., du=0.5,fpu=0., fpv=0.)
+    s0 = SimpleData(np.zeros((32,32),dtype=float), 0.1, 8., 8., du=0.5,fpu=0., fpv=0.)
     s0.fillFrom(g)
     s0 = mod.makeStar(s0)
     
@@ -483,11 +506,20 @@ def test_undersamp():
             break
         else:
             oldchi = chisq
+
     # Now use the interpolator to produce a noiseless rendering
     s1 = interp.interpolate(s0)
     s1 = mod.reflux(s1)
+    print('Flux, ctr after interpolation: ',s1.fit.flux, s1.fit.center, s1.fit.chisq)
+    # Less than 2 dp of accuracy here!
+    np.testing.assert_almost_equal(s1.fit.flux/influx, 1.0, decimal=1)
+
     s1 = mod.draw(s1)
-    return s0,s1,mod,interp,stars
+    print('max image abs diff = ',np.max(np.abs(s1.data.data-s0.data.data)))
+    print('max image abs value = ',np.max(np.abs(s0.data.data)))
+    peak = np.max(np.abs(s0.data.data))
+    np.testing.assert_almost_equal(s1.data.data/peak, s0.data.data/peak, decimal=1)
+
 
 def test_undersamp_shift():
     """Next: fit PSF to undersampled, dithered data with variable centroids,
@@ -503,7 +535,7 @@ def test_undersamp_shift():
     # Make a sample star just so we can pass the initial PSF into interpolator
     # Also store away a noiseless copy of the PSF, origin of focal plane
     g = GaussFunc(1.0, 0., 0., influx)
-    s0 = SimpleData(np.zeros((32,32),dtype=float),0.1, 8., 8., du=0.5,fpu=0., fpv=0.)
+    s0 = SimpleData(np.zeros((32,32),dtype=float), 0.1, 8., 8., du=0.5,fpu=0., fpv=0.)
     s0.fillFrom(g)
     s0 = mod.makeStar(s0)
 
@@ -514,6 +546,7 @@ def test_undersamp_shift():
     # Draw stars on a 2d grid of "focal plane" with 0<=u,v<=1
     positions = np.linspace(0.,1.,8)
     stars = []
+    np.random.seed(1234)
     for u in positions:
         for v in positions:
             # Nominal star centers move by +-1/2 pix, real centers another 1/2 pix
@@ -522,9 +555,8 @@ def test_undersamp_shift():
             if u==0. and v==0.:
                 phase1 = phase2 =(0.,0.)
             g = GaussFunc(1.0, phase2[0], phase2[1], influx)
-            s = SimpleData(np.zeros((32,32),dtype=float),0.1,
-                           8.+phase1[0], 8.+phase1[1], du=du,
-                           fpu = u, fpv=v)
+            s = SimpleData(np.zeros((32,32),dtype=float), 0.1,
+                           8.+phase1[0], 8.+phase1[1], du=du, fpu=u, fpv=v)
             s.fillFrom(g)
             s.addNoise()
             s = mod.makeStar(s)
@@ -551,13 +583,22 @@ def test_undersamp_shift():
             break
         else:
             oldchi = chisq
-    # Now use the interpolator to produce a noiseless rendering
-    s0 = interp.interpolate(s0)
-    s1 = mod.reflux(s0)
-    s1 = mod.draw(s1)
-    return s0,s1,mod,interp,stars
 
-def test_undersamp_drift(fit_centers=False):
+    # Now use the interpolator to produce a noiseless rendering
+    s1 = interp.interpolate(s0)
+    s1 = mod.reflux(s1)
+    print('Flux, ctr after interpolation: ',s1.fit.flux, s1.fit.center, s1.fit.chisq)
+    # Less than 2 dp of accuracy here!
+    np.testing.assert_almost_equal(s1.fit.flux/influx, 1.0, decimal=1)
+
+    s1 = mod.draw(s1)
+    print('max image abs diff = ',np.max(np.abs(s1.data.data-s0.data.data)))
+    print('max image abs value = ',np.max(np.abs(s0.data.data)))
+    peak = np.max(np.abs(s0.data.data))
+    np.testing.assert_almost_equal(s1.data.data/peak, s0.data.data/peak, decimal=1)
+
+
+def do_undersamp_drift(fit_centers=False):
     """Draw stars whose size and position vary across FOV.
     Fit to oversampled model with linear dependence across FOV.
 
@@ -574,7 +615,7 @@ def test_undersamp_drift(fit_centers=False):
     # Make a sample star just so we can pass the initial PSF into interpolator
     # Also store away a noiseless copy of the PSF, origin of focal plane
     g = GaussFunc(1.0, 0., 0., influx)
-    s0 = SimpleData(np.zeros((32,32),dtype=float),0.1, 8., 8., du=0.5,fpu=0., fpv=0.)
+    s0 = SimpleData(np.zeros((32,32),dtype=float), 0.1, 8., 8., du=0.5,fpu=0., fpv=0.)
     s0.fillFrom(g)
     s0 = mod.makeStar(s0)
 
@@ -585,6 +626,7 @@ def test_undersamp_drift(fit_centers=False):
     # Draw stars on a 2d grid of "focal plane" with 0<=u,v<=1
     positions = np.linspace(0.,1.,8)
     stars = []
+    np.random.seed(1234)
     for u in positions:
         for v in positions:
             # Nominal star centers move by +-1/2 pix
@@ -594,9 +636,8 @@ def test_undersamp_drift(fit_centers=False):
                 phase1 = phase2 =(0.,0.)
             # PSF center will drift with v; size drifts with u
             g = GaussFunc(1.0+0.1*u, 0., 0.5*du*v, influx)
-            s = SimpleData(np.zeros((32,32),dtype=float),0.1,
-                        8.+phase1[0], 8.+phase1[1], du=du,
-                        fpu = u, fpv=v)
+            s = SimpleData(np.zeros((32,32),dtype=float), 0.1,
+                           8.+phase1[0], 8.+phase1[1], du=du, fpu=u, fpv=v)
             s.fillFrom(g)
             s.addNoise()
             s = mod.makeStar(s)
@@ -623,13 +664,24 @@ def test_undersamp_drift(fit_centers=False):
             break
         else:
             oldchi = chisq
-    # Now use the interpolator to produce a noiseless rendering
-    s0 = interp.interpolate(s0)
-    s1 = mod.reflux(s0)
-    s1 = mod.draw(s1)
-    return s0,s1,mod,interp,stars
 
- 
+    # Now use the interpolator to produce a noiseless rendering
+    s1 = interp.interpolate(s0)
+    s1 = mod.reflux(s1)
+    print('Flux, ctr after interpolation: ',s1.fit.flux, s1.fit.center, s1.fit.chisq)
+    # Less than 2 dp of accuracy here!
+    np.testing.assert_almost_equal(s1.fit.flux/influx, 1.0, decimal=1)
+
+    s1 = mod.draw(s1)
+    print('max image abs diff = ',np.max(np.abs(s1.data.data-s0.data.data)))
+    print('max image abs value = ',np.max(np.abs(s0.data.data)))
+    peak = np.max(np.abs(s0.data.data))
+    np.testing.assert_almost_equal(s1.data.data/peak, s0.data.data/peak, decimal=1)
+
+def test_undersamp_drift():
+    do_undersamp_drift(True)
+    do_undersamp_drift(False)
+
 if __name__ == '__main__':
     test_simplest()
     test_oversample()
@@ -639,5 +691,4 @@ if __name__ == '__main__':
     test_gradient()
     test_undersamp()
     test_undersamp_shift()
-    test_undersamp_drift(True)
-    test_undersamp_drift(False)
+    test_undersamp_drift()
