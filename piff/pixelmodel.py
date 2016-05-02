@@ -72,7 +72,7 @@ class PixelModel(Model):
         self.interp = interp
         self._force_model_center = force_model_center
         self._degenerate = degenerate
-        
+
         if mask is None:
             if n_side <= 0:
                 raise AttributeError("Non-positive PixelModel size {:d}".format(n_side))
@@ -118,8 +118,8 @@ class PixelModel(Model):
         A = np.zeros( (self._constraints, self._constraints + self._nparams), dtype=float)
         B = np.zeros( (self._constraints,), dtype=float)
         A[0,:] = 1.
-        B[0] = 1./self.pixel_area  # That's the flux constraint - sum(pixels) * pixel_area=1 
-        
+        B[0] = 1./self.pixel_area  # That's the flux constraint - sum(pixels) * pixel_area=1
+
         if self._force_model_center:
             # Generate linear center constraints too
             delta_u = np.arange( -self._origin[0], self._indices.shape[0]-self._origin[0])
@@ -130,7 +130,7 @@ class PixelModel(Model):
             A[2,:] = self._1dFrom2d(np.ones(self._indices.shape, dtype=float)
                                     * delta_v[np.newaxis,:])
             B[2] = 0.
-        
+
         ainv = np.linalg.inv(A[:,:self._constraints])
         self._a = np.dot(ainv, A[:, self._constraints:])
         self._b = np.dot(ainv, B)
@@ -159,7 +159,7 @@ class PixelModel(Model):
         # Renormalize to get unity flux
         params /= np.sum(params)*self.pixel_area
         self._initial_params = params[self._constraints:]
-        
+
         return
 
     def _1dFrom2d(self, in2d):
@@ -206,7 +206,7 @@ class PixelModel(Model):
 
         if not psfx.shape==psfy.shape:
             raise TypeError("psfx and psfy arrays are not same shape")
-        
+
         # First, shift psfy, psfx to reference a 0-indexed array
         y = psfy + self._origin[0]
         x = psfx + self._origin[1]
@@ -227,12 +227,12 @@ class PixelModel(Model):
         the dependent values
 
         :param star:  A Star instance whose parameters to use
-        
+
         :returns: 1d array of all PSF values at grid points in mask
         """
         constrained = self._b - np.dot(self._a[:,:self._nparams], star.fit.params)
         return np.concatenate((constrained, star.fit.params))
-        
+
 
     def fillPSF(self, star, in2d):
         """ Initialize the PSF for a star from a given 2d uv-plane array.
@@ -253,7 +253,7 @@ class PixelModel(Model):
 
         star.fit.params[:] = params[self._constraints:]  # Omit the constrained pixels
         return
-        
+
     def makeStar(self, data, flux=1., center=(0.,0.), mask=True):
         """Create a Star instance that PixelModel can manipulate.
 
@@ -271,7 +271,7 @@ class PixelModel(Model):
             # Null weight at pixels where interpolation coefficients
             # come up short of specified fraction of the total kernel
             required_kernel_fraction = 0.7
-            
+
             _, _, u, v = data.getDataVector()
             # Subtract star.fit.center from u, v:
             u -= fit.center[0]
@@ -288,7 +288,7 @@ class PixelModel(Model):
 
     def fit(self, star):
         """Fit the Model to the star's data to yield iterative improvement on
-        its PSF parameters, their uncertainties, and flux (and center, if free).  
+        its PSF parameters, their uncertainties, and flux (and center, if free).
 
         :param star:   A Star instance
 
@@ -300,7 +300,7 @@ class PixelModel(Model):
         ###print("  .in fit(), min SV:",np.min(S))###
         ###U,S,Vt = np.linalg.svd(star1.fit.alpha,compute_uv=True)
         ###print("  ..in fit(), min SV:",np.min(S))###
-        
+
         # star1 has marginalized over flux (& center, if free), and updated these
         # for best linearized fit at the input parameter values.
         if self._degenerate:
@@ -308,7 +308,7 @@ class PixelModel(Model):
             # input values for degenerate parameter combinations
             # U,S,Vt = np.linalg.svd(star1.fit.alpha)
             S,U = np.linalg.eigh(star1.fit.alpha)
-            # Invert, while zeroing small elements of S.  
+            # Invert, while zeroing small elements of S.
             # "Small" will be taken to be causing a small chisq change
             # when corresponding PSF component changes by the full flux of PSF
             small = 0.2 * self.pixel_area * self.pixel_area
@@ -361,16 +361,18 @@ class PixelModel(Model):
             star_pix_area = star.data.pixel_area
             data /= star_pix_area
             weight *= star_pix_area*star_pix_area
+
         # Subtract star.fit.center from u, v:
         u -= star.fit.center[0]
         v -= star.fit.center[1]
-        
+
         if self._force_model_center:
             coeffs, dcdu, dcdv, psfx, psfy = self.interp.derivatives(u/self.du, v/self.du)
             dcdu /= self.du
             dcdv /= self.du
         else:
             coeffs, psfx, psfy = self.interp(u/self.du, v/self.du)
+
         # Turn the (psfy,psfx) coordinates into an index into 1d parameter vector.
         index1d = self._indexFromPsfxy(psfx, psfy)
         # All invalid pixel references now have negative index; record and set to zero
@@ -421,7 +423,7 @@ class PixelModel(Model):
             derivs[:,coeffs.shape[1]+2] = dmdv
             indices[:,coeffs.shape[1]+1] = dflux_index+1
             indices[:,coeffs.shape[1]+2] = dflux_index+2
-        
+
         # Accumulate alpha and beta point by point.  I don't
         # know how to do it purely with numpy calls instead of a loop over data points
         nderivs = self._nparams + 2*self._constraints
@@ -436,9 +438,9 @@ class PixelModel(Model):
             dalpha = cc[np.newaxis,:]*cc[:,np.newaxis] * weight[i]
             iouter = np.broadcast_to(ii, (len(ii),len(ii)))
             alpha[iouter.flatten(), iouter.T.flatten()] += dalpha.flatten()
-        
+
         # Next we eliminate the first _constraints PSF values from the parameters
-        # using the linear constraints that dp0 = - _a * dp1 
+        # using the linear constraints that dp0 = - _a * dp1
         s0 = slice(None, self._constraints)  # parameters to eliminate
         s1 = slice(self._constraints, None)  # parameters to keep
         beta = beta[s1] - np.dot(beta[s0], self._a).T
@@ -488,9 +490,9 @@ class PixelModel(Model):
                          dof = np.count_nonzero(weight) - self._nparams,
                          alpha = outalpha,
                          beta = outbeta)
-        
+
         return Star(star.data, outfit)
-        
+
     def draw(self, star):
         """Create new Star instance that has StarData filled with a rendering
         of the PSF specified by the current StarFit parameters, flux, and center.
@@ -505,7 +507,7 @@ class PixelModel(Model):
         # Subtract star.fit.center from u, v
         u -= star.fit.center[0]
         v -= star.fit.center[1]
-        
+
         coeffs, psfx, psfy = self.interp(u/self.du, v/self.du)
         # Turn the (psfy,psfx) coordinates into an index into 1d parameter vector.
         index1d = self._indexFromPsfxy(psfx, psfy)
@@ -520,7 +522,7 @@ class PixelModel(Model):
         if not star.data.values_are_sb:
             # Change data from surface brightness into flux
             model *= star.data.pixel_area
-        
+
         return Star(star.data.setData(model), star.fit)
 
     def reflux(self, star, fit_center=True):
@@ -595,7 +597,7 @@ class PixelModel(Model):
             resid -= np.dot(derivs,df)
             rw = resid * weight
             worst_chisq = np.max(resid * rw)
-            
+
             # update the flux (and center) of the star
             flux += df[0]
             ###print(iteration,'chisq',chisq,flux,center,df) ###
@@ -618,7 +620,7 @@ class PixelModel(Model):
 class PixelInterpolant(object):
     """Interface for interpolators
     """
-    
+
     def range(self):
         """Size of interpolation kernel
 
@@ -633,7 +635,7 @@ class PixelInterpolant(object):
         number of input coordinates and nkernel is number of points in kernel footprint.
         The coeff matrix gives interpolation coefficients, then the y and x integer matrices
         give the grid point to which each coefficient is applied.
-        
+
         :param u: 1d array of target u coordinates
         :param v: 1d array of target v coordinates
 
@@ -650,14 +652,14 @@ class PixelInterpolant(object):
         The coeff matrix gives interpolation coefficients; then there are derivatives of the
         kernel with respect to u and v; then the y and x integer matrices
         give the grid point to which each coefficient is applied.
-        
+
         :param u: 1d array of target u coordinates
         :param v: 1d array of target v coordinates
 
         :returns: coeff, dcdu, dcdv, y, x
         """
         raise NotImplemented("Derived classes must define the derivatives function")
-        
+
 class Lanczos(PixelInterpolant):
     """Lanczos interpolator in 2 dimensions.
     """
@@ -673,7 +675,7 @@ class Lanczos(PixelInterpolant):
         self._dv = np.ones( (2*self.order,2*self.order), dtype=int) * \
           self._duv[:,np.newaxis]
         self._dv = self._dv.flatten()
-    
+
     def range(self):
         return self.order
 
@@ -682,7 +684,7 @@ class Lanczos(PixelInterpolant):
 
         :param u: 1d array of (u_dest-u_src) spanning the footprint of the kernel.
 
-        :returns: interpolation kernel values at these grid points 
+        :returns: interpolation kernel values at these grid points
         """
         # Normalize Lanczos to unit sum over kernel elements
         k = np.sinc(u) * np.sinc(u/self.order)
@@ -700,13 +702,13 @@ class Lanczos(PixelInterpolant):
 
         :param u,v:    1d arrays of coordinates to which we are interpolating
         :param derivs: Set to true if outputs should include derivatives w.r.t. u,v
-        
+
         :returns: coeffs, [dcoeff/du, dcoeff/dv,] x, y where each is a 2d array of
         dimensions (len(u), # of kernel elements), holding coefficients of each grid point
         for interpolation to each destination point, [derivatives of these], and x,y are
         the integer coordinates of the grid points.
         """
-        
+
         # Get integer and fractional parts of u, v
         u_ceil = np.ceil(u).astype(int)
         v_ceil = np.ceil(v).astype(int)
@@ -750,7 +752,7 @@ class Bilinear(PixelInterpolant):
         self._dv = np.ones( (2*self.order,2*self.order), dtype=int) * \
           self._duv[:,np.newaxis]
         self._dv = self._dv.flatten()
-    
+
     def range(self):
         return self.order
 
@@ -759,7 +761,7 @@ class Bilinear(PixelInterpolant):
 
         :param u: 1d array of (u_dest-u_src) spanning the footprint of the kernel.
 
-        :returns: interpolation kernel values at these grid points 
+        :returns: interpolation kernel values at these grid points
         """
         return 1. - np.abs(u)
 
@@ -775,13 +777,13 @@ class Bilinear(PixelInterpolant):
 
         :param u,v:    1d arrays of coordinates to which we are interpolating
         :param derivs: Set to true if outputs should include derivatives w.r.t. u,v
-        
+
         :returns: coeffs, [dcoeff/du, dcoeff/dv,] x, y where each is a 2d array of
         dimensions (len(u), # of kernel elements), holding coefficients of each grid point
         for interpolation to each destination point, [derivatives of these], and x,y are
         the integer coordinates of the grid points.
         """
-        
+
         # Get integer and fractional parts of u, v
         u_ceil = np.ceil(u).astype(int)
         v_ceil = np.ceil(v).astype(int)
@@ -809,4 +811,4 @@ class Bilinear(PixelInterpolant):
             return coeffs, dcdu, dcdv, x, y
         else:
             return coeffs, x, y
-            
+
