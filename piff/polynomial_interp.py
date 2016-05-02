@@ -40,45 +40,51 @@ polynomial_types = {
 
 class Polynomial(Interp):
     """
-    An interpolator that uses  scipy curve_fit command to fit a polynomial 
+    An interpolator that uses  scipy curve_fit command to fit a polynomial
     surface to each parameter passed in independently.
     """
-    def __init__(self, orders, poly_type="poly"):
+    def __init__(self, order=None, orders=None, poly_type="poly"):
         """Create a Polynomial interpolator.
 
-        :param orders:  List/array of integers, one for each parameter 
-                        to be interpolated. The maximum total order of the 
-                        polynomial for that parameter; i.e. the maximum values
-                        of i+j where p(x,y) = sum c^{ij} x^i * y^j
-        :param poly_type: A string, one of the keys in the polynomial_types
-                          dictionary. By default these are "poly" (ordinary 
-                          polynomials), "chebyshev", "legendre", "laguerre",
-                          "hermite". To add more you can add a key to 
-                          polynomial_types with the value of a function with
-                          the signature of numpy.polynomial.polynomial.polyval2d
-
+        :param order:       The maximum order in the polynomial. i.e. the maximum
+                            value of i+j where p(u,v) = sum c_{ij} x^i y^j.
+                            [required, unless orders is given]
+        :param orders:      Optionally, a list of orders, one for each parameter
+                            to be interpolated.  This list should be the same length
+                            as the number of parameters that will be given to
+                            interpolate.
+        :param poly_type:   A string, one of the keys in the polynomial_types
+                            dictionary. By default these are "poly" (ordinary
+                            polynomials), "chebyshev", "legendre", "laguerre",
+                            "hermite". To add more you can add a key to
+                            polynomial_types with the value of a function with
+                            the signature of numpy.polynomial.polynomial.polyval2d
         """
+        if order is None and orders is None:
+            raise AttributeError("Either order or orders is required")
+        if order is not None and orders is not None:
+            raise AttributeError("Cannot provide both order and orders")
         self.degenerate_points = False
-        self._set_orders(orders)
+        self.order = order
+        self.orders = orders
         self._set_function(poly_type)
         self.coeffs = None
 
-    def _set_orders(self, orders):
-        """An internal function that sets up the indices and orders of the 
-
-        :param orders:  List/array of integers, one for each parameter 
-                        to be interpolated. The maximum total order of the 
-                        polynomial for that parameter; i.e. the maximum values
-                        of i+j where p(x,y) = sum c^{ij} x^i * y^j
-
+    def _setup_indices(self, nparam):
+        """An internal function that sets up the indices, given the number of parameters
         """
-        self.orders=orders
-        self.indices = [self._generate_indices(order) for order in self.orders]
-        self.nvariables = [len(indices) for indices in self.indices]        
-        self.nparam=len(orders)
+        if self.orders is not None:
+            if nparam != len(self.orders):
+                raise ValueError("The given orders list has the wrong number of values")
+            self._orders = self.orders
+        else:
+            self._orders = [self.order] * nparam
+        self.indices = [self._generate_indices(order) for order in self._orders]
+        self.nvariables = [len(indices) for indices in self.indices]
+        self.nparam=len(self._orders)
 
     def _set_function(self, poly_type):
-        """An internal function that sets the type of the polynomial 
+        """An internal function that sets the type of the polynomial
         interpolation used. The options are the keys in polynomial_types.
 
         :param poly_type:   A string value, one of the keys from polynomial_types
@@ -101,13 +107,13 @@ class Polynomial(Interp):
         """Generate, for internal use, the exponents i,j used in the polynomial model
         p(u,v) = sum c_{ij} u^i v^j
 
-        This needs to be called whenever the order of the polynomial fit is 
+        This needs to be called whenever the order of the polynomial fit is
         changed. At the moment that is just when an object is initialized or
         updated from file.
 
         :param order:   The maximum order of the polynomial; the max value of
                         i+j where p(x,y) ~ x^i y^j
-         """
+        """
         indices = []
         for p in xrange(order+1):
             for i in xrange(p+1):
@@ -121,18 +127,19 @@ class Polynomial(Interp):
         point into the curve_fit routine or for serialization to file.
 
         For subclasses, the 2D matrix format could be whatever you wanted as long
-        as _initialGuess, _interpolationModel, and the pack and unpack functions are 
+        as _initialGuess, _interpolationModel, and the pack and unpack functions are
         consistent. The intialGuess method can return and the _interpolationModel can
         accept parameters in whatever form you like (e.g. could be a dict if you want)
         as long as _pack_coefficients can convert this into a 1D array and _unpack_coefficients
         convert it the other way.
 
-        :param parameter_index: The integer index of the parameter; the lets us 
+        :param parameter_index: The integer index of the parameter; the lets us
                                 find the order of the parameter from self.
-        :param C:          A 2D matrix of polynomial coefficients in the form that
-                           the numpy polynomial form is expecting:
-                           p(x,y,c) = sum_{i,j} c_{ij} x^i y^j
-        :returns coeffs:    A 1D numpy array of coefficients of length self.nvariable
+        :param C:               A 2D matrix of polynomial coefficients in the form that
+                                the numpy polynomial form is expecting:
+                                p(x,y,c) = sum_{i,j} c_{ij} x^i y^j
+
+        :returns coeffs:        A 1D numpy array of coefficients of length self.nvariable
         """
         coeffs = numpy.zeros(self.nvariables[parameter_index])
         for k,(i,j) in enumerate(self.indices[parameter_index]):
@@ -141,27 +148,27 @@ class Polynomial(Interp):
 
 
     def _unpack_coefficients(self, parameter_index, coeffs):
-        """Unpack a sequence of parameters into the 2D matrix for the 
+        """Unpack a sequence of parameters into the 2D matrix for the
         given parameter_index (which determines the order of the matrix)
 
         This function is the inverse of _pack_coefficients
-                           
-        :param parameter_index: The integer index of the parameter being used
-        :param coeffs:     A 1D numpy array of coefficients  of length self.nvariable
-        :returns:          A 2D matrix of polynomial coefficients in the form that
-                           the numpy polynomial form is expecting:
-                           p(x,y,c) = sum_{i,j} c_{ij} x^i y^j
 
+        :param parameter_index: The integer index of the parameter being used
+        :param coeffs:          A 1D numpy array of coefficients  of length self.nvariable
+
+        :returns:               A 2D matrix of polynomial coefficients in the form that
+                                the numpy polynomial form is expecting:
+                                p(x,y,c) = sum_{i,j} c_{ij} x^i y^j
         """
         k=0
-        n=self.orders[parameter_index]+1
+        n=self._orders[parameter_index]+1
         C = numpy.zeros((n, n))
         for k,(i,j) in enumerate(self.indices[parameter_index]):
             C[i,j] = coeffs[k]
             k+=1
         return C
 
-    
+
     def _interpolationModel(self, pos, C):
         """Generate the polynomial variation of some quantity at x and y
         coordinates for a given coefficient matrix.
@@ -172,15 +179,15 @@ class Polynomial(Interp):
         is expecting this.
 
         This is an internal method used during the fitting.
-        :param pos:        A numpy array of the u,v positions at which to build 
-                           the model
-        :param C:          A 2D matrix of polynomial coefficients in the form that
-                           the numpy polynomial form is expecting:
-                           p(x,y,c) = sum_{i,j} c_{ij} x^i y^j
-                           
-        :returns:          A numpy array of the calculated p_x(x)*p_y(y) where 
-                           the p functions are polynomials.
 
+        :param pos:     A numpy array of the u,v positions at which to build
+                        the model
+        :param C:       A 2D matrix of polynomial coefficients in the form that
+                        the numpy polynomial form is expecting:
+                        p(x,y,c) = sum_{i,j} c_{ij} x^i y^j
+
+        :returns:       A numpy array of the calculated p_x(x)*p_y(y) where
+                        the p functions are polynomials.
         """
         # Take the u and v components (x and y in the tangent plane)
         # as our interpolants
@@ -198,22 +205,20 @@ class Polynomial(Interp):
         to use in the fit for your model. This is passed
         to curve_fit as a starting point.
 
-        :param positions:  A list of positions ((u,v) in this case) of stars.
-        :param parameter:  A numpy array of the measured values of a parameter
-                           for each star
+        :param positions:       A list of positions ((u,v) in this case) of stars.
+        :param parameter:       A numpy array of the measured values of a parameter
+                                for each star
         :param parameter_index: The integer index of the parameter being used
 
         :returns:          A guess for the parameters. In this case a 2D matrix
                            which is zero everywhere except for (0,0).  This should
-                           correspond to a flat function of the parameters with 
+                           correspond to a flat function of the parameters with
                            value given by the mean.
-
-
-        """        
+        """
         # We need a starting point for the fitter.
-        # Use a constant value over the whole field as 
+        # Use a constant value over the whole field as
         # a reasonable guess.
-        n = self.orders[parameter_index]+1
+        n = self._orders[parameter_index]+1
         C = numpy.zeros((n,n))
         C[0,0] = parameter.mean()
         return C
@@ -237,14 +242,11 @@ class Polynomial(Interp):
         # them to the order we need.
         parameters = numpy.array([s.fit.params for s in stars]).T
         positions = numpy.array([self.getProperties(s) for s in stars]).T
-       
-        # We should have the same number of parameters as number of polynomial 
+
+        # We should have the same number of parameters as number of polynomial
         # orders with which we were created here.
         nparam = len(parameters)
-        if nparam!=self.nparam:
-            raise ValueError("Must create Polynomial interpolator with the"
-                "same order as the input vectors ({}!={})".format(nparam,
-                self.nparam))
+        self._setup_indices(nparam)
 
         if logger:
             logger.info("Fitting %d parameter vectors using "\
@@ -272,8 +274,8 @@ class Polynomial(Interp):
             p0 = self._pack_coefficients(i, self._initialGuess(positions, parameter, i))
 
             if logger:
-                logger.debug("Fitting parameter %d from initial guess %s "\
-                    "with polynomial order %d", i, p0, self.orders[i])
+                logger.debug("Fitting parameter %d from initial guess %s "
+                             "with polynomial order %d", i, p0, self._orders[i])
 
 
             # Black box curve fitter from scipy!
@@ -289,8 +291,8 @@ class Polynomial(Interp):
             coeffs.append(self._unpack_coefficients(i,p))
 
         # Each of these is now a list of length nparam, each element
-        # of which is a 2D array of coefficients to the corresponding 
-        # exponents. Where "corresponding" is as-defined in 
+        # of which is a 2D array of coefficients to the corresponding
+        # exponents. Where "corresponding" is as-defined in
         # self._unpack_coefficients
         self.coeffs = coeffs
 
@@ -303,15 +305,17 @@ class Polynomial(Interp):
         :param fits:        An open fitsio.FITS object.
         :param extname:     The name of the extension with the interp information.
         """
+        if self.coeffs is None:
+            raise RuntimeError("Coeffs not set yet.  Cannot write this Polynomial.")
 
-        # We will try to be as explicit as possible when saving the 
+        # We will try to be as explicit as possible when saving the
         # coefficients to file - for each coefficient we spell out in
         # full the parameter index and exponent it corresponds to.
         # We don't actually use this information in the readSolution
         # below, but when we want to generalize or plot things it
         # will be invaluable.
-        dtypes = [('PARAM', int), ('U_EXPONENT', int), ('V_EXPONENT', int), 
-        ('COEFF', float)]
+        dtypes = [('PARAM', int), ('U_EXPONENT', int), ('V_EXPONENT', int),
+                  ('COEFF', float)]
 
         # We will build up the data columns parameter by parameter
         # and concatenate the results
@@ -320,8 +324,6 @@ class Polynomial(Interp):
         v_exponent_col = []
         coeff_col = []
 
-
-        #
         for p in xrange(self.nparam):
             # This is a bit ugly, but we still have to tell self
             # what parameter we are using so the system knows the
@@ -342,12 +344,13 @@ class Polynomial(Interp):
         # I would suggest some kind of standard piff collection of header
         # values.
         header={"NPARAM":self.nparam, "POLYTYPE":self.poly_type}
-        for i,order in enumerate(self.orders):
+        for i,order in enumerate(self._orders):
             header["ORDER_{}".format(i)] = order
 
         # Finally, write all of this to a FITS table.
         data = numpy.array(zip(*cols), dtype=dtypes)
         fits.write_table(data, extname=extname, header=header)
+
 
     def readSolution(self, fits, extname):
         """Read the solution from a FITS binary table.
@@ -369,8 +372,9 @@ class Polynomial(Interp):
 
         #Configure self - same methods that are run in __init__
         self._set_function(poly_type)
-        self._set_orders(orders)
-
+        self.order = None
+        self.orders = orders
+        self._setup_indices(self.nparam)
 
         # Finally load coefficients from the FITS file.
         # Although we have saved the u and exponents in another
@@ -401,4 +405,4 @@ class Polynomial(Interp):
         else:
             fit = star.fit.newParams(p)
         return Star(star.data, fit)
- 
+

@@ -26,7 +26,8 @@ PolynomialsTypes = piff.polynomial_types.keys()
 def test_poly_indexing():
     # Some indexing tests for a polynomial up to order 3
     N = 3
-    interp = piff.Polynomial([N])
+    interp = piff.Polynomial(orders=[N])
+    interp._setup_indices(1)
 
     # We expect there to be these coefficients:
     # x^0 y^0   1
@@ -88,8 +89,7 @@ def test_poly_mean():
     # the mean testing in test_simple
     N = 0
     nparam = 5
-    orders = [N for i in xrange(nparam)]
-    interp = piff.Polynomial(orders)
+    interp = piff.Polynomial(N)
     nstars = 100
 
     # Choose some random values of star parameters
@@ -125,6 +125,23 @@ def test_poly_mean():
         target = interp.interpolate(target)
         numpy.testing.assert_almost_equal(target.fit.params, mean)
 
+    # Now test running it via the config parser
+    config = {
+        'interp' : {
+            'type' : 'Polynomial',
+            'order' : 0,
+        }
+    }
+    logger = piff.config.setup_logger()
+    interp = piff.process_interp(config, logger)
+    interp.solve(stars)
+
+    # Same tests
+    assert len(interp.coeffs)==5
+    for mu, val in zip(mean, interp.coeffs):
+        assert numpy.isclose(mu, val[0,0])
+    numpy.testing.assert_almost_equal(target.fit.params, mean)
+
 
 def sub_poly_linear(type1):
     # Now lets do something more interesting - test a linear model.
@@ -135,13 +152,12 @@ def sub_poly_linear(type1):
     N = 1
     nstars=50   
     orders = [N for i in xrange(nparam)]
-    interp = piff.Polynomial(orders, poly_type=type1)
+    interp = piff.Polynomial(orders=orders, poly_type=type1)
     X = 10.0 # size of the field
     Y = 10.0
 
     pos = [ (numpy.random.random()*X, numpy.random.random()*Y)
             for i in range(nstars) ]
-
 
     # Let's make a function that is linear just as a function of one parameter
     # These are the linear fit parameters for each parameter in turn
@@ -171,6 +187,19 @@ def sub_poly_linear(type1):
         target = interp.interpolate(target)
         numpy.testing.assert_almost_equal(linear_func(p), target.fit.params)
 
+    # Now test running it via the config parser
+    config = {
+        'interp' : {
+            'type' : 'Polynomial',
+            'order' : 1,
+        }
+    }
+    logger = piff.config.setup_logger()
+    interp = piff.process_interp(config, logger)
+    interp.solve(stars)
+    numpy.testing.assert_almost_equal(linear_func(p), target.fit.params)
+
+
 def test_poly_linear():
     for poly_type in PolynomialsTypes:
         sub_poly_linear(poly_type)
@@ -183,7 +212,7 @@ def sub_poly_quadratic(type1):
     N = 2
     nstars=50
     orders = [N for i in xrange(nparam)]
-    interp = piff.Polynomial(orders, poly_type=type1)
+    interp = piff.Polynomial(N, poly_type=type1)
     X = 10.0 # size of the field
     Y = 10.0
 
@@ -220,6 +249,19 @@ def sub_poly_quadratic(type1):
         target = interp.interpolate(target)
         numpy.testing.assert_almost_equal(quadratic_func(p), target.fit.params)
 
+    # Now test running it via the config parser
+    config = {
+        'interp' : {
+            'type' : 'Polynomial',
+            'order' : 2,
+        }
+    }
+    logger = piff.config.setup_logger()
+    interp = piff.process_interp(config, logger)
+    interp.solve(stars)
+    numpy.testing.assert_almost_equal(quadratic_func(p), target.fit.params)
+
+
 def test_poly_quadratic():
     for poly_type in PolynomialsTypes:
         sub_poly_quadratic(poly_type)
@@ -234,11 +276,11 @@ def test_poly_guess():
     Y = 10.0
     nstars=50
     nparam = 10
-    orders = [N for i in xrange(nparam)]
-    interp = piff.Polynomial(orders)
+    interp = piff.Polynomial(N)
     pos = [ (numpy.random.random()*X, numpy.random.random()*Y)
             for i in range(nstars) ]
 
+    interp._setup_indices(nparam)
     for i in xrange(nparam):
         param = numpy.random.random(size=nstars)
         p0 = interp._initialGuess(pos, param, i)
@@ -261,7 +303,7 @@ def poly_load_save_sub(type1, type2):
     nstars=50   
     # Use three different sizes to test everything
     orders = [1,2,3]
-    interp = piff.Polynomial(orders, poly_type=type1)
+    interp = piff.Polynomial(orders=orders, poly_type=type1)
     X = 10.0 # size of the field
     Y = 10.0
 
@@ -310,6 +352,7 @@ def poly_load_save_sub(type1, type2):
 
     # The type and other parameters should now have been overwritten and updated
     assert interp2.poly_type == interp.poly_type
+    assert interp2.order==interp.order
     assert interp2.orders==interp.orders
     assert interp2.nvariables==interp.nvariables
     assert interp2.indices==interp.indices
@@ -334,7 +377,7 @@ def test_poly_raise():
 
     # Use three different sizes to test everything
     orders = [1,2,3]
-    interp = piff.Polynomial(orders)
+    interp = piff.Polynomial(orders=orders)
     pos = [ (numpy.random.random()*10, numpy.random.random()*10)
             for i in range(nstars) ]
     #use the wrong number of parameters here so that we raise an error
