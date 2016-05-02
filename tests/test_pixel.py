@@ -152,7 +152,7 @@ def test_simplest():
     star = mod.reflux(star)
     print('Flux after fit 2:',star.fit.flux)
     np.testing.assert_almost_equal(star.fit.flux/influx, 1.0, decimal=3)
-    np.testing.assert_almost_equal(star.fit.flux, flux1, decimal=7)
+    np.testing.assert_almost_equal(star.fit.flux/flux1, 1.0, decimal=7)
 
     # Drawing the star should produce a nearly identical image to the original.
     star2 = mod.draw(star)
@@ -190,7 +190,8 @@ def test_oversample():
     #print('diff = ',star2.data.data-s.data)
     print('max image abs diff = ',np.max(np.abs(star2.data.data-s.data)))
     print('max image abs value = ',np.max(np.abs(s.data)))
-    np.testing.assert_almost_equal(star2.data.data, s.data, decimal=3)
+    peak = np.max(np.abs(s.data))
+    np.testing.assert_almost_equal(star2.data.data/peak, s.data/peak, decimal=3)
 
 
 def test_center():
@@ -216,13 +217,15 @@ def test_center():
         print('Flux, ctr, chisq after fit {:d}:'.format(i),
               star.fit.flux, star.fit.center, star.fit.chisq)
         # These fluxes are not at all close to influx.  Not sure why...
+        #np.testing.assert_almost_equal(star.fit.flux/influx, 1.0, decimal=2)
 
     # Residual image when done should be dominated by structure off the edge of the fitted region.
     # This comes out fairly close, but only 2 dp of accuracy, compared to 3 above.
     star2 = mod.draw(star)
     print('max image abs diff = ',np.max(np.abs(star2.data.data-s.data)))
     print('max image abs value = ',np.max(np.abs(s.data)))
-    np.testing.assert_almost_equal(star2.data.data, s.data, decimal=2)
+    peak = np.max(np.abs(s.data))
+    np.testing.assert_almost_equal(star2.data.data/peak, s.data/peak, decimal=2)
 
 
 def test_interp():
@@ -237,7 +240,7 @@ def test_interp():
 
     # Interpolator will be simple mean
     interp = piff.Polynomial(order=0)
-    
+
     # Draw stars on a 2d grid of "focal plane" with 0<=u,v<=1
     positions = np.linspace(0.,1.,10.)
     influx = 150.
@@ -246,18 +249,17 @@ def test_interp():
     for u in positions:
         for v in positions:
             # Draw stars in focal plane positions around a unit ring
-            s = SimpleData(np.zeros((32,32),dtype=float),0.1, 8., 8., du=0.5,
-                        fpu = u, fpv=v)
+            s = SimpleData(np.zeros((32,32),dtype=float),0.1, 8., 8., du=0.5, fpu=u, fpv=v)
             s.fillFrom(g)
             s.addNoise()
             s = mod.makeStar(s)
             s = mod.reflux(s, fit_center=False) # Start with a sensible flux
             stars.append(s)
     # Also store away a noiseless copy of the PSF, origin of focal plane
-    s0 = SimpleData(np.zeros((32,32),dtype=float),0.1, 8., 8., du=0.5)
+    s0 = SimpleData(np.zeros((32,32),dtype=float), 0.1, 8., 8., du=0.5)
     s0.fillFrom(g)
     s0 = mod.makeStar(s0)
-    
+
     # Iterate solution using interpolator
     for iteration in range(3):
         # Refit PSFs star by star:
@@ -276,13 +278,20 @@ def test_interp():
             dof += s.fit.dof
             stars[i] = s
         print('iteration',iteration,'chisq=',chisq, 'dof=',dof)
+
     # Now use the interpolator to produce a noiseless rendering
     s1 = interp.interpolate(s0)
     s1 = mod.reflux(s1)
-    s1 = mod.draw(s1)
-    return s0,s1,mod
+    print('Flux, ctr after interpolation: ',s1.fit.flux, s1.fit.center, s1.fit.chisq)
+    np.testing.assert_almost_equal(s1.fit.flux/influx, 1.0, decimal=2)
 
-            
+    s1 = mod.draw(s1)
+    print('max image abs diff = ',np.max(np.abs(s1.data.data-s0.data.data)))
+    print('max image abs value = ',np.max(np.abs(s0.data.data)))
+    peak = np.max(np.abs(s0.data.data))
+    np.testing.assert_almost_equal(s1.data.data/peak, s0.data.data/peak, decimal=2)
+
+
 def test_missing():
     """Next: fit mean PSF to multiple images, with missing pixels.
     """
