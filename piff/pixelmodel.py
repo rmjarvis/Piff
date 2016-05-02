@@ -315,7 +315,11 @@ class PixelModel(Model):
             if np.any(S < -small):
                 print("negative: ",np.min(S),"small:",small)###
                 raise ValueError("Negative singular value in alpha matrix")
-            invs = np.where(np.abs(S)>small, 1./S, 0.)
+            # Leave values that are close to zero equal to zero in inverse.
+            nonzero = np.abs(S) > small
+            invs = np.zeros_like(S)
+            invs[nonzero] = 1./S[nonzero]
+
             ###print('S/zero:',S.shape,np.count_nonzero(np.abs(S)<=small),'small=',small) ###
             ###print(' ',np.max(S[np.abs(S)<=small]),np.min(S[np.abs(S)>small])) ##
             # answer = V * S^{-1} * U^T * beta
