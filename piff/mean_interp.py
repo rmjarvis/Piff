@@ -52,8 +52,7 @@ class Mean(Interp):
         if star.fit is None:
             fit = StarFit(self.mean)
         else:
-            fit = star.fit.copy()
-            fit.params = self.mean
+            fit = star.fit.newParams(p)
         return Star(star.data, fit)
 
     def writeSolution(self, fits, extname):

@@ -93,8 +93,8 @@ def test_Mean():
     # Make some dummy StarData objects to use.  The only thing we really need is the properties,
     # although for the Mean interpolator, even this is ignored.
     target_data = [
-            piff.StarData.makeTarget(x=numpy.random.random()*2048,
-                                     y=numpy.random.random()*2048) for i in range(nstars) ]
+            piff.StarData.makeTarget(x=numpy.random.random()*2048, y=numpy.random.random()*2048)
+            for i in range(nstars) ]
     fit = [ piff.StarFit(v) for v in vectors ]
     stars = [ piff.Star(d, f) for d,f in zip(target_data,fit) ]
 

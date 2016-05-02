@@ -184,16 +184,19 @@ class StarData(object):
                 wcs = wcs.withOrigin(galsim.PositionD(x,y), galsim.PositionD(u,v))
 
         # Make the blank image
-        image = galsim.Image(stamp_size, stamp_size, wcs=wcs)
+        image = galsim.Image(stamp_size, stamp_size)
 
         # Figure out the image_pos
         if x is None:
             image_pos = wcs.toImage(galsim.PositionD(u,v))
+            x = image_pos.x
+            y = image_pos.y
         else:
             image_pos = galsim.PositionD(x,y)
 
         # Make the center of the iamge (close to) the image_pos
         image.setCenter(int(x)+1, int(y)+1)
+        image.wcs = wcs
 
         # Build the StarDat instance
         return cls(image, image_pos, properties=properties)

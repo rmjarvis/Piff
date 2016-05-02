@@ -19,7 +19,7 @@
 from __future__ import print_function
 
 from .interp import Interp
-from .starfit import Star
+from .starfit import Star, StarFit
 
 import numpy
 import warnings
@@ -236,7 +236,7 @@ class Polynomial(Interp):
         # to convert these to numpy arrays and transpose
         # them to the order we need.
         parameters = numpy.array([s.fit.params for s in stars]).T
-        positions = numpy.array([self.getStarPosition(s.data) for s in stars]).T
+        positions = numpy.array([self.getProperties(s) for s in stars]).T
        
         # We should have the same number of parameters as number of polynomial 
         # orders with which we were created here.
@@ -284,7 +284,7 @@ class Polynomial(Interp):
                 # scipy.optimize has a tendency to emit warnings.  Let's ignore them.
                 warnings.simplefilter("ignore", scipy.optimize.OptimizeWarning)
                 p,covmat=scipy.optimize.curve_fit(model, positions, parameter, p0)
-            
+
             # Build up the list of outputs, one for each parameter
             coeffs.append(self._unpack_coefficients(i,p))
 
@@ -394,7 +394,11 @@ class Polynomial(Interp):
 
         :returns: a new Star instance with its StarFit member holding the interpolated parameters
         """
-        pos = self.getStarPosition(star.data)
+        pos = self.getProperties(star)
         p = [self._interpolationModel(pos, coeff) for coeff in self.coeffs]
-        return Star(star.data, star.fit.newParams(p))
-
+        if star.fit is None:
+            fit = StarFit(p)
+        else:
+            fit = star.fit.newParams(p)
+        return Star(star.data, fit)
+ 
