@@ -135,20 +135,29 @@ def test_simplest():
     # Pixelized model with Lanczos 3 interp
     interp = piff.Lanczos(3)
     mod = piff.PixelModel(du, 32,interp, start_sigma=1.5)
-    star = mod.makeStar(s)
-    star.fit.flux = np.sum(star.data.data)  # Violating the invariance of Star here!
+    star = mod.makeStar(s, flux=np.sum(s.data))
 
+    # Check that fitting the star can recover the right flux.
+    # Note: this shouldn't match perfectly, since SimpleData draws this as a surface
+    # brightness image, not integrated over pixels.  With GalSim drawImage, we can do better
+    # by drawing the real flux image.  But even with this, we get 3 dp of accuracy.
     star = mod.fit(star)
+    star = mod.reflux(star)
     print('Flux after fit 1:',star.fit.flux)
-    star = mod.reflux(star)
-    print('Flux after reflux:',star.fit.flux)
+    np.testing.assert_almost_equal(star.fit.flux/influx, 1.0, decimal=3)
+    flux1 = star.fit.flux
+
+    # It doesn't get any better after another iteration.
     star = mod.fit(star)
-    print('Flux after fit 2:',star.fit.flux)
     star = mod.reflux(star)
-    print('Flux after reflux 2:',star.fit.flux)
+    print('Flux after fit 2:',star.fit.flux)
+    np.testing.assert_almost_equal(star.fit.flux/influx, 1.0, decimal=3)
+    np.testing.assert_almost_equal(star.fit.flux, flux1, decimal=7)
+
+    # Drawing the star should produce a nearly identical image to the original.
     star2 = mod.draw(star)
-    print('star2 = ',star2)
-    return star,star2,mod
+    np.testing.assert_almost_equal(star2.data.data, s.data, decimal=7)
+
 
 def test_oversample():
     """Fit to oversampled data, decentered PSF.
