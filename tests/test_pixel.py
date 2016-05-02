@@ -683,6 +683,9 @@ def test_undersamp_drift():
     do_undersamp_drift(False)
 
 if __name__ == '__main__':
+    import cProfile, pstats
+    pr = cProfile.Profile()
+    pr.enable()
     test_simplest()
     test_oversample()
     test_center()
@@ -692,3 +695,6 @@ if __name__ == '__main__':
     test_undersamp()
     test_undersamp_shift()
     test_undersamp_drift()
+    pr.disable()
+    ps = pstats.Stats(pr).sort_stats('tottime').reverse_order()
+    ps.print_stats()
