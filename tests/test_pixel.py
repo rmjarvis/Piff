@@ -192,10 +192,9 @@ def test_oversample():
     print('max image abs value = ',np.max(np.abs(s.data)))
     np.testing.assert_almost_equal(star2.data.data, s.data, decimal=3)
 
+
 def test_center():
-    """Fit with centroid free and PSF center constrained to an initially
-    mis-registered PSF.  Residual image when done should be dominated but
-    structure off the edge of the fitted region.
+    """Fit with centroid free and PSF center constrained to an initially mis-registered PSF.
     """
     influx = 150.
     g = GaussFunc(2.0, 0.6, -0.4, influx)
@@ -213,11 +212,17 @@ def test_center():
     print('Flux, ctr after reflux:',star.fit.flux,star.fit.center)
     for i in range(3):
         star = mod.fit(star)
-        print('Flux, ctr, chisq after fit {:d}:'.format(i),star.fit.flux,star.fit.center, star.fit.chisq)
         star = mod.reflux(star)
-        print('Flux, ctr, chisq after reflux {:d}'.format(i),star.fit.flux,star.fit.center, star.fit.chisq)
+        print('Flux, ctr, chisq after fit {:d}:'.format(i),
+              star.fit.flux, star.fit.center, star.fit.chisq)
+        # These fluxes are not at all close to influx.  Not sure why...
+
+    # Residual image when done should be dominated by structure off the edge of the fitted region.
+    # This comes out fairly close, but only 2 dp of accuracy, compared to 3 above.
     star2 = mod.draw(star)
-    return star,star2,mod
+    print('max image abs diff = ',np.max(np.abs(star2.data.data-s.data)))
+    print('max image abs value = ',np.max(np.abs(s.data)))
+    np.testing.assert_almost_equal(star2.data.data, s.data, decimal=2)
 
 
 def test_interp():
