@@ -236,7 +236,7 @@ def test_interp():
     # Pixelized model with Lanczos 3 interpolation, slightly smaller than data
     # than the data
     pixinterp = piff.Lanczos(3)
-    mod = piff.PixelModel(0.5, 25, pixinterp, start_sigma=1.5)
+    mod = piff.PixelModel(0.5, 25, pixinterp, start_sigma=1.5, degenerate=False)
 
     # Interpolator will be simple mean
     interp = piff.Polynomial(order=0)
@@ -363,7 +363,7 @@ def test_gradient():
     # Pixelized model with Lanczos 3 interpolation, slightly smaller than data
     # than the data
     pixinterp = piff.Lanczos(3)
-    mod = piff.PixelModel(0.5, 25, pixinterp, start_sigma=1.5,degenerate=False)
+    mod = piff.PixelModel(0.5, 25, pixinterp, start_sigma=1.5, degenerate=False)
 
     # Interpolator will be linear
     interp = piff.Polynomial(order=1)
@@ -428,7 +428,7 @@ def test_undersamp():
     # than the data
     pixinterp = piff.Lanczos(3)
     du = 0.5
-    mod = piff.PixelModel(0.25, 25, pixinterp, start_sigma=1.01)##
+    mod = piff.PixelModel(0.25, 25, pixinterp, start_sigma=1.01)
     ##,force_model_center=True)
 
     # Interpolator will be constant
@@ -498,7 +498,7 @@ def test_undersamp_shift():
     pixinterp = piff.Lanczos(3)
     influx = 150.
     du = 0.5
-    mod = piff.PixelModel(0.3, 25, pixinterp, start_sigma=1.3,force_model_center=True)
+    mod = piff.PixelModel(0.3, 25, pixinterp, start_sigma=1.3, force_model_center=True)
 
     # Make a sample star just so we can pass the initial PSF into interpolator
     # Also store away a noiseless copy of the PSF, origin of focal plane
@@ -569,7 +569,7 @@ def test_undersamp_drift(fit_centers=False):
     pixinterp = piff.Lanczos(3)
     influx = 150.
     du = 0.5
-    mod = piff.PixelModel(0.3, 25, pixinterp, start_sigma=1.3,force_model_center=fit_centers)
+    mod = piff.PixelModel(0.3, 25, pixinterp, start_sigma=1.3, force_model_center=fit_centers)
 
     # Make a sample star just so we can pass the initial PSF into interpolator
     # Also store away a noiseless copy of the PSF, origin of focal plane
