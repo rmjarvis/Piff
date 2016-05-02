@@ -673,17 +673,6 @@ class Lanczos(PixelInterpolant):
     def range(self):
         return self.order
 
-    @classmethod
-    def _sinc(cls, u):
-        """Calculate sinc for elements of array u
-
-        :param u   Numpy array of floats
-
-        :returns:  Array of sinc(u)
-        """
-        x = np.pi * u
-        return np.where( abs(x)>0.001, np.sin(x)/x, 1-x*x/6.)
-
     def _kernel1d(self, u):
         """ Calculate the 1d interpolation kernel at each value in array u.
 
@@ -692,7 +681,7 @@ class Lanczos(PixelInterpolant):
         :returns: interpolation kernel values at these grid points 
         """
         # Normalize Lanczos to unit sum over kernel elements
-        k =  self._sinc(u) * self._sinc(u/self.order)
+        k = np.sinc(u) * np.sinc(u/self.order)
         return k / np.sum(k,axis=1)[:,np.newaxis]
 
     def __call__(self, u, v):
