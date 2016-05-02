@@ -156,12 +156,13 @@ def test_simplest():
 
     # Drawing the star should produce a nearly identical image to the original.
     star2 = mod.draw(star)
+    print('max image abs diff = ',np.max(np.abs(star2.data.data-s.data)))
+    print('max image abs value = ',np.max(np.abs(s.data)))
     np.testing.assert_almost_equal(star2.data.data, s.data, decimal=7)
 
 
 def test_oversample():
     """Fit to oversampled data, decentered PSF.
-    Residual image should be checkeboard from limitations of interpolator.
     """
     influx = 150.
     du = 0.25
@@ -172,17 +173,24 @@ def test_oversample():
 
     # Pixelized model with Lanczos 3 interp, coarser pix scale
     interp = piff.Lanczos(3)
-    mod = piff.PixelModel(2*du, nside/2,interp, start_sigma=1.5)
-    star = mod.makeStar(s)
-    star.fit.flux = np.sum(star.data.data) # Violating invariance!!
+    mod = piff.PixelModel(2*du, nside/2, interp, start_sigma=1.5)
+    star = mod.makeStar(s, flux=np.sum(s.data))
 
     for i in range(2):
         star = mod.fit(star)
-        print('Flux after fit {:d}:'.format(i),star.fit.flux)
         star = mod.reflux(star)
-        print('Flux after reflux {:d}:'.format(i),star.fit.flux)
+        print('Flux after fit {:d}:'.format(i),star.fit.flux)
+        np.testing.assert_almost_equal(star.fit.flux/influx, 1.0, decimal=3)
+
+    # Residual image should be checkeboard from limitations of interpolator.
+    # So only agree to 3 dp.
     star2 = mod.draw(star)
-    return star,star2,mod
+    #print('star2 image = ',star2.data.data)
+    #print('star.image = ',s.data)
+    #print('diff = ',star2.data.data-s.data)
+    print('max image abs diff = ',np.max(np.abs(star2.data.data-s.data)))
+    print('max image abs value = ',np.max(np.abs(s.data)))
+    np.testing.assert_almost_equal(star2.data.data, s.data, decimal=3)
 
 def test_center():
     """Fit with centroid free and PSF center constrained to an initially
