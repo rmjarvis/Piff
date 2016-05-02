@@ -12,12 +12,14 @@
 #    this list of conditions and the disclaimer given in the documentation
 #    and/or other materials provided with the distribution.
 
-"""
-.. module:: stardata
-"""
-
 from __future__ import print_function
 import numpy as np
+import piff
+
+# These tests were originally written by Gary, who was at the time having trouble installing
+# GalSim on his laptop, so he wrote a non-GalSim-using replacement for StarData called SimpleData.
+# For now, leave the tests alone, but we should replace this to make the tests use the real
+# StarData class.
 
 class SimpleData(object):
     """A very simple, galsim-free implementation of the StarData class, for basic
@@ -25,7 +27,6 @@ class SimpleData(object):
     """
     def __init__(self, data, noise, u0, v0, du=1., values_are_sb = False, fpu=0., fpv=0.):
         """
-
         :param data:  2d numpy array holding the pixel data
         :param noise: RMS Gaussian noise to be assumed on each pixel
         :param u0, v0: nominal center of the star relative to lower-left pixel
@@ -43,12 +44,14 @@ class SimpleData(object):
         self.u0 = u0
         self.v0 = v0
         self.du = du
-        self.v = du * np.ones_like(self.data) * np.arange(self.data.shape[1]) - self.v0
-        self.u = du * np.ones_like(self.data) * np.arange(self.data.shape[0])[:,np.newaxis] - self.u0
+        self.v = du * np.ones_like(self.data) * np.arange(self.data.shape[1])
+        self.v -= self.v0
+        self.u = du * np.ones_like(self.data) * np.arange(self.data.shape[0])[:,np.newaxis]
+        self.u -= self.u0
         self.pixel_area = self.du*self.du
         self.values_are_sb = values_are_sb
         self.properties = {'u':fpu, 'v':fpv}
-        
+
     def __getitem__(self,key):
         return self.properties[key]
     
@@ -86,6 +89,23 @@ class SimpleData(object):
         out.weight = self.weight
         return out
 
+    def maskPixels(self, mask):
+        """Return new StarData with weight nulled at pixels marked as False in the mask.
+        """
+        import copy
+        use = self.weight != 0.
+
+        if len(mask.shape)==2:
+            m = mask[use]
+        else:
+            m = mask
+
+        out = copy.copy(self)
+        out.weight = self.weight.copy()
+        out.weight[use] = np.where(m, self.weight[use], 0.)
+        return out
+
+
 class GaussFunc(object):
     """ Gaussian builder to use in SimpleData.fillFrom()
     """
@@ -95,16 +115,17 @@ class GaussFunc(object):
         self.v0 = v0
         self.flux = flux
         return
+
     def __call__(self, u, v):
         out = (u-self.u0)**2 + (v-self.v0)**2
-        out = np.exp( out / (-2*self.sigma*self.sigma)) * (self.flux / (2*np.pi*self.sigma*self.sigma))
+        out /= -2*self.sigma*self.sigma
+        out = np.exp(out)
+        out *= self.flux / (2*np.pi*self.sigma*self.sigma)
         return out
     
-
 def test_simplest():
     """Fit a PSF to noiseless Gaussian data at same sampling
     """
-    import pixelmodel as pm
     influx = 150.
     du = 0.5
     g = GaussFunc(2.0, 0., 0., influx)
@@ -112,8 +133,8 @@ def test_simplest():
     s.fillFrom(g)
 
     # Pixelized model with Lanczos 3 interp
-    interp = pm.Lanczos(3)
-    mod = pm.PixelModel(du, 32,interp, start_sigma=1.5)
+    interp = piff.Lanczos(3)
+    mod = piff.PixelModel(du, 32,interp, start_sigma=1.5)
     star = mod.makeStar(s)
     star.fit.flux = np.sum(star.data.data)  # Violating the invariance of Star here!
 
@@ -126,14 +147,13 @@ def test_simplest():
     star = mod.reflux(star)
     print('Flux after reflux 2:',star.fit.flux)
     star2 = mod.draw(star)
+    print('star2 = ',star2)
     return star,star2,mod
 
 def test_oversample():
     """Fit to oversampled data, decentered PSF.
     Residual image should be checkeboard from limitations of interpolator.
     """
-    
-    import pixelmodel as pm
     influx = 150.
     du = 0.25
     nside = 64
@@ -142,8 +162,8 @@ def test_oversample():
     s.fillFrom(g)
 
     # Pixelized model with Lanczos 3 interp, coarser pix scale
-    interp = pm.Lanczos(3)
-    mod = pm.PixelModel(2*du, nside/2,interp, start_sigma=1.5)
+    interp = piff.Lanczos(3)
+    mod = piff.PixelModel(2*du, nside/2,interp, start_sigma=1.5)
     star = mod.makeStar(s)
     star.fit.flux = np.sum(star.data.data) # Violating invariance!!
 
@@ -160,8 +180,6 @@ def test_center():
     mis-registered PSF.  Residual image when done should be dominated but
     structure off the edge of the fitted region.
     """
-    
-    import pixelmodel as pm
     influx = 150.
     g = GaussFunc(2.0, 0.6, -0.4, influx)
     s = SimpleData(np.zeros((32,32),dtype=float),0.1, 8., 8., du=0.5)
@@ -169,9 +187,9 @@ def test_center():
 
     # Pixelized model with Lanczos 3 interp, coarser pix scale, smaller
     # than the data
-    interp = pm.Lanczos(3)
+    interp = piff.Lanczos(3)
     # Want an odd-sized model when center=True
-    mod = pm.PixelModel(0.5, 29, interp, force_model_center=True, start_sigma=1.5)
+    mod = piff.PixelModel(0.5, 29, interp, force_model_center=True, start_sigma=1.5)
     star = mod.makeStar(s)
     star = mod.reflux(star, fit_center=False) # Start with a sensible flux
     star = mod.reflux(star) # and center too
@@ -190,16 +208,13 @@ def test_interp():
     versions of the same PSF, interpolate them with constant interp
     to get an average PSF
     """
-    from polynomial_interp import Polynomial
-    import pixelmodel as pm
-    
     # Pixelized model with Lanczos 3 interpolation, slightly smaller than data
     # than the data
-    pixinterp = pm.Lanczos(3)
-    mod = pm.PixelModel(0.5, 25, pixinterp, start_sigma=1.5)
+    pixinterp = piff.Lanczos(3)
+    mod = piff.PixelModel(0.5, 25, pixinterp, start_sigma=1.5)
 
     # Interpolator will be simple mean
-    interp = Polynomial( np.zeros(mod._nparams, dtype=int) )
+    interp = piff.Polynomial(order=0)
     
     # Draw stars on a 2d grid of "focal plane" with 0<=u,v<=1
     positions = np.linspace(0.,1.,10.)
@@ -249,16 +264,13 @@ def test_interp():
 def test_missing():
     """Next: fit mean PSF to multiple images, with missing pixels.
     """
-    from polynomial_interp import Polynomial
-    import pixelmodel as pm
-    
     # Pixelized model with Lanczos 3 interpolation, slightly smaller than data
     # than the data
-    pixinterp = pm.Lanczos(3)
-    mod = pm.PixelModel(0.5, 25, pixinterp, start_sigma=1.5)
+    pixinterp = piff.Lanczos(3)
+    mod = piff.PixelModel(0.5, 25, pixinterp, start_sigma=1.5)
 
     # Interpolator will be simple mean
-    interp = Polynomial( np.zeros(mod._nparams, dtype=int) )
+    interp = piff.Polynomial(order=0)
     
     # Draw stars on a 2d grid of "focal plane" with 0<=u,v<=1
     positions = np.linspace(0.,1.,4)
@@ -317,16 +329,13 @@ def test_missing():
 def test_gradient():
     """Next: fit spatially-varying PSF to multiple images.
     """
-    from polynomial_interp import Polynomial
-    import pixelmodel as pm
-    
     # Pixelized model with Lanczos 3 interpolation, slightly smaller than data
     # than the data
-    pixinterp = pm.Lanczos(3)
-    mod = pm.PixelModel(0.5, 25, pixinterp, start_sigma=1.5,degenerate=False)
+    pixinterp = piff.Lanczos(3)
+    mod = piff.PixelModel(0.5, 25, pixinterp, start_sigma=1.5,degenerate=False)
 
     # Interpolator will be linear
-    interp = Polynomial( np.ones(mod._nparams, dtype=int) )
+    interp = piff.Polynomial(order=1)
     
     # Draw stars on a 2d grid of "focal plane" with 0<=u,v<=1
     positions = np.linspace(0.,1.,4)
@@ -384,18 +393,15 @@ def test_undersamp():
     """Next: fit PSF to undersampled, dithered data with fixed centroids
     ***Doesn't work well! Need to work on the SV pruning***
     """
-    from polynomial_interp import Polynomial
-    import pixelmodel as pm
-    
     # Pixelized model with Lanczos 3 interpolation, slightly smaller than data
     # than the data
-    pixinterp = pm.Lanczos(3)
+    pixinterp = piff.Lanczos(3)
     du = 0.5
-    mod = pm.PixelModel(0.25, 25, pixinterp, start_sigma=1.01)##
+    mod = piff.PixelModel(0.25, 25, pixinterp, start_sigma=1.01)##
     ##,force_model_center=True)
 
     # Interpolator will be constant
-    interp = Polynomial( np.zeros(mod._nparams, dtype=int) )
+    interp = piff.Polynomial(order=0)
     
     # Draw stars on a 2d grid of "focal plane" with 0<=u,v<=1
     positions = np.linspace(0.,1.,4)
@@ -456,15 +462,12 @@ def test_undersamp_shift():
     """Next: fit PSF to undersampled, dithered data with variable centroids,
     this time using chisq() and summing alpha,beta instead of fit() per star
     """
-    from basis_interp import BasisInterpolator,UVPolyBasis
-    import pixelmodel as pm
-    
     # Pixelized model with Lanczos 3 interpolation, slightly smaller than data
     # than the data
-    pixinterp = pm.Lanczos(3)
+    pixinterp = piff.Lanczos(3)
     influx = 150.
     du = 0.5
-    mod = pm.PixelModel(0.3, 25, pixinterp, start_sigma=1.3,force_model_center=True)
+    mod = piff.PixelModel(0.3, 25, pixinterp, start_sigma=1.3,force_model_center=True)
 
     # Make a sample star just so we can pass the initial PSF into interpolator
     # Also store away a noiseless copy of the PSF, origin of focal plane
@@ -474,8 +477,8 @@ def test_undersamp_shift():
     s0 = mod.makeStar(s0)
 
     # Interpolator will be constant
-    basis = UVPolyBasis(0)
-    interp = BasisInterpolator(basis, s0)
+    basis = piff.PolyBasis(0)
+    interp = piff.BasisInterpolator(basis, s0)
     
     # Draw stars on a 2d grid of "focal plane" with 0<=u,v<=1
     positions = np.linspace(0.,1.,8)
@@ -497,7 +500,10 @@ def test_undersamp_shift():
             s = mod.reflux(s, fit_center=False) # Start with a sensible flux
             ###print("phase:",phase2,'flux',s.fit.flux)###
             stars.append(s)
-    
+
+    # BasisInterpolator needs to be initialized before solving.
+    interp.initialize(stars)
+
     oldchi = 0.
     # Iterate solution using mean of chisq
     for iteration in range(10):
@@ -527,15 +533,12 @@ def test_undersamp_drift(fit_centers=False):
     Argument fit_centers decides whether we are letting the PSF model
     center drift, or whether we re-fit the center positions of the stars.
     """
-    from basis_interp import BasisInterpolator,PolyBasis
-    import pixelmodel as pm
-    
     # Pixelized model with Lanczos 3 interpolation, slightly smaller than data
     # than the data
-    pixinterp = pm.Lanczos(3)
+    pixinterp = piff.Lanczos(3)
     influx = 150.
     du = 0.5
-    mod = pm.PixelModel(0.3, 25, pixinterp, start_sigma=1.3,force_model_center=fit_centers)
+    mod = piff.PixelModel(0.3, 25, pixinterp, start_sigma=1.3,force_model_center=fit_centers)
 
     # Make a sample star just so we can pass the initial PSF into interpolator
     # Also store away a noiseless copy of the PSF, origin of focal plane
@@ -545,9 +548,9 @@ def test_undersamp_drift(fit_centers=False):
     s0 = mod.makeStar(s0)
 
     # Interpolator will be linear ??
-    basis = PolyBasis(1)
-    interp = BasisInterpolator(basis, s0)
-    
+    basis = piff.PolyBasis(1)
+    interp = piff.BasisInterpolator(basis, s0)
+
     # Draw stars on a 2d grid of "focal plane" with 0<=u,v<=1
     positions = np.linspace(0.,1.,8)
     stars = []
@@ -561,15 +564,18 @@ def test_undersamp_drift(fit_centers=False):
             # PSF center will drift with v; size drifts with u
             g = GaussFunc(1.0+0.1*u, 0., 0.5*du*v, influx)
             s = SimpleData(np.zeros((32,32),dtype=float),0.1,
-                           8.+phase1[0], 8.+phase1[1], du=du,
-                           fpu = u, fpv=v)
+                        8.+phase1[0], 8.+phase1[1], du=du,
+                        fpu = u, fpv=v)
             s.fillFrom(g)
             s.addNoise()
             s = mod.makeStar(s)
             s = mod.reflux(s, fit_center=False) # Start with a sensible flux
             ###print("phase:",phase2,'flux',s.fit.flux)###
             stars.append(s)
-    
+
+    # BasisInterpolator needs to be initialized before solving.
+    interp.initialize(stars)
+
     oldchi = 0.
     # Iterate solution using mean of chisq
     for iteration in range(20):
@@ -592,4 +598,15 @@ def test_undersamp_drift(fit_centers=False):
     s1 = mod.draw(s1)
     return s0,s1,mod,interp,stars
 
-            
+ 
+if __name__ == '__main__':
+    test_simplest()
+    test_oversample()
+    test_center()
+    test_interp()
+    test_missing()
+    test_gradient()
+    test_undersamp()
+    test_undersamp_shift()
+    test_undersamp_drift(True)
+    test_undersamp_drift(False)
