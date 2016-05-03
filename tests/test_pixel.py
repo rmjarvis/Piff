@@ -15,6 +15,7 @@
 from __future__ import print_function
 import numpy as np
 import piff
+import galsim
 
 # These tests were originally written by Gary, who was at the time having trouble installing
 # GalSim on his laptop, so he wrote a non-GalSim-using replacement for StarData called SimpleData.
@@ -107,7 +108,7 @@ class SimpleData(object):
 
 
 def make_gaussian_data(sigma, u0, v0, flux, noise=0., du=1., fpu=0., fpv=0., nside=32,
-                       nom_u0=0., nom_v0=0.):
+                       nom_u0=0., nom_v0=0., rng=None):
     """Make a StarData instance filled with a Gaussian profile
 
     :param sigma:       The sigma of the Gaussian
@@ -118,8 +119,9 @@ def make_gaussian_data(sigma, u0, v0, flux, noise=0., du=1., fpu=0., fpv=0., nsi
     :param fpu,fpv:     position of this cutout in some larger focal plane [default: 0,0]
     :param nside:       The size of the array [default: 32]
     :param nom_u0, nom_v0:  The nominal u0,v0 in the StarData [default: 0,0]
+    :param rng:         If adding noise, the galsim deviate to use for the random numbers
+                        [default: None]
     """
-    import galsim
     g = galsim.Gaussian(sigma=sigma, flux=flux).shift(v0,u0)
     if noise == 0.:
         var = 0.1
@@ -132,7 +134,8 @@ def make_gaussian_data(sigma, u0, v0, flux, noise=0., du=1., fpu=0., fpv=0., nsi
     g.drawImage(im, method='no_pixel', use_true_center=False,
                 offset=galsim.PositionD(nom_v0/du,nom_u0/du))
     if noise != 0:
-        s.addNoise()
+        gn = galsim.GaussianNoise(sigma=noise, rng=rng)
+        im.addNoise(gn)
     return s
 
 
@@ -253,10 +256,11 @@ def test_interp():
     influx = 150.
     stars = []
     np.random.seed(1234)
+    rng = galsim.BaseDeviate(1234)
     for u in positions:
         for v in positions:
             # Draw stars in focal plane positions around a unit ring
-            s = make_gaussian_data(1.0, 0., 0., influx, noise=0.1, du=0.5, fpu=u, fpv=v)
+            s = make_gaussian_data(1.0, 0., 0., influx, noise=0.1, du=0.5, fpu=u, fpv=v, rng=rng)
             s = mod.makeStar(s)
             s = mod.reflux(s, fit_center=False) # Start with a sensible flux
             stars.append(s)
@@ -313,10 +317,11 @@ def test_missing():
     influx = 150.
     stars = []
     np.random.seed(1234)
+    rng = galsim.BaseDeviate(1234)
     for u in positions:
         for v in positions:
             # Draw stars in focal plane positions around a unit ring
-            s = make_gaussian_data(1.0, 0., 0., influx, noise=0.1, du=0.5, fpu=u, fpv=v)
+            s = make_gaussian_data(1.0, 0., 0., influx, noise=0.1, du=0.5, fpu=u, fpv=v, rng=rng)
             s = mod.makeStar(s)
             # Kill 10% of each star's pixels
             good = np.random.rand(*s.data.data.shape) > 0.1
@@ -384,11 +389,12 @@ def test_gradient():
     influx = 150.
     stars = []
     np.random.seed(1234)
+    rng = galsim.BaseDeviate(1234)
     for u in positions:
         # Put gradient in pixel size
         for v in positions:
             # Draw stars in focal plane positions around a unit ring
-            s = make_gaussian_data(1.0+u*0.1, 0., 0., influx, noise=0.1, du=0.5, fpu=u, fpv=v)
+            s = make_gaussian_data(1.0+u*0.1, 0., 0., influx, noise=0.1, du=0.5, fpu=u, fpv=v, rng=rng)
             s = mod.makeStar(s)
             s = mod.reflux(s, fit_center=False) # Start with a sensible flux
             stars.append(s)
@@ -455,6 +461,7 @@ def test_undersamp():
     influx = 150.
     stars = []
     np.random.seed(1234)
+    rng = galsim.BaseDeviate(1234)
     for u in positions:
         for v in positions:
             # Dither centers by 1 pixel
@@ -462,7 +469,7 @@ def test_undersamp():
             if u==0. and v==0.:
                 phase=(0.,0.)
             s = make_gaussian_data(1.0, 0., 0., influx, noise=0.1, du=du, fpu=u, fpv=v,
-                                   nom_u0=phase[0], nom_v0=phase[1])
+                                   nom_u0=phase[0], nom_v0=phase[1], rng=rng)
             s = mod.makeStar(s)
             s = mod.reflux(s, fit_center=False) # Start with a sensible flux
             print("phase:",phase,'flux',s.fit.flux)
@@ -534,6 +541,7 @@ def test_undersamp_shift():
     positions = np.linspace(0.,1.,8)
     stars = []
     np.random.seed(1234)
+    rng = galsim.BaseDeviate(1234)
     for u in positions:
         for v in positions:
             # Nominal star centers move by +-1/2 pix, real centers another 1/2 pix
@@ -542,7 +550,7 @@ def test_undersamp_shift():
             if u==0. and v==0.:
                 phase1 = phase2 =(0.,0.)
             s = make_gaussian_data(1.0, phase2[0], phase2[1], influx, noise=0.1, du=du,
-                                   fpu=u, fpv=v, nom_u0=phase1[0], nom_v0=phase1[1])
+                                   fpu=u, fpv=v, nom_u0=phase1[0], nom_v0=phase1[1], rng=rng)
             s = mod.makeStar(s)
             s = mod.reflux(s, fit_center=False) # Start with a sensible flux
             ###print("phase:",phase2,'flux',s.fit.flux)###
@@ -609,6 +617,7 @@ def do_undersamp_drift(fit_centers=False):
     positions = np.linspace(0.,1.,8)
     stars = []
     np.random.seed(1234)
+    rng = galsim.BaseDeviate(1234)
     for u in positions:
         for v in positions:
             # Nominal star centers move by +-1/2 pix
@@ -618,7 +627,7 @@ def do_undersamp_drift(fit_centers=False):
                 phase1 = phase2 =(0.,0.)
             # PSF center will drift with v; size drifts with u
             s = make_gaussian_data(1.0+0.1*u, 0., 0.5*du*v, influx, noise=0.1, du=du,
-                                   fpu=u, fpv=v, nom_u0=phase1[0], nom_v0=phase1[1])
+                                   fpu=u, fpv=v, nom_u0=phase1[0], nom_v0=phase1[1], rng=rng)
             s = mod.makeStar(s)
             s = mod.reflux(s, fit_center=False) # Start with a sensible flux
             ###print("phase:",phase2,'flux',s.fit.flux)###
