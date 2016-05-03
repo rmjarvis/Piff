@@ -184,7 +184,7 @@ class StarData(object):
                 wcs = wcs.withOrigin(galsim.PositionD(x,y), galsim.PositionD(u,v))
 
         # Make the blank image
-        image = galsim.Image(stamp_size, stamp_size)
+        image = galsim.Image(stamp_size, stamp_size, dtype=float)
 
         # Figure out the image_pos
         if x is None:
