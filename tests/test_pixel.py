@@ -45,10 +45,10 @@ class SimpleData(object):
         self.u0 = u0
         self.v0 = v0
         self.du = du
-        self.v = du * np.ones_like(self.data) * np.arange(self.data.shape[1])
-        self.v -= self.v0
-        self.u = du * np.ones_like(self.data) * np.arange(self.data.shape[0])[:,np.newaxis]
+        self.u = du * np.ones_like(self.data) * np.arange(self.data.shape[1])
         self.u -= self.u0
+        self.v = du * np.ones_like(self.data) * np.arange(self.data.shape[0])[:,np.newaxis]
+        self.v -= self.v0
         self.pixel_area = self.du*self.du
         self.values_are_sb = values_are_sb
         self.properties = {'u':fpu, 'v':fpv}
@@ -122,7 +122,7 @@ def make_gaussian_data(sigma, u0, v0, flux, noise=0., du=1., fpu=0., fpv=0., nsi
     :param rng:         If adding noise, the galsim deviate to use for the random numbers
                         [default: None]
     """
-    g = galsim.Gaussian(sigma=sigma, flux=flux).shift(v0,u0)
+    g = galsim.Gaussian(sigma=sigma, flux=flux).shift(u0,v0)
     if noise == 0.:
         var = 0.1
     else:
@@ -132,7 +132,7 @@ def make_gaussian_data(sigma, u0, v0, flux, noise=0., du=1., fpu=0., fpv=0., nsi
                    du=du, fpu=fpu, fpv=fpv)
     im = galsim.Image(s.data, scale=du)
     g.drawImage(im, method='no_pixel', use_true_center=False,
-                offset=galsim.PositionD(nom_v0/du,nom_u0/du))
+                offset=galsim.PositionD(nom_u0/du,nom_v0/du))
     if noise != 0:
         gn = galsim.GaussianNoise(sigma=noise, rng=rng)
         im.addNoise(gn)
