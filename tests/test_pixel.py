@@ -127,15 +127,16 @@ def make_gaussian_data(sigma, u0, v0, flux, noise=0., du=1., fpu=0., fpv=0., nsi
         var = 0.1
     else:
         var = noise
-    s = SimpleData(np.zeros((nside,nside),dtype=float), var,
-                   u0=du*nside/2+nom_u0, v0=du*nside/2+nom_v0,
-                   du=du, fpu=fpu, fpv=fpv)
-    im = galsim.Image(s.data, scale=du)
-    g.drawImage(im, method='no_pixel', use_true_center=False,
+    s = piff.StarData.makeTarget(x=nside/2+nom_u0/du, y=nside/2+nom_v0/du,
+                                 u=fpu, v=fpv, scale=du, stamp_size=nside)
+    s.image.setOrigin(0,0)
+    g.drawImage(s.image, method='no_pixel', use_true_center=False,
                 offset=galsim.PositionD(nom_u0/du,nom_v0/du))
+    s.weight = s.image.copy()
+    s.weight.fill(1./var/var)
     if noise != 0:
         gn = galsim.GaussianNoise(sigma=noise, rng=rng)
-        im.addNoise(gn)
+        s.image.addNoise(gn)
     return s
 
 
@@ -148,7 +149,7 @@ def test_simplest():
 
     # Pixelized model with Lanczos 3 interp
     interp = piff.Lanczos(3)
-    mod = piff.PixelModel(du, 32,interp, start_sigma=1.5)
+    mod = piff.PixelModel(du, 32, interp, start_sigma=1.5)
     star = mod.makeStar(s, flux=np.sum(s.data))
 
     # Check that fitting the star can recover the right flux.
@@ -324,9 +325,9 @@ def test_missing():
             s = make_gaussian_data(1.0, 0., 0., influx, noise=0.1, du=0.5, fpu=u, fpv=v, rng=rng)
             s = mod.makeStar(s)
             # Kill 10% of each star's pixels
-            good = np.random.rand(*s.data.data.shape) > 0.1
-            s.data.weight = np.where(good, s.data.weight, 0.)
-            s.data.data = np.where(good, s.data.data, -999.)
+            bad = np.random.rand(*s.data.data.shape) < 0.1
+            s.data.weight.array[bad] = 0.
+            s.data.data[bad] = -999.
             s = mod.reflux(s, fit_center=False) # Start with a sensible flux
             stars.append(s)
 
