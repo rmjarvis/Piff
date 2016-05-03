@@ -231,6 +231,12 @@ class StarData(object):
                     properties['dec'] = sky_pos.dec
             return pointing.project(sky_pos)
 
+    @property
+    def data(self):
+        """Shorthand for stardata.image.array.  You may instead write stardata.data
+        """
+        return self.image.array
+
     def __getitem__(self, key):
         """Get a property of the star.
 
