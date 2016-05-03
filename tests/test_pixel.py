@@ -106,25 +106,8 @@ class SimpleData(object):
         return out
 
 
-class GaussFunc(object):
-    """ Gaussian builder to use in SimpleData.fillFrom()
-    """
-    def __init__(self, sigma, u0, v0, flux):
-        self.sigma = sigma
-        self.u0 = u0
-        self.v0 = v0
-        self.flux = flux
-        return
-
-    def __call__(self, u, v):
-        out = (u-self.u0)**2 + (v-self.v0)**2
-        out /= -2*self.sigma*self.sigma
-        out = np.exp(out)
-        out *= self.flux / (2*np.pi*self.sigma*self.sigma)
-        return out
-
 def make_gaussian_data(sigma, u0, v0, flux, noise=0., du=1., fpu=0., fpv=0., nside=32,
-                       nom_u0=None, nom_v0=None):
+                       nom_u0=0., nom_v0=0.):
     """Make a StarData instance filled with a Gaussian profile
 
     :param sigma:       The sigma of the Gaussian
@@ -134,19 +117,20 @@ def make_gaussian_data(sigma, u0, v0, flux, noise=0., du=1., fpu=0., fpv=0., nsi
     :param du:          pixel size in "wcs" units [default: 1.]
     :param fpu,fpv:     position of this cutout in some larger focal plane [default: 0,0]
     :param nside:       The size of the array [default: 32]
-    :param nom_u0, nom_v0:  The nominal u0,v0 in the StarData [default: u0,v0]
+    :param nom_u0, nom_v0:  The nominal u0,v0 in the StarData [default: 0,0]
     """
-    gf = GaussFunc(sigma, u0, v0, flux)
+    import galsim
+    g = galsim.Gaussian(sigma=sigma, flux=flux).shift(v0,u0)
     if noise == 0.:
         var = 0.1
     else:
         var = noise
-    if nom_u0 is None: nom_u0 = u0
-    if nom_v0 is None: nom_v0 = v0
     s = SimpleData(np.zeros((nside,nside),dtype=float), var,
-                            u0=du*nside/2+nom_u0, v0=du*nside/2+nom_v0,
-                            du=du, fpu=fpu, fpv=fpv)
-    s.fillFrom(gf)
+                   u0=du*nside/2+nom_u0, v0=du*nside/2+nom_v0,
+                   du=du, fpu=fpu, fpv=fpv)
+    im = galsim.Image(s.data, scale=du)
+    g.drawImage(im, method='no_pixel', use_true_center=False,
+                offset=galsim.PositionD(nom_v0/du,nom_u0/du))
     if noise != 0:
         s.addNoise()
     return s
@@ -194,7 +178,7 @@ def test_oversample():
     influx = 150.
     du = 0.25
     nside = 64
-    s = make_gaussian_data(2.0, 0.5, -0.25, influx, du=du, nside=nside, nom_u0=0., nom_v0=0.)
+    s = make_gaussian_data(2.0, 0.5, -0.25, influx, du=du, nside=nside)
 
     # Pixelized model with Lanczos 3 interp, coarser pix scale
     interp = piff.Lanczos(3)
@@ -223,7 +207,7 @@ def test_center():
     """Fit with centroid free and PSF center constrained to an initially mis-registered PSF.
     """
     influx = 150.
-    s = make_gaussian_data(2.0, 0.6, -0.4, influx, du=0.5, nom_u0=0., nom_v0=0.)
+    s = make_gaussian_data(2.0, 0.6, -0.4, influx, du=0.5)
 
     # Pixelized model with Lanczos 3 interp, coarser pix scale, smaller
     # than the data
@@ -478,7 +462,7 @@ def test_undersamp():
             if u==0. and v==0.:
                 phase=(0.,0.)
             s = make_gaussian_data(1.0, 0., 0., influx, noise=0.1, du=du, fpu=u, fpv=v,
-                                    nom_u0=phase[0], nom_v0=phase[1])
+                                   nom_u0=phase[0], nom_v0=phase[1])
             s = mod.makeStar(s)
             s = mod.reflux(s, fit_center=False) # Start with a sensible flux
             print("phase:",phase,'flux',s.fit.flux)
