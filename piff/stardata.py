@@ -194,8 +194,8 @@ class StarData(object):
         else:
             image_pos = galsim.PositionD(x,y)
 
-        # Make the center of the iamge (close to) the image_pos
-        image.setCenter(int(x)+1, int(y)+1)
+        # Make the center of the image (close to) the image_pos
+        image.setCenter(int(x+0.5), int(y+0.5))
         image.wcs = wcs
 
         # Build the StarDat instance
