@@ -54,7 +54,7 @@ class SimpleData(object):
 
     def __getitem__(self,key):
         return self.properties[key]
-    
+
     def addNoise(self):
         """Add noise realization to the image
         """
@@ -122,15 +122,45 @@ class GaussFunc(object):
         out = np.exp(out)
         out *= self.flux / (2*np.pi*self.sigma*self.sigma)
         return out
-    
+
+def make_gaussian_data(sigma, u0, v0, flux, noise=0., du=1., fpu=0., fpv=0., nside=32,
+                       nom_u0=None, nom_v0=None):
+    """Make a StarData instance filled with a Gaussian profile
+
+    :param sigma:       The sigma of the Gaussian
+    :param u0, v0:      The sub-pixel offset to apply.
+    :param flux:        The flux of the star
+    :param noise:       RMS Gaussian noise to be added to each pixel [default: 0]
+    :param du:          pixel size in "wcs" units [default: 1.]
+    :param fpu,fpv:     position of this cutout in some larger focal plane [default: 0,0]
+    :param nside:       The size of the array [default: 32]
+    :param nom_u0, nom_v0:  The nominal u0,v0 in the StarData [default: u0,v0]
+    """
+    gf = GaussFunc(sigma, u0, v0, flux)
+    if noise == 0.:
+        var = 0.1
+    else:
+        var = noise
+    if nom_u0 is None: nom_u0 = u0
+    if nom_v0 is None: nom_v0 = v0
+    s = SimpleData(np.zeros((nside,nside),dtype=float), var,
+                            u0=du*nside/2+nom_u0, v0=du*nside/2+nom_v0,
+                            du=du, fpu=fpu, fpv=fpv)
+    s.fillFrom(gf)
+    if noise != 0:
+        s.addNoise()
+    return s
+
+
 def test_simplest():
     """Fit a PSF to noiseless Gaussian data at same sampling
     """
     influx = 150.
     du = 0.5
-    g = GaussFunc(2.0, 0., 0., influx)
-    s = SimpleData(np.zeros((32,32),dtype=float), 0.1, 8., 8., du=du)
-    s.fillFrom(g)
+    s = make_gaussian_data(2.0, 0., 0., influx, du=du)
+    #g = GaussFunc(2.0, 0., 0., influx)
+    #s = SimpleData(np.zeros((32,32),dtype=float), 0.1, 8., 8., du=du)
+    #s.fillFrom(g)
 
     # Pixelized model with Lanczos 3 interp
     interp = piff.Lanczos(3)
@@ -167,9 +197,10 @@ def test_oversample():
     influx = 150.
     du = 0.25
     nside = 64
-    g = GaussFunc(2.0, 0.5, -0.25, influx)
-    s = SimpleData(np.zeros((nside,nside),dtype=float), 0.1, du*nside/2, du*nside/2, du=du)
-    s.fillFrom(g)
+    s = make_gaussian_data(2.0, 0.5, -0.25, influx, du=du, nside=nside, nom_u0=0., nom_v0=0.)
+    #g = GaussFunc(2.0, 0.5, -0.25, influx)
+    #s = SimpleData(np.zeros((nside,nside),dtype=float), 0.1, du*nside/2, du*nside/2, du=du)
+    #s.fillFrom(g)
 
     # Pixelized model with Lanczos 3 interp, coarser pix scale
     interp = piff.Lanczos(3)
@@ -198,9 +229,10 @@ def test_center():
     """Fit with centroid free and PSF center constrained to an initially mis-registered PSF.
     """
     influx = 150.
-    g = GaussFunc(2.0, 0.6, -0.4, influx)
-    s = SimpleData(np.zeros((32,32),dtype=float), 0.1, 8., 8., du=0.5)
-    s.fillFrom(g)
+    s = make_gaussian_data(2.0, 0.6, -0.4, influx, du=0.5, nom_u0=0., nom_v0=0.)
+    #g = GaussFunc(2.0, 0.6, -0.4, influx)
+    #s = SimpleData(np.zeros((32,32),dtype=float), 0.1, 8., 8., du=0.5)
+    #s.fillFrom(g)
 
     # Pixelized model with Lanczos 3 interp, coarser pix scale, smaller
     # than the data
@@ -244,22 +276,24 @@ def test_interp():
     # Draw stars on a 2d grid of "focal plane" with 0<=u,v<=1
     positions = np.linspace(0.,1.,10.)
     influx = 150.
-    g = GaussFunc(1.0, 0., 0., influx)
+    #g = GaussFunc(1.0, 0., 0., influx)
     stars = []
     np.random.seed(1234)
     for u in positions:
         for v in positions:
             # Draw stars in focal plane positions around a unit ring
-            s = SimpleData(np.zeros((32,32),dtype=float), 0.1, 8., 8., du=0.5, fpu=u, fpv=v)
-            s.fillFrom(g)
-            s.addNoise()
+            s = make_gaussian_data(1.0, 0., 0., influx, noise=0.1, du=0.5, fpu=u, fpv=v)
+            #s = SimpleData(np.zeros((32,32),dtype=float), 0.1, 8., 8., du=0.5, fpu=u, fpv=v)
+            #s.fillFrom(g)
+            #s.addNoise()
             s = mod.makeStar(s)
             s = mod.reflux(s, fit_center=False) # Start with a sensible flux
             stars.append(s)
 
     # Also store away a noiseless copy of the PSF, origin of focal plane
-    s0 = SimpleData(np.zeros((32,32),dtype=float), 0.1, 8., 8., du=0.5)
-    s0.fillFrom(g)
+    s0 = make_gaussian_data(1.0, 0., 0., influx, du=0.5)
+    #s0 = SimpleData(np.zeros((32,32),dtype=float), 0.1, 8., 8., du=0.5)
+    #s0.fillFrom(g)
     s0 = mod.makeStar(s0)
 
     # Iterate solution using interpolator
@@ -304,19 +338,20 @@ def test_missing():
 
     # Interpolator will be simple mean
     interp = piff.Polynomial(order=0)
-    
+
     # Draw stars on a 2d grid of "focal plane" with 0<=u,v<=1
     positions = np.linspace(0.,1.,4)
     influx = 150.
-    g = GaussFunc(1.0, 0., 0., influx)
+    #g = GaussFunc(1.0, 0., 0., influx)
     stars = []
     np.random.seed(1234)
     for u in positions:
         for v in positions:
             # Draw stars in focal plane positions around a unit ring
-            s = SimpleData(np.zeros((32,32),dtype=float), 0.1, 8., 8., du=0.5, fpu=u, fpv=v)
-            s.fillFrom(g)
-            s.addNoise()
+            s = make_gaussian_data(1.0, 0., 0., influx, noise=0.1, du=0.5, fpu=u, fpv=v)
+            #s = SimpleData(np.zeros((32,32),dtype=float), 0.1, 8., 8., du=0.5, fpu=u, fpv=v)
+            #s.fillFrom(g)
+            #s.addNoise()
             s = mod.makeStar(s)
             # Kill 10% of each star's pixels
             good = np.random.rand(*s.data.data.shape) > 0.1
@@ -326,10 +361,11 @@ def test_missing():
             stars.append(s)
 
     # Also store away a noiseless copy of the PSF, origin of focal plane
-    s0 = SimpleData(np.zeros((32,32),dtype=float), 0.1, 8., 8., du=0.5)
-    s0.fillFrom(g)
+    s0 = make_gaussian_data(1.0, 0., 0., influx, du=0.5)
+    #s0 = SimpleData(np.zeros((32,32),dtype=float), 0.1, 8., 8., du=0.5)
+    #s0.fillFrom(g)
     s0 = mod.makeStar(s0)
-    
+
     oldchi = 0.
     # Iterate solution using interpolator
     for iteration in range(40):
@@ -379,7 +415,7 @@ def test_gradient():
 
     # Interpolator will be linear
     interp = piff.Polynomial(order=1)
-    
+
     # Draw stars on a 2d grid of "focal plane" with 0<=u,v<=1
     positions = np.linspace(0.,1.,4)
     influx = 150.
@@ -387,22 +423,24 @@ def test_gradient():
     np.random.seed(1234)
     for u in positions:
         # Put gradient in pixel size
-        g = GaussFunc(1.0+u*0.1, 0., 0., influx)
+        #g = GaussFunc(1.0+u*0.1, 0., 0., influx)
         for v in positions:
             # Draw stars in focal plane positions around a unit ring
-            s = SimpleData(np.zeros((32,32),dtype=float), 0.1, 8., 8., du=0.5, fpu=u, fpv=v)
-            s.fillFrom(g)
-            s.addNoise()
+            s = make_gaussian_data(1.0+u*0.1, 0., 0., influx, noise=0.1, du=0.5, fpu=u, fpv=v)
+            #s = SimpleData(np.zeros((32,32),dtype=float), 0.1, 8., 8., du=0.5, fpu=u, fpv=v)
+            #s.fillFrom(g)
+            #s.addNoise()
             s = mod.makeStar(s)
             s = mod.reflux(s, fit_center=False) # Start with a sensible flux
             stars.append(s)
 
     # Also store away a noiseless copy of the PSF, origin of focal plane
-    g = GaussFunc(1.0, 0., 0., influx)
-    s0 = SimpleData(np.zeros((32,32),dtype=float), 0.1, 8., 8., du=0.5)
-    s0.fillFrom(g)
+    s0 = make_gaussian_data(1.0, 0., 0., influx, du=0.5)
+    #g = GaussFunc(1.0, 0., 0., influx)
+    #s0 = SimpleData(np.zeros((32,32),dtype=float), 0.1, 8., 8., du=0.5)
+    #s0.fillFrom(g)
     s0 = mod.makeStar(s0)
-    
+
     oldchi = 0.
     # Iterate solution using interpolator
     for iteration in range(40):
@@ -455,12 +493,12 @@ def test_undersamp():
 
     # Interpolator will be constant
     interp = piff.Polynomial(order=0)
-    
+
     # Draw stars on a 2d grid of "focal plane" with 0<=u,v<=1
     positions = np.linspace(0.,1.,4)
     influx = 150.
     stars = []
-    g = GaussFunc(1.0, 0., 0., influx)
+    #g = GaussFunc(1.0, 0., 0., influx)
     np.random.seed(1234)
     for u in positions:
         for v in positions:
@@ -468,21 +506,24 @@ def test_undersamp():
             phase = (0.5 - np.random.rand(2))*du
             if u==0. and v==0.:
                 phase=(0.,0.)
-            s = SimpleData(np.zeros((32,32),dtype=float), 0.1,
-                           8.+phase[0], 8.+phase[1], du=du, fpu=u, fpv=v)
-            s.fillFrom(g)
-            s.addNoise()
+            s = make_gaussian_data(1.0, 0., 0., influx, noise=0.1, du=du, fpu=u, fpv=v,
+                                    nom_u0=phase[0], nom_v0=phase[1])
+            #s = SimpleData(np.zeros((32,32),dtype=float), 0.1,
+                           #8.+phase[0], 8.+phase[1], du=du, fpu=u, fpv=v)
+            #s.fillFrom(g)
+            #s.addNoise()
             s = mod.makeStar(s)
             s = mod.reflux(s, fit_center=False) # Start with a sensible flux
             print("phase:",phase,'flux',s.fit.flux)
             stars.append(s)
 
     # Also store away a noiseless copy of the PSF, origin of focal plane
-    g = GaussFunc(1.0, 0., 0., influx)
-    s0 = SimpleData(np.zeros((32,32),dtype=float), 0.1, 8., 8., du=0.5,fpu=0., fpv=0.)
-    s0.fillFrom(g)
+    s0 = make_gaussian_data(1.0, 0., 0., influx, du=0.5)
+    #g = GaussFunc(1.0, 0., 0., influx)
+    #s0 = SimpleData(np.zeros((32,32),dtype=float), 0.1, 8., 8., du=0.5,fpu=0., fpv=0.)
+    #s0.fillFrom(g)
     s0 = mod.makeStar(s0)
-    
+
     oldchi = 0.
     # Iterate solution using interpolator
     for iteration in range(1): ###
@@ -534,15 +575,16 @@ def test_undersamp_shift():
 
     # Make a sample star just so we can pass the initial PSF into interpolator
     # Also store away a noiseless copy of the PSF, origin of focal plane
-    g = GaussFunc(1.0, 0., 0., influx)
-    s0 = SimpleData(np.zeros((32,32),dtype=float), 0.1, 8., 8., du=0.5,fpu=0., fpv=0.)
-    s0.fillFrom(g)
+    s0 = make_gaussian_data(1.0, 0., 0., influx, du=0.5)
+    #g = GaussFunc(1.0, 0., 0., influx)
+    #s0 = SimpleData(np.zeros((32,32),dtype=float), 0.1, 8., 8., du=0.5,fpu=0., fpv=0.)
+    #s0.fillFrom(g)
     s0 = mod.makeStar(s0)
 
     # Interpolator will be constant
     basis = piff.PolyBasis(0)
     interp = piff.BasisInterpolator(basis, s0)
-    
+
     # Draw stars on a 2d grid of "focal plane" with 0<=u,v<=1
     positions = np.linspace(0.,1.,8)
     stars = []
@@ -554,11 +596,13 @@ def test_undersamp_shift():
             phase2 = (0.5 - np.random.rand(2))*du
             if u==0. and v==0.:
                 phase1 = phase2 =(0.,0.)
-            g = GaussFunc(1.0, phase2[0], phase2[1], influx)
-            s = SimpleData(np.zeros((32,32),dtype=float), 0.1,
-                           8.+phase1[0], 8.+phase1[1], du=du, fpu=u, fpv=v)
-            s.fillFrom(g)
-            s.addNoise()
+            s = make_gaussian_data(1.0, phase2[0], phase2[1], influx, noise=0.1, du=du,
+                                   fpu=u, fpv=v, nom_u0=phase1[0], nom_v0=phase1[1])
+            #g = GaussFunc(1.0, phase2[0], phase2[1], influx)
+            #s = SimpleData(np.zeros((32,32),dtype=float), 0.1,
+                           #8.+phase1[0], 8.+phase1[1], du=du, fpu=u, fpv=v)
+            #s.fillFrom(g)
+            #s.addNoise()
             s = mod.makeStar(s)
             s = mod.reflux(s, fit_center=False) # Start with a sensible flux
             ###print("phase:",phase2,'flux',s.fit.flux)###
@@ -614,9 +658,10 @@ def do_undersamp_drift(fit_centers=False):
 
     # Make a sample star just so we can pass the initial PSF into interpolator
     # Also store away a noiseless copy of the PSF, origin of focal plane
-    g = GaussFunc(1.0, 0., 0., influx)
-    s0 = SimpleData(np.zeros((32,32),dtype=float), 0.1, 8., 8., du=0.5,fpu=0., fpv=0.)
-    s0.fillFrom(g)
+    s0 = make_gaussian_data(1.0, 0., 0., influx, du=0.5)
+    #g = GaussFunc(1.0, 0., 0., influx)
+    #s0 = SimpleData(np.zeros((32,32),dtype=float), 0.1, 8., 8., du=0.5,fpu=0., fpv=0.)
+    #s0.fillFrom(g)
     s0 = mod.makeStar(s0)
 
     # Interpolator will be linear ??
@@ -635,11 +680,13 @@ def do_undersamp_drift(fit_centers=False):
             if u==0. and v==0.:
                 phase1 = phase2 =(0.,0.)
             # PSF center will drift with v; size drifts with u
-            g = GaussFunc(1.0+0.1*u, 0., 0.5*du*v, influx)
-            s = SimpleData(np.zeros((32,32),dtype=float), 0.1,
-                           8.+phase1[0], 8.+phase1[1], du=du, fpu=u, fpv=v)
-            s.fillFrom(g)
-            s.addNoise()
+            s = make_gaussian_data(1.0+0.1*u, 0., 0.5*du*v, influx, noise=0.1, du=du,
+                                   fpu=u, fpv=v, nom_u0=phase1[0], nom_v0=phase1[1])
+            #g = GaussFunc(1.0+0.1*u, 0., 0.5*du*v, influx)
+            #s = SimpleData(np.zeros((32,32),dtype=float), 0.1,
+                           #8.+phase1[0], 8.+phase1[1], du=du, fpu=u, fpv=v)
+            #s.fillFrom(g)
+            #s.addNoise()
             s = mod.makeStar(s)
             s = mod.reflux(s, fit_center=False) # Start with a sensible flux
             ###print("phase:",phase2,'flux',s.fit.flux)###
