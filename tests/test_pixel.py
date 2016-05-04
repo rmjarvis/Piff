@@ -17,7 +17,6 @@ import numpy as np
 import piff
 import galsim
 
-
 def make_gaussian_data(sigma, u0, v0, flux, noise=0., du=1., fpu=0., fpv=0., nside=32,
                        nom_u0=0., nom_v0=0., rng=None):
     """Make a StarData instance filled with a Gaussian profile
@@ -221,9 +220,6 @@ def test_missing():
     pixinterp = piff.Lanczos(3)
     mod = piff.PixelModel(0.5, 25, pixinterp, start_sigma=1.5)
 
-    # Interpolator will be simple mean
-    interp = piff.Polynomial(order=0)
-
     # Draw stars on a 2d grid of "focal plane" with 0<=u,v<=1
     positions = np.linspace(0.,1.,4)
     influx = 150.
@@ -246,43 +242,53 @@ def test_missing():
     s0 = make_gaussian_data(1.0, 0., 0., influx, du=0.5)
     s0 = mod.makeStar(s0)
 
-    oldchi = 0.
-    # Iterate solution using interpolator
-    for iteration in range(40):
-        # Refit PSFs star by star:
-        for i,s in enumerate(stars):
-            stars[i] = mod.fit(s)
-        # Run the interpolator
-        interp.solve(stars)
-        # Install interpolator solution into each
-        # star, recalculate flux, report chisq
-        chisq = 0.
-        dof = 0
-        for i,s in enumerate(stars):
-            s = interp.interpolate(s)
-            s = mod.reflux(s)
-            chisq += s.fit.chisq
-            dof += s.fit.dof
-            stars[i] = s
-            ###print('   chisq=',s.fit.chisq, 'dof=',s.fit.dof)
-        print('iteration',iteration,'chisq=',chisq, 'dof=',dof)
-        if oldchi>0 and chisq<oldchi and oldchi-chisq < 1.:
-            break
-        else:
-            oldchi = chisq
+    if __name__ == "__main__":
+        interps = [piff.Polynomial(order=0), piff.BasisPolynomial(order=0)]
+    else:
+        # The Polynomial interpolator works, but it's slow.  For the nosetests runs, skip it.
+        interps = [piff.BasisPolynomial(order=0)]
 
-    # Now use the interpolator to produce a noiseless rendering
-    s1 = interp.interpolate(s0)
-    s1 = mod.reflux(s1)
-    print('Flux, ctr after interpolation: ',s1.fit.flux, s1.fit.center, s1.fit.chisq)
-    # Less than 2 dp of accuracy here!
-    np.testing.assert_almost_equal(s1.fit.flux/influx, 1.0, decimal=1)
+    for interp in interps:
+        # Interpolator will be simple mean
+        interp = piff.Polynomial(order=0)
 
-    s1 = mod.draw(s1)
-    print('max image abs diff = ',np.max(np.abs(s1.data.data-s0.data.data)))
-    print('max image abs value = ',np.max(np.abs(s0.data.data)))
-    peak = np.max(np.abs(s0.data.data))
-    np.testing.assert_almost_equal(s1.data.data/peak, s0.data.data/peak, decimal=1)
+        oldchi = 0.
+        # Iterate solution using interpolator
+        for iteration in range(40):
+            # Refit PSFs star by star:
+            for i,s in enumerate(stars):
+                stars[i] = mod.fit(s)
+            # Run the interpolator
+            interp.solve(stars)
+            # Install interpolator solution into each
+            # star, recalculate flux, report chisq
+            chisq = 0.
+            dof = 0
+            for i,s in enumerate(stars):
+                s = interp.interpolate(s)
+                s = mod.reflux(s)
+                chisq += s.fit.chisq
+                dof += s.fit.dof
+                stars[i] = s
+                ###print('   chisq=',s.fit.chisq, 'dof=',s.fit.dof)
+            print('iteration',iteration,'chisq=',chisq, 'dof=',dof)
+            if oldchi>0 and chisq<oldchi and oldchi-chisq < dof/10.:
+                break
+            else:
+                oldchi = chisq
+
+        # Now use the interpolator to produce a noiseless rendering
+        s1 = interp.interpolate(s0)
+        s1 = mod.reflux(s1)
+        print('Flux, ctr after interpolation: ',s1.fit.flux, s1.fit.center, s1.fit.chisq)
+        # Less than 2 dp of accuracy here!
+        np.testing.assert_almost_equal(s1.fit.flux/influx, 1.0, decimal=1)
+
+        s1 = mod.draw(s1)
+        print('max image abs diff = ',np.max(np.abs(s1.data.data-s0.data.data)))
+        print('max image abs value = ',np.max(np.abs(s0.data.data)))
+        peak = np.max(np.abs(s0.data.data))
+        np.testing.assert_almost_equal(s1.data.data/peak, s0.data.data/peak, decimal=1)
 
 
 def test_gradient():
@@ -335,7 +341,7 @@ def test_gradient():
             stars[i] = s
             ###print('   chisq=',s.fit.chisq, 'dof=',s.fit.dof)
         print('iteration',iteration,'chisq=',chisq, 'dof=',dof)
-        if oldchi>0 and np.abs(oldchi-chisq) < 1.:
+        if oldchi>0 and np.abs(oldchi-chisq) < dof/10.:
             break
         else:
             oldchi = chisq
@@ -410,7 +416,7 @@ def test_undersamp():
             stars[i] = s
             print('   chisq=',s.fit.chisq, 'dof=',s.fit.dof, 'flux=',s.fit.flux)
         print('iteration',iteration,'chisq=',chisq, 'dof=',dof)
-        if oldchi>0 and np.abs(oldchi-chisq) < 1.:
+        if oldchi>0 and np.abs(oldchi-chisq) < dof/10.:
             break
         else:
             oldchi = chisq
@@ -446,7 +452,7 @@ def test_undersamp_shift():
     s0 = mod.makeStar(s0)
 
     # Interpolator will be constant
-    interp = piff.BasisPolynomialInterp(0)
+    interp = piff.BasisPolynomial(0)
 
     # Draw stars on a 2d grid of "focal plane" with 0<=u,v<=1
     positions = np.linspace(0.,1.,8)
@@ -482,7 +488,7 @@ def test_undersamp_shift():
         chisq = np.sum([s.fit.chisq for s in stars])
         dof   = np.sum([s.fit.dof for s in stars])
         print('iteration',iteration,'chisq=',chisq, 'dof=',dof)
-        if oldchi>0 and np.abs(oldchi-chisq) < 1.:
+        if oldchi>0 and np.abs(oldchi-chisq) < dof/10.:
             break
         else:
             oldchi = chisq
@@ -520,8 +526,8 @@ def do_undersamp_drift(fit_centers=False):
     s0 = make_gaussian_data(1.0, 0., 0., influx, du=0.5)
     s0 = mod.makeStar(s0)
 
-    # Interpolator will be linear ??
-    interp = piff.BasisPolynomialInterp(1)
+    # Interpolator will be linear
+    interp = piff.BasisPolynomial(1)
 
     # Draw stars on a 2d grid of "focal plane" with 0<=u,v<=1
     positions = np.linspace(0.,1.,8)
@@ -558,7 +564,7 @@ def do_undersamp_drift(fit_centers=False):
         chisq = np.sum([s.fit.chisq for s in stars])
         dof   = np.sum([s.fit.dof for s in stars])
         print('iteration',iteration,'chisq=',chisq, 'dof=',dof)
-        if oldchi>0 and np.abs(oldchi-chisq) < 1.:
+        if oldchi>0 and np.abs(oldchi-chisq) < dof/10.:
             break
         else:
             oldchi = chisq
