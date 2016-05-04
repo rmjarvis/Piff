@@ -111,55 +111,58 @@ class BasisInterp(Interp):
         return Star(star.data, star.fit.newParams(p))
 
 
-class BasisPolynomialInterp(BasisInterp):
+class BasisPolynomial(BasisInterp):
     """A version of the Polynomial interpolator that works with BasisModels and can use the
     quadratic form of the chisq information it calculates.  It works better than the regular
     Polynomial interpolator when there is missing or degenerate information.
 
-    All combinations of powers of keys that have total order <=maxorder
-    are used.  Maximum orders for each key can be specified.  Ranges
-    for each key can be given which are rescaled into the [-1,1] interval that
+    The order is the highest power of a key to be used.  This can be the same for all keys
+    or you may provide a list of separate order values to be used for each key.  (e.g. you
+    may want to use 2nd order in the positions, but only 1st order in the color).
+
+    All combinations of powers of keys that have total order <= maxorder are used.
+    The maximum order is normally the maximum order of any given key's order, but you may
+    specify a larger value.  (e.g. to use 1, x, y, xy, you would specify order=1, maxorder=2.)
+
+    Ranges for each key can be given which are rescaled into the [-1,1] interval that
     will help keep polynomial arguments at O(1).
 
-    :param maxorder:    maximum sum of orders of all keys
-    :param keys:        array of keys for StarData properties that will be used as the
-                        polynomial arguments.  Defaults to using focal plane position (u,v)
-    :param orders:      Maximum allowed order for each key.  Can be a single value (applied
-                        to all keys) or an array matching number of keys.  Each value is
-                        either a non-negative integer, or None, which will default to maxorder.
-    :param ranges:      Range to be linearly remapped to [-1,1] interval before calculating
-                        polynomials.  Can be a single tuple (which will be used for all dimensions)
-                        or an array with a tuple for each key.  Any value of None will default
-                        to range=(-1,1), i.e. no rescaling.
+    :param order:       The order to use for each key.  Can be a single value (applied to all
+                        keys) or an array matching number of keys.
+    :param keys:        List of keys for StarData properties that will be used as the
+                        polynomial arguments.  [default: ('u','v')]
+    :param ranges:      Range for each key to be linearly remapped to [-1,1] interval before
+                        calculating polynomials.  Can be a single tuple (which will be used for all
+                        keys) or a list with a tuple for each key. [default: None]
+    :param maxorder:    The maximum total order to use for cross terms between keys.
+                        [default: None, which uses the maximum value of any individual key's order]
+    :param logger:      A logger object for logging debug info. [default: None]
     """
-    def __init__(self, maxorder, keys=('u','v'), orders=None, ranges=None):
-        super(BasisPolynomialInterp, self).__init__()
+    def __init__(self, order, keys=('u','v'), ranges=None, maxorder=None, logger=None):
+        super(BasisPolynomial, self).__init__()
 
-        self._maxorder = maxorder
         self._keys = keys
-        if orders is None:
-            self._orders = (self._maxorder,) * len(keys)
-        elif type(orders) is int:
-            self._orders = (orders,) * len(keys)
+        if type(order) is int:
+            self._orders = (order,) * len(keys)
         elif not len(orders)==len(keys):
             raise ValueError('Number of provided orders does not match number of keys')
         else:
-            # Replace all None entries in the orders array with maxorder
-            self._orders=()
-            for o in orders:
-                if o is None:
-                    self._orders = self._orders + (self._maxorder,)
-                else:
-                    self._orders = self._orders + (o,)
+            self._orders = order
+
+        if maxorder is None:
+            self._maxorder = numpy.max(self._orders)
+        else:
+            self._maxorder = maxorder
+
         if self._maxorder<0 or numpy.any(numpy.array(self._orders) < 0):
             # Exception if we have any requests for negative orders
             raise ValueError('Negative polynomial order specified')
 
         # Now build a mask that picks the desired polynomial products
         # Start with 1d arrays giving orders in all dimensions
-        ord = [numpy.arange(o+1,dtype=int) for o in self._orders]
+        ord_ranges = [numpy.arange(order+1,dtype=int) for order in self._orders]
         # Nifty trick to produce n-dim array holding total order
-        sumorder = reduce(numpy.add, numpy.ix_(*ord))
+        sumorder = reduce(numpy.add, numpy.ix_(*ord_ranges))
         self._mask = sumorder <= self._maxorder
 
         # Set up the ranges: save the additive and multiplicative factors
