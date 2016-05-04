@@ -446,8 +446,7 @@ def test_undersamp_shift():
     s0 = mod.makeStar(s0)
 
     # Interpolator will be constant
-    basis = piff.PolyBasis(0)
-    interp = piff.BasisInterpolator(basis, s0)
+    interp = piff.BasisPolynomialInterp(0)
 
     # Draw stars on a 2d grid of "focal plane" with 0<=u,v<=1
     positions = np.linspace(0.,1.,8)
@@ -468,7 +467,7 @@ def test_undersamp_shift():
             ###print("phase:",phase2,'flux',s.fit.flux)###
             stars.append(s)
 
-    # BasisInterpolator needs to be initialized before solving.
+    # BasisInterp needs to be initialized before solving.
     interp.initialize(stars)
 
     oldchi = 0.
@@ -522,8 +521,7 @@ def do_undersamp_drift(fit_centers=False):
     s0 = mod.makeStar(s0)
 
     # Interpolator will be linear ??
-    basis = piff.PolyBasis(1)
-    interp = piff.BasisInterpolator(basis, s0)
+    interp = piff.BasisPolynomialInterp(1)
 
     # Draw stars on a 2d grid of "focal plane" with 0<=u,v<=1
     positions = np.linspace(0.,1.,8)
@@ -545,7 +543,7 @@ def do_undersamp_drift(fit_centers=False):
             ###print("phase:",phase2,'flux',s.fit.flux)###
             stars.append(s)
 
-    # BasisInterpolator needs to be initialized before solving.
+    # BasisInterp needs to be initialized before solving.
     interp.initialize(stars)
 
     oldchi = 0.

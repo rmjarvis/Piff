@@ -21,7 +21,7 @@ from .interp import Interp
 from .starfit import Star
 import numpy
 
-class BasisInterpolator(Interp):
+class BasisInterp(Interp):
     """An Interp class that works whenever the interpolating functions are
     linear sums of basis functions.  Does things the "slow way" to be stable to
     degenerate fits to individual stars, instead of fitting to parameter sets
@@ -32,41 +32,20 @@ class BasisInterpolator(Interp):
     focal plane,
     p_i = \sum_{j} q_{ij} K_j(u,v,other stellar params).
 
-    The _basis_ argument to the constructor is an object that will return the vector
-    K when given the StarData as a function argument. It should also have a method
-    basis.constant(c) which returns the coefficient vector that generates a constant
-    value c across the focal plane (which will be used for initialization of the q
-    vector), and a basis.getKeys() method that extracts the vector of quantities
-    used as inputs to the basis functions.
-
     The property degenerate_points is set to True to indicate that this interpolator
     uses the alpha/beta quadratic form of chisq for each sample, rather than assuming
     that a best-fit parameter vector is available at every sample.
-    
+
     Internally we'll store the interpolation coefficients in a 2d array of dimensions
     (nparams, nbases)
-    """
 
-    def __init__(self, basis, logger=None):
-        """Initialize a new linear interpolator.
-        :param basis:   An object which returns values of the basis functions for
-        a specified star.
-        """
-        self._basis = basis
+    Note: This is an abstract base class.  The concrete class you probably want to use
+    is BasisPolynomial.
+    """
+    def __init__(self):
         self.degenerate_points = True  # This Interpolator uses chisq quadratic forms
         self.q = None
 
-    def getKeys(self, sdata):
-        """Extract the quantities to use as interpolation keys for a particular star's data.
-        Obtains this from the Basis object.
-
-        :param sdata:        A StarData instances from which to extract the properties used
-                             for interpolation.
-
-        :returns:            A numpy vector of these properties.
-        """
-        return self._basis.getKeys(sdata)
-        
     def initialize(self, star_list, logger=None):
         """Initialize the interpolator prefatory to any solve iterations.
         This class will initialize everything
@@ -79,8 +58,8 @@ class BasisInterpolator(Interp):
         """
 
         c = star_list[0].fit.params.copy()
-        self.q = c[:,numpy.newaxis] * self._basis.constant(1.)[numpy.newaxis,:]
-    
+        self.q = c[:,numpy.newaxis] * self.constant(1.)[numpy.newaxis,:]
+
     def solve(self, star_list, logger=None):
         """Solve for the interpolation coefficients given some data.
         The StarFit element of each Star in the list is assumed to hold valid
@@ -92,15 +71,15 @@ class BasisInterpolator(Interp):
         """
 
         if self.q is None:
-            raise RuntimeError("Attempt to solve() before initialize() of BasisInterpolator")
+            raise RuntimeError("Attempt to solve() before initialize() of BasisInterp")
 
         # Empty A and B
         A = numpy.zeros( self.q.shape+self.q.shape, dtype=float)
         B = numpy.zeros_like(self.q)
-        
+
         for s in star_list:
             # Get the basis function values at this star
-            K = self._basis(s.data)
+            K = self.basis(s.data)
             # Sum contributions into A, B
             B += s.fit.beta[:,numpy.newaxis] * K
             tmp = s.fit.alpha[:,:,numpy.newaxis] * K
@@ -125,35 +104,37 @@ class BasisInterpolator(Interp):
         :returns: a new Star instance with its StarFit member holding the interpolated parameters
         """
         if self.q is None:
-            raise RuntimeError("Attempt to interpolate() before initialize() of BasisInterpolator")
+            raise RuntimeError("Attempt to interpolate() before initialize() of BasisInterp")
 
-        K = self._basis(star.data)
+        K = self.basis(star.data)
         p = numpy.dot(self.q,K)
         return Star(star.data, star.fit.newParams(p))
 
 
-class PolyBasis(object):
-    """A class to generate polynomials bases for LinearInterpolator.
+class BasisPolynomialInterp(BasisInterp):
+    """A version of the Polynomial interpolator that works with BasisModels and can use the
+    quadratic form of the chisq information it calculates.  It works better than the regular
+    Polynomial interpolator when there is missing or degenerate information.
+
     All combinations of powers of keys that have total order <=maxorder
     are used.  Maximum orders for each key can be specified.  Ranges
     for each key can be given which are rescaled into the [-1,1] interval that
     will help keep polynomial arguments at O(1).
+
+    :param maxorder:    maximum sum of orders of all keys
+    :param keys:        array of keys for StarData properties that will be used as the
+                        polynomial arguments.  Defaults to using focal plane position (u,v)
+    :param orders:      Maximum allowed order for each key.  Can be a single value (applied
+                        to all keys) or an array matching number of keys.  Each value is
+                        either a non-negative integer, or None, which will default to maxorder.
+    :param ranges:      Range to be linearly remapped to [-1,1] interval before calculating
+                        polynomials.  Can be a single tuple (which will be used for all dimensions)
+                        or an array with a tuple for each key.  Any value of None will default
+                        to range=(-1,1), i.e. no rescaling.
     """
-
     def __init__(self, maxorder, keys=('u','v'), orders=None, ranges=None):
-        """Set up a polynomial basis function calculator.
+        super(BasisPolynomialInterp, self).__init__()
 
-        :param maxorder: maximum sum of orders of all keys
-        :param keys:     array of keys for StarData properties that will be used as the
-                         polynomial arguments.  Defaults to using focal plane position (u,v)
-        :param orders:   Maximum allowed order for each key.  Can be a single value (applied
-                         to all keys) or an array matching number of keys.  Each value is
-                         either a non-negative integer, or None, which will default to maxorder.
-        :param ranges:   Range to be linearly remapped to [-1,1] interval before calculating
-                         polynomials.  Can be a single tuple (which will be used for all dimensions)
-                         or an array with a tuple for each key.  Any value of None will default
-                         to range=(-1,1), i.e. no rescaling.
-        """
         self._maxorder = maxorder
         self._keys = keys
         if orders is None:
@@ -203,13 +184,14 @@ class PolyBasis(object):
             else:
                 left.append(r[0])
                 right.append(r[1])
+
         self._center = (numpy.array(right)+numpy.array(left))/2.
         self._scale =  (numpy.array(right)-numpy.array(left))/2.
-                    
+
     def getKeys(self,sdata):
         return numpy.array([sdata[k] for k in self._keys], dtype=float)
-    
-    def __call__(self,sdata):
+
+    def basis(self,sdata):
         """Return 1d array of polynomial basis values for this star
 
         :param sdata:  A StarData instance
@@ -238,3 +220,4 @@ class PolyBasis(object):
         out = numpy.zeros( numpy.count_nonzero(self._mask), dtype=float)
         out[0] = c  # The constant term is always first.
         return out
+

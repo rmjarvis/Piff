@@ -79,7 +79,7 @@ from .gaussian_model import Gaussian
 
 # Interpolators
 from .interp import Interp, process_interp
-from .basis_interp import BasisInterpolator, PolyBasis
+from .basis_interp import BasisInterp, BasisPolynomialInterp
 
 from .mean_interp import Mean
 from .polynomial_interp import Polynomial, polynomial_types
