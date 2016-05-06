@@ -1,0 +1,23 @@
+A complete DES focal plane from Y1 observations is available at 
+
+http://www.cosmo.bnl.gov/Private/gpfs/workarea/mjarvis/y1_test.tar.gz
+
+We include in the repo a single CCD from this image that we use for testing.
+
+The image is
+
+    DECam_00241238_01.fits.fz 
+
+The catalog with the stars after a series of cuts is
+    
+    DECam_00241238_01_psfcat_tb_maxmag_17.0_magcut_3.0_findstars.fits
+
+In the DES Y1 analaysis, this was the input file for PSFEx, and the output PSFEx file
+is given here as
+
+    DECam_00241238_01_psfcat.psf
+
+And its estimation of which input stars are not outliers is
+
+    DECam_00241238_01_psfcat.used.fits
+
