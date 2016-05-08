@@ -1,12 +1,25 @@
+# Copyright (c) 2016 by Mike Jarvis and the other collaborators on GitHub at
+# https://github.com/rmjarvis/Piff  All rights reserved.
+#
+# Piff is free software: Redistribution and use in source and binary forms
+# with or without modification, are permitted provided that the following
+# conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice, this
+#    list of conditions and the disclaimer given in the accompanying LICENSE
+#    file.
+# 2. Redistributions in binary form must reproduce the above copyright notice,
+#    this list of conditions and the disclaimer given in the documentation
+#    and/or other materials provided with the distribution.
+
 # Test routines for the pixellated Piff PSF model
 """
-Program to fit a set of stars in a FITS image using stars
-listed in a FITS table.
+Program to fit a set of stars in a FITS image using stars listed in a FITS table.
 """
 
 import numpy as np
-import galsim as gs
-import astropy.io.fits as pf
+import galsim
+import astropy.io.fits as pyfits
 import piff
 
 import logging
@@ -40,26 +53,26 @@ def stardata_from_fits(hdu_list, xysky, stamp_radius=25, badmask=0x7FFF,
                 msk_extn = i
         except KeyError:
             pass
-            
+
     # ??? Errors if extensions are <0
     def fatal(msg,logger):
         if logger:
             logger_error(msg)
         print(msg)
         sys.exit(1)
-        
+
     if sci_extn<0:
         fatal('Cannot find IMAGE extension of FITS file')
     if msk_extn<0:
         fatal('Cannot find MASK extension of FITS file')
     if wgt_extn<0:
         fatal('Cannot find WEIGHT extension of FITS file')
-    
-    sci = gs.fits.read(hdu_list=hdu_list[sci_extn], compression='rice')
-    wgt = gs.fits.read(hdu_list=hdu_list[wgt_extn], compression='rice')
-    msk = gs.fits.read(hdu_list=hdu_list[msk_extn], compression='rice')
+
+    sci = galsim.fits.read(hdu_list=hdu_list[sci_extn], compression='rice')
+    wgt = galsim.fits.read(hdu_list=hdu_list[wgt_extn], compression='rice')
+    msk = galsim.fits.read(hdu_list=hdu_list[msk_extn], compression='rice')
     hdr = hdu_list[sci_extn].header
-    
+
     # Null weights using mask bits
     good = np.bitwise_and(msk.array, badmask)==0
     wgt *= np.where(good, 1., 0.)
@@ -73,9 +86,9 @@ def stardata_from_fits(hdu_list, xysky, stamp_radius=25, badmask=0x7FFF,
         props['gain'] = hdr['GAINA']
 
     # Get exposure pointing from header
-    ra = gs.Angle(hdr['CRVAL1'],gs.degrees)
-    dec = gs.Angle(hdr['CRVAL2'],gs.degrees)
-    pointing = gs.CelestialCoord(ra,dec)
+    ra = galsim.Angle(hdr['CRVAL1'],galsim.degrees)
+    dec = galsim.Angle(hdr['CRVAL2'],galsim.degrees)
+    pointing = galsim.CelestialCoord(ra,dec)
 
     # Now iterate through all stars
     stardata = []
@@ -86,7 +99,7 @@ def stardata_from_fits(hdu_list, xysky, stamp_radius=25, badmask=0x7FFF,
         xmax = min(x0+stamp_radius, sci.bounds.xmax)
         ymin = max(y0-stamp_radius, sci.bounds.ymin)
         ymax = min(y0+stamp_radius, sci.bounds.ymax)
-        b = gs.BoundsI(xmin,xmax,ymin,ymax)
+        b = galsim.BoundsI(xmin,xmax,ymin,ymax)
 
         # Subtract sky counts, get data & weight
         stamp = sci[b] - sky
@@ -99,14 +112,14 @@ def stardata_from_fits(hdu_list, xysky, stamp_radius=25, badmask=0x7FFF,
             continue
         # Create StarData
         stardata.append(piff.StarData(stamp,
-                                image_pos=gs.PositionD(x,y),
+                                image_pos=galsim.PositionD(x,y),
                                 weight=weight,
                                 pointing=pointing,
                                 properties=props.copy()))
     return stardata
 
-    
-def fit_des(imagefile, catfile, order=2):
+
+def fit_des(imagefile, catfile, order=2, logger=None):
     """
     Fit polynomial interpolated pixelized PSF to a DES image,
     using the stars in a catalog.  For a single CCD.
@@ -117,31 +130,31 @@ def fit_des(imagefile, catfile, order=2):
     :returns:          Completed PSF instance.
     """
 
-    logger = logging.getLogger('PSF')
-    logging.basicConfig(level=logging.DEBUG)
-    
     model_scale = 0.15 # arcsec per sample in PSF model
     model_rad =   20   # "radius" of PSF model box, in samples
     model_start_sigma = 1.0/2.38  # sigma of Gaussian to use for starting guess
 
 
     # Get the stellar images
-    logger.info("Opening FITS images")
-    ff = pf.open(imagefile)
-    cat = pf.getdata(catfile,2)  # ??? hard-wired extension right now
+    if logger:
+        logger.info("Opening FITS images")
+    ff = pyfits.open(imagefile)
+    cat = pyfits.getdata(catfile,2)  # ??? hard-wired extension right now
     # ??? make object cuts here!
     xysky = zip(cat['XWIN_IMAGE'],cat['YWIN_IMAGE'],cat['BACKGROUND'])
 
-    logger.info("Creating %d StarDatas",len(xysky))
+    if logger:
+        logger.info("Creating %d StarDatas",len(xysky))
     original = stardata_from_fits(ff, xysky)
 
-    logger.info("...Done making StarData")
+    if logger:
+        logger.info("...Done making StarData")
 
     # Add shot noise to data
     data = [s.addPoisson() for s in original]
 
     # Make model, force PSF centering
-    model = piff.PixelModel(du=model_scale, n_side = 2*model_rad+1, interp=piff.Lanczos(3),
+    model = piff.PixelModel(scale=model_scale, size=2*model_rad+1, interp=piff.Lanczos(3),
                             force_model_center=True, start_sigma = model_start_sigma,
                             logger=logger)
     # Interpolator will be zero-order polynomial.
@@ -149,17 +162,17 @@ def fit_des(imagefile, catfile, order=2):
     u = [s['u'] for s in data]
     v = [s['v'] for s in data]
     uvrange = ( (np.min(u),np.max(u)), (np.min(v),np.max(v)) )
-    basis = piff.PolyBasis(order, ranges=uvrange)
-    interp = piff.BasisInterpolator(basis=basis, logger=logger)
+    interp = piff.BasisPolynomial(order, ranges=uvrange, logger=logger)
 
-    
+
     # Make a psf
-    logger.info("Building PSF")
+    if logger:
+        logger.info("Building PSF")
     psf = piff.PSF.build(data, model, interp, logger=logger)
 
     # ??? Do a "refinement" run with the model used to generate
     # the Poisson noise instead of the signal.
-    
+
     return psf
 
 def subtract_stars(img, psf):
@@ -175,3 +188,24 @@ def subtract_stars(img, psf):
         img[fitted.data.image.bounds] -= fitted.data.image
     return img
 
+def main():
+
+    logger = piff.config.setup_logger(3)
+
+    image_file = 'y1_test/DECam_00241238_01.fits.fz'
+    cat_file = 'y1_test/DECam_00241238_01_psfcat_tb_maxmag_17.0_magcut_3.0_findstars.fits'
+    out_file = 'output/no_stars.fits.fz'
+
+    psf = fit_des(image_file, cat_file, order=2, logger=logger)
+
+    orig_image = galsim.fits.read(image_file)
+    no_stars_img = subtract_stars(orig_image, psf)
+    no_stars_img.write(out_file)
+
+    cmd = 'ds9 -zscale -zoom 0.5 %s %s -blink interval 1 -blink'%(image_file,out_file)
+    logger.warn('To open this in ds9, blinking the stars on and off, execute the command:')
+    logger.warn('\n%s\n',cmd)
+
+
+if __name__ == '__main__':
+    main()
