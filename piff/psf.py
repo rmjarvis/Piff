@@ -80,7 +80,7 @@ class PSF(object):
         """
 
         import numpy
-        
+
         if logger:
             logger.debug("Making Star structures")
         self.stars = [self.model.makeStar(s, mask=True) for s in data]  #?? mask optional?
@@ -138,12 +138,13 @@ class PSF(object):
             # ??? This is where we should do some outlier rejection.
 
             # ??? Very simple convergence test here:
-            if oldchisq>0 and numpy.abs(oldchisq-chisq) < chisq_threshold*dof:
+            # Note, the lack of abs here means if chisq increases, we also stop.
+            if oldchisq>0 and oldchisq-chisq < chisq_threshold*dof:
                 break
             if logger and iteration+1 >= max_iterations:
                 logger.warning('PSF fit did not converge')
             oldchisq = chisq
-        
+
     def draw(self, data, flux=1., center=(0.,0.), logger=None):
         """Generates PSF image from interpolated model
 
