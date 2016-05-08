@@ -252,7 +252,7 @@ def test_missing():
         # Interpolator will be simple mean
         interp = piff.Polynomial(order=0)
 
-        oldchi = 0.
+        oldchisq = 0.
         # Iterate solution using interpolator
         for iteration in range(40):
             # Refit PSFs star by star:
@@ -272,10 +272,10 @@ def test_missing():
                 stars[i] = s
                 ###print('   chisq=',s.fit.chisq, 'dof=',s.fit.dof)
             print('iteration',iteration,'chisq=',chisq, 'dof=',dof)
-            if oldchi>0 and chisq<oldchi and oldchi-chisq < dof/10.:
+            if oldchisq>0 and chisq<oldchisq and oldchisq-chisq < dof/10.:
                 break
             else:
-                oldchi = chisq
+                oldchisq = chisq
 
         # Now use the interpolator to produce a noiseless rendering
         s1 = interp.interpolate(s0)
@@ -321,7 +321,7 @@ def test_gradient():
     s0 = make_gaussian_data(1.0, 0., 0., influx, du=0.5)
     s0 = mod.makeStar(s0)
 
-    oldchi = 0.
+    oldchisq = 0.
     # Iterate solution using interpolator
     for iteration in range(40):
         # Refit PSFs star by star:
@@ -341,10 +341,10 @@ def test_gradient():
             stars[i] = s
             ###print('   chisq=',s.fit.chisq, 'dof=',s.fit.dof)
         print('iteration',iteration,'chisq=',chisq, 'dof=',dof)
-        if oldchi>0 and np.abs(oldchi-chisq) < dof/10.:
+        if oldchisq>0 and np.abs(oldchisq-chisq) < dof/10.:
             break
         else:
-            oldchi = chisq
+            oldchisq = chisq
 
     # Now use the interpolator to produce a noiseless rendering
     s1 = interp.interpolate(s0)
@@ -397,7 +397,7 @@ def test_undersamp():
     s0 = make_gaussian_data(1.0, 0., 0., influx, du=0.5)
     s0 = mod.makeStar(s0)
 
-    oldchi = 0.
+    oldchisq = 0.
     # Iterate solution using interpolator
     for iteration in range(1): ###
         # Refit PSFs star by star:
@@ -416,10 +416,10 @@ def test_undersamp():
             stars[i] = s
             print('   chisq=',s.fit.chisq, 'dof=',s.fit.dof, 'flux=',s.fit.flux)
         print('iteration',iteration,'chisq=',chisq, 'dof=',dof)
-        if oldchi>0 and np.abs(oldchi-chisq) < dof/10.:
+        if oldchisq>0 and np.abs(oldchisq-chisq) < dof/10.:
             break
         else:
-            oldchi = chisq
+            oldchisq = chisq
 
     # Now use the interpolator to produce a noiseless rendering
     s1 = interp.interpolate(s0)
@@ -476,7 +476,7 @@ def test_undersamp_shift():
     # BasisInterp needs to be initialized before solving.
     interp.initialize(stars)
 
-    oldchi = 0.
+    oldchisq = 0.
     # Iterate solution using mean of chisq
     for iteration in range(10):
         # Refit PSFs star by star:
@@ -488,10 +488,10 @@ def test_undersamp_shift():
         chisq = np.sum([s.fit.chisq for s in stars])
         dof   = np.sum([s.fit.dof for s in stars])
         print('iteration',iteration,'chisq=',chisq, 'dof=',dof)
-        if oldchi>0 and np.abs(oldchi-chisq) < dof/10.:
+        if oldchisq>0 and np.abs(oldchisq-chisq) < dof/10.:
             break
         else:
-            oldchi = chisq
+            oldchisq = chisq
 
     # Now use the interpolator to produce a noiseless rendering
     s1 = interp.interpolate(s0)
@@ -552,7 +552,7 @@ def do_undersamp_drift(fit_centers=False):
     # BasisInterp needs to be initialized before solving.
     interp.initialize(stars)
 
-    oldchi = 0.
+    oldchisq = 0.
     # Iterate solution using mean of chisq
     for iteration in range(20):
         # Refit PSFs star by star:
@@ -564,10 +564,10 @@ def do_undersamp_drift(fit_centers=False):
         chisq = np.sum([s.fit.chisq for s in stars])
         dof   = np.sum([s.fit.dof for s in stars])
         print('iteration',iteration,'chisq=',chisq, 'dof=',dof)
-        if oldchi>0 and np.abs(oldchi-chisq) < dof/10.:
+        if oldchisq>0 and np.abs(oldchisq-chisq) < dof/10.:
             break
         else:
-            oldchi = chisq
+            oldchisq = chisq
 
     # Now use the interpolator to produce a noiseless rendering
     s1 = interp.interpolate(s0)

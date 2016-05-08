@@ -70,11 +70,12 @@ class PSF(object):
             logger.debug("Done building PSF")
         return psf
 
-    def fit(self, data, chisq_threshold=1., logger=None):
+    def fit(self, data, chisq_threshold=0.1, logger=None):
         """Fit interpolated PSF model to data using standard sequence of operations.
 
         :param data:     List of StarData instances holding images to be fit.
-        :param chisq_threshold:  Change in chisq at which iteration will terminate.
+        :param chisq_threshold:  Change in reduced chisq at which iteration will terminate.
+                         [default: 0.1]
         :param logger:   A logger object for logging debug info. [default: None]
         """
 
@@ -108,7 +109,7 @@ class PSF(object):
         # now we just check if we have all the required parts to use the quadratic form
         quadratic_chisq = hasattr(self.model, 'chisq') and self.interp.degenerate_points
 
-        oldchi = 0.
+        oldchisq = 0.
         for iteration in range(max_iterations):
             if logger:
                 logger.debug("Fitting stars, iteration %d", iteration)
@@ -137,11 +138,11 @@ class PSF(object):
             # ??? This is where we should do some outlier rejection.
 
             # ??? Very simple convergence test here:
-            if oldchi>0 and numpy.abs(oldchi-chisq) < chisq_threshold:
+            if oldchisq>0 and numpy.abs(oldchisq-chisq) < chisq_threshold*dof:
                 break
             if logger and iteration+1 >= max_iterations:
                 logger.warning('PSF fit did not converge')
-            oldchi = chisq
+            oldchisq = chisq
         
     def draw(self, data, flux=1., center=(0.,0.), logger=None):
         """Generates PSF image from interpolated model
@@ -154,7 +155,7 @@ class PSF(object):
                             to data.image_pos [default: (0.,0.)]
         :param logger:      A logger object for logging debug info. [default: None]
 
-        :returns:           StarData instance with its image filled with rendered star
+        :returns:           Star instance with its image filled with rendered star
         """
 
         # Make a Star structure
