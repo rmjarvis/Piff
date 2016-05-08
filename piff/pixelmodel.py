@@ -46,38 +46,40 @@ class PixelModel(Model):
     access them via 1d arrays.
 
     """
-
-    def __init__(self, du, n_side, interp, mask=None, start_sigma=1.,
+    def __init__(self, scale, size, interp=None, mask=None, start_sigma=1.,
                  force_model_center=False, degenerate=True,
                  logger=None):
         """Constructor for PixelModel defines the PSF pitch, size, and interpolator.
 
-        If a mask array is given, it defines the size of the modeled pixel, otherwise
-        a square of side n_side is taken.  The origin of PSF is always placed
-        at pixel [shape/2].
-
-        :param du: PSF model grid pitch (in uv units)
-        :param n_side: number of PSF model points on each side of square array
-        :param interp: an Interpolator to be used
-        :param mask: optional square boolean 2d array, True where we want a non-zero value
-        :param start_sigma: sigma of a 2d Gaussian installed as 1st guess for all stars (1.)
+        :param scale:       Pixel scale of the PSF model (in arcsec)
+        :param size:        Number of pixels on each side of square grid.
+        :param interp:      An Interpolator to be used [default: Lanczos(3)]
+        :param mask:        Optional square boolean 2d array, True where we want a non-zero value
+                            [default: None]
+        :param start_sigma: sigma of a 2d Gaussian installed as 1st guess for all stars
+                            [default: 1.]
         :param force_model_center: If True, PSF model centroid is fixed at origin and
+                            PSF fitting will marginalize over stellar position.  If False, stellar
+                            position is fixed at input value and the fitted PSF may be off-center.
+                            [default: False]
         :param degenerate:  Is it possible that individual stars give degenerate PSF sol'n?
-               Default is True; if you give False, runs faster but fails on degeneracies.
-        PSF fitting will marginalize over stellar position.  If False, stellar position is
-        fixed at input value and the fitted PSF may be off-center.
+                            If False, it runs faster, but fails on degeneracies. [default: True]
+        :param logger:      A logger object for logging debug info. [default: None]
         """
-        self.du = du
+        self.du = scale
         self.pixel_area = self.du*self.du
+        if interp is None: interp = Lanczos(3)
         self.interp = interp
         self._force_model_center = force_model_center
         self._degenerate = degenerate
 
         if mask is None:
-            if n_side <= 0:
-                raise AttributeError("Non-positive PixelModel size {:d}".format(n_side))
-            self._mask = np.ones( (n_side,n_side), dtype=bool)
+            if size <= 0:
+                raise ValueError("Non-positive PixelModel size {:d}".format(size))
+            self._mask = np.ones( (size,size), dtype=bool)
         else:
+            if mask.shape != (size,size):
+                raise ValueError("Shape of input mask does not match size {:d}".format(size))
             self._mask = mask
 
         self.ny, self.nx = self._mask.shape
@@ -98,13 +100,13 @@ class PixelModel(Model):
         self._indices = np.where( self._mask, self._constraints, -1)
         self._origin = (self.ny/2, self.nx/2)
         if not self._mask[self._origin]:
-            raise AttributeError("Not happy with central PSF pixel being masked")
+            raise ValueError("Not happy with central PSF pixel being masked")
         self._indices[self._origin] = 0    # Central pixel for flux constraint
         if self._force_model_center:
             u1 = (self._origin[0]+1, self._origin[1])
             v1 = (self._origin[0],   self._origin[1]+1)
             if not (self._mask[u1] and self._mask[v1]):
-                raise AttributeError("Not happy with near-central PSF pixels being masked")
+                raise ValueError("Not happy with near-central PSF pixels being masked")
             self._indices[u1] = 1
             self._indices[v1] = 2
         free_param = self._indices >= self._constraints
@@ -205,7 +207,7 @@ class PixelModel(Model):
         """
 
         if not psfx.shape==psfy.shape:
-            raise TypeError("psfx and psfy arrays are not same shape")
+            raise ValueError("psfx and psfy arrays are not same shape")
 
         # First, shift psfy, psfx to reference a 0-indexed array
         y = psfy + self._origin[0]
