@@ -70,6 +70,11 @@ class Polynomial(Interp):
         self._set_function(poly_type)
         self.coeffs = None
 
+        self.kwargs = {
+            'order' : order,
+            'poly_type' : poly_type
+        }
+
     def _setup_indices(self, nparam):
         """An internal function that sets up the indices, given the number of parameters
         """
@@ -297,7 +302,7 @@ class Polynomial(Interp):
         self.coeffs = coeffs
 
     def writeSolution(self, fits, extname):
-        """Read the solution from a FITS binary table.
+        """Write the solution to a FITS binary table.
 
         We save two columns for the exponents and one column
         of coefficients for each parameter.

@@ -586,6 +586,121 @@ def test_undersamp_drift():
     do_undersamp_drift(True)
     do_undersamp_drift(False)
 
+def test_simple_image():
+    """Test the whole process with a single image.
+
+    Note: This test is based heavily on test_single_image in test_simple.py.
+    """
+    import os
+    import fitsio
+    np.random.seed(1234)
+
+    # Make the image
+    image = galsim.Image(2048, 2048, scale=0.2)
+
+    # The (x,y) values will be on a grid 10 x 10 stars with a random sub-pixel offset.
+    xvals = np.linspace(50., 1950., 10)
+    yvals = np.linspace(50., 1950., 10)
+    x_list, y_list = np.meshgrid(xvals, yvals)
+    x_list = x_list.flatten()
+    y_list = y_list.flatten()
+    x_list = x_list + (np.random.rand(len(x_list)) - 0.5)
+    y_list = y_list + (np.random.rand(len(x_list)) - 0.5)
+    print('x_list = ',x_list)
+    print('y_list = ',y_list)
+    # Range of fluxes from 100 to 15000
+    flux_list = 100. * np.exp(5. * np.random.rand(len(x_list)))
+    print('fluxes range from ',np.min(flux_list),np.max(flux_list))
+
+    # Draw a Moffat PSF at each location on the image.
+    # Have the truth values vary quadratically across the image.
+    beta_fn = lambda x,y: 3.5 - 0.1*(x/1000) + 0.08*(y/1000)**2
+    fwhm_fn = lambda x,y: 0.9 + 0.05*(x/1000) - 0.03*(y/1000) + 0.02*(x/1000)*(y/1000)
+    e1_fn = lambda x,y: 0.02 - 0.01*(x/1000)
+    e2_fn = lambda x,y: -0.03 + 0.02*(x/1000)**2 - 0.01*(y/1000)*2
+    #beta_fn = lambda x,y: 3.5
+    #fwhm_fn = lambda x,y: 0.9
+    #e1_fn = lambda x,y: 0.02
+    #e2_fn = lambda x,y: -0.03
+
+    for x,y,flux in zip(x_list, y_list, flux_list):
+        beta = beta_fn(x,y)
+        fwhm = fwhm_fn(x,y)
+        e1 = e1_fn(x,y)
+        e2 = e2_fn(x,y)
+        print(x,y,beta,fwhm,e1,e2)
+        moffat = galsim.Moffat(fwhm=fwhm, beta=beta, flux=flux).shear(e1=e1, e2=e2)
+        bounds = galsim.BoundsI(int(x-31), int(x+32), int(y-31), int(y+32))
+        offset = galsim.PositionD( x-int(x)-0.5 , y-int(y)-0.5 )
+        moffat.drawImage(image=image[bounds], offset=offset, method='no_pixel')
+    print('drew image')
+
+    # Write out the image to a file
+    image_file = os.path.join('data','pixel_simple_image.fits')
+    image.write(image_file)
+    print('wrote image')
+
+    # Write out the catalog to a file
+    dtype = [ ('x','f8'), ('y','f8') ]
+    data = np.empty(len(x_list), dtype=dtype)
+    data['x'] = x_list
+    data['y'] = y_list
+    cat_file = os.path.join('data','pixel_simple_cat.fits')
+    fitsio.write(cat_file, data, clobber=True)
+    print('wrote catalog')
+
+    # Use InputFiles to read these back in
+    input = piff.InputFiles(image_file, cat_file, stamp_size=32)
+    assert input.image_files == [ image_file ]
+    assert input.cat_files == [ cat_file ]
+    assert input.x_col == 'x'
+    assert input.y_col == 'y'
+
+    # Check image
+    input.readImages()
+    assert len(input.images) == 1
+    np.testing.assert_equal(input.images[0].array, image.array)
+
+    # Check catalog
+    input.readStarCatalogs()
+    assert len(input.cats) == 1
+    np.testing.assert_equal(input.cats[0]['x'], x_list)
+    np.testing.assert_equal(input.cats[0]['y'], y_list)
+
+    # Make star data
+    orig_stardata = input.makeStarData()
+    assert len(orig_stardata) == len(x_list)
+    assert orig_stardata[0].image.array.shape == (32,32)
+
+    # Process the star data
+    model = piff.PixelModel(0.2, 32, start_sigma=0.9/2.355)
+    interp = piff.BasisPolynomial(order=2)
+    logger = piff.config.setup_logger(2)
+    psf = piff.PSF.build(orig_stardata, model, interp, logger=logger)
+
+    # Check that the interpolation is what it should be
+    x0 = 1024  # Some random position, not where a star was originally.
+    y0 = 133
+    target_data = piff.StarData.makeTarget(x=x0, y=y0, scale=image.scale)
+    target = model.makeStar(target_data, flux=1.0)
+    test_star = psf.draw(target.data, flux=1.)
+
+    beta = beta_fn(x0,y0)
+    fwhm = fwhm_fn(x0,y0)
+    e1 = e1_fn(x0,y0)
+    e2 = e2_fn(x0,y0)
+    moffat = galsim.Moffat(fwhm=fwhm, beta=beta).shear(e1=e1, e2=e2)
+    test_im = galsim.ImageD(bounds=target_data.image.bounds, scale=image.scale)
+    moffat.drawImage(image=test_im, method='no_pixel', use_true_center=False)
+    b = galsim.BoundsI(x0-3,x0+3,y0-3,y0+3)
+    print('test_im center = ',test_im[b].array)
+    print('flux = ',test_im.array.sum())
+    print('interp_im center = ',test_star.data.image[b].array)
+    print('flux = ',test_star.data.image.array.sum())
+    print('max diff = ',np.max(np.abs(test_star.data.image.array-test_im.array)))
+    np.testing.assert_almost_equal(test_star.data.image.array, test_im.array, decimal=4)
+
+
 if __name__ == '__main__':
     #import cProfile, pstats
     #pr = cProfile.Profile()
@@ -599,6 +714,7 @@ if __name__ == '__main__':
     test_undersamp()
     test_undersamp_shift()
     test_undersamp_drift()
+    test_simple_image()
     #pr.disable()
     #ps = pstats.Stats(pr).sort_stats('tottime').reverse_order()
     #ps.print_stats()

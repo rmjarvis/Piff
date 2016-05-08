@@ -96,11 +96,11 @@ class StarData(object):
         self.local_wcs = image.wcs.local(image_pos)
 
         if weight is None:
-            self.weight = galsim.Image(image.bounds, init_value=1, wcs=image.wcs)
-        elif type(weight) is float:
-            self.weight = galsim.Image(image.bounds, init_value=weight, wcs=image.wcs)
+            self.weight = galsim.Image(image.bounds, init_value=1, wcs=image.wcs, dtype=float)
+        elif type(weight) in [int, float]:
+            self.weight = galsim.Image(image.bounds, init_value=weight, wcs=image.wcs, dtype=float)
         else:
-            self.weight = weight
+            self.weight = galsim.Image(weight, dtype=float)
 
         if properties is None:
             self.properties = {}
@@ -198,7 +198,7 @@ class StarData(object):
         image.setCenter(int(x+0.5), int(y+0.5))
         image.wcs = wcs
 
-        # Build the StarDat instance
+        # Build the StarData instance
         return cls(image, image_pos, properties=properties)
 
 

@@ -49,14 +49,16 @@ class Mean(Interp):
 
         :returns: a new Star instance with its StarFit member holding the interpolated parameters
         """
-        if star.fit is None:
+        if self.mean is None:
+            return star
+        elif star.fit is None:
             fit = StarFit(self.mean)
         else:
             fit = star.fit.newParams(self.mean)
         return Star(star.data, fit)
 
     def writeSolution(self, fits, extname):
-        """Read the solution from a FITS binary table.
+        """Write the solution to a FITS binary table.
 
         :param fits:        An open fitsio.FITS object.
         :param extname:     The name of the extension with the interpolator information.

@@ -73,6 +73,16 @@ class PixelModel(Model):
         self._force_model_center = force_model_center
         self._degenerate = degenerate
 
+        # These are the kwargs that can be serialized easily.
+        # TODO: Add interp to this, so it can be specified in the yaml file and read/written.
+        self.kwargs = {
+            'scale' : scale,
+            'size' : size,
+            'start_sigma'
+            'force_model_center' : force_model_center,
+            'degenerate' : degenerate
+        }
+
         if mask is None:
             if size <= 0:
                 raise ValueError("Non-positive PixelModel size {:d}".format(size))

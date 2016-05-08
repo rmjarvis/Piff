@@ -18,7 +18,7 @@
 
 from __future__ import print_function
 from .interp import Interp
-from .starfit import Star
+from .starfit import Star, StarFit
 import numpy
 
 class BasisInterp(Interp):
@@ -79,7 +79,7 @@ class BasisInterp(Interp):
 
         for s in star_list:
             # Get the basis function values at this star
-            K = self.basis(s.data)
+            K = self.basis(s)
             # Sum contributions into A, B
             B += s.fit.beta[:,numpy.newaxis] * K
             tmp = s.fit.alpha[:,:,numpy.newaxis] * K
@@ -106,9 +106,13 @@ class BasisInterp(Interp):
         if self.q is None:
             raise RuntimeError("Attempt to interpolate() before initialize() of BasisInterp")
 
-        K = self.basis(star.data)
+        K = self.basis(star)
         p = numpy.dot(self.q,K)
-        return Star(star.data, star.fit.newParams(p))
+        if star.fit is None:
+            fit = StarFit(p)
+        else:
+            fit = star.fit.newParams(p)
+        return Star(star.data, fit)
 
 
 class BasisPolynomial(BasisInterp):
@@ -158,6 +162,12 @@ class BasisPolynomial(BasisInterp):
             # Exception if we have any requests for negative orders
             raise ValueError('Negative polynomial order specified')
 
+        # TODO: Need to update the Interp write command to handle lists.
+        #       Or write a custom BasisPolynomial.write function.
+        self.kwargs = {
+            'order' : order,
+        }
+
         # Now build a mask that picks the desired polynomial products
         # Start with 1d arrays giving orders in all dimensions
         ord_ranges = [numpy.arange(order+1,dtype=int) for order in self._orders]
@@ -191,18 +201,18 @@ class BasisPolynomial(BasisInterp):
         self._center = (numpy.array(right)+numpy.array(left))/2.
         self._scale =  (numpy.array(right)-numpy.array(left))/2.
 
-    def getKeys(self,sdata):
-        return numpy.array([sdata[k] for k in self._keys], dtype=float)
+    def getProperties(self, star):
+        return numpy.array([star.data[k] for k in self._keys], dtype=float)
 
-    def basis(self,sdata):
+    def basis(self,star):
         """Return 1d array of polynomial basis values for this star
 
-        :param sdata:  A StarData instance
+        :param star:   A Star instance
 
         :returns:      1d numpy array with values of u^i v^j for 0<i+j<=order
         """
         # Get the interpolation key values
-        vals = self.getKeys(sdata)
+        vals = self.getProperties(star)
         # Rescale to nominal (-1,1) interval
         vals = self._scale * (vals-self._center)
         # Make 1d arrays of all needed powers of keys
@@ -223,4 +233,27 @@ class BasisPolynomial(BasisInterp):
         out = numpy.zeros( numpy.count_nonzero(self._mask), dtype=float)
         out[0] = c  # The constant term is always first.
         return out
+
+    def writeSolution(self, fits, extname):
+        """Write the solution to a FITS binary table.
+
+        :param fits:        An open fitsio.FITS object.
+        :param extname:     The name of the extension with the interp information.
+        """
+        if self.q is None:
+            raise RuntimeError("Solution not set yet.  Cannot write this BasisPolynomial.")
+
+        cols = [ self.q ]
+        dtypes = [ ('q', float) ]
+        data = numpy.array(zip(*cols), dtype=dtypes)
+        fits.write_table(data, extname=extname)
+
+    def readSolution(self, fits, extname):
+        """Read the solution from a FITS binary table.
+
+        :param fits:        An open fitsio.FITS object.
+        :param extname:     The name of the extension with the interpolator information.
+        """
+        data = fits[extname].read()
+        self.q = data['q']
 
