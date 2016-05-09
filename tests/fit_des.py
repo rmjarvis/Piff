@@ -111,11 +111,12 @@ def stardata_from_fits(hdu_list, xysky, stamp_radius=25, badmask=0x7FFF,
                 logger.info('Discarding star at (%d,%d) with no valid pixels',x0,y0)
             continue
         # Create StarData
+        props['sky'] = sky
         stardata.append(piff.StarData(stamp,
-                                image_pos=galsim.PositionD(x,y),
-                                weight=weight,
-                                pointing=pointing,
-                                properties=props.copy()))
+                                      image_pos=galsim.PositionD(x,y),
+                                      weight=weight,
+                                      pointing=pointing,
+                                      properties=props.copy()))
     return stardata
 
 
