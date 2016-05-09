@@ -236,11 +236,10 @@ class Interp(object):
         interp_type = interp_type[0]
 
         # Check that interp_type is a valid Interp type.
-        valid_interp_types = dict([ 
-                (cls.__name__, cls) for cls in piff.Interp.__subclasses__()
-                ])
+        interp_classes = piff.util.get_all_subclasses(piff.Interp)
+        valid_interp_types = dict([ (cls.__name__, cls) for cls in interp_classes ])
         if interp_type not in valid_interp_types:
-            raise ValueError("interpolator type %s is not a valid Piff Interpolator")
+            raise ValueError("interpolator type %s is not a valid Piff Interpolator"%interp_type)
         interp_cls = valid_interp_types[interp_type]
 
         kwargs = interp_cls.readKwargs(fits, extname)

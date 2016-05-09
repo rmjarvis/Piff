@@ -96,3 +96,6 @@ from .psf import PSF
 
 # Stats
 from .stats import process_stats, Statistics, RhoStatistics, ShapeStatistics
+
+# Util -- leave these in the piff.util namespace
+from . import util

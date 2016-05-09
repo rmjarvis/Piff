@@ -146,12 +146,12 @@ class BasisPolynomial(BasisInterp):
         super(BasisPolynomial, self).__init__()
 
         self._keys = keys
-        if type(order) is int:
-            self._orders = (order,) * len(keys)
-        elif not len(orders)==len(keys):
-            raise ValueError('Number of provided orders does not match number of keys')
-        else:
+        if hasattr(order,'len'):
+            if not len(order)==len(keys):
+                raise ValueError('Number of provided orders does not match number of keys')
             self._orders = order
+        else:
+            self._orders = (order,) * len(keys)
 
         if maxorder is None:
             self._maxorder = numpy.max(self._orders)
@@ -243,9 +243,9 @@ class BasisPolynomial(BasisInterp):
         if self.q is None:
             raise RuntimeError("Solution not set yet.  Cannot write this BasisPolynomial.")
 
-        cols = [ self.q ]
-        dtypes = [ ('q', float) ]
-        data = numpy.array(zip(*cols), dtype=dtypes)
+        dtypes = [ ('q', float, self.q.shape) ]
+        data = numpy.zeros(1, dtype=dtypes)
+        data['q'] = self.q
         fits.write_table(data, extname=extname)
 
     def readSolution(self, fits, extname):
@@ -255,5 +255,5 @@ class BasisPolynomial(BasisInterp):
         :param extname:     The name of the extension with the interpolator information.
         """
         data = fits[extname].read()
-        self.q = data['q']
+        self.q = data['q'][0]
 

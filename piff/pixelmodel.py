@@ -78,7 +78,7 @@ class PixelModel(Model):
         self.kwargs = {
             'scale' : scale,
             'size' : size,
-            'start_sigma'
+            'start_sigma' : start_sigma,
             'force_model_center' : force_model_center,
             'degenerate' : degenerate
         }

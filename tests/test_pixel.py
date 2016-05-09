@@ -16,6 +16,10 @@ from __future__ import print_function
 import numpy as np
 import piff
 import galsim
+import yaml
+import subprocess
+
+from test_helper import get_script_name
 
 def make_gaussian_data(sigma, u0, v0, flux, noise=0., du=1., fpu=0., fpv=0., nside=32,
                        nom_u0=0., nom_v0=0., rng=None):
@@ -586,7 +590,7 @@ def test_undersamp_drift():
     do_undersamp_drift(True)
     do_undersamp_drift(False)
 
-def test_simple_image():
+def test_single_image():
     """Test the whole process with a single image.
 
     Note: This test is based heavily on test_single_image in test_simple.py.
@@ -636,7 +640,7 @@ def test_simple_image():
     print('drew image')
 
     # Write out the image to a file
-    image_file = os.path.join('data','pixel_simple_image.fits')
+    image_file = os.path.join('data','pixel_moffat_image.fits')
     image.write(image_file)
     print('wrote image')
 
@@ -645,7 +649,7 @@ def test_simple_image():
     data = np.empty(len(x_list), dtype=dtype)
     data['x'] = x_list
     data['y'] = y_list
-    cat_file = os.path.join('data','pixel_simple_cat.fits')
+    cat_file = os.path.join('data','pixel_moffat_cat.fits')
     fitsio.write(cat_file, data, clobber=True)
     print('wrote catalog')
 
@@ -700,6 +704,54 @@ def test_simple_image():
     print('max diff = ',np.max(np.abs(test_star.data.image.array-test_im.array)))
     np.testing.assert_almost_equal(test_star.data.image.array, test_im.array, decimal=4)
 
+    # Round trip through a file
+    psf_file = os.path.join('output','pixel_psf.fits')
+    psf.write(psf_file, logger)
+    psf = piff.PSF.read(psf_file, logger)
+    assert type(psf.model) is piff.PixelModel
+    assert type(psf.interp) is piff.BasisPolynomial
+    test_star = psf.draw(target.data, flux=1.)
+    np.testing.assert_almost_equal(test_star.data.image.array, test_im.array, decimal=4)
+
+    # Do the whole thing with the config parser
+    config = {
+        'input' : {
+            'images' : image_file,
+            'cats' : cat_file,
+            'x_col' : 'x',
+            'y_col' : 'y',
+            'stamp_size' : 48  # Bigger than we drew, but should still work.
+        },
+        'output' : {
+            'file_name' : psf_file
+        },
+        'model' : {
+            'type' : 'PixelModel',
+            'scale' : 0.2,
+            'size' : 32,
+            'start_sigma' : 0.9/2.355
+        },
+        'interp' : {
+            'type' : 'BasisPolynomial',
+            'order' : 2
+        }
+    }
+    piff.piffify(config)
+    psf = piff.PSF.read(psf_file)
+    test_star = psf.draw(target.data, flux=1.)
+    np.testing.assert_almost_equal(test_star.data.image.array, test_im.array, decimal=4)
+
+    # Test using the piffify executable
+    os.remove(psf_file)
+    with open('pixel_moffat.yaml','w') as f:
+        f.write(yaml.dump(config, default_flow_style=False))
+    piffify_exe = get_script_name('piffify')
+    p = subprocess.Popen( [piffify_exe, 'pixel_moffat.yaml'] )
+    p.communicate()
+    psf = piff.PSF.read(psf_file)
+    test_star = psf.draw(target.data, flux=1.)
+    np.testing.assert_almost_equal(test_star.data.image.array, test_im.array, decimal=4)
+
 
 if __name__ == '__main__':
     #import cProfile, pstats
@@ -714,7 +766,7 @@ if __name__ == '__main__':
     test_undersamp()
     test_undersamp_shift()
     test_undersamp_drift()
-    test_simple_image()
+    test_single_image()
     #pr.disable()
     #ps = pstats.Stats(pr).sort_stats('tottime').reverse_order()
     #ps.print_stats()

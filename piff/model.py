@@ -196,9 +196,10 @@ class Model(object):
         model_type = model_type[0]
 
         # Check that model_type is a valid Model type.
-        valid_model_types = dict([ (cls.__name__, cls) for cls in piff.Model.__subclasses__() ])
+        model_classes = piff.util.get_all_subclasses(piff.Model)
+        valid_model_types = dict([ (cls.__name__, cls) for cls in model_classes ])
         if model_type not in valid_model_types:
-            raise ValueError("model type %s is not a valid Piff Model")
+            raise ValueError("model type %s is not a valid Piff Model"%model_type)
         model_cls = valid_model_types[model_type]
 
         kwargs = model_cls.readKwargs(fits, extname)
