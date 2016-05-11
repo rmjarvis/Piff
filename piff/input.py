@@ -286,6 +286,10 @@ class InputFiles(InputHandler):
                 logger.info("Reading weight images from hdu %d.",self.weight_hdu)
             self.weight = [ galsim.fits.read(fname, hdu=self.weight_hdu)
                             for fname in self.image_files ]
+            for wt in self.weight:
+                if numpy.all(wt.array == 0):
+                    logger.error("According to the weight mask in %s, all pixels have zero weight!",
+                                 fname)
 
         # If requested, set wt=0 for any bad pixels
         if self.badpix_hdu is not None:
@@ -293,6 +297,25 @@ class InputFiles(InputHandler):
                 logger.info("Reading badpix images from hdu %d.",self.badpix_hdu)
             for fname, wt in zip(self.image_files, self.weight):
                 badpix = galsim.fits.read(fname, hdu=self.badpix_hdu)
+                # The badpix image may be offset by 32768 from the true value.
+                # If so, subtract it off.
+                if numpy.any(badpix.array > 32767):
+                    if logger:
+                        logger.debug('min(badpix) = %s',numpy.min(badpix.array))
+                        logger.debug('max(badpix) = %s',numpy.max(badpix.array))
+                        logger.info("subtracting 32768 from all values in badpix image")
+                    badpix -= 32768
+                if numpy.any(badpix.array < -32767):
+                    if logger:
+                        logger.debug('min(badpix) = %s',numpy.min(badpix.array))
+                        logger.debug('max(badpix) = %s',numpy.max(badpix.array))
+                        logger.info("adding 32768 to all values in badpix image")
+                    badpix += 32768
+                # Also, convert to int16, in case it isn't by default.
+                badpix = galsim.ImageS(badpix)
+                if numpy.all(badpix.array != 0):
+                    logger.error("According to the bad pixel array in %s, all pixels are masked!",
+                                 fname)
                 wt.array[badpix.array != 0] = 0
 
     def readStarCatalogs(self, logger=None):
