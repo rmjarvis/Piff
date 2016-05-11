@@ -603,9 +603,9 @@ def test_single_image():
     # Make the image
     image = galsim.Image(2048, 2048, scale=0.2)
 
-    # The (x,y) values will be on a grid 10 x 10 stars with a random sub-pixel offset.
-    xvals = np.linspace(50., 1950., 10)
-    yvals = np.linspace(50., 1950., 10)
+    # The (x,y) values will be on a grid 5 x 5 stars with a random sub-pixel offset.
+    xvals = np.linspace(50., 1950., 5)
+    yvals = np.linspace(50., 1950., 5)
     x_list, y_list = np.meshgrid(xvals, yvals)
     x_list = x_list.flatten()
     y_list = y_list.flatten()
@@ -623,10 +623,6 @@ def test_single_image():
     fwhm_fn = lambda x,y: 0.9 + 0.05*(x/1000) - 0.03*(y/1000) + 0.02*(x/1000)*(y/1000)
     e1_fn = lambda x,y: 0.02 - 0.01*(x/1000)
     e2_fn = lambda x,y: -0.03 + 0.02*(x/1000)**2 - 0.01*(y/1000)*2
-    #beta_fn = lambda x,y: 3.5
-    #fwhm_fn = lambda x,y: 0.9
-    #e1_fn = lambda x,y: 0.02
-    #e2_fn = lambda x,y: -0.03
 
     for x,y,flux in zip(x_list, y_list, flux_list):
         beta = beta_fn(x,y)
@@ -677,42 +673,51 @@ def test_single_image():
     assert len(orig_stardata) == len(x_list)
     assert orig_stardata[0].image.array.shape == (32,32)
 
-    # Process the star data
-    model = piff.PixelModel(0.2, 32, start_sigma=0.9/2.355)
-    interp = piff.BasisPolynomial(order=2)
-    logger = piff.config.setup_logger(2)
-    psf = piff.PSF.build(orig_stardata, model, interp, logger=logger)
-
-    # Check that the interpolation is what it should be
+    # Make a test star, not at the location of any of the model stars to use for each of the
+    # below tests.
     x0 = 1024  # Some random position, not where a star was originally.
     y0 = 133
-    target_data = piff.StarData.makeTarget(x=x0, y=y0, scale=image.scale)
-    target = model.makeStar(target_data, flux=1.0)
-    test_star = psf.draw(target.data, flux=1.)
-
     beta = beta_fn(x0,y0)
     fwhm = fwhm_fn(x0,y0)
     e1 = e1_fn(x0,y0)
     e2 = e2_fn(x0,y0)
     moffat = galsim.Moffat(fwhm=fwhm, beta=beta).shear(e1=e1, e2=e2)
+    target_data = piff.StarData.makeTarget(x=x0, y=y0, scale=image.scale)
     test_im = galsim.ImageD(bounds=target_data.image.bounds, scale=image.scale)
     moffat.drawImage(image=test_im, method='no_pixel', use_true_center=False)
     b = galsim.BoundsI(x0-3,x0+3,y0-3,y0+3)
-    print('test_im center = ',test_im[b].array)
-    print('flux = ',test_im.array.sum())
-    print('interp_im center = ',test_star.data.image[b].array)
-    print('flux = ',test_star.data.image.array.sum())
-    print('max diff = ',np.max(np.abs(test_star.data.image.array-test_im.array)))
-    np.testing.assert_almost_equal(test_star.data.image.array, test_im.array, decimal=4)
+    print('made test star')
 
-    # Round trip through a file
-    psf_file = os.path.join('output','pixel_psf.fits')
-    psf.write(psf_file, logger)
-    psf = piff.PSF.read(psf_file, logger)
-    assert type(psf.model) is piff.PixelModel
-    assert type(psf.interp) is piff.BasisPolynomial
-    test_star = psf.draw(target.data, flux=1.)
-    np.testing.assert_almost_equal(test_star.data.image.array, test_im.array, decimal=4)
+    # These tests are slow, and it's really just doing the same thing three times, so
+    # only do the first one when running via nosetests.
+    if True:
+        # Process the star data
+        model = piff.PixelModel(0.2, 16, start_sigma=0.9/2.355)
+        interp = piff.BasisPolynomial(order=2)
+        if __name__ == '__main__':
+            logger = piff.config.setup_logger(2)
+        else:
+            logger = None
+        psf = piff.PSF.build(orig_stardata, model, interp, logger=logger)
+
+        # Check that the interpolation is what it should be
+        target = model.makeStar(target_data, flux=1.0)
+        test_star = psf.draw(target.data, flux=1.)
+        #print('test_im center = ',test_im[b].array)
+        #print('flux = ',test_im.array.sum())
+        #print('interp_im center = ',test_star.data.image[b].array)
+        #print('flux = ',test_star.data.image.array.sum())
+        #print('max diff = ',np.max(np.abs(test_star.data.image.array-test_im.array)))
+        np.testing.assert_almost_equal(test_star.data.image.array, test_im.array, decimal=3)
+
+        # Round trip through a file
+        psf_file = os.path.join('output','pixel_psf.fits')
+        psf.write(psf_file, logger)
+        psf = piff.PSF.read(psf_file, logger)
+        assert type(psf.model) is piff.PixelModel
+        assert type(psf.interp) is piff.BasisPolynomial
+        test_star = psf.draw(target.data, flux=1.)
+        np.testing.assert_almost_equal(test_star.data.image.array, test_im.array, decimal=3)
 
     # Do the whole thing with the config parser
     config = {
@@ -729,29 +734,34 @@ def test_single_image():
         'model' : {
             'type' : 'PixelModel',
             'scale' : 0.2,
-            'size' : 32,
+            'size' : 16,  # Much smaller than the input stamps, but this is plenty here.
             'start_sigma' : 0.9/2.355
         },
         'interp' : {
             'type' : 'BasisPolynomial',
             'order' : 2
-        }
+        },
     }
-    piff.piffify(config)
-    psf = piff.PSF.read(psf_file)
-    test_star = psf.draw(target.data, flux=1.)
-    np.testing.assert_almost_equal(test_star.data.image.array, test_im.array, decimal=4)
+    if __name__ == '__main__':
+        print("Running piffify function")
+        piff.piffify(config)
+        psf = piff.PSF.read(psf_file)
+        test_star = psf.draw(target.data, flux=1.)
+        np.testing.assert_almost_equal(test_star.data.image.array, test_im.array, decimal=3)
 
     # Test using the piffify executable
-    os.remove(psf_file)
     with open('pixel_moffat.yaml','w') as f:
         f.write(yaml.dump(config, default_flow_style=False))
-    piffify_exe = get_script_name('piffify')
-    p = subprocess.Popen( [piffify_exe, 'pixel_moffat.yaml'] )
-    p.communicate()
-    psf = piff.PSF.read(psf_file)
-    test_star = psf.draw(target.data, flux=1.)
-    np.testing.assert_almost_equal(test_star.data.image.array, test_im.array, decimal=4)
+    if __name__ == '__main__':
+        print("Running piffify executable")
+        if os.path.exists(psf_file):
+            os.remove(psf_file)
+        piffify_exe = get_script_name('piffify')
+        p = subprocess.Popen( [piffify_exe, 'pixel_moffat.yaml'] )
+        p.communicate()
+        psf = piff.PSF.read(psf_file)
+        test_star = psf.draw(target.data, flux=1.)
+        np.testing.assert_almost_equal(test_star.data.image.array, test_im.array, decimal=3)
 
 def test_des_image():
     """Test the whole process with a DES CCD.
