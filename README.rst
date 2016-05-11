@@ -10,7 +10,7 @@ Aspirational features: (We're still working on the code!)
   shapelets, Gaussian mixture, maybe also Moffat and/or Kolmogorov.
 - Can build the models in either chip or sky coordinates, properly accounting
   for the WCS of the image.
-- Can interpolate across the full fied-of-view, or across each chip separately,
+- Can interpolate across the full field-of-view, or across each chip separately,
   or a combination of both.
 - Can do the fitting in either real or Fourier space.
 - Has multiple interpolation functions including polynomials, kriging, and
