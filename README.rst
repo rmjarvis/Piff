@@ -23,6 +23,8 @@ Aspirational features: (We're still working on the code!)
 - Allows the centroid to be fixed or floating.
 - In general, allow any value to be fixed rather than fit for.
 - Uses highly readable YAML configuration files to set the various options.
+- Includes Python code to read in the PSF files and use it to draw an image
+  of the PSF at an arbitrary location.
 
 
 Installation
