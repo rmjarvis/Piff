@@ -373,21 +373,20 @@ class StarData(object):
         # Scale by gain
         if gain is None:
             try:
-                g = self.properties['gain']
+                gain = self.properties['gain']
             except KeyError:
-                g = 1.
-        else:
-            g = gain
+                gain = 1.
 
         # Add to weight
         newweight = self.weight.copy()
-        newweight.array[use] = 1. / (1./self.weight.array[use] + variance / g)
+        newweight.array[use] = 1. / (1./self.weight.array[use] + variance / gain)
 
         # Return new object
         props = self.properties.copy()
         for key in ['x', 'y', 'u', 'v']:
             # Get rid of keys that constructor doesn't want to see:
             props.pop(key,None)
+        props['gain'] = gain
         return StarData(image=self.image,
                         image_pos=self.image_pos,
                         weight=newweight,

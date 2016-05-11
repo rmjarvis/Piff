@@ -88,7 +88,11 @@ def stardata_from_fits(hdu_list, xysky, stamp_radius=25, badmask=0x7FFF,
     # Get exposure pointing from header
     ra = galsim.Angle(hdr['CRVAL1'],galsim.degrees)
     dec = galsim.Angle(hdr['CRVAL2'],galsim.degrees)
+    ra = galsim.HMS_Angle(hdr['TELRA'])
+    dec = galsim.DMS_Angle(hdr['TELDEC'])
     pointing = galsim.CelestialCoord(ra,dec)
+    if logger:
+        logger.info("pointing = %s hours, %s deg",pointing.ra/galsim.hours,pointing.dec/galsim.degrees)
 
     # Now iterate through all stars
     stardata = []
