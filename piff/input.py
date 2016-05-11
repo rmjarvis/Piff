@@ -331,7 +331,7 @@ class InputFiles(InputHandler):
         # Read in the star catalogs from the files
         if logger:
             logger.info("Reading star catalogs %s.",self.cat_files)
-        self.cats = [ fitsio.read(fname) for fname in self.cat_files ]
+        self.cats = [ fitsio.read(fname,self.cat_hdu) for fname in self.cat_files ]
 
         # Remove any objects with flag != 0
         if self.flag_col is not None:
