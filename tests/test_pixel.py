@@ -837,6 +837,74 @@ def test_des_image():
         assert n_marginal <= 12
         assert n_bad <= 3
 
+    # Do the whole thing with the config parser
+    psf_file = os.path.join('output','pixel_des_psf.fits')
+    config = {
+        'input' : {
+            'images' : image_file,
+            'image_hdu' : 1,
+            'weight_hdu' : 3,
+            'badpix_hdu' : 2,
+            'cats' : cat_file,
+            'cat_hdu' : 2,
+            'x_col' : 'XWIN_IMAGE',
+            'y_col' : 'YWIN_IMAGE',
+            'sky_col' : 'BACKGROUND',
+            'stamp_size' : 51,
+            'ra' : 'TELRA',
+            'dec' : 'TELDEC',
+            'gain' : 'GAINA',
+        },
+        'output' : {
+            'file_name' : psf_file,
+        },
+        'model' : {
+            'type' : 'PixelModel',
+            'scale' : scale,
+            'size' : size,
+            'start_sigma' : 1.0/2.355,
+        },
+        'interp' : {
+            'type' : 'BasisPolynomial',
+            'order' : 2,
+        },
+    }
+    if __name__ == '__main__': config['verbose'] = 3
+    if __name__ == '__main__':
+        print('start piffify')
+        piff.piffify(config)
+        print('read stars')
+        stars = piff.process_input(config)
+        print('read psf')
+        psf = piff.PSF.read(psf_file)
+        stars = [psf.model.reflux(psf.model.makeStar(s), fit_center=False) for s in stars]
+        fitted = psf.draw(stars[0].data, stars[0].fit.flux, stars[0].fit.center)
+        fit_stamp = fitted.data.image
+        flux = fitted.fit.flux
+        # The first star happens to be a good one, so go ahead and test the arrays directly.
+        orig_stamp = orig_image[fitted.data.image.bounds] - stars[0].data['sky']
+        np.testing.assert_almost_equal(fit_stamp.array/flux, orig_stamp.array/flux, decimal=2)
+
+    # Test using the piffify executable
+    with open('pixel_des.yaml','w') as f:
+        f.write(yaml.dump(config, default_flow_style=False))
+    if __name__ == '__main__':
+        if os.path.exists(psf_file):
+            os.remove(psf_file)
+        piffify_exe = get_script_name('piffify')
+        print('start piffify executable')
+        p = subprocess.Popen( [piffify_exe, 'pixel_des.yaml'] )
+        p.communicate()
+        print('read stars')
+        stars = piff.process_input(config)
+        print('read psf')
+        psf = piff.PSF.read(psf_file)
+        stars = [psf.model.reflux(psf.model.makeStar(s), fit_center=False) for s in stars]
+        fitted = psf.draw(stars[0].data, stars[0].fit.flux, stars[0].fit.center)
+        fit_stamp = fitted.data.image
+        flux = fitted.fit.flux
+        orig_stamp = orig_image[fitted.data.image.bounds] - stars[0].data['sky']
+        np.testing.assert_almost_equal(fit_stamp.array/flux, orig_stamp.array/flux, decimal=2)
 
 if __name__ == '__main__':
     #import cProfile, pstats
