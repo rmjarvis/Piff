@@ -70,7 +70,7 @@ if False:
 
 
 # Import things from the other files that we want in the piff namespace
-from .config import piffify
+from .config import piffify, setup_logger, read_config
 
 # Models
 from .model import Model, process_model

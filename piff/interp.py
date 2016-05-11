@@ -30,7 +30,8 @@ def process_interp(config, logger=None):
     import piff
 
     if logger is None:
-        logger = config.setup_logger(verbosity=0)
+        verbose = config.get('verbose', 1)
+        logger = piff.setup_logger(verbose=verbose)
 
     if 'interp' not in config:
         raise ValueError("config dict has no interp field")

@@ -26,7 +26,7 @@ def parse_args():
 
     args.config_file
     args.variables
-    args.verbosity
+    args.verbose
     args.log_file
     args.version
     """
@@ -45,8 +45,9 @@ def parse_args():
             help='additional variables or modifications to variables in the config file. ' +
             'e.g. `piffify psf.params interp.order=3`')
     parser.add_argument(
-            '-v', '--verbosity', type=int, action='store', default=0, choices=(0, 1, 2, 3),
-            help='integer verbosity level: min=0, max=3 [default=1]')
+            '-v', '--verbose', type=int, action='store', default=None, choices=(0, 1, 2, 3),
+            help='integer verbosity level: min=0, max=3 '
+            '[default=1; overrides config verbose value]')
     parser.add_argument(
             '-l', '--log_file', type=str, action='store', default=None,
             help='filename for storing logging output [default is to stream to stdout]')
@@ -74,7 +75,11 @@ def main():
     config = piff.config.read_config(args.config_file)
 
     # Create a logger with the given verbosity and log_file
-    logger = piff.config.setup_logger(args.verbosity, args.log_file)
+    if args.verbose is None:
+        verbose = config.get('verbose', 1)
+    else:
+        verbose = args.verbose
+    logger = piff.config.setup_logger(verbose, args.log_file)
 
     logger.debug('Successfully read config file %s'%args.config_file)
 
