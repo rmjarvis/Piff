@@ -48,7 +48,7 @@ def process_model(config, logger=None):
     model_class = getattr(piff, config_model.pop('type'))
 
     # Read any other kwargs in the model field
-    kwargs = model_class.parseKwargs(config_model)
+    kwargs = model_class.parseKwargs(config_model, logger)
 
     # Build model object
     model = model_class(**kwargs)
@@ -62,7 +62,7 @@ class Model(object):
     implemented by any derived class.
     """
     @classmethod
-    def parseKwargs(cls, config_model):
+    def parseKwargs(cls, config_model, logger):
         """Parse the model field of a configuration dict and return the kwargs to use for
         initializing an instance of the class.
 
@@ -70,10 +70,14 @@ class Model(object):
         might want to override this if they need to do something more sophisticated with them.
 
         :param config_model:    The model field of the configuration dict, config['model']
+        :param logger:          A logger object for logging debug info. [default: None]
 
         :returns: a kwargs dict to pass to the initializer
         """
-        return config_model
+        kwargs = {}
+        kwargs.update(config_model)
+        kwargs['logger'] = logger
+        return kwargs
 
     def makeStar(self, data, flux=1., center=(0.,0.), mask=True):
         """Create a Star instance that this Model can read, include any setup needed

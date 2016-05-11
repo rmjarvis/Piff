@@ -26,7 +26,7 @@ from .starfit import Star, StarFit
 class Gaussian(Model):
     """An extremely simple PSF model that just considers the PSF as a sheared Gaussian.
     """
-    def __init__(self):
+    def __init__(self, logger=None):
         self.kwargs = {}
 
     def fit(self, star):

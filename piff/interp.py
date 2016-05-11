@@ -45,7 +45,7 @@ def process_interp(config, logger=None):
     interp_class = getattr(piff, config_interp.pop('type'))
 
     # Read any other kwargs in the interp field
-    kwargs = interp_class.parseKwargs(config_interp)
+    kwargs = interp_class.parseKwargs(config_interp, logger)
 
     # Build interp object
     interp = interp_class(**kwargs)
@@ -73,7 +73,7 @@ class Interp(object):
     implemented by any derived class.
     """
     @classmethod
-    def parseKwargs(cls, config_interp):
+    def parseKwargs(cls, config_interp, logger=None):
         """Parse the interp field of a configuration dict and return the kwargs to use for
         initializing an instance of the class.
 
@@ -81,10 +81,14 @@ class Interp(object):
         might want to override this if they need to do something more sophisticated with them.
 
         :param config_interp:   The interpolator field of the configuration dict, config['interp']
+        :param logger:          A logger object for logging debug info. [default: None]
 
         :returns: a kwargs dict to pass to the initializer
         """
-        return config_interp
+        kwargs = {}
+        kwargs.update(config_interp)
+        kwargs['logger'] = logger
+        return kwargs
 
     def getProperties(self, star):
         """Extract the appropriate properties to use as the independent variables for the 

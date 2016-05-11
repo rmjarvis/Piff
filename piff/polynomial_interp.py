@@ -43,7 +43,7 @@ class Polynomial(Interp):
     An interpolator that uses  scipy curve_fit command to fit a polynomial
     surface to each parameter passed in independently.
     """
-    def __init__(self, order=None, orders=None, poly_type="poly"):
+    def __init__(self, order=None, orders=None, poly_type="poly", logger=None):
         """Create a Polynomial interpolator.
 
         :param order:       The maximum order in the polynomial. i.e. the maximum

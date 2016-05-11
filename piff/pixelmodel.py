@@ -47,8 +47,7 @@ class PixelModel(Model):
 
     """
     def __init__(self, scale, size, interp=None, mask=None, start_sigma=1.,
-                 force_model_center=False, degenerate=True,
-                 logger=None):
+                 force_model_center=True, degenerate=True, logger=None):
         """Constructor for PixelModel defines the PSF pitch, size, and interpolator.
 
         :param scale:       Pixel scale of the PSF model (in arcsec)
@@ -66,6 +65,17 @@ class PixelModel(Model):
                             If False, it runs faster, but fails on degeneracies. [default: True]
         :param logger:      A logger object for logging debug info. [default: None]
         """
+        if logger:
+            logger.debug("Building Pixel model with the following parameters:")
+            logger.debug("scale = %s",scale)
+            logger.debug("size = %s",size)
+            logger.debug("interp = %s",interp)
+            logger.debug("mask = %s",mask)
+            logger.debug("start_sigma = %s",start_sigma)
+            logger.debug("force_model_center = %s",force_model_center)
+            logger.debug("degenerate = %s",degenerate)
+        self.logger = logger
+
         self.du = scale
         self.pixel_area = self.du*self.du
         if interp is None: interp = Lanczos(3)
@@ -99,6 +109,8 @@ class PixelModel(Model):
         if self._force_model_center:
             self._nparams -= 2 # Centroid constraint will remove 2 more degrees of freedom
             self._constraints += 2
+        if self.logger:
+            self.logger.debug("nparams = %d, constraints = %d",self._nparams, self._constraints)
 
         # Now we need to make a 2d array whose entries are the indices of
         # each pixel in the 1d parameter array.  We will put the central
@@ -549,6 +561,17 @@ class PixelModel(Model):
 
         :returns:          New Star instance, with updated flux, center, chisq, dof, worst
         """
+        if False:
+            self.logger.debug("Reflux for star:")
+            self.logger.debug("    flux = %s",star.fit.flux)
+            self.logger.debug("    center = %s",star.fit.center)
+            self.logger.debug("    props = %s",star.data.properties)
+            self.logger.debug("    image = %s",star.data.image)
+            self.logger.debug("    image = %s",star.data.image.array)
+            self.logger.debug("    weight = %s",star.data.weight.array)
+            self.logger.debug("    image center = %s",star.data.image(star.data.image.center()))
+            self.logger.debug("    weight center = %s",star.data.weight(star.data.weight.center()))
+
         # This will be an iterative process if the centroid is free.
         max_iterations = 100    # Max iteration count
         chisq_tolerance = 0.01 # Quit when chisq changes less than this
