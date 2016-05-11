@@ -183,11 +183,11 @@ class InputHandler(object):
             for k in range(len(cat)):
                 x = cat[self.x_col][k]
                 y = cat[self.y_col][k]
-                icen = int(x)
-                jcen = int(y)
+                icen = int(x+0.5)
+                jcen = int(y+0.5)
                 half_size = self.stamp_size // 2
-                bounds = galsim.BoundsI(icen-half_size+1, icen+half_size,
-                                        jcen-half_size+1, jcen+half_size)
+                bounds = galsim.BoundsI(icen+half_size-self.stamp_size+1, icen+half_size,
+                                        jcen+half_size-self.stamp_size+1, jcen+half_size)
                 stamp = image[bounds]
                 props = {}
                 if self.sky_col is not None:
