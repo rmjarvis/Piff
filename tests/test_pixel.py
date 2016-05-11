@@ -769,54 +769,74 @@ def test_des_image():
     import os
     import fitsio
 
-    logger = piff.config.setup_logger(3)
-
     image_file = 'y1_test/DECam_00241238_01.fits.fz'
     cat_file = 'y1_test/DECam_00241238_01_psfcat_tb_maxmag_17.0_magcut_3.0_findstars.fits'
-
-    # Start by using the script fit_des.py in this directory.
-    import fit_des
-    psf = fit_des.fit_des(image_file, cat_file, order=2, logger=logger)
     orig_image = galsim.fits.read(image_file)
 
-    # The difference between the images of the fitted stars and the originals should be
-    # consistent with noise.  Keep track of how many don't meet that goal.
-    n_bad = 0  # chisq/dof > 2
-    n_marginal = 0  # chisq/dof > 1.1
-    n_good = 0 # chisq/dof <= 1.1
-    # Note: The 2 and 1.1 values here are very arbitrary!
+    if __name__ == '__main__':
+        # These match what Gary used in fit_des.py
+        nstars = None
+        scale = 0.15
+        size = 41
+    else:
+        # These are faster and good enough for the unit tests.
+        nstars = 25
+        scale = 0.2
+        size = 21
+    np.random.seed(1234)
 
-    for s in psf.stars:
-        fitted = psf.draw(s.data, s.fit.flux, s.fit.center)
-        orig_stamp = orig_image[fitted.data.image.bounds] - s.data['sky']
-        fit_stamp = fitted.data.image
-
-        x0 = int(s.data['x']+0.5)
-        y0 = int(s.data['y']+0.5)
-        b = galsim.BoundsI(x0-3,x0+3,y0-3,y0+3)
-        print('orig center = ',orig_stamp[b].array)
-        print('flux = ',orig_stamp.array.sum())
-        print('fit center = ',fit_stamp[b].array)
-        print('flux = ',fit_stamp.array.sum())
-        flux = fitted.fit.flux
-        print('max diff/flux = ',np.max(np.abs(orig_stamp.array-fit_stamp.array))/flux)
-        #np.testing.assert_almost_equal(fit_stamp.array/flux, orig_stamp.array/flux, decimal=2)
-        weight = s.data.weight  # These should be 1/var_pix
-        resid = fit_stamp - orig_stamp
-        chisq = np.sum(resid.array**2 * weight.array)
-        print('chisq = ',chisq)
-        print('cf. star.chisq, dof = ',s.fit.chisq, s.fit.dof)
-        if chisq > 2. * s.fit.dof:
-            n_bad += 1
-        elif chisq > 1.1 * s.fit.dof:
-            n_marginal += 1
+    # These tests are slow, and it's really just doing the same thing three times, so
+    # only do the first one when running via nosetests.
+    if True:
+        # Start by using the script fit_des.py in this directory.
+        import fit_des
+        if __name__ == '__main__':
+            logger = piff.config.setup_logger(2)
         else:
-            n_good += 1
-    print('n_good, marginal, bad = ',n_good,n_marginal,n_bad)
-    # The real values are 10 and 2.  So this says make sure any updates to the code don't make
-    # things much worse.
-    assert n_marginal <= 15
-    assert n_bad <= 3
+            logger = None
+        psf = fit_des.fit_des(image_file, cat_file, order=2,
+                              nstars=nstars, scale=scale, size=size,
+                              logger=logger)
+
+        # The difference between the images of the fitted stars and the originals should be
+        # consistent with noise.  Keep track of how many don't meet that goal.
+        n_bad = 0  # chisq/dof > 2
+        n_marginal = 0  # chisq/dof > 1.1
+        n_good = 0 # chisq/dof <= 1.1
+        # Note: The 2 and 1.1 values here are very arbitrary!
+
+        for s in psf.stars:
+            fitted = psf.draw(s.data, s.fit.flux, s.fit.center)
+            orig_stamp = orig_image[fitted.data.image.bounds] - s.data['sky']
+            fit_stamp = fitted.data.image
+
+            x0 = int(s.data['x']+0.5)
+            y0 = int(s.data['y']+0.5)
+            b = galsim.BoundsI(x0-3,x0+3,y0-3,y0+3)
+            #print('orig center = ',orig_stamp[b].array)
+            #print('flux = ',orig_stamp.array.sum())
+            #print('fit center = ',fit_stamp[b].array)
+            #print('flux = ',fit_stamp.array.sum())
+            flux = fitted.fit.flux
+            #print('max diff/flux = ',np.max(np.abs(orig_stamp.array-fit_stamp.array))/flux)
+            #np.testing.assert_almost_equal(fit_stamp.array/flux, orig_stamp.array/flux, decimal=2)
+            weight = s.data.weight  # These should be 1/var_pix
+            resid = fit_stamp - orig_stamp
+            chisq = np.sum(resid.array**2 * weight.array)
+            #print('chisq = ',chisq)
+            #print('cf. star.chisq, dof = ',s.fit.chisq, s.fit.dof)
+            if chisq > 2. * s.fit.dof:
+                n_bad += 1
+            elif chisq > 1.1 * s.fit.dof:
+                n_marginal += 1
+            else:
+                n_good += 1
+        print('n_good, marginal, bad = ',n_good,n_marginal,n_bad)
+        # The real counts are 10 and 2.  So this says make sure any updates to the code don't make
+        # things much worse.
+        assert n_marginal <= 12
+        assert n_bad <= 3
+
 
 if __name__ == '__main__':
     #import cProfile, pstats

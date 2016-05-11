@@ -124,33 +124,40 @@ def stardata_from_fits(hdu_list, xysky, stamp_radius=25, badmask=0x7FFF,
     return stardata
 
 
-def fit_des(imagefile, catfile, order=2, logger=None):
+def fit_des(imagefile, catfile, order=2, nstars=None,
+            scale=0.15, size=41, start_sigma=0.4,
+            logger=None):
     """
     Fit polynomial interpolated pixelized PSF to a DES image,
     using the stars in a catalog.  For a single CCD.
 
-    :param imagefile:  path to the image file
-    :param catfile:    path to FITS SExtractor catalog holding only stars
+    :param imagefile:   Path to the image file
+    :param catfile:     Path to FITS SExtractor catalog holding only stars
+    :param order:       What order to use for the PSF interpolation [default: 2]
+    :param nstars:      If desired, a number fo stars to select from the full set to use.
+                        [default: None, which means use all stars]
+    :param scale:       The scale to use for the Pixel model [default: 0.15]
+    :param size:        The size to sue for the Pixel grid [default: 41]
+    :param start_sigma: The starting sigma value for Pixel mode [default: 0.4]
 
-    :returns:          Completed PSF instance.
+    :returns: a completed PSF instance.
     """
-
-    model_scale = 0.15 # arcsec per sample in PSF model
-    model_rad =   20   # "radius" of PSF model box, in samples
-    model_start_sigma = 1.0/2.38  # sigma of Gaussian to use for starting guess
-
-
     # Get the stellar images
     if logger:
         logger.info("Opening FITS images")
     ff = pyfits.open(imagefile)
     cat = pyfits.getdata(catfile,2)  # ??? hard-wired extension right now
-    # ??? make object cuts here!
+
+    if nstars is not None:
+        index = np.random.choice(len(cat), size=nstars, replace=False)
+        cat = cat[index]
+    # ??? make any other object cuts here!
+
     xysky = zip(cat['XWIN_IMAGE'],cat['YWIN_IMAGE'],cat['BACKGROUND'])
 
     if logger:
         logger.info("Creating %d StarDatas",len(xysky))
-    original = stardata_from_fits(ff, xysky)
+    original = stardata_from_fits(ff, xysky, logger=logger)
 
     if logger:
         logger.info("...Done making StarData")
@@ -159,8 +166,8 @@ def fit_des(imagefile, catfile, order=2, logger=None):
     data = [s.addPoisson() for s in original]
 
     # Make model, force PSF centering
-    model = piff.PixelModel(scale=model_scale, size=2*model_rad+1, interp=piff.Lanczos(3),
-                            force_model_center=True, start_sigma = model_start_sigma,
+    model = piff.PixelModel(scale=scale, size=size, interp=piff.Lanczos(3),
+                            force_model_center=True, start_sigma = start_sigma,
                             logger=logger)
     # Interpolator will be zero-order polynomial.
     # Find u, v ranges
@@ -201,7 +208,7 @@ def main():
     cat_file = 'y1_test/DECam_00241238_01_psfcat_tb_maxmag_17.0_magcut_3.0_findstars.fits'
     out_file = 'output/no_stars.fits.fz'
 
-    psf = fit_des(image_file, cat_file, order=2, logger=logger)
+    psf = fit_des(image_file, cat_file, order=2, nstars=25, scale=0.2, size=21, logger=logger)
 
     orig_image = galsim.fits.read(image_file)
     no_stars_img = subtract_stars(orig_image, psf)
