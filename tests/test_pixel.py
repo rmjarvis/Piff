@@ -63,7 +63,7 @@ def test_simplest():
 
     # Pixelized model with Lanczos 3 interp
     interp = piff.Lanczos(3)
-    mod = piff.PixelModel(du, 32, interp, start_sigma=1.5)
+    mod = piff.PixelModel(du, 32, interp, start_sigma=1.5, force_model_center=False)
     star = mod.makeStar(s, flux=np.sum(s.data))
 
     # Check that fitting the star can recover the right flux.
@@ -100,7 +100,7 @@ def test_oversample():
 
     # Pixelized model with Lanczos 3 interp, coarser pix scale
     interp = piff.Lanczos(3)
-    mod = piff.PixelModel(2*du, nside/2, interp, start_sigma=1.5)
+    mod = piff.PixelModel(2*du, nside/2, interp, start_sigma=1.5, force_model_center=False)
     star = mod.makeStar(s, flux=np.sum(s.data))
 
     for i in range(2):
@@ -222,7 +222,7 @@ def test_missing():
     # Pixelized model with Lanczos 3 interpolation, slightly smaller than data
     # than the data
     pixinterp = piff.Lanczos(3)
-    mod = piff.PixelModel(0.5, 25, pixinterp, start_sigma=1.5)
+    mod = piff.PixelModel(0.5, 25, pixinterp, start_sigma=1.5, force_model_center=False)
 
     # Draw stars on a 2d grid of "focal plane" with 0<=u,v<=1
     positions = np.linspace(0.,1.,4)
@@ -301,7 +301,8 @@ def test_gradient():
     # Pixelized model with Lanczos 3 interpolation, slightly smaller than data
     # than the data
     pixinterp = piff.Lanczos(3)
-    mod = piff.PixelModel(0.5, 25, pixinterp, start_sigma=1.5, degenerate=False)
+    mod = piff.PixelModel(0.5, 25, pixinterp, start_sigma=1.5,
+                          degenerate=False, force_model_center=False)
 
     # Interpolator will be linear
     interp = piff.Polynomial(order=1)
