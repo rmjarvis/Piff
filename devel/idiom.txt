@@ -1,0 +1,74 @@
+The cornerstone data classes are:
+
+StarData: holds all the input data for a star, both pixel data and ancillary quantities like
+color, etc., which may be used as variables for the interpolator.
+
+StarFit: holds the fitted properties of a star, such as its PSF parameter vector, flux, and
+center position relative to StarData nominal origin.
+
+The Star class bundles these together into a single object.
+
+All of these data classes are assumed invariant after their creation, e.g. each iteration of
+the fit produces a new Star containing a new StarFit with updated information.
+
+The fitting process uses two classes:
+
+Model is a parametric form for the PSF, basically a map from a parameter vector into a pixelized
+PSF on an arbitrary grid.  It knows nothing about variation of the parameters across the FOV.
+Each Model might have its own derived version of StarFit to hold expensive intermediate results.
+
+Interp is an interpolator.  All it knows about a PSF is given by a parameter vector.  Its job
+is to produce a model of variation of this parameter vector as a function of focal plane position
+or any other StarData parameters deemed relevant.
+
+The standard flow for a fitting process would be as follows:
+
+# Create the Model instance to be used.  This is where one decides
+# also which one of the centroid of the PSF model or the locations
+# of the stars will be allowed to vary.
+
+# Create the Interp instance to be used.
+
+# Read initial StarData from input images/catalogs.
+
+# Have Model create an initial StarData structure for each star,
+# and determine an initial flux estimate
+stars = []
+for sd in starDataList:
+    star = mod.makeStar(sd)
+    stars.append(mod.reflux(star))
+
+# Now iterate the full model to convergence:
+while not convergence_test():
+    for i,star in enumerate(stars):
+        # Fit PSF model to the star, marginalizing over flux/center
+        stars[i] = mod.fit(star)
+
+    # Then fit the interpolator to the PSF results
+    interp.solve(stars)
+
+    # Then install interpolated PSF back into each star's params
+    # and refit the flux and center to it.
+    for i,star in enumerate(stars):
+        # Fit PSF model to the star, marginalizing over flux/center
+        s = interp.interpolate(star)
+        s = mod.reflux(s)
+        if not some_outlier_rejector(s):
+            stars[i] = s
+
+
+The mod.fit call can be replaced by mod.chisq for interpolators that can use deal with PSF
+models at single stars being degenerate.
+
+Here's the procedure then for using this interp to generate PSFs at new locations:
+
+# First produce a StarData instance sd which specifies the field location and the image+WCS
+onto which you want the PSF drawn.  Also install there any properties (like color) that the
+interp depends on.
+Then:
+
+star = model.makeStar(sd)
+star = interp.interpolate(star)
+star = model.draw(star)
+
+et voila, the star.data.data array contains your PSF.

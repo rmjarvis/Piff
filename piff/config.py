@@ -18,14 +18,14 @@
 
 from __future__ import print_function
 
-def setup_logger(verbosity=1, log_file=None):
+def setup_logger(verbose=1, log_file=None):
     """Build a logger object to use for logging progress
 
     Note: This will update the verbosity if a previous call to setup_logger used a different
     value for verbose.  However, it will not update the handler to use a different log_file
     or switch between using a log_file and stdout.
 
-    :param verbosity:   A number from 0-3 giving the level of verbosity to use. [default: 1]
+    :param verbose:     A number from 0-3 giving the level of verbosity to use. [default: 1]
     :param log_file:    A file name to which to output the logging information. [default: None]
 
     :returns: a logging.Logger instance
@@ -36,7 +36,7 @@ def setup_logger(verbosity=1, log_file=None):
                        1: logging.WARNING,
                        2: logging.INFO,
                        3: logging.DEBUG }
-    logging_level = logging_levels[verbosity]
+    logging_level = logging_levels[verbose]
                                                                                                         # Setup logging to go to sys.stdout or (if requested) to an output file
     logger = logging.getLogger('piff')
     if len(logger.handlers) == 0:  # only add handler once!
@@ -101,7 +101,8 @@ def piffify(config, logger=None):
     config = copy.deepcopy(config)
 
     if logger is None:
-        logger = setup_logger(verbosity=0)
+        verbose = config.get('verbose', 1)
+        logger = piff.setup_logger(verbose=verbose)
 
     for key in ['input', 'output', 'model', 'interp']:
         if key not in config:
@@ -117,7 +118,7 @@ def piffify(config, logger=None):
     interp = piff.process_interp(config, logger=logger)
 
     # build the PSF model
-    psf = piff.PSF.build(stars=stars, model=model, interp=interp, logger=logger)
+    psf = piff.PSF.build(stars, model, interp, logger=logger)
 
     # write it out to a file
     output = piff.process_output(config, logger=logger)
