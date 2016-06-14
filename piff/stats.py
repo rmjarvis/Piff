@@ -63,7 +63,7 @@ class Statistics(object):
         """Perform your statistical operation on the stars.
 
         :param psf:         A PSF Object
-        :param stars:       A list of StarData instances.
+        :param stars:       A list of Star instances.
         :param logger:      A logger object for logging debug info. [default: None]
         :params kwargs:     Potential other parameters we might need to input. Images, coordinates, et cetera.
 
@@ -125,7 +125,7 @@ class Statistics(object):
         """Compare PSF and true star shapes with HSM algorithm
 
         :param psf:         A PSF Object
-        :param stars:       A list of StarData instances.
+        :param stars:       A list of Star instances.
         :param logger:      A logger object for logging debug info. [default: None]
 
         :returns:           positions of stars, shapes of stars, and shapes of
@@ -135,17 +135,17 @@ class Statistics(object):
         # measure moments with Gaussian on image
         if logger:
             logger.info("Measuring Stars")
-        shapes_truth = np.array([ self.hsm(*star.getImage()) for star in stars ])
+        shapes_truth = np.array([ self.hsm(*star.data.getImage()) for star in stars ])
 
         # Pull out the positions to return
-        positions = np.array([ (star.properties['u'], star.properties['v']) for star in stars ])
+        positions = np.array([ (star.data.properties['u'], star.data.properties['v']) for star in stars ])
 
         # get target stars with same properies as real stars, but blank image
         if logger:
             logger.info("Making images of model")
-        stamp_size = np.max( [star.image.array.shape for star in stars ] )
+        stamp_size = np.max( [star.data.image.array.shape for star in stars ] )
         test_stars = [ piff.Star(piff.StarData.makeTarget(
-                            properties=star.properties, stamp_size=stamp_size), None)
+                            properties=star.data.properties, stamp_size=stamp_size), None)
                        for star in stars ]
         test_stars = psf.interp.interpolateList(test_stars)
 
@@ -166,7 +166,7 @@ class ShapeStatistics(Statistics):
         """
 
         :param psf:         A PSF Object
-        :param stars:       A list of StarData instances.
+        :param stars:       A list of Star instances.
         :param logger:      A logger object for logging debug info. [default: None]
         """
 
@@ -245,7 +245,7 @@ class RhoStatistics(Statistics):
         """
 
         :param psf:         A PSF Object
-        :param stars:       A list of StarData instances.
+        :param stars:       A list of Star instances.
         :param logger:      A logger object for logging debug info. [default: None]
         :param min_sep:     Minimum separation (in arcmin) for pairs
         :param max_sep:     Maximum separation (in arcmin) for pairs

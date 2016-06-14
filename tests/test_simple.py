@@ -190,14 +190,14 @@ def test_single_image():
     assert len(input.cats[0]) == 7
 
     # Make star data
-    orig_stars = input.makeStarData()
+    orig_stars = input.makeStars()
     assert len(orig_stars) == 7
-    assert orig_stars[0].image.array.shape == (48,48)
+    assert orig_stars[0].data.image.array.shape == (48,48)
 
     # Process the star data
     model = piff.Gaussian()
     interp = piff.Mean()
-    fitted_stars = [ model.fit(piff.Star(star,None)) for star in orig_stars ]
+    fitted_stars = [ model.fit(star) for star in orig_stars ]
     interp.solve(fitted_stars)
     print('mean = ',interp.mean)
 

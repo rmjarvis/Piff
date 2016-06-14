@@ -20,7 +20,7 @@ from __future__ import print_function
 import numpy as np
 
 from .model import Model
-from .starfit import Star,StarFit
+from .star import Star, StarFit
 
 class PixelModel(Model):
     """A PSF modeled as interpolation between a grid of points.
@@ -278,16 +278,16 @@ class PixelModel(Model):
         star.fit.params[:] = params[self._constraints:]  # Omit the constrained pixels
         return
 
-    def makeStar(self, data, flux=1., center=(0.,0.), mask=True):
+    def makeStar(self, star, flux=1., center=(0.,0.), mask=True):
         """Create a Star instance that PixelModel can manipulate.
 
-        :param data:    A StarData instance
+        :param star:    A Star instance with the raw data.
         :param flux:    Initial estimate of stellar flux
         :param center:  Initial estimate of stellar center in world coord system
         :param mask:    If True, set data.weight to zero at pixels that are outside
                         the range of the model.
 
-        :returns:       Star instance
+        :returns:       Star instance with the appropriate initial fit values
         """
 
         fit = StarFit(self._initial_params, flux, center)
@@ -296,7 +296,7 @@ class PixelModel(Model):
             # come up short of specified fraction of the total kernel
             required_kernel_fraction = 0.7
 
-            _, _, u, v = data.getDataVector()
+            _, _, u, v = star.data.getDataVector()
             # Subtract star.fit.center from u, v:
             u -= fit.center[0]
             v -= fit.center[1]
@@ -307,7 +307,7 @@ class PixelModel(Model):
             # Null the coefficients for such pixels
             coeffs = np.where(index1d < 0, 0., coeffs)
             use = np.sum(coeffs,axis=1) > required_kernel_fraction
-            data = data.maskPixels(use)
+            data = star.data.maskPixels(use)
         return Star(data, fit)
 
     def fit(self, star):

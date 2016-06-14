@@ -165,6 +165,8 @@ def fit_des(imagefile, catfile, order=2, nstars=None,
     # Add shot noise to data
     data = [s.addPoisson() for s in original]
 
+    stars = [ piff.Star(d, None) for d in data ]
+
     # Make model, force PSF centering
     model = piff.PixelModel(scale=scale, size=size, interp=piff.Lanczos(3),
                             force_model_center=True, start_sigma = start_sigma,
@@ -180,7 +182,7 @@ def fit_des(imagefile, catfile, order=2, nstars=None,
     # Make a psf
     if logger:
         logger.info("Building PSF")
-    psf = piff.PSF.build(data, model, interp, logger=logger)
+    psf = piff.PSF.build(stars, model, interp, logger=logger)
 
     # ??? Do a "refinement" run with the model used to generate
     # the Poisson noise instead of the signal.

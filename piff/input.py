@@ -26,7 +26,7 @@ def process_input(config, logger=None):
     :param config:      The configuration dict.
     :param logger:      A logger object for logging debug info. [default: None]
 
-    :returns: a list of StarData instances
+    :returns: a list of Star instances with the initial data.
     """
     import piff
 
@@ -59,7 +59,7 @@ def process_input(config, logger=None):
     input_handler.setPointing(logger)
 
     # Creat a lit of StarData objects
-    stars = input_handler.makeStarData(logger)
+    stars = input_handler.makeStars(logger)
 
     # Maybe add poisson noise to the weights
     stars = input_handler.addPoisson(stars, logger)
@@ -142,21 +142,22 @@ class InputHandler(object):
         """If the input parameters included a gain, then add Poisson noise to the weights
         according to the flux in the image.
 
-        :param stars:       The list of stars (StarData instances) to update.
+        :param stars:       The list of stars to update.
         :param logger:      A logger object for logging debug info. [default: None]
 
         :returns: the new list of stars.
         """
+        import piff
         if self.gain is None:
             return stars
         self.setGain(logger)
         if logger:
             logger.info("Adding Poisson noise according to gain=%f",self.gain)
-        stars = [s.addPoisson(gain=self.gain) for s in stars]
+        stars = [piff.Star(s.data.addPoisson(gain=self.gain), s.fit) for s in stars]
         return stars
 
 
-    def makeStarData(self, logger=None):
+    def makeStars(self, logger=None):
         """Process the input images and star data, cutting out stamps for each star along with
         other relevant information.
 
@@ -169,7 +170,7 @@ class InputHandler(object):
 
         :param logger:      A logger object for logging debug info. [default: None]
 
-        :returns: a list of StarData instances
+        :returns: a list of Star instances
         """
         import galsim
         import piff
@@ -196,8 +197,9 @@ class InputHandler(object):
                     props['sky'] = sky
                 wt_stamp = wt[bounds]
                 pos = galsim.PositionD(x,y)
-                stars.append(piff.StarData(stamp, pos, weight=wt_stamp, pointing=self.pointing,
-                                           properties=props))
+                data = piff.StarData(stamp, pos, weight=wt_stamp, pointing=self.pointing,
+                                     properties=props)
+                stars.append(piff.Star(data, None))
 
         return stars
 

@@ -128,7 +128,7 @@ class Interp(object):
         :param star:        A Star instance to which one wants to interpolate
         :param logger:      A logger object for logging debug info. [default: None]
 
-        :returns: a new Star instance with its StarFit member holding the interpolated parameters
+        :returns: a new Star instance holding the interpolated parameters
         """
         raise NotImplemented("Derived classes must define the interpolate function")
 
@@ -139,7 +139,7 @@ class Interp(object):
         cases, this may be more efficiently done with a matrix operation, so we make it
         available for derived classes to override.
 
-        :param star_list:   A list of Star instances to which to interpolate.
+        :param star_list:   A list of Star instances to interpolate.
         :param logger:      A logger object for logging debug info. [default: None]
 
         :returns: a list of new Star instances with interpolated parameters

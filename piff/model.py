@@ -19,8 +19,7 @@
 from __future__ import print_function
 import numpy
 
-from .stardata import StarData
-from .starfit import Star, StarFit
+from .star import Star, StarFit, StarData
 
 def process_model(config, logger=None):
     """Parse the model field of the config dict.
@@ -79,23 +78,23 @@ class Model(object):
         kwargs['logger'] = logger
         return kwargs
 
-    def makeStar(self, data, flux=1., center=(0.,0.), mask=True):
+    def makeStar(self, star, flux=1., center=(0.,0.), mask=True):
         """Create a Star instance that this Model can read, include any setup needed
         before fitting.
 
         The base class implementation uses None for the fit.params value, leaving that to 
         be filled in by a subsequent model.fit() call.
 
-        :param data:    A StarData instance
+        :param star:    A Star instance with the raw data.
         :param flux:    Initial estimate of stellar flux
         :param center:  Initial estimate of stellar center in world coord system
-        :param mask:    If True, set data.weight to zero at pixels that are outside
+        :param mask:    If True, set star.data.weight to zero at pixels that are outside
                         the range of the model.
 
-        :returns: Star instance
+        :returns: Star instance with the appropriate fit attribute
         """
         fit = StarFit(None, flux, center)
-        return Star(data, fit)
+        return Star(star.data, fit)
 
 
     def fit(self, star):
@@ -111,7 +110,7 @@ class Model(object):
         raise NotImplemented("Derived classes must define the fit function")
 
     def draw(self, star):
-        """Create new Star instance that has StarData filled with a rendering
+        """Create new Star instance that has star.data filled with a rendering
         of the PSF specified by the current StarFit parameters, flux, and center.
         Coordinate mapping of the current StarData is assumed.
 

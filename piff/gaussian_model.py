@@ -20,8 +20,7 @@ from __future__ import print_function
 import numpy
 
 from .model import Model
-from .stardata import StarData
-from .starfit import Star, StarFit
+from .star import Star, StarFit, StarData
 
 class Gaussian(Model):
     """An extremely simple PSF model that just considers the PSF as a sheared Gaussian.

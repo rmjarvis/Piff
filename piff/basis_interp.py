@@ -18,7 +18,7 @@
 
 from __future__ import print_function
 from .interp import Interp
-from .starfit import Star, StarFit
+from .star import Star, StarFit
 import numpy
 
 class BasisInterp(Interp):
@@ -101,7 +101,7 @@ class BasisInterp(Interp):
         :param star:        A Star instance to which one wants to interpolate
         :param logger:      A logger object for logging debug info. [default: None]
 
-        :returns: a new Star instance with its StarFit member holding the interpolated parameters
+        :returns: a new Star instance holding the interpolated parameters
         """
         if self.q is None:
             raise RuntimeError("Attempt to interpolate() before initialize() of BasisInterp")
@@ -133,8 +133,8 @@ class BasisPolynomial(BasisInterp):
 
     :param order:       The order to use for each key.  Can be a single value (applied to all
                         keys) or an array matching number of keys.
-    :param keys:        List of keys for StarData properties that will be used as the
-                        polynomial arguments.  [default: ('u','v')]
+    :param keys:        List of keys for properties that will be used as the polynomial arguments.
+                        [default: ('u','v')]
     :param ranges:      Range for each key to be linearly remapped to [-1,1] interval before
                         calculating polynomials.  Can be a single tuple (which will be used for all
                         keys) or a list with a tuple for each key. [default: None]

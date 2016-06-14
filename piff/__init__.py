@@ -85,8 +85,7 @@ from .basis_interp import BasisInterp, BasisPolynomial
 
 # Inputs
 from .input import InputHandler, process_input, InputFiles
-from .stardata import StarData
-from .starfit import StarFit, Star
+from .star import Star, StarData, StarFit
 
 # Outputs
 from .output import OutputHandler, process_output, OutputFile

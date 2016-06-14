@@ -23,7 +23,7 @@ from test_helper import get_script_name
 
 def make_gaussian_data(sigma, u0, v0, flux, noise=0., du=1., fpu=0., fpv=0., nside=32,
                        nom_u0=0., nom_v0=0., rng=None):
-    """Make a StarData instance filled with a Gaussian profile
+    """Make a Star instance filled with a Gaussian profile
 
     :param sigma:       The sigma of the Gaussian
     :param u0, v0:      The sub-pixel offset to apply.
@@ -41,17 +41,17 @@ def make_gaussian_data(sigma, u0, v0, flux, noise=0., du=1., fpu=0., fpv=0., nsi
         var = 0.1
     else:
         var = noise
-    s = piff.StarData.makeTarget(x=nside/2+nom_u0/du, y=nside/2+nom_v0/du,
-                                 u=fpu, v=fpv, scale=du, stamp_size=nside)
-    s.image.setOrigin(0,0)
-    g.drawImage(s.image, method='no_pixel', use_true_center=False,
+    data = piff.StarData.makeTarget(x=nside/2+nom_u0/du, y=nside/2+nom_v0/du,
+                                    u=fpu, v=fpv, scale=du, stamp_size=nside)
+    data.image.setOrigin(0,0)
+    g.drawImage(data.image, method='no_pixel', use_true_center=False,
                 offset=galsim.PositionD(nom_u0/du,nom_v0/du))
-    s.weight = s.image.copy()
-    s.weight.fill(1./var/var)
+    data.weight = data.image.copy()
+    data.weight.fill(1./var/var)
     if noise != 0:
         gn = galsim.GaussianNoise(sigma=noise, rng=rng)
-        s.image.addNoise(gn)
-    return s
+        data.image.addNoise(gn)
+    return piff.Star(data, None)
 
 
 def test_simplest():
@@ -64,7 +64,7 @@ def test_simplest():
     # Pixelized model with Lanczos 3 interp
     interp = piff.Lanczos(3)
     mod = piff.PixelModel(du, 32, interp, start_sigma=1.5, force_model_center=False)
-    star = mod.makeStar(s, flux=np.sum(s.data))
+    star = mod.makeStar(s, flux=np.sum(s.data.data))
 
     # Check that fitting the star can recover the right flux.
     # Note: this shouldn't match perfectly, since SimpleData draws this as a surface
@@ -85,9 +85,9 @@ def test_simplest():
 
     # Drawing the star should produce a nearly identical image to the original.
     star2 = mod.draw(star)
-    print('max image abs diff = ',np.max(np.abs(star2.data.data-s.data)))
-    print('max image abs value = ',np.max(np.abs(s.data)))
-    np.testing.assert_almost_equal(star2.data.data, s.data, decimal=7)
+    print('max image abs diff = ',np.max(np.abs(star2.data.data-s.data.data)))
+    print('max image abs value = ',np.max(np.abs(s.data.data)))
+    np.testing.assert_almost_equal(star2.data.data, s.data.data, decimal=7)
 
 
 def test_oversample():
@@ -101,7 +101,7 @@ def test_oversample():
     # Pixelized model with Lanczos 3 interp, coarser pix scale
     interp = piff.Lanczos(3)
     mod = piff.PixelModel(2*du, nside/2, interp, start_sigma=1.5, force_model_center=False)
-    star = mod.makeStar(s, flux=np.sum(s.data))
+    star = mod.makeStar(s, flux=np.sum(s.data.data))
 
     for i in range(2):
         star = mod.fit(star)
@@ -113,12 +113,12 @@ def test_oversample():
     # So only agree to 3 dp.
     star2 = mod.draw(star)
     #print('star2 image = ',star2.data.data)
-    #print('star.image = ',s.data)
-    #print('diff = ',star2.data.data-s.data)
-    print('max image abs diff = ',np.max(np.abs(star2.data.data-s.data)))
-    print('max image abs value = ',np.max(np.abs(s.data)))
-    peak = np.max(np.abs(s.data))
-    np.testing.assert_almost_equal(star2.data.data/peak, s.data/peak, decimal=3)
+    #print('star.image = ',s.data.data)
+    #print('diff = ',star2.data.data-s.data.data)
+    print('max image abs diff = ',np.max(np.abs(star2.data.data-s.data.data)))
+    print('max image abs value = ',np.max(np.abs(s.data.data)))
+    peak = np.max(np.abs(s.data.data))
+    np.testing.assert_almost_equal(star2.data.data/peak, s.data.data/peak, decimal=3)
 
 
 def test_center():
@@ -147,10 +147,10 @@ def test_center():
     # Residual image when done should be dominated by structure off the edge of the fitted region.
     # This comes out fairly close, but only 2 dp of accuracy, compared to 3 above.
     star2 = mod.draw(star)
-    print('max image abs diff = ',np.max(np.abs(star2.data.data-s.data)))
-    print('max image abs value = ',np.max(np.abs(s.data)))
-    peak = np.max(np.abs(s.data))
-    np.testing.assert_almost_equal(star2.data.data/peak, s.data/peak, decimal=2)
+    print('max image abs diff = ',np.max(np.abs(star2.data.data-s.data.data)))
+    print('max image abs value = ',np.max(np.abs(s.data.data)))
+    peak = np.max(np.abs(s.data.data))
+    np.testing.assert_almost_equal(star2.data.data/peak, s.data.data/peak, decimal=2)
 
 
 def test_interp():
@@ -668,10 +668,10 @@ def test_single_image():
     np.testing.assert_equal(input.cats[0]['x'], x_list)
     np.testing.assert_equal(input.cats[0]['y'], y_list)
 
-    # Make star data
-    orig_stardata = input.makeStarData()
-    assert len(orig_stardata) == len(x_list)
-    assert orig_stardata[0].image.array.shape == (32,32)
+    # Make stars
+    orig_stars = input.makeStars()
+    assert len(orig_stars) == len(x_list)
+    assert orig_stars[0].data.image.array.shape == (32,32)
 
     # Make a test star, not at the location of any of the model stars to use for each of the
     # below tests.
@@ -682,8 +682,8 @@ def test_single_image():
     e1 = e1_fn(x0,y0)
     e2 = e2_fn(x0,y0)
     moffat = galsim.Moffat(fwhm=fwhm, beta=beta).shear(e1=e1, e2=e2)
-    target_data = piff.StarData.makeTarget(x=x0, y=y0, scale=image.scale)
-    test_im = galsim.ImageD(bounds=target_data.image.bounds, scale=image.scale)
+    target_star = piff.Star(piff.StarData.makeTarget(x=x0, y=y0, scale=image.scale), None)
+    test_im = galsim.ImageD(bounds=target_star.data.image.bounds, scale=image.scale)
     moffat.drawImage(image=test_im, method='no_pixel', use_true_center=False)
     b = galsim.BoundsI(x0-3,x0+3,y0-3,y0+3)
     print('made test star')
@@ -698,11 +698,11 @@ def test_single_image():
             logger = piff.config.setup_logger(2)
         else:
             logger = None
-        psf = piff.PSF.build(orig_stardata, model, interp, logger=logger)
+        psf = piff.PSF.build(orig_stars, model, interp, logger=logger)
 
         # Check that the interpolation is what it should be
-        target = model.makeStar(target_data, flux=1.0)
-        test_star = psf.draw(target.data, flux=1.)
+        target = model.makeStar(target_star, flux=1.0)
+        test_star = psf.draw(target, flux=1.)
         #print('test_im center = ',test_im[b].array)
         #print('flux = ',test_im.array.sum())
         #print('interp_im center = ',test_star.data.image[b].array)
@@ -716,7 +716,7 @@ def test_single_image():
         psf = piff.PSF.read(psf_file, logger)
         assert type(psf.model) is piff.PixelModel
         assert type(psf.interp) is piff.BasisPolynomial
-        test_star = psf.draw(target.data, flux=1.)
+        test_star = psf.draw(target, flux=1.)
         np.testing.assert_almost_equal(test_star.data.image.array, test_im.array, decimal=3)
 
     # Do the whole thing with the config parser
@@ -746,7 +746,7 @@ def test_single_image():
         print("Running piffify function")
         piff.piffify(config)
         psf = piff.PSF.read(psf_file)
-        test_star = psf.draw(target.data, flux=1.)
+        test_star = psf.draw(target, flux=1.)
         np.testing.assert_almost_equal(test_star.data.image.array, test_im.array, decimal=3)
 
     # Test using the piffify executable
@@ -760,7 +760,7 @@ def test_single_image():
         p = subprocess.Popen( [piffify_exe, 'pixel_moffat.yaml'] )
         p.communicate()
         psf = piff.PSF.read(psf_file)
-        test_star = psf.draw(target.data, flux=1.)
+        test_star = psf.draw(target, flux=1.)
         np.testing.assert_almost_equal(test_star.data.image.array, test_im.array, decimal=3)
 
 def test_des_image():
@@ -806,7 +806,7 @@ def test_des_image():
         # Note: The 2 and 1.1 values here are very arbitrary!
 
         for s in psf.stars:
-            fitted = psf.draw(s.data, s.fit.flux, s.fit.center)
+            fitted = psf.draw(s, s.fit.flux, s.fit.center)
             orig_stamp = orig_image[fitted.data.image.bounds] - s.data['sky']
             fit_stamp = fitted.data.image
 
@@ -878,7 +878,7 @@ def test_des_image():
         print('read psf')
         psf = piff.PSF.read(psf_file)
         stars = [psf.model.reflux(psf.model.makeStar(s), fit_center=False) for s in stars]
-        fitted = psf.draw(stars[0].data, stars[0].fit.flux, stars[0].fit.center)
+        fitted = psf.draw(stars[0], stars[0].fit.flux, stars[0].fit.center)
         fit_stamp = fitted.data.image
         flux = fitted.fit.flux
         # The first star happens to be a good one, so go ahead and test the arrays directly.
@@ -900,7 +900,7 @@ def test_des_image():
         print('read psf')
         psf = piff.PSF.read(psf_file)
         stars = [psf.model.reflux(psf.model.makeStar(s), fit_center=False) for s in stars]
-        fitted = psf.draw(stars[0].data, stars[0].fit.flux, stars[0].fit.center)
+        fitted = psf.draw(stars[0], stars[0].fit.flux, stars[0].fit.center)
         fit_stamp = fitted.data.image
         flux = fitted.fit.flux
         orig_stamp = orig_image[fitted.data.image.bounds] - stars[0].data['sky']

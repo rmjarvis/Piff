@@ -20,7 +20,7 @@ from __future__ import print_function
 import numpy
 
 from .interp import Interp
-from .starfit import Star, StarFit
+from .star import Star, StarFit
 
 class Mean(Interp):
     """The simplest possible interpolation scheme.  It just finds the mean of the parameter
@@ -47,7 +47,7 @@ class Mean(Interp):
         :param star:        A Star instance to which one wants to interpolate
         :param logger:      A logger object for logging debug info. [default: None]
 
-        :returns: a new Star instance with its StarFit member holding the interpolated parameters
+        :returns: a new Star instance holding the interpolated parameters
         """
         if self.mean is None:
             return star

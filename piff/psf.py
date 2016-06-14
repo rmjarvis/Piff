@@ -18,7 +18,7 @@
 
 from __future__ import print_function
 
-from .starfit import Star, StarFit
+from .star import Star, StarFit
 
 class PSF(object):
     """A class that encapsulates the full interpolated PSF model.
@@ -45,10 +45,10 @@ class PSF(object):
         self.stars = stars
 
     @classmethod
-    def build(cls, data, model, interp, logger=None):
+    def build(cls, stars, model, interp, logger=None):
         """The main driver function to build a PSF model from data.
 
-        :param data:        A list of StarData instances.
+        :param stars:       A list of Star instances.
         :param model:       A Model instance that defines how to model the individual PSFs
                             at the location of each star.
         :param interp:      An Interp instance that defines how to do the interpolation of the
@@ -58,32 +58,32 @@ class PSF(object):
         :returns: a PSF instance
         """
         if logger:
-            logger.info("Start building PSF using %s stars", len(data))
+            logger.info("Start building PSF using %s stars", len(stars))
             logger.debug("Model is %s", model)
             logger.debug("Interp is %s", interp)
 
         psf = cls(model,interp)
         if logger:
             logger.info("Fitting PSF model")
-        psf.fit(data, logger=logger)
+        psf.fit(stars, logger=logger)
         if logger:
             logger.debug("Done building PSF")
         return psf
 
-    def fit(self, data, chisq_threshold=0.1, logger=None):
-        """Fit interpolated PSF model to data using standard sequence of operations.
+    def fit(self, stars, chisq_threshold=0.1, logger=None):
+        """Fit interpolated PSF model to star data using standard sequence of operations.
 
-        :param data:     List of StarData instances holding images to be fit.
+        :param stars:       List of Star instances holding images to be fit.
         :param chisq_threshold:  Change in reduced chisq at which iteration will terminate.
-                         [default: 0.1]
-        :param logger:   A logger object for logging debug info. [default: None]
+                            [default: 0.1]
+        :param logger:      A logger object for logging debug info. [default: None]
         """
 
         import numpy
 
         if logger:
             logger.debug("Making Star structures")
-        self.stars = [self.model.makeStar(s, mask=True) for s in data]  #?? mask optional?
+        self.stars = [self.model.makeStar(s, mask=True) for s in stars]  #?? mask optional?
 
         if logger:
             logger.debug("Initializing interpolator")
@@ -145,22 +145,22 @@ class PSF(object):
                 logger.warning('PSF fit did not converge')
             oldchisq = chisq
 
-    def draw(self, data, flux=1., center=(0.,0.), logger=None):
+    def draw(self, star, flux=1., center=(0.,0.), logger=None):
         """Generates PSF image from interpolated model
 
-        :param data:        StarData instance holding information needed for
+        :param star:        Star instance holding information needed for
                             interpolation as well as an image/WCS into which
                             PSF will be rendered.
         :param flux:        Flux of PSF to be drawn
         :param center:      (u,v) tuple giving position of stellar center relative
-                            to data.image_pos [default: (0.,0.)]
+                            to star.data.image_pos [default: (0.,0.)]
         :param logger:      A logger object for logging debug info. [default: None]
 
         :returns:           Star instance with its image filled with rendered star
         """
 
         # Make a Star structure
-        s = self.model.makeStar(data, flux=flux, center=center)
+        s = self.model.makeStar(star, flux=flux, center=center)
         # Interpolate parameters to this position/properties:
         s = self.interp.interpolate(s)
         # Render the image

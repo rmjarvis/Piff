@@ -19,7 +19,7 @@
 from __future__ import print_function
 
 from .interp import Interp
-from .starfit import Star, StarFit
+from .star import Star, StarFit
 
 import numpy
 import warnings
@@ -401,7 +401,7 @@ class Polynomial(Interp):
         :param star:        A Star instance to which one wants to interpolate
         :param logger:      A logger object for logging debug info. [default: None]
 
-        :returns: a new Star instance with its StarFit member holding the interpolated parameters
+        :returns: a new Star instance holding the interpolated parameters
         """
         pos = self.getProperties(star)
         p = [self._interpolationModel(pos, coeff) for coeff in self.coeffs]

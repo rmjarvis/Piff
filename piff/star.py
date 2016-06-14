@@ -19,6 +19,41 @@
 from __future__ import print_function
 import numpy
 
+
+class Star(object):
+    """Information about a "star", which may be either a real star or an interpolated star
+    at some target location.
+
+    The Star object is the fundamental way that Piff keeps track of information connected to
+    a particular observation location.  This includes both the input data (postage stamp image,
+    position on the detector, position in the field of view, weight image, etc.) and derived
+    information connected to whatever Model is being used
+
+
+    star = piff.Star(
+
+
+
+    Structure that links the data for a star to the results of fitting it.
+    **This class and its two members are expected to be invariant outside of the
+    code that creates them.**
+
+    We will expect it to have the following attributes:
+    - data:   a StarData instance holding all information on the star coming from observation
+    - fit:    a StarFit instance holding all information or useful intermediates from the fitting
+              process.
+    """
+    def __init__(self, data, fit):
+        """Constructor for Star instance.
+
+        :param data: A StarData instance (invariant)
+        :param fit:  A StarFit instance (invariant)
+        """
+        self.data = data
+        self.fit = fit
+        return
+
+
 class StarData(object):
     """A class that encapsulates all the relevant information about an observed star.
 
@@ -45,18 +80,18 @@ class StarData(object):
       brightness (flux) units.
       :property pixel_area:    Solid angle on sky subtended by each pixel,
       in units of the uv system.
-      
+
     The other information is stored in a dict.  This dict will include at least the following
     items:
 
       - x
       - y
-      - u
+      -u
       - v
 
     And anything else you want to store.  e.g.
 
-      - chipnum  
+      - chipnum
       - ra
       - dec
       - color_ri
@@ -80,7 +115,7 @@ class StarData(object):
                         But it should be the same for all StarData objects in the exposure.
                         This is required if image.wcs is a CelestialWCS, but should be None
                         if image.wcs is a EuclideanWCS. [default: None]
-    :param properties:  A dict containing other properties about the star that might be of 
+    :param properties:  A dict containing other properties about the star that might be of
                         interest. [default: None]
     :param values_are_sb: True if pixel data give surface brightness, False if they're flux
                           [default: False]
@@ -142,14 +177,14 @@ class StarData(object):
                             of the :properties: dict.]
         :param v:           The image v position. [optional, see above; may also be given as part
                             of the :properties: dict.]
-        :param properties:  The requested properties for the target star, including any other 
+        :param properties:  The requested properties for the target star, including any other
                             requested properties besides x,y,u,v.  You may also provide x,y,u,v
                             in this dict rather than explicitly as kwargs. [default: None]
         :param wcs:         The requested WCS.  [optional; invalid if both (x,y) and (u,v) are
                             given.]
         :param scale:       If wcs is None, you may instead provide a pixel scale. [default: None]
         :param stamp_size:  The size in each direction of the (blank) image. [default: 48]
-        
+
         :returns:   A StarData instance
         """
         import galsim
@@ -251,8 +286,8 @@ class StarData(object):
         return self.properties[key]
 
     def getImage(self):
-        """Get the pixel data as a galsim.Image. 
-        
+        """Get the pixel data as a galsim.Image.
+
         Also returns the weight image and the origin position (the position in x,y coordinates
         to use as the origin of the PSF model).
 
@@ -278,8 +313,8 @@ class StarData(object):
         return numpy.abs(dudx*dvdy - dudy*dvdx)
 
     def getDataVector(self):
-        """Get the pixel data as a numpy array. 
-        
+        """Get the pixel data as a numpy array.
+
         Also returns the weight values and the local u,v coordinates of the pixels.
         Any pixels with zero weight (e.g. from masking in the original image) will not be
         included in the returned arrays.
@@ -318,7 +353,7 @@ class StarData(object):
         The array should match the ordering of the one that is produced by getDataVector().
 
         :param data: A 1d numpy array with new values for the image data.
-        
+
         :returns:    New StarData structure
         """
         # ??? Do we need a way to fill in pixels that have zero weight and
@@ -328,7 +363,7 @@ class StarData(object):
         ignore = self.weight.array==0.
         newimage.array[ignore] = 0.
         newimage.array[numpy.logical_not(ignore)] = data
-        
+
         props = self.properties.copy()
         for key in ['x', 'y', 'u', 'v']:
             # Get rid of keys that constructor doesn't want to see:
@@ -358,7 +393,7 @@ class StarData(object):
 
         # Mark the pixels that are not already worthless
         use = self.weight.array!=0.
-        
+
         # Get the signal data
         if signal is None:
             variance = self.image.array[use]
@@ -366,10 +401,10 @@ class StarData(object):
             variance = signal.array[use]
         elif len(signal.shape)==2:
             variance = signal[use]
-        else: 
+        else:
             # Insert 1d vector into currently valid pixels
             variance = signal
-            
+
         # Scale by gain
         if gain is None:
             try:
@@ -409,14 +444,14 @@ class StarData(object):
 
         # Mark the pixels that are not already worthless
         use = self.weight.array!=0.
-        
+
         # Get the signal data
         if len(mask.shape)==2:
             m = mask[use]
-        else: 
+        else:
             # Insert 1d vector into currently valid pixels
             m = mask
-            
+
         # Zero appropriate weight pixels in new copy
         newweight = self.weight.copy()
         newweight.array[use] = numpy.where(m, self.weight.array[use], 0.)
@@ -432,4 +467,69 @@ class StarData(object):
                         pointing=self.pointing,
                         values_are_sb=self.values_are_sb,
                         properties=props)
-        
+
+class StarFit(object):
+    """Class to hold the results of fitting a Model to some StarData, or specify
+    the PSF interpolated to an unmeasured location.
+
+    **Class is intended to be invariant once created.**
+
+    This class can be extended
+    to carry information of use to a given Model instance (such as intermediate
+    results), but interpolators will be looking for some subset of these properties:
+
+    :params:      numpy vector of parameters of the PSF that apply to this star
+    :flux:        flux of the star
+    :center:      (u,v) tuple giving position of stellar center (relative
+                  to data.image_pos)
+    :chisq:       Chi-squared of  fit to the data (if any) with current params
+    :dof:         Degrees of freedom in the fit (will depend on whether last fit had
+                  parameters free or just the flux/center).
+    :alpha, beta: matrix, vector, giving Taylor expansion of chisq wrt params about
+                  their current values. The alpha matrix also is the inverse covariance
+                  matrix of the params.
+
+    The params and alpha,beta,chisq are assumed to be marginalized over flux (and over center,
+    if it is free to vary).
+    """
+    def __init__(self, params, flux=1., center=(0.,0.), alpha=None, beta=None, chisq=None, dof=None,
+                 worst_chisq=None):
+        """Constructor for base version of StarFit
+
+        :param params: A 1d numpy array holding estimated PSF parameters
+        :param flux:   Estimated flux for this star
+        :param center: Estimated or fixed center position (u,v) of this star relative to
+                       the StarData.image_pos reference point.
+        :param alpha:  Quadratic dependence of chi-squared on params about current values
+        :param beta:   Linear dependence of chi-squared on params about current values
+        :param chisq:  chi-squared value at current parameters.
+        :param worst_chisq:  highest chi-squared in any single pixel, after reflux()
+        """
+
+        self.params = params
+        self.flux = flux
+        self.center = center
+        self.alpha = alpha
+        self.beta = beta
+        self.chisq = chisq
+        self.dof = dof
+        self.worst_chisq = worst_chisq
+        return
+
+    def newParams(self, p):
+        """Return new StarFit that has the array p installed as new parameters.
+
+        :param params:  A 1d array holding new parameters; must match size of current ones
+
+        :returns:  New StarFit object with altered parameters.  All chisq-related parameters
+                   are set to None since they are no longer valid.
+        """
+        npp = numpy.array(p)
+        if self.params is not None and npp.shape != self.params.shape:
+            raise TypeError('new StarFit parameters do not match dimensions of old ones')
+        return StarFit(npp, flux=self.flux, center=self.center)
+
+    def copy(self):
+        return StarFit(self.params, self.flux, self.center, self.alpha, self.beta,
+                       self.chisq, self.dof, self.worst_chisq)
+
