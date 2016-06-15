@@ -48,15 +48,15 @@ class BasisInterp(Interp):
 
     def initialize(self, star_list, logger=None):
         """Initialize the interpolator prefatory to any solve iterations.
-        This class will initialize everything
-        to have constant PSF parameter vector taken from the first Star in the list.
+
+        This class will initialize everything to have constant PSF parameter vector taken
+        from the first Star in the list.
 
         :param star_list:   A list of Star instances to use to initialize.
         :param logger:      A logger object for logging debug info. [default: None]
 
         :returns:           A new list of Stars which have their parameters initialized.
         """
-
         c = star_list[0].fit.params.copy()
         self.q = c[:,numpy.newaxis] * self.constant(1.)[numpy.newaxis,:]
 
@@ -69,7 +69,6 @@ class BasisInterp(Interp):
         :param star_list:   A list of Star instances to interpolate between
         :param logger:      A logger object for logging debug info. [default: None]
         """
-
         if self.q is None:
             raise RuntimeError("Attempt to solve() before initialize() of BasisInterp")
 

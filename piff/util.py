@@ -18,7 +18,7 @@
 
 from __future__ import print_function
 
-# Courtesy of 
+# Courtesy of
 # http://stackoverflow.com/questions/3862310/how-can-i-find-all-subclasses-of-a-given-class-in-python
 def get_all_subclasses(cls):
     all_subclasses = []

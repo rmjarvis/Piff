@@ -62,7 +62,7 @@ class PSF(object):
             logger.debug("Model is %s", model)
             logger.debug("Interp is %s", interp)
 
-        psf = cls(model,interp)
+        psf = cls(model, interp)
         if logger:
             logger.info("Fitting PSF model")
         psf.fit(stars, logger=logger)

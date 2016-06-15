@@ -61,7 +61,7 @@ if False:
     # Load the C functions with cffi
     _ffi = cffi.FFI()
     # Put the C prototype of any functions that we want wrapped into header
-    # files named *_C.h.  Then this reads them, parses the prototypes and 
+    # files named *_C.h.  Then this reads them, parses the prototypes and
     # puts python callable versions into the _lib object.
     for file_name in glob.glob(os.path.join(include_dir,'*_C.h')):
         _ffi.cdef(open(file_name).read())

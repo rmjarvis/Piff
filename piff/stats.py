@@ -52,6 +52,7 @@ def process_stats(config, logger):
 
     return stats
 
+
 class Statistics(object):
     """The base class for getting the statistics of a set of stars.
 
@@ -65,7 +66,8 @@ class Statistics(object):
         :param psf:         A PSF Object
         :param stars:       A list of Star instances.
         :param logger:      A logger object for logging debug info. [default: None]
-        :params kwargs:     Potential other parameters we might need to input. Images, coordinates, et cetera.
+        :params kwargs:     Potential other parameters we might need to input. Images,
+                            coordinates, et cetera.
 
         :returns:           Some kind of data vector.
         """
@@ -75,6 +77,7 @@ class Statistics(object):
         """Make your plots.
 
         :param logger:      A logger object for logging debug info. [default: None]
+
         :returns:           fig and ax
         """
         raise NotImplemented("Derived classes must define the plot function")
@@ -158,6 +161,7 @@ class Statistics(object):
 
         return positions, shapes_truth, shapes_model
 
+
 class ShapeStatistics(Statistics):
     """Returns histograms of shape differences using HSM
     """
@@ -189,12 +193,14 @@ class ShapeStatistics(Statistics):
         self.dg2 = self.g2 - self.g2_model
 
     def plot(self, bins_size=10, bins_shape=10, logger=None, **kwargs):
-        """Make your plots.
+        """Make the plots.
 
-        :param bins_size:   Number of bins for histograms of size and size difference [default: 10]
-        :param bins_shape:   Number of bins for histograms of shape and shape difference [default: 10]
+        :param bins_size:   Number of bins for histograms of size and size difference.
+                            [default: 10]
+        :param bins_shape:  Number of bins for histograms of shape and shape difference.
+                            [default: 10]
         :param logger:      A logger object for logging debug info. [default: None]
-        :params kwargs:     kwargs go into the plotting.
+        :params **kwargs:   Any additional kwargs go into the matplotlib hist() function.
 
         :returns: fig, ax
         """
@@ -327,7 +333,7 @@ class RhoStatistics(Statistics):
         self.rho5.process(cat_g, cat_gdTT)
 
     def plot(self, logger=None, **kwargs):
-        """Make your plots.
+        """Make the plots.
 
         :param logger:      A logger object for logging debug info. [default: None]
 
@@ -359,7 +365,8 @@ class RhoStatistics(Statistics):
                 pos = xi > 0
                 neg = xi < 0
 
-                # catch linestyles, but otherwise default to - and -- for positive and negative values
+                # catch linestyles, but otherwise default to - and -- for positive and negative
+                # values
                 if 'linestyle' in kwargs.keys():
                     linestyle_pos = kwargs.pop('linestyle')
                     linestyle_neg = linestyle_pos
@@ -367,7 +374,8 @@ class RhoStatistics(Statistics):
                     linestyle_pos = '-'
                     linestyle_neg = '--'
                 # do the plots
-                ax.plot(r[pos], xi[pos], linestyle=linestyle_pos, color=color, label=label, **kwargs)
+                ax.plot(r[pos], xi[pos], linestyle=linestyle_pos, color=color, label=label,
+                        **kwargs)
                 # no label for the negative values
                 ax.plot(r[neg], -xi[neg], linestyle=linestyle_neg, color=color, **kwargs)
             ax.legend(loc='upper right')

@@ -54,6 +54,7 @@ def process_model(config, logger=None):
 
     return model
 
+
 class Model(object):
     """The base class for modeling a single PSF (i.e. no interpolation yet)
 
@@ -82,7 +83,7 @@ class Model(object):
         """Create a Star instance that this Model can read, include any setup needed
         before fitting.
 
-        The base class implementation uses None for the fit.params value, leaving that to 
+        The base class implementation uses None for the fit.params value, leaving that to
         be filled in by a subsequent model.fit() call.
 
         :param star:    A Star instance with the raw data.
@@ -96,10 +97,9 @@ class Model(object):
         fit = StarFit(None, flux, center)
         return Star(star.data, fit)
 
-
     def fit(self, star):
         """Fit the Model to the star's data to yield iterative improvement on
-        its PSF parameters, their uncertainties, and flux (and center, if free).  
+        its PSF parameters, their uncertainties, and flux (and center, if free).
         The returned star.fit.alpha will be inverse covariance of solution if
         it is estimated, else is None.
 

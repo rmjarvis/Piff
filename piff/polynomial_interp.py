@@ -151,7 +151,6 @@ class Polynomial(Interp):
             coeffs[k] = C[i,j]
         return coeffs
 
-
     def _unpack_coefficients(self, parameter_index, coeffs):
         """Unpack a sequence of parameters into the 2D matrix for the
         given parameter_index (which determines the order of the matrix)
@@ -172,7 +171,6 @@ class Polynomial(Interp):
             C[i,j] = coeffs[k]
             k+=1
         return C
-
 
     def _interpolationModel(self, pos, C):
         """Generate the polynomial variation of some quantity at x and y
@@ -228,8 +226,6 @@ class Polynomial(Interp):
         C[0,0] = parameter.mean()
         return C
 
-
-
     def solve(self, stars, logger=None):
         """Solve for the interpolation coefficients given some data,
         using the scipy.optimize.curve_fit routine, which uses Levenberg-Marquardt
@@ -268,7 +264,6 @@ class Polynomial(Interp):
 
         # Loop through the parameters
         for i, parameter in enumerate(parameters):
-
 
             def model(uv,*coeffs):
                 C = self._unpack_coefficients(i, coeffs)
@@ -356,7 +351,6 @@ class Polynomial(Interp):
         data = numpy.array(zip(*cols), dtype=dtypes)
         fits.write_table(data, extname=extname, header=header)
 
-
     def readSolution(self, fits, extname):
         """Read the solution from a FITS binary table.
 
@@ -393,7 +387,6 @@ class Polynomial(Interp):
             this_param_range = param_indices==p
             col = coeff_data[this_param_range]
             self.coeffs.append(self._unpack_coefficients(p,col))
-
 
     def interpolate(self, star, logger=None):
         """Perform the interpolation to find the interpolated parameter vector at some position.

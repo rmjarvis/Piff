@@ -75,7 +75,7 @@ class Gaussian(Model):
         """Get a version of the model as a GalSim GSObject
 
         :param params:      A numpy array with [ sigma, g1, g2 ]
-         
+
         :returns: a galsim.GSObject instance
         """
         import galsim
@@ -86,7 +86,7 @@ class Gaussian(Model):
     def draw(self, star):
         """Draw the model on the given image.
 
-        :param star:    A Star instance with the fitted parameters to use for drawing and a 
+        :param star:    A Star instance with the fitted parameters to use for drawing and a
                         data field that acts as a template image for the drawn model.
 
         :returns: a new Star instance with the data field having an image of the drawn model.

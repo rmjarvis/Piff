@@ -257,7 +257,6 @@ class PixelModel(Model):
         constrained = self._b - np.dot(self._a[:,:self._nparams], star.fit.params)
         return np.concatenate((constrained, star.fit.params))
 
-
     def fillPSF(self, star, in2d):
         """ Initialize the PSF for a star from a given 2d uv-plane array.
         Sets elements outside the mask to zero, renormalizes to enforce flux
@@ -276,7 +275,6 @@ class PixelModel(Model):
         # ??? check centering ???
 
         star.fit.params[:] = params[self._constraints:]  # Omit the constrained pixels
-        return
 
     def makeStar(self, star, flux=1., center=(0.,0.), mask=True):
         """Create a Star instance that PixelModel can manipulate.
@@ -652,10 +650,10 @@ class PixelModel(Model):
 
         raise RuntimeError("Maximum number of iterations exceeded in PixelModel.reflux()")
 
+
 class PixelInterpolant(object):
     """Interface for interpolators
     """
-
     def range(self):
         """Size of interpolation kernel
 
@@ -694,6 +692,7 @@ class PixelInterpolant(object):
         :returns: coeff, dcdu, dcdv, y, x
         """
         raise NotImplemented("Derived classes must define the derivatives function")
+
 
 class Lanczos(PixelInterpolant):
     """Lanczos interpolator in 2 dimensions.
@@ -771,6 +770,7 @@ class Lanczos(PixelInterpolant):
             return coeffs, dcdu, dcdv, x, y
         else:
             return coeffs, x, y
+
 
 class Bilinear(PixelInterpolant):
     """Lanczos interpolator in 2 dimensions.

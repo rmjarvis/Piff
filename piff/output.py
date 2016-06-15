@@ -49,6 +49,7 @@ def process_output(config, logger=None):
 
     return output_handler
 
+
 class OutputHandler(object):
     """The base class for handling the output for writing a Piff model.
 

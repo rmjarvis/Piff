@@ -51,6 +51,7 @@ def setup_logger(verbose=1, log_file=None):
 
     return logger
 
+
 def parse_variables(config, variables, logger):
     """Parse configuration variables and add them to the config dict
 

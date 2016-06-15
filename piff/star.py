@@ -236,7 +236,6 @@ class StarData(object):
         # Build the StarData instance
         return cls(image, image_pos, properties=properties)
 
-
     @staticmethod
     def calculateFieldPos(image_pos, wcs, pointing, properties=None):
         """
@@ -467,6 +466,7 @@ class StarData(object):
                         pointing=self.pointing,
                         values_are_sb=self.values_are_sb,
                         properties=props)
+
 
 class StarFit(object):
     """Class to hold the results of fitting a Model to some StarData, or specify

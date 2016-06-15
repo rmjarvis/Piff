@@ -52,6 +52,7 @@ def process_interp(config, logger=None):
 
     return interp
 
+
 class Interp(object):
     """The base class for interpolating a set of data vectors across the field of view.
 
@@ -91,7 +92,7 @@ class Interp(object):
         return kwargs
 
     def getProperties(self, star):
-        """Extract the appropriate properties to use as the independent variables for the 
+        """Extract the appropriate properties to use as the independent variables for the
         interpolation.
 
         The base class implementation returns the field position (u,v) as a 1d numpy array.
@@ -113,7 +114,7 @@ class Interp(object):
         :param logger:      A logger object for logging debug info. [default: None]
         """
         pass
-    
+
     def solve(self, star_list, logger=None):
         """Solve for the interpolation coefficients given some data.
 

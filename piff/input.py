@@ -137,7 +137,6 @@ class InputHandler(object):
         """
         raise NotImplemented("Derived classes must define the setPointing function")
 
-
     def addPoisson(self, stars, logger=None):
         """If the input parameters included a gain, then add Poisson noise to the weights
         according to the flux in the image.
@@ -155,7 +154,6 @@ class InputHandler(object):
             logger.info("Adding Poisson noise according to gain=%f",self.gain)
         stars = [piff.Star(s.data.addPoisson(gain=self.gain), s.fit) for s in stars]
         return stars
-
 
     def makeStars(self, logger=None):
         """Process the input images and star data, cutting out stamps for each star along with
@@ -202,6 +200,7 @@ class InputHandler(object):
                 stars.append(piff.Star(data, None))
 
         return stars
+
 
 class InputFiles(InputHandler):
     """An InputHandler than just takes a list of image files and catalog files.
