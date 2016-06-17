@@ -92,7 +92,8 @@ def stardata_from_fits(hdu_list, xysky, stamp_radius=25, badmask=0x7FFF,
     dec = galsim.DMS_Angle(hdr['TELDEC'])
     pointing = galsim.CelestialCoord(ra,dec)
     if logger:
-        logger.info("pointing = %s hours, %s deg",pointing.ra/galsim.hours,pointing.dec/galsim.degrees)
+        logger.info("pointing = %s hours, %s deg", pointing.ra/galsim.hours,
+                    pointing.dec/galsim.degrees)
 
     # Now iterate through all stars
     stardata = []
