@@ -89,11 +89,7 @@ class PSF(object):
 
         if logger:
             logger.debug("Initializing interpolator")
-        self.interp.initialize(self.stars, logger=logger)
-
-        # Before beginning iterative solutions, install the interpolator
-        # state into the parameter vectors of all Stars
-        self.stars = self.interp.interpolateList(self.stars)
+        self.stars = self.interp.initialize(self.stars, logger=logger)
 
         # Begin iterations.  Very simple convergence criterion right now.
         # ??? Also will need to include outlier rejection here.

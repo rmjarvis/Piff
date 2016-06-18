@@ -103,22 +103,26 @@ class Interp(object):
         """
         return numpy.array([ star.data['u'], star.data['v'] ])
 
-    def initialize(self, star_list=None, logger=None):
-        """Initialize the interpolator solution to some state
-        prefatory to any solve iterations.  Nature of the initialization is
-        specific to the derived classes.
+    def initialize(self, stars, logger=None):
+        """Initialize both the interpolator to some state prefatory to any solve iterations and
+        initialize the stars for use with this interpolator.
 
-        The base class implentation is a no op.
+        The nature of the initialization is specific to the derived classes.
 
-        :param star_list:   A list of Star instances to use to initialize.
+        The base class implentation calls interpolateList, which will set the stars to have
+        the right type object in its star.fit.params attribute.
+
+        :param stars:       A list of Star instances to use to initialize.
         :param logger:      A logger object for logging debug info. [default: None]
-        """
-        pass
 
-    def solve(self, star_list, logger=None):
+        :returns: a new list of Star instances
+        """
+        return self.interpolateList(stars)
+
+    def solve(self, stars, logger=None):
         """Solve for the interpolation coefficients given some data.
 
-        :param star_list:   A list of Star instances to interpolate between
+        :param stars:       A list of Star instances to interpolate between
         :param logger:      A logger object for logging debug info. [default: None]
         """
         raise NotImplemented("Derived classes must define the solve function")
@@ -133,19 +137,19 @@ class Interp(object):
         """
         raise NotImplemented("Derived classes must define the interpolate function")
 
-    def interpolateList(self, star_list, logger=None):
+    def interpolateList(self, stars, logger=None):
         """Perform the interpolation for a list of stars.
 
         The base class just calls interpolate(star) for each star in the list, but in many
         cases, this may be more efficiently done with a matrix operation, so we make it
         available for derived classes to override.
 
-        :param star_list:   A list of Star instances to interpolate.
+        :param stars:       A list of Star instances to interpolate.
         :param logger:      A logger object for logging debug info. [default: None]
 
         :returns: a list of new Star instances with interpolated parameters
         """
-        return [ self.interpolate(star) for star in star_list ]
+        return [ self.interpolate(star) for star in stars ]
 
     def write(self, fits, extname):
         """Write an Interp to a FITS file.

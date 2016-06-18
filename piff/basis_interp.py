@@ -46,27 +46,30 @@ class BasisInterp(Interp):
         self.degenerate_points = True  # This Interpolator uses chisq quadratic forms
         self.q = None
 
-    def initialize(self, star_list, logger=None):
-        """Initialize the interpolator prefatory to any solve iterations.
+    def initialize(self, stars, logger=None):
+        """Initialize both the interpolator to some state prefatory to any solve iterations and
+        initialize the stars for use with this interpolator.
 
         This class will initialize everything to have constant PSF parameter vector taken
         from the first Star in the list.
 
-        :param star_list:   A list of Star instances to use to initialize.
+        :param stars:       A list of Star instances to use to initialize.
         :param logger:      A logger object for logging debug info. [default: None]
 
         :returns:           A new list of Stars which have their parameters initialized.
         """
-        c = star_list[0].fit.params.copy()
+        c = stars[0].fit.params.copy()
         self.q = c[:,numpy.newaxis] * self.constant(1.)[numpy.newaxis,:]
+        stars = self.interpolateList(stars)
+        return stars
 
-    def solve(self, star_list, logger=None):
+    def solve(self, stars, logger=None):
         """Solve for the interpolation coefficients given some data.
         The StarFit element of each Star in the list is assumed to hold valid
         alpha and beta members specifying depending of chisq on differential
         changes to its parameter vector.
 
-        :param star_list:   A list of Star instances to interpolate between
+        :param stars:       A list of Star instances to interpolate between
         :param logger:      A logger object for logging debug info. [default: None]
         """
         if self.q is None:
@@ -76,7 +79,7 @@ class BasisInterp(Interp):
         A = numpy.zeros( self.q.shape+self.q.shape, dtype=float)
         B = numpy.zeros_like(self.q)
 
-        for s in star_list:
+        for s in stars:
             # Get the basis function values at this star
             K = self.basis(s)
             # Sum contributions into A, B

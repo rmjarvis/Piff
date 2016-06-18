@@ -141,7 +141,8 @@ class Statistics(object):
         shapes_truth = np.array([ self.hsm(*star.data.getImage()) for star in stars ])
 
         # Pull out the positions to return
-        positions = np.array([ (star.data.properties['u'], star.data.properties['v']) for star in stars ])
+        positions = np.array([ (star.data.properties['u'], star.data.properties['v'])
+                               for star in stars ])
 
         # get target stars with same properies as real stars, but blank image
         if logger:
