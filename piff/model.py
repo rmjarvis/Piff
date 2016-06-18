@@ -79,23 +79,21 @@ class Model(object):
         kwargs['logger'] = logger
         return kwargs
 
-    def makeStar(self, star, flux=1., center=(0.,0.), mask=True):
-        """Create a Star instance that this Model can read, include any setup needed
-        before fitting.
-
-        The base class implementation uses None for the fit.params value, leaving that to
-        be filled in by a subsequent model.fit() call.
+    def initialize(self, star, mask=True):
+        """Create a Star instance that PixelModel can manipulate.
 
         :param star:    A Star instance with the raw data.
-        :param flux:    Initial estimate of stellar flux
-        :param center:  Initial estimate of stellar center in world coord system
-        :param mask:    If True, set star.data.weight to zero at pixels that are outside
+        :param mask:    If True, set data.weight to zero at pixels that are outside
                         the range of the model.
 
-        :returns: Star instance with the appropriate fit attribute
+        :returns:       Star instance with the appropriate initial fit values
         """
-        fit = StarFit(None, flux, center)
-        return Star(star.data, fit)
+        # If implemented, update the flux to something close to right.
+        if hasattr(self, 'reflux'):
+            star = self.reflux(star, fit_center=False)
+        else:
+            star = star.withFlux(numpy.sum(star.data.image.array))
+        return star
 
     def fit(self, star):
         """Fit the Model to the star's data to yield iterative improvement on

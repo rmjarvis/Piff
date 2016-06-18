@@ -18,7 +18,12 @@
 
 from __future__ import print_function
 
+import numpy
+import fitsio
+
 from .star import Star, StarFit
+from .model import Model
+from .interp import Interp
 
 class PSF(object):
     """A class that encapsulates the full interpolated PSF model.
@@ -31,9 +36,9 @@ class PSF(object):
     The first is used to build a PSF model from the data.
     The second is used to read in a PSF model from disk.
 
-    However, it is also possible to construct a PSF from a model instance and an interp instance.
-    Any existing parameters in the model instance are ignored.  The model just determines how
-    interpolated parameters are to be interpreted.
+    However, it is also possible to construct a PSF directly from a Model instance and an Interp
+    instance.  The model defines the functional form of the surface brightness profile, and the
+    interp defines how the parameters of the mdoel vary across the field of view.
 
     The stars member is a list holding the Star instances for all measurement points being fit.
     At the end of a fit, it contains the PSF parameters at each star and information on what
@@ -78,12 +83,9 @@ class PSF(object):
                             [default: 0.1]
         :param logger:      A logger object for logging debug info. [default: None]
         """
-
-        import numpy
-
         if logger:
-            logger.debug("Making Star structures")
-        self.stars = [self.model.makeStar(s, mask=True) for s in stars]  #?? mask optional?
+            logger.debug("Initializing models")
+        self.stars = [self.model.initialize(s, mask=True) for s in stars]
 
         if logger:
             logger.debug("Initializing interpolator")
@@ -92,11 +94,6 @@ class PSF(object):
         # Before beginning iterative solutions, install the interpolator
         # state into the parameter vectors of all Stars
         self.stars = self.interp.interpolateList(self.stars)
-
-        if hasattr(self.model, 'reflux'):
-            if logger:
-                logger.debug("Initializing fluxes")
-            self.stars = [self.model.reflux(s, fit_center=False) for s in self.stars]
 
         # Begin iterations.  Very simple convergence criterion right now.
         # ??? Also will need to include outlier rejection here.
@@ -145,26 +142,28 @@ class PSF(object):
                 logger.warning('PSF fit did not converge')
             oldchisq = chisq
 
-    def draw(self, star, flux=1., center=(0.,0.), logger=None):
+    def draw(self, star, flux=None, center=None, logger=None):
         """Generates PSF image from interpolated model
 
         :param star:        Star instance holding information needed for
                             interpolation as well as an image/WCS into which
                             PSF will be rendered.
-        :param flux:        Flux of PSF to be drawn
+        :param flux:        Flux of PSF to be drawn [default: None, which will use the
+                            existing flux value in the star object.
         :param center:      (u,v) tuple giving position of stellar center relative
-                            to star.data.image_pos [default: (0.,0.)]
+                            to star.data.image_pos [default: None, which will use the
+                            existing center value in the star object.
         :param logger:      A logger object for logging debug info. [default: None]
 
         :returns:           Star instance with its image filled with rendered star
         """
 
-        # Make a Star structure
-        s = self.model.makeStar(star, flux=flux, center=center)
+        # Update the flux, center.
+        star = star.withFlux(flux=flux, center=center)
         # Interpolate parameters to this position/properties:
-        s = self.interp.interpolate(s)
+        star = self.interp.interpolate(star)
         # Render the image
-        return self.model.draw(s)
+        return self.model.draw(star)
 
     def write(self, file_name, logger=None):
         """Write a PSF object to a file.
@@ -172,7 +171,6 @@ class PSF(object):
         :param file_name:   The name of the file to write to.
         :param logger:      A logger object for logging debug info. [default: None]
         """
-        import fitsio
         if logger:
             logger.info("Writing PSF to file %s",file_name)
 
@@ -189,18 +187,16 @@ class PSF(object):
 
         :returns: a PSF instance
         """
-        import fitsio
-        import piff
         if logger:
             logger.info("Reading PSF from file %s",file_name)
 
         with fitsio.FITS(file_name,'r') as f:
             if logger:
                 logger.debug('opened FITS file')
-            model = piff.Model.read(f, 'model')
+            model = Model.read(f, 'model')
             if logger:
                 logger.debug("model = %s",model)
-            interp = piff.Interp.read(f, 'interp')
+            interp = Interp.read(f, 'interp')
             if logger:
                 logger.debug("interp = %s",interp)
         return cls(model,interp)

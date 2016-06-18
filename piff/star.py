@@ -18,7 +18,7 @@
 
 from __future__ import print_function
 import numpy
-
+import copy
 
 class Star(object):
     """Information about a "star", which may be either a real star or an interpolated star
@@ -50,8 +50,22 @@ class Star(object):
         :param fit:  A StarFit instance (invariant)
         """
         self.data = data
+        if fit is None:
+            fit = StarFit(None, flux=1.0, center=(0.,0.))
         self.fit = fit
-        return
+
+    def withFlux(self, flux=None, center=None):
+        """Update the flux and/or center values
+
+        :param flux:    The new flux.  [default: None, which means keep the existing value.]
+        :param center:  The new center.  [default: None, which means keep the existing value.]
+        """
+        fit = self.fit.copy()
+        if flux is not None:
+            fit.flux = flux
+        if center is not None:
+            fit.center = center
+        return Star(self.data, fit)
 
 
 class StarData(object):
@@ -155,6 +169,9 @@ class StarData(object):
         self.properties['y'] = self.image_pos.y
         self.properties['u'] = self.field_pos.x
         self.properties['v'] = self.field_pos.y
+
+    def copy(self):
+        return copy.deepcopy(self)
 
     @classmethod
     def makeTarget(cls, x=None, y=None, u=None, v=None, properties={}, wcs=None, scale=None,
@@ -515,6 +532,9 @@ class StarFit(object):
         self.dof = dof
         self.worst_chisq = worst_chisq
         return
+
+    def copy(self):
+        return copy.deepcopy(self)
 
     def newParams(self, p):
         """Return new StarFit that has the array p installed as new parameters.

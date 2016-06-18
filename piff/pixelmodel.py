@@ -276,19 +276,17 @@ class PixelModel(Model):
 
         star.fit.params[:] = params[self._constraints:]  # Omit the constrained pixels
 
-    def makeStar(self, star, flux=1., center=(0.,0.), mask=True):
+    def initialize(self, star, mask=True):
         """Create a Star instance that PixelModel can manipulate.
 
         :param star:    A Star instance with the raw data.
-        :param flux:    Initial estimate of stellar flux
-        :param center:  Initial estimate of stellar center in world coord system
         :param mask:    If True, set data.weight to zero at pixels that are outside
                         the range of the model.
 
         :returns:       Star instance with the appropriate initial fit values
         """
 
-        fit = StarFit(self._initial_params, flux, center)
+        fit = StarFit(self._initial_params, star.fit.flux, star.fit.center)
         if mask:
             # Null weight at pixels where interpolation coefficients
             # come up short of specified fraction of the total kernel
@@ -306,7 +304,10 @@ class PixelModel(Model):
             coeffs = np.where(index1d < 0, 0., coeffs)
             use = np.sum(coeffs,axis=1) > required_kernel_fraction
             data = star.data.maskPixels(use)
-        return Star(data, fit)
+        star = Star(data, fit)
+        # Update the flux to something close to right.
+        star = self.reflux(star, fit_center=False)
+        return star
 
     def fit(self, star):
         """Fit the Model to the star's data to yield iterative improvement on
