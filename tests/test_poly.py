@@ -99,11 +99,10 @@ def test_poly_mean():
     mean = numpy.mean(vectors, axis=0)
 
     # Choose some random positions in the field.
-    target_data = [
-            piff.StarData.makeTarget(u=numpy.random.random()*10, v=numpy.random.random()*10)
-            for i in range(nstars) ]
+    data = [ piff.Star.makeTarget(u=numpy.random.random()*10, v=numpy.random.random()*10).data
+             for i in range(nstars) ]
     fit = [ piff.StarFit(v) for v in vectors ]
-    stars = [ piff.Star(d, f) for d,f in zip(target_data, fit) ]
+    stars = [ piff.Star(d, f) for d,f in zip(data, fit) ]
 
     # Run our solver.
     interp.solve(stars)
@@ -119,9 +118,7 @@ def test_poly_mean():
     # We also expect that if we interpolate to any point we just
     # get the mean as well
     for i in xrange(30):
-        target_data = piff.StarData.makeTarget(u=numpy.random.random()*10,
-                                               v=numpy.random.random()*10)
-        target = piff.Star(target_data, None)
+        target = piff.Star.makeTarget(u=numpy.random.random()*10, v=numpy.random.random()*10)
         target = interp.interpolate(target)
         numpy.testing.assert_almost_equal(target.fit.params, mean)
 
@@ -174,16 +171,15 @@ def sub_poly_linear(type1):
     vectors = [linear_func(p) for p in pos]
 
     # Fit them. Linear fitting is quite easy so this should be okay
-    target_data = [ piff.StarData.makeTarget(u=p[0], v=p[1]) for p in pos ]
+    data = [ piff.Star.makeTarget(u=p[0], v=p[1]).data for p in pos ]
     fit = [ piff.StarFit(v) for v in vectors ]
-    stars = [ piff.Star(d, f) for d,f in zip(target_data, fit) ]
+    stars = [ piff.Star(d, f) for d,f in zip(data, fit) ]
     interp.solve(stars)
 
     # Check that the interpolation recovers the desired function
     for i in xrange(30):
         p=(numpy.random.random()*X, numpy.random.random()*Y)
-        target_data = piff.StarData.makeTarget(u=p[0], v=p[1])
-        target = piff.Star(target_data, None)
+        target = piff.Star.makeTarget(u=p[0], v=p[1])
         target = interp.interpolate(target)
         numpy.testing.assert_almost_equal(linear_func(p), target.fit.params)
 
@@ -236,16 +232,15 @@ def sub_poly_quadratic(type1):
     vectors = [quadratic_func(p) for p in pos]
 
     # Fit them.
-    target_data = [ piff.StarData.makeTarget(u=p[0], v=p[1]) for p in pos ]
+    data = [ piff.Star.makeTarget(u=p[0], v=p[1]).data for p in pos ]
     fit = [ piff.StarFit(v) for v in vectors ]
-    stars = [ piff.Star(d, f) for d,f in zip(target_data, fit) ]
+    stars = [ piff.Star(d, f) for d,f in zip(data, fit) ]
     interp.solve(stars)
 
     # Check that the interpolation recovers the desired function
     for i in xrange(30):
         p=(numpy.random.random()*X, numpy.random.random()*Y)
-        target_data = piff.StarData.makeTarget(u=p[0], v=p[1])
-        target = piff.Star(target_data, None)
+        target = piff.Star.makeTarget(u=p[0], v=p[1])
         target = interp.interpolate(target)
         numpy.testing.assert_almost_equal(quadratic_func(p), target.fit.params)
 
@@ -327,9 +322,9 @@ def poly_load_save_sub(type1, type2):
     vectors = [quadratic_func(p) for p in pos]
 
     # Fit them!
-    target_data = [ piff.StarData.makeTarget(u=p[0], v=p[1]) for p in pos ]
+    data = [ piff.Star.makeTarget(u=p[0], v=p[1]).data for p in pos ]
     fit = [ piff.StarFit(v) for v in vectors ]
-    stars = [ piff.Star(d, f) for d,f in zip(target_data, fit) ]
+    stars = [ piff.Star(d, f) for d,f in zip(data, fit) ]
     interp.solve(stars)
 
     # We should overwrite the order parameter when we load in
@@ -361,8 +356,7 @@ def poly_load_save_sub(type1, type2):
     # value
     for i in xrange(30):
         p=(numpy.random.random()*X, numpy.random.random()*Y)
-        target_data = piff.StarData.makeTarget(u=p[0], v=p[1])
-        target = piff.Star(target_data, None)
+        target = piff.Star.makeTarget(u=p[0], v=p[1])
         target1 = interp.interpolate(target)
         target2 = interp.interpolate(target)
         numpy.testing.assert_almost_equal(target1.fit.params, target2.fit.params)
@@ -382,9 +376,9 @@ def test_poly_raise():
             for i in range(nstars) ]
     #use the wrong number of parameters here so that we raise an error
     vectors = [ numpy.random.random(size=nparam+1) for i in range(nstars) ]
-    target_data = [ piff.StarData.makeTarget(u=p[0], v=p[1]) for p in pos ]
+    data = [ piff.Star.makeTarget(u=p[0], v=p[1]).data for p in pos ]
     fit = [ piff.StarFit(v) for v in vectors ]
-    stars = [ piff.Star(d, f) for d,f in zip(target_data, fit) ]
+    stars = [ piff.Star(d, f) for d,f in zip(data, fit) ]
     assert_raises(ValueError, interp.solve, stars)
 
 

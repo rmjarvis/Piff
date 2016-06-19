@@ -93,7 +93,7 @@ def test_Mean():
     # Make some dummy StarData objects to use.  The only thing we really need is the properties,
     # although for the Mean interpolator, even this is ignored.
     target_data = [
-            piff.StarData.makeTarget(x=numpy.random.random()*2048, y=numpy.random.random()*2048)
+            piff.Star.makeTarget(x=numpy.random.random()*2048, y=numpy.random.random()*2048).data
             for i in range(nstars) ]
     fit = [ piff.StarFit(v) for v in vectors ]
     stars = [ piff.Star(d, f) for d,f in zip(target_data,fit) ]
@@ -202,8 +202,7 @@ def test_single_image():
     print('mean = ',interp.mean)
 
     # Check that the interpolation is what it should be
-    target_data = piff.StarData.makeTarget(x=1024, y=123) # Any position would work here.
-    target = piff.Star(target_data, None)
+    target = piff.Star.makeTarget(x=1024, y=123) # Any position would work here.
     true_params = [ sigma, g1, g2 ]
     test_star = interp.interpolate(target)
     numpy.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=5)

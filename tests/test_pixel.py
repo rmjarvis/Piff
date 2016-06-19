@@ -41,17 +41,17 @@ def make_gaussian_data(sigma, u0, v0, flux, noise=0., du=1., fpu=0., fpv=0., nsi
         var = 0.1
     else:
         var = noise
-    data = piff.StarData.makeTarget(x=nside/2+nom_u0/du, y=nside/2+nom_v0/du,
-                                    u=fpu, v=fpv, scale=du, stamp_size=nside)
-    data.image.setOrigin(0,0)
-    g.drawImage(data.image, method='no_pixel', use_true_center=False,
+    star = piff.Star.makeTarget(x=nside/2+nom_u0/du, y=nside/2+nom_v0/du,
+                                u=fpu, v=fpv, scale=du, stamp_size=nside)
+    star.data.image.setOrigin(0,0)
+    g.drawImage(star.data.image, method='no_pixel', use_true_center=False,
                 offset=galsim.PositionD(nom_u0/du,nom_v0/du))
-    data.weight = data.image.copy()
-    data.weight.fill(1./var/var)
+    star.data.weight = star.data.image.copy()
+    star.data.weight.fill(1./var/var)
     if noise != 0:
         gn = galsim.GaussianNoise(sigma=noise, rng=rng)
-        data.image.addNoise(gn)
-    return piff.Star(data, None)
+        star.data.image.addNoise(gn)
+    return star
 
 
 def test_simplest():
@@ -676,10 +676,9 @@ def test_single_image():
     e1 = e1_fn(x0,y0)
     e2 = e2_fn(x0,y0)
     moffat = galsim.Moffat(fwhm=fwhm, beta=beta).shear(e1=e1, e2=e2)
-    target_star = piff.Star(piff.StarData.makeTarget(x=x0, y=y0, scale=image.scale), None)
+    target_star = piff.Star.makeTarget(x=x0, y=y0, scale=image.scale)
     test_im = galsim.ImageD(bounds=target_star.data.image.bounds, scale=image.scale)
     moffat.drawImage(image=test_im, method='no_pixel', use_true_center=False)
-    b = galsim.BoundsI(x0-3,x0+3,y0-3,y0+3)
     print('made test star')
 
     # These tests are slow, and it's really just doing the same thing three times, so

@@ -148,8 +148,7 @@ class Statistics(object):
         if logger:
             logger.info("Making images of model")
         stamp_size = np.max( [star.data.image.array.shape for star in stars ] )
-        test_stars = [ piff.Star(piff.StarData.makeTarget(
-                            properties=star.data.properties, stamp_size=stamp_size), None)
+        test_stars = [ piff.Star.makeTarget(properties=star.data.properties, stamp_size=stamp_size)
                        for star in stars ]
         test_stars = psf.interp.interpolateList(test_stars)
 
