@@ -122,7 +122,7 @@ def stardata_from_fits(hdu_list, xysky, stamp_radius=25, badmask=0x7FFF,
                                       weight=weight,
                                       pointing=pointing,
                                       properties=props.copy()))
-    return stardata
+    return stardata, sci.wcs
 
 
 def fit_des(imagefile, catfile, order=2, nstars=None,
@@ -158,7 +158,7 @@ def fit_des(imagefile, catfile, order=2, nstars=None,
 
     if logger:
         logger.info("Creating %d StarDatas",len(xysky))
-    original = stardata_from_fits(ff, xysky, logger=logger)
+    original, wcs = stardata_from_fits(ff, xysky, logger=logger)
 
     if logger:
         logger.info("...Done making StarData")
@@ -183,7 +183,8 @@ def fit_des(imagefile, catfile, order=2, nstars=None,
     # Make a psf
     if logger:
         logger.info("Building PSF")
-    psf = piff.PSF.build(stars, model, interp, logger=logger)
+    wcs = {0 : wcs}
+    psf = piff.PSF.build(stars, wcs, model, interp, logger=logger)
 
     # ??? Do a "refinement" run with the model used to generate
     # the Poisson noise instead of the signal.

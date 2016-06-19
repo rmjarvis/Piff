@@ -84,7 +84,7 @@ class Model(object):
 
         :param star:    A Star instance with the raw data.
         :param mask:    If True, set data.weight to zero at pixels that are outside
-                        the range of the model.
+                        the range of the model. [default: True]
 
         :returns:       Star instance with the appropriate initial fit values
         """
@@ -191,8 +191,6 @@ class Model(object):
 
         assert extname in fits
         assert 'type' in fits[extname].get_colnames()
-        assert 'type' in fits[extname].read().dtype.names
-        #model_type = fits[extname].read_column('type')  # This isn't working for me...
         model_type = fits[extname].read()['type']
         assert len(model_type) == 1
         model_type = model_type[0]

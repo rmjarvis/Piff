@@ -30,7 +30,7 @@ class PSF(object):
 
     The usual way to create a PSF is through one of the two factory functions::
 
-        >>> psf = piff.PSF.build(images=images, pos=pos, model=model, interp=interp, ...)
+        >>> psf = piff.PSF.build(stars, wcs, model=model, interp=interp, ...)
         >>> psf = piff.PSF.read(file_name=file_name, ...)
 
     The first is used to build a PSF model from the data.
@@ -44,16 +44,19 @@ class PSF(object):
     At the end of a fit, it contains the PSF parameters at each star and information on what
     was clipped and how good the fit is.
     """
-    def __init__(self, model, interp, stars=None):
+    def __init__(self, stars, wcs, model, interp, extra_interp_properties=()):
+        self.stars = stars
+        self.wcs = wcs
         self.model = model
         self.interp = interp
-        self.stars = stars
+        self.extra_interp_properties = extra_interp_properties
 
     @classmethod
-    def build(cls, stars, model, interp, logger=None):
+    def build(cls, stars, wcs, model, interp, logger=None):
         """The main driver function to build a PSF model from data.
 
         :param stars:       A list of Star instances.
+        :param wcs:         A dict of WCS solutions indexed by chipnum.
         :param model:       A Model instance that defines how to model the individual PSFs
                             at the location of each star.
         :param interp:      An Interp instance that defines how to do the interpolation of the
@@ -67,7 +70,7 @@ class PSF(object):
             logger.debug("Model is %s", model)
             logger.debug("Interp is %s", interp)
 
-        psf = cls(model, interp)
+        psf = cls(stars, wcs, model, interp)
         if logger:
             logger.info("Fitting PSF model")
         psf.fit(stars, logger=logger)
@@ -195,5 +198,5 @@ class PSF(object):
             interp = Interp.read(f, 'interp')
             if logger:
                 logger.debug("interp = %s",interp)
-        return cls(model,interp)
+        return cls(None,None,model,interp)
 

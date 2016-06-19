@@ -26,7 +26,8 @@ def process_input(config, logger=None):
     :param config:      The configuration dict.
     :param logger:      A logger object for logging debug info. [default: None]
 
-    :returns: a list of Star instances with the initial data.
+    :returns: stars, wcs:   A list of Star instances with the initial data, and
+                            a dict of WCS solutions indexed by chipnum.
     """
     import piff
 
@@ -64,7 +65,10 @@ def process_input(config, logger=None):
     # Maybe add poisson noise to the weights
     stars = input_handler.addPoisson(stars, logger)
 
-    return stars
+    # Get the wcs for all the input chips
+    wcs = input_handler.getWCS(logger)
+
+    return stars, wcs
 
 
 class InputHandler(object):
@@ -201,6 +205,16 @@ class InputHandler(object):
 
         return stars
 
+    def getWCS(self, logger=None):
+        """Get the WCS solutions for all the chips in the field of view.
+
+        :param logger:      A logger object for logging debug info. [default: None]
+
+        :returns:   A dict of WCS solutions (galsim.BaseWCS instances) indexed by chipnum
+        """
+        wcs_list = [im.wcs for im in self.images]
+        return dict(zip(self.chipnums, wcs_list))
+
 
 class InputFiles(InputHandler):
     """An InputHandler than just takes a list of image files and catalog files.
@@ -209,6 +223,9 @@ class InputFiles(InputHandler):
                         (e.g. ["file1.fits", "file2.fits"]) listing the image files to read.
     :param cats:        Either a string (e.g. ``some_dir/*.fits.fz``) or a list of strings
                         (e.g. ["file1.fits", "file2.fits"]) listing the catalog files to read.
+    :param chipnums:    A list of "chip numbers" to use as the names of each image.  These may
+                        be integers or strings and don't have to be sequential.
+                        [default: range(len(images))]
     :param x_col:       The name of the X column in the input catalogs. [default: 'x']
     :param y_col:       The name of the Y column in the input catalogs. [default: 'y']
     :param sky_col:     The name of a column with sky values to subtract from the image data.
@@ -231,7 +248,7 @@ class InputFiles(InputHandler):
                         for details about how this can be specified]
     :param gain:        The gain to use for adding Poisson noise to the weight map. [default: None]
     """
-    def __init__(self, images, cats,
+    def __init__(self, images, cats, chipnums=None,
                  x_col='x', y_col='y', sky_col=None, flag_col=None, use_col=None,
                  image_hdu=None, weight_hdu=None, badpix_hdu=None, cat_hdu=1,
                  stamp_size=32, ra=None, dec=None, gain=None):
@@ -248,6 +265,11 @@ class InputFiles(InputHandler):
                 raise ValueError("No such files: %s"%cats)
         else:
             self.cat_files = cats
+
+        if chipnums is None:
+            chipnums = range(len(self.image_files))
+        self.chipnums = chipnums
+
         self.x_col = x_col
         self.y_col = y_col
         self.sky_col = sky_col

@@ -525,7 +525,7 @@ class PixelModel(Model):
 
         :returns:      New Star instance with rendered PSF in StarData
         """
-         # Start by getting all interpolation coefficients for all observed points
+        # Start by getting all interpolation coefficients for all observed points
         data, weight, u, v = star.data.getDataVector()
         # Subtract star.fit.center from u, v
         u -= star.fit.center[0]

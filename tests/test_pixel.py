@@ -692,7 +692,7 @@ def test_single_image():
             logger = piff.config.setup_logger(2)
         else:
             logger = None
-        psf = piff.PSF.build(orig_stars, model, interp, logger=logger)
+        psf = piff.PSF.build(orig_stars, {0:input.images[0].wcs}, model, interp, logger=logger)
 
         # Check that the interpolation is what it should be
         target = model.initialize(target_star).withFlux(1.0)
@@ -868,7 +868,7 @@ def test_des_image():
         print('start piffify')
         piff.piffify(config)
         print('read stars')
-        stars = piff.process_input(config)
+        stars, wcs = piff.process_input(config)
         print('read psf')
         psf = piff.PSF.read(psf_file)
         stars = [psf.model.initialize(s) for s in stars]
@@ -890,7 +890,7 @@ def test_des_image():
         p = subprocess.Popen( [piffify_exe, 'pixel_des.yaml'] )
         p.communicate()
         print('read stars')
-        stars = piff.process_input(config)
+        stars, wcs = piff.process_input(config)
         print('read psf')
         psf = piff.PSF.read(psf_file)
         stars = [psf.model.initialize(s) for s in stars]

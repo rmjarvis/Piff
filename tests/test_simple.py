@@ -219,10 +219,10 @@ def test_single_image():
         }
     }
     logger = piff.config.setup_logger()
-    orig_stars = piff.process_input(config, logger)
+    orig_stars, wcs = piff.process_input(config, logger)
 
     # Use the PSF builder to process the stars data this time.
-    psf = piff.PSF.build(orig_stars, model, interp, logger)
+    psf = piff.PSF.build(orig_stars, wcs, model, interp, logger)
     test_star = psf.interp.interpolate(target)
     numpy.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=5)
 
