@@ -16,6 +16,8 @@ from __future__ import print_function
 import galsim
 import numpy
 import math
+import fitsio
+import os
 import piff
 
 def test_init():
@@ -232,7 +234,54 @@ def test_celestial():
     print("Passed tests of StarData with CelestialWCS")
 
 
+def test_io():
+    numpy.random.seed(1234)
+    nstars = 100
+    x = numpy.random.random(nstars) * 2048.
+    y = numpy.random.random(nstars) * 2048.
+    flux = numpy.random.random(nstars) * 1000.
+    cenx = 2.*numpy.random.random(nstars) - 1.
+    ceny = 2.*numpy.random.random(nstars) - 1.
+    color_ri = numpy.random.random(nstars) * 1.4 - 0.8
+    color_iz = numpy.random.random(nstars) * 1.9 - 0.6
+    stars = [ piff.Star.makeTarget(x=x[i], y=y[i], scale=0.26, color_ri=color_ri[i],
+                                   color_iz=color_iz[i]).withFlux(flux[i]) for i in range(nstars) ]
+    for star in stars:
+        star.data.image.array[:] = numpy.random.random(star.data.image.array.shape)
+        star.data.weight = star.data.image.copy()
+        star.data.weight.array[:] = numpy.random.random(star.data.image.array.shape)
+
+    file_name = os.path.join('output','star_io.fits')
+    print('Writing stars to ',file_name)
+    with fitsio.FITS(file_name,'rw',clobber=True) as fout:
+        piff.Star.write(stars, fout, extname='stars')
+
+    print('Reading from ',file_name)
+    with fitsio.FITS(file_name,'r') as fin:
+        stars2 = piff.Star.read(fin, extname='stars')
+
+    for s1, s2 in zip(stars,stars2):
+        assert s1.data['x'] == s2.data['x']
+        assert s1.data['y'] == s2.data['y']
+        assert s1.data['u'] == s2.data['u']
+        assert s1.data['v'] == s2.data['v']
+        assert s1.data['color_ri'] == s2.data['color_ri']
+        assert s1.data['color_iz'] == s2.data['color_iz']
+        assert s1.data.properties == s2.data.properties
+        assert s1.fit.flux == s2.fit.flux
+        assert all(s1.fit.center == s2.fit.center)
+        assert s1.data.image.bounds == s2.data.image.bounds
+        assert s1.data.weight.bounds == s2.data.weight.bounds
+        # The wcs doesn't have to match, but they should be locally equivalent.
+        assert s1.data.image.wcs.jacobian() == s2.data.image.wcs.jacobian()
+        assert s1.data.weight.wcs.jacobian() == s2.data.weight.wcs.jacobian()
+        # The image and weight arrays are not serialized.
+        #numpy.testing.assert_almost_equal(s1.data.image.array,s2.data.image.array)
+        #numpy.testing.assert_almost_equal(s1.data.weight.array,s2.data.weight.array)
+
+
 if __name__ == '__main__':
     test_init()
     test_euclidean()
     test_celestial()
+    test_io()

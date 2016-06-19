@@ -69,7 +69,7 @@ class Star(object):
 
     @classmethod
     def makeTarget(cls, x=None, y=None, u=None, v=None, properties={}, wcs=None, scale=None,
-                   stamp_size=48, flux=1.0):
+                   stamp_size=48, flux=1.0, **kwargs):
         """
         Make a target Star object with the requested properties.
 
@@ -96,6 +96,8 @@ class Star(object):
         :param scale:       If wcs is None, you may instead provide a pixel scale. [default: None]
         :param stamp_size:  The size in each direction of the (blank) image. [default: 48]
         :param flux:        The flux of the target star. [default: 1]
+        :param **kwargs:    Additional properties can also be given as keyword arguments if that
+                            is more conventient than populating the properties dict.
 
         :returns:   A Star instance
         """
@@ -109,6 +111,7 @@ class Star(object):
         y = properties.pop('y', y)
         u = properties.pop('u', u)
         v = properties.pop('v', v)
+        properties.update(kwargs)  # Add any extra kwargs into properties
         if (x is None) != (y is None):
             raise AttributeError("Eitehr x and y must both be given, or neither.")
         if (u is None) != (v is None):
@@ -149,6 +152,121 @@ class Star(object):
         data = StarData(image, image_pos, properties=properties)
         fit = StarFit(None, flux=flux, center=(0.,0.))
         return cls(data, fit)
+
+    @classmethod
+    def write(self, stars, fits, extname):
+        """Write a list of stars to a FITS file.
+
+        :param stars:       A list of stars to write
+        :param fits:        An open fitsio.FITS object
+        :param extname:     The name of the extension to write to
+        """
+        # TODO This doesn't write everything out.  Probably want image as an optional I/O.
+
+        cols = []
+        dtypes = []
+
+        # Start with the data properties
+        prop_keys = list(stars[0].data.properties)
+        # Do the position ones first
+        for key in [ 'x', 'y', 'u', 'v' ]:
+            dtypes.append( (key, float) )
+            cols.append( [ s.data.properties[key] for s in stars ] )
+            prop_keys.remove(key)
+        # Add any remaining properties
+        for key in prop_keys:
+            dtypes.append( (key, float) )
+            cols.append( [ s.data.properties[key] for s in stars ] )
+
+        # Add the local WCS values
+        dtypes.extend( [('dudx', float), ('dudy', float), ('dvdx', float), ('dvdy', float) ] )
+        cols.append( [s.data.local_wcs.jacobian().dudx for s in stars] )
+        cols.append( [s.data.local_wcs.jacobian().dudy for s in stars] )
+        cols.append( [s.data.local_wcs.jacobian().dvdx for s in stars] )
+        cols.append( [s.data.local_wcs.jacobian().dvdy for s in stars] )
+
+        # Add the bounds
+        dtypes.extend( [('xmin', int), ('xmax', int), ('ymin', int), ('ymax', int) ] )
+        cols.append( [s.data.image.bounds.xmin for s in stars] )
+        cols.append( [s.data.image.bounds.xmax for s in stars] )
+        cols.append( [s.data.image.bounds.ymin for s in stars] )
+        cols.append( [s.data.image.bounds.ymax for s in stars] )
+
+        # Now the easy parts of fit:
+        dtypes.extend( [ ('flux', float), ('center', float, 2), ('chisq', float) ] )
+        cols.append( [ s.fit.flux for s in stars ] )
+        cols.append( [ s.fit.center for s in stars ] )
+        cols.append( [ s.fit.chisq for s in stars ] )
+
+        # params might not be set, so check if it is None
+        if stars[0].fit.params is not None:
+            dtypes.append( ('params', float, len(stars[0].fit.params)) )
+            cols.append( [ s.fit.params for s in stars ] )
+
+        data = numpy.array(zip(*cols), dtype=dtypes)
+        fits.write_table(data, extname=extname)
+
+    @classmethod
+    def read(cls, fits, extname):
+        """Read stars from a FITS file.
+
+        :param fits:        An open fitsio.FITS object
+        :param extname:     The name of the extension to read from
+
+        :returns: a list of Star instances
+        """
+        import galsim
+        assert extname in fits
+        colnames = fits[extname].get_colnames()
+
+        for key in ['x', 'y', 'u', 'v',
+                    'dudx', 'dudy', 'dvdx', 'dvdy',
+                    'xmin', 'xmax', 'ymin', 'ymax',
+                    'flux', 'center', 'chisq']:
+            assert key in colnames
+            colnames.remove(key)
+
+        data = fits[extname].read()
+        x_list = data['x']
+        y_list = data['y']
+        u_list = data['u']
+        v_list = data['v']
+        dudx = data['dudx']
+        dudy = data['dudy']
+        dvdx = data['dvdx']
+        dvdy = data['dvdy']
+        xmin = data['xmin']
+        xmax = data['xmax']
+        ymin = data['ymin']
+        ymax = data['ymax']
+        flux = data['flux']
+        center = data['center']
+        chisq = data['chisq']
+
+        if 'params' in colnames:
+            params = data['params']
+            colnames.remove('params')
+        else:
+            params = [ None ] * len(data)
+
+        fit_list = [ StarFit(p, flux=f, center=c, chisq=x)
+                     for (p,f,c,x) in zip(params, flux, center, chisq) ]
+
+        # The rest of the columns are the data properties
+        prop_list = [ { c : row[c] for c in colnames } for row in data ]
+
+        wcs_list = [ galsim.JacobianWCS(*jac) for jac in zip(dudx,dudy,dvdx,dvdy) ]
+        pos_list = [ galsim.PositionD(*pos) for pos in zip(x_list,y_list) ]
+        wpos_list = [ galsim.PositionD(*pos) for pos in zip(u_list,v_list) ]
+        wcs_list = [ w.withOrigin(p, wp) for w,p,wp in zip(wcs_list, pos_list, wpos_list) ]
+        bounds_list = [ galsim.BoundsI(*b) for b in zip(xmin,xmax,ymin,ymax) ]
+        image_list = [ galsim.Image(bounds=b, wcs=w) for b,w in zip(bounds_list, wcs_list) ]
+        weight_list = [ galsim.Image(bounds=b, wcs=w) for b,w in zip(bounds_list, wcs_list) ]
+        data_list = [ StarData(im, pos, weight=w, properties=p)
+                      for im,pos,w,p in zip(image_list, pos_list, weight_list, prop_list) ]
+
+        stars = [ Star(d,f) for (d,f) in zip(data_list, fit_list) ]
+        return stars
 
 
 class StarData(object):
@@ -231,6 +349,9 @@ class StarData(object):
             self.weight = galsim.Image(image.bounds, init_value=1, wcs=image.wcs, dtype=float)
         elif type(weight) in [int, float]:
             self.weight = galsim.Image(image.bounds, init_value=weight, wcs=image.wcs, dtype=float)
+        elif isinstance(weight, galsim.Image):
+            # Work-around for bug in GalSim 1.3
+            self.weight = galsim.Image(weight, dtype=float, wcs=weight.wcs)
         else:
             self.weight = galsim.Image(weight, dtype=float)
 
