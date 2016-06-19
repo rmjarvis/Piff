@@ -820,8 +820,9 @@ def test_des_image():
             weight = s.data.weight  # These should be 1/var_pix
             resid = fit_stamp - orig_stamp
             chisq = np.sum(resid.array**2 * weight.array)
-            #print('chisq = ',chisq)
-            #print('cf. star.chisq, dof = ',s.fit.chisq, s.fit.dof)
+            print('chisq = ',chisq)
+            print('cf. star.chisq, dof = ',s.fit.chisq, s.fit.dof)
+            assert abs(chisq - s.fit.chisq) < 1.e-2
             if chisq > 2. * s.fit.dof:
                 n_bad += 1
             elif chisq > 1.1 * s.fit.dof:
