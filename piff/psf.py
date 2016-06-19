@@ -73,22 +73,21 @@ class PSF(object):
         psf = cls(stars, wcs, model, interp)
         if logger:
             logger.info("Fitting PSF model")
-        psf.fit(stars, logger=logger)
+        psf.fit(logger=logger)
         if logger:
             logger.debug("Done building PSF")
         return psf
 
-    def fit(self, stars, chisq_threshold=0.1, logger=None):
+    def fit(self, chisq_threshold=0.1, logger=None):
         """Fit interpolated PSF model to star data using standard sequence of operations.
 
-        :param stars:       List of Star instances holding images to be fit.
         :param chisq_threshold:  Change in reduced chisq at which iteration will terminate.
                             [default: 0.1]
         :param logger:      A logger object for logging debug info. [default: None]
         """
         if logger:
             logger.debug("Initializing models")
-        self.stars = [self.model.initialize(s, mask=True) for s in stars]
+        self.stars = [self.model.initialize(s, mask=True) for s in self.stars]
 
         if logger:
             logger.debug("Initializing interpolator")
