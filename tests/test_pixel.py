@@ -694,8 +694,8 @@ def test_single_image():
         psf = piff.PSF.build(orig_stars, {0:input.images[0].wcs}, model, interp, logger=logger)
 
         # Check that the interpolation is what it should be
-        target = model.initialize(target_star).withFlux(1.0)
-        test_star = psf.draw(target, flux=1.)
+        print('target.flux = ',target_star.fit.flux)
+        test_star = psf.drawStar(target_star)
         #print('test_im center = ',test_im[b].array)
         #print('flux = ',test_im.array.sum())
         #print('interp_im center = ',test_star.data.image[b].array)
@@ -709,8 +709,12 @@ def test_single_image():
         psf = piff.PSF.read(psf_file, logger)
         assert type(psf.model) is piff.PixelModel
         assert type(psf.interp) is piff.BasisPolynomial
-        test_star = psf.draw(target, flux=1.)
+        test_star = psf.drawStar(target_star)
         np.testing.assert_almost_equal(test_star.data.image.array, test_im.array, decimal=3)
+
+        # Check the convenience function that an end user would typically use
+        #image = psf.draw(x=x0, y=y0)
+        #np.testing.assert_almost_equal(image.array, test_im.array, decimal=3)
 
     # Do the whole thing with the config parser
     config = {
@@ -739,7 +743,7 @@ def test_single_image():
         print("Running piffify function")
         piff.piffify(config)
         psf = piff.PSF.read(psf_file)
-        test_star = psf.draw(target, flux=1.)
+        test_star = psf.drawStar(target_star)
         np.testing.assert_almost_equal(test_star.data.image.array, test_im.array, decimal=3)
 
     # Test using the piffify executable
@@ -753,7 +757,7 @@ def test_single_image():
         p = subprocess.Popen( [piffify_exe, 'pixel_moffat.yaml'] )
         p.communicate()
         psf = piff.PSF.read(psf_file)
-        test_star = psf.draw(target, flux=1.)
+        test_star = psf.drawStar(target_star)
         np.testing.assert_almost_equal(test_star.data.image.array, test_im.array, decimal=3)
 
 def test_des_image():
@@ -799,7 +803,7 @@ def test_des_image():
         # Note: The 2 and 1.1 values here are very arbitrary!
 
         for s in psf.stars:
-            fitted = psf.draw(s, s.fit.flux, s.fit.center)
+            fitted = psf.drawStar(s)
             orig_stamp = orig_image[fitted.data.image.bounds] - s.data['sky']
             fit_stamp = fitted.data.image
 
@@ -871,7 +875,7 @@ def test_des_image():
         print('read psf')
         psf = piff.PSF.read(psf_file)
         stars = [psf.model.initialize(s) for s in stars]
-        fitted = psf.draw(stars[0], stars[0].fit.flux, stars[0].fit.center)
+        fitted = psf.drawStar(stars[0])
         fit_stamp = fitted.data.image
         flux = fitted.fit.flux
         # The first star happens to be a good one, so go ahead and test the arrays directly.
@@ -893,7 +897,7 @@ def test_des_image():
         print('read psf')
         psf = piff.PSF.read(psf_file)
         stars = [psf.model.initialize(s) for s in stars]
-        fitted = psf.draw(stars[0], stars[0].fit.flux, stars[0].fit.center)
+        fitted = psf.drawStar(stars[0])
         fit_stamp = fitted.data.image
         flux = fitted.fit.flux
         orig_stamp = orig_image[fitted.data.image.bounds] - stars[0].data['sky']
