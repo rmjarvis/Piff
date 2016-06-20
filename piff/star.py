@@ -395,7 +395,7 @@ class StarData(object):
 
         self.pointing = pointing
         self.field_pos = self.calculateFieldPos(image_pos, image.wcs, pointing, self.properties)
-        self.pixel_area = self._calculate_pixel_area()
+        self.pixel_area = self.local_wcs.pixelArea()
 
         # Make sure the user didn't provide their own x,y,u,v in properties.
         for key in ['x', 'y', 'u', 'v']:
@@ -471,23 +471,6 @@ class StarData(object):
         :returns: image, weight, image_pos
         """
         return self.image, self.weight, self.image_pos
-
-    def _calculate_pixel_area(self):
-        """Calculate uv-plane pixel area from a finite difference
-
-        :returns: pixel area
-        """
-        dpix = 5.
-        x = numpy.array([-dpix,+dpix,0.,0.])
-        y = numpy.array([0.,0.,-dpix,+dpix])
-        # Convert to u,v coords
-        u = self.local_wcs._u(x,y)
-        v = self.local_wcs._v(x,y)
-        dudx = (u[1]-u[0])/(2*dpix)
-        dudy = (u[3]-u[2])/(2*dpix)
-        dvdx = (v[1]-v[0])/(2*dpix)
-        dvdy = (v[3]-v[2])/(2*dpix)
-        return numpy.abs(dudx*dvdy - dudy*dvdx)
 
     def getDataVector(self, include_zero_weight=False):
         """Get the pixel data as a numpy array.
