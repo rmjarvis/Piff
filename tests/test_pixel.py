@@ -800,7 +800,7 @@ def test_des_image():
         else:
             logger = None
         psf = fit_des.fit_des(image_file, cat_file, order=2,
-                              nstars=nstars, scale=scale, size=size,
+                              nstars=nstars, scale=scale, size=size, stamp_size=stamp_size,
                               logger=logger)
 
         # The difference between the images of the fitted stars and the originals should be
