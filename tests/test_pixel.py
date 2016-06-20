@@ -776,6 +776,7 @@ def test_des_image():
     image_file = 'y1_test/DECam_00241238_01.fits.fz'
     cat_file = 'y1_test/DECam_00241238_01_psfcat_tb_maxmag_17.0_magcut_3.0_findstars.fits'
     orig_image = galsim.fits.read(image_file)
+    psf_file = os.path.join('output','pixel_des_psf.fits')
 
     if __name__ == '__main__':
         # These match what Gary used in fit_des.py
@@ -790,18 +791,66 @@ def test_des_image():
     np.random.seed(1234)
     stamp_size = 51
 
+    # The configuration dict with the right input fields for the file we're using.
+    start_sigma = 1.0/2.355  # TODO: Need to make this automatic somehow.
+    config = {
+        'input' : {
+            'images' : image_file,
+            'image_hdu' : 1,
+            'weight_hdu' : 3,
+            'badpix_hdu' : 2,
+            'cats' : cat_file,
+            'cat_hdu' : 2,
+            'x_col' : 'XWIN_IMAGE',
+            'y_col' : 'YWIN_IMAGE',
+            'sky_col' : 'BACKGROUND',
+            'stamp_size' : stamp_size,
+            'ra' : 'TELRA',
+            'dec' : 'TELDEC',
+            'gain' : 'GAINA',
+        },
+        'output' : {
+            'file_name' : psf_file,
+        },
+        'model' : {
+            'type' : 'PixelModel',
+            'scale' : scale,
+            'size' : size,
+            'start_sigma' : start_sigma,
+        },
+        'interp' : {
+            'type' : 'BasisPolynomial',
+            'order' : 2,
+        },
+    }
+    if __name__ == '__main__': config['verbose'] = 3
+
     # These tests are slow, and it's really just doing the same thing three times, so
     # only do the first one when running via nosetests.
     if True:
-        # Start by using the script fit_des.py in this directory.
-        import fit_des
+        # Start by doing things manually:
         if __name__ == '__main__':
             logger = piff.config.setup_logger(2)
         else:
             logger = None
-        psf = fit_des.fit_des(image_file, cat_file, order=2,
-                              nstars=nstars, scale=scale, size=size, stamp_size=stamp_size,
-                              logger=logger)
+
+        # Largely copied from Gary's fit_des.py, but using the Piff input_handler to
+        # read the input files.
+        stars, wcs, pointing = piff.process_input(config, logger=logger)
+        if nstars is not None:
+            stars = stars[:nstars]
+
+        # Make model, force PSF centering
+        model = piff.PixelModel(scale=scale, size=size, interp=piff.Lanczos(3),
+                                force_model_center=True, start_sigma=start_sigma,
+                                logger=logger)
+
+        # Interpolator will be zero-order polynomial.
+        # Find u, v ranges
+        interp = piff.BasisPolynomial(order=2, logger=logger)
+
+        # Make a psf
+        psf = piff.PSF.build(stars, wcs, pointing, model, interp, logger=logger)
 
         # The difference between the images of the fitted stars and the originals should be
         # consistent with noise.  Keep track of how many don't meet that goal.
@@ -850,39 +899,7 @@ def test_des_image():
         assert n_marginal <= 12
         assert n_bad <= 3
 
-    # Do the whole thing with the config parser
-    psf_file = os.path.join('output','pixel_des_psf.fits')
-    config = {
-        'input' : {
-            'images' : image_file,
-            'image_hdu' : 1,
-            'weight_hdu' : 3,
-            'badpix_hdu' : 2,
-            'cats' : cat_file,
-            'cat_hdu' : 2,
-            'x_col' : 'XWIN_IMAGE',
-            'y_col' : 'YWIN_IMAGE',
-            'sky_col' : 'BACKGROUND',
-            'stamp_size' : stamp_size,
-            'ra' : 'TELRA',
-            'dec' : 'TELDEC',
-            'gain' : 'GAINA',
-        },
-        'output' : {
-            'file_name' : psf_file,
-        },
-        'model' : {
-            'type' : 'PixelModel',
-            'scale' : scale,
-            'size' : size,
-            'start_sigma' : 1.0/2.355,
-        },
-        'interp' : {
-            'type' : 'BasisPolynomial',
-            'order' : 2,
-        },
-    }
-    if __name__ == '__main__': config['verbose'] = 3
+    # Use piffify function
     if __name__ == '__main__':
         print('start piffify')
         piff.piffify(config)
