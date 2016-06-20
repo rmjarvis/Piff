@@ -489,12 +489,14 @@ class StarData(object):
         dvdy = (v[3]-v[2])/(2*dpix)
         return numpy.abs(dudx*dvdy - dudy*dvdx)
 
-    def getDataVector(self):
+    def getDataVector(self, include_zero_weight=False):
         """Get the pixel data as a numpy array.
 
         Also returns the weight values and the local u,v coordinates of the pixels.
         Any pixels with zero weight (e.g. from masking in the original image) will not be
         included in the returned arrays.
+
+        :param include_zero_weight: Should points with zero weight be included? [default: False]
 
         :returns: data_vector, weight_vector, u_vector, v_vector
         """
@@ -521,15 +523,20 @@ class StarData(object):
         wt = self.weight.array.flatten()
 
         # Which pixels do we want to return?
-        mask = wt != 0.
+        if include_zero_weight:
+            return pix, wt, u, v
+        else:
+            mask = wt != 0.
+            return pix[mask], wt[mask], u[mask], v[mask]
 
-        return pix[mask], wt[mask], u[mask], v[mask]
-
-    def setData(self, data):
+    def setData(self, data, include_zero_weight=False):
         """Return new StarData with data values replaced by elements of provided 1d array.
         The array should match the ordering of the one that is produced by getDataVector().
 
-        :param data: A 1d numpy array with new values for the image data.
+        :param data:                A 1d numpy array with new values for the image data.
+        :param include_zero_weight: If True, the data array includes all pixels.
+                                    If False, it only includes the pixels with weight > 0.
+                                    [default: False]
 
         :returns:    New StarData structure
         """
@@ -537,9 +544,12 @@ class StarData(object):
         # don't get passed out by getDataVector()???
 
         newimage = self.image.copy()
-        ignore = self.weight.array==0.
-        newimage.array[ignore] = 0.
-        newimage.array[numpy.logical_not(ignore)] = data
+        if include_zero_weight:
+            newimage.array[:,:] = data.reshape(newimage.array.shape)
+        else:
+            ignore = self.weight.array==0.
+            newimage.array[ignore] = 0.
+            newimage.array[~ignore] = data
 
         props = self.properties.copy()
         for key in ['x', 'y', 'u', 'v']:

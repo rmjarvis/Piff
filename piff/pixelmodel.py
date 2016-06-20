@@ -526,7 +526,7 @@ class PixelModel(Model):
         :returns:      New Star instance with rendered PSF in StarData
         """
         # Start by getting all interpolation coefficients for all observed points
-        data, weight, u, v = star.data.getDataVector()
+        data, weight, u, v = star.data.getDataVector(include_zero_weight=True)
         # Subtract star.fit.center from u, v
         u -= star.fit.center[0]
         v -= star.fit.center[1]
@@ -546,7 +546,7 @@ class PixelModel(Model):
             # Change data from surface brightness into flux
             model *= star.data.pixel_area
 
-        return Star(star.data.setData(model), star.fit)
+        return Star(star.data.setData(model,include_zero_weight=True), star.fit)
 
     def reflux(self, star, fit_center=True):
         """Fit the Model to the star's data, varying only the flux (and

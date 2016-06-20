@@ -143,12 +143,13 @@ def test_center():
         #np.testing.assert_almost_equal(star.fit.flux/influx, 1.0, decimal=2)
 
     # Residual image when done should be dominated by structure off the edge of the fitted region.
+    mask = star.data.weight.array > 0
     # This comes out fairly close, but only 2 dp of accuracy, compared to 3 above.
     star2 = mod.draw(star)
     print('max image abs diff = ',np.max(np.abs(star2.data.data-s.data.data)))
     print('max image abs value = ',np.max(np.abs(s.data.data)))
-    peak = np.max(np.abs(s.data.data))
-    np.testing.assert_almost_equal(star2.data.data/peak, s.data.data/peak, decimal=2)
+    peak = np.max(np.abs(s.data.data[mask]))
+    np.testing.assert_almost_equal(star2.data.data[mask]/peak, s.data.data[mask]/peak, decimal=2)
 
 
 def test_interp():
@@ -838,8 +839,10 @@ def test_des_image():
                 n_good += 1
 
             # Check the convenience function that an end user would typically use
-            #image = psf.draw(x=s.data['x'], y=s.data['y'], stamp_size=size)
-            #np.testing.assert_almost_equal(image.array, fit_stamp.array, decimal=5)
+            offset = s.center_to_offset(s.fit.center)
+            image = psf.draw(x=s.data['x'], y=s.data['y'], stamp_size=stamp_size,
+                             flux=s.fit.flux, offset=offset)
+            np.testing.assert_almost_equal(image.array, fit_stamp.array, decimal=4)
 
         print('n_good, marginal, bad = ',n_good,n_marginal,n_bad)
         # The real counts are 10 and 2.  So this says make sure any updates to the code don't make
@@ -912,11 +915,11 @@ def test_des_image():
         psf = piff.PSF.read(psf_file)
         stars = [psf.model.initialize(s) for s in stars]
         flux = stars[0].fit.flux
-        fit_stamp = psf.draw(x=stars[0].data['x'], y=stars[0].data['y'])
+        offset = stars[0].center_to_offset(stars[0].fit.center)
+        fit_stamp = psf.draw(x=stars[0].data['x'], y=stars[0].data['y'], stamp_size=stamp_size,
+                             flux=flux, offset=offset)
         orig_stamp = orig_image[stars[0].data.image.bounds] - stars[0].data['sky']
         np.testing.assert_almost_equal(fit_stamp.array/flux, orig_stamp.array/flux, decimal=2)
-        image = psf.draw(x=s.data['x'], y=s.data['y'])
-        np.testing.assert_almost_equal(image.array/flux, orig_stamp.array/flux, decimal=2)
 
 if __name__ == '__main__':
     #import cProfile, pstats
