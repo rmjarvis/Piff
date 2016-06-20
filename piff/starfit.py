@@ -103,3 +103,14 @@ class StarFit(object):
     def copy(self):
         return StarFit(self.params, self.flux, self.center, self.alpha, self.beta,
                        self.chisq, self.dof, self.worst_chisq)
+
+    def __getitem__(self, key):
+        """Get a property of the star fit.
+
+        Looks at params to get the property
+
+        :param key:     The name of the property to return
+
+        :returns: the value of the given property.
+        """
+        return self.params[key]
