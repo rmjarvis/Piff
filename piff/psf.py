@@ -225,6 +225,8 @@ class PSF(object):
         with fitsio.FITS(file_name,'rw',clobber=True) as f:
             self.model.write(f, extname='model')
             self.interp.write(f, extname='interp')
+            Star.write(self.stars, f, extname='stars')
+            self.writeWCS(f, extname='wcs')
 
     @classmethod
     def read(cls, file_name, logger=None):
@@ -247,5 +249,69 @@ class PSF(object):
             interp = Interp.read(f, 'interp')
             if logger:
                 logger.debug("interp = %s",interp)
-        return cls(None,None,model,interp)
+            stars = Star.read(f, 'stars')
+            if logger:
+                logger.debug("stars = %s",stars)
+            wcs = cls.readWCS(f, 'wcs')
+            if logger:
+                logger.debug("wcs = %s",wcs)
+
+        return cls(stars, wcs, model, interp)
+
+    def writeWCS(self, fits, extname):
+        """Write the WCS information to a FITS file.
+
+        :param fits:        An open fitsio.FITS object
+        :param extname:     The name of the extension to write to
+        """
+        # Start with the chipnums, which may be int or str type.
+        # Assume they are all the same type at least.
+        chipnums = self.wcs.keys()
+        cols = [ chipnums ]
+        if numpy.dtype(type(chipnums[0])).kind in numpy.typecodes['AllInteger']:
+            dtypes = [ ('chipnums', int) ]
+        else:
+            # coerce to string, just in case it's something else.
+            chipnums = [ str(c) for c in chipnums ]
+            max_len = numpy.max([ len(c) for c in chipnums ])
+            dtypes = [ ('chipnums', str, max_len) ]
+
+        # GalSim WCS objects can be serialized via pickle
+        try:
+            import cPickle as pickle
+        except:
+            import pickle
+        wcs_str = [ pickle.dumps(w) for w in self.wcs.values() ]
+        cols.append(wcs_str)
+        max_len = numpy.max([ len(s) for s in wcs_str ])
+        dtypes.append( ('wcs_str', str, max_len) )
+
+        data = numpy.array(zip(*cols), dtype=dtypes)
+        fits.write_table(data, extname=extname)
+
+    @classmethod
+    def readWCS(cls, fits, extname):
+        """Read the WCS information from a FITS file.
+
+        :param fits:        An open fitsio.FITS object
+        :param extname:     The name of the extension to read from
+
+        :returns: a dict of galsim.BaseWCS instances
+        """
+        assert extname in fits
+        assert 'chipnums' in fits[extname].get_colnames()
+        assert 'wcs_str' in fits[extname].get_colnames()
+
+        data = fits[extname].read()
+
+        chipnums = data['chipnums']
+        wcs_str = data['wcs_str']
+
+        try:
+            import cPickle as pickle
+        except:
+            import pickle
+        wcs_list = [ pickle.loads(s) for s in wcs_str ]
+        wcs = dict( zip(chipnums, wcs_list) )
+        return wcs
 
