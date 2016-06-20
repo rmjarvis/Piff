@@ -169,6 +169,7 @@ class PSF(object):
 
         :returns:           A GalSim Image of the PSF
         """
+        import galsim
         wcs = self.wcs[chipnum]
         properties = {}
         for key in self.extra_interp_properties:
@@ -178,7 +179,8 @@ class PSF(object):
         if len(kwargs) != 0:
             raise TypeError("draw got an unexpecte keyword argument %r"%kwargs.keys()[0])
 
-        star = Star.makeTarget(x=x, y=y, wcs=wcs, properties=properties,
+        local_wcs = wcs.local(galsim.PositionD(x,y))
+        star = Star.makeTarget(x=x, y=y, wcs=local_wcs, properties=properties,
                                stamp_size=stamp_size)
         if logger:
             logger.debug("Drawing star at (%s,%s) on chip %s", x, y, chipnum)

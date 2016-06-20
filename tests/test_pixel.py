@@ -703,6 +703,10 @@ def test_single_image():
         #print('max diff = ',np.max(np.abs(test_star.data.image.array-test_im.array)))
         np.testing.assert_almost_equal(test_star.data.image.array, test_im.array, decimal=3)
 
+        # Check the convenience function that an end user would typically use
+        image = psf.draw(x=x0, y=y0)
+        np.testing.assert_almost_equal(image.array, test_im.array, decimal=3)
+
         # Round trip through a file
         psf_file = os.path.join('output','pixel_psf.fits')
         psf.write(psf_file, logger)
@@ -713,8 +717,8 @@ def test_single_image():
         np.testing.assert_almost_equal(test_star.data.image.array, test_im.array, decimal=3)
 
         # Check the convenience function that an end user would typically use
-        #image = psf.draw(x=x0, y=y0)
-        #np.testing.assert_almost_equal(image.array, test_im.array, decimal=3)
+        image = psf.draw(x=x0, y=y0)
+        np.testing.assert_almost_equal(image.array, test_im.array, decimal=3)
 
     # Do the whole thing with the config parser
     config = {
@@ -829,6 +833,11 @@ def test_des_image():
                 n_marginal += 1
             else:
                 n_good += 1
+
+            # Check the convenience function that an end user would typically use
+            image = psf.draw(x=s.data['x'], y=s.data['y'], stamp_size=size)
+            np.testing.assert_almost_equal(image.array, fit_stamp.array, decimal=5)
+
         print('n_good, marginal, bad = ',n_good,n_marginal,n_bad)
         # The real counts are 10 and 2.  So this says make sure any updates to the code don't make
         # things much worse.
@@ -876,11 +885,11 @@ def test_des_image():
         print('read psf')
         psf = piff.PSF.read(psf_file)
         stars = [psf.model.initialize(s) for s in stars]
-        fitted = psf.drawStar(stars[0])
-        fit_stamp = fitted.data.image
-        flux = fitted.fit.flux
+        flux = stars[0].fit.flux
+        fit_stamp = psf.draw(x=stars[0].data['x'], y=stars[0].data['y'])
+        np.testing.assert_almost_equal(image.array/flux, orig_stamp.array/flux, decimal=2)
         # The first star happens to be a good one, so go ahead and test the arrays directly.
-        orig_stamp = orig_image[fitted.data.image.bounds] - stars[0].data['sky']
+        orig_stamp = orig_image[stars[0].data.image.bounds] - stars[0].data['sky']
         np.testing.assert_almost_equal(fit_stamp.array/flux, orig_stamp.array/flux, decimal=2)
 
     # Test using the piffify executable
@@ -898,11 +907,12 @@ def test_des_image():
         print('read psf')
         psf = piff.PSF.read(psf_file)
         stars = [psf.model.initialize(s) for s in stars]
-        fitted = psf.drawStar(stars[0])
-        fit_stamp = fitted.data.image
-        flux = fitted.fit.flux
-        orig_stamp = orig_image[fitted.data.image.bounds] - stars[0].data['sky']
+        flux = stars[0].fit.flux
+        fit_stamp = psf.draw(x=stars[0].data['x'], y=stars[0].data['y'])
+        orig_stamp = orig_image[stars[0].data.image.bounds] - stars[0].data['sky']
         np.testing.assert_almost_equal(fit_stamp.array/flux, orig_stamp.array/flux, decimal=2)
+        image = psf.draw(x=s.data['x'], y=s.data['y'])
+        np.testing.assert_almost_equal(image.array/flux, orig_stamp.array/flux, decimal=2)
 
 if __name__ == '__main__':
     #import cProfile, pstats

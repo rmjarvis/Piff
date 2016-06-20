@@ -646,6 +646,11 @@ class StarFit(object):
         :param chisq:  chi-squared value at current parameters.
         :param worst_chisq:  highest chi-squared in any single pixel, after reflux()
         """
+        # center might be a galsim.PositionD.  That's fine, but we'll convert to a tuple here.
+        try:
+            center = (center.x, center.y)
+        except AttributeError:
+            pass
 
         self.params = params
         self.flux = flux
