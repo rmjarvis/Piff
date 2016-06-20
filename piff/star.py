@@ -267,6 +267,39 @@ class Star(object):
         stars = [ Star(d,f) for (d,f) in zip(data_list, fit_list) ]
         return stars
 
+    def offset_to_center(self, offset):
+        """A utility routine to convert from an offset in image coordinates to the corresponding
+        center position in focal plane coordinates on the postage stamp image.
+
+        :param offset:      A tuple (dx,dy) in image coordinates
+
+        :returns:           The corresponding (du,dv) in focal plane coordinates.
+        """
+        import galsim
+        # The model is in sky coordinates, so figure out what (u,v) corresponds to this offset.
+        jac = self.data.image.wcs.jacobian(self.data.image.trueCenter())
+        dx, dy = offset
+        du = jac.dudx * dx + jac.dudy * dy
+        dv = jac.dvdx * dx + jac.dvdy * dy
+        return (du,dv)
+
+    def center_to_offset(self, center):
+        """A utility routine to convert from a center position in focal plane coordinates to the
+        corresponding offset in image coordinates on the postage stamp image.
+
+        :param center:      A tuple (u,v) in focal plane coordinates
+
+        :returns:           The corresponding (dx,dy) in image coordinates.
+        """
+        import galsim
+        jac = self.data.image.wcs.jacobian(self.data.image.trueCenter()).inverse()
+        du, dv = center
+        # The names (u,v) and (x,y) are reversed for jac, since we've taken its inverse,
+        # so this looks a little confusing.  e.g. jac.dudx is really (dx/du), etc.
+        dx = jac.dudx * du + jac.dudy * dv
+        dy = jac.dvdx * du + jac.dvdy * dv
+        return (dx,dy)
+
 
 class StarData(object):
     """A class that encapsulates all the relevant information about an observed star.

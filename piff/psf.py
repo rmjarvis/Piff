@@ -190,31 +190,22 @@ class PSF(object):
         if logger:
             logger.debug("Drawing star at (%s,%s) on chip %s", x, y, chipnum)
 
-        star = self.drawStar(star, flux=flux, offset=offset)
+        # Adjust the flux, center
+        center = star.offset_to_center(offset)
+        star = star.withFlux(flux, center)
+
+        # Draw the star and return the image
+        star = self.drawStar(star)
         return star.data.image
 
-    def drawStar(self, star, flux=None, offset=(0,0)):
+    def drawStar(self, star):
         """Generate PSF image for a given star.
 
         :param star:        Star instance holding information needed for interpolation as
                             well as an image/WCS into which PSF will be rendered.
-        :param flux:        Flux of PSF to be drawn [default: None, which will use the
-                            existing flux value in the star object.
-        :param offset:      (dx,dy) tuple giving offset of stellar center relative
-                            to the center of the image [default: (0,0)]
 
         :returns:           Star instance with its image filled with rendered PSF
         """
-        import galsim
-        # The model is in sky coordinates, so figure out what (du,dv) corresponds to this offset.
-        jac = star.data.image.wcs.jacobian(image_pos=galsim.PositionD(star.data.image.trueCenter()))
-        dx, dy = offset
-        du = jac.dudx * dx + jac.dudy * dy
-        dv = jac.dvdx * dx + jac.dvdy * dy
-        u = star.fit.center[0] + du
-        v = star.fit.center[1] + dv
-        # Update the flux, center.
-        star = star.withFlux(flux=flux, center=(u,v))
         # Interpolate parameters to this position/properties:
         star = self.interp.interpolate(star)
         # Render the image

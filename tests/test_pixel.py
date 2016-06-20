@@ -787,6 +787,7 @@ def test_des_image():
         scale = 0.2
         size = 21
     np.random.seed(1234)
+    stamp_size = 51
 
     # These tests are slow, and it's really just doing the same thing three times, so
     # only do the first one when running via nosetests.
@@ -859,7 +860,7 @@ def test_des_image():
             'x_col' : 'XWIN_IMAGE',
             'y_col' : 'YWIN_IMAGE',
             'sky_col' : 'BACKGROUND',
-            'stamp_size' : 51,
+            'stamp_size' : stamp_size,
             'ra' : 'TELRA',
             'dec' : 'TELDEC',
             'gain' : 'GAINA',
@@ -888,10 +889,11 @@ def test_des_image():
         psf = piff.PSF.read(psf_file)
         stars = [psf.model.initialize(s) for s in stars]
         flux = stars[0].fit.flux
-        fit_stamp = psf.draw(x=stars[0].data['x'], y=stars[0].data['y'])
-        np.testing.assert_almost_equal(image.array/flux, orig_stamp.array/flux, decimal=2)
-        # The first star happens to be a good one, so go ahead and test the arrays directly.
+        offset = stars[0].center_to_offset(stars[0].fit.center)
+        fit_stamp = psf.draw(x=stars[0].data['x'], y=stars[0].data['y'], stamp_size=stamp_size,
+                             flux=flux, offset=offset)
         orig_stamp = orig_image[stars[0].data.image.bounds] - stars[0].data['sky']
+        # The first star happens to be a good one, so go ahead and test the arrays directly.
         np.testing.assert_almost_equal(fit_stamp.array/flux, orig_stamp.array/flux, decimal=2)
 
     # Test using the piffify executable
