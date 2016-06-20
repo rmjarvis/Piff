@@ -74,7 +74,7 @@ def stardata_from_fits(hdu_list, xysky, stamp_radius=25, badmask=0x7FFF,
     hdr = hdu_list[sci_extn].header
 
     # Null weights using mask bits
-    good = np.bitwise_and(msk.array.astype(np.unit16), badmask)==0
+    good = np.bitwise_and(msk.array.astype(np.uint16), badmask)==0
     wgt *= np.where(good, 1., 0.)
 
     # Determine gain and telescope pointing
