@@ -68,7 +68,7 @@ def process_input(config, logger=None):
     # Get the wcs for all the input chips
     wcs = input_handler.getWCS(logger)
 
-    return stars, wcs
+    return stars, wcs, input_handler.pointing
 
 
 class InputHandler(object):

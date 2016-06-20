@@ -30,8 +30,8 @@ class PSF(object):
 
     The usual way to create a PSF is through one of the two factory functions::
 
-        >>> psf = piff.PSF.build(stars, wcs, model=model, interp=interp, ...)
-        >>> psf = piff.PSF.read(file_name=file_name, ...)
+        >>> psf = piff.PSF.build(stars, wcs, pointing, model, interp)
+        >>> psf = piff.PSF.read(file_name)
 
     The first is used to build a PSF model from the data.
     The second is used to read in a PSF model from disk.
@@ -44,19 +44,22 @@ class PSF(object):
     At the end of a fit, it contains the PSF parameters at each star and information on what
     was clipped and how good the fit is.
     """
-    def __init__(self, stars, wcs, model, interp, extra_interp_properties=()):
+    def __init__(self, stars, wcs, pointing, model, interp, extra_interp_properties=()):
         self.stars = stars
         self.wcs = wcs
+        self.pointing = pointing
         self.model = model
         self.interp = interp
         self.extra_interp_properties = extra_interp_properties
 
     @classmethod
-    def build(cls, stars, wcs, model, interp, logger=None):
+    def build(cls, stars, wcs, pointing, model, interp, logger=None):
         """The main driver function to build a PSF model from data.
 
         :param stars:       A list of Star instances.
         :param wcs:         A dict of WCS solutions indexed by chipnum.
+        :param pointing:    A galsim.CelestialCoord object giving the telescope pointing.
+                            [Note: pointing should be None if the WCS is not a galsim.CelestialWCS]
         :param model:       A Model instance that defines how to model the individual PSFs
                             at the location of each star.
         :param interp:      An Interp instance that defines how to do the interpolation of the
@@ -70,7 +73,7 @@ class PSF(object):
             logger.debug("Model is %s", model)
             logger.debug("Interp is %s", interp)
 
-        psf = cls(stars, wcs, model, interp)
+        psf = cls(stars, wcs, pointing, model, interp)
         if logger:
             logger.info("Fitting PSF model")
         psf.fit(logger=logger)
@@ -179,8 +182,10 @@ class PSF(object):
         if len(kwargs) != 0:
             raise TypeError("draw got an unexpecte keyword argument %r"%kwargs.keys()[0])
 
-        local_wcs = wcs.local(galsim.PositionD(x,y))
-        star = Star.makeTarget(x=x, y=y, wcs=local_wcs, properties=properties,
+        image_pos = galsim.PositionD(x,y)
+        world_pos = StarData.calculateFieldPos(image_pos, wcs, self.pointing, properties)
+        u,v = world_pos.x, world_pos.y
+        star = Star.makeTarget(x=x, y=y, u=u, v=v, wcs=wcs, properties=properties,
                                stamp_size=stamp_size)
         if logger:
             logger.debug("Drawing star at (%s,%s) on chip %s", x, y, chipnum)
@@ -254,11 +259,11 @@ class PSF(object):
             stars = Star.read(f, 'stars')
             if logger:
                 logger.debug("stars = %s",stars)
-            wcs = cls.readWCS(f, 'wcs')
+            wcs, pointing = cls.readWCS(f, 'wcs')
             if logger:
                 logger.debug("wcs = %s",wcs)
 
-        return cls(stars, wcs, model, interp)
+        return cls(stars, wcs, pointing, model, interp)
 
     def writeWCS(self, fits, extname):
         """Write the WCS information to a FITS file.
@@ -266,6 +271,12 @@ class PSF(object):
         :param fits:        An open fitsio.FITS object
         :param extname:     The name of the extension to write to
         """
+        import galsim
+        try:
+            import cPickle as pickle
+        except:
+            import pickle
+
         # Start with the chipnums, which may be int or str type.
         # Assume they are all the same type at least.
         chipnums = self.wcs.keys()
@@ -279,14 +290,18 @@ class PSF(object):
             dtypes = [ ('chipnums', str, max_len) ]
 
         # GalSim WCS objects can be serialized via pickle
-        try:
-            import cPickle as pickle
-        except:
-            import pickle
         wcs_str = [ pickle.dumps(w) for w in self.wcs.values() ]
         cols.append(wcs_str)
         max_len = numpy.max([ len(s) for s in wcs_str ])
         dtypes.append( ('wcs_str', str, max_len) )
+
+        if self.pointing is not None:
+            # Currently, there is only one pointing for all the chips, but write it out
+            # for each row anyway.
+            dtypes.extend( (('ra', float), ('dec', float)) )
+            ra = [self.pointing.ra / galsim.hours] * len(chipnums)
+            dec = [self.pointing.dec / galsim.degrees] * len(chipnums)
+            cols.extend( (ra, dec) )
 
         data = numpy.array(zip(*cols), dtype=dtypes)
         fits.write_table(data, extname=extname)
@@ -298,8 +313,15 @@ class PSF(object):
         :param fits:        An open fitsio.FITS object
         :param extname:     The name of the extension to read from
 
-        :returns: a dict of galsim.BaseWCS instances
+        :returns: wcs, pointing where wcs is a dict of galsim.BaseWCS instances and
+                                      pointing is a galsim.CelestialCoord instance
         """
+        import galsim
+        try:
+            import cPickle as pickle
+        except:
+            import pickle
+
         assert extname in fits
         assert 'chipnums' in fits[extname].get_colnames()
         assert 'wcs_str' in fits[extname].get_colnames()
@@ -309,11 +331,15 @@ class PSF(object):
         chipnums = data['chipnums']
         wcs_str = data['wcs_str']
 
-        try:
-            import cPickle as pickle
-        except:
-            import pickle
         wcs_list = [ pickle.loads(s) for s in wcs_str ]
         wcs = dict( zip(chipnums, wcs_list) )
-        return wcs
+
+        if 'ra' in fits[extname].get_colnames():
+            ra = data['ra']
+            dec = data['dec']
+            pointing = galsim.CelestialCoord(ra[0] * galsim.hours, dec[0] * galsim.degrees)
+        else:
+            pointing = None
+
+        return wcs, pointing
 

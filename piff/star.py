@@ -91,8 +91,7 @@ class Star(object):
         :param properties:  The requested properties for the target star, including any other
                             requested properties besides x,y,u,v.  You may also provide x,y,u,v
                             in this dict rather than explicitly as kwargs. [default: None]
-        :param wcs:         The requested WCS.  [optional; invalid if both (x,y) and (u,v) are
-                            given.]
+        :param wcs:         The requested WCS.  [optional]
         :param scale:       If wcs is None, you may instead provide a pixel scale. [default: None]
         :param stamp_size:  The size in each direction of the (blank) image. [default: 48]
         :param flux:        The flux of the target star. [default: 1]
@@ -118,31 +117,31 @@ class Star(object):
             raise AttributeError("Eitehr u and v must both be given, or neither.")
         if x is None and u is None:
             raise AttributeError("Some kind of position must be given")
-        if x is not None and u is not None and wcs is not None:
-            raise AttributeError("wcs may not be given along with (x,y) and (u,v)")
         if wcs is not None and scale is not None:
             raise AttributeError("scale is invalid when also providing wcs")
-        if wcs is not None and wcs.isCelestial():
-            raise AttributeError("A CelestialWCS is not allowed")
 
         # Figure out what the wcs should be if not provided
         if wcs is None:
             if scale is None:
                 scale = 1.
             wcs = galsim.PixelScale(scale)
-            if x is not None and u is not None:
-                wcs = wcs.withOrigin(galsim.PositionD(x,y), galsim.PositionD(u,v))
 
         # Make the blank image
         image = galsim.Image(stamp_size, stamp_size, dtype=float)
 
         # Figure out the image_pos
         if x is None:
-            image_pos = wcs.toImage(galsim.PositionD(u,v))
+            world_pos = galsim.PositionD(u,v)
+            image_pos = wcs.toImage(world_pos)
             x = image_pos.x
             y = image_pos.y
         else:
             image_pos = galsim.PositionD(x,y)
+
+        # Make wcs locally accurate affine transformation
+        if x is not None and u is not None:
+            world_pos = galsim.PositionD(u,v)
+            wcs = wcs.local(image_pos).withOrigin(image_pos, world_pos)
 
         # Make the center of the image (close to) the image_pos
         image.setCenter(int(x+0.5), int(y+0.5))
@@ -314,7 +313,8 @@ class StarData(object):
       - gain
 
     Any of these values may be used for interpolation.  The most typical choices would be either
-    (x,y) or (u,v).  The choice of what values to use is made by the interpolator.
+    (x,y) or (u,v).  The choice of what values to use is made by the interpolator.  All such
+    values should be either int or float values.
 
     Note that the position given for the star does not have to be a proper centroid.  It is
     rather just some position in image coordinates to use as the origin of the model.
@@ -382,14 +382,18 @@ class StarData(object):
         """
         Convert from image coordinates to field coordinates.
 
-        :param image_pos:   The position in image coordinates.
+        :param image_pos:   The position in image coordinates, as a galsim.PositionD instance.
         :param wcs:         The wcs to use to connect image coordinates with sky coordinates:
         :param pointing:    A galsim.CelestialCoord representing the pointing coordinate of the
                             exposure.  This is required if image.wcs is a CelestialWCS, but should
                             be None if image.wcs is a EuclideanWCS. [default: None]
         :param properties:  If properties is provided, and the wcs is a CelestialWCS, then add
-                            'ra', 'dec' properties based on the sky coordinates. [default: None]
+                            'ra', 'dec' properties (in hours, degrees respectively) based on the
+                            sky coordinates. [default: None]
+
+        :returns: a galsim.PositionD instance representing the position in field coordinates.
         """
+        import galsim
         # Calculate the field_pos, the position in the fov coordinates
         if pointing is None:
             if wcs.isCelestial():
@@ -401,9 +405,9 @@ class StarData(object):
             sky_pos = wcs.toWorld(image_pos)
             if properties is not None:
                 if 'ra' not in properties:
-                    properties['ra'] = sky_pos.ra
+                    properties['ra'] = sky_pos.ra / galsim.hours
                 if 'dec' not in properties:
-                    properties['dec'] = sky_pos.dec
+                    properties['dec'] = sky_pos.dec / galsim.degrees
             return pointing.project(sky_pos)
 
     @property

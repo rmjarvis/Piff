@@ -110,7 +110,7 @@ def piffify(config, logger=None):
             raise ValueError("%s field is required in config dict"%key)
 
     # read in the input images
-    stars, wcs = piff.process_input(config, logger=logger)
+    stars, wcs, pointing = piff.process_input(config, logger=logger)
 
     # make a Model object to use for the individual stellar fitting
     model = piff.process_model(config, logger=logger)
@@ -119,7 +119,7 @@ def piffify(config, logger=None):
     interp = piff.process_interp(config, logger=logger)
 
     # build the PSF model
-    psf = piff.PSF.build(stars, wcs, model, interp, logger=logger)
+    psf = piff.PSF.build(stars, wcs, pointing, model, interp, logger=logger)
 
     # write it out to a file
     output = piff.process_output(config, logger=logger)

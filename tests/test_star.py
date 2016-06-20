@@ -210,8 +210,8 @@ def test_celestial():
     numpy.testing.assert_equal(stardata['y'], image_pos.y)
     numpy.testing.assert_equal(stardata['u'], field_pos.x)
     numpy.testing.assert_equal(stardata['v'], field_pos.y)
-    numpy.testing.assert_equal(stardata['ra'], sky_pos.ra)
-    numpy.testing.assert_equal(stardata['dec'], sky_pos.dec)
+    numpy.testing.assert_equal(stardata['ra'], sky_pos.ra/galsim.hours)
+    numpy.testing.assert_equal(stardata['dec'], sky_pos.dec/galsim.degrees)
 
     # Test access via getImage method:
     im, wt, pos = stardata.getImage()
