@@ -75,3 +75,63 @@ class Zernike(Interp):
     # a class that takes in positions and returns zernikes from reference to file
     # and interp-specific corrections
 
+"""
+# add donutlib to path
+import sys
+sys.path.append('/nfs/slac/g/ki/ki18/cpd/Projects/DES/Donut')
+from donutlib.makedonut import makedonut
+import galsim
+import galsim.optics
+hdu = fits.open('/nfs/slac/g/ki/ki18/cpd/Projects/DES/Donut/unittest.0001-debug.fits')
+pupil_plane_im = hdu[1].data
+pupil_plane_img = galsim.Image(pupil_plan_im)
+
+
+
+# AJR params
+outerRadius = 0.7174
+innerRadius = 0.301
+zLength = 4#.274419
+fLength = 11.719
+pixelSize = 15.0e-6
+F = zLength / (2 * outerRadius)
+# aaron plays between 19 mm thick and 50 mm thick
+strut_thickness = 0.050 * (1462.526 / 4010.) / 2.0 # conversion factor is nebulous?!
+
+
+# aberrations here have FOUR 0s up front, instead of 3!!
+# diam in meters
+# lam in nanometers
+def md_gs(ZernikeArray, rzero=0.125, xDECam=0, yDECam=0, paramDict={'lam': wavelength * 1e9,
+                                                                    'diam': zLength,
+#                                                                     'obscuration': innerRadius / outerRadius,
+#                                                                     'nstruts': 4, 
+#                                                                     'strut_thick': strut_thickness,
+#                                                                     'strut_angle': 45 * galsim.degrees},
+                                                                    'pupil_plane_im': pupil_plane_img,
+                                                                    'oversampling': int(8 / factor),
+                                                                    'pad_factor': 1.5},
+          imageDict=imageDict):
+    opt = galsim.optics.OpticalPSF(aberrations=[0,0,0,0] + list(ZernikeArray), **paramDict)
+    # to get array: opt._optimage.array
+    # convolve with kolmogorov
+    # lam in nm again
+    # this is from the kolmogorov class instructions
+    lam = wavelength * 1e9  # nm
+    r0 = rzero #* (lam/500)**-1.2  # meters
+    lam_over_r0 = (lam * 1.e-9) / r0  # radians
+    lam_over_r0 *= 206265  # Convert to arcsec
+    atm = galsim.Kolmogorov(lam_over_r0=lam_over_r0)
+
+    # convolve
+    psf = galsim.Convolve([opt, atm])
+    donut = psf.drawImage(**imageDict)
+    # get moments for galsim
+    moments = donut.FindAdaptiveMom()
+    print('galsim donut sigma', moments.moments_sigma)
+    print('galsim donut shape', moments.observed_shape)
+    print('galsim donut centroid', moments.moments_centroid)
+    donut = donut.array
+    donut /= donut.sum()
+    return donut
+"""
