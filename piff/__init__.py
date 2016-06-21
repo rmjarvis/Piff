@@ -101,4 +101,4 @@ from .stats import process_stats, Statistics, RhoStatistics, ShapeStatistics
 from . import util
 
 # Optics
-from .optical_Model import Optical
+from .optical_model import Optical
