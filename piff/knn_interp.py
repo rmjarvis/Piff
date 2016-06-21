@@ -202,15 +202,13 @@ class kNNInterp(Interp):
         # header = fits[extname].read_header()
         data = fits[extname].read()
 
-        self.X = data['X'][0]
-        self.y = data['Y'][0]
-        self.attr_target = data['ATTR_TARGET'][0]
-        self.attr_interp = data['ATTR_INTERP'][0]
-
+        # kwargs come from base class read()
         # self.kwargs = header
 
-        self.build(self.attr_interp, self.attr_target)
-        self._fit(self.X, self.y)
+        # attr_target and attr_interp assigned in build
+        self.build(data['ATTR_INTERP'][0], data['ATTR_TARGET'][0])
+        # self.X and self.y assigned in _fit
+        self._fit(data['X'][0], data['Y'][0])
 
 class DECamWavefront(kNNInterp):
     """
@@ -220,6 +218,11 @@ class DECamWavefront(kNNInterp):
     """
 
     def load_wavefront(self, file_name, extname, logger=None):
+        """Load up a fits file containing the optics model and use it to build the wavefront interpolator
+        :param file_name:   Fits file containing the wavefront
+        :param extname:     Extension name
+        :param logger:      A logger object for logging debug info. [default: None]
+        """
         self.z_min = 4
         self.z_max = 11
         fits = fitsio.FITS(file_name)
@@ -232,10 +235,117 @@ class DECamWavefront(kNNInterp):
         self.build(attr_interp, range(0, self.z_max - self.z_min + 1), logger=logger)
         self._fit(X, y)
 
+        # set misalignment as [[delta_i, thetax_i, thetay_i]] with i == 0 corresponding to defocus
+        self.misalignment = numpy.array([[0.0, 0.0, 0.0]] * (self.z_max - self.z_min + 1))
+
         # to get the ccd coords
         attr_save = ['x', 'y', 'ccdnum']
         Xpixel = numpy.array([data[attr] for attr in attr_save]).T
         self.Xpixel = Xpixel
+
+    def misalign_wavefront(self, misalignment):
+        """Pass along misalignment parameter
+
+        :param misalignment:    Parameters for misaligning zernike coefficients
+        """
+        # if dictionary, translate terms to array
+        if type(misalignment) == dict:
+            nu_misalignment = numpy.array([[0.0, 0.0, 0.0]] * (self.z_max - self.z_min + 1))
+            for zi in xrange(self.z_min, self.z_max + 1):
+                indx = zi - 4
+                # delta
+                key = 'z{0:02}d'.format(zi)
+                if key in misalignment:
+                    nu_misalignment[indx, 0] = misalignment[key]
+                # thetax
+                key = 'z{0:02}x'.format(zi)
+                if key in misalignment:
+                    nu_misalignment[indx, 1] = misalignment[key]
+                # thetay
+                key = 'z{0:02}y'.format(zi)
+                if key in misalignment:
+                    nu_misalignment[indx, 2] = misalignment[key]
+            misalignment = nu_misalignment
+        # if array, check that shape is right, and put it in
+        if hasattr(self, 'misalignment'):
+            assert misalignment.shape == self.misalignment.shape,"New misalignment shape must match old!"
+        self.misalignment = misalignment
+
+    def _predict(self, X, y=None, logger=None):
+        """Predict from knn.
+
+        :param X:   The locations for interpolating. (n_samples, n_features)
+        :param y:   Parameter y. If given, then only apply misalignment.
+
+        :returns:   Regressed parameters y (n_samples, n_targets)
+        """
+        if numpy.shape(y) == ():
+            # if no y, then interpolate
+            y = numpy.array([self.knn[key].predict(X) for key in self.attr_target]).T
+        if logger:
+            logger.debug('Regression shape: %s', y.shape)
+        # add misalignment shape (n_targets, 3)
+        # X is (n_samples, 2)
+        # y is (n_samples, n_targets)
+        y = y + self.misalignment[numpy.newaxis, :, 0] \
+                + X[:, 1, numpy.newaxis] * self.misalignment[numpy.newaxis, :, 1] \
+                + X[:, 0, numpy.newaxis] * self.misalignment[numpy.newaxis, :, 2]
+
+        return y
+
+    def writeSolution(self, fits, extname):
+        """Write the solution to a FITS binary table.
+
+        Save the knn params and the X and y arrays
+
+        :param fits:        An open fitsio.FITS object.
+        :param extname:     The name of the extension with the interp information.
+        """
+
+        dtypes = [('X', self.X.dtype, self.X.shape), ('Y', self.y.dtype, self.y.shape),
+                  ('XPIXEL', self.Xpixel.dtype, self.Xpixel.shape),
+                  ('ATTR_TARGET', self.attr_target.dtype, self.attr_target.shape),
+                  ('ATTR_INTERP', self.attr_interp.dtype, self.attr_interp.shape),
+                  ('MISALIGNMENT', self.misalignment.dtype, self.misalignment.shape)]
+        data = numpy.empty(1, dtype=dtypes)
+        # assign
+        data['X'] = self.X
+        data['Y'] = self.y
+        data['XPIXEL'] = self.Xpixel
+        data['ATTR_TARGET'] = self.attr_target
+        data['ATTR_INTERP'] = self.attr_interp
+        data['MISALIGNMENT'] = self.misalignment
+
+        # put the knn params in the header?
+        header = self.kwargs
+
+        # write to fits
+        fits.write_table(data, extname=extname, header=header)
+
+    def readSolution(self, fits, extname):
+        """Read the solution from a FITS binary table.
+
+        The extension should contain the same values as are saved
+        in the writeSolution method.
+
+        :param fits:        An open fitsio.FITS object.
+        :param extname:     The name of the extension with the interp information.
+        """
+        # header = fits[extname].read_header()
+        data = fits[extname].read()
+
+        # kwargs come from base class read()
+        # self.kwargs = header
+
+        # attr_target and attr_interp assigned in build
+        self.build(data['ATTR_INTERP'][0], data['ATTR_TARGET'][0])
+        # self.X and self.y assigned in _fit
+        self._fit(data['X'][0], data['Y'][0])
+        self.misalign_wavefront(data['MISALIGNMENT'][0])
+
+        # other attributes
+        self.Xpixel = data['XPIXEL'][0]
+
 
 # pretty sure the correct way to do this is in the WCS framework, but let's
 # move forward first:

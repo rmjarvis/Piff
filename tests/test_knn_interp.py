@@ -160,11 +160,30 @@ def test_decam():
 
     star_list_predicted = knn.interpolateList(star_list)
 
+    # test misalignment
+    misalignment = {'z04d': 10, 'z10x': 10, 'z09y': -10}
+    knn.misalign_wavefront(misalignment)
+    star_list_misaligned = knn.interpolateList(star_list)
+
+    # test the prediction algorithm
+    y_predicted = numpy.array([knn.getFitProperties(star) for star in star_list_predicted])
+    y_misaligned = numpy.array([knn.getFitProperties(star) for star in star_list_misaligned])
+    X = numpy.array([knn.getProperties(star) for star in star_list])
+
+    # check the misalignments work
+    numpy.testing.assert_array_almost_equal(y_predicted[:,0], y_misaligned[:,0] - misalignment['z04d'])
+    numpy.testing.assert_array_almost_equal(y_predicted[:,5], y_misaligned[:,5] - misalignment['z09y'] * X[:,0])
+    numpy.testing.assert_array_almost_equal(y_predicted[:,6], y_misaligned[:,6] - misalignment['z10x'] * X[:,1])
+
+
 def test_decam_disk():
     file_name = 'wavefront_test/Science-20121120s1-v20i2.fits'
     extname = 'Science-20121120s1-v20i2'
     knn = piff.DECamWavefront()
     knn.load_wavefront(file_name, extname)
+
+    misalignment = {'z04d': 10, 'z10x': 10, 'z09y': -10}
+    knn.misalign_wavefront(misalignment)
 
     knn_file = os.path.join('output','decam_wavefront.fits')
     with fitsio.FITS(knn_file,'rw',clobber=True) as f:
@@ -174,6 +193,8 @@ def test_decam_disk():
     numpy.testing.assert_array_equal(knn.y, knn2.y)
     numpy.testing.assert_array_equal(knn.attr_target, knn2.attr_target)
     numpy.testing.assert_array_equal(knn.attr_interp, knn2.attr_interp)
+    numpy.testing.assert_array_equal(knn.misalignment, knn2.misalignment)
+
 
 if __name__ == '__main__':
     print('test init')
