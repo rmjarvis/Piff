@@ -23,12 +23,9 @@ import galsim
 import fitsio
 import numpy
 
-from .psf import PSF
-from .interp import Interp
 from .model import Model
 from .stardata import StarData
 from .starfit import Star, StarFit
-from .gaussian_model import Gaussian
 
 class Optical(Model):
     def __init__(self, rzero=0.1, sigma=0., g1=0., g2=0., pupil_path='', lam=500., **kwargs):
