@@ -57,23 +57,23 @@ class Mean(Interp):
             fit = star.fit.newParams(self.mean)
         return Star(star.data, fit)
 
-    def writeSolution(self, fits, extname):
+    def _finish_write(self, fits, extname):
         """Write the solution to a FITS binary table.
 
         :param fits:        An open fitsio.FITS object.
-        :param extname:     The name of the extension with the interpolator information.
+        :param extname:     The base name of the extension
         """
         cols = [ self.mean ]
         dtypes = [ ('mean', float) ]
         data = numpy.array(zip(*cols), dtype=dtypes)
-        fits.write_table(data, extname=extname)
+        fits.write_table(data, extname=extname + '_solution')
 
-    def readSolution(self, fits, extname):
+    def _finish_read(self, fits, extname):
         """Read the solution from a FITS binary table.
 
         :param fits:        An open fitsio.FITS object.
-        :param extname:     The name of the extension with the interpolator information.
+        :param extname:     The base name of the extension
         """
-        data = fits[extname].read()
+        data = fits[extname + '_solution'].read()
         self.mean = data['mean']
 

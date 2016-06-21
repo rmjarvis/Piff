@@ -18,6 +18,7 @@
 
 from __future__ import print_function
 import numpy
+from .util import write_kwargs, read_kwargs
 
 def process_interp(config, logger=None):
     """Parse the interp field of the config dict.
@@ -159,72 +160,29 @@ class Interp(object):
         The base class implemenation works if the class has a self.kwargs attribute and these
         are all simple values (str, float, or int).
 
-        However, the derived class will need to implement writeSolution to write the solution
+        However, the derived class will need to implement _finish_write to write the solution
         parameters to a binary table.
 
         :param fits:        An open fitsio.FITS object
         :param extname:     The name of the extension to write the interpolator information.
         """
-        # TODO: The I/O routines for Model and Interp share a lot of code.
-        #       Probably could move a lot of it into utility functions that both of them call.
-
-        # First write the basic kwargs
-        # Start with 'type', since that always needs to be in the table.
+        # First write the basic kwargs that works for all Interp classes
         interp_type = self.__class__.__name__
-        cols = [ [interp_type] ]
-        dtypes = [ ('type', str, len(interp_type) ) ]
-        for key, value in self.kwargs.items():
-            t = type(value)
-            dt = numpy.dtype(t) # just used to categorize the type into int, float, str
-            if dt.kind in numpy.typecodes['AllInteger']:
-                i = int(value)
-                dtypes.append( (key, int) )
-                cols.append([i])
-            elif dt.kind in numpy.typecodes['AllFloat']:
-                f = float(value)
-                dtypes.append( (key, float) )
-                cols.append([f])
-            else:
-                s = str(value)
-                dtypes.append( (key, str, len(s)) )
-                cols.append([s])
-        data = numpy.array(zip(*cols), dtype=dtypes)
-        fits.write_table(data, extname=extname)
+        write_kwargs(fits, extname, dict(self.kwargs, type=interp_type))
 
-        # Now write the solution parameters
-        self.writeSolution(fits, extname + '_solution')
+        # Now do the class-specific steps.  Typically, this will write out the solution parameters.
+        self._finish_write(fits, extname)
 
-    def writeSolution(self, fits, extname):
-        """Write the solution parameters to a FITS file.
+    def _finish_write(self, fits, extname):
+        """Finish the writing process with any class-specific steps.
+
+        The base class implementation doesn't do anything, but this will probably always be
+        overridden by the derived class.
 
         :param fits:        An open fitsio.FITS object
-        :param extname:     The name of the extension to write the solution.
+        :param extname:     The base name of the extension
         """
-        raise NotImplemented("Derived classes must define the writeSolution function")
-
-    @classmethod
-    def readKwargs(cls, fits, extname):
-        """Read the kwargs from the data in a FITS binary table.
-
-        The base class implementation just reads each value in the table and uses the column
-        name for the name of the kwarg.  However, derived classes may want to do something more
-        sophisticated.  Also, they may want to read other extensions from the fits file
-        besides just extname.
-
-        :param fits:        An open fitsio.FITS object.
-        :param extname:     The name of the extension with the interpolator information.
-
-        :returns: a kwargs dict to use to initialize the interpolator
-        """
-        cols = fits[extname].get_colnames()
-        # Remove 'type'
-        assert 'type' in cols
-        cols = [ col for col in cols if col != 'type' ]
-
-        data = fits[extname].read()
-        assert len(data) == 1
-        kwargs = dict([ (col, data[col][0]) for col in cols ])
-        return kwargs
+        pass
 
     @classmethod
     def read(cls, fits, extname):
@@ -252,16 +210,20 @@ class Interp(object):
             raise ValueError("interpolator type %s is not a valid Piff Interpolator"%interp_type)
         interp_cls = valid_interp_types[interp_type]
 
-        kwargs = interp_cls.readKwargs(fits, extname)
+        kwargs = read_kwargs(fits, extname)
+        kwargs.pop('type')
         interp = interp_cls(**kwargs)
-        interp.readSolution(fits, extname + '_solution')
+        interp._finish_read(fits, extname)
         return interp
 
-    def readSolution(self, fits, extname):
-        """Read the solution from a FITS binary table.
+    def _finish_read(self, fits, extname):
+        """Finish the reading process with any class-specific steps.
+
+        The base class implementation doesn't do anything, but this will probably always be
+        overridden by the derived class.
 
         :param fits:        An open fitsio.FITS object.
-        :param extname:     The name of the extension with the interpolator information.
+        :param extname:     The base name of the extension.
         """
-        raise NotImplemented("Derived classes must define the readSolution function")
+        pass
 

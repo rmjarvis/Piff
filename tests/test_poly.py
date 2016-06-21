@@ -327,10 +327,6 @@ def poly_load_save_sub(type1, type2):
     stars = [ piff.Star(d, f) for d,f in zip(data, fit) ]
     interp.solve(stars)
 
-    # We should overwrite the order parameter when we load in
-    interp2 = piff.Polynomial([0], poly_type=type2)
-
-
     import tempfile
     import os
     import fitsio
@@ -338,9 +334,9 @@ def poly_load_save_sub(type1, type2):
     dirname = tempfile.mkdtemp()
     filename=os.path.join(dirname,'poly_test_file.fits')
     with fitsio.FITS(filename,'rw',clobber=False) as f:
-        interp.writeSolution(f, extname=extname)
-    f2 = fitsio.FITS(filename, "r")
-    interp2.readSolution(f2, extname=extname)
+        interp.write(f, extname=extname)
+    with fitsio.FITS(filename, "r") as f2:
+        interp2 = piff.Polynomial.read(f2, extname=extname)
     os.remove(filename)
     os.rmdir(dirname)
 

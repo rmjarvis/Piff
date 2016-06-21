@@ -20,6 +20,7 @@ from __future__ import print_function
 import numpy
 
 from .star import Star, StarFit, StarData
+from .util import write_kwargs, read_kwargs
 
 def process_model(config, logger=None):
     """Parse the model field of the config dict.
@@ -129,51 +130,24 @@ class Model(object):
         :param fits:        An open fitsio.FITS object
         :param extname:     The name of the extension to write the model information.
         """
-        # Start with 'type', since that always needs to be in the table.
+        # First write the basic kwargs that works for all Model classes
         model_type = self.__class__.__name__
-        cols = [ [model_type] ]
-        dtypes = [ ('type', str, len(model_type) ) ]
-        for key, value in self.kwargs.items():
-            t = type(value)
-            dt = numpy.dtype(t) # just used to categorize the type into int, float, str
-            if dt.kind in numpy.typecodes['AllInteger']:
-                i = int(value)
-                dtypes.append( (key, int) )
-                cols.append([i])
-            elif dt.kind in numpy.typecodes['AllFloat']:
-                f = float(value)
-                dtypes.append( (key, float) )
-                cols.append([f])
-            else:
-                s = str(value)
-                dtypes.append( (key, str, len(s)) )
-                cols.append([s])
-        data = numpy.array(zip(*cols), dtype=dtypes)
-        fits.write_table(data, extname=extname)
+        write_kwargs(fits, extname, dict(self.kwargs, type=model_type))
 
-    @classmethod
-    def readKwargs(cls, fits, extname):
-        """Read the kwargs from the data in a FITS binary table.
+        # Now do any class-specific steps.
+        self._finish_write(fits, extname)
 
-        The base class implementation just reads each value in the table and uses the column
-        name for the name of the kwarg.  However, derived classes may want to do something more
-        sophisticated.  Also, they may want to read other extensions from the fits file
-        besides just extname.
+    def _finish_write(self, fits, extname):
+        """Finish the writing process with any class-specific steps.
 
-        :param fits:        An open fitsio.FITS object.
-        :param extname:     The name of the extension with the model information.
+        The base class implementation doesn't do anything, which is often appropriate, but
+        this hook exists in case any Model classes need to write extra information to the
+        fits file.
 
-        :returns: a kwargs dict to use to initialize the model
+        :param fits:        An open fitsio.FITS object
+        :param extname:     The base name of the extension
         """
-        cols = fits[extname].get_colnames()
-        # Remove 'type'
-        assert 'type' in cols
-        cols = [ col for col in cols if col != 'type' ]
-
-        data = fits[extname].read()
-        assert len(data) == 1
-        kwargs = dict([ (col, data[col][0]) for col in cols ])
-        return kwargs
+        pass
 
     @classmethod
     def read(cls, fits, extname):
@@ -197,36 +171,26 @@ class Model(object):
 
         # Check that model_type is a valid Model type.
         model_classes = piff.util.get_all_subclasses(piff.Model)
-        valid_model_types = dict([ (cls.__name__, cls) for cls in model_classes ])
+        valid_model_types = dict([ (c.__name__, c) for c in model_classes ])
         if model_type not in valid_model_types:
             raise ValueError("model type %s is not a valid Piff Model"%model_type)
         model_cls = valid_model_types[model_type]
 
-        kwargs = model_cls.readKwargs(fits, extname)
+        kwargs = read_kwargs(fits, extname)
+        kwargs.pop('type')
         model = model_cls(**kwargs)
+        model._finish_read(fits, extname)
         return model
 
-    @classmethod
-    def readKwargs(cls, fits, extname):
-        """Read the kwargs from the data in a FITS binary table.
+    def _finish_read(self, fits, extname):
+        """Finish the reading process with any class-specific steps.
 
-        The base class implementation just reads each value in the table and uses the column
-        name for the name of the kwarg.  However, derived classes may want to do something more
-        sophisticated.  Also, they may want to read other extensions from the fits file
-        besides just extname.
+        The base class implementation doesn't do anything, which is often appropriate, but
+        this hook exists in case any Model classes need to read extra information from the
+        fits file.
 
         :param fits:        An open fitsio.FITS object.
-        :param extname:     The name of the extension with the model information.
-
-        :returns: a kwargs dict to use to initialize the model
+        :param extname:     The base name of the extension.
         """
-        cols = fits[extname].get_colnames()
-        # Remove 'type'
-        assert 'type' in cols
-        cols = [ col for col in cols if col != 'type' ]
-
-        data = fits[extname].read()
-        assert len(data) == 1
-        kwargs = dict([ (col, data[col][0]) for col in cols ])
-        return kwargs
+        pass
 

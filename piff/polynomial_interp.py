@@ -296,14 +296,11 @@ class Polynomial(Interp):
         # self._unpack_coefficients
         self.coeffs = coeffs
 
-    def writeSolution(self, fits, extname):
+    def _finish_write(self, fits, extname):
         """Write the solution to a FITS binary table.
 
-        We save two columns for the exponents and one column
-        of coefficients for each parameter.
-
         :param fits:        An open fitsio.FITS object.
-        :param extname:     The name of the extension with the interp information.
+        :param extname:     The base name of the extension
         """
         if self.coeffs is None:
             raise RuntimeError("Coeffs not set yet.  Cannot write this Polynomial.")
@@ -311,7 +308,7 @@ class Polynomial(Interp):
         # We will try to be as explicit as possible when saving the
         # coefficients to file - for each coefficient we spell out in
         # full the parameter index and exponent it corresponds to.
-        # We don't actually use this information in the readSolution
+        # We don't actually use this information in the _finish_read
         # below, but when we want to generalize or plot things it
         # will be invaluable.
         dtypes = [('PARAM', int), ('U_EXPONENT', int), ('V_EXPONENT', int),
@@ -349,19 +346,16 @@ class Polynomial(Interp):
 
         # Finally, write all of this to a FITS table.
         data = numpy.array(zip(*cols), dtype=dtypes)
-        fits.write_table(data, extname=extname, header=header)
+        fits.write_table(data, extname=extname + '_solution', header=header)
 
-    def readSolution(self, fits, extname):
-        """Read the solution from a FITS binary table.
-
-        The extension should contain the same values as are saved
-        in the writeSolution method.
+    def _finish_read(self, fits, extname):
+        """Read the solution from a fits file.
 
         :param fits:        An open fitsio.FITS object.
-        :param extname:     The name of the extension with the interp information.
+        :param extname:     The base name of the extension
         """
-        header = fits[extname].read_header()
-        data = fits[extname].read()
+        header = fits[extname + '_solution'].read_header()
+        data = fits[extname + '_solution'].read()
 
         # Load the same standard header variables that we saved above.
         # Must keep these in sync

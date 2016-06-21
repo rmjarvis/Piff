@@ -236,11 +236,11 @@ class BasisPolynomial(BasisInterp):
         out[0] = c  # The constant term is always first.
         return out
 
-    def writeSolution(self, fits, extname):
+    def _finish_write(self, fits, extname):
         """Write the solution to a FITS binary table.
 
         :param fits:        An open fitsio.FITS object.
-        :param extname:     The name of the extension with the interp information.
+        :param extname:     The base name of the extension.
         """
         if self.q is None:
             raise RuntimeError("Solution not set yet.  Cannot write this BasisPolynomial.")
@@ -248,14 +248,14 @@ class BasisPolynomial(BasisInterp):
         dtypes = [ ('q', float, self.q.shape) ]
         data = numpy.zeros(1, dtype=dtypes)
         data['q'] = self.q
-        fits.write_table(data, extname=extname)
+        fits.write_table(data, extname=extname + '_solution')
 
-    def readSolution(self, fits, extname):
+    def _finish_read(self, fits, extname):
         """Read the solution from a FITS binary table.
 
         :param fits:        An open fitsio.FITS object.
         :param extname:     The name of the extension with the interpolator information.
         """
-        data = fits[extname].read()
+        data = fits[extname + '_solution'].read()
         self.q = data['q'][0]
 
