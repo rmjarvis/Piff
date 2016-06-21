@@ -63,7 +63,7 @@ def test_simplest():
 
     # Pixelized model with Lanczos 3 interp
     interp = piff.Lanczos(3)
-    mod = piff.PixelModel(du, 32, interp, start_sigma=1.5, force_model_center=False)
+    mod = piff.PixelGrid(du, 32, interp, start_sigma=1.5, force_model_center=False)
     star = mod.initialize(s).withFlux(flux=np.sum(s.data.data))
 
     # Check that fitting the star can recover the right flux.
@@ -100,7 +100,7 @@ def test_oversample():
 
     # Pixelized model with Lanczos 3 interp, coarser pix scale
     interp = piff.Lanczos(3)
-    mod = piff.PixelModel(2*du, nside/2, interp, start_sigma=1.5, force_model_center=False)
+    mod = piff.PixelGrid(2*du, nside/2, interp, start_sigma=1.5, force_model_center=False)
     star = mod.initialize(s).withFlux(flux=np.sum(s.data.data))
 
     for i in range(2):
@@ -131,7 +131,7 @@ def test_center():
     # than the data
     interp = piff.Lanczos(3)
     # Want an odd-sized model when center=True
-    mod = piff.PixelModel(0.5, 29, interp, force_model_center=True, start_sigma=1.5)
+    mod = piff.PixelGrid(0.5, 29, interp, force_model_center=True, start_sigma=1.5)
     star = mod.initialize(s)
     print('Flux, ctr after reflux:',star.fit.flux,star.fit.center)
     for i in range(3):
@@ -160,7 +160,7 @@ def test_interp():
     # Pixelized model with Lanczos 3 interpolation, slightly smaller than data
     # than the data
     pixinterp = piff.Lanczos(3)
-    mod = piff.PixelModel(0.5, 25, pixinterp, start_sigma=1.5, degenerate=False)
+    mod = piff.PixelGrid(0.5, 25, pixinterp, start_sigma=1.5, degenerate=False)
 
     # Interpolator will be simple mean
     interp = piff.Polynomial(order=0)
@@ -220,7 +220,7 @@ def test_missing():
     # Pixelized model with Lanczos 3 interpolation, slightly smaller than data
     # than the data
     pixinterp = piff.Lanczos(3)
-    mod = piff.PixelModel(0.5, 25, pixinterp, start_sigma=1.5, force_model_center=False)
+    mod = piff.PixelGrid(0.5, 25, pixinterp, start_sigma=1.5, force_model_center=False)
 
     # Draw stars on a 2d grid of "focal plane" with 0<=u,v<=1
     positions = np.linspace(0.,1.,4)
@@ -299,7 +299,7 @@ def test_gradient():
     # Pixelized model with Lanczos 3 interpolation, slightly smaller than data
     # than the data
     pixinterp = piff.Lanczos(3)
-    mod = piff.PixelModel(0.5, 25, pixinterp, start_sigma=1.5,
+    mod = piff.PixelGrid(0.5, 25, pixinterp, start_sigma=1.5,
                           degenerate=False, force_model_center=False)
 
     # Interpolator will be linear
@@ -371,7 +371,7 @@ def test_undersamp():
     # than the data
     pixinterp = piff.Lanczos(3)
     du = 0.5
-    mod = piff.PixelModel(0.25, 25, pixinterp, start_sigma=1.01)
+    mod = piff.PixelGrid(0.25, 25, pixinterp, start_sigma=1.01)
     ##,force_model_center=True)
 
     # Interpolator will be constant
@@ -446,7 +446,7 @@ def test_undersamp_shift():
     pixinterp = piff.Lanczos(3)
     influx = 150.
     du = 0.5
-    mod = piff.PixelModel(0.3, 25, pixinterp, start_sigma=1.3, force_model_center=True)
+    mod = piff.PixelGrid(0.3, 25, pixinterp, start_sigma=1.3, force_model_center=True)
 
     # Make a sample star just so we can pass the initial PSF into interpolator
     # Also store away a noiseless copy of the PSF, origin of focal plane
@@ -520,7 +520,7 @@ def do_undersamp_drift(fit_centers=False):
     pixinterp = piff.Lanczos(3)
     influx = 150.
     du = 0.5
-    mod = piff.PixelModel(0.3, 25, pixinterp, start_sigma=1.3, force_model_center=fit_centers)
+    mod = piff.PixelGrid(0.3, 25, pixinterp, start_sigma=1.3, force_model_center=fit_centers)
 
     # Make a sample star just so we can pass the initial PSF into interpolator
     # Also store away a noiseless copy of the PSF, origin of focal plane
@@ -686,7 +686,7 @@ def test_single_image():
     # only do the first one when running via nosetests.
     if True:
         # Process the star data
-        model = piff.PixelModel(0.2, 16, start_sigma=0.9/2.355)
+        model = piff.PixelGrid(0.2, 16, start_sigma=0.9/2.355)
         interp = piff.BasisPolynomial(order=2)
         if __name__ == '__main__':
             logger = piff.config.setup_logger(2)
@@ -715,7 +715,7 @@ def test_single_image():
         psf_file = os.path.join('output','pixel_psf.fits')
         psf.write(psf_file, logger)
         psf = piff.PSF.read(psf_file, logger)
-        assert type(psf.model) is piff.PixelModel
+        assert type(psf.model) is piff.PixelGrid
         assert type(psf.interp) is piff.BasisPolynomial
         test_star = psf.drawStar(target_star)
         np.testing.assert_almost_equal(test_star.data.image.array, test_im.array, decimal=3)
@@ -738,7 +738,7 @@ def test_single_image():
         },
         'psf' : {
             'model' : {
-                'type' : 'PixelModel',
+                'type' : 'PixelGrid',
                 'scale' : 0.2,
                 'size' : 16,  # Much smaller than the input stamps, but this is plenty here.
                 'start_sigma' : 0.9/2.355
@@ -817,7 +817,7 @@ def test_des_image():
         },
         'psf' : {
             'model' : {
-                'type' : 'PixelModel',
+                'type' : 'PixelGrid',
                 'scale' : scale,
                 'size' : size,
                 'start_sigma' : start_sigma,
@@ -846,9 +846,9 @@ def test_des_image():
             stars = stars[:nstars]
 
         # Make model, force PSF centering
-        model = piff.PixelModel(scale=scale, size=size, interp=piff.Lanczos(3),
-                                force_model_center=True, start_sigma=start_sigma,
-                                logger=logger)
+        model = piff.PixelGrid(scale=scale, size=size, interp=piff.Lanczos(3),
+                               force_model_center=True, start_sigma=start_sigma,
+                               logger=logger)
 
         # Interpolator will be zero-order polynomial.
         # Find u, v ranges

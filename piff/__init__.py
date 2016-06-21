@@ -74,7 +74,7 @@ from .config import piffify, setup_logger, read_config
 
 # Models
 from .model import Model, process_model
-from .pixelmodel import PixelModel, Lanczos, Bilinear
+from .pixelgrid import PixelGrid, Lanczos, Bilinear
 from .gaussian_model import Gaussian
 
 # Interpolators

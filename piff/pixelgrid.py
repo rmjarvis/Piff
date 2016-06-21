@@ -22,7 +22,7 @@ import numpy as np
 from .model import Model
 from .star import Star, StarFit
 
-class PixelModel(Model):
+class PixelGrid(Model):
     """A PSF modeled as interpolation between a grid of points.
 
     The parameters of the model are the values at the grid points, although the constraint
@@ -34,7 +34,7 @@ class PixelModel(Model):
     of the PSF pixel values will be missing from the parameter vector as they are determined
     by the flux (and centroid) constraints. And there is more covariance between pixel values.
 
-    PixelModel also needs an PixelInterpolant on construction to specify how to determine
+    PixelGrid also needs an PixelInterpolant on construction to specify how to determine
     values between grid points.
 
     Stellar data is assumed either to be in flux units (with default sb=False), such that
@@ -48,7 +48,7 @@ class PixelModel(Model):
     """
     def __init__(self, scale, size, interp=None, mask=None, start_sigma=1.,
                  force_model_center=True, degenerate=True, logger=None):
-        """Constructor for PixelModel defines the PSF pitch, size, and interpolator.
+        """Constructor for PixelGrid defines the PSF pitch, size, and interpolator.
 
         :param scale:       Pixel scale of the PSF model (in arcsec)
         :param size:        Number of pixels on each side of square grid.
@@ -95,7 +95,7 @@ class PixelModel(Model):
 
         if mask is None:
             if size <= 0:
-                raise ValueError("Non-positive PixelModel size {:d}".format(size))
+                raise ValueError("Non-positive PixelGrid size {:d}".format(size))
             self._mask = np.ones( (size,size), dtype=bool)
         else:
             if mask.shape != (size,size):
@@ -277,7 +277,7 @@ class PixelModel(Model):
         star.fit.params[:] = params[self._constraints:]  # Omit the constrained pixels
 
     def initialize(self, star, mask=True):
-        """Create a Star instance that PixelModel can manipulate.
+        """Create a Star instance that PixelGrid can manipulate.
 
         :param star:    A Star instance with the raw data.
         :param mask:    If True, set data.weight to zero at pixels that are outside
@@ -649,7 +649,7 @@ class PixelModel(Model):
                                                alpha = star.fit.alpha,
                                                beta = star.fit.beta))
 
-        raise RuntimeError("Maximum number of iterations exceeded in PixelModel.reflux()")
+        raise RuntimeError("Maximum number of iterations exceeded in PixelGrid.reflux()")
 
 
 class PixelInterpolant(object):

@@ -62,8 +62,8 @@ psf:
 
     model:
 
-        # This model uses a pixel basis representation.
-        type: PixelModel
+        # This model uses a grid of pixels to model the surface brightness distribution.
+        type: PixelGrid
         scale: 0.15     # Somewhat smaller than native pixel scale
         size: 41        # Model is 41 x 41 in these pixels (so around 24 x 24 in native pixels)
         start_sigma: 0.42462845010615713
