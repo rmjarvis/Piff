@@ -20,10 +20,11 @@ from __future__ import print_function
 
 from .interp import Interp
 from .starfit import Star, StarFit
+from .stardata import StarData
 
 import numpy
+import fitsio
 
-from sklearn.neighbors import KNeighborsRegressor
 
 class kNNInterp(Interp):
     """
@@ -49,6 +50,7 @@ class kNNInterp(Interp):
         self.knn = {}
 
     def build(self, attr_interp, attr_target, logger=None):
+        from sklearn.neighbors import KNeighborsRegressor
         self.attr_interp = numpy.array(attr_interp)
         self.attr_target = numpy.array(attr_target)
         for target in self.attr_target:
@@ -209,3 +211,53 @@ class kNNInterp(Interp):
 
         self.build(self.attr_interp, self.attr_target)
         self._fit(self.X, self.y)
+
+class DECamWavefront(kNNInterp):
+    """
+    An interpolator of the DECam Wavefront as measured by out-of-focus stars.
+    If you specify the location of the fits file and the extension, this will
+    take care of the rest for you.
+    """
+
+    def load_wavefront(self, file_name, extname, logger=None):
+        self.z_min = 4
+        self.z_max = 11
+        fits = fitsio.FITS(file_name)
+        data = fits[extname].read()
+        attr_interp = ['focal_x', 'focal_y']
+        attr_target = ['z{0}'.format(zi) for zi in xrange(self.z_min, self.z_max + 1)]
+        X = numpy.array([data[attr] for attr in attr_interp]).T
+        y = numpy.array([data[attr] for attr in attr_target]).T
+
+        self.build(attr_interp, range(0, self.z_max - self.z_min + 1), logger=logger)
+        self._fit(X, y)
+
+        # to get the ccd coords
+        attr_save = ['x', 'y', 'ccdnum']
+        Xpixel = numpy.array([data[attr] for attr in attr_save]).T
+        self.Xpixel = Xpixel
+
+# pretty sure the correct way to do this is in the WCS framework, but let's
+# move forward first:
+def pixel_to_focal(stardata):
+    """Take stardata and add focal plane position to properties
+
+    :param stardata:    The stardata with property 'ccdnum'
+
+    :returns stardata:  New stardata with updated properties
+    """
+    from .decamutil import decaminfo
+    # stardata needs to have ccdnum as a property!
+    focal_x, focal_y = decaminfo().getPosition_extnum([stardata['ccdnum']], [stardata['x']], [stardata['y']])
+    properties = stardata.properties.copy()
+    properties['focal_x'] = focal_x[0]
+    properties['focal_y'] = focal_y[0]
+    for key in ['x', 'y', 'u', 'v']:
+        # Get rid of keys that constructor doesn't want to see:
+        properties.pop(key,None)
+    return StarData(image=stardata.image,
+                    image_pos=stardata.image_pos,
+                    weight=stardata.weight,
+                    pointing=stardata.pointing,
+                    values_are_sb=stardata.values_are_sb,
+                    properties=properties)

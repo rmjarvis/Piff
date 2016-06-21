@@ -15,14 +15,11 @@
 from __future__ import print_function
 import galsim
 import numpy
-import math
 import piff
 import os
-import subprocess
 import yaml
 import fitsio
 
-from test_helper import get_script_name
 attr_interp = ['focal_x', 'focal_y']
 attr_target = range(5)
 
@@ -53,7 +50,8 @@ def test_init():
     knn.build(attr_interp, attr_target)
 
 def test_interp():
-    logger = piff.config.setup_logger(verbose=3, log_file='test_knn_interp.log')
+    # logger = piff.config.setup_logger(verbose=3, log_file='test_knn_interp.log')
+    logger = None
     # make sure we can put in the data
     star_list = generate_data()
     knn = piff.kNNInterp(n_neighbors=1)
@@ -133,6 +131,50 @@ def test_disk():
     numpy.testing.assert_array_equal(knn.attr_target, knn2.attr_target)
     numpy.testing.assert_array_equal(knn.attr_interp, knn2.attr_interp)
 
+def test_decam():
+    file_name = 'wavefront_test/Science-20121120s1-v20i2.fits'
+    extname = 'Science-20121120s1-v20i2'
+    knn = piff.DECamWavefront()
+    knn.load_wavefront(file_name, extname)
+
+    n_samples = 2000
+    ccdnums = numpy.random.randint(1, 63, n_samples)
+
+    star_list = []
+    for ccdnum in ccdnums:
+        # make some basic images, pass Xi as properties
+        # Draw the PSF onto an image.  Let's go ahead and give it a non-trivial WCS.
+        wcs = galsim.JacobianWCS(0.26, 0.05, -0.08, -0.29)
+        image = galsim.Image(64,64, wcs=wcs)
+        # set icen and jcen
+        icen = numpy.random.randint(100, 2048)
+        jcen = numpy.random.randint(100, 4096)
+        image.setCenter(icen, jcen)
+        image_pos = image.center()
+
+        stardata = piff.StarData(image, image_pos, properties={'ccdnum': ccdnum})
+        stardata = piff.pixel_to_focal(stardata)
+
+        star = piff.Star(stardata, None)
+        star_list.append(star)
+
+    star_list_predicted = knn.interpolateList(star_list)
+
+def test_decam_disk():
+    file_name = 'wavefront_test/Science-20121120s1-v20i2.fits'
+    extname = 'Science-20121120s1-v20i2'
+    knn = piff.DECamWavefront()
+    knn.load_wavefront(file_name, extname)
+
+    knn_file = os.path.join('output','decam_wavefront.fits')
+    with fitsio.FITS(knn_file,'rw',clobber=True) as f:
+        knn.write(f, 'decam_wavefront')
+        knn2 = piff.DECamWavefront.read(f, 'decam_wavefront')
+    numpy.testing.assert_array_equal(knn.X, knn2.X)
+    numpy.testing.assert_array_equal(knn.y, knn2.y)
+    numpy.testing.assert_array_equal(knn.attr_target, knn2.attr_target)
+    numpy.testing.assert_array_equal(knn.attr_interp, knn2.attr_interp)
+
 if __name__ == '__main__':
     print('test init')
     test_init()
@@ -142,3 +184,7 @@ if __name__ == '__main__':
     test_attr_target()
     print('test disk')
     test_disk()
+    print('test decam')
+    test_decam()
+    print('test decam disk')
+    test_decam_disk()

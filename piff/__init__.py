@@ -82,7 +82,7 @@ from .interp import Interp, process_interp
 from .mean_interp import Mean
 from .polynomial_interp import Polynomial, polynomial_types
 from .basis_interp import BasisInterp, BasisPolynomial
-from .knn_interp import kNNInterp
+from .knn_interp import kNNInterp, DECamWavefront, pixel_to_focal
 
 # Inputs
 from .input import InputHandler, process_input, InputFiles
@@ -100,3 +100,6 @@ from .stats import process_stats, Statistics, RhoStatistics, ShapeStatistics
 
 # Util -- leave these in the piff.util namespace
 from . import util
+
+# DECamutil
+from .decamutil import decaminfo
