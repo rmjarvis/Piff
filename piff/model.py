@@ -83,7 +83,7 @@ class Model(object):
         """Create a Star instance that this Model can read, include any setup needed
         before fitting.
 
-        The base class implementation uses None for the fit.params value, leaving that to 
+        The base class implementation uses None for the fit.params value, leaving that to
         be filled in by a subsequent model.fit() call.
 
         :param data:    A StarData instance
@@ -100,7 +100,7 @@ class Model(object):
 
     def fit(self, star):
         """Fit the Model to the star's data to yield iterative improvement on
-        its PSF parameters, their uncertainties, and flux (and center, if free).  
+        its PSF parameters, their uncertainties, and flux (and center, if free).
         The returned star.fit.alpha will be inverse covariance of solution if
         it is estimated, else is None.
 
@@ -154,29 +154,28 @@ class Model(object):
         data = numpy.array(zip(*cols), dtype=dtypes)
         fits.write_table(data, extname=extname)
 
-    @classmethod
-    def readKwargs(cls, fits, extname):
-        """Read the kwargs from the data in a FITS binary table.
+        # now write the parameters
+        self.writeParameters(fits, extname + '_parameters')
 
-        The base class implementation just reads each value in the table and uses the column
-        name for the name of the kwarg.  However, derived classes may want to do something more
-        sophisticated.  Also, they may want to read other extensions from the fits file
-        besides just extname.
+    def writeParameters(self, fits, extname):
+        """Write parameters of Model to a FITS file.
 
-        :param fits:        An open fitsio.FITS object.
-        :param extname:     The name of the extension with the model information.
+        By default does nothing.
 
-        :returns: a kwargs dict to use to initialize the model
+        :param fits:        An open fitsio.FITS object
+        :param extname:     The name of the extension to write the model information.
         """
-        cols = fits[extname].get_colnames()
-        # Remove 'type'
-        assert 'type' in cols
-        cols = [ col for col in cols if col != 'type' ]
+        pass
 
-        data = fits[extname].read()
-        assert len(data) == 1
-        kwargs = dict([ (col, data[col][0]) for col in cols ])
-        return kwargs
+    def readParameters(self, fits, extname):
+        """Read parameters of Model from a FITS file.
+
+        By default does nothing.
+
+        :param fits:        An open fitsio.FITS object
+        :param extname:     The name of the extension to write the model information.
+        """
+        pass
 
     @classmethod
     def read(cls, fits, extname):
@@ -209,6 +208,8 @@ class Model(object):
 
         kwargs = model_cls.readKwargs(fits, extname)
         model = model_cls(**kwargs)
+
+        model.readParameters(fits, extname + '_parameters')
         return model
 
     @classmethod

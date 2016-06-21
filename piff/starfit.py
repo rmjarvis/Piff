@@ -48,7 +48,7 @@ class StarFit(object):
     This class can be extended
     to carry information of use to a given Model instance (such as intermediate
     results), but interpolators will be looking for some subset of these properties:
-    
+
     :params:      numpy vector of parameters of the PSF that apply to this star
     :flux:        flux of the star
     :center:      (u,v) tuple giving position of stellar center (relative
@@ -76,7 +76,7 @@ class StarFit(object):
         :param chisq:  chi-squared value at current parameters.
         :param worst_chisq:  highest chi-squared in any single pixel, after reflux()
         """
-        
+
         self.params = params
         self.flux = flux
         self.center = center
@@ -99,7 +99,17 @@ class StarFit(object):
         if self.params is not None and npp.shape != self.params.shape:
             raise TypeError('new StarFit parameters do not match dimensions of old ones')
         return StarFit(npp, flux=self.flux, center=self.center)
- 
+
     def copy(self):
         return StarFit(self.params, self.flux, self.center, self.alpha, self.beta,
                        self.chisq, self.dof, self.worst_chisq)
+    def __getitem__(self, key):
+         """Get a property of the star fit.
+
+         Looks at params to get the property
+
+         :param key:     The name of the property to return
+
+         :returns: the value of the given property.
+         """
+         return self.params[key]
