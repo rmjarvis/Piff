@@ -35,23 +35,45 @@ def write_kwargs(fits, extname, kwargs):
     """A helper function for writing a single row table into a fits file with the values
     and column names given by a kwargs dict.
     """
+    def make_dt_tuple(key, t, size):
+        # If size == 0, then it's not an array, so return a 2 element tuple.
+        # Otherwise, the size is the third item in the tuple.
+        if size == 0:
+            return (key, t)
+        else:
+            return (key, t, size)
+
+    def adjust_value(value, t, size):
+        # Possibly adjust the value to really be an int, float, etc.
+        if size == 0 or t == str:
+            return t(value)
+        else:
+            # For numpy arrays, we can use astype instead.
+            return numpy.array(value).astype(t)
+
     cols = []
     dtypes = []
     for key, value in kwargs.items():
-        t = type(value)
+        # Don't add values that are None to the table.
+        if value is None:
+            continue
+        try:
+            # Note: this works for either arrays or strings
+            size = len(value)
+            t = type(value[0])
+        except:
+            size = 0
+            t = type(value)
         dt = numpy.dtype(t) # just used to categorize the type into int, float, str
         if dt.kind in numpy.typecodes['AllInteger']:
-            i = int(value)
-            dtypes.append( (key, int) )
-            cols.append([i])
+            t = int
         elif dt.kind in numpy.typecodes['AllFloat']:
-            f = float(value)
-            dtypes.append( (key, float) )
-            cols.append([f])
+            t = float
         else:
-            s = str(value)
-            dtypes.append( (key, str, len(s)) )
-            cols.append([s])
+            t = str
+        value = adjust_value(value, t, size)
+        dtypes.append( make_dt_tuple(key, t, size) )
+        cols.append([value])
     data = numpy.array(zip(*cols), dtype=dtypes)
     fits.write_table(data, extname=extname)
 

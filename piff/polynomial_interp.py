@@ -72,6 +72,7 @@ class Polynomial(Interp):
 
         self.kwargs = {
             'order' : order,
+            'orders' : orders,
             'poly_type' : poly_type
         }
 
@@ -335,18 +336,17 @@ class Polynomial(Interp):
             coeff_col.append(coeffs)
 
         # This is all the table data we'll actually be saving.
-        cols = [numpy.concatenate(c) for c in (param_col, u_exponent_col, v_exponent_col, coeff_col)]
+        cols = [numpy.concatenate(c)
+                for c in (param_col, u_exponent_col, v_exponent_col, coeff_col)]
 
-        # We will need some more identifying information that this!
-        # I would suggest some kind of standard piff collection of header
-        # values.
-        header={"NPARAM":self.nparam, "POLYTYPE":self.poly_type}
-        for i,order in enumerate(self._orders):
-            header["ORDER_{}".format(i)] = order
+        # nparam isn't one of the construction kwargs, so for convenience on reading,
+        # put it in the header of this fits extension.
+        header = { 'NPARAM' : self.nparam }
 
         # Finally, write all of this to a FITS table.
         data = numpy.array(zip(*cols), dtype=dtypes)
         fits.write_table(data, extname=extname + '_solution', header=header)
+
 
     def _finish_read(self, fits, extname):
         """Read the solution from a fits file.
@@ -354,33 +354,25 @@ class Polynomial(Interp):
         :param fits:        An open fitsio.FITS object.
         :param extname:     The base name of the extension
         """
-        header = fits[extname + '_solution'].read_header()
+        # Read the solution extension.
         data = fits[extname + '_solution'].read()
+        header = fits[extname + '_solution'].read_header()
 
-        # Load the same standard header variables that we saved above.
-        # Must keep these in sync
         self.nparam = header['NPARAM']
-        poly_type = header['POLYTYPE'].strip()
-        orders = [header["ORDER_{}".format(p)] for p in xrange(self.nparam)]
 
-        #Configure self - same methods that are run in __init__
-        self._set_function(poly_type)
-        self.order = None
-        self.orders = orders
+        # Run setup functions to get these values right.
+        self._set_function(self.poly_type)
         self._setup_indices(self.nparam)
 
-        # Finally load coefficients from the FITS file.
-        # Although we have saved the u and exponents in another
-        # column we don't actually use them here - we just use the fact
-        # that we know the ordering was made by _pack_coefficients and so
-        # we can re-order using _unpack_coefficients
         param_indices = data['PARAM']
         coeff_data = data['COEFF']
+
         self.coeffs = []
         for p in xrange(self.nparam):
             this_param_range = param_indices==p
             col = coeff_data[this_param_range]
             self.coeffs.append(self._unpack_coefficients(p,col))
+
 
     def interpolate(self, star, logger=None):
         """Perform the interpolation to find the interpolated parameter vector at some position.

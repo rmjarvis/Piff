@@ -331,22 +331,19 @@ def poly_load_save_sub(type1, type2):
     import os
     import fitsio
     extname = "interp"
-    dirname = tempfile.mkdtemp()
+    dirname = 'output'
     filename=os.path.join(dirname,'poly_test_file.fits')
-    with fitsio.FITS(filename,'rw',clobber=False) as f:
+    with fitsio.FITS(filename,'rw',clobber=True) as f:
         interp.write(f, extname=extname)
     with fitsio.FITS(filename, "r") as f2:
         interp2 = piff.Polynomial.read(f2, extname=extname)
-    os.remove(filename)
-    os.rmdir(dirname)
-
 
     # The type and other parameters should now have been overwritten and updated
     assert interp2.poly_type == interp.poly_type
     assert interp2.order==interp.order
-    assert interp2.orders==interp.orders
+    numpy.testing.assert_array_equal(interp2.orders,interp.orders)
     assert interp2.nvariables==interp.nvariables
-    assert interp2.indices==interp.indices
+    numpy.testing.assert_array_equal(interp2.indices,interp.indices)
 
     # Check that the old and new interpolators generate the same
     # value
