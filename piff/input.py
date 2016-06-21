@@ -19,6 +19,7 @@
 from __future__ import print_function
 import glob
 import numpy
+import os
 
 def process_input(config_input, logger=None):
     """Parse the input field of the config dict.
@@ -218,6 +219,9 @@ class InputFiles(InputHandler):
     :param chipnums:    A list of "chip numbers" to use as the names of each image.  These may
                         be integers or strings and don't have to be sequential.
                         [default: range(len(images))]
+    :param dir:         Optionally specify the directory these files are in. [default: None]
+    :param image_dir:   Optionally specify the directory of the image files. [default: dir]
+    :param cat_dir:     Optionally specify the directory of the cat files. [default: dir]
     :param x_col:       The name of the X column in the input catalogs. [default: 'x']
     :param y_col:       The name of the Y column in the input catalogs. [default: 'y']
     :param sky_col:     The name of a column with sky values to subtract from the image data.
@@ -241,21 +245,28 @@ class InputFiles(InputHandler):
     :param gain:        The gain to use for adding Poisson noise to the weight map. [default: None]
     """
     def __init__(self, images, cats, chipnums=None,
+                 dir=None, image_dir=None, cat_dir=None,
                  x_col='x', y_col='y', sky_col=None, flag_col=None, use_col=None,
                  image_hdu=None, weight_hdu=None, badpix_hdu=None, cat_hdu=1,
                  stamp_size=32, ra=None, dec=None, gain=None):
 
+        if image_dir is None: image_dir = dir
+        if cat_dir is None: cat_dir = dir
         if isinstance(images, basestring):
+            if image_dir is not None: images = os.path.join(image_dir, images)
             self.image_files = glob.glob(images)
             if len(self.image_files) == 0:
                 raise ValueError("No such files: %s"%images)
         else:
+            if image_dir is not None: images = [ os.path.join(image_dir, im) for im in images ]
             self.image_files = images
         if isinstance(cats, basestring):
+            if cat_dir is not None: cats = os.path.join(cat_dir, cats)
             self.cat_files = glob.glob(cats)
             if len(self.image_files) == 0:
                 raise ValueError("No such files: %s"%cats)
         else:
+            if cat_dir is not None: cats = [ os.path.join(cat_dir, cat) for cat in cats ]
             self.cat_files = cats
 
         if chipnums is None:

@@ -86,11 +86,15 @@ class OutputHandler(object):
 #       so this class is really bare-bones, just farming out the work to PSF.
 class OutputFile(OutputHandler):
     """An OutputHandler that just writes to a FITS file.
-
-    :param file_name:   The file name to write the data to.
-    :param logger:      A logger object for logging debug info. [default: None]
     """
-    def __init__(self, file_name, logger=None):
+    def __init__(self, file_name, dir=None, logger=None):
+        """
+        :param file_name:   The file name to write the data to.
+        :param dir:         Optionally specify a directory for this file. [default: None]
+        :param logger:      A logger object for logging debug info. [default: None]
+        """
+
+        if dir is not None: file_name = os.path.join(dir, file_name)
         self.file_name = file_name
 
     def write(self, psf, logger=None):
