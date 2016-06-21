@@ -22,23 +22,15 @@ import numpy
 from .star import Star, StarFit, StarData
 from .util import write_kwargs, read_kwargs
 
-def process_model(config, logger=None):
+def process_model(config_model, logger=None):
     """Parse the model field of the config dict.
 
-    :param config:      The configuration dict.
-    :param logger:      A logger object for logging debug info. [default: None]
+    :param config_model:    The configuration dict for the model field.
+    :param logger:          A logger object for logging debug info. [default: None]
 
     :returns: a Model instance
     """
     import piff
-
-    if logger is None:
-        verbose = config.get('verbose', 1)
-        logger = piff.setup_logger(verbose=verbose)
-
-    if 'model' not in config:
-        raise ValueError("config dict has no model field")
-    config_model = config['model']
 
     if 'type' not in config_model:
         raise ValueError("config['model'] has no type field")

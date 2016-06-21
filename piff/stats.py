@@ -21,33 +21,35 @@
 from __future__ import print_function
 import numpy as np
 
-def process_stats(config, logger):
+def process_stats(config_stats, logger):
     """Parse the stats field of the config dict.
 
-    :param config:      The configuration dict.
-    :param logger:      A logger object for logging debug info.
+    :param config_stats:    The configuration dict for the stats field.
+    :param logger:          A logger object for logging debug info.
 
     :returns: an stats instance
     """
     import piff
 
-    if 'stats' not in config:
-        raise ValueError("config dict has no stats field")
-    config_stats_list = config['stats']
+    # If it's not a list, make it one.
+    try:
+        config_stats[0]
+    except:
+        config_stats = [config_stats]
 
     stats = []
-    for config_stats in config_stats_list:
+    for cfg in config_stats:
 
-        if 'type' not in config_stats:
+        if 'type' not in cfg:
             raise ValueError("config['stats'] has no type field")
 
         # Get the class to use for the stats
         # Not sure if this is what we'll always want, but it would be simple if we can make it work.
-        stats_class = getattr(piff, config_stats.pop('type'))
+        stats_class = getattr(piff, cfg.pop('type'))
 
-        if 'output' not in config_stats:
+        if 'output' not in cfg:
             raise ValueError("config['stats'] has no output field")
-        stats.append([piff.process_output(config_stats, logger=logger), stats_class])
+        stats.append([piff.process_output(cfg['output'], logger=logger), stats_class])
         # can go stats[i][0].write(stats[i][1](psf, stars)) to perform tests
 
     return stats

@@ -20,24 +20,16 @@ from __future__ import print_function
 import glob
 import numpy
 
-def process_input(config, logger=None):
+def process_input(config_input, logger=None):
     """Parse the input field of the config dict.
 
-    :param config:      The configuration dict.
-    :param logger:      A logger object for logging debug info. [default: None]
+    :param config_input:    The configuration dict.
+    :param logger:          A logger object for logging debug info. [default: None]
 
     :returns: stars, wcs:   A list of Star instances with the initial data, and
                             a dict of WCS solutions indexed by chipnum.
     """
     import piff
-
-    if logger is None:
-        verbose = config.get('verbose', 1)
-        logger = piff.setup_logger(verbose=verbose)
-
-    if 'input' not in config:
-        raise ValueError("config dict has no input field")
-    config_input = config['input']
 
     # Get the class to use for handling the input data
     # Default type is 'Files'

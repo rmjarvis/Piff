@@ -67,8 +67,11 @@ def test_Gaussian():
             'type' : 'Gaussian'
         }
     }
-    logger = piff.config.setup_logger()
-    model = piff.process_model(config, logger)
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(verbose=3)
+    else:
+        logger = piff.config.setup_logger(verbose=1)
+    model = piff.process_model(config['model'], logger)
     fit = model.fit(star).fit
 
     # Same tests.
@@ -116,7 +119,7 @@ def test_Mean():
         }
     }
     logger = piff.config.setup_logger()
-    interp = piff.process_interp(config, logger)
+    interp = piff.process_interp(config['interp'], logger)
     interp.solve(stars)
     numpy.testing.assert_almost_equal(mean, interp.mean)
 
@@ -208,6 +211,7 @@ def test_single_image():
     numpy.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=5)
 
     # Now test running it via the config parser
+    psf_file = os.path.join('output','simple_psf.fits')
     config = {
         'input' : {
             'images' : image_file,
@@ -215,18 +219,26 @@ def test_single_image():
             'flag_col' : 'flag',
             'use_col' : 'use',
             'stamp_size' : 48
-        }
+        },
+        'psf' : {
+            'model' : { 'type' : 'Gaussian' },
+            'interp' : { 'type' : 'Mean' },
+        },
+        'output' : { 'file_name' : psf_file },
     }
-    logger = piff.config.setup_logger()
-    orig_stars, wcs, pointing = piff.process_input(config, logger)
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(verbose=3)
+    else:
+        logger = piff.config.setup_logger(verbose=1)
+    orig_stars, wcs, pointing = piff.process_input(config['input'], logger)
 
-    # Use the PSF builder to process the stars data this time.
-    psf = piff.PSF.build(orig_stars, wcs, pointing, model, interp, logger)
+    # Use a SimplePSF to process the stars data this time.
+    psf = piff.SimplePSF(orig_stars, wcs, pointing, model, interp)
+    psf.fit(logger=logger)
     test_star = psf.interp.interpolate(target)
     numpy.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=5)
 
     # Round trip to a file
-    psf_file = os.path.join('output','simple_psf.fits')
     psf.write(psf_file, logger)
     psf = piff.PSF.read(psf_file, logger)
     assert type(psf.model) is piff.Gaussian
@@ -236,11 +248,8 @@ def test_single_image():
 
     # Do the whole thing with the config parser
     os.remove(psf_file)
-    config['model'] = { 'type' : 'Gaussian' }
-    config['interp'] = { 'type' : 'Mean' }
-    config['output'] = { 'file_name' : psf_file }
 
-    piff.piffify(config)
+    piff.piffify(config, logger)
     psf = piff.PSF.read(psf_file)
     test_star = psf.interp.interpolate(target)
     numpy.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=5)

@@ -18,23 +18,15 @@
 
 from __future__ import print_function
 
-def process_output(config, logger=None):
+def process_output(config_output, logger=None):
     """Parse the output field of the config dict.
 
-    :param config:      The configuration dict.
-    :param logger:      A logger object for logging debug info. [default: None]
+    :param config_output:   The configuration dict for the output field.
+    :param logger:          A logger object for logging debug info. [default: None]
 
     :returns: an OutputHandler
     """
     import piff
-
-    if logger is None:
-        verbose = config.get('verbose', 1)
-        logger = piff.setup_logger(verbose=verbose)
-
-    if 'output' not in config:
-        raise ValueError("config dict has no output field")
-    config_output = config['output']
 
     # Get the class to use for handling the output data
     # Default type is 'File'

@@ -20,23 +20,15 @@ from __future__ import print_function
 import numpy
 from .util import write_kwargs, read_kwargs
 
-def process_interp(config, logger=None):
+def process_interp(config_interp, logger=None):
     """Parse the interp field of the config dict.
 
-    :param config:      The configuration dict.
-    :param logger:      A logger object for logging debug info. [default: None]
+    :param config_interp:   The configuration dict for the interp field.
+    :param logger:          A logger object for logging debug info. [default: None]
 
     :returns: an Interp instance
     """
     import piff
-
-    if logger is None:
-        verbose = config.get('verbose', 1)
-        logger = piff.setup_logger(verbose=verbose)
-
-    if 'interp' not in config:
-        raise ValueError("config dict has no interp field")
-    config_interp = config['interp']
 
     if 'type' not in config_interp:
         raise ValueError("config['interp'] has no type field")

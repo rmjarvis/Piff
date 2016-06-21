@@ -24,124 +24,91 @@ import fitsio
 from .star import Star, StarFit, StarData
 from .model import Model
 from .interp import Interp
+from .util import write_kwargs, read_kwargs
 
 class PSF(object):
-    """A class that encapsulates the full interpolated PSF model.
+    """The base class for describing a PSF model across a field of view.
 
     The usual way to create a PSF is through one of the two factory functions::
 
-        >>> psf = piff.PSF.build(stars, wcs, pointing, model, interp)
-        >>> psf = piff.PSF.read(file_name)
+        >>> psf = piff.PSF.process(config, stars, wcs, pointing, logger)
+        >>> psf = piff.PSF.read(file_name, logger)
 
-    The first is used to build a PSF model from the data.
+    The first is used to build a PSF model from the data according to a config dict.
     The second is used to read in a PSF model from disk.
-
-    However, it is also possible to construct a PSF directly from a Model instance and an Interp
-    instance.  The model defines the functional form of the surface brightness profile, and the
-    interp defines how the parameters of the mdoel vary across the field of view.
-
-    The stars member is a list holding the Star instances for all measurement points being fit.
-    At the end of a fit, it contains the PSF parameters at each star and information on what
-    was clipped and how good the fit is.
     """
-    def __init__(self, stars, wcs, pointing, model, interp, extra_interp_properties=()):
-        self.stars = stars
-        self.wcs = wcs
-        self.pointing = pointing
-        self.model = model
-        self.interp = interp
-        self.extra_interp_properties = extra_interp_properties
-
     @classmethod
-    def build(cls, stars, wcs, pointing, model, interp, logger=None):
-        """The main driver function to build a PSF model from data.
+    def process(cls, config_psf, stars, wcs, pointing, logger=None):
+        """Process the config dict and return a PSF instance.
 
+        As the PSF class is an abstract base class, the returned type will in fact be some
+        subclass of PSF according to the contents of the config dict.
+
+        The provided config dict is typically the 'psf' field in the base config dict in 
+        a YAML file, although for compound PSF types, it may be the field for just one of
+        several components.
+
+        Note that the parameters stars, wcs, pointing are typically taken from the output
+        of InputHandler process(base_config['input']).
+
+        So the typical usage would be:
+
+            >>> stars, wcs, pointing = piff.Input.process(config['input'])
+            >>> psf = piff.PSF.process(config['psf'], stars, wcs, pointing)
+ 
+        :param config_psf:  A dict specifying what type of PSF to build along with the
+                            appropriate kwargs for building it.
         :param stars:       A list of Star instances.
         :param wcs:         A dict of WCS solutions indexed by chipnum.
         :param pointing:    A galsim.CelestialCoord object giving the telescope pointing.
                             [Note: pointing should be None if the WCS is not a galsim.CelestialWCS]
-        :param model:       A Model instance that defines how to model the individual PSFs
-                            at the location of each star.
-        :param interp:      An Interp instance that defines how to do the interpolation of the
-                            data vectors (produced by model for each star).
         :param logger:      A logger object for logging debug info. [default: None]
 
-        :returns: a PSF instance
+        :returns: a PSF instance of the appropriate type.
         """
-        if logger:
-            logger.info("Start building PSF using %s stars", len(stars))
-            logger.debug("Model is %s", model)
-            logger.debug("Interp is %s", interp)
+        import piff
+        import yaml
 
-        psf = cls(stars, wcs, pointing, model, interp)
         if logger:
-            logger.info("Fitting PSF model")
-        psf.fit(logger=logger)
+            logger.debug("Parsing PSF based on config dict:")
+            logger.debug(yaml.dump(config_psf, default_flow_style=False))
+
+        # Get the class to use for the PSF
+        psf_type = config_psf.pop('type', 'Simple') + 'PSF'
+        if logger:
+            logger.debug("PSF type is %s",psf_type)
+        cls = getattr(piff, psf_type)
+
+        # Read any other kwargs in the model field
+        kwargs = cls.parseKwargs(config_psf, logger)
+
+        # Build PSF object
+        if logger:
+            logger.info("Building %s",psf_type)
+        psf = cls(stars=stars, wcs=wcs, pointing=pointing, **kwargs)
         if logger:
             logger.debug("Done building PSF")
+
         return psf
 
-    def fit(self, chisq_threshold=0.1, logger=None):
-        """Fit interpolated PSF model to star data using standard sequence of operations.
+    @classmethod
+    def parseKwargs(cls, config_psf, logger):
+        """Parse the psf field of a configuration dict and return the kwargs to use for
+        initializing an instance of the class.
 
-        :param chisq_threshold:  Change in reduced chisq at which iteration will terminate.
-                            [default: 0.1]
-        :param logger:      A logger object for logging debug info. [default: None]
+        The base class implementation just returns the kwargs as they are, but derived classes
+        might want to override this if they need to do something more sophisticated with them.
+
+        :param config_psf:      The psf field of the configuration dict, config['psf']
+        :param logger:          A logger object for logging debug info. [default: None]
+
+        :returns: a kwargs dict to pass to the initializer
         """
-        if logger:
-            logger.debug("Initializing models")
-        self.stars = [self.model.initialize(s, mask=True) for s in self.stars]
+        kwargs = {}
+        kwargs.update(config_psf)
+        kwargs['logger'] = logger
+        return kwargs
 
-        if logger:
-            logger.debug("Initializing interpolator")
-        self.stars = self.interp.initialize(self.stars, logger=logger)
-
-        # Begin iterations.  Very simple convergence criterion right now.
-        # ??? Also will need to include outlier rejection here.
-        # ??? Make these convergence constants program options???
-        max_iterations = 30
-
-        # For basis models, we can compute a quadratic form for chisq, and if we are using
-        # a basis interpolator, then we can use it.  It's kind of ugly to query this, but
-        # the double dispatch makes it tricky to implement this with class heirarchy, so for
-        # now we just check if we have all the required parts to use the quadratic form
-        quadratic_chisq = hasattr(self.model, 'chisq') and self.interp.degenerate_points
-
-        oldchisq = 0.
-        for iteration in range(max_iterations):
-            if logger:
-                logger.debug("Fitting stars, iteration %d", iteration)
-
-            if quadratic_chisq:
-                self.stars = [self.model.chisq(s) for s in self.stars]
-            else:
-                self.stars = [self.model.fit(s) for s in self.stars]
-
-            if logger:
-                logger.debug("Interpolator solving, iteration %d", iteration)
-            self.interp.solve(self.stars, logger=logger)
-
-            # Refit and recenter all stars, collect stats
-            if logger:
-                logger.debug("Re-fluxing stars, iteration %d", iteration)
-
-            if hasattr(self.model, 'reflux'):
-                self.stars = [self.model.reflux(self.interp.interpolate(s)) for s in self.stars]
-            chisq = numpy.sum([s.fit.chisq for s in self.stars])
-            dof   = numpy.sum([s.fit.dof for s in self.stars])
-            if logger:
-                logger.info('Iteration {:d} chisq= {:.2f} / {:d} dof'.format(iteration,
-                                                                             chisq,dof))
-
-            # ??? This is where we should do some outlier rejection.
-
-            # ??? Very simple convergence test here:
-            # Note, the lack of abs here means if chisq increases, we also stop.
-            if oldchisq>0 and oldchisq-chisq < chisq_threshold*dof:
-                break
-            if logger and iteration+1 >= max_iterations:
-                logger.warning('PSF fit did not converge')
-            oldchisq = chisq
 
     def draw(self, x, y, chipnum=0, flux=1.0, offset=(0,0), stamp_size=48,
              logger=None, **kwargs):
@@ -198,19 +165,6 @@ class PSF(object):
         star = self.drawStar(star)
         return star.data.image
 
-    def drawStar(self, star):
-        """Generate PSF image for a given star.
-
-        :param star:        Star instance holding information needed for interpolation as
-                            well as an image/WCS into which PSF will be rendered.
-
-        :returns:           Star instance with its image filled with rendered PSF
-        """
-        # Interpolate parameters to this position/properties:
-        star = self.interp.interpolate(star)
-        # Render the image
-        return self.model.draw(star)
-
     def write(self, file_name, logger=None):
         """Write a PSF object to a file.
 
@@ -221,10 +175,27 @@ class PSF(object):
             logger.info("Writing PSF to file %s",file_name)
 
         with fitsio.FITS(file_name,'rw',clobber=True) as f:
-            self.model.write(f, extname='model')
-            self.interp.write(f, extname='interp')
-            Star.write(self.stars, f, extname='stars')
-            self.writeWCS(f, extname='wcs')
+            self._write(f, 'psf', logger)
+
+    def _write(self, fits, extname, logger=None):
+        """This is the function that actually does the work for the write function.
+        Composite PSF classes that need to iterate can call this multiple times as needed.
+
+        :param fits:        An open fitsio.FITS object
+        :param extname:     The name of the extension with the psf information.
+        :param logger:      A logger object for logging debug info.
+        """
+        psf_type = self.__class__.__name__
+        write_kwargs(fits, extname, dict(self.kwargs, type=psf_type))
+        if logger:
+            logger.info("Wrote the basic PSF information to extname %s", extname)
+        Star.write(self.stars, fits, extname=extname + '_stars')
+        if logger:
+            logger.info("Wrote the PSF stars to extname %s", extname + '_stars')
+        self.writeWCS(fits, extname=extname + '_wcs')
+        if logger:
+            logger.info("Wrote the PSF WCS to extname %s", extname + '_wcs')
+        self._finish_write(fits, extname=extname, logger=logger)
 
     @classmethod
     def read(cls, file_name, logger=None):
@@ -241,20 +212,65 @@ class PSF(object):
         with fitsio.FITS(file_name,'r') as f:
             if logger:
                 logger.debug('opened FITS file')
-            model = Model.read(f, 'model')
-            if logger:
-                logger.debug("model = %s",model)
-            interp = Interp.read(f, 'interp')
-            if logger:
-                logger.debug("interp = %s",interp)
-            stars = Star.read(f, 'stars')
-            if logger:
-                logger.debug("stars = %s",stars)
-            wcs, pointing = cls.readWCS(f, 'wcs')
-            if logger:
-                logger.debug("wcs = %s",wcs)
+            return cls._read(f, 'psf', logger)
 
-        return cls(stars, wcs, pointing, model, interp)
+    @classmethod
+    def _read(cls, fits, extname, logger):
+        """This is the function that actually does the work for the read function.
+        Composite PSF classes that need to iterate can call this multiple times as needed.
+
+        :param fits:        An open fitsio.FITS object
+        :param extname:     The name of the extension with the psf information.
+        :param logger:      A logger object for logging debug info.
+        """
+        import piff
+
+        # First get the PSF class from the 'psf' extension
+        assert extname in fits
+        assert 'type' in fits[extname].get_colnames()
+        psf_type = fits[extname].read()['type']
+        assert len(psf_type) == 1
+        psf_type = psf_type[0]
+
+        # Check that this is a valid PSF type
+        psf_classes = piff.util.get_all_subclasses(piff.PSF)
+        valid_psf_types = dict([ (c.__name__, c) for c in psf_classes ])
+        if psf_type not in valid_psf_types:
+            raise ValueError("psf type %s is not a valid Piff PSF"%psf_type)
+        psf_cls = valid_psf_types[psf_type]
+
+        # Read the stars, wcs, pointing values
+        stars = Star.read(fits, extname + '_stars')
+        if logger:
+            logger.debug("stars = %s",stars)
+        wcs, pointing = cls.readWCS(fits, extname + '_wcs')
+        if logger:
+            logger.debug("wcs = %s, pointing = %s",wcs,pointing)
+
+        # Get any other kwargs we need for this PSF type
+        kwargs = read_kwargs(fits, extname)
+        kwargs.pop('type')
+        psf = psf_cls(stars=stars, wcs=wcs, pointing=pointing, **kwargs)
+
+        # Just in case the class needs to do something else at the end.
+        psf._finish_read(fits, extname, logger)
+
+        return psf
+
+    def _finish_read(self, fits, extname):
+        """Finish up the read process
+
+        In the base class, this is a no op, but for classes that need to do something else at
+        the end of the read process, this hook is available to be overridden.
+
+        (E.g. composite psf classes might copy the stars, wcs, pointing information into the 
+        various components.)
+
+        :param fits:        An open fitsio.FITS object
+        :param extname:     The name of the extension with the psf information.
+        """
+        pass
+
 
     def writeWCS(self, fits, extname):
         """Write the WCS information to a FITS file.

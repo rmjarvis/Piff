@@ -693,8 +693,9 @@ def test_single_image():
         else:
             logger = None
         pointing = None     # wcs is not Celestial here, so pointing needs to be None.
-        psf = piff.PSF.build(orig_stars, {0:input.images[0].wcs}, pointing,
-                             model, interp, logger=logger)
+        psf = piff.SimplePSF(orig_stars, {0:input.images[0].wcs}, pointing,
+                             model, interp)
+        psf.fit(logger=logger)
 
         # Check that the interpolation is what it should be
         print('target.flux = ',target_star.fit.flux)
@@ -735,15 +736,17 @@ def test_single_image():
         'output' : {
             'file_name' : psf_file
         },
-        'model' : {
-            'type' : 'PixelModel',
-            'scale' : 0.2,
-            'size' : 16,  # Much smaller than the input stamps, but this is plenty here.
-            'start_sigma' : 0.9/2.355
-        },
-        'interp' : {
-            'type' : 'BasisPolynomial',
-            'order' : 2
+        'psf' : {
+            'model' : {
+                'type' : 'PixelModel',
+                'scale' : 0.2,
+                'size' : 16,  # Much smaller than the input stamps, but this is plenty here.
+                'start_sigma' : 0.9/2.355
+            },
+            'interp' : {
+                'type' : 'BasisPolynomial',
+                'order' : 2
+            },
         },
     }
     if __name__ == '__main__':
@@ -812,15 +815,17 @@ def test_des_image():
         'output' : {
             'file_name' : psf_file,
         },
-        'model' : {
-            'type' : 'PixelModel',
-            'scale' : scale,
-            'size' : size,
-            'start_sigma' : start_sigma,
-        },
-        'interp' : {
-            'type' : 'BasisPolynomial',
-            'order' : 2,
+        'psf' : {
+            'model' : {
+                'type' : 'PixelModel',
+                'scale' : scale,
+                'size' : size,
+                'start_sigma' : start_sigma,
+            },
+            'interp' : {
+                'type' : 'BasisPolynomial',
+                'order' : 2,
+            },
         },
     }
     if __name__ == '__main__': config['verbose'] = 3
@@ -836,7 +841,7 @@ def test_des_image():
 
         # Largely copied from Gary's fit_des.py, but using the Piff input_handler to
         # read the input files.
-        stars, wcs, pointing = piff.process_input(config, logger=logger)
+        stars, wcs, pointing = piff.process_input(config['input'], logger=logger)
         if nstars is not None:
             stars = stars[:nstars]
 
@@ -850,7 +855,8 @@ def test_des_image():
         interp = piff.BasisPolynomial(order=2, logger=logger)
 
         # Make a psf
-        psf = piff.PSF.build(stars, wcs, pointing, model, interp, logger=logger)
+        psf = piff.SimplePSF(stars, wcs, pointing, model, interp)
+        psf.fit(logger=logger)
 
         # The difference between the images of the fitted stars and the originals should be
         # consistent with noise.  Keep track of how many don't meet that goal.
@@ -904,7 +910,7 @@ def test_des_image():
         print('start piffify')
         piff.piffify(config)
         print('read stars')
-        stars, wcs, pointing = piff.process_input(config)
+        stars, wcs, pointing = piff.process_input(config['input'])
         print('read psf')
         psf = piff.PSF.read(psf_file)
         stars = [psf.model.initialize(s) for s in stars]
@@ -927,7 +933,7 @@ def test_des_image():
         p = subprocess.Popen( [piffify_exe, 'pixel_des.yaml'] )
         p.communicate()
         print('read stars')
-        stars, wcs, pointing = piff.process_input(config)
+        stars, wcs, pointing = piff.process_input(config['input'])
         print('read psf')
         psf = piff.PSF.read(psf_file)
         stars = [psf.model.initialize(s) for s in stars]
