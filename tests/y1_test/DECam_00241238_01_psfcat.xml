@@ -1,0 +1,297 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="file:///usr/local/share/psfex/psfex.xsl"?>
+<VOTABLE version="1.1"
+ xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+ xsi:noNamespaceSchemaLocation="http://www.ivoa.net/xml/VOTable/v1.1">
+<DESCRIPTION>produced by PSFEx</DESCRIPTION>
+<!-- VOTable description at http://www.ivoa.net/Documents/latest/VOT.html -->
+<RESOURCE ID="PSFEx" name="PSFEx">
+ <DESCRIPTION>Data related to PSFEx</DESCRIPTION>
+ <INFO name="QUERY_STATUS" value="OK" />
+ <COOSYS ID="J2000" equinox="J2000" epoch="2000.0" system="ICRS"/>
+ <RESOURCE ID="MetaData" name="MetaData">
+  <DESCRIPTION>PSFEx meta-data</DESCRIPTION>
+  <INFO name="QUERY_STATUS" value="OK" />
+  <PARAM name="Software" datatype="char" arraysize="*" ucd="meta.title;meta.software" value="PSFEx"/>
+  <PARAM name="Version" datatype="char" arraysize="*" ucd="meta.version;meta.software" value="3.17.0"/>
+  <PARAM name="Soft_URL" datatype="char" arraysize="*" ucd="meta.ref.url;meta.software" value="http://astromatic.net/software/psfex"/>
+  <PARAM name="Soft_Auth" datatype="char" arraysize="*" ucd="meta.bib.author;meta.software" value="Emmanuel Bertin"/>
+  <PARAM name="Soft_Ref" datatype="char" arraysize="*" ucd="meta.bib.bibcode;meta.software" value="2006ASPC..351..112B"/>
+  <PARAM name="NThreads" datatype="int" ucd="meta.number;meta.software" value="2"/>
+  <PARAM name="Date" datatype="char" arraysize="*" ucd="time.event.end;meta.software" value="2016-02-26"/>
+  <PARAM name="Time" datatype="char" arraysize="*" ucd="time.event.end;meta.software" value="07:15:28"/>
+  <PARAM name="Duration" datatype="float" ucd="time.event;meta.software" value="28" unit="s"/>
+  <PARAM name="User" datatype="char" arraysize="*" ucd="meta.curation" value="mjarvis"/>
+  <PARAM name="Host" datatype="char" arraysize="*" ucd="meta.curation" value="(null)"/>
+  <PARAM name="Path" datatype="char" arraysize="*" ucd="meta.dataset" value="/astro/u/mjarvis/rmjarvis/DESWL/psfex"/>
+  <TABLE ID="PSF_Fields" name="PSF_Fields">
+   <DESCRIPTION>PSF metadata and stats per field gathered by PSFEx</DESCRIPTION>
+   <!-- NFields may be 0 if an error occurred early in the processing -->
+   <PARAM name="NFields" datatype="int" ucd="meta.number;meta.dataset" value="1"/>
+   <!-- CurrField may differ from NFields if an error occurred -->
+   <PARAM name="CurrField" datatype="int" ucd="meta.number;meta.dataset" value="1"/>
+   <PARAM name="NSnapshots" datatype="int" arraysize="2" ucd="meta.number;meta.dataset" value="9 9"/>
+   <FIELD name="Catalog_Name" datatype="char" arraysize="*" ucd="meta.id;meta.table;meta.file"/>
+   <FIELD name="Image_Ident" datatype="char" arraysize="*" ucd="meta.id;obs.field"/>
+   <FIELD name="NExtensions" datatype="int" ucd="meta.number"/>
+   <FIELD name="NStars_Loaded_Total" datatype="int" ucd="meta.number;meta.dataset"/>
+   <FIELD name="NStars_Loaded_Min" datatype="int" ucd="meta.number;stat.min;meta.dataset"/>
+   <FIELD name="NStars_Loaded_Mean" datatype="float" ucd="meta.number;stat.mean;meta.dataset"/>
+   <FIELD name="NStars_Loaded_Max" datatype="int" ucd="meta.number;stat.max;meta.dataset"/>
+   <FIELD name="NStars_Accepted_Total" datatype="int" ucd="meta.number;meta.dataset"/>
+   <FIELD name="NStars_Accepted_Min" datatype="int" ucd="meta.number;stat.min;meta.dataset"/>
+   <FIELD name="NStars_Accepted_Mean" datatype="int" ucd="meta.number;stat.mean;meta.dataset"/>
+   <FIELD name="NStars_Accepted_Max" datatype="int" ucd="meta.number;stat.max;meta.dataset"/>
+   <FIELD name="FWHM_FromFluxRadius_Min" unit="pix" datatype="float" ucd="phys.size.diameter;stat.min;instr.det.psf"/>
+   <FIELD name="FWHM_FromFluxRadius_Mean" unit="pix" datatype="float" ucd="phys.size.diameter;stat.mean;instr.det.psf"/>
+   <FIELD name="FWHM_FromFluxRadius_Max" unit="pix" datatype="float" ucd="phys.size.diameter;stat.max;instr.det.psf"/>
+   <FIELD name="Sampling_Min" unit="pix" datatype="float" ucd="arith.factor;instr.pixel;stat.min;instr.det.psf"/>
+   <FIELD name="Sampling_Mean" unit="pix" datatype="float" ucd="arith.factor;instr.pixel;stat.mean;instr.det.psf"/>
+   <FIELD name="Sampling_Max" unit="pix" datatype="float" ucd="arith.factor;instr.pixel;stat.max;instr.det.psf"/>
+   <FIELD name="Chi2_Min" datatype="float" ucd="stat.fit.chi2;stat.min;instr.det.psf"/>
+   <FIELD name="Chi2_Mean" datatype="float" ucd="stat.fit.chi2;stat.mean;instr.det.psf"/>
+   <FIELD name="Chi2_Max" datatype="float" ucd="stat.fit.chi2;stat.max;instr.det.psf"/>
+   <FIELD name="FWHM_Min" unit="pix" datatype="float" ucd="phys.size.diameter;stat.min;instr.det.psf"/>
+   <FIELD name="FWHM_Mean" unit="pix" datatype="float" ucd="phys.size.diameter;stat.mean;instr.det.psf"/>
+   <FIELD name="FWHM_Max" unit="pix" datatype="float" ucd="phys.size.diameter;stat.max;instr.det.psf"/>
+   <FIELD name="FWHM_WCS_Min" unit="arcsec" datatype="float" ucd="phys.size.diameter;stat.min;instr.det.psf"/>
+   <FIELD name="FWHM_WCS_Mean" unit="arcsec" datatype="float" ucd="phys.size.diameter;stat.mean;instr.det.psf"/>
+   <FIELD name="FWHM_WCS_Max" unit="arcsec" datatype="float" ucd="phys.size.diameter;stat.max;instr.det.psf"/>
+   <FIELD name="Ellipticity_Min" datatype="float" ucd="src.ellipticity;stat.min;instr.det.psf"/>
+   <FIELD name="Ellipticity_Mean" datatype="float" ucd="src.ellipticity;stat.mean;instr.det.psf"/>
+   <FIELD name="Ellipticity_Max" datatype="float" ucd="src.ellipticity;stat.max;instr.det.psf"/>
+   <FIELD name="Ellipticity1_Min" datatype="float" ucd="src.ellipticity;stat.min;instr.det.psf"/>
+   <FIELD name="Ellipticity1_Mean" datatype="float" ucd="src.ellipticity;stat.mean;instr.det.psf"/>
+   <FIELD name="Ellipticity1_Max" datatype="float" ucd="src.ellipticity;stat.max;instr.det.psf"/>
+   <FIELD name="Ellipticity2_Min" datatype="float" ucd="src.ellipticity;stat.min;instr.det.psf"/>
+   <FIELD name="Ellipticity2_Mean" datatype="float" ucd="src.ellipticity;stat.mean;instr.det.psf"/>
+   <FIELD name="Ellipticity2_Max" datatype="float" ucd="src.ellipticity;stat.max;instr.det.psf"/>
+   <FIELD name="MoffatBeta_Min" datatype="float" ucd="stat.param;stat.min;instr.det.psf"/>
+   <FIELD name="MoffatBeta_Mean" datatype="float" ucd="stat.param;stat.mean;instr.det.psf"/>
+   <FIELD name="MoffatBeta_Max" datatype="float" ucd="stat.param;stat.max;instr.det.psf"/>
+   <FIELD name="Residuals_Min" datatype="float" ucd="stat.fit.residual;stat.min;instr.det.psf"/>
+   <FIELD name="Residuals_Mean" datatype="float" ucd="stat.fit.residual;stat.mean;instr.det.psf"/>
+   <FIELD name="Residuals_Max" datatype="float" ucd="stat.fit.residual;stat.max;instr.det.psf"/>
+   <FIELD name="FWHM_PixelFree_Min" unit="pix" datatype="float" ucd="phys.size.diameter;stat.min;instr.det.psf"/>
+   <FIELD name="FWHM_PixelFree_Mean" unit="pix" datatype="float" ucd="phys.size.diameter;stat.mean;instr.det.psf"/>
+   <FIELD name="FWHM_PixelFree_Max" unit="pix" datatype="float" ucd="phys.size.diameter;stat.max;instr.det.psf"/>
+   <FIELD name="FWHM_PixelFree_WCS_Min" unit="arcsec" datatype="float" ucd="phys.size.diameter;stat.min;instr.det.psf"/>
+   <FIELD name="FWHM_PixelFree_WCS_Mean" unit="arcsec" datatype="float" ucd="phys.size.diameter;stat.mean;instr.det.psf"/>
+   <FIELD name="FWHM_PixelFree_WCS_Max" unit="arcsec" datatype="float" ucd="phys.size.diameter;stat.max;instr.det.psf"/>
+   <FIELD name="Ellipticity_PixelFree_Min" datatype="float" ucd="src.ellipticity;stat.min;instr.det.psf"/>
+   <FIELD name="Ellipticity_PixelFree_Mean" datatype="float" ucd="src.ellipticity;stat.mean;instr.det.psf"/>
+   <FIELD name="Ellipticity_PixelFree_Max" datatype="float" ucd="src.ellipticity;stat.max;instr.det.psf"/>
+   <FIELD name="Ellipticity1_PixelFree_Min" datatype="float" ucd="src.ellipticity;stat.min;instr.det.psf"/>
+   <FIELD name="Ellipticity1_PixelFree_Mean" datatype="float" ucd="src.ellipticity;stat.mean;instr.det.psf"/>
+   <FIELD name="Ellipticity1_PixelFree_Max" datatype="float" ucd="src.ellipticity;stat.max;instr.det.psf"/>
+   <FIELD name="Ellipticity2_PixelFree_Min" datatype="float" ucd="src.ellipticity;stat.min;instr.det.psf"/>
+   <FIELD name="Ellipticity2_PixelFree_Mean" datatype="float" ucd="src.ellipticity;stat.mean;instr.det.psf"/>
+   <FIELD name="Ellipticity2_PixelFree_Max" datatype="float" ucd="src.ellipticity;stat.max;instr.det.psf"/>
+   <FIELD name="MoffatBeta_PixelFree_Min" datatype="float" ucd="stat.param;stat.min;instr.det.psf"/>
+   <FIELD name="MoffatBeta_PixelFree_Mean" datatype="float" ucd="stat.param;stat.mean;instr.det.psf"/>
+   <FIELD name="MoffatBeta_PixelFree_Max" datatype="float" ucd="stat.param;stat.max;instr.det.psf"/>
+   <FIELD name="Residuals_PixelFree_Min" datatype="float" ucd="stat.fit.residual;stat.min;instr.det.psf"/>
+   <FIELD name="Residuals_PixelFree_Mean" datatype="float" ucd="stat.fit.residual;stat.mean;instr.det.psf"/>
+   <FIELD name="Residuals_PixelFree_Max" datatype="float" ucd="stat.fit.residual;stat.max;instr.det.psf"/>
+   <FIELD name="Asymmetry_Min" datatype="float" ucd="stat.fit.residual;stat.min;instr.det.psf"/>
+   <FIELD name="Asymmetry_Mean" datatype="float" ucd="stat.fit.residual;stat.mean;instr.det.psf"/>
+   <FIELD name="Asymmetry_Max" datatype="float" ucd="stat.fit.residual;stat.max;instr.det.psf"/>
+   <FIELD name="Area_Noise_Min" datatype="float" ucd="phys.area;stat.min;instr.det.psf"/>
+   <FIELD name="Area_Noise_Mean" datatype="float" ucd="phys.area;stat.mean;instr.det.psf"/>
+   <FIELD name="Area_Noise_Max" datatype="float" ucd="phys.area;stat.max;instr.det.psf"/>
+   <FIELD name="PixelScale_WCS_Min" unit="arcsec" datatype="float" ucd="instr.scale;stat.min;instr.pixel"/>
+   <FIELD name="PixelScale_WCS_Mean" unit="arcsec" datatype="float" ucd="instr.scale;stat.mean;instr.pixel"/>
+   <FIELD name="PixelScale_WCS_Max" unit="arcsec" datatype="float" ucd="instr.scale;stat.max;instr.pixel"/>
+   <DATA><TABLEDATA>
+    <TR>
+     <TD>DECam_00241238_01_psfcat_tb_maxmag_17.0_magcut_3.0_findstars.fits</TD><TD>DES survey hex 614-532 tiling 4</TD><TD>1</TD>
+     <TD>105</TD><TD>105</TD><TD>105</TD><TD>105</TD>
+     <TD>105</TD><TD>105</TD><TD>105</TD><TD>105</TD>
+     <TD>4.83134</TD><TD>4.83134</TD><TD>4.83134</TD>
+     <TD>0.5</TD><TD>0.5</TD><TD>0.5</TD>
+     <TD>0.962622</TD><TD>0.962622</TD><TD>0.962622</TD>
+     <TD>0</TD><TD>0</TD><TD>0</TD>
+     <TD>0</TD><TD>0</TD><TD>0</TD>
+     <TD>0</TD><TD>0</TD><TD>0</TD>
+     <TD>0</TD><TD>0</TD><TD>0</TD>
+     <TD>0</TD><TD>0</TD><TD>0</TD>
+     <TD>0</TD><TD>0</TD><TD>0</TD>
+     <TD>0</TD><TD>0</TD><TD>0</TD>
+     <TD>0</TD><TD>0</TD><TD>0</TD>
+     <TD>0</TD><TD>0</TD><TD>0</TD>
+     <TD>0</TD><TD>0</TD><TD>0</TD>
+     <TD>0</TD><TD>0</TD><TD>0</TD>
+     <TD>0</TD><TD>0</TD><TD>0</TD>
+     <TD>0</TD><TD>0</TD><TD>0</TD>
+     <TD>0</TD><TD>0</TD><TD>0</TD>
+     <TD>0</TD><TD>0</TD><TD>0</TD>
+     <TD>0</TD><TD>0</TD><TD>0</TD>
+     <TD>0</TD><TD>0</TD><TD>0</TD>
+    </TR>
+   </TABLEDATA></DATA>
+  </TABLE>
+  <TABLE ID="PSF_Extensions" name="PSF_Extensions">
+   <DESCRIPTION>PSF metadata and stats per extension gathered by PSFEx</DESCRIPTION>
+   <!-- NExtensions may be 0 if an error occurred early in the processing -->
+   <PARAM name="NExtensions" datatype="int" ucd="meta.number;meta.dataset" value="1"/>
+   <FIELD name="Extension" datatype="int" ucd="meta.record"/>
+   <FIELD name="NStars_Loaded_Total" datatype="int" ucd="meta.number;meta.dataset"/>
+   <FIELD name="NStars_Loaded_Min" datatype="int" ucd="meta.number;stat.min;meta.dataset"/>
+   <FIELD name="NStars_Loaded_Mean" datatype="float" ucd="meta.number;stat.mean;meta.dataset"/>
+   <FIELD name="NStars_Loaded_Max" datatype="int" ucd="meta.number;stat.max;meta.dataset"/>
+   <FIELD name="NStars_Accepted_Total" datatype="int" ucd="meta.number;meta.dataset"/>
+   <FIELD name="NStars_Accepted_Min" datatype="int" ucd="meta.number;stat.min;meta.dataset"/>
+   <FIELD name="NStars_Accepted_Mean" datatype="float" ucd="meta.number;stat.mean;meta.dataset"/>
+   <FIELD name="NStars_Accepted_Max" datatype="int" ucd="meta.number;stat.max;meta.dataset"/>
+   <FIELD name="FWHM_FromFluxRadius_Min" unit="pix" datatype="float" ucd="phys.size.diameter;stat.min;instr.det.psf"/>
+   <FIELD name="FWHM_FromFluxRadius_Mean" unit="pix" datatype="float" ucd="phys.size.diameter;stat.mean;instr.det.psf"/>
+   <FIELD name="FWHM_FromFluxRadius_Max" unit="pix" datatype="float" ucd="phys.size.diameter;stat.max;instr.det.psf"/>
+   <FIELD name="Sampling_Min" unit="pix" datatype="float" ucd="arith.factor;instr.pixel;stat.min;instr.det.psf"/>
+   <FIELD name="Sampling_Mean" unit="pix" datatype="float" ucd="arith.factor;instr.pixel;stat.mean;instr.det.psf"/>
+   <FIELD name="Sampling_Max" unit="pix" datatype="float" ucd="arith.factor;instr.pixel;stat.max;instr.det.psf"/>
+   <FIELD name="Chi2_Min" datatype="float" ucd="stat.fit.chi2;stat.min;instr.det.psf"/>
+   <FIELD name="Chi2_Mean" datatype="float" ucd="stat.fit.chi2;stat.mean;instr.det.psf"/>
+   <FIELD name="Chi2_Max" datatype="float" ucd="stat.fit.chi2;stat.max;instr.det.psf"/>
+   <FIELD name="FWHM_Min" unit="pix" datatype="float" ucd="phys.size.diameter;stat.min;instr.det.psf"/>
+   <FIELD name="FWHM_Mean" unit="pix" datatype="float" ucd="phys.size.diameter;stat.mean;instr.det.psf"/>
+   <FIELD name="FWHM_Max" unit="pix" datatype="float" ucd="phys.size.diameter;stat.max;instr.det.psf"/>
+   <FIELD name="FWHM_WCS_Min" unit="arcsec" datatype="float" ucd="phys.size.diameter;stat.min;instr.det.psf"/>
+   <FIELD name="FWHM_WCS_Mean" unit="arcsec" datatype="float" ucd="phys.size.diameter;stat.mean;instr.det.psf"/>
+   <FIELD name="FWHM_WCS_Max" unit="arcsec" datatype="float" ucd="phys.size.diameter;stat.max;instr.det.psf"/>
+   <FIELD name="Ellipticity_Min" datatype="float" ucd="src.ellipticity;stat.min;instr.det.psf"/>
+   <FIELD name="Ellipticity_Mean" datatype="float" ucd="src.ellipticity;stat.mean;instr.det.psf"/>
+   <FIELD name="Ellipticity_Max" datatype="float" ucd="src.ellipticity;stat.max;instr.det.psf"/>
+   <FIELD name="Ellipticity1_Min" datatype="float" ucd="src.ellipticity;stat.min;instr.det.psf"/>
+   <FIELD name="Ellipticity1_Mean" datatype="float" ucd="src.ellipticity;stat.mean;instr.det.psf"/>
+   <FIELD name="Ellipticity1_Max" datatype="float" ucd="src.ellipticity;stat.max;instr.det.psf"/>
+   <FIELD name="Ellipticity2_Min" datatype="float" ucd="src.ellipticity;stat.min;instr.det.psf"/>
+   <FIELD name="Ellipticity2_Mean" datatype="float" ucd="src.ellipticity;stat.mean;instr.det.psf"/>
+   <FIELD name="Ellipticity2_Max" datatype="float" ucd="src.ellipticity;stat.max;instr.det.psf"/>
+   <FIELD name="MoffatBeta_Min" datatype="float" ucd="stat.param;stat.min;instr.det.psf"/>
+   <FIELD name="MoffatBeta_Mean" datatype="float" ucd="stat.param;stat.mean;instr.det.psf"/>
+   <FIELD name="MoffatBeta_Max" datatype="float" ucd="stat.param;stat.max;instr.det.psf"/>
+   <FIELD name="Residuals_Min" datatype="float" ucd="stat.fit.residual;stat.min;instr.det.psf"/>
+   <FIELD name="Residuals_Mean" datatype="float" ucd="stat.fit.residual;stat.mean;instr.det.psf"/>
+   <FIELD name="Residuals_Max" datatype="float" ucd="stat.fit.residual;stat.max;instr.det.psf"/>
+   <FIELD name="FWHM_PixelFree_Min" unit="pix" datatype="float" ucd="phys.size.diameter;stat.min;instr.det.psf"/>
+   <FIELD name="FWHM_PixelFree_Mean" unit="pix" datatype="float" ucd="phys.size.diameter;stat.mean;instr.det.psf"/>
+   <FIELD name="FWHM_PixelFree_Max" unit="pix" datatype="float" ucd="phys.size.diameter;stat.max;instr.det.psf"/>
+   <FIELD name="FWHM_PixelFree_WCS_Min" unit="arcsec" datatype="float" ucd="phys.size.diameter;stat.min;instr.det.psf"/>
+   <FIELD name="FWHM_PixelFree_WCS_Mean" unit="arcsec" datatype="float" ucd="phys.size.diameter;stat.mean;instr.det.psf"/>
+   <FIELD name="FWHM_PixelFree_WCS_Max" unit="arcsec" datatype="float" ucd="phys.size.diameter;stat.max;instr.det.psf"/>
+   <FIELD name="Ellipticity_PixelFree_Min" datatype="float" ucd="src.ellipticity;stat.min;instr.det.psf"/>
+   <FIELD name="Ellipticity_PixelFree_Mean" datatype="float" ucd="src.ellipticity;stat.mean;instr.det.psf"/>
+   <FIELD name="Ellipticity_PixelFree_Max" datatype="float" ucd="src.ellipticity;stat.max;instr.det.psf"/>
+   <FIELD name="Ellipticity1_PixelFree_Min" datatype="float" ucd="src.ellipticity;stat.min;instr.det.psf"/>
+   <FIELD name="Ellipticity1_PixelFree_Mean" datatype="float" ucd="src.ellipticity;stat.mean;instr.det.psf"/>
+   <FIELD name="Ellipticity1_PixelFree_Max" datatype="float" ucd="src.ellipticity;stat.max;instr.det.psf"/>
+   <FIELD name="Ellipticity2_PixelFree_Min" datatype="float" ucd="src.ellipticity;stat.min;instr.det.psf"/>
+   <FIELD name="Ellipticity2_PixelFree_Mean" datatype="float" ucd="src.ellipticity;stat.mean;instr.det.psf"/>
+   <FIELD name="Ellipticity2_PixelFree_Max" datatype="float" ucd="src.ellipticity;stat.max;instr.det.psf"/>
+   <FIELD name="MoffatBeta_PixelFree_Min" datatype="float" ucd="stat.param;stat.min;instr.det.psf"/>
+   <FIELD name="MoffatBeta_PixelFree_Mean" datatype="float" ucd="stat.param;stat.mean;instr.det.psf"/>
+   <FIELD name="MoffatBeta_PixelFree_Max" datatype="float" ucd="stat.param;stat.max;instr.det.psf"/>
+   <FIELD name="Residuals_PixelFree_Min" datatype="float" ucd="stat.fit.residual;stat.min;instr.det.psf"/>
+   <FIELD name="Residuals_PixelFree_Mean" datatype="float" ucd="stat.fit.residual;stat.mean;instr.det.psf"/>
+   <FIELD name="Residuals_PixelFree_Max" datatype="float" ucd="stat.fit.residual;stat.max;instr.det.psf"/>
+   <FIELD name="Asymmetry_Min" datatype="float" ucd="stat.fit.residual;stat.min;instr.det.psf"/>
+   <FIELD name="Asymmetry_Mean" datatype="float" ucd="stat.fit.residual;stat.mean;instr.det.psf"/>
+   <FIELD name="Asymmetry_Max" datatype="float" ucd="stat.fit.residual;stat.max;instr.det.psf"/>
+   <FIELD name="Area_Noise_Min" datatype="float" ucd="phys.area;stat.min;instr.det.psf"/>
+   <FIELD name="Area_Noise_Mean" datatype="float" ucd="phys.area;stat.mean;instr.det.psf"/>
+   <FIELD name="Area_Noise_Max" datatype="float" ucd="phys.area;stat.max;instr.det.psf"/>
+   <FIELD name="PixelScale_WCS_Min" unit="arcsec" datatype="float" ucd="instr.scale;stat.min;instr.pixel"/>
+   <FIELD name="PixelScale_WCS_Mean" unit="arcsec" datatype="float" ucd="instr.scale;stat.mean;instr.pixel"/>
+   <FIELD name="PixelScale_WCS_Max" unit="arcsec" datatype="float" ucd="instr.scale;stat.max;instr.pixel"/>
+   <DATA><TABLEDATA>
+    <TR>
+     <TD>1</TD>
+     <TD>105</TD><TD>105</TD><TD>105</TD><TD>105</TD>
+     <TD>105</TD><TD>105</TD><TD>105</TD><TD>105</TD>
+     <TD>4.83134</TD><TD>4.83134</TD><TD>4.83134</TD>
+     <TD>0.5</TD><TD>0.5</TD><TD>0.5</TD>
+     <TD>0.962622</TD><TD>0.962622</TD><TD>0.962622</TD>
+     <TD>0</TD><TD>0</TD><TD>0</TD>
+     <TD>0</TD><TD>0</TD><TD>0</TD>
+     <TD>0</TD><TD>0</TD><TD>0</TD>
+     <TD>0</TD><TD>0</TD><TD>0</TD>
+     <TD>0</TD><TD>0</TD><TD>0</TD>
+     <TD>0</TD><TD>0</TD><TD>0</TD>
+     <TD>0</TD><TD>0</TD><TD>0</TD>
+     <TD>0</TD><TD>0</TD><TD>0</TD>
+     <TD>0</TD><TD>0</TD><TD>0</TD>
+     <TD>0</TD><TD>0</TD><TD>0</TD>
+     <TD>0</TD><TD>0</TD><TD>0</TD>
+     <TD>0</TD><TD>0</TD><TD>0</TD>
+     <TD>0</TD><TD>0</TD><TD>0</TD>
+     <TD>0</TD><TD>0</TD><TD>0</TD>
+     <TD>0</TD><TD>0</TD><TD>0</TD>
+     <TD>0</TD><TD>0</TD><TD>0</TD>
+     <TD>0</TD><TD>0</TD><TD>0</TD>
+    </TR>
+   </TABLEDATA></DATA>
+  </TABLE>
+  <TABLE ID="Warnings" name="Warnings">
+   <DESCRIPTION>PSFEx warnings (limited to the last 1000)</DESCRIPTION>
+   <FIELD name="Date" datatype="char" arraysize="*" ucd="meta;time.event.end"/>
+   <FIELD name="Time" datatype="char" arraysize="*" ucd="meta;time.event.end"/>
+   <FIELD name="Msg" datatype="char" arraysize="*" ucd="meta"/>
+   <DATA><TABLEDATA>
+   </TABLEDATA></DATA>
+  </TABLE>
+  <RESOURCE ID="Config" name="Config">
+   <DESCRIPTION>PSFEx configuration</DESCRIPTION>
+   <PARAM name="Command_Line" datatype="char" arraysize="*" ucd="obs.param" value="/astro/u/rarmst/soft/bin/psfex /astro/u/mjarvis/work/psfex_rerun/y1a1-v02/DECam_00241238/DECam_00241238_01_psfcat_tb_maxmag_17.0_magcut_3.0_findstars.fits -c /astro/u/mjarvis/rmjarvis/DESWL/psfex/new.psfex -OUTCAT_TYPE FITS_LDAC -OUTCAT_NAME /astro/u/mjarvis/work/psfex_rerun/y1a1-v02/DECam_00241238/DECam_00241238_01_psfcat.used.fits -XML_NAME /astro/u/mjarvis/work/psfex_rerun/y1a1-v02/DECam_00241238/DECam_00241238_01_psfcat.xml -CHECKIMAGE_NAME /astro/u/mjarvis/work/psfex_rerun/y1a1-v02/DECam_00241238/resid.fits"/>
+   <PARAM name="Prefs_Name" datatype="char" arraysize="*" ucd="obs.param;meta.file" value="/astro/u/mjarvis/rmjarvis/DESWL/psfex/new.psfex"/>
+   <PARAM name="Basis_Type" datatype="char" arraysize="*" ucd="meta.code" value="PIXEL"/>
+   <PARAM name="Basis_Number" datatype="int" ucd="meta.number" value="20"/>
+   <PARAM name="Basis_Name" datatype="char" arraysize="*" ucd="meta.id;meta.file" value="basis.fits"/>
+   <PARAM name="Basis_Scale" datatype="double" ucd="arith.factor" value="1"/>
+   <PARAM name="NewBasis_Type" datatype="char" arraysize="*" ucd="meta.code" value="NONE"/>
+   <PARAM name="NewBasis_Number" datatype="int" ucd="meta.number" value="8"/>
+   <PARAM name="PSF_Sampling" unit="pix" datatype="double" ucd="arith.factor;instr.pixel;inst.det.psf" value="0.5"/>
+   <PARAM name="PSF_Accuracy" datatype="double" ucd="obs.param;phot.flux.sb;arith.ratio;instr.det.psf" value="0.01"/>
+   <PARAM name="PSF_Size" unit="pix" datatype="int" arraysize="2" ucd="meta.number;instr.pixel;instr.det.psf" value="101 101"/>
+   <PARAM name="Center_Keys" datatype="char" arraysize="*" ucd="meta.id;src;instr.det.psf" value="XWIN_IMAGE,YWIN_IMAGE"/>
+   <PARAM name="PSF_Recenter" datatype="boolean" ucd="meta.code" value="T"/>
+   <PARAM name="PhotFlux_Key" datatype="char" arraysize="*" ucd="meta.id;src;instr.det.psf" value="FLUX_APER(8)"/>
+   <PARAM name="PhotFluxErr_Key" datatype="char" arraysize="*" ucd="meta.id;src;instr.det.psf" value="FLUXERR_APER(8)"/>
+   <PARAM name="MEF_Type" datatype="char" arraysize="*" ucd="meta.code" value="INDEPENDENT"/>
+   <PARAM name="PSFVar_Keys" datatype="char" arraysize="*" ucd="meta.id;src;instr.det.psf" value="XWIN_IMAGE,YWIN_IMAGE"/>
+   <PARAM name="PSFVar_Groups" datatype="int" arraysize="2" ucd="meta.id;stat.fit.param;instr.det.psf" value="1 1"/>
+   <PARAM name="PSFVar_Degrees" datatype="int" arraysize="1" ucd="stat.fit.param;instr.det.psf" value="2"/>
+   <PARAM name="PSFVar_NSnap" datatype="int" ucd="stat.fit.param;instr.det.psf" value="9"/>
+   <PARAM name="HiddenMEF_Type" datatype="char" arraysize="*" ucd="meta.code" value="COMMON"/>
+   <PARAM name="Stability_Type" datatype="char" arraysize="*" ucd="meta.code" value="EXPOSURE"/>
+   <PARAM name="Sample_AutoSelect" datatype="boolean" ucd="meta.code" value="T"/>
+   <PARAM name="SampleVar_Type" datatype="char" arraysize="*" ucd="meta.code" value="SEEING"/>
+   <PARAM name="Sample_FWHMRange" unit="pix" datatype="double" arraysize="2" ucd="phys.size.diameter;instr.det.psf" value="2 30"/>
+   <PARAM name="Sample_Variability" datatype="double" ucd="instr.det.psf;arith.ratio" value="0.2"/>
+   <PARAM name="Sample_MinSN" datatype="double" ucd="stat.snr;stat.min" value="20"/>
+   <PARAM name="Sample_MaxEllip" datatype="double" ucd="src.ellipticity;stat.max" value="0.3"/>
+   <PARAM name="Sample_FlagMask" datatype="int" ucd="meta.code" value="254"/>
+   <PARAM name="BadPixel_Filter" datatype="boolean" ucd="meta.code" value="F"/>
+   <PARAM name="BadPixel_NMax" datatype="int" ucd="meta.number;instr.pixel;stat.max" value="0"/>
+   <PARAM name="HomoBasis_Type" datatype="char" arraysize="*" ucd="meta.code" value="NONE"/>
+   <PARAM name="HomoBasis_Number" datatype="int" ucd="meta.number" value="10"/>
+   <PARAM name="HomoBasis_Scale" datatype="double" ucd="arith.factor" value="1"/>
+   <PARAM name="HomoPSF_Params" datatype="double" arraysize="2" ucd="stat.param" value="2 3"/>
+   <PARAM name="HomoKernel_Dir" datatype="char" arraysize="*" ucd="meta.id;meta.file" value=" "/>
+   <PARAM name="HomoKernel_Suffix" datatype="char" arraysize="*" ucd="meta.id;meta.file" value=".homo.fits"/>
+   <PARAM name="CheckPlot_Dev" datatype="char" arraysize="*" ucd="meta.code" value="NULL"/>
+   <PARAM name="CheckPlot_Res" datatype="int" arraysize="1" ucd="meta.number;meta" value="0"/>
+   <PARAM name="CheckPlot_AntiAlias" datatype="boolean" ucd="meta.code" value="T"/>
+   <PARAM name="CheckPlot_Type" datatype="char" arraysize="*" ucd="meta.code" value="NONE"/>
+   <PARAM name="CheckPlot_Name" datatype="char" arraysize="*" ucd="meta.id;meta.file" value=""/>
+   <PARAM name="CheckImage_Type" datatype="char" arraysize="*" ucd="meta.code" value="RESIDUALS"/>
+   <PARAM name="CheckImage_Name" datatype="char" arraysize="*" ucd="meta.id;meta.file;meta.fits" value="/astro/u/mjarvis/work/psfex_rerun/y1a1-v02/DECam_00241238/resid.fits"/>
+   <PARAM name="CheckImage_Cube" datatype="boolean" ucd="meta.code" value="T"/>
+   <PARAM name="PSF_Dir" datatype="char" arraysize="*" ucd="meta.id;meta.file" value=" "/>
+   <PARAM name="PSF_Suffix" datatype="char" arraysize="*" ucd="meta.id;meta.file" value=".psf"/>
+   <PARAM name="Verbose_Type" datatype="char" arraysize="*" ucd="meta.code" value="NORMAL"/>
+   <PARAM name="Write_XML" datatype="boolean" ucd="meta.code" value="T"/>
+   <PARAM name="NThreads" datatype="int" ucd="meta.number;meta.software" value="2"/>
+  </RESOURCE>
+ </RESOURCE>
+</RESOURCE>
+</VOTABLE>

@@ -19,6 +19,9 @@
 from __future__ import print_function
 import numpy
 
+from .stardata import StarData
+from .starfit import Star, StarFit
+
 def process_model(config, logger=None):
     """Parse the model field of the config dict.
 
@@ -30,7 +33,8 @@ def process_model(config, logger=None):
     import piff
 
     if logger is None:
-        logger = config.setup_logger(verbosity=0)
+        verbose = config.get('verbose', 1)
+        logger = piff.setup_logger(verbose=verbose)
 
     if 'model' not in config:
         raise ValueError("config dict has no model field")
@@ -44,7 +48,7 @@ def process_model(config, logger=None):
     model_class = getattr(piff, config_model.pop('type'))
 
     # Read any other kwargs in the model field
-    kwargs = model_class.parseKwargs(config_model)
+    kwargs = model_class.parseKwargs(config_model, logger)
 
     # Build model object
     model = model_class(**kwargs)
@@ -58,7 +62,7 @@ class Model(object):
     implemented by any derived class.
     """
     @classmethod
-    def parseKwargs(cls, config_model):
+    def parseKwargs(cls, config_model, logger):
         """Parse the model field of a configuration dict and return the kwargs to use for
         initializing an instance of the class.
 
@@ -66,46 +70,56 @@ class Model(object):
         might want to override this if they need to do something more sophisticated with them.
 
         :param config_model:    The model field of the configuration dict, config['model']
+        :param logger:          A logger object for logging debug info. [default: None]
 
         :returns: a kwargs dict to pass to the initializer
         """
-        return config_model
+        kwargs = {}
+        kwargs.update(config_model)
+        kwargs['logger'] = logger
+        return kwargs
 
-    def fitStar(self, star):
-        """Fit the model parameters to the data for a single star.
+    def makeStar(self, data, flux=1., center=(0.,0.), mask=True):
+        """Create a Star instance that this Model can read, include any setup needed
+        before fitting.
 
-        :param star:    A StarData instance
+        The base class implementation uses None for the fit.params value, leaving that to 
+        be filled in by a subsequent model.fit() call.
 
-        :returns: self (for convenience of stringing together operations)
+        :param data:    A StarData instance
+        :param flux:    Initial estimate of stellar flux
+        :param center:  Initial estimate of stellar center in world coord system
+        :param mask:    If True, set data.weight to zero at pixels that are outside
+                        the range of the model.
+
+        :returns: Star instance
         """
-        raise NotImplemented("Derived classes must define the fitImage function")
+        fit = StarFit(None, flux, center)
+        return Star(data, fit)
 
-    def drawImage(self, image, pos=None):
-        """Draw the model on the given image.
 
-        :param image:   A galsim.Image on which to draw the model.
-        :param pos:     The position on the image at which to place the nominal center.
-                        [default: None, which means to use the center of the image.]
+    def fit(self, star):
+        """Fit the Model to the star's data to yield iterative improvement on
+        its PSF parameters, their uncertainties, and flux (and center, if free).  
+        The returned star.fit.alpha will be inverse covariance of solution if
+        it is estimated, else is None.
 
-        :returns: image
+        :param star:   A Star instance
+
+        :returns:      New Star instance with updated fit information
         """
-        raise NotImplemented("Derived classes must define the getProfile function")
+        raise NotImplemented("Derived classes must define the fit function")
 
-    def getParameters(self):
-        """Get the parameters of the model, to be used by the interpolator.
+    def draw(self, star):
+        """Create new Star instance that has StarData filled with a rendering
+        of the PSF specified by the current StarFit parameters, flux, and center.
+        Coordinate mapping of the current StarData is assumed.
 
-        :returns: a numpy array of the model parameters
+        :param star:   A Star instance
+
+        :returns:      New Star instance with rendered PSF in StarData
         """
-        raise NotImplemented("Derived classes must define the getParameters function")
-
-    def setParameters(self, params):
-        """Set the parameters of the model, typically provided by an interpolator.
-
-        :param params:  A numpy array of the model parameters
-
-        :returns: self
-        """
-        raise NotImplemented("Derived classes must define the setParameters function")
+        raise NotImplemented("Derived classes must define the draw function")
 
     def write(self, fits, extname):
         """Write a Model to a FITS file.
@@ -187,9 +201,10 @@ class Model(object):
         model_type = model_type[0]
 
         # Check that model_type is a valid Model type.
-        valid_model_types = dict([ (cls.__name__, cls) for cls in piff.Model.__subclasses__() ])
+        model_classes = piff.util.get_all_subclasses(piff.Model)
+        valid_model_types = dict([ (cls.__name__, cls) for cls in model_classes ])
         if model_type not in valid_model_types:
-            raise ValueError("model type %s is not a valid Piff Model")
+            raise ValueError("model type %s is not a valid Piff Model"%model_type)
         model_cls = valid_model_types[model_type]
 
         kwargs = model_cls.readKwargs(fits, extname)
