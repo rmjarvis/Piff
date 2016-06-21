@@ -22,31 +22,6 @@ import numpy
 from .star import Star, StarFit, StarData
 from .util import write_kwargs, read_kwargs
 
-def process_model(config_model, logger=None):
-    """Parse the model field of the config dict.
-
-    :param config_model:    The configuration dict for the model field.
-    :param logger:          A logger object for logging debug info. [default: None]
-
-    :returns: a Model instance
-    """
-    import piff
-
-    if 'type' not in config_model:
-        raise ValueError("config['model'] has no type field")
-
-    # Get the class to use for the model
-    # Not sure if this is what we'll always want, but it would be simple if we can make it work.
-    model_class = getattr(piff, config_model.pop('type'))
-
-    # Read any other kwargs in the model field
-    kwargs = model_class.parseKwargs(config_model, logger)
-
-    # Build model object
-    model = model_class(**kwargs)
-
-    return model
-
 
 class Model(object):
     """The base class for modeling a single PSF (i.e. no interpolation yet)
@@ -55,7 +30,33 @@ class Model(object):
     implemented by any derived class.
     """
     @classmethod
-    def parseKwargs(cls, config_model, logger):
+    def process(cls, config_model, logger=None):
+        """Parse the model field of the config dict.
+
+        :param config_model:    The configuration dict for the model field.
+        :param logger:          A logger object for logging debug info. [default: None]
+
+        :returns: a Model instance
+        """
+        import piff
+
+        if 'type' not in config_model:
+            raise ValueError("config['model'] has no type field")
+
+        # Get the class to use for the model
+        # Not sure if this is what we'll always want, but it would be simple if we can make it work.
+        model_class = getattr(piff, config_model.pop('type'))
+
+        # Read any other kwargs in the model field
+        kwargs = model_class.parseKwargs(config_model, logger)
+
+        # Build model object
+        model = model_class(**kwargs)
+
+        return model
+
+    @classmethod
+    def parseKwargs(cls, config_model, logger=None):
         """Parse the model field of a configuration dict and return the kwargs to use for
         initializing an instance of the class.
 
@@ -69,11 +70,10 @@ class Model(object):
         """
         kwargs = {}
         kwargs.update(config_model)
-        kwargs['logger'] = logger
         return kwargs
 
     def initialize(self, star, mask=True):
-        """Create a Star instance that PixelModel can manipulate.
+        """Initialize a star to work with the current model.
 
         :param star:    A Star instance with the raw data.
         :param mask:    If True, set data.weight to zero at pixels that are outside

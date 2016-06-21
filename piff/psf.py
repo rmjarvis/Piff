@@ -106,7 +106,6 @@ class PSF(object):
         """
         kwargs = {}
         kwargs.update(config_psf)
-        kwargs['logger'] = logger
         return kwargs
 
 

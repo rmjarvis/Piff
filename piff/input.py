@@ -21,55 +21,56 @@ import glob
 import numpy
 import os
 
-def process_input(config_input, logger=None):
-    """Parse the input field of the config dict.
 
-    :param config_input:    The configuration dict.
-    :param logger:          A logger object for logging debug info. [default: None]
-
-    :returns: stars, wcs:   A list of Star instances with the initial data, and
-                            a dict of WCS solutions indexed by chipnum.
-    """
-    import piff
-
-    # Get the class to use for handling the input data
-    # Default type is 'Files'
-    # Not sure if this is what we'll always want, but it would be simple if we can make it work.
-    input_handler_class = getattr(piff, 'Input' + config_input.pop('type','Files'))
-
-    # Read any other kwargs in the input field
-    kwargs = input_handler_class.parseKwargs(config_input)
-
-    # Build handler object
-    input_handler = input_handler_class(**kwargs)
-
-    # read the image data
-    input_handler.readImages(logger)
-
-    # read the input catalogs
-    input_handler.readStarCatalogs(logger)
-
-    # Figure out the pointing
-    input_handler.setPointing(logger)
-
-    # Creat a lit of StarData objects
-    stars = input_handler.makeStars(logger)
-
-    # Maybe add poisson noise to the weights
-    stars = input_handler.addPoisson(stars, logger)
-
-    # Get the wcs for all the input chips
-    wcs = input_handler.getWCS(logger)
-
-    return stars, wcs, input_handler.pointing
-
-
-class InputHandler(object):
+class Input(object):
     """The base class for handling inputs for building a Piff model.
 
     This is essentially an abstract base class intended to define the methods that should be
     implemented by any derived class.
     """
+
+    @classmethod
+    def process(cls, config_input, logger=None):
+        """Parse the input field of the config dict.
+
+        :param config_input:    The configuration dict.
+        :param logger:          A logger object for logging debug info. [default: None]
+
+        :returns: stars, wcs:   A list of Star instances with the initial data, and
+                                a dict of WCS solutions indexed by chipnum.
+        """
+        import piff
+
+        # Get the class to use for handling the input data
+        # Default type is 'Files'
+        input_handler_class = getattr(piff, 'Input' + config_input.pop('type','Files'))
+
+        # Read any other kwargs in the input field
+        kwargs = input_handler_class.parseKwargs(config_input)
+
+        # Build handler object
+        input_handler = input_handler_class(**kwargs)
+
+        # read the image data
+        input_handler.readImages(logger)
+
+        # read the input catalogs
+        input_handler.readStarCatalogs(logger)
+
+        # Figure out the pointing
+        input_handler.setPointing(logger)
+
+        # Creat a lit of StarData objects
+        stars = input_handler.makeStars(logger)
+
+        # Maybe add poisson noise to the weights
+        stars = input_handler.addPoisson(stars, logger)
+
+        # Get the wcs for all the input chips
+        wcs = input_handler.getWCS(logger)
+
+        return stars, wcs, input_handler.pointing
+
     @classmethod
     def parseKwargs(cls, config_input):
         """Parse the input field of a configuration dict and return the kwargs to use for
@@ -209,47 +210,48 @@ class InputHandler(object):
         return dict(zip(self.chipnums, wcs_list))
 
 
-class InputFiles(InputHandler):
-    """An InputHandler than just takes a list of image files and catalog files.
-
-    :param images:      Either a string (e.g. ``some_dir/*.fits.fz``) or a list of strings
-                        (e.g. ["file1.fits", "file2.fits"]) listing the image files to read.
-    :param cats:        Either a string (e.g. ``some_dir/*.fits.fz``) or a list of strings
-                        (e.g. ["file1.fits", "file2.fits"]) listing the catalog files to read.
-    :param chipnums:    A list of "chip numbers" to use as the names of each image.  These may
-                        be integers or strings and don't have to be sequential.
-                        [default: range(len(images))]
-    :param dir:         Optionally specify the directory these files are in. [default: None]
-    :param image_dir:   Optionally specify the directory of the image files. [default: dir]
-    :param cat_dir:     Optionally specify the directory of the cat files. [default: dir]
-    :param x_col:       The name of the X column in the input catalogs. [default: 'x']
-    :param y_col:       The name of the Y column in the input catalogs. [default: 'y']
-    :param sky_col:     The name of a column with sky values to subtract from the image data.
-                        [default: None, which means don't do any sky subtraction]
-    :param flag_col:    The name of a flag column in the input catalogs.  Anything with flag != 0
-                        is removed from the catalogs. [default: None]
-    :param use_col:     The name of a use column in the input catalogs.  Anything with use == 0
-                        is removed from the catalogs. [default: None]
-    :param image_hdu:   The hdu to use in the image files. [default: None, which means use either
-                        0 or 1 as typical given the compression sceme of the file]
-    :param weight_hdu:  The hdu to use for weight images. [default: None, which means a weight
-                        image with all 1's will be automatically created]
-    :param badpix_hdu:  The hdu to use for badpix images. Pixels with badpix != 0 will be given
-                        weight == 0. [default: None]
-    :param cat_hdu:     The hdu to use in the catalgo files. [default: 1]
-    :param stamp_size:  The size of the postage stamps to use for the cutouts.  Note: some
-                        stamps may be smaller than this if the star is near a chip boundary.
-                        [default: 32]
-    :param ra, dec:     The RA, Dec of the telescope pointing. [default: None; See :setPointing:
-                        for details about how this can be specified]
-    :param gain:        The gain to use for adding Poisson noise to the weight map. [default: None]
+class InputFiles(Input):
+    """An Input handler than just takes a list of image files and catalog files.
     """
     def __init__(self, images, cats, chipnums=None,
                  dir=None, image_dir=None, cat_dir=None,
                  x_col='x', y_col='y', sky_col=None, flag_col=None, use_col=None,
                  image_hdu=None, weight_hdu=None, badpix_hdu=None, cat_hdu=1,
                  stamp_size=32, ra=None, dec=None, gain=None):
-
+        """
+        :param images:      Either a string (e.g. ``some_dir/*.fits.fz``) or a list of strings
+                            (e.g. ["file1.fits", "file2.fits"]) listing the image files to read.
+        :param cats:        Either a string (e.g. ``some_dir/*.fits.fz``) or a list of strings
+                            (e.g. ["file1.fits", "file2.fits"]) listing the catalog files to read.
+        :param chipnums:    A list of "chip numbers" to use as the names of each image.  These may
+                            be integers or strings and don't have to be sequential.
+                            [default: range(len(images))]
+        :param dir:         Optionally specify the directory these files are in. [default: None]
+        :param image_dir:   Optionally specify the directory of the image files. [default: dir]
+        :param cat_dir:     Optionally specify the directory of the cat files. [default: dir]
+        :param x_col:       The name of the X column in the input catalogs. [default: 'x']
+        :param y_col:       The name of the Y column in the input catalogs. [default: 'y']
+        :param sky_col:     The name of a column with sky values to subtract from the image data.
+                            [default: None, which means don't do any sky subtraction]
+        :param flag_col:    The name of a flag column in the input catalogs.  Anything with
+                            flag != 0 is removed from the catalogs. [default: None]
+        :param use_col:     The name of a use column in the input catalogs.  Anything with
+                            use == 0 is removed from the catalogs. [default: None]
+        :param image_hdu:   The hdu to use in the image files. [default: None, which means use
+                            either 0 or 1 as typical given the compression sceme of the file]
+        :param weight_hdu:  The hdu to use for weight images. [default: None, which means a weight
+                            image with all 1's will be automatically created]
+        :param badpix_hdu:  The hdu to use for badpix images. Pixels with badpix != 0 will be given
+                            weight == 0. [default: None]
+        :param cat_hdu:     The hdu to use in the catalgo files. [default: 1]
+        :param stamp_size:  The size of the postage stamps to use for the cutouts.  Note: some
+                            stamps may be smaller than this if the star is near a chip boundary.
+                            [default: 32]
+        :param ra, dec:     The RA, Dec of the telescope pointing. [default: None; See
+                            :setPointing: for details about how this can be specified]
+        :param gain:        The gain to use for adding Poisson noise to the weight map.
+                            [default: None]
+        """
         if image_dir is None: image_dir = dir
         if cat_dir is None: cat_dir = dir
         if isinstance(images, basestring):

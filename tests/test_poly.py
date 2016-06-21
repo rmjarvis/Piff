@@ -130,7 +130,7 @@ def test_poly_mean():
         }
     }
     logger = piff.config.setup_logger()
-    interp = piff.process_interp(config['interp'], logger)
+    interp = piff.Interp.process(config['interp'], logger)
     interp.solve(stars)
 
     # Same tests
@@ -191,7 +191,7 @@ def sub_poly_linear(type1):
         }
     }
     logger = piff.config.setup_logger()
-    interp = piff.process_interp(config['interp'], logger)
+    interp = piff.Interp.process(config['interp'], logger)
     interp.solve(stars)
     numpy.testing.assert_almost_equal(linear_func(p), target.fit.params)
 
@@ -252,7 +252,7 @@ def sub_poly_quadratic(type1):
         }
     }
     logger = piff.config.setup_logger()
-    interp = piff.process_interp(config['interp'], logger)
+    interp = piff.Interp.process(config['interp'], logger)
     interp.solve(stars)
     numpy.testing.assert_almost_equal(quadratic_func(p), target.fit.params)
 

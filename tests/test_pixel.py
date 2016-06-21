@@ -841,7 +841,7 @@ def test_des_image():
 
         # Largely copied from Gary's fit_des.py, but using the Piff input_handler to
         # read the input files.
-        stars, wcs, pointing = piff.process_input(config['input'], logger=logger)
+        stars, wcs, pointing = piff.Input.process(config['input'], logger=logger)
         if nstars is not None:
             stars = stars[:nstars]
 
@@ -910,7 +910,7 @@ def test_des_image():
         print('start piffify')
         piff.piffify(config)
         print('read stars')
-        stars, wcs, pointing = piff.process_input(config['input'])
+        stars, wcs, pointing = piff.Input.process(config['input'])
         print('read psf')
         psf = piff.PSF.read(psf_file)
         stars = [psf.model.initialize(s) for s in stars]
@@ -933,7 +933,7 @@ def test_des_image():
         p = subprocess.Popen( [piffify_exe, 'pixel_des.yaml'] )
         p.communicate()
         print('read stars')
-        stars, wcs, pointing = piff.process_input(config['input'])
+        stars, wcs, pointing = piff.Input.process(config['input'])
         print('read psf')
         psf = piff.PSF.read(psf_file)
         stars = [psf.model.initialize(s) for s in stars]

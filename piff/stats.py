@@ -21,46 +21,45 @@
 from __future__ import print_function
 import numpy as np
 
-def process_stats(config_stats, logger):
-    """Parse the stats field of the config dict.
-
-    :param config_stats:    The configuration dict for the stats field.
-    :param logger:          A logger object for logging debug info.
-
-    :returns: an stats instance
-    """
-    import piff
-
-    # If it's not a list, make it one.
-    try:
-        config_stats[0]
-    except:
-        config_stats = [config_stats]
-
-    stats = []
-    for cfg in config_stats:
-
-        if 'type' not in cfg:
-            raise ValueError("config['stats'] has no type field")
-
-        # Get the class to use for the stats
-        # Not sure if this is what we'll always want, but it would be simple if we can make it work.
-        stats_class = getattr(piff, cfg.pop('type'))
-
-        if 'output' not in cfg:
-            raise ValueError("config['stats'] has no output field")
-        stats.append([piff.process_output(cfg['output'], logger=logger), stats_class])
-        # can go stats[i][0].write(stats[i][1](psf, stars)) to perform tests
-
-    return stats
-
-
-class Statistics(object):
+class Stats(object):
     """The base class for getting the statistics of a set of stars.
 
     Takes in a psf and a list of stars and performs an analysis on it that can
     then be plotted or otherwise saved to disk.
     """
+
+    @classmethod
+    def process(cls, config_stats, logger):
+        """Parse the stats field of the config dict.
+
+        :param config_stats:    The configuration dict for the stats field.
+        :param logger:          A logger object for logging debug info.
+
+        :returns: an stats instance
+        """
+        import piff
+
+        # If it's not a list, make it one.
+        try:
+            config_stats[0]
+        except:
+            config_stats = [config_stats]
+
+        stats = []
+        for cfg in config_stats:
+
+            if 'type' not in cfg:
+                raise ValueError("config['stats'] has no type field")
+
+            # Get the class to use for the stats
+            stats_class = getattr(piff, cfg.pop('type') + 'Stats')
+
+            if 'output' not in cfg:
+                raise ValueError("config['stats'] has no output field")
+            stats.append([piff.Output.process(cfg['output'], logger=logger), stats_class])
+            # can go stats[i][0].write(stats[i][1](psf, stars)) to perform tests
+
+        return stats
 
     def __init__(self, psf, stars, logger=None, **kwargs):
         """Perform your statistical operation on the stars.
@@ -96,7 +95,7 @@ class Statistics(object):
         fig, ax = self.plot(logger=logger, **kwargs)
 
         if logger:
-            logger.info("Writing Statistics Plot to file %s",file_name)
+            logger.info("Writing Stats Plot to file %s",file_name)
         # save fig to file_name
         fig.savefig(file_name)
 
@@ -164,7 +163,7 @@ class Statistics(object):
         return positions, shapes_truth, shapes_model
 
 
-class ShapeStatistics(Statistics):
+class ShapeStats(Stats):
     """Returns histograms of shape differences using HSM
     """
 
@@ -245,7 +244,7 @@ class ShapeStatistics(Statistics):
 
         return fig, ax
 
-class RhoStatistics(Statistics):
+class RhoStats(Stats):
     """Returns rho statistics using TreeCorr
     """
 

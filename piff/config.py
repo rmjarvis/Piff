@@ -110,16 +110,16 @@ def piffify(config, logger=None):
             raise ValueError("%s field is required in config dict"%key)
 
     # read in the input images
-    stars, wcs, pointing = piff.process_input(config['input'], logger=logger)
+    stars, wcs, pointing = piff.Input.process(config['input'], logger=logger)
 
     psf = piff.PSF.process(config['psf'], stars, wcs, pointing, logger=logger)
-    psf.fit()
+    psf.fit(logger=logger)
 
     # write it out to a file
-    output = piff.process_output(config['output'], logger=logger)
+    output = piff.Output.process(config['output'], logger=logger)
     output.write(psf)
 
     if 'stats' in config:
-        stats_list = piff.process_stats(config['stats'], logger=logger)
+        stats_list = piff.Stats.process(config['stats'], logger=logger)
         for output, stats in stats_list:
             output.write(stats(psf, stars))

@@ -18,36 +18,39 @@
 
 from __future__ import print_function
 
-def process_output(config_output, logger=None):
-    """Parse the output field of the config dict.
+import os
 
-    :param config_output:   The configuration dict for the output field.
-    :param logger:          A logger object for logging debug info. [default: None]
-
-    :returns: an OutputHandler
-    """
-    import piff
-
-    # Get the class to use for handling the output data
-    # Default type is 'File'
-    # Not sure if this is what we'll always want, but it would be simple if we can make it work.
-    output_handler_class = getattr(piff, 'Output' + config_output.pop('type','File'))
-
-    # Read any other kwargs in the output field
-    kwargs = output_handler_class.parseKwargs(config_output)
-
-    # Build handler object
-    output_handler = output_handler_class(**kwargs)
-
-    return output_handler
-
-
-class OutputHandler(object):
+class Output(object):
     """The base class for handling the output for writing a Piff model.
 
     This is essentially an abstract base class intended to define the methods that should be
     implemented by any derived class.
     """
+
+    @classmethod
+    def process(cls, config_output, logger=None):
+        """Parse the output field of the config dict.
+
+        :param config_output:   The configuration dict for the output field.
+        :param logger:          A logger object for logging debug info. [default: None]
+
+        :returns: an Output handler
+        """
+        import piff
+
+        # Get the class to use for handling the output data
+        # Default type is 'File'
+        # Not sure if this is what we'll always want, but it would be simple if we can make it work.
+        output_handler_class = getattr(piff, 'Output' + config_output.pop('type','File'))
+
+        # Read any other kwargs in the output field
+        kwargs = output_handler_class.parseKwargs(config_output)
+
+        # Build handler object
+        output_handler = output_handler_class(**kwargs)
+
+        return output_handler
+
     @classmethod
     def parseKwargs(cls, config_output):
         """Parse the output field of a configuration dict and return the kwargs to use for
@@ -81,11 +84,11 @@ class OutputHandler(object):
 
 
 # Note: I'm having a hard time imagining what other kinds of output handlers we'd want
-#       here, so this whole idea of an OutputHandler might be overkill.  For now, I'm
+#       here, so this whole idea of an Output base class might be overkill.  For now, I'm
 #       keeping the code for writing and reading PSF objects to a file in the PSF class,
 #       so this class is really bare-bones, just farming out the work to PSF.
-class OutputFile(OutputHandler):
-    """An OutputHandler that just writes to a FITS file.
+class OutputFile(Output):
+    """An Output handler that just writes to a FITS file.
     """
     def __init__(self, file_name, dir=None, logger=None):
         """

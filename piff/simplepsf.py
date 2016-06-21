@@ -76,11 +76,11 @@ class SimplePSF(PSF):
                 raise ValueError("%s field is required in psf field for type=Simple"%key)
 
         # make a Model object to use for the individual stellar fitting
-        model = piff.process_model(kwargs.pop('model'), logger=logger)
+        model = piff.Model.process(kwargs.pop('model'), logger=logger)
         kwargs['model'] = model
 
         # make an Interp object to use for the interpolation
-        interp = piff.process_interp(kwargs.pop('interp'), logger=logger)
+        interp = piff.Interp.process(kwargs.pop('interp'), logger=logger)
         kwargs['interp'] = interp
 
         return kwargs

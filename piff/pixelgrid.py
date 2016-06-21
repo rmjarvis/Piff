@@ -277,7 +277,7 @@ class PixelGrid(Model):
         star.fit.params[:] = params[self._constraints:]  # Omit the constrained pixels
 
     def initialize(self, star, mask=True):
-        """Create a Star instance that PixelGrid can manipulate.
+        """Initialize a star to work with the current model.
 
         :param star:    A Star instance with the raw data.
         :param mask:    If True, set data.weight to zero at pixels that are outside

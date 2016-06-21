@@ -71,7 +71,7 @@ def test_Gaussian():
         logger = piff.config.setup_logger(verbose=3)
     else:
         logger = piff.config.setup_logger(verbose=1)
-    model = piff.process_model(config['model'], logger)
+    model = piff.Model.process(config['model'], logger)
     fit = model.fit(star).fit
 
     # Same tests.
@@ -119,7 +119,7 @@ def test_Mean():
         }
     }
     logger = piff.config.setup_logger()
-    interp = piff.process_interp(config['interp'], logger)
+    interp = piff.Interp.process(config['interp'], logger)
     interp.solve(stars)
     numpy.testing.assert_almost_equal(mean, interp.mean)
 
@@ -230,7 +230,7 @@ def test_single_image():
         logger = piff.config.setup_logger(verbose=3)
     else:
         logger = piff.config.setup_logger(verbose=1)
-    orig_stars, wcs, pointing = piff.process_input(config['input'], logger)
+    orig_stars, wcs, pointing = piff.Input.process(config['input'], logger)
 
     # Use a SimplePSF to process the stars data this time.
     psf = piff.SimplePSF(orig_stars, wcs, pointing, model, interp)
@@ -269,7 +269,7 @@ def test_single_image():
     min_sep = 1
     max_sep = 100
     bin_size = 0.1
-    stats = piff.RhoStatistics(psf, orig_stars, min_sep=min_sep, max_sep=max_sep, bin_size=bin_size)
+    stats = piff.RhoStats(psf, orig_stars, min_sep=min_sep, max_sep=max_sep, bin_size=bin_size)
 
     rhos = [stats.rho1, stats.rho2, stats.rho3, stats.rho4, stats.rho5]
     import numpy as np
@@ -292,7 +292,7 @@ def test_single_image():
     stats.write(rho_psf_file)
 
     # Test that we can make summary shape statistics, using HSM
-    shapeStats = piff.ShapeStatistics(psf, orig_stars)
+    shapeStats = piff.ShapeStats(psf, orig_stars)
 
     # test their characteristics
     np.testing.assert_array_almost_equal(sigma, shapeStats.T, decimal=4)
@@ -305,11 +305,17 @@ def test_single_image():
     shape_psf_file = os.path.join('output','simple_psf_shapestats.png')
     shapeStats.write(shape_psf_file)
 
-    # Test that we can use the config parser for both RhoStatistics and ShapeStatistics
-    config['stats'] = [{'type': 'ShapeStatistics',
-                        'output': {'file_name': shape_psf_file}},
-                       {'type': 'RhoStatistics',
-                        'output': {'file_name': rho_psf_file}}]
+    # Test that we can use the config parser for both RhoStats and ShapeStats
+    config['stats'] = [
+        {
+            'type': 'Shape',
+            'output': {'file_name': shape_psf_file}
+        },
+        {
+            'type': 'Rho',
+            'output': {'file_name': rho_psf_file}
+        },
+    ]
 
     os.remove(psf_file)
     os.remove(rho_psf_file)

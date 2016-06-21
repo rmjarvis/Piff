@@ -20,32 +20,6 @@ from __future__ import print_function
 import numpy
 from .util import write_kwargs, read_kwargs
 
-def process_interp(config_interp, logger=None):
-    """Parse the interp field of the config dict.
-
-    :param config_interp:   The configuration dict for the interp field.
-    :param logger:          A logger object for logging debug info. [default: None]
-
-    :returns: an Interp instance
-    """
-    import piff
-
-    if 'type' not in config_interp:
-        raise ValueError("config['interp'] has no type field")
-
-    # Get the class to use for the interpolator
-    # Not sure if this is what we'll always want, but it would be simple if we can make it work.
-    interp_class = getattr(piff, config_interp.pop('type'))
-
-    # Read any other kwargs in the interp field
-    kwargs = interp_class.parseKwargs(config_interp, logger)
-
-    # Build interp object
-    interp = interp_class(**kwargs)
-
-    return interp
-
-
 class Interp(object):
     """The base class for interpolating a set of data vectors across the field of view.
 
@@ -67,6 +41,32 @@ class Interp(object):
     implemented by any derived class.
     """
     @classmethod
+    def process(cls, config_interp, logger=None):
+        """Parse the interp field of the config dict.
+
+        :param config_interp:   The configuration dict for the interp field.
+        :param logger:          A logger object for logging debug info. [default: None]
+
+        :returns: an Interp instance
+        """
+        import piff
+
+        if 'type' not in config_interp:
+            raise ValueError("config['interp'] has no type field")
+
+        # Get the class to use for the interpolator
+        # Not sure if this is what we'll always want, but it would be simple if we can make it work.
+        interp_class = getattr(piff, config_interp.pop('type'))
+
+        # Read any other kwargs in the interp field
+        kwargs = interp_class.parseKwargs(config_interp, logger)
+
+        # Build interp object
+        interp = interp_class(**kwargs)
+
+        return interp
+
+    @classmethod
     def parseKwargs(cls, config_interp, logger=None):
         """Parse the interp field of a configuration dict and return the kwargs to use for
         initializing an instance of the class.
@@ -81,7 +81,6 @@ class Interp(object):
         """
         kwargs = {}
         kwargs.update(config_interp)
-        kwargs['logger'] = logger
         return kwargs
 
     def getProperties(self, star):
