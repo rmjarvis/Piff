@@ -85,6 +85,10 @@ from .mean_interp import Mean
 from .polynomial_interp import Polynomial, polynomial_types
 from .basis_interp import BasisInterp, BasisPolynomial
 
+# Outliers
+# Outlier handlers are named BlahOutliers where Blah is what they are called in teh config file
+from .outliers import Outliers, ChisqOutliers
+
 # Inputs
 # Input handlers are named InputBlah where Blah is what they are called in the config file
 from .input import Input, InputFiles

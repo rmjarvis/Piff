@@ -24,6 +24,7 @@ import fitsio
 from .star import Star, StarFit, StarData
 from .model import Model
 from .interp import Interp
+from .outliers import Outliers
 from .util import write_kwargs, read_kwargs
 
 class PSF(object):
@@ -79,7 +80,7 @@ class PSF(object):
             logger.debug("PSF type is %s",psf_type)
         cls = getattr(piff, psf_type)
 
-        # Read any other kwargs in the model field
+        # Read any other kwargs in the psf field
         kwargs = cls.parseKwargs(config_psf, logger)
 
         # Build PSF object

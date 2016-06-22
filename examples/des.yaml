@@ -50,15 +50,17 @@ psf:
 
     outliers:
 
-        # This does outlier rejection based on the median and the mean absolute deviation (MAD)
-        # [median – t * MAD, median + t * MAD]
-        type: MAD
+        # This does outlier rejection based on the chisq value of the residual of the
+        # interpolated star with the original.
+        type: Chisq
 
-        # Even though this method does not actually use the normal definition of sigma as
-        # sqrt(variance), it still specifies the outlier threshold in terms of sigma for a
-        # Gaussian distribution.
-        # In the equation above: t = sqrt(pi/2) nsigma
-        nsigma: 3
+        # The threshold is given in terms of nsigma equivalent, since that's how we normally
+        # think of this, but really this is based on the chisq probability distribution for the
+        # number of degrees of freedom the model has.
+        nsigma: 4
+
+        # Only remove at most 2 stars per iteration.
+        max_remove: 2
 
     model:
 

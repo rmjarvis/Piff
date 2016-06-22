@@ -24,6 +24,7 @@ import fitsio
 from .star import Star, StarFit, StarData
 from .model import Model
 from .interp import Interp
+from .outliers import Outliers
 from .psf import PSF
 
 class SimplePSF(PSF):
@@ -33,7 +34,8 @@ class SimplePSF(PSF):
     The model defines the functional form of the surface brightness profile, and the
     interpolator defines how the parameters of the model vary across the field of view.
     """
-    def __init__(self, stars, wcs, pointing, model, interp, extra_interp_properties=()):
+    def __init__(self, stars, wcs, pointing, model, interp,
+                 outliers=None, extra_interp_properties=()):
         """
         :param stars:       A list of Star instances.
         :param wcs:         A dict of WCS solutions indexed by chipnum.
@@ -41,12 +43,15 @@ class SimplePSF(PSF):
                             [Note: pointing should be None if the WCS is not a galsim.CelestialWCS]
         :param model:       A Model instance used for modeling the surface brightness profile.
         :param interp:      An Interp instance used to interpolate across the field of view.
+        :param outliers:    Optionally, an Outliers instance used to remove outliers.
+                            [default: None]
         """
         self.stars = stars
         self.wcs = wcs
         self.pointing = pointing
         self.model = model
         self.interp = interp
+        self.outliers = outliers
         self.extra_interp_properties = extra_interp_properties
         self.kwargs = {
             # These are junk entries that will be overwritten.
@@ -54,6 +59,7 @@ class SimplePSF(PSF):
             #       in the _finish_read function.
             'model': 0,
             'interp': 0,
+            'outliers': 0,
         }
 
     @classmethod
@@ -83,14 +89,18 @@ class SimplePSF(PSF):
         interp = piff.Interp.process(kwargs.pop('interp'), logger=logger)
         kwargs['interp'] = interp
 
+        if 'outliers' in kwargs:
+            outliers = piff.Outliers.process(kwargs.pop('outliers'), logger=logger)
+            kwargs['outliers'] = outliers
+
         return kwargs
 
     def fit(self, chisq_threshold=0.1, logger=None):
         """Fit interpolated PSF model to star data using standard sequence of operations.
 
-        :param chisq_threshold:  Change in reduced chisq at which iteration will terminate.
-                            [default: 0.1]
-        :param logger:      A logger object for logging debug info. [default: None]
+        :param chisq_threshold: Change in reduced chisq at which iteration will terminate.
+                                [default: 0.1]
+        :param logger:          A logger object for logging debug info. [default: None]
         """
         if logger:
             logger.debug("Initializing models")
@@ -101,8 +111,7 @@ class SimplePSF(PSF):
         self.stars = self.interp.initialize(self.stars, logger=logger)
 
         # Begin iterations.  Very simple convergence criterion right now.
-        # ??? Also will need to include outlier rejection here.
-        # ??? Make these convergence constants program options???
+        # TODO: Make these convergence constants configurable in config dict.
         max_iterations = 30
 
         # For basis models, we can compute a quadratic form for chisq, and if we are using
@@ -112,6 +121,7 @@ class SimplePSF(PSF):
         quadratic_chisq = hasattr(self.model, 'chisq') and self.interp.degenerate_points
 
         oldchisq = 0.
+        nremoved = 0
         for iteration in range(max_iterations):
             if logger:
                 logger.debug("Fitting stars, iteration %d", iteration)
@@ -131,21 +141,30 @@ class SimplePSF(PSF):
 
             if hasattr(self.model, 'reflux'):
                 self.stars = [self.model.reflux(self.interp.interpolate(s)) for s in self.stars]
+
+            if self.outliers and (iteration > 0 or self.interp.degenerate_points):
+                # Perform outlier rejection, but not on first iteration for degenerate solvers.
+                self.stars, nremoved = self.outliers.removeOutliers(self.stars, logger=logger)
+                if logger:
+                    if nremoved == 0:
+                        logger.debug("No outliers found")
+                    else:
+                        logger.debug("Removed %d outliers", nremoved)
+
             chisq = numpy.sum([s.fit.chisq for s in self.stars])
             dof   = numpy.sum([s.fit.dof for s in self.stars])
             if logger:
-                logger.info('Iteration {:d} chisq= {:.2f} / {:d} dof'.format(iteration,
-                                                                             chisq,dof))
+                logger.info('Iteration %d: chisq = %.2f / %d dof', iteration, chisq, dof)
 
-            # ??? This is where we should do some outlier rejection.
-
-            # ??? Very simple convergence test here:
+            # Very simple convergence test here:
             # Note, the lack of abs here means if chisq increases, we also stop.
-            if oldchisq>0 and oldchisq-chisq < chisq_threshold*dof:
-                break
-            if logger and iteration+1 >= max_iterations:
-                logger.warning('PSF fit did not converge')
+            # Also, don't quit if we removed any outliers.
+            if (nremoved == 0) and (oldchisq > 0) and (oldchisq-chisq < chisq_threshold*dof):
+                return
             oldchisq = chisq
+
+        logger.warning('PSF fit did not converge')
+
 
     def drawStar(self, star):
         """Generate PSF image for a given star.
@@ -173,6 +192,10 @@ class SimplePSF(PSF):
         self.interp.write(fits, extname + '_interp')
         if logger:
             logger.debug("Wrote the PSF interp to extension %s",extname + '_interp')
+        if self.outliers:
+            self.outliers.write(fits, extname + '_outliers')
+            if logger:
+                logger.debug("Wrote the PSF outliers to extension %s",extname + '_outliers')
 
     def _finish_read(self, fits, extname, logger):
         """Finish the reading process with any class-specific steps.
@@ -183,4 +206,8 @@ class SimplePSF(PSF):
         """
         self.model = Model.read(fits, extname + '_model')
         self.interp = Interp.read(fits, extname + '_interp')
+        if extname + '_outliers' in fits:
+            self.outliers = Outliers.read(fits, extname + '_outliers')
+        else:
+            self.outliers = None
 
