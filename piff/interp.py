@@ -260,3 +260,7 @@ class Interp(object):
         """
         raise NotImplemented("Derived classes must define the readSolution function")
 
+    def update(self, **kwargs):
+        """A function for updating parameters in the model.
+        """
+        raise NotImplemented("Derived classes need to set their own update functions!")

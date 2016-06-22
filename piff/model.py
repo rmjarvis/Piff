@@ -235,3 +235,7 @@ class Model(object):
         kwargs = dict([ (col, data[col][0]) for col in cols ])
         return kwargs
 
+    def update(self, **kwargs):
+        """A function for updating parameters in the model.
+        """
+        raise NotImplemented("Derived classes need to set their own update functions!")
