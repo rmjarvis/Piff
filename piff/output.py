@@ -19,6 +19,7 @@
 from __future__ import print_function
 
 import os
+from .util import ensure_dir
 
 class Output(object):
     """The base class for handling the output for writing a Piff model.
@@ -108,6 +109,7 @@ class OutputFile(Output):
         """
         if logger:
             logger.info("Writing PSF to %s", file_name)
+        ensure_dir(self.file_name)
         psf.write(self.file_name)
 
     def read(self, logger=None):

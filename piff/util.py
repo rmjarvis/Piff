@@ -18,6 +18,7 @@
 
 from __future__ import print_function
 import numpy
+import os
 
 # Courtesy of
 # http://stackoverflow.com/questions/3862310/how-can-i-find-all-subclasses-of-a-given-class-in-python
@@ -29,6 +30,11 @@ def get_all_subclasses(cls):
         all_subclasses.extend(get_all_subclasses(subclass))
 
     return all_subclasses
+
+def ensure_dir(target):
+    d = os.path.dirname(target)
+    if not os.path.exists(d):
+        os.makedirs(d)
 
 
 def write_kwargs(fits, extname, kwargs):
