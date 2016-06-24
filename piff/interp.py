@@ -122,6 +122,15 @@ class Interp(object):
         """
         raise NotImplemented("Derived classes must define the solve function")
 
+    def update(self, logger=None, **kwargs):
+        """Update the interpolant
+
+        :param kwargs:      Whatever you want to pass for updating the interpolant.
+
+        By default does NOTHING
+        """
+        pass
+
     def interpolate(self, star, logger=None):
         """Perform the interpolation to find the interpolated parameter vector at some position.
 

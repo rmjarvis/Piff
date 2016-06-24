@@ -110,6 +110,15 @@ class Model(object):
         """
         raise NotImplemented("Derived classes must define the fit function")
 
+    def update(self, logger=None, **kwargs):
+        """Update the model
+
+        :param kwargs:      Whatever you want to pass for updating the interpolant.
+
+        By default does NOTHING
+        """
+        pass
+
     def draw(self, star):
         """Create new Star instance that has StarData filled with a rendering
         of the PSF specified by the current StarFit parameters, flux, and center.

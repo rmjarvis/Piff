@@ -14,15 +14,9 @@
 
 from __future__ import print_function
 
-import galsim
-import fitsio
 import numpy
 
 from .psf import PSF
-from .interp import Interp
-from .model import Model
-from .stardata import StarData
-from .starfit import Star, StarFit
 from .gaussian_model import Gaussian
 
 class HyperPSF(PSF):
@@ -86,7 +80,7 @@ class HyperPSF(PSF):
             logger.debug("Done building PSF")
         return psf
 
-    def fit(self, stars, model_keys, interp_keys, model_comparer, logger=None, **kwargs):
+    def fit(self, stars, model_keys, interp_keys, model_comparer, model_comparer_weights=None, model_init=None, interp_init=None, model_error=None, interp_error=None, model_limit=None, interp_limit=None, logger=None, skip_fit=False, **kwargs):
         """Fit the model!
         :param stars:                       A list of StarData instances.
         :param model:                       A Model instance that defines how to model the individual PSFs
@@ -96,40 +90,128 @@ class HyperPSF(PSF):
         :param model_keys, interp_keys:     A list that gives the attributes of model/interp that the params correspond to
         :param model_comparer:              Model that gets applied to both stars and model_stars to compare success of model
         :param model_comparer_weights:      Weights to apply to the params from model_comparer
+        :param model_init, interp_init:     A list that gives the initial values
+        :param model_error, interp_error:   A list that gives the initial step sizes
+        :param model_limit, interp_limit:   A list that gives the limits of the fit
         :param logger:                      A logger object for logging debug info. [default: None]
-        :param kwargs:                  kwargs to pass to iminuit fitter
+        :param skip_fit:                    If True, do not run migrad fit
+        :param kwargs:                      kwargs to pass to iminuit fitter
         """
+        from iminuit import Minuit
 
-        # evaluate the stars with model_comparer
-        stars_evaluated = [model_comparer.fit(star) for star in stars]
+        # set up interior args for running the fit function
+        self._set_fit_func_kwargs(stars, model_keys, interp_keys, model_comparer, model_comparer_weights, model_init, interp_init, model_error, interp_error, model_limit, interp_limit)
 
         # set up iminuit object
+        minuit_kwargs = {'throw_nan': False,
+                         'pedantic': True,
+                         'print_level': 1,
+                         'errordef': 1,
+                         }
 
-    def _fit_func(self, params, stars, interp_keys, model_keys, model_comparer, model_comparer_weights, logger=None):
+        # update minuit_kwargs from set_fit_func_kwargs
+        minuit_kwargs.update(self._set_fit_func_kwargs_minuit)
+
+        # update minuit kwargs from the kwargs
+        minuit_kwargs.update(kwargs)
+
+        self._minuit = Minuit(self._fit_func, **minuit_kwargs)
+        if not skip_fit:
+            self._minuit.migrad()
+
+    def _set_fit_func_kwargs(self, stars, model_keys, interp_keys, model_comparer, model_comparer_weights, model_init, interp_init, model_error, interp_error, model_limit, interp_limit):
+        # everything is _'d private because I don't want people to touch it!
+        self._stars = [model_comparer.fit(star) for star in stars]
+        self._model_keys = model_keys
+        self._interp_keys = interp_keys
+        self._model_comparer = model_comparer
+        self._model_comparer_weights = model_comparer_weights
+        self._model_init = model_init
+        self._interp_init = interp_init
+        self._model_error = model_error
+        self._interp_error = interp_error
+        self._model_limit = model_limit
+        self._interp_limit = interp_limit
+
+        # build the iminuit arguments
+        self._fit_func_kwargs_minuit = {}
+        Nmodel = len(self._model_keys)
+        Ninterp = len(self._interp_keys)
+        Nkeys = Nmodel + Ninterp
+        # in principle I could make these as long as I wanted.
+        if Nkeys > 50:
+            raise Exception('Max of 50 variables! You have {0}!'.format(Nkeys))
+        for i in range(Nkeys, 50):
+            # fix unused parameters
+            self._fit_func_kwargs_minuit['fix_p{0}'.format(i)] = True
+
+        # set initial values
+        if self._model_init:
+            for i, val in enumerate(self._model_init):
+                self._fit_func_kwargs_minuit['p{0}'.format(i)] = val
+        if self._interp_init:
+            for i, val in enumerate(self._interp_init):
+                self._fit_func_kwargs_minuit['p{0}'.format(i + Nmodel)] = val
+
+        # set initial step sizes
+        if self._model_error:
+            for i, val in enumerate(self._model_error):
+                self._fit_func_kwargs_minuit['error_p{0}'.format(i)] = val
+        if self._interp_error:
+            for i, val in enumerate(self._interp_error):
+                self._fit_func_kwargs_minuit['error_p{0}'.format(i + Nmodel)] = val
+
+        # set limits
+        if self._model_limit:
+            for i, val in enumerate(self._model_limit):
+                self._fit_func_kwargs_minuit['limit_p{0}'.format(i)] = val
+        if self._interp_limit:
+            for i, val in enumerate(self._interp_limit):
+                self._fit_func_kwargs_minuit['limit_p{0}'.format(i + Nmodel)] = val
+
+
+    # forgive me oh lord this python sin
+    def _fit_func(self, p0, p1, p2, p3, p4, p5, p6, p7, p8, p9,
+                  p10, p11, p12, p13, p14, p15, p16, p17, p18, p19,
+                  p20, p21, p22, p23, p24, p25, p26, p27, p28, p29,
+                  p30, p31, p32, p33, p34, p35, p36, p37, p38, p39,
+                  p40, p41, p42, p43, p44, p45, p46, p47, p48, p49,
+                  logger=None):
+        # convert p to params
+        params = [p0, p1, p2, p3, p4, p5, p6, p7, p8, p9,
+                  p10, p11, p12, p13, p14, p15, p16, p17, p18, p19,
+                  p20, p21, p22, p23, p24, p25, p26, p27, p28, p29,
+                  p30, p31, p32, p33, p34, p35, p36, p37, p38, p39,
+                  p40, p41, p42, p43, p44, p45, p46, p47, p48, p49,]
+
+        return self._fit_func_interior(params, logger=logger)
+
+    def _fit_func_interior(self, params, logger=None):
         # update model and interp via params
-        model_params = params[:len(model_keys)]
-        model = {model_keys[i]: model_params[i]
-                 for i in xrange(len(model_keys))}
+        model_params = params[:len(self._model_keys)]
+        model = {self._model_keys[i]: model_params[i]
+                 for i in xrange(len(self._model_keys))}
         self.model.update(logger=logger, **model)
 
-        interp_params = params[len(model_keys):]
-        interp = {interp_keys[i]: interp_params[i]
-                 for i in xrange(len(interp_keys))}
+        interp_params = params[len(self._model_keys):len(self._model_keys) + len(self._interp_keys)]
+        interp = {self._interp_keys[i]: interp_params[i]
+                 for i in xrange(len(self._interp_keys))}
         self.interp.update(logger=logger, **interp)
 
         # interp
-        stars_interp = self.interp.interpolateList(stars, logger=logger)
+        stars_interp = self.interp.interpolateList(self._stars, logger=logger)
 
         # model
         stars_model = [self.model.draw(star) for star in stars_interp]
 
         # model_compare
-        stars_compare = [model_comparer(star) for star in stars_model]
+        stars_compare = [self._model_comparer.fit(star) for star in stars_model]
 
         # now compare the params of stars and stars_compare
-        chi = numpy.array([stars_compare.fit.params - stars.fit.params])
+        chi = numpy.array([stars_compare[i].fit.params - self._stars[i].fit.params
+                           for i in xrange(len(stars_compare))])
         chisq_vec = numpy.sum(chi ** 2, axis=1)
-        chisq = numpy.sum(chisq_vec * model_comparer_weights)
+        chisq = numpy.sum(chisq_vec * self._model_comparer_weights)
         return chisq
 
     def draw():
