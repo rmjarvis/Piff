@@ -13,12 +13,8 @@
 #    and/or other materials provided with the distribution.
 
 from __future__ import print_function
-import galsim
 import numpy
 import piff
-import os
-import yaml
-import fitsio
 
 """
 Test hyperpsf with gaussian as model, polynomial as interp. Solve gaussian background
@@ -80,6 +76,7 @@ def test_model_comparer():
                   'model_comparer': piff.Gaussian(),
                   }
     hyperpsf = piff.HyperPSF.build(stars, model, interp, print_level=4, **fit_kwargs)
+    # TODO: This performs AWFULLY. Maybe second moments are not so sensitive to sky background?
 
 def test_limits():
     true_background = 10.5
@@ -156,7 +153,8 @@ def generate_starlist(n_samples=1000, background=10.5):
     ccdnums = numpy.random.randint(1, 63, n_samples)
     jcenter = 2000
     icenter = 1000
-    sigmas = icens * (3. - 1.) / (icens.max() - icens.min())
+    # throw in a 1d poly nomial function for sigma g1 and g2
+    sigmas = icens * (3. - 1.) / (icens.max() - icens.min()) + 0.5
     g1s = (jcens - jcenter) * 0.1 / (jcens.max() - jcens.min())
     g2s = (icens - icenter) * 0.1 / (icens.max() - icens.min())
 

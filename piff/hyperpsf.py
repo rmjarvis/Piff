@@ -28,8 +28,6 @@ class HyperPSF(PSF):
 
     The first is used to build an HyperPSF model from the data.
     The second is used to read in an HyperPSF model from disk.
-
-    TODO: Add ability to access fit parameters from their correct keys
     """
 
     def __init__(self, model, interp):
@@ -83,7 +81,7 @@ class HyperPSF(PSF):
         :param interp:                      An Interp instance that defines how to do the interpolation of the
                                             data vectors (produced by model for each star).
         :param model_keys, interp_keys:     A list that gives the attributes of model/interp that the params correspond to
-        :param model_comparer:              Model that gets applied to both stars and model_stars to compare success of model
+        :param model_comparer:              Model that gets applied to both stars and model_stars to compare success of model. If none is given, compare pixels.
         :param model_comparer_weights:      Weights to apply to the params from model_comparer
         :param model_init, interp_init:     A list that gives the initial values
         :param model_error, interp_error:   A list that gives the initial step sizes
@@ -251,6 +249,27 @@ class HyperPSF(PSF):
         self.n_iter += 1
 
         return chisq
+
+    def __getitem__(self, key):
+        """Get best fit value of parameter of the fit.
+
+        This is a key that is in self._model_keys and self._interp_keys
+
+        :param key:     The name of the property to return
+
+        :returns: the value of the given property.
+        """
+        # figure out which parameter it is
+        if key in self._model_keys and key in self._interp_keys:
+            raise Exception('Key {0} is in both the model and interpolator?'.format(key))
+        elif key in self._model_keys:
+            index = self._model_keys.index(key)
+        elif key in self._interp_keys:
+            index = self._interp_keys.index(key) + len(self._model_keys)
+        else:
+            raise Exception('Key {0} is not a valid parameter'.format(key))
+        pkey = 'p{0}'.format(index)
+        return self._minuit.fitarg[pkey]
 
     def draw(self, star):
         star = self.interp.interpolate(star)
