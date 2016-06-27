@@ -59,8 +59,8 @@ psf:
         # number of degrees of freedom the model has.
         nsigma: 4
 
-        # Only remove at most 2 stars per iteration.
-        max_remove: 2
+        # Only remove at most 3 stars per iteration.
+        max_remove: 3
 
     model:
 
@@ -99,3 +99,6 @@ stats:
         sep_units: arcmin
         bin_size: 0.1
 
+# Set the verbosity level a little higher than default (1) to give extra information
+# about the progress.
+verbose: 2

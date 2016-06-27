@@ -142,7 +142,7 @@ class SimplePSF(PSF):
             if hasattr(self.model, 'reflux'):
                 self.stars = [self.model.reflux(self.interp.interpolate(s)) for s in self.stars]
 
-            if self.outliers and (iteration > 0 or self.interp.degenerate_points):
+            if self.outliers and (iteration > 0 or not self.interp.degenerate_points):
                 # Perform outlier rejection, but not on first iteration for degenerate solvers.
                 self.stars, nremoved = self.outliers.removeOutliers(self.stars, logger=logger)
                 if logger:

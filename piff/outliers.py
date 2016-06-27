@@ -279,7 +279,9 @@ class ChisqOutliers(Outliers):
         nremoved = numpy.sum(chisq > thresh)
 
         if logger:
-            logger.debug("Found %d stars with chisq > thresh", nstars)
+            logger.debug("Found %d stars with chisq > thresh", nremoved)
+            logger.debug("chisq = %s",chisq[chisq > thresh])
+            logger.debug("thresh = %s",thresh[chisq > thresh])
 
         if nremoved == 0:
             good_stars = stars
