@@ -26,8 +26,8 @@ from .starfit import Star, StarFit
 class Gaussian(Model):
     """An extremely simple PSF model that just considers the PSF as a sheared Gaussian.
     """
-    def __init__(self, logger=None):
-        self.kwargs = {}
+    def __init__(self, background=0, logger=None):
+        self.kwargs = {'background': background}
 
     def fit(self, star):
         """Fit the image by running the HSM adaptive moments code on the image and using
@@ -39,6 +39,10 @@ class Gaussian(Model):
         """
         import galsim
         image, weight, image_pos = star.data.getImage()
+
+        # subtract background
+        image = image - self.kwargs['background']
+
         mom = image.FindAdaptiveMom(weight=weight)
 
         sigma = mom.moments_sigma
@@ -62,21 +66,34 @@ class Gaussian(Model):
         flux = mom.moments_amp
         center = mom.moments_centroid
 
-        # Also need to compute chisq
-        prof = self.getProfile(params) * flux
-        offset = center - image.trueCenter()
-        model_image = prof.drawImage(image.copy(), method='no_pixel', offset=offset)
+        # # Also need to compute chisq
+        # prof = self.getProfile(params) * flux
+        # offset = center - image.trueCenter()
+        # model_image = prof.drawImage(image.copy(), method='no_pixel', offset=offset)
+        # chisq = numpy.std(image.array - model_image.array)
+        # dof = numpy.count_nonzero(weight.array) - 6
+
+        fit = StarFit(params, flux=flux, center=center-image_pos)
+        model_star = Star(star.data, fit)
+
+        # compute chisq
+        model_star = self.draw(model_star)
+        model_image = model_star.data.getImage()[0]
         chisq = numpy.std(image.array - model_image.array)
         dof = numpy.count_nonzero(weight.array) - 6
-
-        fit = StarFit(params, flux=flux, center=center-image_pos, chisq=chisq, dof=dof)
+        fit = StarFit(params, flux=model_star.fit.flux, center=model_star.fit.center, chisq=chisq, dof=dof)
         return Star(star.data, fit)
+
+
+    def update(self, logger=None, **kwargs):
+        self.kwargs.update(kwargs)
+
 
     def getProfile(self, params):
         """Get a version of the model as a GalSim GSObject
 
         :param params:      A numpy array with [ sigma, g1, g2 ]
-         
+
         :returns: a galsim.GSObject instance
         """
         import galsim
@@ -87,15 +104,22 @@ class Gaussian(Model):
     def draw(self, star):
         """Draw the model on the given image.
 
-        :param star:    A Star instance with the fitted parameters to use for drawing and a 
+        :param star:    A Star instance with the fitted parameters to use for drawing and a
                         data field that acts as a template image for the drawn model.
 
         :returns: a new Star instance with the data field having an image of the drawn model.
         """
         import galsim
         prof = self.getProfile(star.fit.params)
-        center = galsim.PositionD(*star.fit.center)
+        # not sure what is going on here. Kludging for now
+        if type(star.fit.center) != galsim.PositionD:
+            center = galsim.PositionD(*star.fit.center)
+        else:
+            center = star.fit.center
         offset = star.data.image_pos + center - star.data.image.trueCenter()
         image = prof.drawImage(star.data.image.copy(), method='no_pixel', offset=offset)
+        # add background
+        image = image + self.kwargs['background']
+
         data = StarData(image, star.data.image_pos, star.data.weight)
         return Star(data, star.fit)

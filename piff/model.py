@@ -110,10 +110,21 @@ class Model(object):
         """
         raise NotImplemented("Derived classes must define the fit function")
 
+    def solve(self, star_list, logger=None):
+        """Solve for any model coefficients given some data.
+
+        :param star_list:   A list of Star instances to fit model parameters with
+        :param logger:      A logger object for logging debug info. [default: None]
+
+        By default does NOTHING since you may have no hyperparameters to put in
+        """
+        pass
+
     def update(self, logger=None, **kwargs):
         """Update the model
 
-        :param kwargs:      Whatever you want to pass for updating the interpolant.
+        :param kwargs:      Whatever you want to pass for updating the model.
+        :param logger:      A logger object for logging debug info. [default: None]
 
         By default does NOTHING
         """
@@ -243,8 +254,3 @@ class Model(object):
         assert len(data) == 1
         kwargs = dict([ (col, data[col][0]) for col in cols ])
         return kwargs
-
-    def update(self, **kwargs):
-        """A function for updating parameters in the model.
-        """
-        raise NotImplemented("Derived classes need to set their own update functions!")

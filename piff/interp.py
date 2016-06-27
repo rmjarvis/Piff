@@ -91,7 +91,7 @@ class Interp(object):
         return kwargs
 
     def getProperties(self, star):
-        """Extract the appropriate properties to use as the independent variables for the 
+        """Extract the appropriate properties to use as the independent variables for the
         interpolation.
 
         The base class implementation returns the field position (u,v) as a 1d numpy array.
@@ -113,7 +113,7 @@ class Interp(object):
         :param logger:      A logger object for logging debug info. [default: None]
         """
         pass
-    
+
     def solve(self, star_list, logger=None):
         """Solve for the interpolation coefficients given some data.
 
@@ -268,8 +268,3 @@ class Interp(object):
         :param extname:     The name of the extension with the interpolator information.
         """
         raise NotImplemented("Derived classes must define the readSolution function")
-
-    def update(self, **kwargs):
-        """A function for updating parameters in the model.
-        """
-        raise NotImplemented("Derived classes need to set their own update functions!")

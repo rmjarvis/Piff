@@ -17,7 +17,6 @@ from __future__ import print_function
 import numpy
 
 from .psf import PSF
-from .gaussian_model import Gaussian
 
 class HyperPSF(PSF):
     """A class that can fit the hyperparameters associated with the models and interpolations based on moments.
@@ -30,8 +29,7 @@ class HyperPSF(PSF):
     The first is used to build an HyperPSF model from the data.
     The second is used to read in an HyperPSF model from disk.
 
-    NOTE: not sure about where the optics drawing goes. probably model? so hsm goes
-    in a separate place to fit stuff
+    TODO: Add ability to access fit parameters from their correct keys
     """
 
     def __init__(self, model, interp):
@@ -45,8 +43,11 @@ class HyperPSF(PSF):
         self.model = model
         self.interp = interp
 
+        self.n_iter = 0
+        self._p_hist = []
+
     @classmethod
-    def build(cls, stars, model, interp, model_keys, interp_keys, model_comparer=Gaussian(), model_comparer_weights=None, fit_kwargs={}, logger=None):
+    def build(cls, stars, model, interp, logger=None, **fit_kwargs):
         """The main driver function to build an HyperPSF model from data.
 
         :param stars:                       A list of StarData instances.
@@ -54,9 +55,6 @@ class HyperPSF(PSF):
                                             at the location of each star.
         :param interp:                      An Interp instance that defines how to do the interpolation of the
                                             data vectors (produced by model for each star).
-        :param model_keys, interp_keys:     A list that gives the attributes of model/interp that the params correspond to
-        :param model_comparer:              Model that gets applied to both stars and model_stars to compare success of model
-        :param model_comparer_weights:      Weights to apply to the params from model_comparer
         :param fit_kwargs:                  kwargs to pass to iminuit fitter
         :param logger:                      A logger object for logging debug info. [default: None]
 
@@ -66,21 +64,18 @@ class HyperPSF(PSF):
         """
         if logger:
             logger.info("Start building HyperPSF using %s stars", len(stars))
-            logger.debug("Model Comparer is %s", model_comparer)
             logger.debug("Model is %s", model)
             logger.debug("Interp is %s", interp)
-            logger.debug("Model params are %s", model_keys)
-            logger.debug("Interp params are %s", interp_keys)
 
         psf = cls(model, interp)
         if logger:
             logger.info("Fitting PSF model")
-        psf.fit(stars, model_keys, interp_keys, model_comparer, model_comparer_weights, logger=logger, **fit_kwargs)
+        psf.fit(stars, logger=logger, **fit_kwargs)
         if logger:
             logger.debug("Done building PSF")
         return psf
 
-    def fit(self, stars, model_keys, interp_keys, model_comparer, model_comparer_weights=None, model_init=None, interp_init=None, model_error=None, interp_error=None, model_limit=None, interp_limit=None, logger=None, skip_fit=False, **kwargs):
+    def fit(self, stars, model_keys=[], interp_keys=[], model_comparer=None, model_comparer_weights=None, model_init=None, interp_init=None, model_error=None, interp_error=None, model_limit=None, interp_limit=None, logger=None, skip_fit=False, **kwargs):
         """Fit the model!
         :param stars:                       A list of StarData instances.
         :param model:                       A Model instance that defines how to model the individual PSFs
@@ -97,31 +92,42 @@ class HyperPSF(PSF):
         :param skip_fit:                    If True, do not run migrad fit
         :param kwargs:                      kwargs to pass to iminuit fitter
         """
+        if logger:
+            logger.info("Start fitting HyperPSF using %s stars", len(stars))
+            logger.debug("Model Comparer is %s", model_comparer)
+            logger.debug("Model is %s", self.model)
+            logger.debug("Interp is %s", self.interp)
+            logger.debug("Model params are %s", model_keys)
+            logger.debug("Interp params are %s", interp_keys)
         from iminuit import Minuit
 
         # set up interior args for running the fit function
         self._set_fit_func_kwargs(stars, model_keys, interp_keys, model_comparer, model_comparer_weights, model_init, interp_init, model_error, interp_error, model_limit, interp_limit)
 
         # set up iminuit object
-        minuit_kwargs = {'throw_nan': False,
-                         'pedantic': True,
-                         'print_level': 1,
-                         'errordef': 1,
-                         }
+        self.minuit_kwargs = {'throw_nan': False,
+                              'pedantic': True,
+                              'print_level': 0,
+                              'errordef': 1,
+                              }
 
         # update minuit_kwargs from set_fit_func_kwargs
-        minuit_kwargs.update(self._set_fit_func_kwargs_minuit)
+        self.minuit_kwargs.update(self._fit_func_kwargs_minuit)
 
         # update minuit kwargs from the kwargs
-        minuit_kwargs.update(kwargs)
+        self.minuit_kwargs.update(kwargs)
 
-        self._minuit = Minuit(self._fit_func, **minuit_kwargs)
+        self._logger = logger
+        self._minuit = Minuit(self._fit_func, **self.minuit_kwargs)
         if not skip_fit:
             self._minuit.migrad()
 
     def _set_fit_func_kwargs(self, stars, model_keys, interp_keys, model_comparer, model_comparer_weights, model_init, interp_init, model_error, interp_error, model_limit, interp_limit):
         # everything is _'d private because I don't want people to touch it!
-        self._stars = [model_comparer.fit(star) for star in stars]
+        if model_comparer:
+            self._stars = [model_comparer.fit(star) for star in stars]
+        else:
+            self._stars = stars
         self._model_keys = model_keys
         self._interp_keys = interp_keys
         self._model_comparer = model_comparer
@@ -152,6 +158,9 @@ class HyperPSF(PSF):
         if self._interp_init:
             for i, val in enumerate(self._interp_init):
                 self._fit_func_kwargs_minuit['p{0}'.format(i + Nmodel)] = val
+        # set rest
+        for i in xrange(Nkeys, 50):
+            self._fit_func_kwargs_minuit['p{0}'.format(i)] = 0
 
         # set initial step sizes
         if self._model_error:
@@ -169,6 +178,9 @@ class HyperPSF(PSF):
             for i, val in enumerate(self._interp_limit):
                 self._fit_func_kwargs_minuit['limit_p{0}'.format(i + Nmodel)] = val
 
+        # run initial solves for model and interp
+        self.model.solve(self._stars)
+        self.interp.solve(self._stars)
 
     # forgive me oh lord this python sin
     def _fit_func(self, p0, p1, p2, p3, p4, p5, p6, p7, p8, p9,
@@ -176,7 +188,7 @@ class HyperPSF(PSF):
                   p20, p21, p22, p23, p24, p25, p26, p27, p28, p29,
                   p30, p31, p32, p33, p34, p35, p36, p37, p38, p39,
                   p40, p41, p42, p43, p44, p45, p46, p47, p48, p49,
-                  logger=None):
+                  ):
         # convert p to params
         params = [p0, p1, p2, p3, p4, p5, p6, p7, p8, p9,
                   p10, p11, p12, p13, p14, p15, p16, p17, p18, p19,
@@ -184,35 +196,63 @@ class HyperPSF(PSF):
                   p30, p31, p32, p33, p34, p35, p36, p37, p38, p39,
                   p40, p41, p42, p43, p44, p45, p46, p47, p48, p49,]
 
-        return self._fit_func_interior(params, logger=logger)
+        return self._fit_func_interior(params)
 
-    def _fit_func_interior(self, params, logger=None):
+    def _fit_func_interior(self, params):
         # update model and interp via params
-        model_params = params[:len(self._model_keys)]
-        model = {self._model_keys[i]: model_params[i]
-                 for i in xrange(len(self._model_keys))}
-        self.model.update(logger=logger, **model)
+        if len(self._model_keys) > 0:
+            model_params = params[:len(self._model_keys)]
+            model = {self._model_keys[i]: model_params[i]
+                     for i in xrange(len(self._model_keys))}
+            self.model.update(logger=self._logger, **model)
+            self.model.solve(self._stars)
 
-        interp_params = params[len(self._model_keys):len(self._model_keys) + len(self._interp_keys)]
-        interp = {self._interp_keys[i]: interp_params[i]
-                 for i in xrange(len(self._interp_keys))}
-        self.interp.update(logger=logger, **interp)
+        if len(self._interp_keys) > 0:
+            interp_params = params[len(self._model_keys):len(self._model_keys) + len(self._interp_keys)]
+            interp = {self._interp_keys[i]: interp_params[i]
+                     for i in xrange(len(self._interp_keys))}
+            self.interp.update(logger=self._logger, **interp)
+            self.interp.solve(self._stars)
 
         # interp
-        stars_interp = self.interp.interpolateList(self._stars, logger=logger)
+        stars_interp = self.interp.interpolateList(self._stars, logger=self._logger)
 
         # model
         stars_model = [self.model.draw(star) for star in stars_interp]
 
-        # model_compare
-        stars_compare = [self._model_comparer.fit(star) for star in stars_model]
+        # if given model_comparer, use to evaluate, else compare drawn images
+        if self._model_comparer:
+            # model_compare
+            stars_compare = [self._model_comparer.fit(star) for star in stars_model]
 
-        # now compare the params of stars and stars_compare
-        chi = numpy.array([stars_compare[i].fit.params - self._stars[i].fit.params
-                           for i in xrange(len(stars_compare))])
-        chisq_vec = numpy.sum(chi ** 2, axis=1)
-        chisq = numpy.sum(chisq_vec * self._model_comparer_weights)
+            # now compare the params of stars and stars_compare
+            chisq_vec = numpy.array([numpy.square(stars_compare[i].fit.params - self._stars[i].fit.params)
+                                     for i in xrange(len(stars_compare))])
+            chisq = numpy.sum(chisq_vec * self._model_comparer_weights)
+        else:
+            chisqs = []
+            for star, star_model in zip(self._stars, stars_model):
+                image, weight, pos = star.data.getImage()
+                model_image = star_model.data.getImage()[0]
+                # square of the difference
+                chisq = numpy.sum(numpy.square(((image - model_image) * weight).array))
+                chisqs.append(chisq)
+            chisq = numpy.sum(chisqs)
+
+
+        if (self.n_iter % 10 == 0) and (self.minuit_kwargs['print_level'] > 0):
+            print(self.n_iter)
+            if len(self._model_keys) > 0:
+                print(model)
+            if len(self._interp_keys) > 0:
+                print(interp)
+            print(chisq)
+            self._p_hist.append([params, chisq])
+        self.n_iter += 1
+
         return chisq
 
-    def draw():
-        pass
+    def draw(self, star):
+        star = self.interp.interpolate(star)
+        star = self.model.draw(star)
+        return star
