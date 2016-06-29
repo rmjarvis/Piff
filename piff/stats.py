@@ -20,14 +20,23 @@
 
 from __future__ import print_function
 import numpy as np
+import os
 
 class Stats(object):
     """The base class for getting the statistics of a set of stars.
 
-    Takes in a psf and a list of stars and performs an analysis on it that can
-    then be plotted or otherwise saved to disk.
-    """
+    This is essentially an abstract base class intended to define the methods that should be
+    implemented by any derived class.
 
+    The usual code flow for using a Stats instance is:
+
+        >>> stats = SomeKindofStats(...)
+        >>> stats.compute(psf, stars, logger)
+        >>> stats.write(file_name=file_name)
+
+    There is also a ``plot`` method if you want to make the matplot lib fig, ax and do something
+    else with it besides just write it to a file.
+    """
     @classmethod
     def process(cls, config_stats, logger):
         """Parse the stats field of the config dict.
@@ -35,7 +44,7 @@ class Stats(object):
         :param config_stats:    The configuration dict for the stats field.
         :param logger:          A logger object for logging debug info.
 
-        :returns: an stats instance
+        :returns: a Stats instance
         """
         import piff
 
@@ -54,76 +63,82 @@ class Stats(object):
             # Get the class to use for the stats
             stats_class = getattr(piff, cfg.pop('type') + 'Stats')
 
-            if 'output' not in cfg:
-                raise ValueError("config['stats'] has no output field")
-            stats.append([piff.Output.process(cfg['output'], logger=logger), stats_class])
-            # can go stats[i][0].write(stats[i][1](psf, stars)) to perform tests
+            # Read any other kwargs in the stats field
+            kwargs = stats_class.parseKwargs(cfg, logger)
+
+            stats.append(stats_class(**kwargs))
 
         return stats
 
-    def __init__(self, psf, stars, logger=None, **kwargs):
-        """Perform your statistical operation on the stars.
+    @classmethod
+    def parseKwargs(cls, config_stats, logger=None):
+        """Parse the stats field of a configuration dict and return the kwargs to use for
+        initializing an instance of the class.
+
+        The base class implementation just returns the kwargs as they are, but derived classes
+        might want to override this if they need to do something more sophisticated with them.
+
+        :param config_stats:    The stats field of the configuration dict, config['stats']
+        :param logger:          A logger object for logging debug info. [default: None]
+
+        :returns: a kwargs dict to pass to the initializer
+        """
+        kwargs = {}
+        kwargs.update(config_stats)
+        return kwargs
+
+    def compute(self, psf, stars, logger=None):
+        """Compute the given statistic for a PSF solution on a set of stars.
+
+        This needs to be done before the statistic is plotted or written to a file.
 
         :param psf:         A PSF Object
         :param stars:       A list of Star instances.
         :param logger:      A logger object for logging debug info. [default: None]
-        :params kwargs:     Potential other parameters we might need to input. Images,
-                            coordinates, et cetera.
-
-        :returns:           Some kind of data vector.
-        """
-        raise NotImplemented("Derived classes must define the statistical operation!")
-
-    def plot(self, logger=None):
-        """Make your plots.
-
-        :param logger:      A logger object for logging debug info. [default: None]
-
-        :returns:           fig and ax
         """
         raise NotImplemented("Derived classes must define the plot function")
 
-    def write(self, file_name, logger=None, **kwargs):
-        """Write stats plots to file.
+    def plot(self, logger=None, **kwargs):
+        """Make the plots for this statistic.
 
-        :param file_name:   The name of the file to write to.
         :param logger:      A logger object for logging debug info. [default: None]
-        :param kwargs:      kwargs go into plot
+        :param **kwargs:    Optionally, provide extra kwargs for the matplotlib plot command.
+
+        :returns: (fig, ax) The matplotlib figure and axis with the plot(s).
+        """
+        raise NotImplemented("Derived classes must define the plot function")
+
+    def write(self, file_name=None, logger=None, **kwargs):
+        """Write plots to a file.
+
+        :param file_name:   The name of the file to write to. [default: Use self.file_name,
+                            which is typically read from the config fiel.]
+        :param logger:      A logger object for logging debug info. [default: None]
+        :param **kwargs:    Optionally, provide extra kwargs for the matplotlib plot command.
         """
         if logger:
-            logger.info("Creating Plot")
+            logger.info("Creating plot for %s", self.__class__.__name__)
         fig, ax = self.plot(logger=logger, **kwargs)
 
+        if file_name is None:
+            file_name = self.file_name
+        if file_name is None:
+            raise ValueError("No file_name specified for %s"%self.__class__.__name__)
+
         if logger:
-            logger.info("Writing Stats Plot to file %s",file_name)
-        # save fig to file_name
+            logger.info("Writing plot to file %s",file_name)
         fig.savefig(file_name)
 
-    def hsm(self, image, weight=None, image_pos=None, **kwargs):
-        """Return HSM Shape Measurements
+    def hsm(self, star):
+        """Return HSM Shape Measurements for a star
 
-        :param image:       A postage stamp image that includes the star
-        :param image_pos:   The position in image coordinates to use as the
-                            "center" of the star.  Note: this does not have to
-                            be the centroid or anything specific about the
-                            star.  It is merely the image position of the (0,0)
-                            coordinate for the model's internal coordinate
-                            system. [default: None; use image.trueCenter()]
-        :param weight:      The corresponding weight map for that image. [default: None]
-        :param kwargs:      Anything to pass to Gaussian()
+        :param star:        The star to measure.
 
         :returns sigma, g1, g2: HSM Shape measurements
         """
+        # The piff Gaussian model does this, so use that to avoid code duplication.
         import piff
-
-        if image_pos is None:
-            # take the center of the image
-            image_pos = image.trueCenter()
-
-        # turn into star for piffy Gaussian model to interpret
-        star = piff.Star(piff.StarData(image, image_pos, weight), None)
-
-        return piff.Gaussian(**kwargs).fit(star).fit.params
+        return piff.Gaussian().fit(star).fit.params
 
     def measureShapes(self, psf, stars, logger=None):
         """Compare PSF and true star shapes with HSM algorithm
@@ -138,43 +153,60 @@ class Stats(object):
         import piff
         # measure moments with Gaussian on image
         if logger:
-            logger.info("Measuring Stars")
-        shapes_truth = np.array([ self.hsm(*star.data.getImage()) for star in stars ])
+            logger.debug("Measuring shapes of real stars")
+        shapes_truth = np.array([ self.hsm(star) for star in stars ])
 
         # Pull out the positions to return
         positions = np.array([ (star.data.properties['u'], star.data.properties['v'])
                                for star in stars ])
 
-        # get target stars with same properies as real stars, but blank image
+        # generate the model stars and measure moments
         if logger:
-            logger.info("Making images of model")
-        stamp_size = np.max( [star.data.image.array.shape for star in stars ] )
-        test_stars = [ piff.Star.makeTarget(properties=star.data.properties, stamp_size=stamp_size)
-                       for star in stars ]
-        test_stars = psf.interp.interpolateList(test_stars)
-
-        # generate the model stars measure moments with Gaussian on
-        # interpolated model image
-        if logger:
-            logger.info("Generating and Measuring Model Stars")
-        shapes_model = np.array([ self.hsm(*psf.model.draw(star).data.getImage())
-                                  for star in test_stars ])
+            logger.debug("Generating and Measuring Model Stars")
+        shapes_model = np.array([ self.hsm(psf.drawStar(star)) for star in stars ])
 
         return positions, shapes_truth, shapes_model
 
 
-class ShapeStats(Stats):
-    """Returns histograms of shape differences using HSM
+class ShapeHistogramsStats(Stats):
+    """Stats class for calculating histograms of shape residuals
+
+    This will compute the size and shapes of the observed stars and the PSF models and
+    make histograms of both the values and the residuals.
+
+    The plot will have 6 axes.  The top row will have histograms of T, g1, g2, with the model
+    and data color coded.  The bottom row will have histograms of the differences.
+
+    After a call to :func:`compute`, the following attributes are accessible:
+
+        :u:         The u positions in field coordinates.
+        :v:         The v positions in field coordinates.
+        :T:         The size (T = Ixx + Iyy) of the observed stars.
+        :g1:        The g1 component of the shapes of the observed stars.
+        :g2:        The g2 component of the shapes of the observed stars.
+        :T_model:   The size of the PSF model at the same locations as the stars.
+        :g1_model   The g1 component of the PSF model at these locations.
+        :g2_model   The g2 component of the PSF model at these locations.
+        :dT:        The size residual, T - T_model
+        :dg1:       The g1 residual, g1 - g1_model
+        :dg2:       The g2 residual, g2 - g2_model
     """
-
-    def __init__(self, psf, stars, logger=None):
+    def __init__(self, bins_size=10, bins_shape=10, file_name=None, logger=None):
         """
+        :param bins_size:   Number of bins for size histograms. [default: 10]
+        :param bins_shape:  Number of bins for shape histograms. [default: 10]
+        :param file_name:   Name of the file to output to. [default: None]
+        """
+        self.bins_size = bins_size
+        self.bins_shape = bins_shape
+        self.file_name = file_name
 
+    def compute(self, psf, stars, logger=None):
+        """
         :param psf:         A PSF Object
         :param stars:       A list of Star instances.
         :param logger:      A logger object for logging debug info. [default: None]
         """
-
         # get the shapes
         if logger:
             logger.info("Measuring Star and Model Shapes")
@@ -193,18 +225,17 @@ class ShapeStats(Stats):
         self.dg1 = self.g1 - self.g1_model
         self.dg2 = self.g2 - self.g2_model
 
-    def plot(self, bins_size=10, bins_shape=10, logger=None, **kwargs):
+    def plot(self, logger=None, **kwargs):
         """Make the plots.
 
-        :param bins_size:   Number of bins for histograms of size and size difference.
-                            [default: 10]
-        :param bins_shape:  Number of bins for histograms of shape and shape difference.
-                            [default: 10]
         :param logger:      A logger object for logging debug info. [default: None]
         :params **kwargs:   Any additional kwargs go into the matplotlib hist() function.
 
         :returns: fig, ax
         """
+        if not hasattr(self, 'T'):
+            raise RuntimeError("Shape Histogram has not been computed yet.  Cannot plot.")
+
         import matplotlib.pyplot as plt
         fig, axs = plt.subplots(ncols=3, nrows=2, figsize=(15, 10))
 
@@ -214,77 +245,92 @@ class ShapeStats(Stats):
 
         # axs[0,0] = size distributions
         ax = axs[0, 0]
-        ax.hist([self.T, self.T_model], bins=bins_size, label=['data', 'model'], **kwargs)
+        ax.hist([self.T, self.T_model], bins=self.bins_size, label=['data', 'model'], **kwargs)
         ax.legend(loc='upper right')
         ax.set_xlabel(r'$T$')
         # axs[0,1] = size difference
         ax = axs[1, 0]
-        ax.hist(self.dT, bins=bins_size, **kwargs)
+        ax.hist(self.dT, bins=self.bins_size, **kwargs)
         ax.set_xlabel(r'$T_{data} - T_{model}$')
 
         # axs[1,0] = g1 distribution
         ax = axs[0, 1]
-        ax.hist([self.g1, self.g1_model], bins=bins_shape, label=['data', 'model'], **kwargs)
+        ax.hist([self.g1, self.g1_model], bins=self.bins_shape, label=['data', 'model'], **kwargs)
         ax.legend(loc='upper right')
         ax.set_xlabel(r'$g_{1}$')
         # axs[1,0] = g1 difference
         ax = axs[1, 1]
-        ax.hist(self.dg1, bins=bins_shape, **kwargs)
+        ax.hist(self.dg1, bins=self.bins_shape, **kwargs)
         ax.set_xlabel(r'$g_{1, data} - g_{1, model}$')
 
         # axs[2,0] = g2 distribution
         ax = axs[0, 2]
-        ax.hist([self.g2, self.g2_model], bins=bins_shape, label=['data', 'model'], **kwargs)
+        ax.hist([self.g2, self.g2_model], bins=self.bins_shape, label=['data', 'model'], **kwargs)
         ax.legend(loc='upper right')
         ax.set_xlabel(r'$g_{2}$')
         # axs[2,0] = g2 difference
         ax = axs[1, 2]
-        ax.hist(self.dg2, bins=bins_shape, **kwargs)
+        ax.hist(self.dg2, bins=self.bins_shape, **kwargs)
         ax.set_xlabel(r'$g_{2, data} - g_{2, model}$')
 
+        fig.set_tight_layout(True)
         return fig, ax
 
 class RhoStats(Stats):
-    """Returns rho statistics using TreeCorr
+    """Stats class for calculating rho statistics.
+
+    This will plot the 5 rho statistics described in Jarvis et al, 2015, section 3.4.
+
+    e = e_psf; de = e_psf - e_model
+    T is size; dT = T_psf - T_model
+
+    rho1 = < de* de >
+    rho2 = < e* de >  (in the rowe paper this is < e* de + de* e >
+    rho3 = < (e* dT / T) (e dT / T) >
+    rho4 = < de* (e dT / T) >
+    rho5 = < e* (e dT / T) >
+
+    The plots for rho1, rho3, and rho4 will all be on the same axis (left), and the plots for
+    rho2 and rho5 will be on the other axis (right).
+
+    Furthermore, these are technically complex quantities, but only the real parts are
+    plotted, since the imaginary parts are uninteresting.
+
+    After a call to :func:`compute`, the following attributes are accessible:
+
+        :rho1:      A TreeCorr GGCorrelation instance with the rho1 statistic.
+        :rho2:      A TreeCorr GGCorrelation instance with the rho2 statistic.
+        :rho3:      A TreeCorr GGCorrelation instance with the rho3 statistic.
+        :rho4:      A TreeCorr GGCorrelation instance with the rho4 statistic.
+        :rho5:      A TreeCorr GGCorrelation instance with the rho5 statistic.
+
+    The value of the canonical rho statistic is in the ``xip`` attribute of each of the above
+    TreeCorr GGCorrelation instances.  But there are other quantities that may be of interest
+    in some cases, so we provide access to the full object.
     """
-
-    def __init__(self, psf, stars, min_sep=1, max_sep=150, bin_size=0.1, logger=None):
+    def __init__(self, min_sep=0.5, max_sep=300, bin_size=0.1, file_name=None,
+                 logger=None, **kwargs):
         """
+        :param min_sep:     Minimum separation (in arcmin) for pairs. [default: 0.5]
+        :param max_sep:     Maximum separation (in arcmin) for pairs. [default: 300]
+        :param bin_size:    Size of bins in log(sep). [default 0.1]
+        :param file_name:   Name of the file to output to. [default: None]
+        :param logger:      A logger object for logging debug info. [default: None]
+        :param **kwargs:    Any additional kwargs are passed on to TreeCorr.
+        """
+        self.tckwargs = kwargs
+        self.tckwargs['min_sep'] = min_sep
+        self.tckwargs['max_sep'] = max_sep
+        self.tckwargs['bin_size'] = bin_size
+        if 'sep_units' not in self.tckwargs:
+            self.tckwargs['sep_units'] = 'arcmin'
+        self.file_name = file_name
 
+    def compute(self, psf, stars, logger=None):
+        """
         :param psf:         A PSF Object
         :param stars:       A list of Star instances.
         :param logger:      A logger object for logging debug info. [default: None]
-        :param min_sep:     Minimum separation (in arcmin) for pairs
-        :param max_sep:     Maximum separation (in arcmin) for pairs
-        :param bin_size:    Logarithmic size of separation bins.
-
-
-        Notes
-        -----
-        Assumes first two coordinates of star position are u, v
-
-
-        From Jarvis:2015 p 10, eqs 3-18 - 3-22.
-        e = e_psf ; de = e_psf - e_model
-        T is size
-
-        rho1 = < de* de >
-        rho2 = < e* de >  (in the rowe paper this is < e* de + de* e >
-        rho3 = < (e* dT / T) (e dT / T) >
-        rho4 = < de* (e dT / T) >
-        rho5 = < e* (e dT / T) >
-
-        We calculate these quantities using treecorr
-
-        also note that for gN = gNr + i gNi = gN1 + i gN2:
-        xi.xip[k] += g1rg2r + g1ig2i;       // g1 * conj(g2)
-        xi.xip_im[k] += g1ig2r - g1rg2i;
-        xi.xim[k] += g1rg2r - g1ig2i;       // g1 * g2
-        xi.xim_im[k] += g1ig2r + g1rg2i;
-
-        so since we probably really want, e.g. 0.5 < e* de + de* e >, then we
-        can just use xip.
-
         """
         import treecorr
 
@@ -304,9 +350,6 @@ class RhoStats(Stats):
         dg2 = g2 - shapes_model[:, 2]
 
         # make the treecorr catalogs
-        corr_dict = {'min_sep': min_sep, 'max_sep': max_sep,
-                     'bin_size': bin_size, 'sep_units': 'arcmin',
-                     }
         if logger:
             logger.info("Creating Treecorr Catalogs")
 
@@ -322,15 +365,15 @@ class RhoStats(Stats):
             logger.info("Processing rho PSF statistics")
 
         # save the rho objects
-        self.rho1 = treecorr.GGCorrelation(**corr_dict)
+        self.rho1 = treecorr.GGCorrelation(self.tckwargs)
         self.rho1.process(cat_dg)
-        self.rho2 = treecorr.GGCorrelation(**corr_dict)
+        self.rho2 = treecorr.GGCorrelation(self.tckwargs)
         self.rho2.process(cat_g, cat_dg)
-        self.rho3 = treecorr.GGCorrelation(**corr_dict)
+        self.rho3 = treecorr.GGCorrelation(self.tckwargs)
         self.rho3.process(cat_gdTT)
-        self.rho4 = treecorr.GGCorrelation(**corr_dict)
+        self.rho4 = treecorr.GGCorrelation(self.tckwargs)
         self.rho4.process(cat_dg, cat_gdTT)
-        self.rho5 = treecorr.GGCorrelation(**corr_dict)
+        self.rho5 = treecorr.GGCorrelation(self.tckwargs)
         self.rho5.process(cat_g, cat_gdTT)
 
     def plot(self, logger=None, **kwargs):

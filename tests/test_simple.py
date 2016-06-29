@@ -269,7 +269,8 @@ def test_single_image():
     min_sep = 1
     max_sep = 100
     bin_size = 0.1
-    stats = piff.RhoStats(psf, orig_stars, min_sep=min_sep, max_sep=max_sep, bin_size=bin_size)
+    stats = piff.RhoStats(min_sep=min_sep, max_sep=max_sep, bin_size=bin_size)
+    stats.compute(psf, orig_stars)
 
     rhos = [stats.rho1, stats.rho2, stats.rho3, stats.rho4, stats.rho5]
     import numpy as np
@@ -292,7 +293,8 @@ def test_single_image():
     stats.write(rho_psf_file)
 
     # Test that we can make summary shape statistics, using HSM
-    shapeStats = piff.ShapeStats(psf, orig_stars)
+    shapeStats = piff.ShapeHistogramsStats()
+    shapeStats.compute(psf, orig_stars)
 
     # test their characteristics
     np.testing.assert_array_almost_equal(sigma, shapeStats.T, decimal=4)
@@ -305,15 +307,15 @@ def test_single_image():
     shape_psf_file = os.path.join('output','simple_psf_shapestats.png')
     shapeStats.write(shape_psf_file)
 
-    # Test that we can use the config parser for both RhoStats and ShapeStats
-    config['stats'] = [
+    # Test that we can use the config parser for both RhoStats and ShapeHistogramsStats
+    config['output']['stats'] = [
         {
-            'type': 'Shape',
-            'output': {'file_name': shape_psf_file}
+            'type': 'ShapeHistograms',
+            'file_name': shape_psf_file
         },
         {
             'type': 'Rho',
-            'output': {'file_name': rho_psf_file}
+            'file_name': rho_psf_file
         },
     ]
 

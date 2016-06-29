@@ -83,21 +83,21 @@ output:
     dir: output
     file_name: "DECam_00241238.piff"
 
-stats:
+    stats:
 
-    # Multiple output statistics can be listed in a list
-    -
-        type: ShapeHistograms
-        file_name: "DECam_00241238_shapes.png"
+        # Multiple output statistics can be listed in a list
+        -
+            type: ShapeHistograms
+            file_name: "DECam_00241238_shapes.png"
 
-    -
-        type: Rho
-        file_name: "DECam_00241238_rho.png"
-        # Rho can use any config parameters used by TreeCorr for doing the correlation.
-        min_sep: 1
-        max_sep: 100
-        sep_units: arcmin
-        bin_size: 0.1
+        -
+            type: Rho
+            file_name: "DECam_00241238_rho.png"
+            # Rho can use any config parameters used by TreeCorr for doing the correlation.
+            min_sep: 0.5
+            max_sep: 300
+            sep_units: arcmin
+            bin_size: 0.5
 
 # Set the verbosity level a little higher than default (1) to give extra information
 # about the progress.
