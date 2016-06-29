@@ -180,7 +180,12 @@ class Input(object):
                 logger.debug("Making star list from catalog %s", self.cat_files[0])
             else:
                 logger.debug("Making star list from %d catalogs", len(self.cats))
-        for image,wt,cat,fname in zip(self.images, self.weight, self.cats, self.cat_files):
+        for i in range(len(self.images)):
+            image = self.images[i]
+            wt = self.weight[i]
+            cat = self.cats[i]
+            chipnum = self.chipnums[i]
+            fname = self.cat_files[i]
             if logger:
                 logger.debug("Processing catalog %s with %d stars",fname,len(cat))
             for k in range(len(cat)):
@@ -192,7 +197,7 @@ class Input(object):
                 bounds = galsim.BoundsI(icen+half_size-self.stamp_size+1, icen+half_size,
                                         jcen+half_size-self.stamp_size+1, jcen+half_size)
                 stamp = image[bounds]
-                props = {}
+                props = { 'chipnum' : chipnum }
                 if self.sky_col is not None:
                     sky = cat[self.sky_col][k]
                     stamp = stamp - sky  # Don't change the original!
