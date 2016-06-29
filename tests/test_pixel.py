@@ -43,14 +43,14 @@ def make_gaussian_data(sigma, u0, v0, flux, noise=0., du=1., fpu=0., fpv=0., nsi
         var = noise
     star = piff.Star.makeTarget(x=nside/2+nom_u0/du, y=nside/2+nom_v0/du,
                                 u=fpu, v=fpv, scale=du, stamp_size=nside)
-    star.data.image.setOrigin(0,0)
-    g.drawImage(star.data.image, method='no_pixel', use_true_center=False,
+    star.image.setOrigin(0,0)
+    g.drawImage(star.image, method='no_pixel', use_true_center=False,
                 offset=galsim.PositionD(nom_u0/du,nom_v0/du))
-    star.data.weight = star.data.image.copy()
-    star.data.weight.fill(1./var/var)
+    star.weight = star.image.copy()
+    star.weight.fill(1./var/var)
     if noise != 0:
         gn = galsim.GaussianNoise(sigma=noise, rng=rng)
-        star.data.image.addNoise(gn)
+        star.image.addNoise(gn)
     return star
 
 
@@ -64,7 +64,7 @@ def test_simplest():
     # Pixelized model with Lanczos 3 interp
     interp = piff.Lanczos(3)
     mod = piff.PixelGrid(du, 32, interp, start_sigma=1.5, force_model_center=False)
-    star = mod.initialize(s).withFlux(flux=np.sum(s.data.data))
+    star = mod.initialize(s).withFlux(flux=np.sum(s.image.array))
 
     # Check that fitting the star can recover the right flux.
     # Note: this shouldn't match perfectly, since SimpleData draws this as a surface
@@ -85,9 +85,9 @@ def test_simplest():
 
     # Drawing the star should produce a nearly identical image to the original.
     star2 = mod.draw(star)
-    print('max image abs diff = ',np.max(np.abs(star2.data.data-s.data.data)))
-    print('max image abs value = ',np.max(np.abs(s.data.data)))
-    np.testing.assert_almost_equal(star2.data.data, s.data.data, decimal=7)
+    print('max image abs diff = ',np.max(np.abs(star2.image.array-s.image.array)))
+    print('max image abs value = ',np.max(np.abs(s.image.array)))
+    np.testing.assert_almost_equal(star2.image.array, s.image.array, decimal=7)
 
 
 def test_oversample():
@@ -101,7 +101,7 @@ def test_oversample():
     # Pixelized model with Lanczos 3 interp, coarser pix scale
     interp = piff.Lanczos(3)
     mod = piff.PixelGrid(2*du, nside/2, interp, start_sigma=1.5, force_model_center=False)
-    star = mod.initialize(s).withFlux(flux=np.sum(s.data.data))
+    star = mod.initialize(s).withFlux(flux=np.sum(s.image.array))
 
     for i in range(2):
         star = mod.fit(star)
@@ -112,13 +112,13 @@ def test_oversample():
     # Residual image should be checkeboard from limitations of interpolator.
     # So only agree to 3 dp.
     star2 = mod.draw(star)
-    #print('star2 image = ',star2.data.data)
-    #print('star.image = ',s.data.data)
-    #print('diff = ',star2.data.data-s.data.data)
-    print('max image abs diff = ',np.max(np.abs(star2.data.data-s.data.data)))
-    print('max image abs value = ',np.max(np.abs(s.data.data)))
-    peak = np.max(np.abs(s.data.data))
-    np.testing.assert_almost_equal(star2.data.data/peak, s.data.data/peak, decimal=3)
+    #print('star2 image = ',star2.image.array)
+    #print('star.image = ',s.image.array)
+    #print('diff = ',star2.image.array-s.image.array)
+    print('max image abs diff = ',np.max(np.abs(star2.image.array-s.image.array)))
+    print('max image abs value = ',np.max(np.abs(s.image.array)))
+    peak = np.max(np.abs(s.image.array))
+    np.testing.assert_almost_equal(star2.image.array/peak, s.image.array/peak, decimal=3)
 
 
 def test_center():
@@ -143,13 +143,14 @@ def test_center():
         #np.testing.assert_almost_equal(star.fit.flux/influx, 1.0, decimal=2)
 
     # Residual image when done should be dominated by structure off the edge of the fitted region.
-    mask = star.data.weight.array > 0
+    mask = star.weight.array > 0
     # This comes out fairly close, but only 2 dp of accuracy, compared to 3 above.
     star2 = mod.draw(star)
-    print('max image abs diff = ',np.max(np.abs(star2.data.data-s.data.data)))
-    print('max image abs value = ',np.max(np.abs(s.data.data)))
-    peak = np.max(np.abs(s.data.data[mask]))
-    np.testing.assert_almost_equal(star2.data.data[mask]/peak, s.data.data[mask]/peak, decimal=2)
+    print('max image abs diff = ',np.max(np.abs(star2.image.array-s.image.array)))
+    print('max image abs value = ',np.max(np.abs(s.image.array)))
+    peak = np.max(np.abs(s.image.array[mask]))
+    np.testing.assert_almost_equal(star2.image.array[mask]/peak, s.image.array[mask]/peak,
+                                   decimal=2)
 
 
 def test_interp():
@@ -208,10 +209,10 @@ def test_interp():
     np.testing.assert_almost_equal(s1.fit.flux/influx, 1.0, decimal=2)
 
     s1 = mod.draw(s1)
-    print('max image abs diff = ',np.max(np.abs(s1.data.data-s0.data.data)))
-    print('max image abs value = ',np.max(np.abs(s0.data.data)))
-    peak = np.max(np.abs(s0.data.data))
-    np.testing.assert_almost_equal(s1.data.data/peak, s0.data.data/peak, decimal=2)
+    print('max image abs diff = ',np.max(np.abs(s1.image.array-s0.image.array)))
+    print('max image abs value = ',np.max(np.abs(s0.image.array)))
+    peak = np.max(np.abs(s0.image.array))
+    np.testing.assert_almost_equal(s1.image.array/peak, s0.image.array/peak, decimal=2)
 
 
 def test_missing():
@@ -234,9 +235,9 @@ def test_missing():
             s = make_gaussian_data(1.0, 0., 0., influx, noise=0.1, du=0.5, fpu=u, fpv=v, rng=rng)
             s = mod.initialize(s)
             # Kill 10% of each star's pixels
-            bad = np.random.rand(*s.data.data.shape) < 0.1
-            s.data.weight.array[bad] = 0.
-            s.data.data[bad] = -999.
+            bad = np.random.rand(*s.image.array.shape) < 0.1
+            s.weight.array[bad] = 0.
+            s.image.array[bad] = -999.
             s = mod.reflux(s, fit_center=False) # Start with a sensible flux
             stars.append(s)
 
@@ -287,10 +288,10 @@ def test_missing():
         np.testing.assert_almost_equal(s1.fit.flux/influx, 1.0, decimal=1)
 
         s1 = mod.draw(s1)
-        print('max image abs diff = ',np.max(np.abs(s1.data.data-s0.data.data)))
-        print('max image abs value = ',np.max(np.abs(s0.data.data)))
-        peak = np.max(np.abs(s0.data.data))
-        np.testing.assert_almost_equal(s1.data.data/peak, s0.data.data/peak, decimal=1)
+        print('max image abs diff = ',np.max(np.abs(s1.image.array-s0.image.array)))
+        print('max image abs value = ',np.max(np.abs(s0.image.array)))
+        peak = np.max(np.abs(s0.image.array))
+        np.testing.assert_almost_equal(s1.image.array/peak, s0.image.array/peak, decimal=1)
 
 
 def test_gradient():
@@ -357,10 +358,10 @@ def test_gradient():
     np.testing.assert_almost_equal(s1.fit.flux/influx, 1.0, decimal=1)
 
     s1 = mod.draw(s1)
-    print('max image abs diff = ',np.max(np.abs(s1.data.data-s0.data.data)))
-    print('max image abs value = ',np.max(np.abs(s0.data.data)))
-    peak = np.max(np.abs(s0.data.data))
-    np.testing.assert_almost_equal(s1.data.data/peak, s0.data.data/peak, decimal=1)
+    print('max image abs diff = ',np.max(np.abs(s1.image.array-s0.image.array)))
+    print('max image abs value = ',np.max(np.abs(s0.image.array)))
+    peak = np.max(np.abs(s0.image.array))
+    np.testing.assert_almost_equal(s1.image.array/peak, s0.image.array/peak, decimal=1)
 
 
 def test_undersamp():
@@ -431,10 +432,10 @@ def test_undersamp():
     np.testing.assert_almost_equal(s1.fit.flux/influx, 1.0, decimal=1)
 
     s1 = mod.draw(s1)
-    print('max image abs diff = ',np.max(np.abs(s1.data.data-s0.data.data)))
-    print('max image abs value = ',np.max(np.abs(s0.data.data)))
-    peak = np.max(np.abs(s0.data.data))
-    np.testing.assert_almost_equal(s1.data.data/peak, s0.data.data/peak, decimal=1)
+    print('max image abs diff = ',np.max(np.abs(s1.image.array-s0.image.array)))
+    print('max image abs value = ',np.max(np.abs(s0.image.array)))
+    peak = np.max(np.abs(s0.image.array))
+    np.testing.assert_almost_equal(s1.image.array/peak, s0.image.array/peak, decimal=1)
 
 
 def test_undersamp_shift():
@@ -502,10 +503,10 @@ def test_undersamp_shift():
     np.testing.assert_almost_equal(s1.fit.flux/influx, 1.0, decimal=1)
 
     s1 = mod.draw(s1)
-    print('max image abs diff = ',np.max(np.abs(s1.data.data-s0.data.data)))
-    print('max image abs value = ',np.max(np.abs(s0.data.data)))
-    peak = np.max(np.abs(s0.data.data))
-    np.testing.assert_almost_equal(s1.data.data/peak, s0.data.data/peak, decimal=1)
+    print('max image abs diff = ',np.max(np.abs(s1.image.array-s0.image.array)))
+    print('max image abs value = ',np.max(np.abs(s0.image.array)))
+    peak = np.max(np.abs(s0.image.array))
+    np.testing.assert_almost_equal(s1.image.array/peak, s0.image.array/peak, decimal=1)
 
 
 def do_undersamp_drift(fit_centers=False):
@@ -577,10 +578,10 @@ def do_undersamp_drift(fit_centers=False):
     np.testing.assert_almost_equal(s1.fit.flux/influx, 1.0, decimal=1)
 
     s1 = mod.draw(s1)
-    print('max image abs diff = ',np.max(np.abs(s1.data.data-s0.data.data)))
-    print('max image abs value = ',np.max(np.abs(s0.data.data)))
-    peak = np.max(np.abs(s0.data.data))
-    np.testing.assert_almost_equal(s1.data.data/peak, s0.data.data/peak, decimal=1)
+    print('max image abs diff = ',np.max(np.abs(s1.image.array-s0.image.array)))
+    print('max image abs value = ',np.max(np.abs(s0.image.array)))
+    peak = np.max(np.abs(s0.image.array))
+    np.testing.assert_almost_equal(s1.image.array/peak, s0.image.array/peak, decimal=1)
 
 def test_undersamp_drift():
     do_undersamp_drift(True)
@@ -666,7 +667,7 @@ def test_single_image():
     # Make stars
     orig_stars = input.makeStars()
     assert len(orig_stars) == len(x_list)
-    assert orig_stars[0].data.image.array.shape == (32,32)
+    assert orig_stars[0].image.array.shape == (32,32)
 
     # Make a test star, not at the location of any of the model stars to use for each of the
     # below tests.
@@ -678,7 +679,7 @@ def test_single_image():
     e2 = e2_fn(x0,y0)
     moffat = galsim.Moffat(fwhm=fwhm, beta=beta).shear(e1=e1, e2=e2)
     target_star = piff.Star.makeTarget(x=x0, y=y0, scale=image.scale)
-    test_im = galsim.ImageD(bounds=target_star.data.image.bounds, scale=image.scale)
+    test_im = galsim.ImageD(bounds=target_star.image.bounds, scale=image.scale)
     moffat.drawImage(image=test_im, method='no_pixel', use_true_center=False)
     print('made test star')
 
@@ -701,10 +702,10 @@ def test_single_image():
         test_star = psf.drawStar(target_star)
         #print('test_im center = ',test_im[b].array)
         #print('flux = ',test_im.array.sum())
-        #print('interp_im center = ',test_star.data.image[b].array)
-        #print('flux = ',test_star.data.image.array.sum())
-        #print('max diff = ',np.max(np.abs(test_star.data.image.array-test_im.array)))
-        np.testing.assert_almost_equal(test_star.data.image.array, test_im.array, decimal=3)
+        #print('interp_im center = ',test_star.image[b].array)
+        #print('flux = ',test_star.image.array.sum())
+        #print('max diff = ',np.max(np.abs(test_star.image.array-test_im.array)))
+        np.testing.assert_almost_equal(test_star.image.array, test_im.array, decimal=3)
 
         # Check the convenience function that an end user would typically use
         image = psf.draw(x=x0, y=y0)
@@ -717,7 +718,7 @@ def test_single_image():
         assert type(psf.model) is piff.PixelGrid
         assert type(psf.interp) is piff.BasisPolynomial
         test_star = psf.drawStar(target_star)
-        np.testing.assert_almost_equal(test_star.data.image.array, test_im.array, decimal=3)
+        np.testing.assert_almost_equal(test_star.image.array, test_im.array, decimal=3)
 
         # Check the convenience function that an end user would typically use
         image = psf.draw(x=x0, y=y0)
@@ -753,7 +754,7 @@ def test_single_image():
         piff.piffify(config)
         psf = piff.PSF.read(psf_file)
         test_star = psf.drawStar(target_star)
-        np.testing.assert_almost_equal(test_star.data.image.array, test_im.array, decimal=3)
+        np.testing.assert_almost_equal(test_star.image.array, test_im.array, decimal=3)
 
     # Test using the piffify executable
     with open('pixel_moffat.yaml','w') as f:
@@ -767,7 +768,7 @@ def test_single_image():
         p.communicate()
         psf = piff.PSF.read(psf_file)
         test_star = psf.drawStar(target_star)
-        np.testing.assert_almost_equal(test_star.data.image.array, test_im.array, decimal=3)
+        np.testing.assert_almost_equal(test_star.image.array, test_im.array, decimal=3)
 
 def test_des_image():
     """Test the whole process with a DES CCD.
@@ -866,11 +867,11 @@ def test_des_image():
 
         for s in psf.stars:
             fitted = psf.drawStar(s)
-            orig_stamp = orig_image[fitted.data.image.bounds] - s.data['sky']
-            fit_stamp = fitted.data.image
+            orig_stamp = orig_image[fitted.image.bounds] - s['sky']
+            fit_stamp = fitted.image
 
-            x0 = int(s.data['x']+0.5)
-            y0 = int(s.data['y']+0.5)
+            x0 = int(s['x']+0.5)
+            y0 = int(s['y']+0.5)
             b = galsim.BoundsI(x0-3,x0+3,y0-3,y0+3)
             #print('orig center = ',orig_stamp[b].array)
             #print('flux = ',orig_stamp.array.sum())
@@ -879,7 +880,7 @@ def test_des_image():
             flux = fitted.fit.flux
             #print('max diff/flux = ',np.max(np.abs(orig_stamp.array-fit_stamp.array))/flux)
             #np.testing.assert_almost_equal(fit_stamp.array/flux, orig_stamp.array/flux, decimal=2)
-            weight = s.data.weight  # These should be 1/var_pix
+            weight = s.weight  # These should be 1/var_pix
             resid = fit_stamp - orig_stamp
             chisq = np.sum(resid.array**2 * weight.array)
             print('chisq = ',chisq)
@@ -894,7 +895,7 @@ def test_des_image():
 
             # Check the convenience function that an end user would typically use
             offset = s.center_to_offset(s.fit.center)
-            image = psf.draw(x=s.data['x'], y=s.data['y'], stamp_size=stamp_size,
+            image = psf.draw(x=s['x'], y=s['y'], stamp_size=stamp_size,
                              flux=s.fit.flux, offset=offset)
             np.testing.assert_almost_equal(image.array, fit_stamp.array, decimal=4)
 
@@ -915,9 +916,9 @@ def test_des_image():
         stars = [psf.model.initialize(s) for s in stars]
         flux = stars[0].fit.flux
         offset = stars[0].center_to_offset(stars[0].fit.center)
-        fit_stamp = psf.draw(x=stars[0].data['x'], y=stars[0].data['y'], stamp_size=stamp_size,
+        fit_stamp = psf.draw(x=stars[0]['x'], y=stars[0]['y'], stamp_size=stamp_size,
                              flux=flux, offset=offset)
-        orig_stamp = orig_image[stars[0].data.image.bounds] - stars[0].data['sky']
+        orig_stamp = orig_image[stars[0].image.bounds] - stars[0]['sky']
         # The first star happens to be a good one, so go ahead and test the arrays directly.
         np.testing.assert_almost_equal(fit_stamp.array/flux, orig_stamp.array/flux, decimal=2)
 
@@ -938,9 +939,9 @@ def test_des_image():
         stars = [psf.model.initialize(s) for s in stars]
         flux = stars[0].fit.flux
         offset = stars[0].center_to_offset(stars[0].fit.center)
-        fit_stamp = psf.draw(x=stars[0].data['x'], y=stars[0].data['y'], stamp_size=stamp_size,
+        fit_stamp = psf.draw(x=stars[0]['x'], y=stars[0]['y'], stamp_size=stamp_size,
                              flux=flux, offset=offset)
-        orig_stamp = orig_image[stars[0].data.image.bounds] - stars[0].data['sky']
+        orig_stamp = orig_image[stars[0].image.bounds] - stars[0]['sky']
         np.testing.assert_almost_equal(fit_stamp.array/flux, orig_stamp.array/flux, decimal=2)
 
 if __name__ == '__main__':

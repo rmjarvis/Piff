@@ -195,7 +195,7 @@ def test_single_image():
     # Make star data
     orig_stars = input.makeStars()
     assert len(orig_stars) == 7
-    assert orig_stars[0].data.image.array.shape == (48,48)
+    assert orig_stars[0].image.array.shape == (48,48)
 
     # Process the star data
     model = piff.Gaussian()

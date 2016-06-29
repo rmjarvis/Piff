@@ -30,18 +30,33 @@ class Star(object):
     information connected to whatever Model is being used
 
 
-    star = piff.Star(
+    Stars are not normally constructed directly by the user.  They are built by various
+    Piff functions such as:
 
+        stars = input_handler.makeStars(logger)
+        stars, wcs = piff.Input.process(config['input'])
+        target_star = piff.Star.makeTarget(x=x, y=y, wcs=wcs, ...)
 
+    However, a star can be constructed directly from a StarData instance and a StarFit instance.
+    The former keeps track of the data about the star (either as observed or the model at a
+    location) and the latter keeps track of fitted parameters related to fitting the data to
+    a model.
 
-    Structure that links the data for a star to the results of fitting it.
-    **This class and its two members are expected to be invariant outside of the
-    code that creates them.**
+        star = piff.Star(star_data, star_fit)
 
-    We will expect it to have the following attributes:
-    - data:   a StarData instance holding all information on the star coming from observation
-    - fit:    a StarFit instance holding all information or useful intermediates from the fitting
-              process.
+    Stars have an immutable design, so any functions that change either the data or the fitted
+    parameters return a new object and  don't change the original.  e.g.
+
+        star = psf.drawStar(star)
+        star = star.reflux()
+        star = star.addPoisson(gain=gain)
+
+    Stars have the following attributes:
+
+        star.data       The component StarData object
+        star.fit        The component StarFit object
+        star.image      The image of the star, an alias for star.data.image
+        star.weight     The weight map connected to the image data, an alias for star.data.weight
     """
     def __init__(self, data, fit):
         """Constructor for Star instance.
@@ -66,6 +81,37 @@ class Star(object):
         if center is not None:
             fit.center = center
         return Star(self.data, fit)
+
+    def __getitem__(self, key):
+        """Get a property of the star.
+
+        This may be one of the values in the properties dict that was given when the data object
+        was initialized, or one of 'x', 'y', 'u', 'v', where x,y are the position in image
+        coordinates and u,v are the position in field coordinates.
+
+        :param key:     The name of the property to return
+
+        :returns: the value of the given property.
+        """
+        # This is a StarData method.  Just pass the request on to it.
+        return self.data[key]
+
+    # Some properties that pass through to the data attribute to make using them easier.
+    @property
+    def image(self):
+        return self.data.image
+
+    @image.setter
+    def image(self, im):
+        self.data.image = im
+
+    @property
+    def weight(self):
+        return self.data.weight
+
+    @weight.setter
+    def weight(self, wt):
+        self.data.weight = wt
 
     @classmethod
     def makeTarget(cls, x=None, y=None, u=None, v=None, properties={}, wcs=None, scale=None,
@@ -461,12 +507,6 @@ class StarData(object):
                 if 'dec' not in properties:
                     properties['dec'] = sky_pos.dec / galsim.degrees
             return pointing.project(sky_pos)
-
-    @property
-    def data(self):
-        """Shorthand for stardata.image.array.  You may instead write stardata.data
-        """
-        return self.image.array
 
     def __getitem__(self, key):
         """Get a property of the star.

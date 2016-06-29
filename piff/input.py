@@ -36,8 +36,11 @@ class Input(object):
         :param config_input:    The configuration dict.
         :param logger:          A logger object for logging debug info. [default: None]
 
-        :returns: stars, wcs:   A list of Star instances with the initial data, and
-                                a dict of WCS solutions indexed by chipnum.
+        :returns: stars, wcs, pointing
+
+        stars is a list of Star instances with the initial data.
+        wcs is a dict of WCS solutions indexed by chipnum.
+        pointing is either a galsim.CelestialCoord or None.
         """
         import piff
 
@@ -136,7 +139,7 @@ class Input(object):
               could get the right one properly.  OTOH, Y3+ will be in electrons, so gain=1 will
               the right value for all images.  So maybe not worth worrying about.
         """
-        raise NotImplemented("Derived classes must define the setPointing function")
+        raise NotImplemented("Derived classes must define the setGain function")
 
     def addPoisson(self, stars, logger=None):
         """If the input parameters included a gain, then add Poisson noise to the weights

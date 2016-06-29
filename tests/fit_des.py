@@ -203,7 +203,7 @@ def subtract_stars(img, psf):
     """
     for s in psf.stars:
         fitted = psf.draw(s.data, s.fit.flux, s.fit.center)
-        img[fitted.data.image.bounds] -= fitted.data.image
+        img[fitted.image.bounds] -= fitted.image
     return img
 
 def main():
