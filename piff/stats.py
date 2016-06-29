@@ -376,14 +376,10 @@ class RhoStats(Stats):
         self.rho5 = treecorr.GGCorrelation(self.tckwargs)
         self.rho5.process(cat_g, cat_gdTT)
 
-    def plot(self, logger=None, **kwargs):
-        """Make the plots.
-
-        :param logger:      A logger object for logging debug info. [default: None]
-
-        :returns: fig, ax
-        """
-
+    def alt_plot(self, logger=None, **kwargs):
+        # Leaving this version here in case useful, but I (MJ) have a new version of this
+        # below based on the figures I made for the DES SV shear catalog paper that I think
+        # looks a bit nicer.
         import matplotlib.pyplot as plt
         fig, axs = plt.subplots(ncols=2, figsize=(10, 5))
 
@@ -424,4 +420,63 @@ class RhoStats(Stats):
                 ax.plot(r[neg], -xi[neg], linestyle=linestyle_neg, color=color, **kwargs)
             ax.legend(loc='upper right')
 
+        fig.set_tight_layout(True)
         return fig, axs
+
+    def _plot_single(self, ax, rho, color, marker, offset=0.):
+        # Add a single rho stat to the plot.
+        meanr = rho.meanr * (1. + rho.bin_size * offset)
+        xip = rho.xip
+        sig = np.sqrt(rho.varxi)
+        ax.plot(meanr, xip, color=color)
+        ax.plot(meanr, -xip, color=color, ls=':')
+        ax.errorbar(meanr[xip>0], xip[xip>0], yerr=sig[xip>0], color=color, ls='', marker=marker)
+        ax.errorbar(meanr[xip<0], -xip[xip<0], yerr=sig[xip<0], color=color, ls='', marker=marker)
+        return ax.errorbar(-meanr, xip, yerr=sig, color=color, marker=marker)
+
+    def plot(self, logger=None, **kwargs):
+        """Make the plots.
+
+        :param logger:      A logger object for logging debug info. [default: None]
+        :params **kwargs:   Any additional kwargs go into the matplotlib plot() function.
+                            [ignored in this function]
+
+        :returns: fig, ax
+        """
+        # MJ: Based on the code I used for the plot in the DES SV paper:
+        import matplotlib.pyplot as plt
+        fig, ax = plt.subplots(ncols=2, figsize=(10, 5))
+
+        # Left plot is rho1,3,4
+        rho1 = self._plot_single(ax[0], self.rho1, 'blue', 'o')
+        rho3 = self._plot_single(ax[0], self.rho3, 'green', 's', 0.1)
+        rho4 = self._plot_single(ax[0], self.rho4, 'red', '^', 0.2)
+
+        ax[0].legend([rho1, rho3, rho4],
+                     [r'$\rho_1(\theta)$', r'$\rho_3(\theta)$', r'$\rho_4(\theta)$'],
+                     loc='upper right', fontsize=12)
+        ax[0].set_ylim(1.e-9, None)
+        ax[0].set_xlim(self.tckwargs['min_sep'], self.tckwargs['max_sep'])
+        ax[0].set_xlabel(r'$\theta$ (arcmin)')
+        ax[0].set_ylabel(r'$\rho(\theta)$')
+        ax[0].set_xscale('log')
+        ax[0].set_yscale('log', nonposy='clip')
+
+        # Right plot is rho2,5
+        rho2 = self._plot_single(ax[1], self.rho2, 'blue', 'o')
+        rho5 = self._plot_single(ax[1], self.rho5, 'green', 's', 0.1)
+
+        ax[1].legend([rho2, rho5],
+                     [r'$\rho_2(\theta)$', r'$\rho_5(\theta)$'],
+                     loc='upper right', fontsize=12)
+        ax[1].set_ylim(1.e-7, None)
+        ax[1].set_xlim(self.tckwargs['min_sep'], self.tckwargs['max_sep'])
+        ax[1].set_xlabel(r'$\theta$ (arcmin)')
+        ax[1].set_ylabel(r'$\rho(\theta)$')
+        ax[1].set_xscale('log')
+        ax[1].set_yscale('log', nonposy='clip')
+
+        fig.set_tight_layout(True)
+        return fig, ax
+
+
