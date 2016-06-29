@@ -46,7 +46,7 @@ class Input(object):
         input_handler_class = getattr(piff, 'Input' + config_input.pop('type','Files'))
 
         # Read any other kwargs in the input field
-        kwargs = input_handler_class.parseKwargs(config_input)
+        kwargs = input_handler_class.parseKwargs(config_input, logger)
 
         # Build handler object
         input_handler = input_handler_class(**kwargs)
@@ -72,7 +72,7 @@ class Input(object):
         return stars, wcs, input_handler.pointing
 
     @classmethod
-    def parseKwargs(cls, config_input):
+    def parseKwargs(cls, config_input, logger=None):
         """Parse the input field of a configuration dict and return the kwargs to use for
         initializing an instance of the class.
 
@@ -80,10 +80,13 @@ class Input(object):
         might want to override this if they need to do something more sophisticated with them.
 
         :param config_input:    The input field of the configuration dict, config['input']
+        :param logger:          A logger object for logging debug info. [default: None]
 
         :returns: a kwargs dict to pass to the initializer
         """
-        return config_input
+        kwargs = config_input.copy()
+        kwargs['logger'] = logger
+        return kwargs
 
     def readImages(self, logger=None):
         """Read in the images from whatever the input source is.
@@ -220,15 +223,48 @@ class InputFiles(Input):
                  dir=None, image_dir=None, cat_dir=None,
                  x_col='x', y_col='y', sky_col=None, flag_col=None, use_col=None,
                  image_hdu=None, weight_hdu=None, badpix_hdu=None, cat_hdu=1,
-                 stamp_size=32, ra=None, dec=None, gain=None):
+                 stamp_size=32, ra=None, dec=None, gain=None, logger=None):
         """
+        There are a number of ways to specify the input files (parameters `images` and `cats`):
+
+        1. If you only have a single image/catalog, you may just give the file name directly
+           as a single string.
+        2. For multiple images, you may specify a list of strings listing all the file names.
+        3. You may specify a string with ``{chipnum}`` which will be filled in by the chipnum
+           values given in the `chipnums` parameter using ``s.format(chipnum=chipnum)``.
+        4. You may specify a string with ``%s`` (or perhaps ``%02d``, etc.) which will be filled
+           in by the chipnum values given in the `chipnums` parameter using ``s % chipnum``.
+        5. You may specify a string that ``glob.glob(s)`` will understand and convert into a
+           list of file names.  Caveat: ``glob`` returns the files in native directory order
+           (cf. ``ls -f``).  This can thus be different for the images and catalogs if they
+           were written to disk out of order.  Therefore, we sort the list returned by
+           ``glob.glob(s)``.  Typically, this will result in the image file names and catalog
+           file names matching up correctly, but it is the users responsibility to ensure
+           that this is the case.
+
+        The `chipnums` parameter specifies chip "numbers" which are really just any identifying
+        number or string that is different for each chip in the exposure.  Typically, these are
+        numbers, but they don't have to be if you have some other way of identifying the chips.
+
+        There are a number of ways that the chipnums may be specified:
+
+        1. A single number or string.
+        2. A list of numbers or strings.
+        3. A string that can be ``eval``ed to yield the appropriate list.  e.g.
+           `[ c for c in range(1,63) if c is not 61 ]`
+        4. None, in which case range(len(images)) will be used.  In this case options 3,4 above
+           for the images and cats parameters are not allowed.
+
         :param images:      Either a string (e.g. ``some_dir/*.fits.fz``) or a list of strings
                             (e.g. ["file1.fits", "file2.fits"]) listing the image files to read.
+                            See above for ways that this parameter may be specified.
         :param cats:        Either a string (e.g. ``some_dir/*.fits.fz``) or a list of strings
                             (e.g. ["file1.fits", "file2.fits"]) listing the catalog files to read.
+                            See above for ways that this parameter may be specified.
         :param chipnums:    A list of "chip numbers" to use as the names of each image.  These may
                             be integers or strings and don't have to be sequential.
-                            [default: range(len(images))]
+                            See above for ways that this parameter may be specified.
+                            [default: None, which will use range(len(images))]
         :param dir:         Optionally specify the directory these files are in. [default: None]
         :param image_dir:   Optionally specify the directory of the image files. [default: dir]
         :param cat_dir:     Optionally specify the directory of the cat files. [default: dir]
@@ -254,30 +290,65 @@ class InputFiles(Input):
                             :setPointing: for details about how this can be specified]
         :param gain:        The gain to use for adding Poisson noise to the weight map.
                             [default: None]
+        :param logger:      A logger object for logging debug info. [default: None]
         """
         if image_dir is None: image_dir = dir
         if cat_dir is None: cat_dir = dir
-        if isinstance(images, basestring):
-            if image_dir is not None: images = os.path.join(image_dir, images)
-            self.image_files = glob.glob(images)
-            if len(self.image_files) == 0:
-                raise ValueError("No such files: %s"%images)
-        else:
-            if image_dir is not None: images = [ os.path.join(image_dir, im) for im in images ]
-            self.image_files = images
-        if isinstance(cats, basestring):
-            if cat_dir is not None: cats = os.path.join(cat_dir, cats)
-            self.cat_files = glob.glob(cats)
-            if len(self.image_files) == 0:
-                raise ValueError("No such files: %s"%cats)
-        else:
-            if cat_dir is not None: cats = [ os.path.join(cat_dir, cat) for cat in cats ]
-            self.cat_files = cats
 
-        if chipnums is None:
-            chipnums = range(len(self.image_files))
-        self.chipnums = chipnums
+        # Try to eval chipnums that come in as a string.
+        if isinstance(chipnums, basestring):
+            try:
+                chipnums = eval(chipnums)
+            except Exception as e:
+                if logger:
+                    logger.debug("The string %r could not be eval-ed.",chipnums)
+                    logger.debug("Exception raised: %s",e)
+                    logger.debug("Assuming for now that this is ok, but if it was supposed to ",
+                                 "be evaled, there might be a problem later.")
 
+        # Not all combinations of errors are properly diagnosed, since we may not know yet whether
+        # a string value of images implies 1 or more images.  But we do our best.
+        if isinstance(chipnums, str):
+            if isinstance(images, str) or len(images) == 1:
+                self.chipnums = [ chipnums ]
+            else:
+                raise ValueError("Invalid chipnums = %s with multiple images",chipnums)
+        elif isinstance(chipnums, int):
+            if isinstance(images, str) or len(images) == 1:
+                self.chipnums = [ chipnums ]
+            else:
+                raise ValueError("Invalid chipnums = %s with multiple images",chipnums)
+        elif chipnums is None or isinstance(chipnums, list):
+            self.chipnums = chipnums
+        else:
+            raise ValueError("Invalid chipnums = %s",chipnums)
+        if logger:
+            logger.debug("chipnums = %s",self.chipnums)
+
+        # Parse the images and cats parameters.
+        self.image_files = self._get_file_list(images, image_dir, self.chipnums, logger)
+        if logger:
+            logger.debug("image files = %s",self.image_files)
+
+        self.cat_files = self._get_file_list(cats, cat_dir, self.chipnums, logger)
+        if logger:
+            logger.debug("cat files = %s",self.cat_files)
+
+        # Finally, if chipnums is None, we can make it the default list.
+        if self.chipnums is None:
+            self.chipnums = range(len(self.image_files))
+            if logger:
+                logger.debug("Using default chipnums: %s",self.chipnums)
+
+        # Check that the number of images, cats, chips are equal.
+        if len(self.image_files) != len(self.cat_files):
+            raise ValueError("Number of images (%d) and catalogs (%d) do not match."%(
+                             len(self.image_files), len(self.cat_files)))
+        if len(self.image_files) != len(self.chipnums):
+            raise ValueError("Number of images (%d) and chipnums (%d) do not match."%(
+                             len(self.image_files), len(self.chipnums)))
+
+        # Other parameters are just saved for use later.
         self.x_col = x_col
         self.y_col = y_col
         self.sky_col = sky_col
@@ -292,6 +363,80 @@ class InputFiles(Input):
         self.dec = dec
         self.gain = gain
         self.pointing = None
+
+    def _get_file_list(self, s, d, chipnums, logger):
+        if isinstance(s, basestring):
+            # First try "{chipnum}" style formatting.
+            if (chipnums is not None) and ('{' in s) and ('}' in s):
+                try:
+                    file_list = [ s.format(chipnum=c) for c in chipnums ]
+                except Exception as e:
+                    # There are a number of kinds of exceptions this could raise: ValueError,
+                    # IndexError, and KeyError at least.  Easier to just catch Exception.
+                    if logger:
+                        logger.error("Trying %r.format(chipnum=chipnum) failed", s)
+                else:
+                    if logger:
+                        logger.debug("Successfully used %r.format(chipnum=c) to parse string.",s)
+                    if d is not None:
+                        file_list = [ os.path.join(d, f) for f in file_list ]
+                    return file_list
+
+                # We told them to use {chipnum} but check if they did something like {} instead.
+                try:
+                    file_list = [ s.format(c) for c in chipnums ]
+                except Exception as e2:
+                    if logger:
+                        logger.error("Trying %r.format(chipnum) failed", s)
+                    # If this also failed, raise the original exception.
+                    raise e
+                else:
+                    if logger:
+                        logger.debug("Successfully used s.format(chipnum=c) to parse string.")
+                    if d is not None:
+                        file_list = [ os.path.join(d, f) for f in file_list ]
+                    return file_list
+
+            # Next try "%d" style formatting.
+            if (chipnums is not None) and ('%' in s):
+                try:
+                    file_list = [ s % c for c in chipnums ]
+                except Exception as e:
+                    if logger:
+                        logger.error("Trying %r %% chipnum failed", s)
+                    raise e
+                else:
+                    if logger:
+                        logger.debug("Successfully used %r %% chipnum to parse string.",s)
+                    if d is not None:
+                        file_list = [ os.path.join(d, f) for f in file_list ]
+                    return file_list
+
+            # Finally, try glob, which will also work for a single file name.
+            try:
+                # For glob, we need to join d before running glob.
+                if d is not None:
+                    s = os.path.join(d, s)
+                file_list = sorted(glob.glob(s))
+            except Exception as e:
+                if logger:
+                    logger.error("Trying glob.glob(%r) failed", s)
+                raise e
+            else:
+                if len(file_list) == 0:
+                    raise ValueError("No such files: %r"%s)
+                return file_list
+
+        elif not isinstance(s, list):
+            raise ValueError("%r is not a list or a string",s)
+
+        else:
+            file_list = s
+            if d is not None:
+                file_list = [ os.path.join(d, f) for f in file_list ]
+            return file_list
+
+
 
     def readImages(self, logger=None):
         """Read in the images from the input files and return them.

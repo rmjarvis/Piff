@@ -23,8 +23,9 @@ input:
 
     # Note the * here.  For now, you can specif this eithe as a single filenames, a list of
     # filenames, or something that glob.glob() will understand.
-    images: "DECam_00241238_*.fits.fz"
-    cats: "DECam_00241238_*_psfcat_tb_maxmag_17.0_magcut_3.0_findstars.fits"
+    images: "DECam_00241238_%02d.fits.fz"
+    cats: "DECam_00241238_%02d_psfcat_tb_maxmag_17.0_magcut_3.0_findstars.fits"
+    chipnums: "[ c for c in range(1,63) if c is not 61 and c is not 31 ]"
 
     # What hdu is everything in?
     image_hdu: 1
