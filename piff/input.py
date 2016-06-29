@@ -149,7 +149,7 @@ class Input(object):
             return stars
         self.setGain(logger)
         if logger:
-            logger.info("Adding Poisson noise according to gain=%f",self.gain)
+            logger.info("Adding Poisson noise to weight map according to gain=%f",self.gain)
         stars = [piff.Star(s.data.addPoisson(gain=self.gain), s.fit) for s in stars]
         return stars
 
@@ -173,10 +173,13 @@ class Input(object):
 
         stars = []
         if logger:
-            logger.info("Making star list from %d catalog(s)", len(self.cats))
-        for image,wt,cat in zip(self.images, self.weight, self.cats):
+            if len(self.cats) == 1:
+                logger.debug("Making star list from catalog %s", self.cat_files[0])
+            else:
+                logger.debug("Making star list from %d catalogs", len(self.cats))
+        for image,wt,cat,fname in zip(self.images, self.weight, self.cats, self.cat_files):
             if logger:
-                logger.debug("Processing catalog with %d stars",len(cat))
+                logger.debug("Processing catalog %s with %d stars",fname,len(cat))
             for k in range(len(cat)):
                 x = cat[self.x_col][k]
                 y = cat[self.y_col][k]
@@ -300,18 +303,24 @@ class InputFiles(Input):
         import galsim
 
         # Read in the images from the files
-        if logger:
-            logger.info("Reading image files %s",self.image_files)
-        self.images = [ galsim.fits.read(fname, hdu=self.image_hdu) for fname in self.image_files ]
+        self.images = []
+        for fname in self.image_files:
+            if logger:
+                logger.info("Reading image file %s",fname)
+            self.images.append(galsim.fits.read(fname, hdu=self.image_hdu))
 
         # Either read in the weight image, or build a dummy one
+        if len(self.images) == 1:
+            plural = ''
+        else:
+            plural = 's'
         if self.weight_hdu is None:
             if logger:
-                logger.debug("Making trivial (wt==1) weight images")
+                logger.debug("Making trivial (wt==1) weight image%s", plural)
             self.weight = [ galsim.ImageI(im.bounds, init_value=1) for im in self.images ]
         else:
             if logger:
-                logger.info("Reading weight images from hdu %d.",self.weight_hdu)
+                logger.info("Reading weight image%s from hdu %d.", plural, self.weight_hdu)
             self.weight = [ galsim.fits.read(fname, hdu=self.weight_hdu)
                             for fname in self.image_files ]
             for wt in self.weight:
@@ -322,7 +331,7 @@ class InputFiles(Input):
         # If requested, set wt=0 for any bad pixels
         if self.badpix_hdu is not None:
             if logger:
-                logger.info("Reading badpix images from hdu %d.",self.badpix_hdu)
+                logger.info("Reading badpix image%s from hdu %d.", plural, self.badpix_hdu)
             for fname, wt in zip(self.image_files, self.weight):
                 badpix = galsim.fits.read(fname, hdu=self.badpix_hdu)
                 # The badpix image may be offset by 32768 from the true value.
@@ -331,13 +340,13 @@ class InputFiles(Input):
                     if logger:
                         logger.debug('min(badpix) = %s',numpy.min(badpix.array))
                         logger.debug('max(badpix) = %s',numpy.max(badpix.array))
-                        logger.info("subtracting 32768 from all values in badpix image")
+                        logger.debug("subtracting 32768 from all values in badpix image")
                     badpix -= 32768
                 if numpy.any(badpix.array < -32767):
                     if logger:
                         logger.debug('min(badpix) = %s',numpy.min(badpix.array))
                         logger.debug('max(badpix) = %s',numpy.max(badpix.array))
-                        logger.info("adding 32768 to all values in badpix image")
+                        logger.debug("adding 32768 to all values in badpix image")
                     badpix += 32768
                 # Also, convert to int16, in case it isn't by default.
                 badpix = galsim.ImageS(badpix)
@@ -357,20 +366,22 @@ class InputFiles(Input):
         import galsim
 
         # Read in the star catalogs from the files
-        if logger:
-            logger.info("Reading star catalogs %s.",self.cat_files)
-        self.cats = [ fitsio.read(fname,self.cat_hdu) for fname in self.cat_files ]
+        self.cats = []
+        for fname in self.cat_files:
+            if logger:
+                logger.info("Reading star catalog %s.",fname)
+            self.cats.append(fitsio.read(fname,self.cat_hdu))
 
         # Remove any objects with flag != 0
         if self.flag_col is not None:
             if logger:
-                logger.info("Removing objects with %s != 0",self.flag_col)
+                logger.info("Removing objects with flag (col %s) != 0",self.flag_col)
             self.cats = [ cat[cat[self.flag_col]==0] for cat in self.cats ]
 
         # Remove any objects with use == 0
         if self.use_col is not None:
             if logger:
-                logger.info("Removing objects with %s == 0",self.use_col)
+                logger.info("Removing objects with use (col %s) == 0",self.use_col)
             self.cats = [ cat[cat[self.use_col]!=0] for cat in self.cats ]
 
     def setPointing(self, logger=None):
@@ -431,7 +442,10 @@ class InputFiles(Input):
         else:
             file_name = self.image_files[0]
             if logger:
-                logger.info("Setting pointing from keywords %s, %s in %s", ra, dec, file_name)
+                if len(self.image_files) == 1:
+                    logger.info("Setting pointing from keywords %s, %s", ra, dec)
+                else:
+                    logger.info("Setting pointing from keywords %s, %s in %s", ra, dec, file_name)
             fits = fitsio.FITS(file_name)
             hdu = 1 if file_name.endswith('.fz') else 0
             header = fits[hdu].read_header()
@@ -456,15 +470,19 @@ class InputFiles(Input):
 
         if self.gain is None:
             return
-
         elif type(self.gain) in [float, int]:
+            if logger:
+                logger.info("Setting gain = %f", self.gain)
             self.gain = float(self.gain)
         elif str(self.gain) != self.gain:
             raise ValueError("Unable to parse input gain: %s"%self.gain)
         else:
             file_name = self.image_files[0]
             if logger:
-                logger.info("Setting gain from keyword %s in %s", self.gain, file_name)
+                if len(self.image_files) == 1:
+                    logger.info("Setting gain from keyword %s", self.gain)
+                else:
+                    logger.info("Setting gain from keyword %s in %s", self.gain, file_name)
             fits = fitsio.FITS(file_name)
             hdu = 1 if file_name.endswith('.fz') else 0
             header = fits[hdu].read_header()

@@ -95,13 +95,15 @@ class SimplePSF(PSF):
 
         return kwargs
 
-    def fit(self, chisq_threshold=0.1, logger=None):
+    def fit(self, chisq_threshold=0.1, max_iterations=30, logger=None):
         """Fit interpolated PSF model to star data using standard sequence of operations.
 
         :param chisq_threshold: Change in reduced chisq at which iteration will terminate.
                                 [default: 0.1]
+        :param max_iterations:  Maximum number of iterations to try. [default: 30]
         :param logger:          A logger object for logging debug info. [default: None]
         """
+        # TODO: Make chisq_thresh and max_iterations configurable paramters.
         if logger:
             logger.debug("Initializing models")
         self.stars = [self.model.initialize(s, mask=True) for s in self.stars]
@@ -110,21 +112,18 @@ class SimplePSF(PSF):
             logger.debug("Initializing interpolator")
         self.stars = self.interp.initialize(self.stars, logger=logger)
 
-        # Begin iterations.  Very simple convergence criterion right now.
-        # TODO: Make these convergence constants configurable in config dict.
-        max_iterations = 30
-
         # For basis models, we can compute a quadratic form for chisq, and if we are using
         # a basis interpolator, then we can use it.  It's kind of ugly to query this, but
         # the double dispatch makes it tricky to implement this with class heirarchy, so for
         # now we just check if we have all the required parts to use the quadratic form
         quadratic_chisq = hasattr(self.model, 'chisq') and self.interp.degenerate_points
 
+        # Begin iterations.  Very simple convergence criterion right now.
         oldchisq = 0.
         nremoved = 0
         for iteration in range(max_iterations):
             if logger:
-                logger.debug("Fitting stars, iteration %d", iteration)
+                logger.info('Iteration %d: Fitting %d stars', iteration, len(self.stars))
 
             if quadratic_chisq:
                 self.stars = [self.model.chisq(s) for s in self.stars]
@@ -132,29 +131,31 @@ class SimplePSF(PSF):
                 self.stars = [self.model.fit(s) for s in self.stars]
 
             if logger:
-                logger.debug("Interpolator solving, iteration %d", iteration)
+                logger.debug("             Calculating the interpolation")
             self.interp.solve(self.stars, logger=logger)
 
             # Refit and recenter all stars, collect stats
             if logger:
-                logger.debug("Re-fluxing stars, iteration %d", iteration)
+                logger.debug("             Re-fluxing stars")
 
             if hasattr(self.model, 'reflux'):
                 self.stars = [self.model.reflux(self.interp.interpolate(s)) for s in self.stars]
 
             if self.outliers and (iteration > 0 or not self.interp.degenerate_points):
                 # Perform outlier rejection, but not on first iteration for degenerate solvers.
+                if logger:
+                    logger.debug("              Looking for outliers")
                 self.stars, nremoved = self.outliers.removeOutliers(self.stars, logger=logger)
                 if logger:
                     if nremoved == 0:
-                        logger.debug("No outliers found")
+                        logger.debug("             No outliers found")
                     else:
-                        logger.debug("Removed %d outliers", nremoved)
+                        logger.info('             Removed %d outliers', nremoved)
 
             chisq = numpy.sum([s.fit.chisq for s in self.stars])
             dof   = numpy.sum([s.fit.dof for s in self.stars])
             if logger:
-                logger.info('Iteration %d: chisq = %.2f / %d dof', iteration, chisq, dof)
+                logger.info('             Total chisq = %.2f / %d dof', chisq, dof)
 
             # Very simple convergence test here:
             # Note, the lack of abs here means if chisq increases, we also stop.
@@ -163,7 +164,7 @@ class SimplePSF(PSF):
                 return
             oldchisq = chisq
 
-        logger.warning('PSF fit did not converge')
+        logger.warning('PSF fit did not converge.  Max iterations = %d reached.',max_iterations)
 
 
     def drawStar(self, star):
