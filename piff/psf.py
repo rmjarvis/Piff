@@ -32,37 +32,34 @@ class PSF(object):
 
     The usual way to create a PSF is through one of the two factory functions::
 
-        >>> psf = piff.PSF.process(config, stars, wcs, pointing, logger)
+        >>> psf = piff.PSF.process(config, logger)
         >>> psf = piff.PSF.read(file_name, logger)
 
     The first is used to build a PSF model from the data according to a config dict.
     The second is used to read in a PSF model from disk.
     """
     @classmethod
-    def process(cls, config_psf, stars, wcs, pointing, logger=None):
+    def process(cls, config_psf, logger=None):
         """Process the config dict and return a PSF instance.
 
         As the PSF class is an abstract base class, the returned type will in fact be some
         subclass of PSF according to the contents of the config dict.
 
-        The provided config dict is typically the 'psf' field in the base config dict in 
+        The provided config dict is typically the 'psf' field in the base config dict in
         a YAML file, although for compound PSF types, it may be the field for just one of
         several components.
 
-        Note that the parameters stars, wcs, pointing are typically taken from the output
-        of InputHandler process(base_config['input']).
+        This function merely creates a "blank" PSF object.  It does not actually do any
+        part of the solution yet.  Typically this will be followed by fit:
 
-        So the typical usage would be:
-
+            >>> psf = piff.PSF.process(config['psf'])
             >>> stars, wcs, pointing = piff.Input.process(config['input'])
-            >>> psf = piff.PSF.process(config['psf'], stars, wcs, pointing)
- 
+            >>> psf.fit(stars, wcs, pointing)
+
+        at which point, the ``psf`` instance would have a solution to the PSF model.
+
         :param config_psf:  A dict specifying what type of PSF to build along with the
                             appropriate kwargs for building it.
-        :param stars:       A list of Star instances.
-        :param wcs:         A dict of WCS solutions indexed by chipnum.
-        :param pointing:    A galsim.CelestialCoord object giving the telescope pointing.
-                            [Note: pointing should be None if the WCS is not a galsim.CelestialWCS]
         :param logger:      A logger object for logging debug info. [default: None]
 
         :returns: a PSF instance of the appropriate type.
@@ -86,7 +83,7 @@ class PSF(object):
         # Build PSF object
         if logger:
             logger.info("Building %s",psf_type)
-        psf = cls(stars=stars, wcs=wcs, pointing=pointing, **kwargs)
+        psf = cls(**kwargs)
         if logger:
             logger.debug("Done building PSF")
 
@@ -108,7 +105,6 @@ class PSF(object):
         kwargs = {}
         kwargs.update(config_psf)
         return kwargs
-
 
     def draw(self, x, y, chipnum=0, flux=1.0, offset=(0,0), stamp_size=48,
              logger=None, **kwargs):
@@ -250,7 +246,12 @@ class PSF(object):
         # Get any other kwargs we need for this PSF type
         kwargs = read_kwargs(fits, extname)
         kwargs.pop('type')
-        psf = psf_cls(stars=stars, wcs=wcs, pointing=pointing, **kwargs)
+
+        # Make the PSF instance
+        psf = psf_cls(**kwargs)
+        psf.stars = stars
+        psf.wcs = wcs
+        psf.pointing = pointing
 
         # Just in case the class needs to do something else at the end.
         psf._finish_read(fits, extname, logger)
@@ -263,7 +264,7 @@ class PSF(object):
         In the base class, this is a no op, but for classes that need to do something else at
         the end of the read process, this hook is available to be overridden.
 
-        (E.g. composite psf classes might copy the stars, wcs, pointing information into the 
+        (E.g. composite psf classes might copy the stars, wcs, pointing information into the
         various components.)
 
         :param fits:        An open fitsio.FITS object

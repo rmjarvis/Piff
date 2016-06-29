@@ -112,8 +112,8 @@ def piffify(config, logger=None):
     # read in the input images
     stars, wcs, pointing = piff.Input.process(config['input'], logger=logger)
 
-    psf = piff.PSF.process(config['psf'], stars, wcs, pointing, logger=logger)
-    psf.fit(logger=logger)
+    psf = piff.PSF.process(config['psf'], logger=logger)
+    psf.fit(stars, wcs, pointing, logger=logger)
 
     # write it out to a file
     output = piff.Output.process(config['output'], logger=logger)

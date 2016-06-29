@@ -233,8 +233,8 @@ def test_single_image():
     orig_stars, wcs, pointing = piff.Input.process(config['input'], logger)
 
     # Use a SimplePSF to process the stars data this time.
-    psf = piff.SimplePSF(orig_stars, wcs, pointing, model, interp)
-    psf.fit(logger=logger)
+    psf = piff.SimplePSF(model, interp)
+    psf.fit(orig_stars, wcs, pointing, logger=logger)
     test_star = psf.interp.interpolate(target)
     numpy.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=5)
 

@@ -693,9 +693,8 @@ def test_single_image():
         else:
             logger = None
         pointing = None     # wcs is not Celestial here, so pointing needs to be None.
-        psf = piff.SimplePSF(orig_stars, {0:input.images[0].wcs}, pointing,
-                             model, interp)
-        psf.fit(logger=logger)
+        psf = piff.SimplePSF(model, interp)
+        psf.fit(orig_stars, {0:input.images[0].wcs}, pointing, logger=logger)
 
         # Check that the interpolation is what it should be
         print('target.flux = ',target_star.fit.flux)
@@ -855,8 +854,8 @@ def test_des_image():
         interp = piff.BasisPolynomial(order=2, logger=logger)
 
         # Make a psf
-        psf = piff.SimplePSF(stars, wcs, pointing, model, interp)
-        psf.fit(logger=logger)
+        psf = piff.SimplePSF(model, interp)
+        psf.fit(stars, wcs, pointing, logger=logger)
 
         # The difference between the images of the fitted stars and the originals should be
         # consistent with noise.  Keep track of how many don't meet that goal.

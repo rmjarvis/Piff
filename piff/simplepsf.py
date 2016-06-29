@@ -34,21 +34,13 @@ class SimplePSF(PSF):
     The model defines the functional form of the surface brightness profile, and the
     interpolator defines how the parameters of the model vary across the field of view.
     """
-    def __init__(self, stars, wcs, pointing, model, interp,
-                 outliers=None, extra_interp_properties=()):
+    def __init__(self, model, interp, outliers=None, extra_interp_properties=()):
         """
-        :param stars:       A list of Star instances.
-        :param wcs:         A dict of WCS solutions indexed by chipnum.
-        :param pointing:    A galsim.CelestialCoord object giving the telescope pointing.
-                            [Note: pointing should be None if the WCS is not a galsim.CelestialWCS]
         :param model:       A Model instance used for modeling the surface brightness profile.
         :param interp:      An Interp instance used to interpolate across the field of view.
         :param outliers:    Optionally, an Outliers instance used to remove outliers.
                             [default: None]
         """
-        self.stars = stars
-        self.wcs = wcs
-        self.pointing = pointing
         self.model = model
         self.interp = interp
         self.outliers = outliers
@@ -95,15 +87,25 @@ class SimplePSF(PSF):
 
         return kwargs
 
-    def fit(self, chisq_threshold=0.1, max_iterations=30, logger=None):
+    def fit(self, stars, wcs, pointing,
+            chisq_threshold=0.1, max_iterations=30, logger=None):
         """Fit interpolated PSF model to star data using standard sequence of operations.
 
+        :param stars:           A list of Star instances.
+        :param wcs:             A dict of WCS solutions indexed by chipnum.
+        :param pointing:        A galsim.CelestialCoord object giving the telescope pointing.
+                                [Note: pointing should be None if the WCS is not a CelestialWCS]
         :param chisq_threshold: Change in reduced chisq at which iteration will terminate.
                                 [default: 0.1]
         :param max_iterations:  Maximum number of iterations to try. [default: 30]
         :param logger:          A logger object for logging debug info. [default: None]
         """
-        # TODO: Make chisq_thresh and max_iterations configurable paramters.
+        # TODO: Make chisq_thresh and max_iterations configurable paramters and move them
+        #       to the initialization.
+        self.stars = stars
+        self.wcs = wcs
+        self.pointing = pointing
+
         if logger:
             logger.debug("Initializing models")
         self.stars = [self.model.initialize(s, mask=True) for s in self.stars]
