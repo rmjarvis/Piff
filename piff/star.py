@@ -300,6 +300,25 @@ class Star(object):
         dy = jac.dvdx * du + jac.dvdy * dv
         return (dx,dy)
 
+    def addPoisson(self, signal=None, gain=None):
+        """Return new Star with the weight values altered to reflect
+        Poisson shot noise from a signal source, e.g. when the weight
+        only contains variance from background and read noise.
+
+        :param signal:    The signal (in ADU) from which the Poisson variance is extracted.
+                          If this is a 2d array or Image it is assumed to match the weight image.
+                          If it is a 1d array, it is assumed to match the vectors returned by
+                          getDataVector().  If None, the self.image is used.  All signals are
+                          clipped from below at zero.
+        :param gain:      The gain, in e per ADU, assumed in calculating new weights.  If None
+                          is given, then the 'gain' property is used, else defaults gain=1.
+
+        :returns:         A new StarData instance with updated weight array.
+        """
+        # The functionality is implemented as a StarData method.
+        # So just pass this task on to that and recast the return value as a Star instance.
+        return Star(self.data.addPoisson(signal=signal, gain=gain), self.fit)
+
 
 class StarData(object):
     """A class that encapsulates all the relevant information about an observed star.

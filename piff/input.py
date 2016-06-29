@@ -153,7 +153,7 @@ class Input(object):
         self.setGain(logger)
         if logger:
             logger.info("Adding Poisson noise to weight map according to gain=%f",self.gain)
-        stars = [piff.Star(s.data.addPoisson(gain=self.gain), s.fit) for s in stars]
+        stars = [s.addPoisson(gain=self.gain) for s in stars]
         return stars
 
     def makeStars(self, logger=None):
