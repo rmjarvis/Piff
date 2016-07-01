@@ -55,8 +55,18 @@ class Star(object):
 
         star.data       The component StarData object
         star.fit        The component StarFit object
-        star.image      The image of the star, an alias for star.data.image
-        star.weight     The weight map connected to the image data, an alias for star.data.weight
+
+    and the following read-only properties:
+
+        star.image      The image of the star
+        star.weight     The weight map connected to the image data
+        star.image_pos  The position of the star in image coordinates, aka (x,y)
+        star.field_pos  The position of the star in field coordinates, aka (u,v)
+        star.x          The x position of the star in image coordinates
+        star.y          The y position of the star in image coordinates
+        star.u          The u position of the star in field coordinates
+        star.v          The v position of the star in field coordinates
+        star.chipnum    The chip number where this star was observed (or would be observed)
     """
     def __init__(self, data, fit):
         """Constructor for Star instance.
@@ -101,17 +111,37 @@ class Star(object):
     def image(self):
         return self.data.image
 
-    @image.setter
-    def image(self, im):
-        self.data.image = im
-
     @property
     def weight(self):
         return self.data.weight
 
-    @weight.setter
-    def weight(self, wt):
-        self.data.weight = wt
+    @property
+    def image_pos(self):
+        return self.data.image_pos
+
+    @property
+    def field_pos(self):
+        return self.data.field_pos
+
+    @property
+    def x(self):
+        return self.data.image_pos.x
+
+    @property
+    def y(self):
+        return self.data.image_pos.y
+
+    @property
+    def u(self):
+        return self.data.image_pos.u
+
+    @property
+    def v(self):
+        return self.data.image_pos.v
+
+    @property
+    def chipnum(self):
+        return self.data.image_pos.chipnum
 
     @classmethod
     def makeTarget(cls, x=None, y=None, u=None, v=None, properties={}, wcs=None, scale=None,

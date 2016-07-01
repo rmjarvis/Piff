@@ -46,7 +46,7 @@ def make_gaussian_data(sigma, u0, v0, flux, noise=0., du=1., fpu=0., fpv=0., nsi
     star.image.setOrigin(0,0)
     g.drawImage(star.image, method='no_pixel', use_true_center=False,
                 offset=galsim.PositionD(nom_u0/du,nom_v0/du))
-    star.weight = star.image.copy()
+    star.data.weight = star.image.copy()
     star.weight.fill(1./var/var)
     if noise != 0:
         gn = galsim.GaussianNoise(sigma=noise, rng=rng)
