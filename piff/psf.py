@@ -137,7 +137,7 @@ class PSF(object):
         """
         import galsim
         wcs = self.wcs[chipnum]
-        properties = {}
+        properties = {'chipnum' : chipnum}
         for key in self.extra_interp_properties:
             if key not in kwargs:
                 raise TypeError("Extra interpolation property %r is required"%key)

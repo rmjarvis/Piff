@@ -27,12 +27,20 @@ from .util import write_kwargs, read_kwargs, make_dtype, adjust_value
 class SingleChipPSF(PSF):
     """A PSF class that uses a separate PSF solution for each chip
     """
-    def __init__(self, single_psf):
+    def __init__(self, single_psf, extra_interp_properties=None):
         """
         :param single_psf:  A PSF instance to use for the PSF solution on each chip.
                             (This will be turned into nchips copies of the provided object.)
+        :param extra_interp_properties:     A list of any extra properties that will be used for
+                                            the interpolation in addition to (u,v).
+                                            [default: None]
         """
         self.single_psf = single_psf
+        if extra_interp_properties is None:
+            self.extra_interp_properties = []
+        else:
+            self.extra_interp_properties = extra_interp_properties
+
         self.kwargs = {
             'single_psf': 0,
         }
@@ -126,10 +134,8 @@ class SingleChipPSF(PSF):
         :param extname:     The base name of the extension to write to.
         :param logger:      A logger object for logging debug info.
         """
-        chipnums = read_kwargs(fits, extname + '_chipnums')['chipnums']
-        print('chipnums = ',chipnums)
+        chipnums = fits[extname + '_chipnums'].read()['chipnums']
         self.psf_by_chip = {}
         for chipnum in chipnums:
-            print('chipnum = ',chipnum)
             self.psf_by_chip[chipnum] = PSF._read(fits, extname + '_%s'%chipnum, logger)
 

@@ -34,17 +34,23 @@ class SimplePSF(PSF):
     The model defines the functional form of the surface brightness profile, and the
     interpolator defines how the parameters of the model vary across the field of view.
     """
-    def __init__(self, model, interp, outliers=None, extra_interp_properties=()):
+    def __init__(self, model, interp, outliers=None, extra_interp_properties=None):
         """
         :param model:       A Model instance used for modeling the surface brightness profile.
         :param interp:      An Interp instance used to interpolate across the field of view.
         :param outliers:    Optionally, an Outliers instance used to remove outliers.
                             [default: None]
+        :param extra_interp_properties:     A list of any extra properties that will be used for
+                                            the interpolation in addition to (u,v).
+                                            [default: None]
         """
         self.model = model
         self.interp = interp
         self.outliers = outliers
-        self.extra_interp_properties = extra_interp_properties
+        if extra_interp_properties is None:
+            self.extra_interp_properties = []
+        else:
+            self.extra_interp_properties = extra_interp_properties
         self.kwargs = {
             # These are junk entries that will be overwritten.
             # TODO: Come up with a nicer mechanism for specifying items that can be overwritten
