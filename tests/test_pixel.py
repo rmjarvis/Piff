@@ -714,7 +714,7 @@ def test_single_image():
         # Round trip through a file
         psf_file = os.path.join('output','pixel_psf.fits')
         psf.write(psf_file, logger)
-        psf = piff.PSF.read(psf_file, logger)
+        psf = piff.read(psf_file, logger)
         assert type(psf.model) is piff.PixelGrid
         assert type(psf.interp) is piff.BasisPolynomial
         test_star = psf.drawStar(target_star)
@@ -752,7 +752,7 @@ def test_single_image():
     if __name__ == '__main__':
         print("Running piffify function")
         piff.piffify(config)
-        psf = piff.PSF.read(psf_file)
+        psf = piff.read(psf_file)
         test_star = psf.drawStar(target_star)
         np.testing.assert_almost_equal(test_star.image.array, test_im.array, decimal=3)
 
@@ -766,7 +766,7 @@ def test_single_image():
         piffify_exe = get_script_name('piffify')
         p = subprocess.Popen( [piffify_exe, 'pixel_moffat.yaml'] )
         p.communicate()
-        psf = piff.PSF.read(psf_file)
+        psf = piff.read(psf_file)
         test_star = psf.drawStar(target_star)
         np.testing.assert_almost_equal(test_star.image.array, test_im.array, decimal=3)
 
@@ -912,7 +912,7 @@ def test_des_image():
         print('read stars')
         stars, wcs, pointing = piff.Input.process(config['input'])
         print('read psf')
-        psf = piff.PSF.read(psf_file)
+        psf = piff.read(psf_file)
         stars = [psf.model.initialize(s) for s in stars]
         flux = stars[0].fit.flux
         offset = stars[0].center_to_offset(stars[0].fit.center)
@@ -935,7 +935,7 @@ def test_des_image():
         print('read stars')
         stars, wcs, pointing = piff.Input.process(config['input'])
         print('read psf')
-        psf = piff.PSF.read(psf_file)
+        psf = piff.read(psf_file)
         stars = [psf.model.initialize(s) for s in stars]
         flux = stars[0].fit.flux
         offset = stars[0].center_to_offset(stars[0].fit.center)

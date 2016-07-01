@@ -351,3 +351,14 @@ class PSF(object):
 
         return wcs, pointing
 
+# Make a global function, piff.read, as an alias for piff.PSF.read, since that's the main thing
+# users will want to do as their starting point for using a piff file.
+def read(file_name, logger=None):
+    """Read a Piff PSF object from a file.
+
+    :param file_name:   The name of the file to read.
+    :param logger:      A logger object for logging debug info. [default: None]
+
+    :returns: a piff.PSF instance
+    """
+    return PSF.read(file_name, logger=logger)

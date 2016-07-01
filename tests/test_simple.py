@@ -239,7 +239,7 @@ def test_single_image():
 
     # Round trip to a file
     psf.write(psf_file, logger)
-    psf = piff.PSF.read(psf_file, logger)
+    psf = piff.read(psf_file, logger)
     assert type(psf.model) is piff.Gaussian
     assert type(psf.interp) is piff.Mean
     test_star = psf.interp.interpolate(target)
@@ -249,7 +249,7 @@ def test_single_image():
     os.remove(psf_file)
 
     piff.piffify(config, logger)
-    psf = piff.PSF.read(psf_file)
+    psf = piff.read(psf_file)
     test_star = psf.interp.interpolate(target)
     np.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=5)
 
@@ -260,7 +260,7 @@ def test_single_image():
     piffify_exe = get_script_name('piffify')
     p = subprocess.Popen( [piffify_exe, 'simple.yaml'] )
     p.communicate()
-    psf = piff.PSF.read(psf_file)
+    psf = piff.read(psf_file)
     test_star = psf.interp.interpolate(target)
     np.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=5)
 

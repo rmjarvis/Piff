@@ -100,7 +100,7 @@ from .output import Output, OutputFile
 
 # PSF
 # PSF classes are named BlahPSF where Blah is what they are called in the config file
-from .psf import PSF
+from .psf import PSF, read
 from .simplepsf import SimplePSF
 
 # Stats
