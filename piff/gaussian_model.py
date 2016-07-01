@@ -28,17 +28,17 @@ class Gaussian(Model):
     def __init__(self, logger=None):
         self.kwargs = {}
 
-    def fit(self, star):
-        """Fit the image by running the HSM adaptive moments code on the image and using
-        the resulting moments as an estimate of the Gaussian size/shape.
+    @staticmethod
+    def hsm(star):
+        """Compute the hsm moments for a given star.
 
         :param star:    A Star instance
 
-        :returns: a new Star with the fitted parameters in star.fit
+        :returns: (flux, cenx, ceny, sigma, g1, g2, flag)
         """
         import galsim
         image, weight, image_pos = star.data.getImage()
-        mom = image.FindAdaptiveMom(weight=weight)
+        mom = image.FindAdaptiveMom(weight=weight, strict=False)
 
         sigma = mom.moments_sigma
         shape = mom.observed_shape
@@ -55,20 +55,36 @@ class Gaussian(Model):
         # Finally the shear
         shape = shear + shape
 
-        # Make a StarFit object with these parameters
-        params = np.array([ sigma, shape.g1, shape.g2 ])
-
         flux = mom.moments_amp
         center = mom.moments_centroid
+        flag = mom.moments_status
+
+        return (flux, center.x, center.y, sigma, shape.g1, shape.g2, flag)
+
+    def fit(self, star):
+        """Fit the image by running the HSM adaptive moments code on the image and using
+        the resulting moments as an estimate of the Gaussian size/shape.
+
+        :param star:    A Star instance
+
+        :returns: a new Star with the fitted parameters in star.fit
+        """
+        import galsim
+
+        flux, cenx, ceny, sigma, g1, g2, flag = self.hsm(star)
+
+        # Make a StarFit object with these parameters
+        params = np.array([ sigma, g1, g2 ])
 
         # Also need to compute chisq
         prof = self.getProfile(params) * flux
-        offset = center - image.trueCenter()
-        model_image = prof.drawImage(image.copy(), method='no_pixel', offset=offset)
-        chisq = np.std(image.array - model_image.array)
-        dof = np.count_nonzero(weight.array) - 6
+        center = galsim.PositionD(cenx,ceny)
+        offset = center - star.image.trueCenter()
+        model_image = prof.drawImage(star.image.copy(), method='no_pixel', offset=offset)
+        chisq = np.std(star.image.array - model_image.array)
+        dof = np.count_nonzero(star.weight.array) - 6
 
-        fit = StarFit(params, flux=flux, center=center-image_pos, chisq=chisq, dof=dof)
+        fit = StarFit(params, flux=flux, center=center-star.image_pos, chisq=chisq, dof=dof)
         return Star(star.data, fit)
 
     def getProfile(self, params):

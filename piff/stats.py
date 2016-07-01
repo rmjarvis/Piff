@@ -22,6 +22,8 @@ from __future__ import print_function
 import numpy as np
 import os
 
+from .gaussian_model import Gaussian
+
 class Stats(object):
     """The base class for getting the statistics of a set of stars.
 
@@ -134,11 +136,10 @@ class Stats(object):
 
         :param star:        The star to measure.
 
-        :returns sigma, g1, g2: HSM Shape measurements
+        :returns (flux, cenx, ceny, sigma, g1, g2, flag)
         """
-        # The piff Gaussian model does this, so use that to avoid code duplication.
-        import piff
-        return piff.Gaussian().fit(star).fit.params
+        # The Gaussian model does this, so use that to avoid code duplication.
+        return Gaussian.hsm(star)
 
     def measureShapes(self, psf, stars, logger=None):
         """Compare PSF and true star shapes with HSM algorithm
@@ -150,7 +151,6 @@ class Stats(object):
         :returns:           positions of stars, shapes of stars, and shapes of
                             models of stars (sigma, g1, g2)
         """
-        import piff
         # measure moments with Gaussian on image
         if logger:
             logger.debug("Measuring shapes of real stars")
@@ -212,15 +212,20 @@ class ShapeHistogramsStats(Stats):
             logger.info("Measuring Star and Model Shapes")
         positions, shapes_truth, shapes_model = self.measureShapes(psf, stars, logger=logger)
 
+        # Only use stars for which hsm was successful
+        flag_truth = shapes_truth[:, 6]
+        flag_model = shapes_model[:, 6]
+        mask = (flag_truth == 0) & (flag_model == 0)
+
         # define terms for the catalogs
-        self.u = positions[:, 0]
-        self.v = positions[:, 1]
-        self.T = shapes_truth[:, 0]
-        self.g1 = shapes_truth[:, 1]
-        self.g2 = shapes_truth[:, 2]
-        self.T_model = shapes_model[:, 0]
-        self.g1_model = shapes_model[:, 1]
-        self.g2_model = shapes_model[:, 2]
+        self.u = positions[mask, 0]
+        self.v = positions[mask, 1]
+        self.T = shapes_truth[mask, 3]
+        self.g1 = shapes_truth[mask, 4]
+        self.g2 = shapes_truth[mask, 5]
+        self.T_model = shapes_model[mask, 3]
+        self.g1_model = shapes_model[mask, 4]
+        self.g2_model = shapes_model[mask, 5]
         self.dT = self.T - self.T_model
         self.dg1 = self.g1 - self.g1_model
         self.dg2 = self.g2 - self.g2_model
@@ -339,15 +344,20 @@ class RhoStats(Stats):
             logger.info("Measuring Star and Model Shapes")
         positions, shapes_truth, shapes_model = self.measureShapes(psf, stars, logger=logger)
 
+        # Only use stars for which hsm was successful
+        flag_truth = shapes_truth[:, 6]
+        flag_model = shapes_model[:, 6]
+        mask = (flag_truth == 0) & (flag_model == 0)
+
         # define terms for the catalogs
-        u = positions[:, 0]
-        v = positions[:, 1]
-        T = shapes_truth[:, 0]
-        g1 = shapes_truth[:, 1]
-        g2 = shapes_truth[:, 2]
-        dT = T - shapes_model[:, 0]
-        dg1 = g1 - shapes_model[:, 1]
-        dg2 = g2 - shapes_model[:, 2]
+        u = positions[mask, 0]
+        v = positions[mask, 1]
+        T = shapes_truth[mask, 3]
+        g1 = shapes_truth[mask, 4]
+        g2 = shapes_truth[mask, 5]
+        dT = T - shapes_model[mask, 3]
+        dg1 = g1 - shapes_model[mask, 4]
+        dg2 = g2 - shapes_model[mask, 5]
 
         # make the treecorr catalogs
         if logger:
