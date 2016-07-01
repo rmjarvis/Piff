@@ -74,7 +74,6 @@ class PixelGrid(Model):
             logger.debug("start_sigma = %s",start_sigma)
             logger.debug("force_model_center = %s",force_model_center)
             logger.debug("degenerate = %s",degenerate)
-        self.logger = logger
 
         self.du = scale
         self.pixel_area = self.du*self.du
@@ -109,8 +108,8 @@ class PixelGrid(Model):
         if self._force_model_center:
             self._nparams -= 2 # Centroid constraint will remove 2 more degrees of freedom
             self._constraints += 2
-        if self.logger:
-            self.logger.debug("nparams = %d, constraints = %d",self._nparams, self._constraints)
+        if logger:
+            logger.debug("nparams = %d, constraints = %d",self._nparams, self._constraints)
 
         # Now we need to make a 2d array whose entries are the indices of
         # each pixel in the 1d parameter array.  We will put the central
@@ -276,12 +275,13 @@ class PixelGrid(Model):
 
         star.fit.params[:] = params[self._constraints:]  # Omit the constrained pixels
 
-    def initialize(self, star, mask=True):
+    def initialize(self, star, mask=True, logger=None):
         """Initialize a star to work with the current model.
 
         :param star:    A Star instance with the raw data.
         :param mask:    If True, set data.weight to zero at pixels that are outside
                         the range of the model.
+        :param logger:  A logger object for logging debug info. [default: None]
 
         :returns:       Star instance with the appropriate initial fit values
         """
@@ -306,7 +306,7 @@ class PixelGrid(Model):
             data = star.data.maskPixels(use)
         star = Star(data, fit)
         # Update the flux to something close to right.
-        star = self.reflux(star, fit_center=False)
+        star = self.reflux(star, fit_center=False, logger=logger)
         return star
 
     def fit(self, star):
@@ -548,28 +548,29 @@ class PixelGrid(Model):
 
         return Star(star.data.setData(model,include_zero_weight=True), star.fit)
 
-    def reflux(self, star, fit_center=True):
+    def reflux(self, star, fit_center=True, logger=None):
         """Fit the Model to the star's data, varying only the flux (and
         center, if it is free).  Flux and center are updated in the Star's
         attributes.  This is a single-step solution if only solving for flux,
         otherwise an iterative operation.  DOF in the result assume
         only flux (& center) are free parameters.
 
-        :param star:       A Star instance
-        :param fit_center: If False, disable any motion of center
+        :param star:        A Star instance
+        :param fit_center:  If False, disable any motion of center
+        :param logger:      A logger object for logging debug info. [default: None]
 
-        :returns:          New Star instance, with updated flux, center, chisq, dof, worst
+        :returns:           New Star instance, with updated flux, center, chisq, dof, worst
         """
-        if False:
-            self.logger.debug("Reflux for star:")
-            self.logger.debug("    flux = %s",star.fit.flux)
-            self.logger.debug("    center = %s",star.fit.center)
-            self.logger.debug("    props = %s",star.data.properties)
-            self.logger.debug("    image = %s",star.data.image)
-            self.logger.debug("    image = %s",star.data.image.array)
-            self.logger.debug("    weight = %s",star.data.weight.array)
-            self.logger.debug("    image center = %s",star.data.image(star.data.image.center()))
-            self.logger.debug("    weight center = %s",star.data.weight(star.data.weight.center()))
+        if logger:
+            logger.debug("Reflux for star:")
+            logger.debug("    flux = %s",star.fit.flux)
+            logger.debug("    center = %s",star.fit.center)
+            logger.debug("    props = %s",star.data.properties)
+            logger.debug("    image = %s",star.data.image)
+            #logger.debug("    image = %s",star.data.image.array)
+            #logger.debug("    weight = %s",star.data.weight.array)
+            logger.debug("    image center = %s",star.data.image(star.data.image.center()))
+            logger.debug("    weight center = %s",star.data.weight(star.data.weight.center()))
 
         # This will be an iterative process if the centroid is free.
         max_iterations = 100    # Max iteration count
@@ -578,6 +579,8 @@ class PixelGrid(Model):
         flux = star.fit.flux
         center = star.fit.center
         for iteration in range(max_iterations):
+            if logger:
+                logger.debug("Start iteration %d",iteration)
             # Start by getting all interpolation coefficients for all observed points
             data, weight, u, v = star.data.getDataVector()
             if not star.data.values_are_sb:
@@ -617,27 +620,47 @@ class PixelGrid(Model):
                 derivs = mod.reshape(mod.shape+(1,))
                 # derivs should end up with shape (npts, nconstraints)
             resid = data - mod*flux
+            if logger:
+                logger.debug("total pixels = %s, nopsf = %s",len(pvals),np.sum(nopsf))
 
             # Now begin construction of alpha/beta/chisq that give
             # chisq vs linearized model.
             rw = resid * weight
             chisq = np.sum(resid * rw)
+            if logger:
+                logger.debug("initial chisq = %s",chisq)
             beta = np.dot( derivs.T,rw)
             alpha = np.dot( derivs.T*weight, derivs)
             df = np.linalg.solve(alpha, beta)
             dchi = np.dot(beta, df)
             chisq = chisq - dchi
+            if logger:
+                logger.debug("chisq -= %s => %s",dchi,chisq)
             # Record worst single pixel chisq:
             resid -= np.dot(derivs,df)
             rw = resid * weight
             worst_chisq = np.max(resid * rw)
+            if logger:
+                logger.debug("worst_chisq = %s",worst_chisq)
 
             # update the flux (and center) of the star
+            if logger:
+                logger.debug("initial flux = %s",flux)
             flux += df[0]
+            if logger:
+                logger.debug("flux += %s => %s",df[0],flux)
             ###print(iteration,'chisq',chisq,flux,center,df) ###
+            if logger:
+                logger.debug("center = %s",center)
             if do_center:
                 center = (center[0]+df[1],
                           center[1]+df[2])
+                if logger:
+                    logger.debug("center += (%s,%s) => %s",df[1],df[2],center)
+            dof = np.count_nonzero(weight) - self._constraints
+            if logger:
+                logger.debug("dchi, chisq_thresh, dof, do_center = %s, %s, %s, %s",
+                             dchi,chisq_thresh,dof,do_center)
             if abs(dchi) < chisq_tolerance or not do_center:
                 # Done with iterations.  Return new Star with updated information
                 return Star(star.data, StarFit(star.fit.params,
@@ -645,7 +668,7 @@ class PixelGrid(Model):
                                                center = center,
                                                chisq = chisq,
                                                worst_chisq = worst_chisq,
-                                               dof = np.count_nonzero(weight) - self._constraints,
+                                               dof = dof,
                                                alpha = star.fit.alpha,
                                                beta = star.fit.beta))
 

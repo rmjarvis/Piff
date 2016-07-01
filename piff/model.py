@@ -72,18 +72,19 @@ class Model(object):
         kwargs.update(config_model)
         return kwargs
 
-    def initialize(self, star, mask=True):
+    def initialize(self, star, mask=True, logger=None):
         """Initialize a star to work with the current model.
 
         :param star:    A Star instance with the raw data.
         :param mask:    If True, set data.weight to zero at pixels that are outside
                         the range of the model. [default: True]
+        :param logger:  A logger object for logging debug info. [default: None]
 
         :returns:       Star instance with the appropriate initial fit values
         """
         # If implemented, update the flux to something close to right.
         if hasattr(self, 'reflux'):
-            star = self.reflux(star, fit_center=False)
+            star = self.reflux(star, fit_center=False, logger=logger)
         else:
             star = star.withFlux(np.sum(star.data.image.array))
         return star

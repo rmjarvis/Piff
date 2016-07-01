@@ -197,7 +197,7 @@ class PSF(object):
     def read(cls, file_name, logger=None):
         """Read a PSF object from a file.
 
-        :param file_name:   The name of the file to write to.
+        :param file_name:   The name of the file to read.
         :param logger:      A logger object for logging debug info. [default: None]
 
         :returns: a PSF instance
