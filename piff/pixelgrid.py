@@ -235,9 +235,7 @@ class PixelGrid(Model):
         x = psfx + self._origin[1]
         # Mark references to invalid pixels with nopsf array
         # First note which pixels are referenced outside of grid:
-        nopsf = np.logical_or(y < 0, y >= self.ny)
-        nopsf = np.logical_or(nopsf, x<0)
-        nopsf = np.logical_or(nopsf, x>=self.nx)
+        nopsf = (y < 0) | (y >= self.ny) | (x < 0) | (x >= self.nx)
         # Set them to reference pixel 0
         x = np.where(nopsf, 0, x)
         y = np.where(nopsf, 0, y)
@@ -574,10 +572,11 @@ class PixelGrid(Model):
 
         # This will be an iterative process if the centroid is free.
         max_iterations = 100    # Max iteration count
-        chisq_tolerance = 0.01 # Quit when chisq changes less than this
+        chisq_thresh = 0.01     # Quit when reduced chisq changes less than this
         do_center = fit_center and self._force_model_center
         flux = star.fit.flux
         center = star.fit.center
+        prev_chisq = 1.e500
         for iteration in range(max_iterations):
             if logger:
                 logger.debug("Start iteration %d",iteration)
@@ -661,7 +660,7 @@ class PixelGrid(Model):
             if logger:
                 logger.debug("dchi, chisq_thresh, dof, do_center = %s, %s, %s, %s",
                              dchi,chisq_thresh,dof,do_center)
-            if abs(dchi) < chisq_tolerance or not do_center:
+            if (dchi < chisq_thresh * dof) or not do_center:
                 # Done with iterations.  Return new Star with updated information
                 return Star(star.data, StarFit(star.fit.params,
                                                flux = flux,
@@ -671,6 +670,14 @@ class PixelGrid(Model):
                                                dof = dof,
                                                alpha = star.fit.alpha,
                                                beta = star.fit.beta))
+            # If chisq went up, turn off centering.  There are a number of failure modes
+            # to this algorithm that can lead to oscillatory behavior, so if we start doing
+            # that, just turn off the centering for the next iteration.
+            if chisq > prev_chisq:
+                do_center = False
+                if logger:
+                    logger.debug("chisq increased in reflux.  Turning off centering.")
+            prev_chisq = chisq
 
         raise RuntimeError("Maximum number of iterations exceeded in PixelGrid.reflux()")
 
