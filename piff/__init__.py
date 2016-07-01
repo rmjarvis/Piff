@@ -102,6 +102,7 @@ from .output import Output, OutputFile
 # PSF classes are named BlahPSF where Blah is what they are called in the config file
 from .psf import PSF, read
 from .simplepsf import SimplePSF
+from .singlechip import SingleChipPSF
 
 # Stats
 # Stats classes are named BlahStats where Blah is what they are called in the config file
