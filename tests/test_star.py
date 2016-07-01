@@ -14,7 +14,7 @@
 
 from __future__ import print_function
 import galsim
-import numpy
+import numpy as np
 import math
 import fitsio
 import os
@@ -61,14 +61,14 @@ def test_init():
     stardata = piff.StarData(image, image_pos, weight=weight, properties=properties)
 
     # Test attributes
-    numpy.testing.assert_array_equal(stardata.image.array, image.array)
-    numpy.testing.assert_array_equal(stardata.weight.array, weight.array)
-    numpy.testing.assert_equal(stardata.image_pos, image_pos)
+    np.testing.assert_array_equal(stardata.image.array, image.array)
+    np.testing.assert_array_equal(stardata.weight.array, weight.array)
+    np.testing.assert_equal(stardata.image_pos, image_pos)
 
     # Test properties access viw properties attribute or directly with []
     for key, value in properties.items():
-        numpy.testing.assert_equal(stardata.properties[key], value)
-        numpy.testing.assert_equal(stardata[key], value)
+        np.testing.assert_equal(stardata.properties[key], value)
+        np.testing.assert_equal(stardata[key], value)
 
     # Test the automatically generated properties
     print('image_pos = ',image_pos)
@@ -76,27 +76,27 @@ def test_init():
     print('props = ',stardata.properties)
     for key, value in [ ('x',image_pos.x), ('y',image_pos.y),
                         ('u',field_pos.x), ('v',field_pos.y) ]:
-        numpy.testing.assert_equal(stardata.properties[key], value)
-        numpy.testing.assert_equal(stardata[key], value)
+        np.testing.assert_equal(stardata.properties[key], value)
+        np.testing.assert_equal(stardata[key], value)
 
     # Test access via getImage method:
     im, wt, pos = stardata.getImage()
-    numpy.testing.assert_array_equal(im.array, image.array)
-    numpy.testing.assert_array_equal(wt.array, weight.array)
-    numpy.testing.assert_equal(pos, image_pos)
+    np.testing.assert_array_equal(im.array, image.array)
+    np.testing.assert_array_equal(wt.array, weight.array)
+    np.testing.assert_equal(pos, image_pos)
 
     # Test access via getDataVector method:
     # Note: This array() and then .T is like zip for Python lists.
-    for data, wt, u, v in numpy.array(stardata.getDataVector()).T:
+    for data, wt, u, v in np.array(stardata.getDataVector()).T:
         # In this case, these should be integers, but round in case of numerical inaccuracy.
         iu = int(round(u))
         jv = int(round(v))
         # GalSim images access pixels as (x,y)
-        numpy.testing.assert_equal(data, image(iu+icen,jv+jcen))
-        numpy.testing.assert_equal(wt, weight(iu+icen,jv+jcen))
+        np.testing.assert_equal(data, image(iu+icen,jv+jcen))
+        np.testing.assert_equal(wt, weight(iu+icen,jv+jcen))
         # Numpy arrays access elements as [y,x]
-        numpy.testing.assert_equal(data, image.array[jv+size//2, iu+size//2])
-        numpy.testing.assert_equal(wt, weight.array[jv+size//2, iu+size//2])
+        np.testing.assert_equal(data, image.array[jv+size//2, iu+size//2])
+        np.testing.assert_equal(wt, weight.array[jv+size//2, iu+size//2])
 
     print("Passed basic initialization of StarData")
 
@@ -140,30 +140,30 @@ def test_euclidean():
 
     # Test properties
     print('props = ',stardata.properties)
-    numpy.testing.assert_equal(stardata['x'], image_pos.x)
-    numpy.testing.assert_equal(stardata['y'], image_pos.y)
-    numpy.testing.assert_equal(stardata['u'], field_pos.x)
-    numpy.testing.assert_equal(stardata['v'], field_pos.y)
+    np.testing.assert_equal(stardata['x'], image_pos.x)
+    np.testing.assert_equal(stardata['y'], image_pos.y)
+    np.testing.assert_equal(stardata['u'], field_pos.x)
+    np.testing.assert_equal(stardata['v'], field_pos.y)
     # Shouldn't matter whether we use the original wcs or the one in the postage stamp.
-    numpy.testing.assert_equal(stardata['u'], image.wcs.toWorld(image_pos).x)
-    numpy.testing.assert_equal(stardata['v'], image.wcs.toWorld(image_pos).y)
+    np.testing.assert_equal(stardata['u'], image.wcs.toWorld(image_pos).x)
+    np.testing.assert_equal(stardata['v'], image.wcs.toWorld(image_pos).y)
 
     # Test access via getImage method:
     im, wt, pos = stardata.getImage()
-    numpy.testing.assert_array_equal(im.array, image.array)
-    numpy.testing.assert_array_equal(wt.array, weight.array)
-    numpy.testing.assert_equal(pos, image_pos)
+    np.testing.assert_array_equal(im.array, image.array)
+    np.testing.assert_array_equal(wt.array, weight.array)
+    np.testing.assert_equal(pos, image_pos)
 
     # Test access via getDataVector method:
-    for data, wt, u, v in numpy.array(stardata.getDataVector()).T:
+    for data, wt, u, v in np.array(stardata.getDataVector()).T:
         # u,v values should correspond to image coordinates via wcs
         uv = galsim.PositionD(u,v) + field_pos
         xy = wcs.toImage(uv)
         # These should now be integers, but round in case of numerical inaccuracy.
         ix = int(round(xy.x))
         jy = int(round(xy.y))
-        numpy.testing.assert_equal(data, image(ix,jy))
-        numpy.testing.assert_equal(wt, weight(ix,jy))
+        np.testing.assert_equal(data, image(ix,jy))
+        np.testing.assert_equal(wt, weight(ix,jy))
 
     print("Passed tests of StarData with EuclideanWCS")
 
@@ -206,21 +206,21 @@ def test_celestial():
 
     # Test properties
     print('props = ',stardata.properties)
-    numpy.testing.assert_equal(stardata['x'], image_pos.x)
-    numpy.testing.assert_equal(stardata['y'], image_pos.y)
-    numpy.testing.assert_equal(stardata['u'], field_pos.x)
-    numpy.testing.assert_equal(stardata['v'], field_pos.y)
-    numpy.testing.assert_equal(stardata['ra'], sky_pos.ra/galsim.hours)
-    numpy.testing.assert_equal(stardata['dec'], sky_pos.dec/galsim.degrees)
+    np.testing.assert_equal(stardata['x'], image_pos.x)
+    np.testing.assert_equal(stardata['y'], image_pos.y)
+    np.testing.assert_equal(stardata['u'], field_pos.x)
+    np.testing.assert_equal(stardata['v'], field_pos.y)
+    np.testing.assert_equal(stardata['ra'], sky_pos.ra/galsim.hours)
+    np.testing.assert_equal(stardata['dec'], sky_pos.dec/galsim.degrees)
 
     # Test access via getImage method:
     im, wt, pos = stardata.getImage()
-    numpy.testing.assert_array_equal(im.array, image.array)
-    numpy.testing.assert_array_equal(wt.array, weight.array)
-    numpy.testing.assert_equal(pos, image_pos)
+    np.testing.assert_array_equal(im.array, image.array)
+    np.testing.assert_array_equal(wt.array, weight.array)
+    np.testing.assert_equal(pos, image_pos)
 
     # Test access via getDataVector method:
-    for data, wt, u, v in numpy.array(stardata.getDataVector()).T:
+    for data, wt, u, v in np.array(stardata.getDataVector()).T:
         # u,v values should correspond to image coordinates via wcs
         uv = galsim.PositionD(u,v) + field_pos
         radec = pointing.deproject(uv)
@@ -228,28 +228,28 @@ def test_celestial():
         # These should now be integers, but round in case of numerical inaccuracy.
         ix = int(round(xy.x))
         jy = int(round(xy.y))
-        numpy.testing.assert_equal(data, image(ix,jy))
-        numpy.testing.assert_equal(wt, weight(ix,jy))
+        np.testing.assert_equal(data, image(ix,jy))
+        np.testing.assert_equal(wt, weight(ix,jy))
 
     print("Passed tests of StarData with CelestialWCS")
 
 
 def test_io():
-    numpy.random.seed(1234)
+    np.random.seed(1234)
     nstars = 100
-    x = numpy.random.random(nstars) * 2048.
-    y = numpy.random.random(nstars) * 2048.
-    flux = numpy.random.random(nstars) * 1000.
-    cenx = 2.*numpy.random.random(nstars) - 1.
-    ceny = 2.*numpy.random.random(nstars) - 1.
-    color_ri = numpy.random.random(nstars) * 1.4 - 0.8
-    color_iz = numpy.random.random(nstars) * 1.9 - 0.6
+    x = np.random.random(nstars) * 2048.
+    y = np.random.random(nstars) * 2048.
+    flux = np.random.random(nstars) * 1000.
+    cenx = 2.*np.random.random(nstars) - 1.
+    ceny = 2.*np.random.random(nstars) - 1.
+    color_ri = np.random.random(nstars) * 1.4 - 0.8
+    color_iz = np.random.random(nstars) * 1.9 - 0.6
     stars = [ piff.Star.makeTarget(x=x[i], y=y[i], scale=0.26, color_ri=color_ri[i],
                                    color_iz=color_iz[i]).withFlux(flux[i]) for i in range(nstars) ]
     for star in stars:
-        star.data.image.array[:] = numpy.random.random(star.data.image.array.shape)
+        star.data.image.array[:] = np.random.random(star.data.image.array.shape)
         star.data.weight = star.data.image.copy()
-        star.data.weight.array[:] = numpy.random.random(star.data.image.array.shape)
+        star.data.weight.array[:] = np.random.random(star.data.image.array.shape)
 
     file_name = os.path.join('output','star_io.fits')
     print('Writing stars to ',file_name)
@@ -276,8 +276,8 @@ def test_io():
         assert s1.data.image.wcs.jacobian() == s2.data.image.wcs.jacobian()
         assert s1.data.weight.wcs.jacobian() == s2.data.weight.wcs.jacobian()
         # The image and weight arrays are not serialized.
-        #numpy.testing.assert_almost_equal(s1.data.image.array,s2.data.image.array)
-        #numpy.testing.assert_almost_equal(s1.data.weight.array,s2.data.weight.array)
+        #np.testing.assert_almost_equal(s1.data.image.array,s2.data.image.array)
+        #np.testing.assert_almost_equal(s1.data.weight.array,s2.data.weight.array)
 
 
 if __name__ == '__main__':

@@ -14,7 +14,7 @@
 
 from __future__ import print_function
 import galsim
-import numpy
+import numpy as np
 import piff
 import os
 import subprocess
@@ -56,10 +56,10 @@ def test_Gaussian():
     # This test is pretty accurate, since we didn't add any noise and didn't convolve by
     # the pixel, so the image is very accurately a sheared Gaussian.
     true_params = [ sigma, g1, g2 ]
-    numpy.testing.assert_almost_equal(fit.params[0], sigma, decimal=7)
-    numpy.testing.assert_almost_equal(fit.params[1], g1, decimal=7)
-    numpy.testing.assert_almost_equal(fit.params[2], g2, decimal=7)
-    numpy.testing.assert_almost_equal(fit.params, true_params, decimal=7)
+    np.testing.assert_almost_equal(fit.params[0], sigma, decimal=7)
+    np.testing.assert_almost_equal(fit.params[1], g1, decimal=7)
+    np.testing.assert_almost_equal(fit.params[2], g2, decimal=7)
+    np.testing.assert_almost_equal(fit.params, true_params, decimal=7)
 
     # Now test running it via the config parser
     config = {
@@ -75,28 +75,27 @@ def test_Gaussian():
     fit = model.fit(star).fit
 
     # Same tests.
-    numpy.testing.assert_almost_equal(fit.params[0], sigma, decimal=7)
-    numpy.testing.assert_almost_equal(fit.params[1], g1, decimal=7)
-    numpy.testing.assert_almost_equal(fit.params[2], g2, decimal=7)
-    numpy.testing.assert_almost_equal(fit.params, true_params, decimal=7)
+    np.testing.assert_almost_equal(fit.params[0], sigma, decimal=7)
+    np.testing.assert_almost_equal(fit.params[1], g1, decimal=7)
+    np.testing.assert_almost_equal(fit.params[2], g2, decimal=7)
+    np.testing.assert_almost_equal(fit.params, true_params, decimal=7)
 
 
 def test_Mean():
     """For the interpolation, the simplest possible model is just a mean value, which barely
     even qualifies as doing any kind of interpolating.  But it tests the basic glue software.
     """
-    import numpy
     # Make a list of paramter vectors to "interpolate"
-    numpy.random.seed(123)
+    np.random.seed(123)
     nstars = 100
-    vectors = [ numpy.random.random(10) for i in range(nstars) ]
-    mean = numpy.mean(vectors, axis=0)
+    vectors = [ np.random.random(10) for i in range(nstars) ]
+    mean = np.mean(vectors, axis=0)
     print('mean = ',mean)
 
     # Make some dummy StarData objects to use.  The only thing we really need is the properties,
     # although for the Mean interpolator, even this is ignored.
     target_data = [
-            piff.Star.makeTarget(x=numpy.random.random()*2048, y=numpy.random.random()*2048).data
+            piff.Star.makeTarget(x=np.random.random()*2048, y=np.random.random()*2048).data
             for i in range(nstars) ]
     fit = [ piff.StarFit(v) for v in vectors ]
     stars = [ piff.Star(d, f) for d,f in zip(target_data,fit) ]
@@ -110,7 +109,7 @@ def test_Mean():
 
     # This should be exactly equal, since we did the same calculation.  But use almost_equal
     # anyway, just in case we decide to do something slightly different, but equivalent.
-    numpy.testing.assert_almost_equal(mean, interp.mean)
+    np.testing.assert_almost_equal(mean, interp.mean)
 
     # Now test running it via the config parser
     config = {
@@ -121,7 +120,7 @@ def test_Mean():
     logger = piff.config.setup_logger()
     interp = piff.Interp.process(config['interp'], logger)
     interp.solve(stars)
-    numpy.testing.assert_almost_equal(mean, interp.mean)
+    np.testing.assert_almost_equal(mean, interp.mean)
 
 
 def test_single_image():
@@ -149,7 +148,7 @@ def test_single_image():
         if flag:
             print('corrupting star at ',x,y)
             ar = image[bounds].array
-            im_max = numpy.max(ar) * 0.2
+            im_max = np.max(ar) * 0.2
             ar[ar > im_max] = im_max
 
     # Write out the image to a file
@@ -158,7 +157,7 @@ def test_single_image():
 
     # Write out the catalog to a file
     dtype = [ ('x','f8'), ('y','f8'), ('flag','i2'), ('use','i2') ]
-    data = numpy.empty(len(x_list), dtype=dtype)
+    data = np.empty(len(x_list), dtype=dtype)
     data['x'] = x_list
     data['y'] = y_list
     data['flag'] = flag_list
@@ -176,13 +175,13 @@ def test_single_image():
     # Check image
     input.readImages()
     assert len(input.images) == 1
-    numpy.testing.assert_equal(input.images[0].array, image.array)
+    np.testing.assert_equal(input.images[0].array, image.array)
 
     # Check catalog
     input.readStarCatalogs()
     assert len(input.cats) == 1
-    numpy.testing.assert_equal(input.cats[0]['x'], x_list)
-    numpy.testing.assert_equal(input.cats[0]['y'], y_list)
+    np.testing.assert_equal(input.cats[0]['x'], x_list)
+    np.testing.assert_equal(input.cats[0]['y'], y_list)
 
     # Repeat, using flag and use columns this time.
     input = piff.InputFiles(image_file, cat_file, flag_col='flag', use_col='use', stamp_size=48)
@@ -208,7 +207,7 @@ def test_single_image():
     target = piff.Star.makeTarget(x=1024, y=123) # Any position would work here.
     true_params = [ sigma, g1, g2 ]
     test_star = interp.interpolate(target)
-    numpy.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=5)
+    np.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=5)
 
     # Now test running it via the config parser
     psf_file = os.path.join('output','simple_psf.fits')
@@ -236,7 +235,7 @@ def test_single_image():
     psf = piff.SimplePSF(model, interp)
     psf.fit(orig_stars, wcs, pointing, logger=logger)
     test_star = psf.interp.interpolate(target)
-    numpy.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=5)
+    np.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=5)
 
     # Round trip to a file
     psf.write(psf_file, logger)
@@ -244,7 +243,7 @@ def test_single_image():
     assert type(psf.model) is piff.Gaussian
     assert type(psf.interp) is piff.Mean
     test_star = psf.interp.interpolate(target)
-    numpy.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=5)
+    np.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=5)
 
     # Do the whole thing with the config parser
     os.remove(psf_file)
@@ -252,7 +251,7 @@ def test_single_image():
     piff.piffify(config, logger)
     psf = piff.PSF.read(psf_file)
     test_star = psf.interp.interpolate(target)
-    numpy.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=5)
+    np.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=5)
 
     # Test using the piffify executable
     os.remove(psf_file)
@@ -263,7 +262,7 @@ def test_single_image():
     p.communicate()
     psf = piff.PSF.read(psf_file)
     test_star = psf.interp.interpolate(target)
-    numpy.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=5)
+    np.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=5)
 
     # Test that we can make rho statistics
     min_sep = 1
@@ -273,7 +272,6 @@ def test_single_image():
     stats.compute(psf, orig_stars)
 
     rhos = [stats.rho1, stats.rho2, stats.rho3, stats.rho4, stats.rho5]
-    import numpy as np
     for rho in rhos:
         # Test the range of separations
         radius = np.exp(rho.logr)

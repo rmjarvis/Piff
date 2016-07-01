@@ -18,7 +18,7 @@
 
 from __future__ import print_function
 
-import numpy
+import numpy as np
 import fitsio
 
 from .star import Star, StarFit, StarData
@@ -289,18 +289,18 @@ class PSF(object):
         # Assume they are all the same type at least.
         chipnums = self.wcs.keys()
         cols = [ chipnums ]
-        if numpy.dtype(type(chipnums[0])).kind in numpy.typecodes['AllInteger']:
+        if np.dtype(type(chipnums[0])).kind in np.typecodes['AllInteger']:
             dtypes = [ ('chipnums', int) ]
         else:
             # coerce to string, just in case it's something else.
             chipnums = [ str(c) for c in chipnums ]
-            max_len = numpy.max([ len(c) for c in chipnums ])
+            max_len = np.max([ len(c) for c in chipnums ])
             dtypes = [ ('chipnums', str, max_len) ]
 
         # GalSim WCS objects can be serialized via pickle
         wcs_str = [ pickle.dumps(w) for w in self.wcs.values() ]
         cols.append(wcs_str)
-        max_len = numpy.max([ len(s) for s in wcs_str ])
+        max_len = np.max([ len(s) for s in wcs_str ])
         dtypes.append( ('wcs_str', str, max_len) )
 
         if self.pointing is not None:
@@ -311,7 +311,7 @@ class PSF(object):
             dec = [self.pointing.dec / galsim.degrees] * len(chipnums)
             cols.extend( (ra, dec) )
 
-        data = numpy.array(zip(*cols), dtype=dtypes)
+        data = np.array(zip(*cols), dtype=dtypes)
         fits.write_table(data, extname=extname)
 
     @classmethod

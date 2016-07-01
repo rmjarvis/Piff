@@ -19,7 +19,7 @@
 from __future__ import print_function
 from .interp import Interp
 from .star import Star, StarFit
-import numpy
+import numpy as np
 
 class BasisInterp(Interp):
     """An Interp class that works whenever the interpolating functions are
@@ -59,7 +59,7 @@ class BasisInterp(Interp):
         :returns:           A new list of Stars which have their parameters initialized.
         """
         c = stars[0].fit.params.copy()
-        self.q = c[:,numpy.newaxis] * self.constant(1.)[numpy.newaxis,:]
+        self.q = c[:,np.newaxis] * self.constant(1.)[np.newaxis,:]
         stars = self.interpolateList(stars)
         return stars
 
@@ -76,23 +76,23 @@ class BasisInterp(Interp):
             raise RuntimeError("Attempt to solve() before initialize() of BasisInterp")
 
         # Empty A and B
-        A = numpy.zeros( self.q.shape+self.q.shape, dtype=float)
-        B = numpy.zeros_like(self.q)
+        A = np.zeros( self.q.shape+self.q.shape, dtype=float)
+        B = np.zeros_like(self.q)
 
         for s in stars:
             # Get the basis function values at this star
             K = self.basis(s)
             # Sum contributions into A, B
-            B += s.fit.beta[:,numpy.newaxis] * K
-            tmp = s.fit.alpha[:,:,numpy.newaxis] * K
-            A += K[numpy.newaxis,:,numpy.newaxis,numpy.newaxis] * tmp[:,numpy.newaxis,:,:]
+            B += s.fit.beta[:,np.newaxis] * K
+            tmp = s.fit.alpha[:,:,np.newaxis] * K
+            A += K[np.newaxis,:,np.newaxis,np.newaxis] * tmp[:,np.newaxis,:,:]
         # Reshape to have single axis for all q's
         B = B.flatten()
         nq = B.shape[0]
         A = A.reshape(nq,nq)
         if logger:
             logger.debug('Beginning solution of matrix size %d',A.shape[0])
-        dq = numpy.linalg.solve(A,B)
+        dq = np.linalg.solve(A,B)
         if logger:
             logger.debug('...finished solution')
         self.q += dq.reshape(self.q.shape)
@@ -109,7 +109,7 @@ class BasisInterp(Interp):
             raise RuntimeError("Attempt to interpolate() before initialize() of BasisInterp")
 
         K = self.basis(star)
-        p = numpy.dot(self.q,K)
+        p = np.dot(self.q,K)
         if star.fit is None:
             fit = StarFit(p)
         else:
@@ -156,11 +156,11 @@ class BasisPolynomial(BasisInterp):
             self._orders = (order,) * len(keys)
 
         if maxorder is None:
-            self._maxorder = numpy.max(self._orders)
+            self._maxorder = np.max(self._orders)
         else:
             self._maxorder = maxorder
 
-        if self._maxorder<0 or numpy.any(numpy.array(self._orders) < 0):
+        if self._maxorder<0 or np.any(np.array(self._orders) < 0):
             # Exception if we have any requests for negative orders
             raise ValueError('Negative polynomial order specified')
 
@@ -172,9 +172,9 @@ class BasisPolynomial(BasisInterp):
 
         # Now build a mask that picks the desired polynomial products
         # Start with 1d arrays giving orders in all dimensions
-        ord_ranges = [numpy.arange(order+1,dtype=int) for order in self._orders]
+        ord_ranges = [np.arange(order+1,dtype=int) for order in self._orders]
         # Nifty trick to produce n-dim array holding total order
-        sumorder = reduce(numpy.add, numpy.ix_(*ord_ranges))
+        sumorder = reduce(np.add, np.ix_(*ord_ranges))
         self._mask = sumorder <= self._maxorder
 
         # Set up the ranges: save the additive and multiplicative factors
@@ -200,11 +200,11 @@ class BasisPolynomial(BasisInterp):
                 left.append(r[0])
                 right.append(r[1])
 
-        self._center = (numpy.array(right)+numpy.array(left))/2.
-        self._scale =  (numpy.array(right)-numpy.array(left))/2.
+        self._center = (np.array(right)+np.array(left))/2.
+        self._scale =  (np.array(right)-np.array(left))/2.
 
     def getProperties(self, star):
-        return numpy.array([star.data[k] for k in self._keys], dtype=float)
+        return np.array([star.data[k] for k in self._keys], dtype=float)
 
     def basis(self,star):
         """Return 1d array of polynomial basis values for this star
@@ -220,11 +220,11 @@ class BasisPolynomial(BasisInterp):
         # Make 1d arrays of all needed powers of keys
         pows1d = []
         for i,o in enumerate(self._orders):
-            p = numpy.ones(o+1,dtype=float)
+            p = np.ones(o+1,dtype=float)
             p[1:] = vals[i]
-            pows1d.append(numpy.cumprod(p))
+            pows1d.append(np.cumprod(p))
         # Use trick to produce outer product of all these powers
-        pows2d = reduce(numpy.multiply, numpy.ix_(*pows1d))
+        pows2d = reduce(np.multiply, np.ix_(*pows1d))
         # Return linear array of terms making total power constraint
         return pows2d[self._mask]
 
@@ -232,7 +232,7 @@ class BasisPolynomial(BasisInterp):
         """Return 1d array of coefficients that represent a polynomial
         with constant value c
         """
-        out = numpy.zeros( numpy.count_nonzero(self._mask), dtype=float)
+        out = np.zeros( np.count_nonzero(self._mask), dtype=float)
         out[0] = c  # The constant term is always first.
         return out
 
@@ -246,7 +246,7 @@ class BasisPolynomial(BasisInterp):
             raise RuntimeError("Solution not set yet.  Cannot write this BasisPolynomial.")
 
         dtypes = [ ('q', float, self.q.shape) ]
-        data = numpy.zeros(1, dtype=dtypes)
+        data = np.zeros(1, dtype=dtypes)
         data['q'] = self.q
         fits.write_table(data, extname=extname + '_solution')
 

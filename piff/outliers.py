@@ -18,7 +18,7 @@
 
 from __future__ import print_function
 import math
-import numpy
+import numpy as np
 from scipy.stats import chi2
 
 from .util import write_kwargs, read_kwargs
@@ -262,21 +262,21 @@ class ChisqOutliers(Outliers):
         if logger:
             logger.debug("Checking %d stars for outliers", nstars)
 
-        chisq = numpy.array([ s.fit.chisq for s in stars ])
-        dof = numpy.array([ s.fit.dof for s in stars ])
+        chisq = np.array([ s.fit.chisq for s in stars ])
+        dof = np.array([ s.fit.dof for s in stars ])
 
-        thresh = numpy.array([ self._get_thresh(d) for d in dof ])
+        thresh = np.array([ self._get_thresh(d) for d in dof ])
 
         if logger:
-            if numpy.all(dof == dof[0]):
+            if np.all(dof == dof[0]):
                 logger.debug("dof = %f, thresh = %f",dof[0],thresh[0])
             else:
-                min_dof = numpy.min(dof)
-                max_dof = numpy.max(dof)
+                min_dof = np.min(dof)
+                max_dof = np.max(dof)
                 logger.debug("Minimum dof = %d with thresh = %f",min_dof,self._get_thresh(min_dof))
                 logger.debug("Maximum dof = %d with thresh = %f",max_dof,self._get_thresh(max_dof))
 
-        nremoved = numpy.sum(chisq > thresh)
+        nremoved = np.sum(chisq > thresh)
 
         if logger:
             logger.debug("Found %d stars with chisq > thresh", nremoved)
@@ -299,7 +299,7 @@ class ChisqOutliers(Outliers):
             # I semi-arbitrarily remove based on the difference.
             nremoved  = self.max_remove
             diff = chisq - thresh
-            new_thresh_index = numpy.argpartition(diff, -nremoved)[-nremoved]
+            new_thresh_index = np.argpartition(diff, -nremoved)[-nremoved]
             new_thresh = diff[new_thresh_index]
             good = diff < new_thresh
             good_stars = [ s for g, s in zip(good, stars) if g ]

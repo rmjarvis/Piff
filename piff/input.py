@@ -17,8 +17,8 @@
 """
 
 from __future__ import print_function
+import numpy as np
 import glob
-import numpy
 import os
 
 
@@ -477,7 +477,7 @@ class InputFiles(Input):
             self.weight = [ galsim.fits.read(fname, hdu=self.weight_hdu)
                             for fname in self.image_files ]
             for wt in self.weight:
-                if numpy.all(wt.array == 0):
+                if np.all(wt.array == 0):
                     logger.error("According to the weight mask in %s, all pixels have zero weight!",
                                  fname)
 
@@ -489,21 +489,21 @@ class InputFiles(Input):
                 badpix = galsim.fits.read(fname, hdu=self.badpix_hdu)
                 # The badpix image may be offset by 32768 from the true value.
                 # If so, subtract it off.
-                if numpy.any(badpix.array > 32767):
+                if np.any(badpix.array > 32767):
                     if logger:
-                        logger.debug('min(badpix) = %s',numpy.min(badpix.array))
-                        logger.debug('max(badpix) = %s',numpy.max(badpix.array))
+                        logger.debug('min(badpix) = %s',np.min(badpix.array))
+                        logger.debug('max(badpix) = %s',np.max(badpix.array))
                         logger.debug("subtracting 32768 from all values in badpix image")
                     badpix -= 32768
-                if numpy.any(badpix.array < -32767):
+                if np.any(badpix.array < -32767):
                     if logger:
-                        logger.debug('min(badpix) = %s',numpy.min(badpix.array))
-                        logger.debug('max(badpix) = %s',numpy.max(badpix.array))
+                        logger.debug('min(badpix) = %s',np.min(badpix.array))
+                        logger.debug('max(badpix) = %s',np.max(badpix.array))
                         logger.debug("adding 32768 to all values in badpix image")
                     badpix += 32768
                 # Also, convert to int16, in case it isn't by default.
                 badpix = galsim.ImageS(badpix)
-                if numpy.all(badpix.array != 0):
+                if np.all(badpix.array != 0):
                     logger.error("According to the bad pixel array in %s, all pixels are masked!",
                                  fname)
                 wt.array[badpix.array != 0] = 0

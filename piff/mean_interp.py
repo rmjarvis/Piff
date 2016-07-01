@@ -17,7 +17,7 @@
 """
 
 from __future__ import print_function
-import numpy
+import numpy as np
 
 from .interp import Interp
 from .star import Star, StarFit
@@ -39,7 +39,7 @@ class Mean(Interp):
         :param stars:       A list of stars with fitted parameters to interpolate.
         :param logger:      A logger object for logging debug info. [default: None]
         """
-        self.mean = numpy.mean([star.fit.params for star in stars], axis=0)
+        self.mean = np.mean([star.fit.params for star in stars], axis=0)
 
     def interpolate(self, star, logger=None):
         """Perform the interpolation to find the interpolated parameter vector at some position.
@@ -65,7 +65,7 @@ class Mean(Interp):
         """
         cols = [ self.mean ]
         dtypes = [ ('mean', float) ]
-        data = numpy.array(zip(*cols), dtype=dtypes)
+        data = np.array(zip(*cols), dtype=dtypes)
         fits.write_table(data, extname=extname + '_solution')
 
     def _finish_read(self, fits, extname):

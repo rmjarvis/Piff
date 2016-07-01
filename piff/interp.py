@@ -17,7 +17,7 @@
 """
 
 from __future__ import print_function
-import numpy
+import numpy as np
 from .util import write_kwargs, read_kwargs
 
 class Interp(object):
@@ -93,7 +93,7 @@ class Interp(object):
 
         :returns:       A numpy vector of these properties.
         """
-        return numpy.array([ star.data['u'], star.data['v'] ])
+        return np.array([ star.data['u'], star.data['v'] ])
 
     def initialize(self, stars, logger=None):
         """Initialize both the interpolator to some state prefatory to any solve iterations and

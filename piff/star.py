@@ -17,7 +17,7 @@
 """
 
 from __future__ import print_function
-import numpy
+import numpy as np
 import copy
 
 class Star(object):
@@ -248,7 +248,7 @@ class Star(object):
             dtypes.append( ('params', float, len(stars[0].fit.params)) )
             cols.append( [ s.fit.params for s in stars ] )
 
-        data = numpy.array(zip(*cols), dtype=dtypes)
+        data = np.array(zip(*cols), dtype=dtypes)
         fits.write_table(data, extname=extname)
 
     @classmethod
@@ -548,9 +548,9 @@ class StarData(object):
         #ny, nx = self.image.array.shape
 
         # Image coordinates of pixels relative to nominal center
-        xvals = numpy.arange(self.image.bounds.xmin, self.image.bounds.xmax+1, dtype=float)
-        yvals = numpy.arange(self.image.bounds.ymin, self.image.bounds.ymax+1, dtype=float)
-        x,y = numpy.meshgrid(xvals, yvals)
+        xvals = np.arange(self.image.bounds.xmin, self.image.bounds.xmax+1, dtype=float)
+        yvals = np.arange(self.image.bounds.ymin, self.image.bounds.ymax+1, dtype=float)
+        x,y = np.meshgrid(xvals, yvals)
         x -= self.image_pos.x
         y -= self.image_pos.y
 
@@ -683,7 +683,7 @@ class StarData(object):
 
         # Zero appropriate weight pixels in new copy
         newweight = self.weight.copy()
-        newweight.array[use] = numpy.where(m, self.weight.array[use], 0.)
+        newweight.array[use] = np.where(m, self.weight.array[use], 0.)
 
         # Return new object
         props = self.properties.copy()
@@ -762,7 +762,7 @@ class StarFit(object):
         :returns:  New StarFit object with altered parameters.  All chisq-related parameters
                    are set to None since they are no longer valid.
         """
-        npp = numpy.array(p)
+        npp = np.array(p)
         if self.params is not None and npp.shape != self.params.shape:
             raise TypeError('new StarFit parameters do not match dimensions of old ones')
         return StarFit(npp, flux=self.flux, center=self.center)

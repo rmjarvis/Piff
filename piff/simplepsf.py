@@ -18,7 +18,7 @@
 
 from __future__ import print_function
 
-import numpy
+import numpy as np
 import fitsio
 
 from .star import Star, StarFit, StarData
@@ -154,8 +154,8 @@ class SimplePSF(PSF):
                     else:
                         logger.info('             Removed %d outliers', nremoved)
 
-            chisq = numpy.sum([s.fit.chisq for s in self.stars])
-            dof   = numpy.sum([s.fit.dof for s in self.stars])
+            chisq = np.sum([s.fit.chisq for s in self.stars])
+            dof   = np.sum([s.fit.dof for s in self.stars])
             if logger:
                 logger.info('             Total chisq = %.2f / %d dof', chisq, dof)
 

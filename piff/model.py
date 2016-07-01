@@ -17,7 +17,7 @@
 """
 
 from __future__ import print_function
-import numpy
+import numpy as np
 
 from .star import Star, StarFit, StarData
 from .util import write_kwargs, read_kwargs
@@ -85,7 +85,7 @@ class Model(object):
         if hasattr(self, 'reflux'):
             star = self.reflux(star, fit_center=False)
         else:
-            star = star.withFlux(numpy.sum(star.data.image.array))
+            star = star.withFlux(np.sum(star.data.image.array))
         return star
 
     def fit(self, star):

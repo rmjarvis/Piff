@@ -17,7 +17,7 @@
 """
 
 from __future__ import print_function
-import numpy
+import numpy as np
 
 from .model import Model
 from .star import Star, StarFit, StarData
@@ -56,7 +56,7 @@ class Gaussian(Model):
         shape = shear + shape
 
         # Make a StarFit object with these parameters
-        params = numpy.array([ sigma, shape.g1, shape.g2 ])
+        params = np.array([ sigma, shape.g1, shape.g2 ])
 
         flux = mom.moments_amp
         center = mom.moments_centroid
@@ -65,8 +65,8 @@ class Gaussian(Model):
         prof = self.getProfile(params) * flux
         offset = center - image.trueCenter()
         model_image = prof.drawImage(image.copy(), method='no_pixel', offset=offset)
-        chisq = numpy.std(image.array - model_image.array)
-        dof = numpy.count_nonzero(weight.array) - 6
+        chisq = np.std(image.array - model_image.array)
+        dof = np.count_nonzero(weight.array) - 6
 
         fit = StarFit(params, flux=flux, center=center-image_pos, chisq=chisq, dof=dof)
         return Star(star.data, fit)
