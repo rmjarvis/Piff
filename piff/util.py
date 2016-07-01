@@ -23,6 +23,8 @@ import os
 # Courtesy of
 # http://stackoverflow.com/questions/3862310/how-can-i-find-all-subclasses-of-a-given-class-in-python
 def get_all_subclasses(cls):
+    """Get all subclasses of an existing class.
+    """
     all_subclasses = []
 
     for subclass in cls.__subclasses__():
@@ -32,14 +34,21 @@ def get_all_subclasses(cls):
     return all_subclasses
 
 def ensure_dir(target):
+    """Ensure that the directory for a target output file exists.
+
+    :param target:      The file that you want to write to.
+    """
     d = os.path.dirname(target)
-    if not os.path.exists(d):
+    if d != '' and  not os.path.exists(d):
         os.makedirs(d)
 
+def make_dtype(key, value):
+    """A helper function that makes a dtype appropriate for a given value
 
-def write_kwargs(fits, extname, kwargs):
-    """A helper function for writing a single row table into a fits file with the values
-    and column names given by a kwargs dict.
+    :param key:     The key to use for the column name in the dtype.
+    :param value:   The input value (just one item if using a column of multiple values)
+
+    :returns: a numpy.dtype instance
     """
     def make_dt_tuple(key, t, size):
         # If size == 0, then it's not an array, so return a 2 element tuple.
@@ -49,44 +58,75 @@ def write_kwargs(fits, extname, kwargs):
         else:
             return (key, t, size)
 
-    def adjust_value(value, t, size):
-        # Possibly adjust the value to really be an int, float, etc.
-        if size == 0 or t == str:
-            return t(value)
-        else:
-            # For numpy arrays, we can use astype instead.
-            return numpy.array(value).astype(t)
+    try:
+        # Note: this works for either arrays or strings
+        size = len(value)
+        t = type(value[0])
+    except:
+        size = 0
+        t = type(value)
+    dt = np.dtype(t) # just used to categorize the type into int, float, str
+    if dt.kind in np.typecodes['AllInteger']:
+        t = int
+    elif dt.kind in np.typecodes['AllFloat']:
+        t = float
+    else:
+        t = str
+    dt = make_dt_tuple(key, t, size)
 
+    return dt
+
+def adjust_value(value, dtype):
+    """Possibly adjust a value to match the type expected for the given dtype.
+
+    e.g. change np.int16 -> int if dtype expects int.  Or vice versa.
+
+    :param value:   The input value to possible adjust.
+
+    :returns: the adjusted value to use for writing in a FITS table.
+    """
+    t = dtype[1]
+    if len(dtype) == 2 or dtype[2] == 0:
+        # dtype is either (key, t) or (key, t, size)
+        # if no size or size == 0, then just use t as the type.
+        return t(value)
+    elif t == str:
+        # Strings have a size, and they are probably already a str, but go ahead and
+        # recast as str(value) just in case.
+        return str(value)
+    else:
+        # For numpy arrays, we can use astype instead.
+        return np.array(value).astype(t)
+
+def write_kwargs(fits, extname, kwargs):
+    """A helper function for writing a single row table into a fits file with the values
+    and column names given by a kwargs dict.
+
+    :param fits:        An open fitsio.FITS instance
+    :param extname:     The extension to write to
+    :param kwargs:      A kwargs dict to be written as a FITS binary table.
+    """
     cols = []
     dtypes = []
     for key, value in kwargs.items():
         # Don't add values that are None to the table.
         if value is None:
             continue
-        try:
-            # Note: this works for either arrays or strings
-            size = len(value)
-            t = type(value[0])
-        except:
-            size = 0
-            t = type(value)
-        dt = numpy.dtype(t) # just used to categorize the type into int, float, str
-        if dt.kind in numpy.typecodes['AllInteger']:
-            t = int
-        elif dt.kind in numpy.typecodes['AllFloat']:
-            t = float
-        else:
-            t = str
-        value = adjust_value(value, t, size)
-        dtypes.append( make_dt_tuple(key, t, size) )
+        dt = make_dtype(key, value)
+        value = adjust_value(value,dt)
         cols.append([value])
-    data = numpy.array(zip(*cols), dtype=dtypes)
+        dtypes.append(dt)
+    data = np.array(zip(*cols), dtype=dtypes)
     fits.write_table(data, extname=extname)
-
 
 def read_kwargs(fits, extname):
     """A helper function for reading a single row table from a fits file returning the values
     and column names as a kwargs dict.
+
+    :param fits:        An open fitsio.FITS instance
+    :param extname:     The extension to read.
+
+    :returns: A dict of the kwargs that were read from the file.
     """
     cols = fits[extname].get_colnames()
     data = fits[extname].read()
