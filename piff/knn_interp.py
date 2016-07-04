@@ -66,31 +66,31 @@ class kNNInterp(Interp):
         for target in self.attr_target:
             self.knn[target] = KNeighborsRegressor(**self.knr_kwargs)
 
-    def _fit(self, X, y, logger=None):
+    def _fit(self, locations, targets, logger=None):
         """Update the Neighbors Regressor with data
 
-        :param X:   The locations for interpolating. (n_samples, n_features)
-        :param y:   The target values. (n_samples, n_targets)
+        :param locations:   The locations for interpolating. (n_samples, n_features). In sklearn parlance, this is 'X'
+        :param targets:   The target values. (n_samples, n_targets). In sklearn parlance, this is 'y'
         """
-        for key, yi in zip(self.attr_target, y.T):
-            self.knn[key].fit(X, yi)
+        for key, yi in zip(self.attr_target, targets.T):
+            self.knn[key].fit(locations, yi)
         if logger:
             logger.debug('knn updated to keys: %s', self.knn.keys())
-        self.X = X
+        self.locations = locations
         if logger:
-            logger.debug('X updated to shape: %s', self.X.shape)
-        self.y = y
+            logger.debug('locations updated to shape: %s', self.locations.shape)
+        self.targets = targets
         if logger:
-            logger.debug('y updated to shape: %s', self.y.shape)
+            logger.debug('targets updated to shape: %s', self.targets.shape)
 
-    def _predict(self, X, logger=None):
+    def _predict(self, locations, logger=None):
         """Predict from knn.
 
-        :param X:   The locations for interpolating. (n_samples, n_features)
+        :param locations:   The locations for interpolating. (n_samples, n_features). In sklearn parlance, this is 'X'
 
         :returns:   Regressed parameters y (n_samples, n_targets)
         """
-        regression = numpy.array([self.knn[key].predict(X) for key in self.attr_target]).T
+        regression = numpy.array([self.knn[key].predict(locations) for key in self.attr_target]).T
         if logger:
             logger.debug('Regression shape: %s', regression.shape)
         return regression
@@ -133,9 +133,9 @@ class kNNInterp(Interp):
         :param star_list:   A list of Star instances to interpolate between
         :param logger:      A logger object for logging debug info. [default: None]
         """
-        X = numpy.array([self.getProperties(star) for star in star_list])
-        y = numpy.array([self.getFitProperties(star) for star in star_list])
-        self._fit(X, y)
+        locations = numpy.array([self.getProperties(star) for star in star_list])
+        targets = numpy.array([self.getFitProperties(star) for star in star_list])
+        self._fit(locations, targets)
 
     def interpolate(self, star, logger=None):
         """Perform the interpolation to find the interpolated parameter vector at some position. Calls interpolateList because sklearn prefers list input anyways
@@ -157,11 +157,11 @@ class kNNInterp(Interp):
         :returns: a list of new Star instances with interpolated parameters
         """
 
-        X = numpy.array([self.getProperties(star) for star in star_list])
-        # y = numpy.array([self.getFitProperties(star) for star in star_list])
-        y = self._predict(X)
+        locations = numpy.array([self.getProperties(star) for star in star_list])
+        # targets = numpy.array([self.getFitProperties(star) for star in star_list])
+        targets = self._predict(locations)
         star_list_fitted = []
-        for yi, star in zip(y, star_list):
+        for yi, star in zip(targets, star_list):
             if star.fit is None:
                 fit = StarFit(yi)
             else:
@@ -177,19 +177,19 @@ class kNNInterp(Interp):
     def writeSolution(self, fits, extname):
         """Write the solution to a FITS binary table.
 
-        Save the knn params and the X and y arrays
+        Save the knn params and the locations and targets arrays
 
         :param fits:        An open fitsio.FITS object.
         :param extname:     The name of the extension with the interp information.
         """
 
-        dtypes = [('X', self.X.dtype, self.X.shape), ('Y', self.y.dtype, self.y.shape),
+        dtypes = [('LOCATIONS', self.locations.dtype, self.locations.shape), ('TARGETS', self.targets.dtype, self.targets.shape),
                   ('ATTR_TARGET', self.attr_target.dtype, self.attr_target.shape),
                   ('ATTR_INTERP', self.attr_interp.dtype, self.attr_interp.shape),]
         data = numpy.empty(1, dtype=dtypes)
         # assign
-        data['X'] = self.X
-        data['Y'] = self.y
+        data['LOCATIONS'] = self.locations
+        data['TARGETS'] = self.targets
         data['ATTR_TARGET'] = self.attr_target
         data['ATTR_INTERP'] = self.attr_interp
 
@@ -217,8 +217,8 @@ class kNNInterp(Interp):
 
         # attr_target and attr_interp assigned in build
         self.build(data['ATTR_INTERP'][0], data['ATTR_TARGET'][0])
-        # self.X and self.y assigned in _fit
-        self._fit(data['X'][0], data['Y'][0])
+        # self.locations and self.targets assigned in _fit
+        self._fit(data['LOCATIONS'][0], data['TARGETS'][0])
 
 class DECamWavefront(kNNInterp):
     """
@@ -239,11 +239,11 @@ class DECamWavefront(kNNInterp):
         data = fits[extname].read()
         attr_interp = ['focal_x', 'focal_y']
         attr_target = ['z{0}'.format(zi) for zi in xrange(self.z_min, self.z_max + 1)]
-        X = numpy.array([data[attr] for attr in attr_interp]).T
-        y = numpy.array([data[attr] for attr in attr_target]).T
+        locations = numpy.array([data[attr] for attr in attr_interp]).T
+        targets = numpy.array([data[attr] for attr in attr_target]).T
 
         self.build(attr_interp, range(0, self.z_max - self.z_min + 1), logger=logger)
-        self._fit(X, y)
+        self._fit(locations, targets)
 
         # set misalignment as [[delta_i, thetax_i, thetay_i]] with i == 0 corresponding to defocus
         self.misalignment = numpy.array([[0.0, 0.0, 0.0]] * (self.z_max - self.z_min + 1))
@@ -281,27 +281,27 @@ class DECamWavefront(kNNInterp):
             assert misalignment.shape == self.misalignment.shape,"New misalignment shape must match old!"
         self.misalignment = misalignment
 
-    def _predict(self, X, y=None, logger=None):
+    def _predict(self, locations, targets=None, logger=None):
         """Predict from knn.
 
-        :param X:   The locations for interpolating. (n_samples, n_features)
-        :param y:   Parameter y. If given, then only apply misalignment.
+        :param locations:   The locations for interpolating. (n_samples, n_features). In sklearn parlance, this is 'X'
+        :param targets:   The target values. (n_samples, n_targets). In sklearn parlance, this is 'y'. If given, then only apply misalignment
 
-        :returns:   Regressed parameters y (n_samples, n_targets)
+        :returns:   Regressed parameters targets (n_samples, n_targets)
         """
-        if numpy.shape(y) == ():
+        if numpy.shape(targets) == ():
             # if no y, then interpolate
-            y = numpy.array([self.knn[key].predict(X) for key in self.attr_target]).T
+            targets = numpy.array([self.knn[key].predict(locations) for key in self.attr_target]).T
         if logger:
-            logger.debug('Regression shape: %s', y.shape)
+            logger.debug('Regression shape: %s', targets.shape)
         # add misalignment shape (n_targets, 3)
-        # X is (n_samples, 2)
-        # y is (n_samples, n_targets)
-        y = y + self.misalignment[numpy.newaxis, :, 0] \
-                + X[:, 1, numpy.newaxis] * self.misalignment[numpy.newaxis, :, 1] \
-                + X[:, 0, numpy.newaxis] * self.misalignment[numpy.newaxis, :, 2]
+        # locations is (n_samples, 2)
+        # targets is (n_samples, n_targets)
+        targets = targets + self.misalignment[numpy.newaxis, :, 0] \
+                + locations[:, 1, numpy.newaxis] * self.misalignment[numpy.newaxis, :, 1] \
+                + locations[:, 0, numpy.newaxis] * self.misalignment[numpy.newaxis, :, 2]
 
-        return y
+        return targets
 
     def writeSolution(self, fits, extname):
         """Write the solution to a FITS binary table.
@@ -312,15 +312,16 @@ class DECamWavefront(kNNInterp):
         :param extname:     The name of the extension with the interp information.
         """
 
-        dtypes = [('X', self.X.dtype, self.X.shape), ('Y', self.y.dtype, self.y.shape),
+        dtypes = [('LOCATIONS', self.locations.dtype, self.locations.shape),
+                  ('TARGETS', self.targets.dtype, self.targets.shape),
                   ('XPIXEL', self.Xpixel.dtype, self.Xpixel.shape),
                   ('ATTR_TARGET', self.attr_target.dtype, self.attr_target.shape),
                   ('ATTR_INTERP', self.attr_interp.dtype, self.attr_interp.shape),
                   ('MISALIGNMENT', self.misalignment.dtype, self.misalignment.shape)]
         data = numpy.empty(1, dtype=dtypes)
         # assign
-        data['X'] = self.X
-        data['Y'] = self.y
+        data['LOCATIONS'] = self.locations
+        data['TARGETS'] = self.targets
         data['XPIXEL'] = self.Xpixel
         data['ATTR_TARGET'] = self.attr_target
         data['ATTR_INTERP'] = self.attr_interp
@@ -349,8 +350,8 @@ class DECamWavefront(kNNInterp):
 
         # attr_target and attr_interp assigned in build
         self.build(data['ATTR_INTERP'][0], data['ATTR_TARGET'][0])
-        # self.X and self.y assigned in _fit
-        self._fit(data['X'][0], data['Y'][0])
+        # self.locations and self.targets assigned in _fit
+        self._fit(data['LOCATIONS'][0], data['TARGETS'][0])
         self.misalign_wavefront(data['MISALIGNMENT'][0])
 
         # other attributes
