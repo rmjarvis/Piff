@@ -126,8 +126,8 @@ def test_disk():
     with fitsio.FITS(knn_file,'rw',clobber=True) as f:
         knn.write(f, 'knn')
         knn2 = piff.kNNInterp.read(f, 'knn')
-    numpy.testing.assert_array_equal(knn.X, knn2.X)
-    numpy.testing.assert_array_equal(knn.y, knn2.y)
+    numpy.testing.assert_array_equal(knn.locations, knn2.locations)
+    numpy.testing.assert_array_equal(knn.targets, knn2.targets)
     numpy.testing.assert_array_equal(knn.attr_target, knn2.attr_target)
     numpy.testing.assert_array_equal(knn.attr_interp, knn2.attr_interp)
 
@@ -189,8 +189,8 @@ def test_decam_disk():
     with fitsio.FITS(knn_file,'rw',clobber=True) as f:
         knn.write(f, 'decam_wavefront')
         knn2 = piff.DECamWavefront.read(f, 'decam_wavefront')
-    numpy.testing.assert_array_equal(knn.X, knn2.X)
-    numpy.testing.assert_array_equal(knn.y, knn2.y)
+    numpy.testing.assert_array_equal(knn.locations, knn2.locations)
+    numpy.testing.assert_array_equal(knn.targets, knn2.targets)
     numpy.testing.assert_array_equal(knn.attr_target, knn2.attr_target)
     numpy.testing.assert_array_equal(knn.attr_interp, knn2.attr_interp)
     numpy.testing.assert_array_equal(knn.misalignment, knn2.misalignment)
