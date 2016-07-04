@@ -31,30 +31,40 @@ class kNNInterp(Interp):
     An interpolator that uses sklearn KNeighborsRegressor to interpolate a
     single surface
     """
-    def __init__(self, logger=None, **knr_kwargs):
+    def __init__(self, n_neighbors=15, weights='uniform', algorithm='auto',
+                 p=2,logger=None, **kwargs):
         """Create the kNN interpolator
+
+        :param n_neighbors: Number of neighbors used for interpolation. [default: 15]
+        :param weights:     Weight function used in prediction. Possible values are 'uniform', 'distance', and a callable function which accepts an array of distances and returns an array of the same shape containing the weights. [default: 'uniform']
+        :param algorithm:   Algorithm used to compute nearest neighbors. Possible values are 'ball_tree', 'kd_tree', 'brute', and 'auto', which tries to determine the best choice. [default: 'auto']
+        :param p:           Power parameter of distance metrice. p=2 is default euclidean distance, p=1 is manhattan. [default: 2]
+        :param logger:      A logger object for logging debug info. [default: None]
+        """
+
+        self.kwargs = {}
+        self.kwargs.update(kwargs)
+
+        self.knr_kwargs = {
+            'n_neighbors': n_neighbors,
+            'weights': weights,
+            'algorithm': algorithm,
+            'p': p,
+            }
+        self.knn = {}
+
+    def build(self, attr_interp, attr_target, logger=None):
+        """Create the kNN interpolator by passing attributes to KNeighborsRegressor
 
         :param attr_interp: A list of star attributes to interpolate from
         :param attr_target: A list of star attributes to interpolate to
         :param logger:      A logger object for logging debug info. [default: None]
-        :param knr_kwargs:  Arguments that will be passed to the regressor.
         """
-
-        self.kwargs = {
-            'n_neighbors': 15,
-            'weights': 'uniform',
-            'algorithm': 'auto',
-            'p': 2,
-            }
-        self.kwargs.update(knr_kwargs)
-        self.knn = {}
-
-    def build(self, attr_interp, attr_target, logger=None):
         from sklearn.neighbors import KNeighborsRegressor
         self.attr_interp = numpy.array(attr_interp)
         self.attr_target = numpy.array(attr_target)
         for target in self.attr_target:
-            self.knn[target] = KNeighborsRegressor(**self.kwargs)
+            self.knn[target] = KNeighborsRegressor(**self.knr_kwargs)
 
     def _fit(self, X, y, logger=None):
         """Update the Neighbors Regressor with data
