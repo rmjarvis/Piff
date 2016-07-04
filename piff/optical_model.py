@@ -27,51 +27,58 @@ from .model import Model
 from .stardata import StarData
 from .starfit import Star, StarFit
 
+des_pupil_template = {'obscuration': 0.301 / 0.7174,
+                      'nstruts': 4,
+                      # aaron plays between 19 mm thick and 50 mm thick
+                      'strut_thick': 0.050 * (1462.526 / 4010.) / 2.0, # conversion factor is nebulous?!
+                      'strut_angle': 45 * galsim.degrees}
+
 class Optical(Model):
-    def __init__(self, rzero=0.1, sigma=0., g1=0., g2=0., pupil_path='', lam=500., **kwargs):
+    def __init__(self, rzero=0.1, sigma=0., g1=0., g2=0., pupil_path='None', lam=500., diam=4.274419, optical_template='des', **kwargs):
         """Initialize the Optical Model
 
-        :param rzero:       Atmospheric seeing. Usually in the 0.1 - 0.2 range.
-        :param g1, g2:      Shear to apply to final image. Simulates vibrational modes.
-        :param sigma:       Convolve with gaussian of size sigma.
-        :param pupil_path:  If a path is given, load up a pupil image, else
-                            make image from galsim parameters.
+        :param rzero:               Atmospheric seeing. Usually in the 0.1 - 0.2 range.
+        :param g1, g2:              Shear to apply to final image. Simulates vibrational modes.
+        :param sigma:               Convolve with gaussian of size sigma.
+        :param pupil_path:          If a path is given, load up a pupil image, else
+                                    make image from galsim parameters referencing optical_template
+        :param lam:                 Wavelength of observations
+        :param diam:                Diameter of primary mirror. Defaults to DES value
+        :param optical_template:    If no pupil plane image is given, create one from a set of templates.
         """
 
         # catch any kwargs passed along...
-        self.kwargs = kwargs
+        self.kwargs = {
+            'rzero': rzero,
+            'g1': g1,
+            'g2': g2,
+            'sigma': sigma,
+            'pupil_path': pupil_path,
+            'lam': lam,
+            'diam': diam,
+            'optical_template': optical_template,
+            }
 
         self.lam = lam
         self.pupil_path = pupil_path
-        OpticalPSF = {'diam': 4.274419,
-                      'lam': lam}
-        if pupil_path:
+        optical_psf_kwargs = {'diam': diam,
+                              'lam': lam}
+        if pupil_path != 'None':
             # load the pupil
             pupil_plane = fitsio.read(pupil_path)
             pupil_plane_im = galsim.Image(pupil_plane)
-            OpticalPSF['pupil_plane_im'] = pupil_plane_im
+            optical_psf_kwargs['pupil_plane_im'] = pupil_plane_im
         else:
-            # make fake pupil
-            OpticalPSF['obscuration'] = 0.301 / 0.7174
-            OpticalPSF['nstruts'] = 4
-            # aaron plays between 19 mm thick and 50 mm thick
-            OpticalPSF['strut_thick'] = 0.050 * (1462.526 / 4010.) / 2.0 # conversion factor is nebulous?!
-            OpticalPSF['strut_angle'] = 45 * galsim.degrees
-        self.OpticalPSF = OpticalPSF
-        # Update any OpticalPSF elements in kwargs
-        if 'OpticalPSF' in kwargs:
-            OpticalPSF = kwargs.pop('OpticalPSF')
-            self.OpticalPSF.update(OpticalPSF)
-        # deal with Kolmogorov from OpticalPSF
-
-        # gaussian sigma
-        self.sigma = sigma
-        # shear
-        self.g1 = g1
-        self.g2 = g2
+            # make fake pupil from template
+            if optical_template == 'des':
+                optical_psf_kwargs.update(des_pupil_template)
+            elif type(optical_template) == dict:
+                optical_psf_kwargs.update(optical_template)
+            else:
+                raise Exception('Unrecognized optical template {0}'.format(optical_template))
+        self.optical_psf_kwargs = optical_psf_kwargs
 
         # atmosphere
-        self.rzero = rzero
         if rzero != 0:
             r0 = rzero * (lam / 500) ** -1.2  # meters
             lam_over_r0 = (lam * 1.e-9) / r0  # radians
@@ -79,6 +86,7 @@ class Optical(Model):
         else:
             lam_over_r0 = 0
         self.lam_over_r0 = lam_over_r0
+        # self.optical_psf_kwargs['lam_over_r0'] = self.lam_over_r0
 
     def fit(self, star):
         """Warning: This method just updates the fit with the chisq and dof!
@@ -108,8 +116,8 @@ class Optical(Model):
         import galsim
         prof = []
         # gaussian
-        if self.sigma != 0:
-            gaussian = galsim.Gaussian(sigma=self.sigma)
+        if self.kwargs['sigma'] != 0:
+            gaussian = galsim.Gaussian(sigma=self.kwargs['sigma'])
             prof.append(gaussian)
         # atmosphere
         if self.lam_over_r0 != 0:
@@ -121,7 +129,7 @@ class Optical(Model):
             # no optics here
             pass
         else:
-            optics = galsim.OpticalPSF(aberrations=aberrations, **self.OpticalPSF)
+            optics = galsim.OpticalPSF(aberrations=aberrations, **self.optical_psf_kwargs)
             prof.append(optics)
             # convolve together
         if len(prof) == 0:
@@ -131,10 +139,10 @@ class Optical(Model):
         else:
             prof = galsim.Convolve(prof)
 
-        if self.g1 != 0 or self.g2 != 0:
+        if self.kwargs['g1'] != 0 or self.kwargs['g2'] != 0:
             # no shearing
             # shear constant mode
-            prof = prof.shear(g1=self.g1, g2=self.g2)
+            prof = prof.shear(g1=self.kwargs['g1'], g2=self.kwargs['g2'])
 
         return prof
 
@@ -153,51 +161,3 @@ class Optical(Model):
         image = prof.drawImage(star.data.image.copy(), method='no_pixel', offset=offset)
         data = StarData(image, star.data.image_pos, star.data.weight)
         return Star(data, star.fit)
-
-    def writeParameters(self, fits, extname):
-        """Write parameters of Model to a FITS file.
-
-        :param fits:        An open fitsio.FITS object
-        :param extname:     The name of the extension to write the model information.
-        """
-        dtypes = [('RZERO', numpy.float64),
-                  ('SIGMA', numpy.float64),
-                  ('G1', numpy.float64),
-                  ('G2', numpy.float64),
-                  ('LAM', numpy.float64),
-                  ('LAM_OVER_R0', numpy.float64),
-                  # need to account for pupil_path == '' having length 0!
-                  ('PUPIL_PATH', 'S{0}'.format(len(self.pupil_path) + 1)),
-                  ]
-        data = numpy.empty(1, dtype=dtypes)
-
-        # assign
-        data['PUPIL_PATH'] = self.pupil_path
-        data['RZERO'] = self.rzero
-        data['SIGMA'] = self.sigma
-        data['G1'] = self.g1
-        data['G2'] = self.g2
-        data['LAM'] = self.lam
-        data['LAM_OVER_R0'] = self.lam_over_r0
-
-        # write to fits
-        fits.write_table(data, extname=extname)
-
-    def readParameters(self, fits, extname):
-        """Read parameters of Model from a FITS file.
-
-        :param fits:        An open fitsio.FITS object
-        :param extname:     The name of the extension to write the model information.
-        """
-        # header = fits[extname].read_header()
-        data = fits[extname].read()
-
-        # using the dtypes above, assign variables probably via init process
-        pupil_path = data['PUPIL_PATH'][0].strip()
-        rzero = data['RZERO'][0]
-        sigma = data['SIGMA'][0]
-        g1 = data['G1'][0]
-        g2 = data['G2'][0]
-        lam = data['LAM'][0]
-
-        self.__init__(rzero=rzero, sigma=sigma, g1=g1, g2=g2, pupil_path=pupil_path, lam=lam)

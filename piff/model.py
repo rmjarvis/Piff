@@ -154,28 +154,6 @@ class Model(object):
         data = numpy.array(zip(*cols), dtype=dtypes)
         fits.write_table(data, extname=extname)
 
-        # now write the parameters
-        self.writeParameters(fits, extname + '_parameters')
-
-    def writeParameters(self, fits, extname):
-        """Write parameters of Model to a FITS file.
-
-        By default does nothing.
-
-        :param fits:        An open fitsio.FITS object
-        :param extname:     The name of the extension to write the model information.
-        """
-        pass
-
-    def readParameters(self, fits, extname):
-        """Read parameters of Model from a FITS file.
-
-        By default does nothing.
-
-        :param fits:        An open fitsio.FITS object
-        :param extname:     The name of the extension to write the model information.
-        """
-        pass
 
     @classmethod
     def read(cls, fits, extname):
@@ -209,7 +187,6 @@ class Model(object):
         kwargs = model_cls.readKwargs(fits, extname)
         model = model_cls(**kwargs)
 
-        model.readParameters(fits, extname + '_parameters')
         return model
 
     @classmethod

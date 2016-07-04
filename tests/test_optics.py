@@ -113,13 +113,14 @@ def test_disk():
         model.write(f, 'optics')
         model2 = piff.Optical.read(f, 'optics')
 
-    assert model.lam == model2.lam,'lam mismatch'
-    assert model.OpticalPSF['lam'] == model2.OpticalPSF['lam'],'OpticalPSF lam mismatch'
-    assert model.OpticalPSF['diam'] == model2.OpticalPSF['diam'],'diam mismatch'
+    assert model.kwargs['lam'] == model2.kwargs['lam'],'lam mismatch'
+    assert model.optical_psf_kwargs['lam'] == model2.optical_psf_kwargs['lam'],'optical_psf_kwargs lam mismatch'
+    assert model.optical_psf_kwargs['diam'] == model2.optical_psf_kwargs['diam'],'diam mismatch'
     assert model.lam_over_r0 == model2.lam_over_r0,'lam_over_r0 mismatch'
-    assert model.sigma == model2.sigma,'sigma mismatch'
-    assert model.g1 == model2.g1,'g1 mismatch'
-    assert model.g2 == model2.g2,'g2 mismatch'
+    assert model.kwargs['rzero'] == model2.kwargs['rzero'],'rzero mismatch'
+    assert model.kwargs['sigma'] == model2.kwargs['sigma'],'sigma mismatch'
+    assert model.kwargs['g1'] == model2.kwargs['g1'],'g1 mismatch'
+    assert model.kwargs['g2'] == model2.kwargs['g2'],'g2 mismatch'
 
 #####
 # convenience functions
