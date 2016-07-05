@@ -246,12 +246,12 @@ class HyperPSF(PSF):
 
 
         if (self.n_iter % 10 == 0) and (self.minuit_kwargs['print_level'] > 0):
-            print(self.n_iter)
+            self._logger.debug(self.n_iter)
             if len(self._model_keys) > 0:
-                print(model)
+                self._logger.debug(model)
             if len(self._interp_keys) > 0:
-                print(interp)
-            print(chisq)
+                self._logger.debug(interp)
+            self._logger.debug(chisq)
             self._p_hist.append([params, chisq])
         self.n_iter += 1
 
