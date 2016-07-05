@@ -27,7 +27,8 @@ class Gaussian(Model):
     """An extremely simple PSF model that just considers the PSF as a sheared Gaussian.
     """
     def __init__(self, background=0, logger=None):
-        self.kwargs = {'background': background}
+        self.background = background
+        self.kwargs = {}
 
     def fit(self, star):
         """Fit the image by running the HSM adaptive moments code on the image and using
@@ -41,7 +42,7 @@ class Gaussian(Model):
         image, weight, image_pos = star.data.getImage()
 
         # subtract background
-        image = image - self.kwargs['background']
+        image = image - self.background
 
         mom = image.FindAdaptiveMom(weight=weight)
 
@@ -85,8 +86,8 @@ class Gaussian(Model):
         return Star(star.data, fit)
 
 
-    def update(self, logger=None, **kwargs):
-        self.kwargs.update(kwargs)
+    def update(self, background, logger=None, **kwargs):
+        self.background = background
 
 
     def getProfile(self, params):
@@ -119,7 +120,7 @@ class Gaussian(Model):
         offset = star.data.image_pos + center - star.data.image.trueCenter()
         image = prof.drawImage(star.data.image.copy(), method='no_pixel', offset=offset)
         # add background
-        image = image + self.kwargs['background']
+        image = image + self.background
 
         data = StarData(image, star.data.image_pos, star.data.weight)
         return Star(data, star.fit)
