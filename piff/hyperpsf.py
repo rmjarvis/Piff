@@ -116,9 +116,16 @@ class HyperPSF(PSF):
         self.minuit_kwargs.update(kwargs)
 
         self._logger = logger
+        # initialize the minuit object
         self._minuit = Minuit(self._fit_func, **self.minuit_kwargs)
         if not skip_fit:
+            # run the fit and solve! This will update the interior parameters
             self._minuit.migrad()
+        # these are the best fit parameters
+        self._fitarg = self._minuit.fitarg
+        # TODO: make sure we have updated to the best values
+
+        # TODO: make a function to return the best_fit values
 
     def _set_fit_func_kwargs(self, stars, model_keys, interp_keys, model_comparer, model_comparer_weights, model_init, interp_init, model_error, interp_error, model_limit, interp_limit):
         # everything is _'d private because I don't want people to touch it!
