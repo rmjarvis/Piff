@@ -152,7 +152,7 @@ class HyperPSF(PSF):
         # in principle I could make these as long as I wanted.
         if Nkeys > 50:
             raise Exception('Max of 50 variables! You have {0}!'.format(Nkeys))
-        for i in range(Nkeys, 50):
+        for i in xrange(Nkeys, 50):
             # fix unused parameters
             self._fit_func_kwargs_minuit['fix_p{0}'.format(i)] = True
 
@@ -207,15 +207,13 @@ class HyperPSF(PSF):
         # update model and interp via params
         if len(self._model_keys) > 0:
             model_params = params[:len(self._model_keys)]
-            model = {self._model_keys[i]: model_params[i]
-                     for i in xrange(len(self._model_keys))}
+            model = dict(zip(self._model_keys, model_params))
             self.model.update(logger=self._logger, **model)
             self.model.solve(self._stars)
 
         if len(self._interp_keys) > 0:
             interp_params = params[len(self._model_keys):len(self._model_keys) + len(self._interp_keys)]
-            interp = {self._interp_keys[i]: interp_params[i]
-                     for i in xrange(len(self._interp_keys))}
+            interp = dict(zip(self._interp_keys, interp_params))
             self.interp.update(logger=self._logger, **interp)
             self.interp.solve(self._stars)
 
