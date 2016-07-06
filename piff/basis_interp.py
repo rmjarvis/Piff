@@ -63,6 +63,26 @@ class BasisInterp(Interp):
         stars = self.interpolateList(stars)
         return stars
 
+    def basis(self, star):
+        """Return 1d array of polynomial basis values for this star
+
+        :param star:   A Star instance
+
+        :returns:      1d numpy array with values of u^i v^j for 0<i+j<=order
+        """
+        raise NotImplemented("Cannot call `basis` for abstract base class BasisInterp. "
+                             "You probably want to use BasisPolynomial.")
+
+    def constant(self, value=1.):
+        """Return 1d array of coefficients that represent a polynomial with constant value.
+
+        :param value:  The value to use as the constant term.  [default: 1.]
+
+        :returns:      1d numpy array with values of u^i v^j for 0<i+j<=order
+        """
+        raise NotImplemented("Cannot call `constant` for abstract base class BasisInterp. "
+                             "You probably want to use BasisPolynomial.")
+
     def solve(self, stars, logger=None):
         """Solve for the interpolation coefficients given some data.
         The StarFit element of each Star in the list is assumed to hold valid
@@ -206,7 +226,7 @@ class BasisPolynomial(BasisInterp):
     def getProperties(self, star):
         return np.array([star.data[k] for k in self._keys], dtype=float)
 
-    def basis(self,star):
+    def basis(self, star):
         """Return 1d array of polynomial basis values for this star
 
         :param star:   A Star instance
@@ -228,9 +248,12 @@ class BasisPolynomial(BasisInterp):
         # Return linear array of terms making total power constraint
         return pows2d[self._mask]
 
-    def constant(self,c=1.):
-        """Return 1d array of coefficients that represent a polynomial
-        with constant value c
+    def constant(self, value=1.):
+        """Return 1d array of coefficients that represent a polynomial with constant value.
+
+        :param value:  The value to use as the constant term.  [default: 1.]
+
+        :returns:      1d numpy array with values of u^i v^j for 0<i+j<=order
         """
         out = np.zeros( np.count_nonzero(self._mask), dtype=float)
         out[0] = c  # The constant term is always first.
