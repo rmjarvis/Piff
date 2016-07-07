@@ -193,6 +193,11 @@ class ShapeHistogramsStats(Stats):
     """
     def __init__(self, bins_size=10, bins_shape=10, file_name=None, logger=None):
         """
+        The `bins_size` and `bins_shape` parameters are typically the number of bins for the
+        size and shape histograms respectively.  However, they will be passed to the
+        `matplotlib.pyplot.hist` function as the `bins` parameter, which also accepts
+        numpy arrays for the size of each bin, so that is allowed here as well.
+
         :param bins_size:   Number of bins for size histograms. [default: 10]
         :param bins_shape:  Number of bins for shape histograms. [default: 10]
         :param file_name:   Name of the file to output to. [default: None]
