@@ -672,9 +672,11 @@ class PixelGrid(Model):
                                                beta = star.fit.beta))
             # If chisq went up, turn off centering.  There are a number of failure modes
             # to this algorithm that can lead to oscillatory behavior, so if we start doing
-            # that, just turn off the centering for the next iteration.
+            # that, just turn off the centering for subsequent iterations.
             if chisq > prev_chisq:
+                assert do_center  # The logic of the above test means this should be True here.
                 do_center = False
+                center = (center[0]-df[1], center[1]-df[2])  # undo the last centroid update.
                 if logger:
                     logger.debug("chisq increased in reflux.  Turning off centering.")
             prev_chisq = chisq
