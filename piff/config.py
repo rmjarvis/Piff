@@ -51,6 +51,7 @@ def setup_logger(verbose=1, log_file=None):
 
     return logger
 
+
 def parse_variables(config, variables, logger):
     """Parse configuration variables and add them to the config dict
 
@@ -104,27 +105,17 @@ def piffify(config, logger=None):
         verbose = config.get('verbose', 1)
         logger = piff.setup_logger(verbose=verbose)
 
-    for key in ['input', 'output', 'model', 'interp']:
+    for key in ['input', 'output', 'psf']:
         if key not in config:
             raise ValueError("%s field is required in config dict"%key)
 
     # read in the input images
-    stars = piff.process_input(config, logger=logger)
+    stars, wcs, pointing = piff.Input.process(config['input'], logger=logger)
 
-    # make a Model object to use for the individual stellar fitting
-    model = piff.process_model(config, logger=logger)
-
-    # make an Interp object to use for the interpolation
-    interp = piff.process_interp(config, logger=logger)
-
-    # build the PSF model
-    psf = piff.PSF.build(stars, model, interp, logger=logger)
+    psf = piff.PSF.process(config['psf'], logger=logger)
+    psf.fit(stars, wcs, pointing, logger=logger)
 
     # write it out to a file
-    output = piff.process_output(config, logger=logger)
+    output = piff.Output.process(config['output'], logger=logger)
     output.write(psf)
 
-    if 'stats' in config:
-        stats_list = piff.process_stats(config, logger=logger)
-        for output, stats in stats_list:
-            output.write(stats(psf, stars))
