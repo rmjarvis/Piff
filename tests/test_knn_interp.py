@@ -14,10 +14,9 @@
 
 from __future__ import print_function
 import galsim
-import numpy
+import numpy as np
 import piff
 import os
-import yaml
 import fitsio
 
 attr_interp = ['focal_x', 'focal_y']
@@ -25,8 +24,8 @@ attr_target = range(5)
 
 def generate_data(n_samples=100):
     # generate as Norm(0, 1) for all parameters
-    X = numpy.random.normal(0, 1, size=(n_samples, len(attr_interp)))
-    y = numpy.random.normal(0, 1, size=(n_samples, len(attr_target)))
+    X = np.random.normal(0, 1, size=(n_samples, len(attr_interp)))
+    y = np.random.normal(0, 1, size=(n_samples, len(attr_target)))
 
     star_list = []
     for Xi, yi in zip(X, y):
@@ -37,7 +36,7 @@ def generate_data(n_samples=100):
         properties = {attr_interp[ith]: Xi[ith] for ith in xrange(len(attr_interp))}
         stardata = piff.StarData(image, image.trueCenter(), properties=properties)
 
-        params = numpy.array([yi[ith] for ith in attr_target])
+        params = np.array([yi[ith] for ith in attr_target])
         starfit = piff.StarFit(params)
         star = piff.Star(stardata, starfit)
         star_list.append(star)
@@ -66,9 +65,9 @@ def test_interp():
     star_predicted = knn.interpolate(star_predict)
 
     # predicted stars should find their exact partner here, so they have the same data
-    numpy.testing.assert_array_equal(star_predicted.fit.params, star_predict.fit.params)
+    np.testing.assert_array_equal(star_predicted.fit.params, star_predict.fit.params)
     for attr in attr_interp:
-        numpy.testing.assert_equal(star_predicted.data[attr], star_predict.data[attr])
+        np.testing.assert_equal(star_predicted.data[attr], star_predict.data[attr])
 
     # repeat for a star with its starfit removed
     star_predict = star_list_predict[0]
@@ -77,9 +76,9 @@ def test_interp():
 
     # predicted stars should find their exact partner here, so they have the same data
     # removed the fit, so don't check that
-    # numpy.testing.assert_array_equal(star_predicted.fit.params, star_predict.fit.params)
+    # np.testing.assert_array_equal(star_predicted.fit.params, star_predict.fit.params)
     for attr in attr_interp:
-        numpy.testing.assert_equal(star_predicted.data[attr], star_predict.data[attr])
+        np.testing.assert_equal(star_predicted.data[attr], star_predict.data[attr])
 
 def test_attr_target():
     # make sure we can do the interpolation only over certain indices in params
@@ -97,10 +96,10 @@ def test_attr_target():
 
     # predicted stars should find their exact partner here, so they have the same data
     # but here the fit params are not the same!!
-    numpy.testing.assert_equal(star_predict.fit.params[attr_target_one[0]], star_predicted.fit.params[0])
+    np.testing.assert_equal(star_predict.fit.params[attr_target_one[0]], star_predicted.fit.params[0])
     # we should still have the other interp parameter, however, so look at both!
     for attr in attr_interp:
-        numpy.testing.assert_equal(star_predicted.data[attr], star_predict.data[attr])
+        np.testing.assert_equal(star_predicted.data[attr], star_predict.data[attr])
 
     # repeat for a star with its starfit removed
     star_predict = star_list[0]
@@ -110,7 +109,7 @@ def test_attr_target():
     # predicted stars should find their exact partner here, so they have the same data
     # we should still have the other interp parameter, however, so look at both!
     for attr in attr_interp:
-        numpy.testing.assert_equal(star_predicted.data[attr], star_predict.data[attr])
+        np.testing.assert_equal(star_predicted.data[attr], star_predict.data[attr])
 
 def test_yaml():
     # using piffify executable
@@ -126,10 +125,10 @@ def test_disk():
     with fitsio.FITS(knn_file,'rw',clobber=True) as f:
         knn.write(f, 'knn')
         knn2 = piff.kNNInterp.read(f, 'knn')
-    numpy.testing.assert_array_equal(knn.locations, knn2.locations)
-    numpy.testing.assert_array_equal(knn.targets, knn2.targets)
-    numpy.testing.assert_array_equal(knn.attr_target, knn2.attr_target)
-    numpy.testing.assert_array_equal(knn.attr_interp, knn2.attr_interp)
+    np.testing.assert_array_equal(knn.locations, knn2.locations)
+    np.testing.assert_array_equal(knn.targets, knn2.targets)
+    np.testing.assert_array_equal(knn.attr_target, knn2.attr_target)
+    np.testing.assert_array_equal(knn.attr_interp, knn2.attr_interp)
 
 def test_decam():
     file_name = 'wavefront_test/Science-20121120s1-v20i2.fits'
@@ -138,7 +137,7 @@ def test_decam():
     knn.load_wavefront(file_name, extname)
 
     n_samples = 2000
-    ccdnums = numpy.random.randint(1, 63, n_samples)
+    ccdnums = np.random.randint(1, 63, n_samples)
 
     star_list = []
     for ccdnum in ccdnums:
@@ -147,8 +146,8 @@ def test_decam():
         wcs = galsim.JacobianWCS(0.26, 0.05, -0.08, -0.29)
         image = galsim.Image(64,64, wcs=wcs)
         # set icen and jcen
-        icen = numpy.random.randint(100, 2048)
-        jcen = numpy.random.randint(100, 4096)
+        icen = np.random.randint(100, 2048)
+        jcen = np.random.randint(100, 4096)
         image.setCenter(icen, jcen)
         image_pos = image.center()
 
@@ -166,14 +165,14 @@ def test_decam():
     star_list_misaligned = knn.interpolateList(star_list)
 
     # test the prediction algorithm
-    y_predicted = numpy.array([knn.getFitProperties(star) for star in star_list_predicted])
-    y_misaligned = numpy.array([knn.getFitProperties(star) for star in star_list_misaligned])
-    X = numpy.array([knn.getProperties(star) for star in star_list])
+    y_predicted = np.array([knn.getFitProperties(s) for s in star_list_predicted])
+    y_misaligned = np.array([knn.getFitProperties(s) for s in star_list_misaligned])
+    X = np.array([knn.getProperties(s) for s in star_list])
 
     # check the misalignments work
-    numpy.testing.assert_array_almost_equal(y_predicted[:,0], y_misaligned[:,0] - misalignment['z04d'])
-    numpy.testing.assert_array_almost_equal(y_predicted[:,5], y_misaligned[:,5] - misalignment['z09y'] * X[:,0])
-    numpy.testing.assert_array_almost_equal(y_predicted[:,6], y_misaligned[:,6] - misalignment['z10x'] * X[:,1])
+    np.testing.assert_array_almost_equal(y_predicted[:,0], y_misaligned[:,0] - misalignment['z04d'])
+    np.testing.assert_array_almost_equal(y_predicted[:,5], y_misaligned[:,5] - misalignment['z09y'] * X[:,0])
+    np.testing.assert_array_almost_equal(y_predicted[:,6], y_misaligned[:,6] - misalignment['z10x'] * X[:,1])
 
 
 def test_decam_disk():
@@ -189,11 +188,11 @@ def test_decam_disk():
     with fitsio.FITS(knn_file,'rw',clobber=True) as f:
         knn.write(f, 'decam_wavefront')
         knn2 = piff.DECamWavefront.read(f, 'decam_wavefront')
-    numpy.testing.assert_array_equal(knn.locations, knn2.locations)
-    numpy.testing.assert_array_equal(knn.targets, knn2.targets)
-    numpy.testing.assert_array_equal(knn.attr_target, knn2.attr_target)
-    numpy.testing.assert_array_equal(knn.attr_interp, knn2.attr_interp)
-    numpy.testing.assert_array_equal(knn.misalignment, knn2.misalignment)
+    np.testing.assert_array_equal(knn.locations, knn2.locations)
+    np.testing.assert_array_equal(knn.targets, knn2.targets)
+    np.testing.assert_array_equal(knn.attr_target, knn2.attr_target)
+    np.testing.assert_array_equal(knn.attr_interp, knn2.attr_interp)
+    np.testing.assert_array_equal(knn.misalignment, knn2.misalignment)
 
 
 if __name__ == '__main__':

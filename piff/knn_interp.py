@@ -22,7 +22,7 @@ from .interp import Interp
 from .starfit import Star, StarFit
 from .stardata import StarData
 
-import numpy
+import numpy as np
 import fitsio
 
 
@@ -61,8 +61,8 @@ class kNNInterp(Interp):
         :param logger:      A logger object for logging debug info. [default: None]
         """
         from sklearn.neighbors import KNeighborsRegressor
-        self.attr_interp = numpy.array(attr_interp)
-        self.attr_target = numpy.array(attr_target)
+        self.attr_interp = np.array(attr_interp)
+        self.attr_target = np.array(attr_target)
         for target in self.attr_target:
             self.knn[target] = KNeighborsRegressor(**self.knr_kwargs)
 
@@ -93,7 +93,7 @@ class kNNInterp(Interp):
 
         :returns:   Regressed parameters y (n_samples, n_targets)
         """
-        regression = numpy.array([self.knn[key].predict(locations) for key in self.attr_target]).T
+        regression = np.array([self.knn[key].predict(locations) for key in self.attr_target]).T
         if logger:
             logger.debug('Regression shape: %s', regression.shape)
         return regression
@@ -106,9 +106,9 @@ class kNNInterp(Interp):
 
         :param star:    A Star instances from which to extract the properties to use.
 
-        :returns:       A numpy vector of these properties.
+        :returns:       A np vector of these properties.
         """
-        return numpy.array([star.data[key] for key in self.attr_interp])
+        return np.array([star.data[key] for key in self.attr_interp])
 
     def getFitProperties(self, star, logger=None):
         """Extract the appropriate properties to use as the dependent variables for the
@@ -118,9 +118,9 @@ class kNNInterp(Interp):
 
         :param star:    A Star instances from which to extract the properties to use.
 
-        :returns:       A numpy vector of these properties.
+        :returns:       A np vector of these properties.
         """
-        return numpy.array([star.fit.params[key] for key in self.attr_target])
+        return np.array([star.fit.params[key] for key in self.attr_target])
 
     def initialize(self, star_list, logger=None):
         """Solve for the interpolation coefficients given stars and attributes
@@ -136,8 +136,8 @@ class kNNInterp(Interp):
         :param star_list:   A list of Star instances to interpolate between
         :param logger:      A logger object for logging debug info. [default: None]
         """
-        locations = numpy.array([self.getProperties(star) for star in star_list])
-        targets = numpy.array([self.getFitProperties(star) for star in star_list])
+        locations = np.array([self.getProperties(star) for star in star_list])
+        targets = np.array([self.getFitProperties(star) for star in star_list])
         self._fit(locations, targets)
 
     def interpolate(self, star, logger=None):
@@ -160,8 +160,8 @@ class kNNInterp(Interp):
         :returns: a list of new Star instances with interpolated parameters
         """
 
-        locations = numpy.array([self.getProperties(star) for star in star_list])
-        # targets = numpy.array([self.getFitProperties(star) for star in star_list])
+        locations = np.array([self.getProperties(star) for star in star_list])
+        # targets = np.array([self.getFitProperties(star) for star in star_list])
         targets = self._predict(locations)
         star_list_fitted = []
         for yi, star in zip(targets, star_list):
@@ -190,7 +190,7 @@ class kNNInterp(Interp):
                   ('TARGETS', self.targets.dtype, self.targets.shape),
                   ('ATTR_TARGET', self.attr_target.dtype, self.attr_target.shape),
                   ('ATTR_INTERP', self.attr_interp.dtype, self.attr_interp.shape),]
-        data = numpy.empty(1, dtype=dtypes)
+        data = np.empty(1, dtype=dtypes)
         # assign
         data['LOCATIONS'] = self.locations
         data['TARGETS'] = self.targets
@@ -232,18 +232,18 @@ class DECamWavefront(kNNInterp):
         data = fits[extname].read()
         attr_interp = ['focal_x', 'focal_y']
         attr_target = ['z{0}'.format(zi) for zi in xrange(self.z_min, self.z_max + 1)]
-        locations = numpy.array([data[attr] for attr in attr_interp]).T
-        targets = numpy.array([data[attr] for attr in attr_target]).T
+        locations = np.array([data[attr] for attr in attr_interp]).T
+        targets = np.array([data[attr] for attr in attr_target]).T
 
         self.build(attr_interp, range(0, self.z_max - self.z_min + 1), logger=logger)
         self._fit(locations, targets)
 
         # set misalignment as [[delta_i, thetax_i, thetay_i]] with i == 0 corresponding to defocus
-        self.misalignment = numpy.array([[0.0, 0.0, 0.0]] * (self.z_max - self.z_min + 1))
+        self.misalignment = np.array([[0.0, 0.0, 0.0]] * (self.z_max - self.z_min + 1))
 
         # to get the ccd coords
         attr_save = ['x', 'y', 'ccdnum']
-        Xpixel = numpy.array([data[attr] for attr in attr_save]).T
+        Xpixel = np.array([data[attr] for attr in attr_save]).T
         self.Xpixel = Xpixel
 
     def misalign_wavefront(self, misalignment):
@@ -253,7 +253,7 @@ class DECamWavefront(kNNInterp):
         """
         # if dictionary, translate terms to array
         if type(misalignment) == dict:
-            nu_misalignment = numpy.array([[0.0, 0.0, 0.0]] * (self.z_max - self.z_min + 1))
+            nu_misalignment = np.array([[0.0, 0.0, 0.0]] * (self.z_max - self.z_min + 1))
             for zi in xrange(self.z_min, self.z_max + 1):
                 indx = zi - 4
                 # delta
@@ -282,17 +282,17 @@ class DECamWavefront(kNNInterp):
 
         :returns:   Regressed parameters targets (n_samples, n_targets)
         """
-        if numpy.shape(targets) == ():
+        if np.shape(targets) == ():
             # if no y, then interpolate
-            targets = numpy.array([self.knn[key].predict(locations) for key in self.attr_target]).T
+            targets = np.array([self.knn[key].predict(locations) for key in self.attr_target]).T
         if logger:
             logger.debug('Regression shape: %s', targets.shape)
         # add misalignment shape (n_targets, 3)
         # locations is (n_samples, 2)
         # targets is (n_samples, n_targets)
-        targets = targets + self.misalignment[numpy.newaxis, :, 0] \
-                + locations[:, 1, numpy.newaxis] * self.misalignment[numpy.newaxis, :, 1] \
-                + locations[:, 0, numpy.newaxis] * self.misalignment[numpy.newaxis, :, 2]
+        targets = targets + self.misalignment[np.newaxis, :, 0] \
+                + locations[:, 1, np.newaxis] * self.misalignment[np.newaxis, :, 1] \
+                + locations[:, 0, np.newaxis] * self.misalignment[np.newaxis, :, 2]
 
         return targets
 
@@ -311,7 +311,7 @@ class DECamWavefront(kNNInterp):
                   ('ATTR_TARGET', self.attr_target.dtype, self.attr_target.shape),
                   ('ATTR_INTERP', self.attr_interp.dtype, self.attr_interp.shape),
                   ('MISALIGNMENT', self.misalignment.dtype, self.misalignment.shape)]
-        data = numpy.empty(1, dtype=dtypes)
+        data = np.empty(1, dtype=dtypes)
         # assign
         data['LOCATIONS'] = self.locations
         data['TARGETS'] = self.targets
