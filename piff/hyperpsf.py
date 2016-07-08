@@ -14,7 +14,7 @@
 
 from __future__ import print_function
 
-import numpy
+import numpy as np
 
 from .psf import PSF
 
@@ -229,18 +229,18 @@ class HyperPSF(PSF):
             stars_compare = [self._model_comparer.fit(star) for star in stars_model]
 
             # now compare the params of stars and stars_compare
-            chisq_vec = numpy.array([numpy.square(stars_compare[i].fit.params - self._stars[i].fit.params)
+            chisq_vec = np.array([np.square(stars_compare[i].fit.params - self._stars[i].fit.params)
                                      for i in xrange(len(stars_compare))])
-            chisq = numpy.sum(chisq_vec * self._model_comparer_weights)
+            chisq = np.sum(chisq_vec * self._model_comparer_weights)
         else:
             chisqs = []
             for star, star_model in zip(self._stars, stars_model):
                 image, weight, pos = star.data.getImage()
                 model_image = star_model.data.getImage()[0]
                 # square of the difference
-                chisq = numpy.sum(numpy.square(((image - model_image) * weight).array))
+                chisq = np.sum(np.square(((image - model_image) * weight).array))
                 chisqs.append(chisq)
-            chisq = numpy.sum(chisqs)
+            chisq = np.sum(chisqs)
 
 
         if (self.n_iter % 10 == 0) and (self.minuit_kwargs['print_level'] > 0):

@@ -13,7 +13,7 @@
 #    and/or other materials provided with the distribution.
 
 from __future__ import print_function
-import numpy
+import numpy as np
 import piff
 
 """
@@ -46,7 +46,7 @@ def test_solve():
     hyperpsf = piff.HyperPSF.build(stars, model, interp, print_level=4, **fit_kwargs)
 
     # this should be bang on
-    numpy.testing.assert_almost_equal(hyperpsf._minuit.fitarg['p0'], true_background, decimal=5)
+    np.testing.assert_almost_equal(hyperpsf._minuit.fitarg['p0'], true_background, decimal=5)
 
 def test_model_comparer():
     # here we want ot use a gaussian to compare our fits
@@ -66,7 +66,7 @@ def test_model_comparer():
     # make sure model_comparerer_weights works
     # test by giving case where shear is way off but not fitted, but size can
     # be fitted. Should fit size and not shear
-    model_comparer_weights = numpy.array([1.0, 1.0, 0.0])
+    model_comparer_weights = np.array([1.0, 1.0, 0.0])
 
     fit_kwargs = {'model_keys': model_keys,
                   'model_init': model_init,
@@ -105,7 +105,7 @@ def test_limits():
     hyperpsf = piff.HyperPSF.build(stars, model, interp, print_level=0, **fit_kwargs)
 
     # we should be really close to the upper_limit
-    numpy.testing.assert_almost_equal(hyperpsf._minuit.fitarg['p0'], upper_limit, decimal=5)
+    np.testing.assert_almost_equal(hyperpsf._minuit.fitarg['p0'], upper_limit, decimal=5)
 
 #####
 # convenience functions
@@ -138,7 +138,7 @@ def make_star(icen=500, jcen=700, ccdnum=28,
     stardata = piff.StarData.makeTarget(x=icen, y=jcen, properties=properties,
                                         scale=0.263)
     # apply Gaussian sigma, g1, g2
-    params = numpy.array([sigma, g1, g2])
+    params = np.array([sigma, g1, g2])
 
     starfit = piff.StarFit(params, **fit_kwargs)
 
@@ -148,9 +148,9 @@ def make_star(icen=500, jcen=700, ccdnum=28,
 
 def generate_starlist(n_samples=1000, background=10.5):
     # create n_samples images from the 63 ccds and pixel coordinates
-    icens = numpy.random.randint(100, 2048, n_samples)
-    jcens = numpy.random.randint(100, 4096, n_samples)
-    ccdnums = numpy.random.randint(1, 63, n_samples)
+    icens = np.random.randint(100, 2048, n_samples)
+    jcens = np.random.randint(100, 4096, n_samples)
+    ccdnums = np.random.randint(1, 63, n_samples)
     jcenter = 2000
     icenter = 1000
     # throw in a 1d poly nomial function for sigma g1 and g2
@@ -158,9 +158,9 @@ def generate_starlist(n_samples=1000, background=10.5):
     g1s = (jcens - jcenter) * 0.1 / (jcens.max() - jcens.min())
     g2s = (icens - icenter) * 0.1 / (icens.max() - icens.min())
 
-    # sigmas = numpy.random.random(0.5, 2, n_samples)
-    # g1s = numpy.random.normal(0, 0.1, n_samples)
-    # g2s = numpy.random.normal(0, 0.1, n_samples)
+    # sigmas = np.random.random(0.5, 2, n_samples)
+    # g1s = np.random.normal(0, 0.1, n_samples)
+    # g2s = np.random.normal(0, 0.1, n_samples)
     star_list = [make_star(icen, jcen, ccdnum, sigma, g1, g2)
                  for icen, jcen, ccdnum, sigma, g1, g2
                  in zip(icens, jcens, ccdnums, sigmas, g1s, g2s)]
