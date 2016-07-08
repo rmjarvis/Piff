@@ -17,43 +17,11 @@
 """
 
 from __future__ import print_function
-import numpy
+import numpy as np
 
-from .stardata import StarData
-from .starfit import Star, StarFit
+from .star import Star, StarFit, StarData
+from .util import write_kwargs, read_kwargs
 
-def process_model(config, logger=None):
-    """Parse the model field of the config dict.
-
-    :param config:      The configuration dict.
-    :param logger:      A logger object for logging debug info. [default: None]
-
-    :returns: a Model instance
-    """
-    import piff
-
-    if logger is None:
-        verbose = config.get('verbose', 1)
-        logger = piff.setup_logger(verbose=verbose)
-
-    if 'model' not in config:
-        raise ValueError("config dict has no model field")
-    config_model = config['model']
-
-    if 'type' not in config_model:
-        raise ValueError("config['model'] has no type field")
-
-    # Get the class to use for the model
-    # Not sure if this is what we'll always want, but it would be simple if we can make it work.
-    model_class = getattr(piff, config_model.pop('type'))
-
-    # Read any other kwargs in the model field
-    kwargs = model_class.parseKwargs(config_model, logger)
-
-    # Build model object
-    model = model_class(**kwargs)
-
-    return model
 
 class Model(object):
     """The base class for modeling a single PSF (i.e. no interpolation yet)
@@ -62,7 +30,33 @@ class Model(object):
     implemented by any derived class.
     """
     @classmethod
-    def parseKwargs(cls, config_model, logger):
+    def process(cls, config_model, logger=None):
+        """Parse the model field of the config dict.
+
+        :param config_model:    The configuration dict for the model field.
+        :param logger:          A logger object for logging debug info. [default: None]
+
+        :returns: a Model instance
+        """
+        import piff
+
+        if 'type' not in config_model:
+            raise ValueError("config['model'] has no type field")
+
+        # Get the class to use for the model
+        # Not sure if this is what we'll always want, but it would be simple if we can make it work.
+        model_class = getattr(piff, config_model.pop('type'))
+
+        # Read any other kwargs in the model field
+        kwargs = model_class.parseKwargs(config_model, logger)
+
+        # Build model object
+        model = model_class(**kwargs)
+
+        return model
+
+    @classmethod
+    def parseKwargs(cls, config_model, logger=None):
         """Parse the model field of a configuration dict and return the kwargs to use for
         initializing an instance of the class.
 
@@ -76,31 +70,28 @@ class Model(object):
         """
         kwargs = {}
         kwargs.update(config_model)
-        kwargs['logger'] = logger
         return kwargs
 
-    def makeStar(self, data, flux=1., center=(0.,0.), mask=True):
-        """Create a Star instance that this Model can read, include any setup needed
-        before fitting.
+    def initialize(self, star, mask=True, logger=None):
+        """Initialize a star to work with the current model.
 
-        The base class implementation uses None for the fit.params value, leaving that to 
-        be filled in by a subsequent model.fit() call.
-
-        :param data:    A StarData instance
-        :param flux:    Initial estimate of stellar flux
-        :param center:  Initial estimate of stellar center in world coord system
+        :param star:    A Star instance with the raw data.
         :param mask:    If True, set data.weight to zero at pixels that are outside
-                        the range of the model.
+                        the range of the model. [default: True]
+        :param logger:  A logger object for logging debug info. [default: None]
 
-        :returns: Star instance
+        :returns:       Star instance with the appropriate initial fit values
         """
-        fit = StarFit(None, flux, center)
-        return Star(data, fit)
-
+        # If implemented, update the flux to something close to right.
+        if hasattr(self, 'reflux'):
+            star = self.reflux(star, fit_center=False, logger=logger)
+        else:
+            star = star.withFlux(np.sum(star.data.image.array))
+        return star
 
     def fit(self, star):
         """Fit the Model to the star's data to yield iterative improvement on
-        its PSF parameters, their uncertainties, and flux (and center, if free).  
+        its PSF parameters, their uncertainties, and flux (and center, if free).
         The returned star.fit.alpha will be inverse covariance of solution if
         it is estimated, else is None.
 
@@ -111,7 +102,7 @@ class Model(object):
         raise NotImplemented("Derived classes must define the fit function")
 
     def draw(self, star):
-        """Create new Star instance that has StarData filled with a rendering
+        """Create new Star instance that has star.data filled with a rendering
         of the PSF specified by the current StarFit parameters, flux, and center.
         Coordinate mapping of the current StarData is assumed.
 
@@ -132,51 +123,24 @@ class Model(object):
         :param fits:        An open fitsio.FITS object
         :param extname:     The name of the extension to write the model information.
         """
-        # Start with 'type', since that always needs to be in the table.
+        # First write the basic kwargs that works for all Model classes
         model_type = self.__class__.__name__
-        cols = [ [model_type] ]
-        dtypes = [ ('type', str, len(model_type) ) ]
-        for key, value in self.kwargs.items():
-            t = type(value)
-            dt = numpy.dtype(t) # just used to categorize the type into int, float, str
-            if dt.kind in numpy.typecodes['AllInteger']:
-                i = int(value)
-                dtypes.append( (key, int) )
-                cols.append([i])
-            elif dt.kind in numpy.typecodes['AllFloat']:
-                f = float(value)
-                dtypes.append( (key, float) )
-                cols.append([f])
-            else:
-                s = str(value)
-                dtypes.append( (key, str, len(s)) )
-                cols.append([s])
-        data = numpy.array(zip(*cols), dtype=dtypes)
-        fits.write_table(data, extname=extname)
+        write_kwargs(fits, extname, dict(self.kwargs, type=model_type))
 
-    @classmethod
-    def readKwargs(cls, fits, extname):
-        """Read the kwargs from the data in a FITS binary table.
+        # Now do any class-specific steps.
+        self._finish_write(fits, extname)
 
-        The base class implementation just reads each value in the table and uses the column
-        name for the name of the kwarg.  However, derived classes may want to do something more
-        sophisticated.  Also, they may want to read other extensions from the fits file
-        besides just extname.
+    def _finish_write(self, fits, extname):
+        """Finish the writing process with any class-specific steps.
 
-        :param fits:        An open fitsio.FITS object.
-        :param extname:     The name of the extension with the model information.
+        The base class implementation doesn't do anything, which is often appropriate, but
+        this hook exists in case any Model classes need to write extra information to the
+        fits file.
 
-        :returns: a kwargs dict to use to initialize the model
+        :param fits:        An open fitsio.FITS object
+        :param extname:     The base name of the extension
         """
-        cols = fits[extname].get_colnames()
-        # Remove 'type'
-        assert 'type' in cols
-        cols = [ col for col in cols if col != 'type' ]
-
-        data = fits[extname].read()
-        assert len(data) == 1
-        kwargs = dict([ (col, data[col][0]) for col in cols ])
-        return kwargs
+        pass
 
     @classmethod
     def read(cls, fits, extname):
@@ -194,44 +158,32 @@ class Model(object):
 
         assert extname in fits
         assert 'type' in fits[extname].get_colnames()
-        assert 'type' in fits[extname].read().dtype.names
-        #model_type = fits[extname].read_column('type')  # This isn't working for me...
         model_type = fits[extname].read()['type']
         assert len(model_type) == 1
         model_type = model_type[0]
 
         # Check that model_type is a valid Model type.
         model_classes = piff.util.get_all_subclasses(piff.Model)
-        valid_model_types = dict([ (cls.__name__, cls) for cls in model_classes ])
+        valid_model_types = dict([ (c.__name__, c) for c in model_classes ])
         if model_type not in valid_model_types:
             raise ValueError("model type %s is not a valid Piff Model"%model_type)
         model_cls = valid_model_types[model_type]
 
-        kwargs = model_cls.readKwargs(fits, extname)
+        kwargs = read_kwargs(fits, extname)
+        kwargs.pop('type')
         model = model_cls(**kwargs)
+        model._finish_read(fits, extname)
         return model
 
-    @classmethod
-    def readKwargs(cls, fits, extname):
-        """Read the kwargs from the data in a FITS binary table.
+    def _finish_read(self, fits, extname):
+        """Finish the reading process with any class-specific steps.
 
-        The base class implementation just reads each value in the table and uses the column
-        name for the name of the kwarg.  However, derived classes may want to do something more
-        sophisticated.  Also, they may want to read other extensions from the fits file
-        besides just extname.
+        The base class implementation doesn't do anything, which is often appropriate, but
+        this hook exists in case any Model classes need to read extra information from the
+        fits file.
 
         :param fits:        An open fitsio.FITS object.
-        :param extname:     The name of the extension with the model information.
-
-        :returns: a kwargs dict to use to initialize the model
+        :param extname:     The base name of the extension.
         """
-        cols = fits[extname].get_colnames()
-        # Remove 'type'
-        assert 'type' in cols
-        cols = [ col for col in cols if col != 'type' ]
-
-        data = fits[extname].read()
-        assert len(data) == 1
-        kwargs = dict([ (col, data[col][0]) for col in cols ])
-        return kwargs
+        pass
 
