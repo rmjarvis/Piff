@@ -20,9 +20,9 @@ from __future__ import print_function
 import numpy as np
 
 from .model import Model
-from .starfit import Star,StarFit
+from .star import Star, StarFit
 
-class PixelModel(Model):
+class PixelGrid(Model):
     """A PSF modeled as interpolation between a grid of points.
 
     The parameters of the model are the values at the grid points, although the constraint
@@ -34,7 +34,7 @@ class PixelModel(Model):
     of the PSF pixel values will be missing from the parameter vector as they are determined
     by the flux (and centroid) constraints. And there is more covariance between pixel values.
 
-    PixelModel also needs an PixelInterpolant on construction to specify how to determine
+    PixelGrid also needs an PixelInterpolant on construction to specify how to determine
     values between grid points.
 
     Stellar data is assumed either to be in flux units (with default sb=False), such that
@@ -48,7 +48,7 @@ class PixelModel(Model):
     """
     def __init__(self, scale, size, interp=None, mask=None, start_sigma=1.,
                  force_model_center=True, degenerate=True, logger=None):
-        """Constructor for PixelModel defines the PSF pitch, size, and interpolator.
+        """Constructor for PixelGrid defines the PSF pitch, size, and interpolator.
 
         :param scale:       Pixel scale of the PSF model (in arcsec)
         :param size:        Number of pixels on each side of square grid.
@@ -74,7 +74,6 @@ class PixelModel(Model):
             logger.debug("start_sigma = %s",start_sigma)
             logger.debug("force_model_center = %s",force_model_center)
             logger.debug("degenerate = %s",degenerate)
-        self.logger = logger
 
         self.du = scale
         self.pixel_area = self.du*self.du
@@ -95,7 +94,7 @@ class PixelModel(Model):
 
         if mask is None:
             if size <= 0:
-                raise ValueError("Non-positive PixelModel size {:d}".format(size))
+                raise ValueError("Non-positive PixelGrid size {:d}".format(size))
             self._mask = np.ones( (size,size), dtype=bool)
         else:
             if mask.shape != (size,size):
@@ -109,8 +108,8 @@ class PixelModel(Model):
         if self._force_model_center:
             self._nparams -= 2 # Centroid constraint will remove 2 more degrees of freedom
             self._constraints += 2
-        if self.logger:
-            self.logger.debug("nparams = %d, constraints = %d",self._nparams, self._constraints)
+        if logger:
+            logger.debug("nparams = %d, constraints = %d",self._nparams, self._constraints)
 
         # Now we need to make a 2d array whose entries are the indices of
         # each pixel in the 1d parameter array.  We will put the central
@@ -236,9 +235,7 @@ class PixelModel(Model):
         x = psfx + self._origin[1]
         # Mark references to invalid pixels with nopsf array
         # First note which pixels are referenced outside of grid:
-        nopsf = np.logical_or(y < 0, y >= self.ny)
-        nopsf = np.logical_or(nopsf, x<0)
-        nopsf = np.logical_or(nopsf, x>=self.nx)
+        nopsf = (y < 0) | (y >= self.ny) | (x < 0) | (x >= self.nx)
         # Set them to reference pixel 0
         x = np.where(nopsf, 0, x)
         y = np.where(nopsf, 0, y)
@@ -256,7 +253,6 @@ class PixelModel(Model):
         """
         constrained = self._b - np.dot(self._a[:,:self._nparams], star.fit.params)
         return np.concatenate((constrained, star.fit.params))
-
 
     def fillPSF(self, star, in2d):
         """ Initialize the PSF for a star from a given 2d uv-plane array.
@@ -276,27 +272,25 @@ class PixelModel(Model):
         # ??? check centering ???
 
         star.fit.params[:] = params[self._constraints:]  # Omit the constrained pixels
-        return
 
-    def makeStar(self, data, flux=1., center=(0.,0.), mask=True):
-        """Create a Star instance that PixelModel can manipulate.
+    def initialize(self, star, mask=True, logger=None):
+        """Initialize a star to work with the current model.
 
-        :param data:    A StarData instance
-        :param flux:    Initial estimate of stellar flux
-        :param center:  Initial estimate of stellar center in world coord system
+        :param star:    A Star instance with the raw data.
         :param mask:    If True, set data.weight to zero at pixels that are outside
                         the range of the model.
+        :param logger:  A logger object for logging debug info. [default: None]
 
-        :returns:       Star instance
+        :returns:       Star instance with the appropriate initial fit values
         """
 
-        fit = StarFit(self._initial_params, flux, center)
+        fit = StarFit(self._initial_params, star.fit.flux, star.fit.center)
         if mask:
             # Null weight at pixels where interpolation coefficients
             # come up short of specified fraction of the total kernel
             required_kernel_fraction = 0.7
 
-            _, _, u, v = data.getDataVector()
+            _, _, u, v = star.data.getDataVector()
             # Subtract star.fit.center from u, v:
             u -= fit.center[0]
             v -= fit.center[1]
@@ -307,8 +301,11 @@ class PixelModel(Model):
             # Null the coefficients for such pixels
             coeffs = np.where(index1d < 0, 0., coeffs)
             use = np.sum(coeffs,axis=1) > required_kernel_fraction
-            data = data.maskPixels(use)
-        return Star(data, fit)
+            data = star.data.maskPixels(use)
+        star = Star(data, fit)
+        # Update the flux to something close to right.
+        star = self.reflux(star, fit_center=False, logger=logger)
+        return star
 
     def fit(self, star):
         """Fit the Model to the star's data to yield iterative improvement on
@@ -526,8 +523,8 @@ class PixelModel(Model):
 
         :returns:      New Star instance with rendered PSF in StarData
         """
-         # Start by getting all interpolation coefficients for all observed points
-        data, weight, u, v = star.data.getDataVector()
+        # Start by getting all interpolation coefficients for all observed points
+        data, weight, u, v = star.data.getDataVector(include_zero_weight=True)
         # Subtract star.fit.center from u, v
         u -= star.fit.center[0]
         v -= star.fit.center[1]
@@ -547,38 +544,42 @@ class PixelModel(Model):
             # Change data from surface brightness into flux
             model *= star.data.pixel_area
 
-        return Star(star.data.setData(model), star.fit)
+        return Star(star.data.setData(model,include_zero_weight=True), star.fit)
 
-    def reflux(self, star, fit_center=True):
+    def reflux(self, star, fit_center=True, logger=None):
         """Fit the Model to the star's data, varying only the flux (and
         center, if it is free).  Flux and center are updated in the Star's
         attributes.  This is a single-step solution if only solving for flux,
         otherwise an iterative operation.  DOF in the result assume
         only flux (& center) are free parameters.
 
-        :param star:       A Star instance
-        :param fit_center: If False, disable any motion of center
+        :param star:        A Star instance
+        :param fit_center:  If False, disable any motion of center
+        :param logger:      A logger object for logging debug info. [default: None]
 
-        :returns:          New Star instance, with updated flux, center, chisq, dof, worst
+        :returns:           New Star instance, with updated flux, center, chisq, dof, worst
         """
-        if False:
-            self.logger.debug("Reflux for star:")
-            self.logger.debug("    flux = %s",star.fit.flux)
-            self.logger.debug("    center = %s",star.fit.center)
-            self.logger.debug("    props = %s",star.data.properties)
-            self.logger.debug("    image = %s",star.data.image)
-            self.logger.debug("    image = %s",star.data.image.array)
-            self.logger.debug("    weight = %s",star.data.weight.array)
-            self.logger.debug("    image center = %s",star.data.image(star.data.image.center()))
-            self.logger.debug("    weight center = %s",star.data.weight(star.data.weight.center()))
+        if logger:
+            logger.debug("Reflux for star:")
+            logger.debug("    flux = %s",star.fit.flux)
+            logger.debug("    center = %s",star.fit.center)
+            logger.debug("    props = %s",star.data.properties)
+            logger.debug("    image = %s",star.data.image)
+            #logger.debug("    image = %s",star.data.image.array)
+            #logger.debug("    weight = %s",star.data.weight.array)
+            logger.debug("    image center = %s",star.data.image(star.data.image.center()))
+            logger.debug("    weight center = %s",star.data.weight(star.data.weight.center()))
 
         # This will be an iterative process if the centroid is free.
         max_iterations = 100    # Max iteration count
-        chisq_tolerance = 0.01 # Quit when chisq changes less than this
+        chisq_thresh = 0.01     # Quit when reduced chisq changes less than this
         do_center = fit_center and self._force_model_center
         flux = star.fit.flux
         center = star.fit.center
+        prev_chisq = 1.e500
         for iteration in range(max_iterations):
+            if logger:
+                logger.debug("Start iteration %d",iteration)
             # Start by getting all interpolation coefficients for all observed points
             data, weight, u, v = star.data.getDataVector()
             if not star.data.values_are_sb:
@@ -618,44 +619,74 @@ class PixelModel(Model):
                 derivs = mod.reshape(mod.shape+(1,))
                 # derivs should end up with shape (npts, nconstraints)
             resid = data - mod*flux
+            if logger:
+                logger.debug("total pixels = %s, nopsf = %s",len(pvals),np.sum(nopsf))
 
             # Now begin construction of alpha/beta/chisq that give
             # chisq vs linearized model.
             rw = resid * weight
             chisq = np.sum(resid * rw)
+            if logger:
+                logger.debug("initial chisq = %s",chisq)
             beta = np.dot( derivs.T,rw)
             alpha = np.dot( derivs.T*weight, derivs)
             df = np.linalg.solve(alpha, beta)
             dchi = np.dot(beta, df)
             chisq = chisq - dchi
+            if logger:
+                logger.debug("chisq -= %s => %s",dchi,chisq)
             # Record worst single pixel chisq:
             resid -= np.dot(derivs,df)
             rw = resid * weight
             worst_chisq = np.max(resid * rw)
+            if logger:
+                logger.debug("worst_chisq = %s",worst_chisq)
 
             # update the flux (and center) of the star
+            if logger:
+                logger.debug("initial flux = %s",flux)
             flux += df[0]
+            if logger:
+                logger.debug("flux += %s => %s",df[0],flux)
             ###print(iteration,'chisq',chisq,flux,center,df) ###
+            if logger:
+                logger.debug("center = %s",center)
             if do_center:
                 center = (center[0]+df[1],
                           center[1]+df[2])
-            if abs(dchi) < chisq_tolerance or not do_center:
+                if logger:
+                    logger.debug("center += (%s,%s) => %s",df[1],df[2],center)
+            dof = np.count_nonzero(weight) - self._constraints
+            if logger:
+                logger.debug("dchi, chisq_thresh, dof, do_center = %s, %s, %s, %s",
+                             dchi,chisq_thresh,dof,do_center)
+            if (dchi < chisq_thresh * dof) or not do_center:
                 # Done with iterations.  Return new Star with updated information
                 return Star(star.data, StarFit(star.fit.params,
                                                flux = flux,
                                                center = center,
                                                chisq = chisq,
                                                worst_chisq = worst_chisq,
-                                               dof = np.count_nonzero(weight) - self._constraints,
+                                               dof = dof,
                                                alpha = star.fit.alpha,
                                                beta = star.fit.beta))
+            # If chisq went up, turn off centering.  There are a number of failure modes
+            # to this algorithm that can lead to oscillatory behavior, so if we start doing
+            # that, just turn off the centering for subsequent iterations.
+            if chisq > prev_chisq:
+                assert do_center  # The logic of the above test means this should be True here.
+                do_center = False
+                center = (center[0]-df[1], center[1]-df[2])  # undo the last centroid update.
+                if logger:
+                    logger.debug("chisq increased in reflux.  Turning off centering.")
+            prev_chisq = chisq
 
-        raise RuntimeError("Maximum number of iterations exceeded in PixelModel.reflux()")
+        raise RuntimeError("Maximum number of iterations exceeded in PixelGrid.reflux()")
+
 
 class PixelInterpolant(object):
     """Interface for interpolators
     """
-
     def range(self):
         """Size of interpolation kernel
 
@@ -694,6 +725,7 @@ class PixelInterpolant(object):
         :returns: coeff, dcdu, dcdv, y, x
         """
         raise NotImplemented("Derived classes must define the derivatives function")
+
 
 class Lanczos(PixelInterpolant):
     """Lanczos interpolator in 2 dimensions.
@@ -771,6 +803,7 @@ class Lanczos(PixelInterpolant):
             return coeffs, dcdu, dcdv, x, y
         else:
             return coeffs, x, y
+
 
 class Bilinear(PixelInterpolant):
     """Lanczos interpolator in 2 dimensions.

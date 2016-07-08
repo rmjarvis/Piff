@@ -61,7 +61,7 @@ if False:
     # Load the C functions with cffi
     _ffi = cffi.FFI()
     # Put the C prototype of any functions that we want wrapped into header
-    # files named *_C.h.  Then this reads them, parses the prototypes and 
+    # files named *_C.h.  Then this reads them, parses the prototypes and
     # puts python callable versions into the _lib object.
     for file_name in glob.glob(os.path.join(include_dir,'*_C.h')):
         _ffi.cdef(open(file_name).read())
@@ -73,30 +73,41 @@ if False:
 from .config import piffify, setup_logger, read_config
 
 # Models
-from .model import Model, process_model
-from .pixelmodel import PixelModel, Lanczos, Bilinear
+# Class names here match what they are called in the config file
+from .model import Model
+from .pixelgrid import PixelGrid, Lanczos, Bilinear
 from .gaussian_model import Gaussian
 
 # Interpolators
-from .interp import Interp, process_interp
+# Class names here match what they are called in the config file
+from .interp import Interp
 from .mean_interp import Mean
 from .polynomial_interp import Polynomial, polynomial_types
 from .basis_interp import BasisInterp, BasisPolynomial
 from .knn_interp import kNNInterp, DECamWavefront, pixel_to_focal
 
+# Outliers
+# Outlier handlers are named BlahOutliers where Blah is what they are called in teh config file
+from .outliers import Outliers, ChisqOutliers
+
 # Inputs
-from .input import InputHandler, process_input, InputFiles
-from .stardata import StarData
-from .starfit import StarFit, Star
+# Input handlers are named InputBlah where Blah is what they are called in the config file
+from .input import Input, InputFiles
+from .star import Star, StarData, StarFit
 
 # Outputs
-from .output import OutputHandler, process_output, OutputFile
+# Output handlers are named OutputBlah where Blah is what they are called in the config file
+from .output import Output, OutputFile
 
 # PSF
-from .psf import PSF
+# PSF classes are named BlahPSF where Blah is what they are called in the config file
+from .psf import PSF, read
+from .simplepsf import SimplePSF
+from .singlechip import SingleChipPSF
 
 # Stats
-from .stats import process_stats, Statistics, RhoStatistics, ShapeStatistics
+# Stats classes are named BlahStats where Blah is what they are called in the config file
+from .stats import Stats, RhoStats, ShapeHistogramsStats
 
 # Util -- leave these in the piff.util namespace
 from . import util

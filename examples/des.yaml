@@ -1,0 +1,105 @@
+# Copyright (c) 2016 by Mike Jarvis and the other collaborators on GitHub at
+# https://github.com/rmjarvis/Piff  All rights reserved.
+#
+# Piff is free software: Redistribution and use in source and binary forms
+# with or without modification, are permitted provided that the following
+# conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice, this
+#    list of conditions and the disclaimer given in the accompanying LICENSE
+#    file.
+# 2. Redistributions in binary form must reproduce the above copyright notice,
+#    this list of conditions and the disclaimer given in the documentation
+#    and/or other materials provided with the distribution.
+
+
+# This config file will run through a full DES field of view and produce a Piff PSF solution
+# file along with a could stats images.
+
+input:
+
+    # Define the location of the input images and catalogs
+    dir: /Users/Mike/Astro/des/Y1/y1_test  # You'll probably need to change this...
+
+    # Note the * here.  For now, you can specif this eithe as a single filenames, a list of
+    # filenames, or something that glob.glob() will understand.
+    images: "DECam_00241238_%02d.fits.fz"
+    cats: "DECam_00241238_%02d_psfcat_tb_maxmag_17.0_magcut_3.0_findstars.fits"
+    chipnums: "[ c for c in range(1,63) if c is not 61 and c is not 31 ]"
+
+    # What hdu is everything in?
+    image_hdu: 1
+    badpix_hdu: 2
+    weight_hdu: 3
+    cat_hdu: 2
+
+    # What columns in the catalog have things we need?
+    x_col: XWIN_IMAGE
+    y_col: YWIN_IMAGE
+    ra: TELRA
+    dec: TELDEC
+    gain: GAINA
+    sky_col: BACKGROUND
+
+    # How large should the postage stamp cutouts of the stars be?
+    stamp_size: 31
+
+psf:
+
+    # This type of PSF will use a separate model/interp solution for each chip.
+    type: SingleChip
+
+    outliers:
+
+        # This does outlier rejection based on the chisq value of the residual of the
+        # interpolated star with the original.
+        type: Chisq
+
+        # The threshold is given in terms of nsigma equivalent, since that's how we normally
+        # think of this, but really this is based on the chisq probability distribution for the
+        # number of degrees of freedom the model has.
+        nsigma: 4
+
+        # Only remove at most 3 stars per iteration.
+        max_remove: 3
+
+    model:
+
+        # This model uses a grid of pixels to model the surface brightness distribution.
+        type: PixelGrid
+        scale: 0.15     # Somewhat smaller than native pixel scale
+        size: 41        # Model is 41 x 41 in these pixels (so around 24 x 24 in native pixels)
+        start_sigma: 0.42462845010615713
+
+    interp:
+
+        # This interpolator does some of the model solving when interpolating to handle degenerate
+        # information from masking and the fact that the pixels are smaller than native.
+        type: BasisPolynomial
+        order: 2
+
+output:
+
+    # The output directory is by default the same as the input, but can specify a different one.
+    dir: output
+    file_name: "DECam_00241238.piff"
+
+    stats:
+
+        # Multiple output statistics can be listed in a list
+        -
+            type: ShapeHistograms
+            file_name: "DECam_00241238_shapes.png"
+
+        -
+            type: Rho
+            file_name: "DECam_00241238_rho.png"
+            # Rho can use any config parameters used by TreeCorr for doing the correlation.
+            min_sep: 0.5
+            max_sep: 300
+            sep_units: arcmin
+            bin_size: 0.5
+
+# Set the verbosity level a little higher than default (1) to give extra information
+# about the progress.
+verbose: 2
