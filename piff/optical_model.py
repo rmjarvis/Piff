@@ -28,22 +28,22 @@ from .star import Star, StarFit, StarData
 
 des_pupil_template = {'obscuration': 0.301 / 0.7174,
                       'nstruts': 4,
+                      'diam': 4.274419,  # meters
                       # aaron plays between 19 mm thick and 50 mm thick
                       'strut_thick': 0.050 * (1462.526 / 4010.) / 2.0, # conversion factor is nebulous?!
                       'strut_angle': 45 * galsim.degrees}
 
 class Optical(Model):
-    def __init__(self, rzero=0.1, sigma=0., g1=0., g2=0., pupil_path='None', lam=500., diam=4.274419, optical_template='des', **kwargs):
+    def __init__(self, rzero=0.1, sigma=0., g1=0., g2=0., pupil_path='None', lam=500., optical_template='des', **kwargs):
         """Initialize the Optical Model
 
-        :param rzero:               Atmospheric seeing. Usually in the 0.1 - 0.2 range.
-        :param g1, g2:              Shear to apply to final image. Simulates vibrational modes.
-        :param sigma:               Convolve with gaussian of size sigma.
+        :param rzero:               Atmospheric seeing. Usually in the 0.1 - 0.2 range. [default: 0.1]
+        :param g1, g2:              Shear to apply to final image. Simulates vibrational modes. [default: 0]
+        :param sigma:               Convolve with gaussian of size sigma. [default: 0]
         :param pupil_path:          If a path is given, load up a pupil image, else
-                                    make image from galsim parameters referencing optical_template
-        :param lam:                 Wavelength of observations
-        :param diam:                Diameter of primary mirror. Defaults to DES value
-        :param optical_template:    If no pupil plane image is given, create one from a set of templates.
+                                    make image from galsim parameters referencing optical_template [default: None]
+        :param lam:                 Wavelength of observations in nanometers [default: 500]
+        :param optical_template:    If no pupil plane image is given, create one from a set of templates. [default: 'des']
         """
 
         # catch any kwargs passed along...
@@ -54,14 +54,12 @@ class Optical(Model):
             'sigma': sigma,
             'pupil_path': pupil_path,
             'lam': lam,
-            'diam': diam,
             'optical_template': optical_template,
             }
 
         self.lam = lam
         self.pupil_path = pupil_path
-        optical_psf_kwargs = {'diam': diam,
-                              'lam': lam}
+        optical_psf_kwargs = {'lam': lam}
         if pupil_path != 'None':
             # load the pupil
             pupil_plane = fitsio.read(pupil_path)
