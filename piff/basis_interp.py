@@ -256,7 +256,7 @@ class BasisPolynomial(BasisInterp):
         :returns:      1d numpy array with values of u^i v^j for 0<i+j<=order
         """
         out = np.zeros( np.count_nonzero(self._mask), dtype=float)
-        out[0] = c  # The constant term is always first.
+        out[0] = value  # The constant term is always first.
         return out
 
     def _finish_write(self, fits, extname):
