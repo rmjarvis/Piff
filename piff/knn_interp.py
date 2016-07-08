@@ -19,8 +19,7 @@
 from __future__ import print_function
 
 from .interp import Interp
-from .starfit import Star, StarFit
-from .stardata import StarData
+from .star import Star, StarFit, StarData
 
 import numpy as np
 import fitsio
