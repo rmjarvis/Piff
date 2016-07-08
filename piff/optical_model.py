@@ -34,7 +34,7 @@ des_pupil_template = {'obscuration': 0.301 / 0.7174,
                       'strut_angle': 45 * galsim.degrees}
 
 class Optical(Model):
-    def __init__(self, rzero=0.1, sigma=0., g1=0., g2=0., pupil_path='None', lam=500., optical_template='des', **kwargs):
+    def __init__(self, rzero=0.1, sigma=0., g1=0., g2=0., pupil_path=None, lam=500., optical_template='des', logger=None, **kwargs):
         """Initialize the Optical Model
 
         :param rzero:               Atmospheric seeing. Usually in the 0.1 - 0.2 range. [default: 0.1]
@@ -42,6 +42,8 @@ class Optical(Model):
         :param sigma:               Convolve with gaussian of size sigma. [default: 0]
         :param pupil_path:          If a path is given, load up a pupil image, else
                                     make image from galsim parameters referencing optical_template [default: None]
+                                    Note: if a pupil_path is specified, then a diameter needs to also be specified
+                                    in the optical_template
         :param lam:                 Wavelength of observations in nanometers [default: 500]
         :param optical_template:    If no pupil plane image is given, create one from a set of templates. [default: 'des']
         """
@@ -60,19 +62,33 @@ class Optical(Model):
         self.lam = lam
         self.pupil_path = pupil_path
         optical_psf_kwargs = {'lam': lam}
-        if pupil_path != 'None':
+        # make fake pupil from template
+        if optical_template == 'des':
+            optical_psf_kwargs.update(des_pupil_template)
+        elif type(optical_template) == dict:
+            optical_psf_kwargs.update(optical_template)
+        else:
+            raise Exception('Unrecognized optical template {0}'.format(optical_template))
+        if pupil_path:
             # load the pupil
             pupil_plane = fitsio.read(pupil_path)
             pupil_plane_im = galsim.Image(pupil_plane)
             optical_psf_kwargs['pupil_plane_im'] = pupil_plane_im
-        else:
-            # make fake pupil from template
-            if optical_template == 'des':
-                optical_psf_kwargs.update(des_pupil_template)
-            elif type(optical_template) == dict:
-                optical_psf_kwargs.update(optical_template)
-            else:
-                raise Exception('Unrecognized optical template {0}'.format(optical_template))
+            if logger:
+                logger.debug('Loaded pupil {0}'.format(pupil_path))
+
+            # also need to pop geometry params
+            pop_keys = ['circular_pupil', 'nstruts', 'strut_thick', 'strut_angle']
+            for key in pop_keys:
+                if key in optical_psf_kwargs:
+                    optical_psf_kwargs.pop(key)
+                    if logger:
+                        logger.debug('Popped {0} from optical_psf_kwargs'.format(key))
+
+            # catch that diam is in optical_psf_kwargs
+            if 'diam' not in optical_psf_kwargs:
+                raise Exception('When passing a pupil plane image, need to specify diam in optical_template')
+
         self.optical_psf_kwargs = optical_psf_kwargs
 
         # atmosphere

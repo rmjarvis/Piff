@@ -41,10 +41,21 @@ def test_optical(model=None):
     np.testing.assert_almost_equal(star_fitted.fit.params, star.fit.params)
 
 def test_pupil_im(pupil_path='optics_test/DECam_pupil_128.fits'):
+    import galsim
     print('test pupil im: ', pupil_path)
     # make sure we can load up a pupil image
-    model = piff.Optical(load_pupil=pupil_path)
+    model = piff.Optical(pupil_path=pupil_path)
     test_optical(model)
+    # make sure we really loaded it
+    pupil_plane_im = galsim.Image(fitsio.read(pupil_path))
+    model_pupil_plane_im = model.optical_psf_kwargs['pupil_plane_im']
+    np.testing.assert_array_equal(pupil_plane_im.array, model_pupil_plane_im.array)
+
+    # test passing a different optical template that includes diam
+    optical_template = {'diam': 2}
+    model = piff.Optical(pupil_path=pupil_path, optical_template=optical_template)
+    model_pupil_plane_im = model.optical_psf_kwargs['pupil_plane_im']
+    np.testing.assert_array_equal(pupil_plane_im.array, model_pupil_plane_im.array)
 
 def test_kolmogorov():
     print('test kolmogorov')
