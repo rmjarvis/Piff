@@ -227,6 +227,19 @@ class Polynomial(Interp):
         C[0,0] = parameter.mean()
         return C
 
+    def initialize(self, stars, logger=None):
+        """Initialization is just solving the interpolator with current stars.
+        This then calls interpolateList, which will set the stars to have the
+        right type of object in its star.fit.params attribute.
+
+        :param stars:       A list of Star instances to use to initialize.
+        :param logger:      A logger object for logging debug info. [default: None]
+
+        :returns: a new list of Star instances
+        """
+        self.solve(stars, logger=logger)
+        return self.interpolateList(stars)
+
     def solve(self, stars, logger=None):
         """Solve for the interpolation coefficients given some data,
         using the scipy.optimize.curve_fit routine, which uses Levenberg-Marquardt
