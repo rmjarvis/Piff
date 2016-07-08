@@ -69,8 +69,10 @@ class kNNInterp(Interp):
     def _fit(self, locations, targets, logger=None):
         """Update the Neighbors Regressor with data
 
-        :param locations:   The locations for interpolating. (n_samples, n_features). In sklearn parlance, this is 'X'
-        :param targets:   The target values. (n_samples, n_targets). In sklearn parlance, this is 'y'
+        :param locations:   The locations for interpolating. (n_samples, n_features).
+                            (In sklearn parlance, this is 'X'.)
+        :param targets:     The target values. (n_samples, n_targets).
+                            (In sklearn parlance, this is 'y'.)
         """
         for key, yi in zip(self.attr_target, targets.T):
             self.knn[key].fit(locations, yi)
@@ -86,7 +88,8 @@ class kNNInterp(Interp):
     def _predict(self, locations, logger=None):
         """Predict from knn.
 
-        :param locations:   The locations for interpolating. (n_samples, n_features). In sklearn parlance, this is 'X'
+        :param locations:   The locations for interpolating. (n_samples, n_features).
+                            In sklearn parlance, this is 'X'
 
         :returns:   Regressed parameters y (n_samples, n_targets)
         """
@@ -117,7 +120,7 @@ class kNNInterp(Interp):
 
         :returns:       A numpy vector of these properties.
         """
-        return numpy.array([star.fit[key] for key in self.attr_target])
+        return numpy.array([star.fit.params[key] for key in self.attr_target])
 
     def initialize(self, star_list, logger=None):
         """Solve for the interpolation coefficients given stars and attributes
@@ -174,16 +177,17 @@ class kNNInterp(Interp):
             star_list_fitted.append(Star(star.data, fit))
         return star_list_fitted
 
-    def writeSolution(self, fits, extname):
+    def _finish_write(self, fits, extname):
         """Write the solution to a FITS binary table.
 
         Save the knn params and the locations and targets arrays
 
         :param fits:        An open fitsio.FITS object.
-        :param extname:     The name of the extension with the interp information.
+        :param extname:     The base name of the extension with the interp information.
         """
 
-        dtypes = [('LOCATIONS', self.locations.dtype, self.locations.shape), ('TARGETS', self.targets.dtype, self.targets.shape),
+        dtypes = [('LOCATIONS', self.locations.dtype, self.locations.shape),
+                  ('TARGETS', self.targets.dtype, self.targets.shape),
                   ('ATTR_TARGET', self.attr_target.dtype, self.attr_target.shape),
                   ('ATTR_INTERP', self.attr_interp.dtype, self.attr_interp.shape),]
         data = numpy.empty(1, dtype=dtypes)
@@ -193,27 +197,16 @@ class kNNInterp(Interp):
         data['ATTR_TARGET'] = self.attr_target
         data['ATTR_INTERP'] = self.attr_interp
 
-        # put the knn params in the header?
-        header = self.kwargs
-
         # write to fits
-        fits.write_table(data, extname=extname, header=header)
+        fits.write_table(data, extname=extname + '_solution')
 
-    def readSolution(self, fits, extname):
+    def _finish_read(self, fits, extname):
         """Read the solution from a FITS binary table.
 
-        The extension should contain the same values as are saved
-        in the writeSolution method.
-
         :param fits:        An open fitsio.FITS object.
-        :param extname:     The name of the extension with the interp information.
+        :param extname:     The base name of the extension with the interp information.
         """
-
-        # header = fits[extname].read_header()
-        data = fits[extname].read()
-
-        # kwargs come from base class read()
-        # self.kwargs = header
+        data = fits[extname + '_solution'].read()
 
         # attr_target and attr_interp assigned in build
         self.build(data['ATTR_INTERP'][0], data['ATTR_TARGET'][0])
@@ -303,13 +296,13 @@ class DECamWavefront(kNNInterp):
 
         return targets
 
-    def writeSolution(self, fits, extname):
+    def _finish_write(self, fits, extname):
         """Write the solution to a FITS binary table.
 
-        Save the knn params and the X and y arrays
+        Save the knn params and the locations and targets arrays
 
         :param fits:        An open fitsio.FITS object.
-        :param extname:     The name of the extension with the interp information.
+        :param extname:     The base name of the extension with the interp information.
         """
 
         dtypes = [('LOCATIONS', self.locations.dtype, self.locations.shape),
@@ -327,26 +320,16 @@ class DECamWavefront(kNNInterp):
         data['ATTR_INTERP'] = self.attr_interp
         data['MISALIGNMENT'] = self.misalignment
 
-        # put the knn params in the header?
-        header = self.kwargs
-
         # write to fits
-        fits.write_table(data, extname=extname, header=header)
+        fits.write_table(data, extname=extname + '_solution')
 
-    def readSolution(self, fits, extname):
+    def _finish_read(self, fits, extname):
         """Read the solution from a FITS binary table.
-
-        The extension should contain the same values as are saved
-        in the writeSolution method.
 
         :param fits:        An open fitsio.FITS object.
         :param extname:     The name of the extension with the interp information.
         """
-        # header = fits[extname].read_header()
-        data = fits[extname].read()
-
-        # kwargs come from base class read()
-        # self.kwargs = header
+        data = fits[extname + '_solution'].read()
 
         # attr_target and attr_interp assigned in build
         self.build(data['ATTR_INTERP'][0], data['ATTR_TARGET'][0])
