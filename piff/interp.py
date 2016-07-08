@@ -17,40 +17,8 @@
 """
 
 from __future__ import print_function
-import numpy
-
-def process_interp(config, logger=None):
-    """Parse the interp field of the config dict.
-
-    :param config:      The configuration dict.
-    :param logger:      A logger object for logging debug info. [default: None]
-
-    :returns: an Interp instance
-    """
-    import piff
-
-    if logger is None:
-        verbose = config.get('verbose', 1)
-        logger = piff.setup_logger(verbose=verbose)
-
-    if 'interp' not in config:
-        raise ValueError("config dict has no interp field")
-    config_interp = config['interp']
-
-    if 'type' not in config_interp:
-        raise ValueError("config['interp'] has no type field")
-
-    # Get the class to use for the interpolator
-    # Not sure if this is what we'll always want, but it would be simple if we can make it work.
-    interp_class = getattr(piff, config_interp.pop('type'))
-
-    # Read any other kwargs in the interp field
-    kwargs = interp_class.parseKwargs(config_interp, logger)
-
-    # Build interp object
-    interp = interp_class(**kwargs)
-
-    return interp
+import numpy as np
+from .util import write_kwargs, read_kwargs
 
 class Interp(object):
     """The base class for interpolating a set of data vectors across the field of view.
@@ -73,6 +41,32 @@ class Interp(object):
     implemented by any derived class.
     """
     @classmethod
+    def process(cls, config_interp, logger=None):
+        """Parse the interp field of the config dict.
+
+        :param config_interp:   The configuration dict for the interp field.
+        :param logger:          A logger object for logging debug info. [default: None]
+
+        :returns: an Interp instance
+        """
+        import piff
+
+        if 'type' not in config_interp:
+            raise ValueError("config['interp'] has no type field")
+
+        # Get the class to use for the interpolator
+        # Not sure if this is what we'll always want, but it would be simple if we can make it work.
+        interp_class = getattr(piff, config_interp.pop('type'))
+
+        # Read any other kwargs in the interp field
+        kwargs = interp_class.parseKwargs(config_interp, logger)
+
+        # Build interp object
+        interp = interp_class(**kwargs)
+
+        return interp
+
+    @classmethod
     def parseKwargs(cls, config_interp, logger=None):
         """Parse the interp field of a configuration dict and return the kwargs to use for
         initializing an instance of the class.
@@ -87,11 +81,10 @@ class Interp(object):
         """
         kwargs = {}
         kwargs.update(config_interp)
-        kwargs['logger'] = logger
         return kwargs
 
     def getProperties(self, star):
-        """Extract the appropriate properties to use as the independent variables for the 
+        """Extract the appropriate properties to use as the independent variables for the
         interpolation.
 
         The base class implementation returns the field position (u,v) as a 1d numpy array.
@@ -100,24 +93,28 @@ class Interp(object):
 
         :returns:       A numpy vector of these properties.
         """
-        return numpy.array([ star.data['u'], star.data['v'] ])
+        return np.array([ star.data['u'], star.data['v'] ])
 
-    def initialize(self, star_list=None, logger=None):
-        """Initialize the interpolator solution to some state
-        prefatory to any solve iterations.  Nature of the initialization is
-        specific to the derived classes.
+    def initialize(self, stars, logger=None):
+        """Initialize both the interpolator to some state prefatory to any solve iterations and
+        initialize the stars for use with this interpolator.
 
-        The base class implentation is a no op.
+        The nature of the initialization is specific to the derived classes.
 
-        :param star_list:   A list of Star instances to use to initialize.
+        The base class implentation calls interpolateList, which will set the stars to have
+        the right type object in its star.fit.params attribute.
+
+        :param stars:       A list of Star instances to use to initialize.
         :param logger:      A logger object for logging debug info. [default: None]
+
+        :returns: a new list of Star instances
         """
-        pass
-    
-    def solve(self, star_list, logger=None):
+        return self.interpolateList(stars)
+
+    def solve(self, stars, logger=None):
         """Solve for the interpolation coefficients given some data.
 
-        :param star_list:   A list of Star instances to interpolate between
+        :param stars:       A list of Star instances to interpolate between
         :param logger:      A logger object for logging debug info. [default: None]
         """
         raise NotImplemented("Derived classes must define the solve function")
@@ -128,23 +125,23 @@ class Interp(object):
         :param star:        A Star instance to which one wants to interpolate
         :param logger:      A logger object for logging debug info. [default: None]
 
-        :returns: a new Star instance with its StarFit member holding the interpolated parameters
+        :returns: a new Star instance holding the interpolated parameters
         """
         raise NotImplemented("Derived classes must define the interpolate function")
 
-    def interpolateList(self, star_list, logger=None):
+    def interpolateList(self, stars, logger=None):
         """Perform the interpolation for a list of stars.
 
         The base class just calls interpolate(star) for each star in the list, but in many
         cases, this may be more efficiently done with a matrix operation, so we make it
         available for derived classes to override.
 
-        :param star_list:   A list of Star instances to which to interpolate.
+        :param stars:       A list of Star instances to interpolate.
         :param logger:      A logger object for logging debug info. [default: None]
 
         :returns: a list of new Star instances with interpolated parameters
         """
-        return [ self.interpolate(star) for star in star_list ]
+        return [ self.interpolate(star) for star in stars ]
 
     def write(self, fits, extname):
         """Write an Interp to a FITS file.
@@ -154,72 +151,29 @@ class Interp(object):
         The base class implemenation works if the class has a self.kwargs attribute and these
         are all simple values (str, float, or int).
 
-        However, the derived class will need to implement writeSolution to write the solution
+        However, the derived class will need to implement _finish_write to write the solution
         parameters to a binary table.
 
         :param fits:        An open fitsio.FITS object
         :param extname:     The name of the extension to write the interpolator information.
         """
-        # TODO: The I/O routines for Model and Interp share a lot of code.
-        #       Probably could move a lot of it into utility functions that both of them call.
-
-        # First write the basic kwargs
-        # Start with 'type', since that always needs to be in the table.
+        # First write the basic kwargs that works for all Interp classes
         interp_type = self.__class__.__name__
-        cols = [ [interp_type] ]
-        dtypes = [ ('type', str, len(interp_type) ) ]
-        for key, value in self.kwargs.items():
-            t = type(value)
-            dt = numpy.dtype(t) # just used to categorize the type into int, float, str
-            if dt.kind in numpy.typecodes['AllInteger']:
-                i = int(value)
-                dtypes.append( (key, int) )
-                cols.append([i])
-            elif dt.kind in numpy.typecodes['AllFloat']:
-                f = float(value)
-                dtypes.append( (key, float) )
-                cols.append([f])
-            else:
-                s = str(value)
-                dtypes.append( (key, str, len(s)) )
-                cols.append([s])
-        data = numpy.array(zip(*cols), dtype=dtypes)
-        fits.write_table(data, extname=extname)
+        write_kwargs(fits, extname, dict(self.kwargs, type=interp_type))
 
-        # Now write the solution parameters
-        self.writeSolution(fits, extname + '_solution')
+        # Now do the class-specific steps.  Typically, this will write out the solution parameters.
+        self._finish_write(fits, extname)
 
-    def writeSolution(self, fits, extname):
-        """Write the solution parameters to a FITS file.
+    def _finish_write(self, fits, extname):
+        """Finish the writing process with any class-specific steps.
+
+        The base class implementation doesn't do anything, but this will probably always be
+        overridden by the derived class.
 
         :param fits:        An open fitsio.FITS object
-        :param extname:     The name of the extension to write the solution.
+        :param extname:     The base name of the extension
         """
-        raise NotImplemented("Derived classes must define the writeSolution function")
-
-    @classmethod
-    def readKwargs(cls, fits, extname):
-        """Read the kwargs from the data in a FITS binary table.
-
-        The base class implementation just reads each value in the table and uses the column
-        name for the name of the kwarg.  However, derived classes may want to do something more
-        sophisticated.  Also, they may want to read other extensions from the fits file
-        besides just extname.
-
-        :param fits:        An open fitsio.FITS object.
-        :param extname:     The name of the extension with the interpolator information.
-
-        :returns: a kwargs dict to use to initialize the interpolator
-        """
-        cols = fits[extname].get_colnames()
-        # Remove 'type'
-        assert 'type' in cols
-        cols = [ col for col in cols if col != 'type' ]
-
-        data = fits[extname].read()
-        assert len(data) == 1
-        kwargs = dict([ (col, data[col][0]) for col in cols ])
-        return kwargs
+        pass
 
     @classmethod
     def read(cls, fits, extname):
@@ -247,16 +201,20 @@ class Interp(object):
             raise ValueError("interpolator type %s is not a valid Piff Interpolator"%interp_type)
         interp_cls = valid_interp_types[interp_type]
 
-        kwargs = interp_cls.readKwargs(fits, extname)
+        kwargs = read_kwargs(fits, extname)
+        kwargs.pop('type')
         interp = interp_cls(**kwargs)
-        interp.readSolution(fits, extname + '_solution')
+        interp._finish_read(fits, extname)
         return interp
 
-    def readSolution(self, fits, extname):
-        """Read the solution from a FITS binary table.
+    def _finish_read(self, fits, extname):
+        """Finish the reading process with any class-specific steps.
+
+        The base class implementation doesn't do anything, but this will probably always be
+        overridden by the derived class.
 
         :param fits:        An open fitsio.FITS object.
-        :param extname:     The name of the extension with the interpolator information.
+        :param extname:     The base name of the extension.
         """
-        raise NotImplemented("Derived classes must define the readSolution function")
+        pass
 

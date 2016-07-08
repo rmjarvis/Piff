@@ -13,20 +13,19 @@
 #    and/or other materials provided with the distribution.
 
 from __future__ import print_function
-import galsim
-import numpy
+import numpy as np
 import piff
 import os
-import yaml
 import fitsio
 
 def test_init():
     print('test init')
     # make sure we can init with defaults
     model = piff.Optical()
+    return model
 
 def test_optical(model=None):
-    params = numpy.array([0] * (11 - 4 + 1))
+    params = np.array([0] * (11 - 4 + 1))
     # add defocus
     params[0] = 0.5
     star = make_empty_star(params=params)
@@ -37,9 +36,9 @@ def test_optical(model=None):
     star = model.draw(star)
     star_fitted = model.fit(star)
 
-    numpy.testing.assert_almost_equal(star_fitted.fit.chisq, 0)
-    numpy.testing.assert_almost_equal(star_fitted.fit.flux, star.fit.flux)
-    numpy.testing.assert_almost_equal(star_fitted.fit.params, star.fit.params)
+    np.testing.assert_almost_equal(star_fitted.fit.chisq, 0)
+    np.testing.assert_almost_equal(star_fitted.fit.flux, star.fit.flux)
+    np.testing.assert_almost_equal(star_fitted.fit.params, star.fit.params)
 
 def test_pupil_im(pupil_path='optics_test/DECam_pupil_128.fits'):
     print('test pupil im: ', pupil_path)
@@ -58,7 +57,7 @@ def test_kolmogorov():
     model2 = piff.Optical(rzero=0.2)
     star2 = model2.draw(star)
 
-    chi2 = numpy.std(star.data.data - star2.data.data)
+    chi2 = np.std((star.image - star2.image).array)
     assert chi2 != 0,'chi2 is zero!?'
 
 def test_shearing():
@@ -71,8 +70,8 @@ def test_shearing():
     star = model.draw(star)
     gaussian = piff.Gaussian()
     star_gaussian = gaussian.fit(star)
-    numpy.testing.assert_almost_equal(star_gaussian.fit.params[1], g1, 5)
-    numpy.testing.assert_almost_equal(star_gaussian.fit.params[2], g2, 5)
+    np.testing.assert_almost_equal(star_gaussian.fit.params[1], g1, 5)
+    np.testing.assert_almost_equal(star_gaussian.fit.params[2], g2, 5)
 
 def test_gaussian():
     gaussian = piff.Gaussian()
@@ -85,15 +84,15 @@ def test_gaussian():
     model = piff.Optical(rzero=0, sigma=sigma)
     star = model.draw(star)
     # insert assert statement about sigma
-    numpy.testing.assert_almost_equal(gaussian.fit(star).fit.params[0], sigma, 5)
+    np.testing.assert_almost_equal(gaussian.fit(star).fit.params[0], sigma, 5)
 
     # gaussian and shear
     model = piff.Optical(rzero=0, sigma=sigma, g1=g1, g2=g2)
     star = model.draw(star)
     params = gaussian.fit(star).fit.params
-    numpy.testing.assert_almost_equal(params[0], sigma, 5)
-    numpy.testing.assert_almost_equal(params[1], g1, 5)
-    numpy.testing.assert_almost_equal(params[2], g2, 5)
+    np.testing.assert_almost_equal(params[0], sigma, 5)
+    np.testing.assert_almost_equal(params[1], g1, 5)
+    np.testing.assert_almost_equal(params[2], g2, 5)
 
     # now gaussian, shear, aberration, rzero
     star = make_empty_star(params=[0.5, 0.8, -0.7, 0.5, -0.2, 0.9, -1, 2.0])
@@ -143,23 +142,20 @@ def plot_param(rzero=0.1, params=[], g1=0, g2=0, sigma=0):
     return star.data.data
 
 def make_empty_star(icen=500, jcen=700, ccdnum=28, params=None,
-                    do_pixel_to_focal=False,
                     properties={},
                     fit_kwargs={}):
 
     properties['ccdnum'] = ccdnum
     # setting scale is crucial
-    stardata = piff.StarData.makeTarget(x=icen, y=jcen, properties=properties,
-                                        scale=0.263)
-    if do_pixel_to_focal:
-        stardata = piff.pixel_to_focal(stardata)
+    star = piff.Star.makeTarget(x=icen, y=jcen, properties=properties,
+                                scale=0.263)
 
-    if numpy.shape(params) == ():
+    if np.shape(params) == ():
         starfit = None
     else:
         starfit = piff.StarFit(params, **fit_kwargs)
 
-    star = piff.Star(stardata, starfit)
+    star = piff.Star(star.data, starfit)
 
     return star
 

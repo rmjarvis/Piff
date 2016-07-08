@@ -21,11 +21,10 @@ from __future__ import print_function
 
 import galsim
 import fitsio
-import numpy
+import numpy as np
 
 from .model import Model
-from .stardata import StarData
-from .starfit import Star, StarFit
+from .star import Star, StarFit, StarData
 
 des_pupil_template = {'obscuration': 0.301 / 0.7174,
                       'nstruts': 4,
@@ -95,13 +94,14 @@ class Optical(Model):
 
         :returns: a new Star with the fitted parameters in star.fit
         """
-        image, weight, image_pos = star.data.getImage()
+        image = star.image
+        weight = star.weight
         # make image from self.draw
-        model_image = self.draw(star).data.getImage()[0]
+        model_image = self.draw(star).image
 
         # compute chisq
-        chisq = numpy.std(image.array - model_image.array)
-        dof = numpy.count_nonzero(weight.array) - 6
+        chisq = np.std(image.array - model_image.array)
+        dof = np.count_nonzero(weight.array) - 6
 
         fit = StarFit(star.fit.params, flux=star.fit.flux, center=star.fit.center, chisq=chisq, dof=dof)
         return Star(star.data, fit)
@@ -109,7 +109,7 @@ class Optical(Model):
     def getProfile(self, params):
         """Get a version of the model as a GalSim GSObject
 
-        :param params:      A numpy array with [z4, z5, z6...z11]
+        :param params:      A np array with [z4, z5, z6...z11]
 
         :returns: a galsim.GSObject instance
         """
