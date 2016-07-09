@@ -130,7 +130,7 @@ def test_disk():
     np.testing.assert_array_equal(knn.attr_target, knn2.attr_target)
     np.testing.assert_array_equal(knn.attr_interp, knn2.attr_interp)
 
-def test_decam():
+def test_decam_wavefront():
     file_name = 'wavefront_test/Science-20121120s1-v20i2.fits'
     extname = 'Science-20121120s1-v20i2'
     knn = piff.DECamWavefront()
@@ -152,10 +152,12 @@ def test_decam():
         image_pos = image.center()
 
         stardata = piff.StarData(image, image_pos, properties={'ccdnum': ccdnum})
-        stardata = piff.pixel_to_focal(stardata)
 
         star = piff.Star(stardata, None)
         star_list.append(star)
+
+    # get the focal positions
+    star_list = piff.DECamInfo().pixel_to_focalList(star_list)
 
     star_list_predicted = knn.interpolateList(star_list)
 
@@ -194,6 +196,23 @@ def test_decam_disk():
     np.testing.assert_array_equal(knn.attr_interp, knn2.attr_interp)
     np.testing.assert_array_equal(knn.misalignment, knn2.misalignment)
 
+def test_decaminfo():
+    # test switching between focal and pixel coordinates
+    n_samples = 500000
+    chipnums = np.random.randint(1, 63, n_samples)
+    icen = np.random.randint(1, 2048, n_samples)
+    jcen = np.random.randint(1, 4096, n_samples)
+
+    decaminfo = piff.DECamInfo()
+    xPos, yPos = decaminfo.getPosition(chipnums, icen, jcen)
+    chipnums_ret, icen_ret, jcen_ret = decaminfo.getPixel(xPos, yPos)
+    xPos_ret, yPos_ret = decaminfo.getPosition(chipnums_ret, icen_ret, jcen_ret)
+
+    np.testing.assert_allclose(chipnums, chipnums_ret)
+    np.testing.assert_allclose(xPos, xPos_ret)
+    np.testing.assert_allclose(yPos, yPos_ret)
+    np.testing.assert_allclose(icen, icen_ret)
+    np.testing.assert_allclose(jcen, jcen_ret)
 
 if __name__ == '__main__':
     print('test init')
@@ -204,7 +223,9 @@ if __name__ == '__main__':
     test_attr_target()
     print('test disk')
     test_disk()
-    print('test decam')
-    test_decam()
+    print('test decaminfo')
+    test_decaminfo()
+    print('test decam wavefront')
+    test_decam_wavefront()
     print('test decam disk')
     test_decam_disk()

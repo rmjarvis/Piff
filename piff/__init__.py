@@ -84,7 +84,7 @@ from .interp import Interp
 from .mean_interp import Mean
 from .polynomial_interp import Polynomial, polynomial_types
 from .basis_interp import BasisInterp, BasisPolynomial
-from .knn_interp import kNNInterp, DECamWavefront, pixel_to_focal
+from .knn_interp import kNNInterp
 
 # Outliers
 # Outlier handlers are named BlahOutliers where Blah is what they are called in teh config file
@@ -112,5 +112,6 @@ from .stats import Stats, RhoStats, ShapeHistogramsStats
 # Util -- leave these in the piff.util namespace
 from . import util
 
-# DECamutil
-from .decamutil import decaminfo
+# DES
+from .des.decam_wavefront import DECamWavefront
+from .des.decaminfo import DECamInfo
