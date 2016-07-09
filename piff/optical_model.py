@@ -34,7 +34,7 @@ des_pupil_template = {'obscuration': 0.301 / 0.7174,
                       'strut_angle': 45 * galsim.degrees}
 
 class Optical(Model):
-    def __init__(self, rzero=0.1, sigma=0., g1=0., g2=0., pupil_path=None, lam=500., optical_template='des', logger=None, **kwargs):
+    def __init__(self, rzero=0.1, sigma=0., g1=0., g2=0., pupil_path=None, lam=500., optical_template='des', logger=None):
         """Initialize the Optical Model
 
         :param rzero:               Atmospheric seeing. Usually in the 0.1 - 0.2 range. [default: 0.1]
