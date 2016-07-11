@@ -26,13 +26,6 @@ import numpy as np
 from .model import Model
 from .star import Star, StarFit, StarData
 
-des_pupil_template = {'obscuration': 0.301 / 0.7174,
-                      'nstruts': 4,
-                      'diam': 4.274419,  # meters
-                      # aaron plays between 19 mm thick and 50 mm thick
-                      'strut_thick': 0.050 * (1462.526 / 4010.) / 2.0, # conversion factor is nebulous?!
-                      'strut_angle': 45 * galsim.degrees}
-
 optical_templates = {
     'des': {'obscuration': 0.301 / 0.7174,
             'nstruts': 4,
