@@ -33,19 +33,28 @@ des_pupil_template = {'obscuration': 0.301 / 0.7174,
                       'strut_thick': 0.050 * (1462.526 / 4010.) / 2.0, # conversion factor is nebulous?!
                       'strut_angle': 45 * galsim.degrees}
 
+optical_templates = {
+    'des': {'obscuration': 0.301 / 0.7174,
+            'nstruts': 4,
+            'diam': 4.274419,  # meters
+            # aaron plays between 19 mm thick and 50 mm thick
+            'strut_thick': 0.050 * (1462.526 / 4010.) / 2.0, # conversion factor is nebulous?!
+            'strut_angle': 45 * galsim.degrees},
+    }
+
 class Optical(Model):
-    def __init__(self, rzero=0.1, sigma=0., g1=0., g2=0., pupil_path=None, lam=500., optical_template='des', logger=None):
+    def __init__(self, rzero=0.1, sigma=0., g1=0., g2=0., lam=500., diam=4., pupil_path=None, optical_template=None, logger=None):
         """Initialize the Optical Model
 
         :param rzero:               Atmospheric seeing. Usually in the 0.1 - 0.2 range. [default: 0.1]
         :param g1, g2:              Shear to apply to final image. Simulates vibrational modes. [default: 0]
         :param sigma:               Convolve with gaussian of size sigma. [default: 0]
+        :param lam:                 Wavelength of observations in nanometers [default: 500]
+        :param diam:                Diameter of telescope aperture in meters. Can be overwritten by the optical template. [default: 4.]
         :param pupil_path:          If a path is given, load up a pupil image, else
                                     make image from galsim parameters referencing optical_template [default: None]
-                                    Note: if a pupil_path is specified, then a diameter needs to also be specified
-                                    in the optical_template
-        :param lam:                 Wavelength of observations in nanometers [default: 500]
-        :param optical_template:    If no pupil plane image is given, create one from a set of templates. [default: 'des']
+                                    Note: if a pupil_path is specified, then a diameter must also be specified.
+        :param optical_template:    If no pupil plane image is given, create one from a set of templates. Can also pass a dictionary.
         """
 
         # catch any kwargs passed along...
@@ -56,19 +65,17 @@ class Optical(Model):
             'sigma': sigma,
             'pupil_path': pupil_path,
             'lam': lam,
+            'diam': diam,
             'optical_template': optical_template,
             }
 
         self.lam = lam
         self.pupil_path = pupil_path
-        optical_psf_kwargs = {'lam': lam}
-        # make fake pupil from template
-        if optical_template == 'des':
-            optical_psf_kwargs.update(des_pupil_template)
-        elif type(optical_template) == dict:
+        optical_psf_kwargs = {'lam': lam, 'diam': diam}
+        if type(optical_template) == dict:
             optical_psf_kwargs.update(optical_template)
-        else:
-            raise Exception('Unrecognized optical template {0}'.format(optical_template))
+        elif optical_template in optical_templates:
+            optical_psf_kwargs.update(optical_templates[optical_template])
         if pupil_path:
             # load the pupil
             pupil_plane = fitsio.read(pupil_path)
@@ -85,9 +92,9 @@ class Optical(Model):
                     if logger:
                         logger.debug('Popped {0} from optical_psf_kwargs'.format(key))
 
-            # catch that diam is in optical_psf_kwargs
-            if 'diam' not in optical_psf_kwargs:
-                raise Exception('When passing a pupil plane image, need to specify diam in optical_template')
+        # catch that diam is in optical_psf_kwargs
+        if 'diam' not in optical_psf_kwargs:
+            raise Exception('When passing a pupil plane image, need to specify diam!')
 
         self.optical_psf_kwargs = optical_psf_kwargs
 

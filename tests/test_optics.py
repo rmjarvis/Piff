@@ -21,7 +21,7 @@ import fitsio
 def test_init():
     print('test init')
     # make sure we can init with defaults
-    model = piff.Optical()
+    model = piff.Optical(optical_template='des')
     return model
 
 def test_optical(model=None):
@@ -31,7 +31,7 @@ def test_optical(model=None):
     star = make_empty_star(params=params)
     if not model:
         print('test optical')
-        model = piff.Optical()
+        model = piff.Optical(optical_template='des')
     # given zernikes, make sure we can:
     star = model.draw(star)
     star_fitted = model.fit(star)
@@ -44,7 +44,7 @@ def test_pupil_im(pupil_path='optics_test/DECam_pupil_128.fits'):
     import galsim
     print('test pupil im: ', pupil_path)
     # make sure we can load up a pupil image
-    model = piff.Optical(pupil_path=pupil_path)
+    model = piff.Optical(diam=4.274419, pupil_path=pupil_path)
     test_optical(model)
     # make sure we really loaded it
     pupil_plane_im = galsim.Image(fitsio.read(pupil_path))
@@ -62,10 +62,10 @@ def test_kolmogorov():
     # make sure if we put in different kolmogorov things that things change
     star = make_empty_star(params=[])
 
-    model = piff.Optical(rzero=0.1)
+    model = piff.Optical(rzero=0.1, optical_template='des')
     star = model.draw(star)
 
-    model2 = piff.Optical(rzero=0.2)
+    model2 = piff.Optical(rzero=0.2, optical_template='des')
     star2 = model2.draw(star)
 
     chi2 = np.std((star.image - star2.image).array)
@@ -77,7 +77,7 @@ def test_shearing():
     star = make_empty_star(params=[])
     g1 = 0
     g2 = 0.05
-    model = piff.Optical(rzero=0.1, g1=g1, g2=g2)
+    model = piff.Optical(rzero=0.1, g1=g1, g2=g2, optical_template='des')
     star = model.draw(star)
     gaussian = piff.Gaussian()
     star_gaussian = gaussian.fit(star)
@@ -92,13 +92,13 @@ def test_gaussian():
     sigma = 1
     g1 = -0.1
     g2 = 0.05
-    model = piff.Optical(rzero=0, sigma=sigma)
+    model = piff.Optical(rzero=0, sigma=sigma, optical_template='des')
     star = model.draw(star)
     # insert assert statement about sigma
     np.testing.assert_almost_equal(gaussian.fit(star).fit.params[0], sigma, 5)
 
     # gaussian and shear
-    model = piff.Optical(rzero=0, sigma=sigma, g1=g1, g2=g2)
+    model = piff.Optical(rzero=0, sigma=sigma, g1=g1, g2=g2, optical_template='des')
     star = model.draw(star)
     params = gaussian.fit(star).fit.params
     np.testing.assert_almost_equal(params[0], sigma, 5)
@@ -107,7 +107,7 @@ def test_gaussian():
 
     # now gaussian, shear, aberration, rzero
     star = make_empty_star(params=[0.5, 0.8, -0.7, 0.5, -0.2, 0.9, -1, 2.0])
-    model = piff.Optical(rzero=0.1, sigma=sigma, g1=g1, g2=g2)
+    model = piff.Optical(rzero=0.1, sigma=sigma, g1=g1, g2=g2, optical_template='des')
     star = model.draw(star)
 
 def test_disk():
@@ -117,7 +117,7 @@ def test_disk():
     sigma = 1.2
     g1 = -0.1
     g2 = 0.05
-    model = piff.Optical(rzero=rzero, sigma=sigma, g1=g1, g2=g2, lam=700.0)
+    model = piff.Optical(rzero=rzero, sigma=sigma, g1=g1, g2=g2, lam=700.0, optical_template='des')
     model_file = os.path.join('output','optics.fits')
     with fitsio.FITS(model_file, 'rw', clobber=True) as f:
         model.write(f, 'optics')
@@ -146,7 +146,7 @@ def plot_star(star):
 
 def plot_param(rzero=0.1, params=[], g1=0, g2=0, sigma=0):
     # convenience function
-    model = piff.Optical(rzero=rzero, g1=g1, g2=g2, sigma=sigma)
+    model = piff.Optical(rzero=rzero, g1=g1, g2=g2, sigma=sigma, optical_template='des')
     star = make_empty_star(params=params)
     star = model.draw(star)
     plot_star(star)

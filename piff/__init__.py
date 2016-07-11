@@ -112,4 +112,4 @@ from .stats import Stats, RhoStats, ShapeHistogramsStats
 from . import util
 
 # Optics
-from .optical_model import Optical
+from .optical_model import Optical, optical_templates
