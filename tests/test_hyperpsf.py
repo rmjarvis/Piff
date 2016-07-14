@@ -135,8 +135,7 @@ def make_star(icen=500, jcen=700, ccdnum=28,
 
     properties['ccdnum'] = ccdnum
     # setting scale is crucial
-    stardata = piff.StarData.makeTarget(x=icen, y=jcen, properties=properties,
-                                        scale=0.263)
+    stardata = piff.Star.makeTarget(x=icen, y=jcen, properties=properties, scale=0.263)
     # apply Gaussian sigma, g1, g2
     params = numpy.array([sigma, g1, g2])
 

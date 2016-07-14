@@ -24,17 +24,17 @@ import piff
 
 import logging
 
-def stardata_from_fits(hdu_list, xysky, stamp_radius=25, badmask=0x7FFF,
+def stardata_from_fits(hdu_list, xysky, stamp_size=51, badmask=0x7FFF,
                        logger=None):
     """Create StarData instances from data in FITS hdu's.
 
-    :param scihdu:   An astropy FITS HDU list holding the science image
-                     and weight image extensions.
-    :param xysky:    list of (x,y,sky) tuples for stars
-    :param stamp_radius: "radius" of postage stamp to use
-    :param badmask:  Bits set in mask plane that invalidate a pixel.
-                     [Note: don't use bit 15, it is usually messed up
-                     due to int/uint confusions in FITS readers.]
+    :param scihdu:      An astropy FITS HDU list holding the science image
+                        and weight image extensions.
+    :param xysky:       list of (x,y,sky) tuples for stars
+    :param stamp_size:  size of postage stamp to use
+    :param badmask:     Bits set in mask plane that invalidate a pixel.
+                        [Note: don't use bit 15, it is usually messed up
+                        due to int/uint confusions in FITS readers.]
 
     :returns:        StarData instance
     """
@@ -92,17 +92,19 @@ def stardata_from_fits(hdu_list, xysky, stamp_radius=25, badmask=0x7FFF,
     dec = galsim.DMS_Angle(hdr['TELDEC'])
     pointing = galsim.CelestialCoord(ra,dec)
     if logger:
-        logger.info("pointing = %s hours, %s deg",pointing.ra/galsim.hours,pointing.dec/galsim.degrees)
+        logger.info("pointing = %s hours, %s deg", pointing.ra/galsim.hours,
+                    pointing.dec/galsim.degrees)
 
     # Now iterate through all stars
     stardata = []
     for x,y,sky in xysky:
         x0 = int(np.floor(x+0.5))
         y0 = int(np.floor(y+0.5))
+        stamp_radius = stamp_size // 2
         xmin = max(x0-stamp_radius, sci.bounds.xmin)
-        xmax = min(x0+stamp_radius, sci.bounds.xmax)
+        xmax = min(x0-stamp_radius+stamp_size-1, sci.bounds.xmax)
         ymin = max(y0-stamp_radius, sci.bounds.ymin)
-        ymax = min(y0+stamp_radius, sci.bounds.ymax)
+        ymax = min(y0-stamp_radius+stamp_size-1, sci.bounds.ymax)
         b = galsim.BoundsI(xmin,xmax,ymin,ymax)
 
         # Subtract sky counts, get data & weight
@@ -121,11 +123,11 @@ def stardata_from_fits(hdu_list, xysky, stamp_radius=25, badmask=0x7FFF,
                                       weight=weight,
                                       pointing=pointing,
                                       properties=props.copy()))
-    return stardata
+    return stardata, sci.wcs, pointing
 
 
 def fit_des(imagefile, catfile, order=2, nstars=None,
-            scale=0.15, size=41, start_sigma=0.4,
+            scale=0.15, size=41, stamp_size=51, start_sigma=0.4,
             logger=None):
     """
     Fit polynomial interpolated pixelized PSF to a DES image,
@@ -137,7 +139,8 @@ def fit_des(imagefile, catfile, order=2, nstars=None,
     :param nstars:      If desired, a number fo stars to select from the full set to use.
                         [default: None, which means use all stars]
     :param scale:       The scale to use for the Pixel model [default: 0.15]
-    :param size:        The size to sue for the Pixel grid [default: 41]
+    :param size:        The size to use for the Pixel grid [default: 41]
+    :param stamp_size:  The stamp size to get for the data arrays [default: 51]
     :param start_sigma: The starting sigma value for Pixel mode [default: 0.4]
 
     :returns: a completed PSF instance.
@@ -157,13 +160,15 @@ def fit_des(imagefile, catfile, order=2, nstars=None,
 
     if logger:
         logger.info("Creating %d StarDatas",len(xysky))
-    original = stardata_from_fits(ff, xysky, logger=logger)
+    original, wcs, pointing = stardata_from_fits(ff, xysky, stamp_size=stamp_size, logger=logger)
 
     if logger:
         logger.info("...Done making StarData")
 
     # Add shot noise to data
     data = [s.addPoisson() for s in original]
+
+    stars = [ piff.Star(d, None) for d in data ]
 
     # Make model, force PSF centering
     model = piff.PixelModel(scale=scale, size=size, interp=piff.Lanczos(3),
@@ -180,7 +185,8 @@ def fit_des(imagefile, catfile, order=2, nstars=None,
     # Make a psf
     if logger:
         logger.info("Building PSF")
-    psf = piff.PSF.build(data, model, interp, logger=logger)
+    wcs = {0 : wcs}
+    psf = piff.PSF.build(stars, wcs, pointing, model, interp, logger=logger)
 
     # ??? Do a "refinement" run with the model used to generate
     # the Poisson noise instead of the signal.
@@ -197,7 +203,7 @@ def subtract_stars(img, psf):
     """
     for s in psf.stars:
         fitted = psf.draw(s.data, s.fit.flux, s.fit.center)
-        img[fitted.data.image.bounds] -= fitted.data.image
+        img[fitted.image.bounds] -= fitted.image
     return img
 
 def main():

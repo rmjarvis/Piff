@@ -19,9 +19,9 @@
 from __future__ import print_function
 
 from .interp import Interp
-from .starfit import Star, StarFit
+from .star import Star, StarFit
 
-import numpy
+import numpy as np
 import warnings
 from numpy.polynomial.polynomial import polyval2d
 from numpy.polynomial.chebyshev import chebval2d
@@ -72,6 +72,7 @@ class Polynomial(Interp):
 
         self.kwargs = {
             'order' : order,
+            'orders' : orders,
             'poly_type' : poly_type
         }
 
@@ -146,11 +147,10 @@ class Polynomial(Interp):
 
         :returns coeffs:        A 1D numpy array of coefficients of length self.nvariable
         """
-        coeffs = numpy.zeros(self.nvariables[parameter_index])
+        coeffs = np.zeros(self.nvariables[parameter_index])
         for k,(i,j) in enumerate(self.indices[parameter_index]):
             coeffs[k] = C[i,j]
         return coeffs
-
 
     def _unpack_coefficients(self, parameter_index, coeffs):
         """Unpack a sequence of parameters into the 2D matrix for the
@@ -167,12 +167,11 @@ class Polynomial(Interp):
         """
         k=0
         n=self._orders[parameter_index]+1
-        C = numpy.zeros((n, n))
+        C = np.zeros((n, n))
         for k,(i,j) in enumerate(self.indices[parameter_index]):
             C[i,j] = coeffs[k]
             k+=1
         return C
-
 
     def _interpolationModel(self, pos, C):
         """Generate the polynomial variation of some quantity at x and y
@@ -224,11 +223,9 @@ class Polynomial(Interp):
         # Use a constant value over the whole field as
         # a reasonable guess.
         n = self._orders[parameter_index]+1
-        C = numpy.zeros((n,n))
+        C = np.zeros((n,n))
         C[0,0] = parameter.mean()
         return C
-
-
 
     def solve(self, stars, logger=None):
         """Solve for the interpolation coefficients given some data,
@@ -245,8 +242,8 @@ class Polynomial(Interp):
         # We will want to index things later, so useful
         # to convert these to numpy arrays and transpose
         # them to the order we need.
-        parameters = numpy.array([s.fit.params for s in stars]).T
-        positions = numpy.array([self.getProperties(s) for s in stars]).T
+        parameters = np.array([s.fit.params for s in stars]).T
+        positions = np.array([self.getProperties(s) for s in stars]).T
 
         # We should have the same number of parameters as number of polynomial
         # orders with which we were created here.
@@ -268,7 +265,6 @@ class Polynomial(Interp):
 
         # Loop through the parameters
         for i, parameter in enumerate(parameters):
-
 
             def model(uv,*coeffs):
                 C = self._unpack_coefficients(i, coeffs)
@@ -301,14 +297,11 @@ class Polynomial(Interp):
         # self._unpack_coefficients
         self.coeffs = coeffs
 
-    def writeSolution(self, fits, extname):
+    def _finish_write(self, fits, extname):
         """Write the solution to a FITS binary table.
 
-        We save two columns for the exponents and one column
-        of coefficients for each parameter.
-
         :param fits:        An open fitsio.FITS object.
-        :param extname:     The name of the extension with the interp information.
+        :param extname:     The base name of the extension
         """
         if self.coeffs is None:
             raise RuntimeError("Coeffs not set yet.  Cannot write this Polynomial.")
@@ -316,7 +309,7 @@ class Polynomial(Interp):
         # We will try to be as explicit as possible when saving the
         # coefficients to file - for each coefficient we spell out in
         # full the parameter index and exponent it corresponds to.
-        # We don't actually use this information in the readSolution
+        # We don't actually use this information in the _finish_read
         # below, but when we want to generalize or plot things it
         # will be invaluable.
         dtypes = [('PARAM', int), ('U_EXPONENT', int), ('V_EXPONENT', int),
@@ -337,57 +330,43 @@ class Polynomial(Interp):
             coeffs = self._pack_coefficients(p, self.coeffs[p])
             n = len(coeffs)
             # And build up the columns we will be saving.
-            param_col.append(numpy.repeat(p, n))
+            param_col.append(np.repeat(p, n))
             u_exponent_col.append([ind[0] for ind in self.indices[p]])
             v_exponent_col.append([ind[1] for ind in self.indices[p]])
             coeff_col.append(coeffs)
 
         # This is all the table data we'll actually be saving.
-        cols = [numpy.concatenate(c) for c in (param_col, u_exponent_col, v_exponent_col, coeff_col)]
+        cols = [np.concatenate(c)
+                for c in (param_col, u_exponent_col, v_exponent_col, coeff_col)]
 
-        # We will need some more identifying information that this!
-        # I would suggest some kind of standard piff collection of header
-        # values.
-        header={"NPARAM":self.nparam, "POLYTYPE":self.poly_type}
-        for i,order in enumerate(self._orders):
-            header["ORDER_{}".format(i)] = order
+        # nparam isn't one of the construction kwargs, so for convenience on reading,
+        # put it in the header of this fits extension.
+        header = { 'NPARAM' : self.nparam }
 
         # Finally, write all of this to a FITS table.
-        data = numpy.array(zip(*cols), dtype=dtypes)
-        fits.write_table(data, extname=extname, header=header)
+        data = np.array(zip(*cols), dtype=dtypes)
+        fits.write_table(data, extname=extname + '_solution', header=header)
 
 
-    def readSolution(self, fits, extname):
-        """Read the solution from a FITS binary table.
-
-        The extension should contain the same values as are saved
-        in the writeSolution method.
+    def _finish_read(self, fits, extname):
+        """Read the solution from a fits file.
 
         :param fits:        An open fitsio.FITS object.
-        :param extname:     The name of the extension with the interp information.
+        :param extname:     The base name of the extension
         """
-        header = fits[extname].read_header()
-        data = fits[extname].read()
+        # Read the solution extension.
+        data = fits[extname + '_solution'].read()
+        header = fits[extname + '_solution'].read_header()
 
-        # Load the same standard header variables that we saved above.
-        # Must keep these in sync
         self.nparam = header['NPARAM']
-        poly_type = header['POLYTYPE'].strip()
-        orders = [header["ORDER_{}".format(p)] for p in xrange(self.nparam)]
 
-        #Configure self - same methods that are run in __init__
-        self._set_function(poly_type)
-        self.order = None
-        self.orders = orders
+        # Run setup functions to get these values right.
+        self._set_function(self.poly_type)
         self._setup_indices(self.nparam)
 
-        # Finally load coefficients from the FITS file.
-        # Although we have saved the u and exponents in another
-        # column we don't actually use them here - we just use the fact
-        # that we know the ordering was made by _pack_coefficients and so
-        # we can re-order using _unpack_coefficients
         param_indices = data['PARAM']
         coeff_data = data['COEFF']
+
         self.coeffs = []
         for p in xrange(self.nparam):
             this_param_range = param_indices==p
@@ -401,7 +380,7 @@ class Polynomial(Interp):
         :param star:        A Star instance to which one wants to interpolate
         :param logger:      A logger object for logging debug info. [default: None]
 
-        :returns: a new Star instance with its StarFit member holding the interpolated parameters
+        :returns: a new Star instance holding the interpolated parameters
         """
         pos = self.getProperties(star)
         p = [self._interpolationModel(pos, coeff) for coeff in self.coeffs]
