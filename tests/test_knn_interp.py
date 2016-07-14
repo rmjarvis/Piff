@@ -18,6 +18,7 @@ import numpy as np
 import piff
 import os
 import fitsio
+import yaml
 
 attr_interp = ['focal_x', 'focal_y']
 attr_target = range(5)
@@ -112,8 +113,48 @@ def test_attr_target():
         np.testing.assert_equal(star_predicted.data[attr], star_predict.data[attr])
 
 def test_yaml():
+    # Take DES test image, and test doing a psf run with kNN interpolator
+    # Now test running it via the config parser
+    psf_file = os.path.join('output','knn_psf.fits')
+    config = {
+        'input' : {
+            'images' : './y1_test/DECam_00241238_01.fits.fz',
+            'cats' : './y1_test/DECam_00241238_01_findstars.fits',
+            # What hdu is everything in?
+            'image_hdu': 1,
+            'badpix_hdu': 2,
+            'weight_hdu': 3,
+            'cat_hdu': 2,
+
+            # What columns in the catalog have things we need?
+            x_col': 'XWIN_IMAGE
+            y_col': 'YWIN_IMAGE
+            ra': 'TELRA
+            dec': 'TELDEC
+            gain': 'GAINA
+            sky_col': 'BACKGROUND
+
+            # How large should the postage stamp cutouts of the stars be?
+            stamp_size': '31
+        },
+        'psf' : {
+            'model' : { 'type' : 'Gaussian' },
+            'interp' : { 'type' : 'kNN' },
+        },
+        'output' : { 'file_name' : psf_file },
+    }
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(verbose=3)
+    else:
+        logger = piff.config.setup_logger(verbose=1)
+
     # using piffify executable
-    pass
+    with open('knn.yaml','w') as f:
+        f.write(yaml.dump(config, default_flow_style=False))
+    piffify_exe = get_script_name('piffify')
+    p = subprocess.Popen( [piffify_exe, 'simple.yaml'] )
+    p.communicate()
+    psf = piff.read(psf_file)
 
 def test_disk():
     # make sure reading and writing of data works
