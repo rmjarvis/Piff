@@ -3,7 +3,7 @@ import sys,os,glob,re
 
 
 try:
-    from setuptools import setup, Extension
+    from setuptools import setup, Extension, find_packages
     from setuptools.command.build_ext import build_ext
     from setuptools.command.install_scripts import install_scripts
     from setuptools.command.easy_install import easy_install
@@ -20,8 +20,24 @@ except ImportError:
     from distutils.command.install import INSTALL_SCHEMES
     for scheme in INSTALL_SCHEMES.values():
         scheme['data'] = scheme['purelib']
+    # cf. http://stackoverflow.com/questions/37350816/whats-distutils-equivalent-of-setuptools-find-packages-python
+    from distutils.util import convert_path
+    def find_packages(base_path):
+        base_path = convert_path(base_path)
+        found = []
+        for root, dirs, files in os.walk(base_path, followlinks=True):
+            dirs[:] = [d for d in dirs if d[0] != '.' and d not in ('ez_setup', '__pycache__')]
+            relpath = os.path.relpath(root, base_path)
+            parent = relpath.replace(os.sep, '.').lstrip('.')
+            if relpath != '.' and parent not in found:
+                # foo.bar package but no foo package, skip
+                continue
+            for dir in dirs:
+                if os.path.isfile(os.path.join(root, dir, '__init__.py')):
+                    package = '.'.join((parent, dir)) if parent else dir
+                    found.append(package)
+        return found
     print("Using distutils version",distutils.__version__)
-
 
 from distutils.command.install_headers import install_headers 
 
@@ -42,6 +58,9 @@ sources += glob.glob(os.path.join('src','*.cpp'))
 headers = glob.glob(os.path.join('include','*.h'))
 
 undef_macros = []
+
+packages = find_packages()
+print('packages = ',packages)
 
 # If we build with debug, also undefine NDEBUG flag
 if "--debug" in sys.argv:
@@ -310,7 +329,7 @@ dist = setup(name="Piff",
       license = "BSD License",
       url="https://github.com/rmjarvis/Piff",
       download_url="https://github.com/rmjarvis/Piff/releases/tag/v%s.zip"%piff_version,
-      packages=['piff'],
+      packages=packages,
       install_requires=dependencies,
       # The rest of these are used by TreeCorr.  We might at some point want to do something
       # like this here.  But for now, just comment them out.

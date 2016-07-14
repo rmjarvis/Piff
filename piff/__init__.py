@@ -109,9 +109,6 @@ from .singlechip import SingleChipPSF
 # Stats classes are named BlahStats where Blah is what they are called in the config file
 from .stats import Stats, RhoStats, ShapeHistogramsStats
 
-# Util -- leave these in the piff.util namespace
+# Leave these in their own namespaces
 from . import util
-
-# DES
-from .des.decam_wavefront import DECamWavefront
-from .des.decaminfo import DECamInfo
+from . import des

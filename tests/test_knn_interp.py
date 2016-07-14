@@ -133,7 +133,7 @@ def test_disk():
 def test_decam_wavefront():
     file_name = 'wavefront_test/Science-20121120s1-v20i2.fits'
     extname = 'Science-20121120s1-v20i2'
-    knn = piff.DECamWavefront()
+    knn = piff.des.DECamWavefront()
     knn.load_wavefront(file_name, extname)
 
     n_samples = 2000
@@ -157,7 +157,7 @@ def test_decam_wavefront():
         star_list.append(star)
 
     # get the focal positions
-    star_list = piff.DECamInfo().pixel_to_focalList(star_list)
+    star_list = piff.des.DECamInfo().pixel_to_focalList(star_list)
 
     star_list_predicted = knn.interpolateList(star_list)
 
@@ -180,7 +180,7 @@ def test_decam_wavefront():
 def test_decam_disk():
     file_name = 'wavefront_test/Science-20121120s1-v20i2.fits'
     extname = 'Science-20121120s1-v20i2'
-    knn = piff.DECamWavefront()
+    knn = piff.des.DECamWavefront()
     knn.load_wavefront(file_name, extname)
 
     misalignment = {'z04d': 10, 'z10x': 10, 'z09y': -10}
@@ -189,7 +189,7 @@ def test_decam_disk():
     knn_file = os.path.join('output','decam_wavefront.fits')
     with fitsio.FITS(knn_file,'rw',clobber=True) as f:
         knn.write(f, 'decam_wavefront')
-        knn2 = piff.DECamWavefront.read(f, 'decam_wavefront')
+        knn2 = piff.des.DECamWavefront.read(f, 'decam_wavefront')
     np.testing.assert_array_equal(knn.locations, knn2.locations)
     np.testing.assert_array_equal(knn.targets, knn2.targets)
     np.testing.assert_array_equal(knn.attr_target, knn2.attr_target)
@@ -203,7 +203,7 @@ def test_decaminfo():
     icen = np.random.randint(1, 2048, n_samples)
     jcen = np.random.randint(1, 4096, n_samples)
 
-    decaminfo = piff.DECamInfo()
+    decaminfo = piff.des.DECamInfo()
     xPos, yPos = decaminfo.getPosition(chipnums, icen, jcen)
     chipnums_ret, icen_ret, jcen_ret = decaminfo.getPixel(xPos, yPos)
     xPos_ret, yPos_ret = decaminfo.getPosition(chipnums_ret, icen_ret, jcen_ret)
