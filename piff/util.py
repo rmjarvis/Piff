@@ -96,7 +96,6 @@ def adjust_value(value, dtype):
     elif t == str:
         # Strings have a size, and they are probably already a str, but go ahead and
         # recast as str(value) just in case.
-        # We also need to catch that we aren't just using a list or array of strings
         return str(value)
     else:
         # For numpy arrays, we can use astype instead.
@@ -117,8 +116,8 @@ def write_kwargs(fits, extname, kwargs):
         if value is None:
             continue
         dt = make_dtype(key, value)
-        value_adjusted = adjust_value(value,dt)
-        cols.append([value_adjusted])
+        value = adjust_value(value,dt)
+        cols.append([value])
         dtypes.append(dt)
     data = np.array(zip(*cols), dtype=dtypes)
     fits.write_table(data, extname=extname)
