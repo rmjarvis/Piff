@@ -113,5 +113,6 @@ from .stats import Stats, RhoStats, ShapeHistogramsStats
 from . import util
 
 # DES
-from .des.decam_wavefront import DECamWavefront
-from .des.decaminfo import DECamInfo
+from . import des
+# from .des.decam_wavefront import DECamWavefront
+# from .des.decaminfo import DECamInfo
