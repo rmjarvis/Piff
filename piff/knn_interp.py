@@ -26,10 +26,12 @@ class kNNInterp(Interp):
     An interpolator that uses sklearn KNeighborsRegressor to interpolate a
     single surface
     """
-    def __init__(self, n_neighbors=15, weights='uniform', algorithm='auto',
-                 p=2,logger=None, **kwargs):
+    def __init__(self, attr_interp, attr_target, n_neighbors=15, weights='uniform', algorithm='auto',
+                 p=2,logger=None):
         """Create the kNN interpolator
 
+        :param attr_interp: A list of star attributes to interpolate from
+        :param attr_target: A list of star attributes to interpolate to
         :param n_neighbors: Number of neighbors used for interpolation. [default: 15]
         :param weights:     Weight function used in prediction. Possible values are 'uniform', 'distance', and a callable function which accepts an array of distances and returns an array of the same shape containing the weights. [default: 'uniform']
         :param algorithm:   Algorithm used to compute nearest neighbors. Possible values are 'ball_tree', 'kd_tree', 'brute', and 'auto', which tries to determine the best choice. [default: 'auto']
@@ -37,27 +39,23 @@ class kNNInterp(Interp):
         :param logger:      A logger object for logging debug info. [default: None]
         """
 
-        self.kwargs = {}
-        self.kwargs.update(kwargs)
-
+        self.kwargs = {
+            'attr_interp': attr_interp,
+            'attr_target': attr_target,
+            }
         self.knr_kwargs = {
             'n_neighbors': n_neighbors,
             'weights': weights,
             'algorithm': algorithm,
             'p': p,
             }
+        self.kwargs.update(self.knr_kwargs)
+
+        self.attr_interp = attr_interp
+        self.attr_target = attr_target
+
         self.knn = {}
-
-    def build(self, attr_interp, attr_target, logger=None):
-        """Create the kNN interpolator by passing attributes to KNeighborsRegressor
-
-        :param attr_interp: A list of star attributes to interpolate from
-        :param attr_target: A list of star attributes to interpolate to
-        :param logger:      A logger object for logging debug info. [default: None]
-        """
         from sklearn.neighbors import KNeighborsRegressor
-        self.attr_interp = np.array(attr_interp)
-        self.attr_target = np.array(attr_target)
         for target in self.attr_target:
             self.knn[target] = KNeighborsRegressor(**self.knr_kwargs)
 
@@ -117,13 +115,15 @@ class kNNInterp(Interp):
         """
         return np.array([star.fit.params[key] for key in self.attr_target])
 
-    def initialize(self, star_list, logger=None):
-        """Solve for the interpolation coefficients given stars and attributes
+    def initialize(self, stars, logger=None):
+        """Initialize both the interpolator to some state prefatory to any solve iterations and
+        initialize the stars for use with this interpolator.
 
-        :param star_list:   A list of Star instances to interpolate between
+        :param stars:   A list of Star instances to interpolate between
         :param logger:      A logger object for logging debug info. [default: None]
         """
-        self.solve(star_list, logger=logger)
+        self.solve(stars, logger=logger)
+        return self.interpolateList(stars)
 
     def solve(self, star_list, logger=None):
         """Solve for the interpolation coefficients given stars and attributes
@@ -183,14 +183,11 @@ class kNNInterp(Interp):
 
         dtypes = [('LOCATIONS', self.locations.dtype, self.locations.shape),
                   ('TARGETS', self.targets.dtype, self.targets.shape),
-                  ('ATTR_TARGET', self.attr_target.dtype, self.attr_target.shape),
-                  ('ATTR_INTERP', self.attr_interp.dtype, self.attr_interp.shape),]
+                  ]
         data = np.empty(1, dtype=dtypes)
         # assign
         data['LOCATIONS'] = self.locations
         data['TARGETS'] = self.targets
-        data['ATTR_TARGET'] = self.attr_target
-        data['ATTR_INTERP'] = self.attr_interp
 
         # write to fits
         fits.write_table(data, extname=extname + '_solution')
@@ -203,7 +200,5 @@ class kNNInterp(Interp):
         """
         data = fits[extname + '_solution'].read()
 
-        # attr_target and attr_interp assigned in build
-        self.build(data['ATTR_INTERP'][0], data['ATTR_TARGET'][0])
         # self.locations and self.targets assigned in _fit
         self._fit(data['LOCATIONS'][0], data['TARGETS'][0])

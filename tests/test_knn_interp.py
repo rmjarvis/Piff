@@ -17,8 +17,11 @@ import galsim
 import numpy as np
 import piff
 import os
-import fitsio
+import subprocess
 import yaml
+import fitsio
+
+from test_helper import get_script_name
 
 attr_interp = ['focal_x', 'focal_y']
 attr_target = range(5)
@@ -46,16 +49,14 @@ def generate_data(n_samples=100):
 
 def test_init():
     # make sure we can init the interpolator
-    knn = piff.kNNInterp()
-    knn.build(attr_interp, attr_target)
+    knn = piff.kNNInterp(attr_interp, attr_target)
 
 def test_interp():
     # logger = piff.config.setup_logger(verbose=3, log_file='test_knn_interp.log')
     logger = None
     # make sure we can put in the data
     star_list = generate_data()
-    knn = piff.kNNInterp(n_neighbors=1)
-    knn.build(attr_interp, attr_target)
+    knn = piff.kNNInterp(attr_interp, attr_target, n_neighbors=1)
     knn.initialize(star_list, logger=logger)
 
     # make prediction on first 10 items of star_list
@@ -87,8 +88,7 @@ def test_attr_target():
     star_list = generate_data()
     attr_target_one = [1]
     attr_interp_one = ['focal_y']
-    knn = piff.kNNInterp(n_neighbors=1)
-    knn.build(attr_interp_one, attr_target_one)
+    knn = piff.kNNInterp(attr_interp_one, attr_target_one, n_neighbors=1)
     knn.initialize(star_list)
 
     # predict
@@ -118,8 +118,8 @@ def test_yaml():
     psf_file = os.path.join('output','knn_psf.fits')
     config = {
         'input' : {
-            'images' : './y1_test/DECam_00241238_01.fits.fz',
-            'cats' : './y1_test/DECam_00241238_01_findstars.fits',
+            'images' : 'y1_test/DECam_00241238_01.fits.fz',
+            'cats' : 'y1_test/DECam_00241238_01_psfcat_tb_maxmag_17.0_magcut_3.0_findstars.fits',
             # What hdu is everything in?
             'image_hdu': 1,
             'badpix_hdu': 2,
@@ -127,40 +127,42 @@ def test_yaml():
             'cat_hdu': 2,
 
             # What columns in the catalog have things we need?
-            x_col': 'XWIN_IMAGE
-            y_col': 'YWIN_IMAGE
-            ra': 'TELRA
-            dec': 'TELDEC
-            gain': 'GAINA
-            sky_col': 'BACKGROUND
+            'x_col': 'XWIN_IMAGE',
+            'y_col': 'YWIN_IMAGE',
+            'ra': 'TELRA',
+            'dec': 'TELDEC',
+            'gain': 'GAINA',
+            'sky_col': 'BACKGROUND',
 
             # How large should the postage stamp cutouts of the stars be?
-            stamp_size': '31
+            'stamp_size': 31,
         },
         'psf' : {
-            'model' : { 'type' : 'Gaussian' },
-            'interp' : { 'type' : 'kNN' },
+            'model' : { 'type': 'Gaussian' },
+            'interp' : { 'type': 'kNNInterp',
+                         'attr_interp': ['u', 'v'],
+                         'attr_target': [0, 1, 2]}
         },
-        'output' : { 'file_name' : psf_file },
+        'output' : { 'file_name' : 'psf_file' },
     }
-    if __name__ == '__main__':
-        logger = piff.config.setup_logger(verbose=3)
-    else:
-        logger = piff.config.setup_logger(verbose=1)
 
     # using piffify executable
     with open('knn.yaml','w') as f:
         f.write(yaml.dump(config, default_flow_style=False))
     piffify_exe = get_script_name('piffify')
-    p = subprocess.Popen( [piffify_exe, 'simple.yaml'] )
+    p = subprocess.Popen( [piffify_exe, 'knn.yaml'] )
     p.communicate()
     psf = piff.read(psf_file)
+
+    import ipdb; ipdb.set_trace()
+
+def test_yaml_decam():
+    pass
 
 def test_disk():
     # make sure reading and writing of data works
     star_list = generate_data()
-    knn = piff.kNNInterp()
-    knn.build(attr_interp, attr_target)
+    knn = piff.kNNInterp(attr_interp, attr_target, n_neighbors=2)
     knn.initialize(star_list)
     knn_file = os.path.join('output','knn_interp.fits')
     with fitsio.FITS(knn_file,'rw',clobber=True) as f:
@@ -168,14 +170,15 @@ def test_disk():
         knn2 = piff.kNNInterp.read(f, 'knn')
     np.testing.assert_array_equal(knn.locations, knn2.locations)
     np.testing.assert_array_equal(knn.targets, knn2.targets)
-    np.testing.assert_array_equal(knn.attr_target, knn2.attr_target)
-    np.testing.assert_array_equal(knn.attr_interp, knn2.attr_interp)
+    np.testing.assert_array_equal(knn.kwargs['attr_target'], knn2.kwargs['attr_target'])
+    np.testing.assert_array_equal(knn.kwargs['attr_interp'], knn2.kwargs['attr_interp'])
+    assert knn.knr_kwargs['n_neighbors'] == knn2.knr_kwargs['n_neighbors'], 'n_neighbors not equal'
+    assert knn.knr_kwargs['algorithm'] == knn2.knr_kwargs['algorithm'], 'algorithm not equal'
 
 def test_decam_wavefront():
     file_name = 'wavefront_test/Science-20121120s1-v20i2.fits'
     extname = 'Science-20121120s1-v20i2'
-    knn = piff.DECamWavefront()
-    knn.load_wavefront(file_name, extname)
+    knn = piff.DECamWavefront(file_name, extname)
 
     n_samples = 2000
     ccdnums = np.random.randint(1, 63, n_samples)
@@ -221,8 +224,7 @@ def test_decam_wavefront():
 def test_decam_disk():
     file_name = 'wavefront_test/Science-20121120s1-v20i2.fits'
     extname = 'Science-20121120s1-v20i2'
-    knn = piff.DECamWavefront()
-    knn.load_wavefront(file_name, extname)
+    knn = piff.DECamWavefront(file_name, extname, n_neighbors=30)
 
     misalignment = {'z04d': 10, 'z10x': 10, 'z09y': -10}
     knn.misalign_wavefront(misalignment)
@@ -236,6 +238,8 @@ def test_decam_disk():
     np.testing.assert_array_equal(knn.attr_target, knn2.attr_target)
     np.testing.assert_array_equal(knn.attr_interp, knn2.attr_interp)
     np.testing.assert_array_equal(knn.misalignment, knn2.misalignment)
+    assert knn.knr_kwargs['n_neighbors'] == knn2.knr_kwargs['n_neighbors'], 'n_neighbors not equal'
+    assert knn.knr_kwargs['algorithm'] == knn2.knr_kwargs['algorithm'], 'algorithm not equal'
 
 def test_decaminfo():
     # test switching between focal and pixel coordinates
@@ -266,6 +270,8 @@ if __name__ == '__main__':
     test_disk()
     print('test decaminfo')
     test_decaminfo()
+    print('test yaml')
+    test_yaml()
     print('test decam wavefront')
     test_decam_wavefront()
     print('test decam disk')

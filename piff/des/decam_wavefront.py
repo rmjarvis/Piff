@@ -28,22 +28,49 @@ class DECamWavefront(kNNInterp):
     take care of the rest for you.
     """
 
-    def load_wavefront(self, file_name, extname, logger=None):
+    def __init__(self, file_name, extname, n_neighbors=15, weights='uniform', algorithm='auto',
+                 p=2,logger=None):
         """Load up a fits file containing the optics model and use it to build the wavefront interpolator
+
         :param file_name:   Fits file containing the wavefront
         :param extname:     Extension name
+        :param n_neighbors: Number of neighbors used for interpolation. [default: 15]
+        :param weights:     Weight function used in prediction. Possible values are 'uniform', 'distance', and a callable function which accepts an array of distances and returns an array of the same shape containing the weights. [default: 'uniform']
+        :param algorithm:   Algorithm used to compute nearest neighbors. Possible values are 'ball_tree', 'kd_tree', 'brute', and 'auto', which tries to determine the best choice. [default: 'auto']
+        :param p:           Power parameter of distance metrice. p=2 is default euclidean distance, p=1 is manhattan. [default: 2]
         :param logger:      A logger object for logging debug info. [default: None]
         """
+
         self.z_min = 4
         self.z_max = 11
+        # these were kwargs in knn interp, but are no longer kwargs because they are fixed by our wavefront model!
+        self.attr_interp = ['focal_x', 'focal_y']
+        self.attr_target_wavefront = ['z{0}'.format(zi) for zi in xrange(self.z_min, self.z_max + 1)]
+        self.attr_target = range(0, self.z_max + 1 - self.z_min)
+
+        self.kwargs = {
+            'file_name': file_name,
+            'extname': extname,
+            }
+
+        self.knr_kwargs = {
+            'n_neighbors': n_neighbors,
+            'weights': weights,
+            'algorithm': algorithm,
+            'p': p,
+            }
+        self.kwargs.update(self.knr_kwargs)
+
+        self.knn = {}
+        from sklearn.neighbors import KNeighborsRegressor
+        for target in self.attr_target:
+            self.knn[target] = KNeighborsRegressor(**self.knr_kwargs)
+
         fits = fitsio.FITS(file_name)
         data = fits[extname].read()
-        attr_interp = ['focal_x', 'focal_y']
-        attr_target = ['z{0}'.format(zi) for zi in xrange(self.z_min, self.z_max + 1)]
-        locations = np.array([data[attr] for attr in attr_interp]).T
-        targets = np.array([data[attr] for attr in attr_target]).T
+        locations = np.array([data[attr] for attr in self.attr_interp]).T
+        targets = np.array([data[attr] for attr in self.attr_target_wavefront]).T
 
-        self.build(attr_interp, range(0, self.z_max - self.z_min + 1), logger=logger)
         self._fit(locations, targets)
 
         # set misalignment as [[delta_i, thetax_i, thetay_i]] with i == 0 corresponding to defocus
@@ -116,16 +143,12 @@ class DECamWavefront(kNNInterp):
         dtypes = [('LOCATIONS', self.locations.dtype, self.locations.shape),
                   ('TARGETS', self.targets.dtype, self.targets.shape),
                   ('XPIXEL', self.Xpixel.dtype, self.Xpixel.shape),
-                  ('ATTR_TARGET', self.attr_target.dtype, self.attr_target.shape),
-                  ('ATTR_INTERP', self.attr_interp.dtype, self.attr_interp.shape),
                   ('MISALIGNMENT', self.misalignment.dtype, self.misalignment.shape)]
         data = np.empty(1, dtype=dtypes)
         # assign
         data['LOCATIONS'] = self.locations
         data['TARGETS'] = self.targets
         data['XPIXEL'] = self.Xpixel
-        data['ATTR_TARGET'] = self.attr_target
-        data['ATTR_INTERP'] = self.attr_interp
         data['MISALIGNMENT'] = self.misalignment
 
         # write to fits
@@ -139,8 +162,6 @@ class DECamWavefront(kNNInterp):
         """
         data = fits[extname + '_solution'].read()
 
-        # attr_target and attr_interp assigned in build
-        self.build(data['ATTR_INTERP'][0], data['ATTR_TARGET'][0])
         # self.locations and self.targets assigned in _fit
         self._fit(data['LOCATIONS'][0], data['TARGETS'][0])
         self.misalign_wavefront(data['MISALIGNMENT'][0])
