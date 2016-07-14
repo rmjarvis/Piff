@@ -141,9 +141,10 @@ def test_yaml():
             'model' : { 'type': 'Gaussian' },
             'interp' : { 'type': 'kNNInterp',
                          'attr_interp': ['u', 'v'],
-                         'attr_target': [0, 1, 2]}
+                         'attr_target': [0, 1, 2],
+                         'n_neighbors': 117,}
         },
-        'output' : { 'file_name' : 'psf_file' },
+        'output' : { 'file_name' : psf_file },
     }
 
     # using piffify executable
@@ -154,10 +155,10 @@ def test_yaml():
     p.communicate()
     psf = piff.read(psf_file)
 
-    import ipdb; ipdb.set_trace()
-
-def test_yaml_decam():
-    pass
+    # by taking every star in ccd as 'nearest' neighbor, we should get same value
+    # for each star's interpolation
+    np.testing.assert_allclose(psf.drawStar(psf.stars[0]).fit.params,
+                               psf.drawStar(psf.stars[-1]).fit.params)
 
 def test_disk():
     # make sure reading and writing of data works
@@ -172,8 +173,8 @@ def test_disk():
     np.testing.assert_array_equal(knn.targets, knn2.targets)
     np.testing.assert_array_equal(knn.kwargs['attr_target'], knn2.kwargs['attr_target'])
     np.testing.assert_array_equal(knn.kwargs['attr_interp'], knn2.kwargs['attr_interp'])
-    assert knn.knr_kwargs['n_neighbors'] == knn2.knr_kwargs['n_neighbors'], 'n_neighbors not equal'
-    assert knn.knr_kwargs['algorithm'] == knn2.knr_kwargs['algorithm'], 'algorithm not equal'
+    np.testing.assert_equal(knn.knr_kwargs['n_neighbors'], knn2.knr_kwargs['n_neighbors'])
+    np.testing.assert_equal(knn.knr_kwargs['algorithm'], knn2.knr_kwargs['algorithm'])
 
 def test_decam_wavefront():
     file_name = 'wavefront_test/Science-20121120s1-v20i2.fits'
