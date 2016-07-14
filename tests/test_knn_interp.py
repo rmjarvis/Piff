@@ -179,7 +179,7 @@ def test_disk():
 def test_decam_wavefront():
     file_name = 'wavefront_test/Science-20121120s1-v20i2.fits'
     extname = 'Science-20121120s1-v20i2'
-    knn = piff.DECamWavefront(file_name, extname)
+    knn = piff.des.DECamWavefront(file_name, extname)
 
     n_samples = 2000
     ccdnums = np.random.randint(1, 63, n_samples)
@@ -202,7 +202,7 @@ def test_decam_wavefront():
         star_list.append(star)
 
     # get the focal positions
-    star_list = piff.DECamInfo().pixel_to_focalList(star_list)
+    star_list = piff.des.DECamInfo().pixel_to_focalList(star_list)
 
     star_list_predicted = knn.interpolateList(star_list)
 
