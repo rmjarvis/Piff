@@ -33,7 +33,7 @@ def test_twodstats():
     # Test the plotting and writing
     twodstats_file = os.path.join('output','twodstatsstats.png')
     stats.write(twodstats_file)
-    fig, axs = stats.plot()
+    # fig, axs = stats.plot()
     import matplotlib.pyplot as plt
     plt.show()
 
@@ -56,13 +56,20 @@ def make_star(icen=500, jcen=700, ccdnum=28,
 
     return star
 
-def generate_starlist(n_samples=3000):
+def generate_starlist(n_samples=5000):
     # create n_samples images from the 63 ccds and pixel coordinates
     icens = np.random.randint(100, 2048, n_samples)
     jcens = np.random.randint(100, 4096, n_samples)
     ccdnums = np.random.randint(1, 63, n_samples)
-    jcenter = 2000
     icenter = 1000
+    jcenter = 2000
+
+    # throw out any icens and jcens that are within 400 pixels of the center
+    conds = (np.abs(icens - icenter) > 400) | (np.abs(jcens - jcenter) > 400)
+    icens = icens[conds]
+    jcens = jcens[conds]
+    ccdnums = ccdnums[conds]
+
     # throw in a 2d polynomial function for sigma g1 and g2
     # all sigma > 0, all g1 < 0, and g2 straddles.
     sigmas = icens * (2. - 1.) / 2048. + 0.4
