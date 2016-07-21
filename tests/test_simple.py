@@ -315,6 +315,19 @@ def test_single_image():
             'type': 'Rho',
             'file_name': rho_psf_file
         },
+        {
+            'type': 'TwoDHist',
+            'file_name': os.path.join('output', 'simple_psf_twodhiststats.png'),
+            'number_bins_u': 3,
+            'number_bins_v': 3,
+        },
+        {
+            'type': 'TwoDHist',
+            'file_name': os.path.join('output', 'simple_psf_twodhiststats_std.png'),
+            'reducing_function': 'np.std',
+            'number_bins_u': 3,
+            'number_bins_v': 3,
+        },
     ]
 
     os.remove(psf_file)
