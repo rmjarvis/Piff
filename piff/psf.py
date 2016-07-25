@@ -287,32 +287,62 @@ class PSF(object):
 
         # Start with the chipnums, which may be int or str type.
         # Assume they are all the same type at least.
-        chipnums = self.wcs.keys()
-        cols = [ chipnums ]
-        if np.dtype(type(chipnums[0])).kind in np.typecodes['AllInteger']:
-            dtypes = [ ('chipnums', int) ]
+        if isinstance(self.wcs[self.wcs.keys()[0]], dict):
+            for key in self.wcs:
+                chipnums = self.wcs[key].keys()
+                cols = [ chipnums ]
+                if np.dtype(type(chipnums[0])).kind in np.typecodes['AllInteger']:
+                    dtypes = [ ('chipnums', int) ]
+                else:
+                    # coerce to string, just in case it's something else.
+                    chipnums = [ str(c) for c in chipnums ]
+                    max_len = np.max([ len(c) for c in chipnums ])
+                    dtypes = [ ('chipnums', str, max_len) ]
+
+                # GalSim WCS objects can be serialized via pickle
+                wcs_str = [ pickle.dumps(w) for w in self.wcs[key].values() ]
+                cols.append(wcs_str)
+                max_len = np.max([ len(s) for s in wcs_str ])
+                dtypes.append( ('wcs_str', str, max_len) )
+
+                if self.pointing is not None:
+                    # Currently, there is only one pointing for all the chips, but write it out
+                    # for each row anyway.
+                    dtypes.extend( (('ra', float), ('dec', float)) )
+                    ra = [self.pointing.ra / galsim.hours] * len(chipnums)
+                    dec = [self.pointing.dec / galsim.degrees] * len(chipnums)
+                    cols.extend( (ra, dec) )
+
+                data = np.array(zip(*cols), dtype=dtypes)
+                fits.write_table(data, extname=key+extname)
+
         else:
-            # coerce to string, just in case it's something else.
-            chipnums = [ str(c) for c in chipnums ]
-            max_len = np.max([ len(c) for c in chipnums ])
-            dtypes = [ ('chipnums', str, max_len) ]
+            chipnums = self.wcs.keys()
+            cols = [ chipnums ]
+            if np.dtype(type(chipnums[0])).kind in np.typecodes['AllInteger']:
+                dtypes = [ ('chipnums', int) ]
+            else:
+                # coerce to string, just in case it's something else.
+                chipnums = [ str(c) for c in chipnums ]
+                max_len = np.max([ len(c) for c in chipnums ])
+                dtypes = [ ('chipnums', str, max_len) ]
 
-        # GalSim WCS objects can be serialized via pickle
-        wcs_str = [ pickle.dumps(w) for w in self.wcs.values() ]
-        cols.append(wcs_str)
-        max_len = np.max([ len(s) for s in wcs_str ])
-        dtypes.append( ('wcs_str', str, max_len) )
+            # GalSim WCS objects can be serialized via pickle
+            wcs_str = [ pickle.dumps(w) for w in self.wcs.values() ]
+            cols.append(wcs_str)
+            max_len = np.max([ len(s) for s in wcs_str ])
+            dtypes.append( ('wcs_str', str, max_len) )
 
-        if self.pointing is not None:
-            # Currently, there is only one pointing for all the chips, but write it out
-            # for each row anyway.
-            dtypes.extend( (('ra', float), ('dec', float)) )
-            ra = [self.pointing.ra / galsim.hours] * len(chipnums)
-            dec = [self.pointing.dec / galsim.degrees] * len(chipnums)
-            cols.extend( (ra, dec) )
+            if self.pointing is not None:
+                # Currently, there is only one pointing for all the chips, but write it out
+                # for each row anyway.
+                dtypes.extend( (('ra', float), ('dec', float)) )
+                ra = [self.pointing.ra / galsim.hours] * len(chipnums)
+                dec = [self.pointing.dec / galsim.degrees] * len(chipnums)
+                cols.extend( (ra, dec) )
 
-        data = np.array(zip(*cols), dtype=dtypes)
-        fits.write_table(data, extname=extname)
+            data = np.array(zip(*cols), dtype=dtypes)
+            fits.write_table(data, extname=extname)
 
     @classmethod
     def readWCS(cls, fits, extname):

@@ -185,10 +185,13 @@ class Input(object):
                 logger.debug("Making star list from %d catalogs", len(self.cats))
         for i in range(len(self.images)):
             image = self.images[i]
+            exp = self.img_exps[i]
             wt = self.weight[i]
             cat = self.cats[i]
             chipnum = self.chipnums[i]
             fname = self.cat_files[i]
+            import warnings
+            warnings.warn(fname)
             if logger:
                 logger.debug("Processing catalog %s with %d stars",fname,len(cat))
             for k in range(len(cat)):
@@ -200,12 +203,16 @@ class Input(object):
                 bounds = galsim.BoundsI(icen+half_size-self.stamp_size+1, icen+half_size,
                                         jcen+half_size-self.stamp_size+1, jcen+half_size)
                 stamp = image[bounds]
-                props = { 'chipnum' : chipnum }
+                props = { 'chipnum' : chipnum, 'expnum' : exp }
                 if self.sky_col is not None:
                     sky = cat[self.sky_col][k]
                     stamp = stamp - sky  # Don't change the original!
                     props['sky'] = sky
                 wt_stamp = wt[bounds]
+                if np.sum(wt_stamp.array) == 0:
+                    import warnings
+                    warnings.warn("Discarded star with 0 weight.")
+                    continue
                 pos = galsim.PositionD(x,y)
                 data = piff.StarData(stamp, pos, weight=wt_stamp, pointing=self.pointing,
                                      properties=props)
@@ -220,14 +227,26 @@ class Input(object):
 
         :returns:   A dict of WCS solutions (galsim.BaseWCS instances) indexed by chipnum
         """
-        wcs_list = [im.wcs for im in self.images]
-        return dict(zip(self.chipnums, wcs_list))
+        
+        if len(self.exposures) > 1:
+            wcs_list = {}
+            for s in list(set(self.img_exps)):
+                wcs_exp = {}
+                for e in range(len(self.img_exps)):
+                    if self.img_exps[e] == s:
+                        wcs_exp[self.chipnums[e]] = self.images[e].wcs
+                wcs_list[s] = wcs_exp
+            return wcs_list
+
+        else:
+            wcs_list = [im.wcs for im in self.images]
+            return dict(zip(self.chipnums, wcs_list))
 
 
 class InputFiles(Input):
     """An Input handler than just takes a list of image files and catalog files.
     """
-    def __init__(self, images, cats, chipnums=None,
+    def __init__(self, images, cats, exposures=None, chipnums=None,
                  dir=None, image_dir=None, cat_dir=None,
                  x_col='x', y_col='y', sky_col=None, flag_col=None, use_col=None,
                  image_hdu=None, weight_hdu=None, badpix_hdu=None, cat_hdu=1,
@@ -304,6 +323,7 @@ class InputFiles(Input):
         if cat_dir is None: cat_dir = dir
 
         # Try to eval chipnums that come in as a string.
+
         if isinstance(chipnums, basestring):
             try:
                 chipnums = eval(chipnums)
@@ -328,6 +348,8 @@ class InputFiles(Input):
                 raise ValueError("Invalid chipnums = %s with multiple images",chipnums)
         elif chipnums is None or isinstance(chipnums, list):
             self.chipnums = chipnums
+        elif isinstance(chipnums, dict):
+            self.chipnums = chipnums
         else:
             raise ValueError("Invalid chipnums = %s",chipnums)
         if logger:
@@ -339,9 +361,9 @@ class InputFiles(Input):
             logger.debug("image files = %s",self.image_files)
 
         self.cat_files = self._get_file_list(cats, cat_dir, self.chipnums, logger)
+
         if logger:
             logger.debug("cat files = %s",self.cat_files)
-
         # Finally, if chipnums is None, we can make it the default list.
         if self.chipnums is None:
             self.chipnums = range(len(self.image_files))
@@ -352,11 +374,15 @@ class InputFiles(Input):
         if len(self.image_files) != len(self.cat_files):
             raise ValueError("Number of images (%d) and catalogs (%d) do not match."%(
                              len(self.image_files), len(self.cat_files)))
+
         if len(self.image_files) != len(self.chipnums):
-            raise ValueError("Number of images (%d) and chipnums (%d) do not match."%(
-                             len(self.image_files), len(self.chipnums)))
+            #import warnings; warnings.warn("Unequal number of chips and images; problematic if not multiple exposures.")
+            if not isinstance(self.chipnums, dict):
+                raise ValueError("Number of images (%d) and chipnums (%d) do not match."%(
+                                len(self.image_files), len(self.chipnums)))
 
         # Other parameters are just saved for use later.
+        self.exposures = exposures
         self.x_col = x_col
         self.y_col = y_col
         self.sky_col = sky_col
@@ -373,6 +399,7 @@ class InputFiles(Input):
         self.pointing = None
 
     def _get_file_list(self, s, d, chipnums, logger):
+        s = eval(s)
         if isinstance(s, basestring):
             # First try "{chipnum}" style formatting.
             if (chipnums is not None) and ('{' in s) and ('}' in s):
@@ -432,18 +459,19 @@ class InputFiles(Input):
                 raise e
             else:
                 if len(file_list) == 0:
-                    raise ValueError("No such files: %r"%s)
+                    raise ValueError("No such files: %r")
                 return file_list
 
         elif not isinstance(s, list):
             raise ValueError("%r is not a list or a string",s)
 
-        else:
+        
             file_list = s
             if d is not None:
                 file_list = [ os.path.join(d, f) for f in file_list ]
             return file_list
 
+        
 
 
     def readImages(self, logger=None):
@@ -457,10 +485,18 @@ class InputFiles(Input):
 
         # Read in the images from the files
         self.images = []
+        self.img_exps = []
+
         for fname in self.image_files:
+			for e in self.exposures:
+				if e in fname:
+					self.img_exps.append(e)
             if logger:
                 logger.info("Reading image file %s",fname)
             self.images.append(galsim.fits.read(fname, hdu=self.image_hdu))
+            import warnings
+            warnings.warn(fname)
+
 
         # Either read in the weight image, or build a dummy one
         if len(self.images) == 1:

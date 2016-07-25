@@ -187,6 +187,25 @@ class MADOutliers(Outliers):
         raise NotImplemented("MAD algorithm not implemented")
 
 
+class MedOutliers(Outliers):
+    #Find and remove outliers using Median Absolute Deviation:
+        #MedAD = median(abs(datapoint-median(datapoints)))
+    def __init__(self, nmad):
+        self.nmad = nmad
+        self.kwargs = {
+            'nmad' : nmad
+        }
+
+    def removeOutliers(self, stars, logger=None):
+        params = np.array([s.fit.params for s in stars])
+        m = np.median(params, axis=0)
+        mad = np.median(np.abs(params - m), axis=0)
+        # import pdb; pdb.set_trace()
+        check = np.all((params >= m - self.nmad * mad) * (params <= m + self.nmad * mad), axis=1)
+        allstar = [s[0] for s in zip(stars, check) if s[1]]
+        nremoved = len(stars) - len(allstar)
+        return allstar,nremoved
+
 class ChisqOutliers(Outliers):
     """An Outliers handler using the chisq of the residual of the interpolated star with the
     original.

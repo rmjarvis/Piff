@@ -24,7 +24,7 @@ import copy
 from .psf import PSF
 from .util import write_kwargs, read_kwargs, make_dtype, adjust_value
 
-class SingleChipPSF(PSF):
+class SingleExpPSF(PSF):
     """A PSF class that uses a separate PSF solution for each chip
     """
     def __init__(self, single_psf, extra_interp_properties=None):
@@ -68,7 +68,7 @@ class SingleChipPSF(PSF):
 
         return { 'single_psf' : single_psf }
 
-    def fit(self, stars, wcs, pointing, exposures=None, logger=None):
+    def fit(self, stars, wcs, pointing, exposures, logger=None):
         """Fit interpolated PSF model to star data using standard sequence of operations.
 
         :param stars:           A list of Star instances.
@@ -80,23 +80,30 @@ class SingleChipPSF(PSF):
         self.stars = stars
         self.wcs = wcs
         self.pointing = pointing
-        self.psf_by_chip = {}
-        for chipnum in wcs:
-            # Make a copy of single_psf for each chip
-            psf_chip = copy.deepcopy(self.single_psf)
-            self.psf_by_chip[chipnum] = psf_chip
+        self.psf_by_exp = {}
+        for exp in exposures:
+            self.psf_by_chip = {}
+            for chipnum in wcs[exp]:
+                # Make a copy of single_psf for each chip
+                psf_chip = copy.deepcopy(self.single_psf)
+                self.psf_by_chip[chipnum] = psf_chip
 
-            # Break the list of stars up into a list for each chip
-            stars_chip = [ s for s in stars if s['chipnum'] == chipnum ]
-            wcs_chip = { chipnum : wcs[chipnum] }
+                # Break the list of stars up into a list for each chip
+                stars_chip = [ s for s in stars if s['expnum'] == exp and s['chipnum'] == chipnum]
 
-            # Run the psf_chip fit function using this stars and wcs (and the same pointing)
-            if logger:
-                logger.info("Building solution for chip %s with %d stars",
-                            chipnum, len(stars_chip))
-            psf_chip.fit(stars_chip, wcs_chip, pointing, logger=logger)
+                wcs_chip = { chipnum : wcs[exp][chipnum] }
 
-        self.stars = [star for key in self.psf_by_chip for star in self.psf_by_chip[key].stars]
+                # Run the psf_chip fit function using this stars and wcs (and the same pointing)
+                if logger:
+                    logger.info("Building solution for chip %s with %d stars",
+                                chipnum, len(stars_chip))
+                psf_chip.fit(stars_chip, wcs_chip, pointing, logger=logger)
+            self.psf_by_exp[exp] = self.psf_by_chip
+
+
+        #import pdb; pdb.set_trace()
+        self.stars = [star for exp in self.psf_by_exp for chip in self.psf_by_exp[exp] for star in self.psf_by_exp[exp][chip].stars]
+
 
     def drawStar(self, star):
         """Generate PSF image for a given star.
@@ -107,6 +114,7 @@ class SingleChipPSF(PSF):
         :returns:           Star instance with its image filled with rendered PSF
         """
         chipnum = star['chipnum']
+        self.psf_by_chip = self.psf_by_exp[star['expnum']]
         return self.psf_by_chip[chipnum].drawStar(star)
 
     def _finish_write(self, fits, extname, logger):
@@ -117,17 +125,21 @@ class SingleChipPSF(PSF):
         :param logger:      A logger object for logging debug info.
         """
         # Write the colnums to an extension.
-        chipnums = self.psf_by_chip.keys()
-        dt = make_dtype('chipnums', chipnums[0])
-        chipnums = [ adjust_value(c,dt) for c in chipnums ]
-        cols = [ chipnums ]
-        dtypes = [ dt ]
-        data = np.array(zip(*cols), dtype=dtypes)
-        fits.write_table(data, extname=extname + '_chipnums')
+        for expr in self.psf_by_exp:
+            self.psf_by_chip = self.psf_by_exp[expr]
+            chipnums = self.psf_by_chip.keys()
+            dt = make_dtype('chipnums', chipnums[0])
+            chipnums = [ adjust_value(c,dt) for c in chipnums ]
+            cols = [ chipnums ]
+            dtypes = [ dt ]
+            data = np.array(zip(*cols), dtype=dtypes)
+            fits.write_table(data, extname=expr + extname + '_chipnums')
 
         # Add _1, _2, etc. to the extname for the psf model of each chip.
-        for chipnum in self.psf_by_chip:
-            self.psf_by_chip[chipnum]._write(fits, extname + '_%s'%chipnum, logger)
+        for expr in self.psf_by_exp:
+            self.psf_by_chip = self.psf_by_exp[expr]
+            for chipnum in self.psf_by_chip:
+                self.psf_by_chip[chipnum]._write(fits, expr + extname + '_%s'%chipnum, logger)
 
     def _finish_read(self, fits, extname, logger):
         """Finish the reading process with any class-specific steps.
@@ -139,5 +151,5 @@ class SingleChipPSF(PSF):
         chipnums = fits[extname + '_chipnums'].read()['chipnums']
         self.psf_by_chip = {}
         for chipnum in chipnums:
-            self.psf_by_chip[chipnum] = PSF._read(fits, extname + '_%s'%chipnum, logger)
+            self.psf_by_chip[chipnum] = PSF._read(fits, expr + extname + '_%s'%chipnum, logger)
 
