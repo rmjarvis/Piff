@@ -113,7 +113,7 @@ def piffify(config, logger=None):
     stars, wcs, pointing = piff.Input.process(config['input'], logger=logger)
 
     psf = piff.PSF.process(config['psf'], logger=logger)
-    psf.fit(stars, wcs, pointing, logger=logger)
+    psf.fit(stars, wcs, pointing, config['input']['exposures'], logger=logger)
 
     # write it out to a file
     output = piff.Output.process(config['output'], logger=logger)

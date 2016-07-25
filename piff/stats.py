@@ -258,33 +258,121 @@ class ShapeHistogramsStats(Stats):
         ax.hist([self.T, self.T_model], bins=self.bins_size, label=['data', 'model'], **kwargs)
         ax.legend(loc='upper right')
         ax.set_xlabel(r'$T$')
+        #ax.set_xlim(0.4,0.8)
+
         # axs[0,1] = size difference
         ax = axs[1, 0]
         ax.hist(self.dT, bins=self.bins_size, **kwargs)
         ax.set_xlabel(r'$T_{data} - T_{model}$')
+        #ax.set_xlim(-0.2,0.2)
 
         # axs[1,0] = g1 distribution
         ax = axs[0, 1]
         ax.hist([self.g1, self.g1_model], bins=self.bins_shape, label=['data', 'model'], **kwargs)
         ax.legend(loc='upper right')
         ax.set_xlabel(r'$g_{1}$')
+        #ax.set_xlim(-0.2,0.2)
+
         # axs[1,0] = g1 difference
         ax = axs[1, 1]
         ax.hist(self.dg1, bins=self.bins_shape, **kwargs)
         ax.set_xlabel(r'$g_{1, data} - g_{1, model}$')
+        #ax.set_xlim(-0.2,0.2)
 
         # axs[2,0] = g2 distribution
         ax = axs[0, 2]
         ax.hist([self.g2, self.g2_model], bins=self.bins_shape, label=['data', 'model'], **kwargs)
         ax.legend(loc='upper right')
         ax.set_xlabel(r'$g_{2}$')
+        #ax.set_xlim(-0.2,0.2)
+
         # axs[2,0] = g2 difference
         ax = axs[1, 2]
         ax.hist(self.dg2, bins=self.bins_shape, **kwargs)
         ax.set_xlabel(r'$g_{2, data} - g_{2, model}$')
+        #ax.set_xlim(-0.2,0.2)
 
         fig.set_tight_layout(True)
         return fig, ax
+
+class ShapeScatterStats(Stats):
+	"""Stats class for calculating scatterplots of shapes residuals.
+
+	This will plot 6 axes. The top 3 contain scatter plots of test and model T, g1, and g2, while the 
+	bottom 3 contain scatter plots  of test T, g1, and, g2 and the differences.
+
+	For now, uses same code from ShapeHistogramStats to compute the data and model T, g1, and g2. 
+	"""
+	def __init__(self, file_name=None, logger=None):
+		"""
+		:param file_name:   Name of the file to output to. [default: None]
+		"""
+		self.file_name = file_name
+		
+	def compute(self, psf, stars, logger=None):
+		"""
+        :param psf:         A PSF Object
+        :param stars:       A list of Star instances.
+        :param logger:      A logger object for logging debug info. [default: None]
+        """
+
+		positions, shapes_truth, shapes_model = self.measureShapes(psf, stars, logger=logger)
+
+		flag_truth = shapes_truth[:, 6]
+		flag_model = shapes_model[:, 6]
+		mask = (flag_truth == 0) & (flag_model == 0)
+
+		self.T = shapes_truth[mask, 3]
+		self.g1 = shapes_truth[mask, 4]
+		self.g2 = shapes_truth[mask, 5]
+		self.T_model = shapes_model[mask, 3]
+		self.g1_model = shapes_model[mask, 4]
+		self.g2_model = shapes_model[mask, 5]
+		self.dT = self.T - self.T_model
+		self.dg1 = self.g1 - self.g1_model
+		self.dg2 = self.g2 - self.g2_model
+
+	def plot(self, logger=None):
+
+		import matplotlib.pyplot as plt
+
+		fig, axs = plt.subplots(ncols=3, nrows=2, figsize=(15, 10))
+
+		ax = axs[0,0]
+		ax.scatter(self.T, self.T_model)
+		ax.set_xlabel(r'$T_{data}$')
+		ax.set_ylabel(r'$T_{model}$')
+
+		ax = axs[1,0]
+		ax.scatter(self.T, self.dT)
+		ax.set_xlabel(r'$T_{data}$')
+		ax.set_ylabel(r'$T_{data} - T_{model}$')
+
+		ax = axs[0,1]
+		ax.scatter(self.g1, self.g1_model)
+		ax.set_xlabel(r'$g_{1, data}$')
+		ax.set_ylabel(r'$g_{1, model}$')
+
+		ax = axs[1,1]
+		ax.scatter(self.g1, self.dg1)
+		ax.set_xlabel(r'$g_{1, data}$')
+		ax.set_ylabel(r'$g_{1, data} - g_{1, model}$')
+
+		ax = axs[0,2]
+		ax.scatter(self.g2, self.g2_model)
+		ax.set_xlabel(r'$g_{2, data}$')
+		ax.set_ylabel(r'$g_{2, model}$')
+
+		ax = axs[1,2]
+		ax.scatter(self.g2, self.dg2)
+		ax.set_xlabel(r'$g_{2, data}$')
+		ax.set_ylabel(r'$g_{2, data} - g_{2, model}$')
+
+		fig.set_tight_layout(True)
+		return fig, ax
+
+
+
 
 class RhoStats(Stats):
     """Stats class for calculating rho statistics.

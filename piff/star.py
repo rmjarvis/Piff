@@ -143,6 +143,11 @@ class Star(object):
     def chipnum(self):
         return self.data.image_pos.chipnum
 
+    @property
+    def expnum(self):
+        return self.data.image_pos.expnum
+    
+
     @classmethod
     def makeTarget(cls, x=None, y=None, u=None, v=None, properties={}, wcs=None, scale=None,
                    stamp_size=48, flux=1.0, **kwargs):
@@ -293,6 +298,7 @@ class Star(object):
         import galsim
         assert extname in fits
         colnames = fits[extname].get_colnames()
+        import pdb; pdb.set_trace()
 
         for key in ['x', 'y', 'u', 'v',
                     'dudx', 'dudy', 'dvdx', 'dvdy',

@@ -87,7 +87,7 @@ from .basis_interp import BasisInterp, BasisPolynomial
 
 # Outliers
 # Outlier handlers are named BlahOutliers where Blah is what they are called in teh config file
-from .outliers import Outliers, ChisqOutliers
+from .outliers import Outliers, ChisqOutliers, MedOutliers
 
 # Inputs
 # Input handlers are named InputBlah where Blah is what they are called in the config file
@@ -103,10 +103,12 @@ from .output import Output, OutputFile
 from .psf import PSF, read
 from .simplepsf import SimplePSF
 from .singlechip import SingleChipPSF
+from .multiexp import SingleExpPSF
 
 # Stats
 # Stats classes are named BlahStats where Blah is what they are called in the config file
-from .stats import Stats, RhoStats, ShapeHistogramsStats
+from .stats import Stats, RhoStats, ShapeHistogramsStats, ShapeScatterStats
+from .twod_stats import TwoDHistStats
 
 # Util -- leave these in the piff.util namespace
 from . import util
