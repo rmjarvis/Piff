@@ -206,6 +206,9 @@ class Input(object):
                     stamp = stamp - sky  # Don't change the original!
                     props['sky'] = sky
                 wt_stamp = wt[bounds]
+                # if a star is totally masked, then don't add it!
+                if np.all(wt_stamp == 0):
+                    continue
                 pos = galsim.PositionD(x,y)
                 data = piff.StarData(stamp, pos, weight=wt_stamp, pointing=self.pointing,
                                      properties=props)
@@ -556,7 +559,7 @@ class InputFiles(Input):
         ra = self.ra
         dec = self.dec
         if (ra is None) != (dec is None):
-            raise ValueErro("Only one of ra, dec was specified")
+            raise ValueError("Only one of ra, dec was specified")
 
         if ra is None:
             if self.images[0].wcs.isCelestial():
