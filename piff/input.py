@@ -207,7 +207,7 @@ class Input(object):
                     props['sky'] = sky
                 wt_stamp = wt[bounds]
                 # if a star is totally masked, then don't add it!
-                if np.all(wt_stamp == 0):
+                if np.all(wt_stamp.array == 0):
                     continue
                 pos = galsim.PositionD(x,y)
                 data = piff.StarData(stamp, pos, weight=wt_stamp, pointing=self.pointing,
