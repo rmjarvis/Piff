@@ -110,12 +110,24 @@ def piffify(config, logger=None):
             raise ValueError("%s field is required in config dict"%key)
 
     # read in the input images
-    stars, wcs, pointing = piff.Input.process(config['input'], logger=logger)
+    stars, wcs, pointing, tstars = piff.Input.process(config['input'], logger=logger)
 
     psf = piff.PSF.process(config['psf'], logger=logger)
     psf.fit(stars, wcs, pointing, config['input']['exposures'], logger=logger)
 
     # write it out to a file
     output = piff.Output.process(config['output'], logger=logger)
-    output.write(psf)
+    if tstars:
+        import warnings
+        warnings.warn(str(len(tstars)))
+        gtstars = []
+        for star in tstars:
+            star = piff.Gaussian().fit(star)
+            gtstars.append(star)
+        tstars,nremoved = piff.MedOutliers(nmad=4).removeOutliers(gtstars)
+        tstars = [star for star in tstars if star.fit.params[0]>.66]
+
+        warnings.warn(str(len(tstars)))
+
+    output.write(psf, tstars)
 

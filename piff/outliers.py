@@ -200,7 +200,6 @@ class MedOutliers(Outliers):
         params = np.array([s.fit.params for s in stars])
         m = np.median(params, axis=0)
         mad = np.median(np.abs(params - m), axis=0)
-        # import pdb; pdb.set_trace()
         check = np.all((params >= m - self.nmad * mad) * (params <= m + self.nmad * mad), axis=1)
         allstar = [s[0] for s in zip(stars, check) if s[1]]
         nremoved = len(stars) - len(allstar)

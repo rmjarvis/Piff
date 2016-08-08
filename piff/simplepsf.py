@@ -129,18 +129,24 @@ class SimplePSF(PSF):
         # Begin iterations.  Very simple convergence criterion right now.
         oldchisq = 0.
         nremoved = 0
+        import warnings
         for iteration in range(max_iterations):
+            warnings.warn("Now working on iteration %s." % iteration)
             if logger:
                 logger.info("Iteration %d: Fitting %d stars", iteration, len(self.stars))
 
             if quadratic_chisq:
+                warnings.warn("Doing pixelgrid.chisq")
                 self.stars = [self.model.chisq(s) for s in self.stars]
+            
             else:
+                warnings.warn("Doing pixelgrid.fit")
                 self.stars = [self.model.fit(s) for s in self.stars]
 
             if logger:
                 logger.debug("             Calculating the interpolation")
             self.interp.solve(self.stars, logger=logger)
+            warnings.warn("df 1 complete")
 
             # Refit and recenter all stars, collect stats
             if logger:
@@ -149,6 +155,7 @@ class SimplePSF(PSF):
             if hasattr(self.model, 'reflux'):
                 self.stars = [self.model.reflux(self.interp.interpolate(s),logger=logger)
                               for s in self.stars]
+            warnings.warn("df 2 complete")
 
             if self.outliers and (iteration > 0 or not self.interp.degenerate_points):
                 # Perform outlier rejection, but not on first iteration for degenerate solvers.
@@ -162,7 +169,9 @@ class SimplePSF(PSF):
                         logger.info("             Removed %d outliers", nremoved)
 
             chisq = np.sum([s.fit.chisq for s in self.stars])
+            warnings.warn("chisq computed")
             dof   = np.sum([s.fit.dof for s in self.stars])
+            warnings.warn("dof computed")
             if logger:
                 logger.info("             Total chisq = %.2f / %d dof", chisq, dof)
 

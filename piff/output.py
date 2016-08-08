@@ -138,7 +138,7 @@ class OutputFile(Output):
             kwargs['stats_list'] = stats
         return kwargs
 
-    def write(self, psf, logger=None):
+    def write(self, psf, tstars=None, logger=None):
         """Write a PSF object to the output file.
 
         :param psf:         A piff.PSF instance
@@ -152,6 +152,9 @@ class OutputFile(Output):
         for stats in self.stats_list:
             stats.compute(psf,psf.stars,logger=logger)
             stats.write(logger=logger)
+            if tstars:
+                stats.compute(psf,tstars,logger=logger)
+                stats.write(logger=logger)
 
     def read(self, logger=None):
         """Read a PSF object that was written to an output file back in.
