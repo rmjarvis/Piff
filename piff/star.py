@@ -298,7 +298,6 @@ class Star(object):
         import galsim
         assert extname in fits
         colnames = fits[extname].get_colnames()
-        import pdb; pdb.set_trace()
 
         for key in ['x', 'y', 'u', 'v',
                     'dudx', 'dudy', 'dvdx', 'dvdy',
