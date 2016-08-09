@@ -96,6 +96,7 @@ class SingleChipPSF(PSF):
                             chipnum, len(stars_chip))
             psf_chip.fit(stars_chip, wcs_chip, pointing, logger=logger)
 
+        #Updates stars list with outliers removed
         self.stars = [star for key in self.psf_by_chip for star in self.psf_by_chip[key].stars]
 
     def drawStar(self, star):
