@@ -21,7 +21,7 @@ import numpy as np
 import glob
 import os
 
-
+# The primary differences are code added for training stars and multiple exposures.
 class Input(object):
 	"""The base class for handling inputs for building a Piff model.
 
@@ -64,6 +64,7 @@ class Input(object):
 		input_handler.setPointing(logger)
 
 		# Creat a lit of StarData objects
+		# Now makes training stars, as well as testing stars, when the nstars parameter is a valid value.
 		stars, tstars = input_handler.makeStars(logger)
 
 		# Maybe add poisson noise to the weights
@@ -196,6 +197,7 @@ class Input(object):
 			warnings.warn(fname)
 			if logger:
 				logger.debug("Processing catalog %s with %d stars",fname,len(cat))
+			# First, try to make both testing and training stars. If nstars is an invalid value (i.e. not in (0,1)), only make training stars.
 			try:
 				practice_index = np.random.choice(len(cat), size=np.floor(self.nstars*len(cat)), replace=False)
 				test_index = [x for x in range(len(cat)) if x not in practice_index]
@@ -246,7 +248,7 @@ class Input(object):
 										 properties=props)
 					tstars.append(piff.Star(data, None))
 
-			except TypeError:
+			except:
 				for k in range(len(cat)):
 					x = cat[self.x_col][k]
 					y = cat[self.y_col][k]
@@ -281,7 +283,7 @@ class Input(object):
 
 		:returns:   A dict of WCS solutions (galsim.BaseWCS instances) indexed by chipnum
 		"""
-		
+		# if there are multiple exposures, make the wcs_list a dict with exposure numbers as the keys
 		if len(self.exposures) > 1:
 			wcs_list = {}
 			for s in list(set(self.img_exps)):
