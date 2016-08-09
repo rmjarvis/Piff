@@ -152,6 +152,7 @@ class OutputFile(Output):
         for stats in self.stats_list:
             stats.compute(psf,psf.stars,logger=logger)
             stats.write(logger=logger)
+            # Also write for the tstars.
             if tstars:
                 stats.compute(psf,tstars,logger=logger)
                 stats.write(logger=logger)
