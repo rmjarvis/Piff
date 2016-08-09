@@ -155,6 +155,7 @@ class Stats(object):
         if logger:
             logger.debug("Measuring shapes of real stars")
         
+        # Make sure hsm will work for each star; remove those it breaks for.
         goodstars = []
         for star in stars:
         	try:
@@ -244,6 +245,8 @@ class ShapeHistogramsStats(Stats):
         self.dT = self.T - self.T_model
         self.dg1 = self.g1 - self.g1_model
         self.dg2 = self.g2 - self.g2_model
+        
+        # If the stars aren't those included in the psf, they are testing stars, so write them to a different file.
         if psf.stars != stars:
             self.file_name = self.file_name[:-4] + "_verify.png"
 
