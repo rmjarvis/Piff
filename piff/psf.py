@@ -287,6 +287,7 @@ class PSF(object):
 
         # Start with the chipnums, which may be int or str type.
         # Assume they are all the same type at least.
+        # If wcs is a dict of dicts, this means there are multiple exposures.
         if isinstance(self.wcs[self.wcs.keys()[0]], dict):
             for key in self.wcs:
                 chipnums = self.wcs[key].keys()
@@ -392,3 +393,4 @@ def read(file_name, logger=None):
     :returns: a piff.PSF instance
     """
     return PSF.read(file_name, logger=logger)
+
