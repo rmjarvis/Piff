@@ -113,10 +113,13 @@ def piffify(config, logger=None):
     stars, wcs, pointing, tstars = piff.Input.process(config['input'], logger=logger)
 
     psf = piff.PSF.process(config['psf'], logger=logger)
+    # Now passes exposures being used into the psf fit for use in SingleExpPSF's.
     psf.fit(stars, wcs, pointing, config['input']['exposures'], logger=logger)
 
     # write it out to a file
     output = piff.Output.process(config['output'], logger=logger)
+    # If you have testing stars, give them Gaussian fit parameters and remove outliers based on MAD.
+    # This is incompatible with a non-Gaussian model and cannot take different outlier types currently.
     if tstars:
         import warnings
         warnings.warn(str(len(tstars)))
