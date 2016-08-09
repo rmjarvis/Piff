@@ -189,8 +189,9 @@ class MADOutliers(Outliers):
 
 class MedOutliers(Outliers):
     #Find and remove outliers using Median Absolute Deviation:
-        #MedAD = median(abs(datapoint-median(datapoints)))
+        #MedAD(datapoints) = median(abs(datapoint-median(datapoints)))
     def __init__(self, nmad):
+        #nmad is the number of MADs at which to make the cut.
         self.nmad = nmad
         self.kwargs = {
             'nmad' : nmad
