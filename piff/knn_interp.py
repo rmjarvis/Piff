@@ -22,6 +22,7 @@ from .star import Star, StarFit
 import numpy as np
 import warnings
 
+#This is a new interpolant, which uses a Scipy's KNeighborsRegressor. 
 
 class KNN(Interp):
 
