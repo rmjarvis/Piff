@@ -806,4 +806,3 @@ class StarFit(object):
     def copy(self):
         return StarFit(self.params, self.flux, self.center, self.alpha, self.beta,
                        self.chisq, self.dof, self.worst_chisq)
-
