@@ -131,5 +131,6 @@ class Gaussian(Model):
         center = galsim.PositionD(*star.fit.center)
         offset = star.image_pos + center - star.image.trueCenter()
         image = prof.drawImage(star.image.copy(), method='no_pixel', offset=offset)
+        # Now passses star's pointing to StarData, allowing the code to work with Celestial WCS.
         data = StarData(image, star.image_pos, star.weight, star.data.pointing)
         return Star(data, star.fit)
