@@ -153,3 +153,4 @@ class SingleExpPSF(PSF):
         for chipnum in chipnums:
             self.psf_by_chip[chipnum] = PSF._read(fits, expr + extname + '_%s'%chipnum, logger)
 
+ 
