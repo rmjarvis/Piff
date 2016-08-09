@@ -114,7 +114,7 @@ class Stats(object):
         """Write plots to a file.
 
         :param file_name:   The name of the file to write to. [default: Use self.file_name,
-                            which is typically read from the config fiel.]
+                            which is typically read from the config file.]
         :param logger:      A logger object for logging debug info. [default: None]
         :param **kwargs:    Optionally, provide extra kwargs for the matplotlib plot command.
         """
@@ -154,6 +154,16 @@ class Stats(object):
         # measure moments with Gaussian on image
         if logger:
             logger.debug("Measuring shapes of real stars")
+        
+        goodstars = []
+        for star in stars:
+        	try:
+        		self.hsm(psf.drawStar(star))
+        		goodstars.append(star)
+        	except:
+        		continue
+        stars = goodstars
+
         shapes_truth = np.array([ self.hsm(star) for star in stars ])
 
         # Pull out the positions to return
@@ -234,6 +244,8 @@ class ShapeHistogramsStats(Stats):
         self.dT = self.T - self.T_model
         self.dg1 = self.g1 - self.g1_model
         self.dg2 = self.g2 - self.g2_model
+        if psf.stars != stars:
+            self.file_name = self.file_name[:-4] + "_verify.png"
 
     def plot(self, logger=None, **kwargs):
         """Make the plots.
@@ -301,7 +313,7 @@ class ShapeScatterStats(Stats):
 	This will plot 6 axes. The top 3 contain scatter plots of test and model T, g1, and g2, while the 
 	bottom 3 contain scatter plots  of test T, g1, and, g2 and the differences.
 
-	For now, uses same code from ShapeHistogramStats to compute the data and model T, g1, and g2. 
+	Uses same code from ShapeHistogramStats to compute the data and model T, g1, and g2. 
 	"""
 	def __init__(self, file_name=None, logger=None):
 		"""
@@ -311,16 +323,17 @@ class ShapeScatterStats(Stats):
 		
 	def compute(self, psf, stars, logger=None):
 		"""
-        :param psf:         A PSF Object
-        :param stars:       A list of Star instances.
-        :param logger:      A logger object for logging debug info. [default: None]
-        """
+		:param psf:         A PSF Object
+		:param stars:       A list of Star instances.
+		:param logger:      A logger object for logging debug info. [default: None]
+		"""
 
 		positions, shapes_truth, shapes_model = self.measureShapes(psf, stars, logger=logger)
 
 		flag_truth = shapes_truth[:, 6]
 		flag_model = shapes_model[:, 6]
 		mask = (flag_truth == 0) & (flag_model == 0)
+
 
 		self.T = shapes_truth[mask, 3]
 		self.g1 = shapes_truth[mask, 4]
@@ -331,6 +344,8 @@ class ShapeScatterStats(Stats):
 		self.dT = self.T - self.T_model
 		self.dg1 = self.g1 - self.g1_model
 		self.dg2 = self.g2 - self.g2_model
+		if psf.stars != stars:
+			self.file_name = self.file_name[:-4] + "_verify.png"
 
 	def plot(self, logger=None):
 
@@ -478,6 +493,8 @@ class RhoStats(Stats):
         self.rho4.process(cat_dg, cat_gdTT)
         self.rho5 = treecorr.GGCorrelation(self.tckwargs)
         self.rho5.process(cat_g, cat_gdTT)
+        if psf.stars != stars:
+            self.file_name = self.file_name[:-4] + "_verify.png"
 
     def alt_plot(self, logger=None, **kwargs):
         # Leaving this version here in case useful, but I (MJ) have a new version of this

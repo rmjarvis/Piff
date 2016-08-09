@@ -128,6 +128,9 @@ class TwoDHistStats(Stats):
         # dg2
         self.twodhists['dg2'] = self._array_to_2dhist(dg2, indx_u, indx_v, unique_indx)
 
+        if psf.stars != stars:
+            self.file_name = self.file_name[:-4] + "_verify.png"
+
     def plot(self, logger=None, **kwargs):
         """Make the plots.
         :param logger:      A logger object for logging debug info. [default: None]
@@ -152,9 +155,10 @@ class TwoDHistStats(Stats):
         if logger:
             logger.info("Creating TwoDHist colormaps")
         # T and T_model share colorbar
-        vmin__T = np.min([self.twodhists['T'], self.twodhists['T_model']])
+        vmin__T = np.min([np.min(self.twodhists["T"]),np.min(self.twodhists["T_model"])])
         vmax__T = np.max([self.twodhists['T'], self.twodhists['T_model']])
-        cmap__T = self._shift_cmap(vmin__T, vmax__T)
+        vmean__T = np.mean([self.twodhists['T'], self.twodhists['T_model']])
+        cmap__T = self._shift_cmap(vmin__T, vmax__T, vmean=vmean__T)
         # g1, g2, g1_model, g2_model share colorbar
         vmin__g = np.min([self.twodhists['g1'], self.twodhists['g1_model'], self.twodhists['g2'], self.twodhists['g2_model']])
         vmax__g = np.max([self.twodhists['g1'], self.twodhists['g1_model'], self.twodhists['g2'], self.twodhists['g2_model']])
@@ -253,7 +257,7 @@ class TwoDHistStats(Stats):
 
         return C
 
-    def _shift_cmap(self, vmin, vmax):
+    def _shift_cmap(self, vmin, vmax, vmean=None):
         import matplotlib.pyplot as plt
         midpoint = (0 - vmin) / (vmax - vmin)
 
@@ -262,7 +266,8 @@ class TwoDHistStats(Stats):
             return plt.cm.Blues_r
         # if a >= 0, then we want Reds
         elif vmin >= 0:
-            return plt.cm.Reds
+            #return self._shiftedColorMap(plt.cm.RdBu_r, start=vmin, midpoint=vmean, stop=vmax)
+            return plt.cm.RdBu_r
         else:
             return self._shiftedColorMap(plt.cm.RdBu_r, midpoint=midpoint)
 
