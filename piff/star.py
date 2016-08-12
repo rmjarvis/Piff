@@ -649,6 +649,7 @@ class StarData(object):
 
         :returns:         A new StarData instance with updated weight array.
         """
+        import galsim
 
         # Mark the pixels that are not already worthless
         use = self.weight.array!=0.
@@ -663,6 +664,8 @@ class StarData(object):
         else:
             # Insert 1d vector into currently valid pixels
             variance = signal
+        # clip variance
+        variance = np.where(variance < 0, 0, variance)
 
         # Scale by gain
         if gain is None:
