@@ -25,11 +25,11 @@ from .star import Star, StarFit, StarData
 class Gaussian(Model):
     """An extremely simple PSF model that just considers the PSF as a sheared Gaussian.
     """
-    def __init__(self, background=0, logger=None):
+    def __init__(self, logger=None):
         self.kwargs = {}
 
     @staticmethod
-    def hsm(star, background=None):
+    def hsm(star):
         """Compute the hsm moments for a given star.
 
         :param star:    A Star instance
@@ -72,7 +72,7 @@ class Gaussian(Model):
         """
         import galsim
 
-        flux, cenx, ceny, sigma, g1, g2, flag = self.hsm(star,self.kwargs['background'])
+        flux, cenx, ceny, sigma, g1, g2, flag = self.hsm(star)
 
         # Make a StarFit object with these parameters
         params = np.array([ sigma, g1, g2 ])
@@ -87,11 +87,6 @@ class Gaussian(Model):
 
         fit = StarFit(params, flux=flux, center=center-star.image_pos, chisq=chisq, dof=dof)
         return Star(star.data, fit)
-
-
-    def update(self, background, logger=None, **kwargs):
-        self.background = background
-
 
     def getProfile(self, params):
         """Get a version of the model as a GalSim GSObject
@@ -118,7 +113,5 @@ class Gaussian(Model):
         center = galsim.PositionD(*star.fit.center)
         offset = star.image_pos + center - star.image.trueCenter()
         image = prof.drawImage(star.image.copy(), method='no_pixel', offset=offset)
-        # add background
-        image = image + self.kwargs['background']
         data = StarData(image, star.image_pos, star.weight)
         return Star(data, star.fit)
