@@ -62,6 +62,25 @@ class Gaussian(Model):
 
         return (flux, center.x, center.y, sigma, shape.g1, shape.g2, flag)
 
+    def initialize(self, star, mask=True, logger=None):
+        """Initialize a star to work with the current model.
+
+        :param star:    A Star instance with the raw data.
+        :param mask:    If True, set data.weight to zero at pixels that are outside
+                        the range of the model. [default: True]
+        :param logger:  A logger object for logging debug info. [default: None]
+
+        :returns:       Star instance with the appropriate initial fit values
+        """
+        # If implemented, update the flux to something close to right.
+        if hasattr(self, 'reflux'):
+            star = self.reflux(star, fit_center=False, logger=logger)
+        else:
+            star = star.withFlux(np.sum(star.data.image.array))
+
+        # stars need to have initial fit params
+        return self.fit(star)
+
     def fit(self, star):
         """Fit the image by running the HSM adaptive moments code on the image and using
         the resulting moments as an estimate of the Gaussian size/shape.
@@ -113,5 +132,5 @@ class Gaussian(Model):
         center = galsim.PositionD(*star.fit.center)
         offset = star.image_pos + center - star.image.trueCenter()
         image = prof.drawImage(star.image.copy(), method='no_pixel', offset=offset)
-        data = StarData(image, star.image_pos, star.weight)
+        data = StarData(image, star.image_pos, star.weight, star.data.pointing)
         return Star(data, star.fit)
