@@ -261,12 +261,13 @@ class Polynomial(Interp):
         # We should have the same number of parameters as number of polynomial
         # orders with which we were created here.
         nparam = len(parameters)
+        npos = len(positions)
         self._setup_indices(nparam)
 
         if logger:
             logger.info("Fitting %d parameter vectors using "\
                 "polynomial type %s with %d positions",
-                nparam,self.poly_type)
+                nparam,self.poly_type,npos)
 
         coeffs = []
 
