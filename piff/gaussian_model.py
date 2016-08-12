@@ -29,7 +29,7 @@ class Gaussian(Model):
         self.kwargs = {}
 
     @staticmethod
-    def hsm(star):
+    def hsm(star, background=None):
         """Compute the hsm moments for a given star.
 
         :param star:    A Star instance
@@ -72,22 +72,10 @@ class Gaussian(Model):
         """
         import galsim
 
-        flux, cenx, ceny, sigma, g1, g2, flag = self.hsm(star)
+        flux, cenx, ceny, sigma, g1, g2, flag = self.hsm(star,self.kwargs['background'])
 
         # Make a StarFit object with these parameters
         params = np.array([ sigma, g1, g2 ])
-
-
-        # # compute chisq
-        # fit = StarFit(params, flux=flux, center=center-image_pos)
-        # model_star = Star(star.data, fit)
-
-        # model_star = self.draw(model_star)
-        # model_image = model_star.data.getImage()[0]
-        # chisq = numpy.std(image.array - model_image.array)
-        # dof = numpy.count_nonzero(weight.array) - 6
-        # fit = StarFit(params, flux=model_star.fit.flux, center=model_star.fit.center, chisq=chisq, dof=dof)
-
 
         # Also need to compute chisq
         prof = self.getProfile(params) * flux
@@ -130,5 +118,7 @@ class Gaussian(Model):
         center = galsim.PositionD(*star.fit.center)
         offset = star.image_pos + center - star.image.trueCenter()
         image = prof.drawImage(star.image.copy(), method='no_pixel', offset=offset)
+        # add background
+        image = image + self.kwargs['background']
         data = StarData(image, star.image_pos, star.weight)
         return Star(data, star.fit)
