@@ -287,7 +287,7 @@ def test_single_image():
         np.testing.assert_array_less(0, np.sum(np.abs(rho.xip)))
 
     # Test the plotting and writing
-    rho_psf_file = os.path.join('output','simple_psf_rhostats.png')
+    rho_psf_file = os.path.join('output','simple_psf_rhostats.pdf')
     stats.write(rho_psf_file)
 
     # Test that we can make summary shape statistics, using HSM
@@ -302,7 +302,7 @@ def test_single_image():
     np.testing.assert_array_almost_equal(g2, shapeStats.g2, decimal=4)
     np.testing.assert_array_almost_equal(g2, shapeStats.g2_model, decimal=3)
 
-    shape_psf_file = os.path.join('output','simple_psf_shapestats.png')
+    shape_psf_file = os.path.join('output','simple_psf_shapestats.pdf')
     shapeStats.write(shape_psf_file)
 
     # Test that we can use the config parser for both RhoStats and ShapeHistogramsStats
