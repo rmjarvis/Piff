@@ -805,12 +805,12 @@ class StarFit(object):
                        self.chisq, self.dof, self.worst_chisq)
 
     def __getitem__(self, key):
-         """Get a property of the star fit.
+        """Get a property of the star fit.
 
-         Looks at params to get the property
+        Looks at params to get the property
 
-         :param key:     The name of the property to return
+        :param key:     The name of the property to return
 
-         :returns: the value of the given property.
-         """
-         return self.params[key]
+        :returns: the value of the given property.
+        """
+        return self.params[key]

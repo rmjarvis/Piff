@@ -183,6 +183,9 @@ def test_interp():
     s0 = make_gaussian_data(1.0, 0., 0., influx, du=0.5)
     s0 = mod.initialize(s0)
 
+    # Polynomial doesn't need this, but it should work nonetheless.
+    interp.initialize(stars)
+
     # Iterate solution using interpolator
     for iteration in range(3):
         # Refit PSFs star by star:
@@ -254,6 +257,7 @@ def test_missing():
     for interp in interps:
         # Interpolator will be simple mean
         interp = piff.Polynomial(order=0)
+        interp.initialize(stars)
 
         oldchisq = 0.
         # Iterate solution using interpolator
@@ -324,6 +328,9 @@ def test_gradient():
     # Also store away a noiseless copy of the PSF, origin of focal plane
     s0 = make_gaussian_data(1.0, 0., 0., influx, du=0.5)
     s0 = mod.initialize(s0)
+
+    # Polynomial doesn't need this, but it should work nonetheless.
+    interp.initialize(stars)
 
     oldchisq = 0.
     # Iterate solution using interpolator
@@ -399,6 +406,9 @@ def test_undersamp():
     # Also store away a noiseless copy of the PSF, origin of focal plane
     s0 = make_gaussian_data(1.0, 0., 0., influx, du=0.5)
     s0 = mod.initialize(s0)
+
+    # Polynomial doesn't need this, but it should work nonetheless.
+    interp.initialize(stars)
 
     oldchisq = 0.
     # Iterate solution using interpolator
