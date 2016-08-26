@@ -70,6 +70,9 @@ def make_dtype(key, value):
         t = int
     elif dt.kind in np.typecodes['AllFloat']:
         t = float
+    elif dt.kind == 'S' and not isinstance(value, (str, unicode)):
+        # catch lists of strings
+        t = np.array(value).dtype.str
     else:
         t = str
     dt = make_dt_tuple(key, t, size)
