@@ -31,7 +31,7 @@ def test_twodstats():
     stats = piff.TwoDHistStats(number_bins_u=21, number_bins_v=21, reducing_function='np.mean')
     stats.compute(psf, stars)
     # Test the plotting and writing
-    twodstats_file = os.path.join('output','twodstatsstats.png')
+    twodstats_file = os.path.join('output','twodstatsstats.pdf')
     stats.write(twodstats_file)
     # fig, axs = stats.plot()
     import matplotlib.pyplot as plt
