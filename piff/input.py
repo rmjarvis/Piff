@@ -199,6 +199,16 @@ class Input(object):
                 half_size = self.stamp_size // 2
                 bounds = galsim.BoundsI(icen+half_size-self.stamp_size+1, icen+half_size,
                                         jcen+half_size-self.stamp_size+1, jcen+half_size)
+                if not image.bounds.includes(bounds):
+                    bounds = bounds & image.bounds
+                    if not bounds.isDefined():
+                        if logger:
+                            logger.warning("Star at position %f,%f is off the edge of the image."%(x,y))
+                            logger.warning("Skipping this star.")
+                        continue
+                    if logger:
+                        logger.info("Star at position %f,%f is near the edge of the image."%(x,y))
+                        logger.info("Using smaller than the full stamp size: %s"%bounds)
                 stamp = image[bounds]
                 props = { 'chipnum' : chipnum }
                 if self.sky_col is not None:
