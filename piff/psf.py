@@ -168,7 +168,7 @@ class PSF(object):
         :param logger:      A logger object for logging debug info. [default: None]
         """
         if logger:
-            logger.info("Writing PSF to file %s",file_name)
+            logger.warning("Writing PSF to file %s",file_name)
 
         with fitsio.FITS(file_name,'rw',clobber=True) as f:
             self._write(f, 'psf', logger)
@@ -203,7 +203,7 @@ class PSF(object):
         :returns: a PSF instance
         """
         if logger:
-            logger.info("Reading PSF from file %s",file_name)
+            logger.warning("Reading PSF from file %s",file_name)
 
         with fitsio.FITS(file_name,'r') as f:
             if logger:

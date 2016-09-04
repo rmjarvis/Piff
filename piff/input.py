@@ -190,7 +190,7 @@ class Input(object):
             chipnum = self.chipnums[i]
             fname = self.cat_files[i]
             if logger:
-                logger.debug("Processing catalog %s with %d stars",fname,len(cat))
+                logger.info("Processing catalog %s with %d stars",fname,len(cat))
             for k in range(len(cat)):
                 x = cat[self.x_col][k]
                 y = cat[self.y_col][k]
@@ -223,6 +223,9 @@ class Input(object):
                 data = piff.StarData(stamp, pos, weight=wt_stamp, pointing=self.pointing,
                                      properties=props)
                 stars.append(piff.Star(data, None))
+        if logger:
+            logger.warning("Read a total of %d stars from %d image%s",len(stars),len(self.images),
+                           "s" if len(self.images) > 1 else "")
 
         return stars
 
@@ -472,7 +475,7 @@ class InputFiles(Input):
         self.images = []
         for fname in self.image_files:
             if logger:
-                logger.info("Reading image file %s",fname)
+                logger.warning("Reading image file %s",fname)
             self.images.append(galsim.fits.read(fname, hdu=self.image_hdu))
 
         # Either read in the weight image, or build a dummy one
@@ -535,7 +538,7 @@ class InputFiles(Input):
         self.cats = []
         for fname in self.cat_files:
             if logger:
-                logger.info("Reading star catalog %s.",fname)
+                logger.warning("Reading star catalog %s.",fname)
             self.cats.append(fitsio.read(fname,self.cat_hdu))
 
         # Remove any objects with flag != 0

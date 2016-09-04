@@ -117,5 +117,5 @@ def piffify(config, logger=None):
 
     # write it out to a file
     output = piff.Output.process(config['output'], logger=logger)
-    output.write(psf)
+    output.write(psf, logger=logger)
 

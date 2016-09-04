@@ -114,7 +114,7 @@ class Stats(object):
         """Write plots to a file.
 
         :param file_name:   The name of the file to write to. [default: Use self.file_name,
-                            which is typically read from the config fiel.]
+                            which is typically read from the config field.]
         :param logger:      A logger object for logging debug info. [default: None]
         :param **kwargs:    Optionally, provide extra kwargs for the matplotlib plot command.
         """
@@ -128,7 +128,7 @@ class Stats(object):
             raise ValueError("No file_name specified for %s"%self.__class__.__name__)
 
         if logger:
-            logger.info("Writing plot to file %s",file_name)
+            logger.warning("Writing %s plot to file %s",self.__class__.__name__,file_name)
         fig.savefig(file_name)
 
     def hsm(self, star):
@@ -214,7 +214,7 @@ class ShapeHistogramsStats(Stats):
         """
         # get the shapes
         if logger:
-            logger.info("Measuring Star and Model Shapes")
+            logger.warning("Calculating shape histograms for %d stars",len(stars))
         positions, shapes_truth, shapes_model = self.measureShapes(psf, stars, logger=logger)
 
         # Only use stars for which hsm was successful
@@ -348,7 +348,7 @@ class RhoStats(Stats):
 
         # get the shapes
         if logger:
-            logger.info("Measuring Star and Model Shapes")
+            logger.warning("Calculating rho statistics for %d stars",len(stars))
         positions, shapes_truth, shapes_model = self.measureShapes(psf, stars, logger=logger)
 
         # Only use stars for which hsm was successful

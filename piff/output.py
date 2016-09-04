@@ -145,10 +145,12 @@ class OutputFile(Output):
         :param logger:      A logger object for logging debug info. [default: None]
         """
         if logger:
-            logger.info("Writing PSF to %s", self.file_name)
+            logger.warning("Writing PSF to %s", self.file_name)
         ensure_dir(self.file_name)
-        psf.write(self.file_name)
+        psf.write(self.file_name, logger=logger)
 
+        if logger:
+            logger.debug("stats_list = %s",self.stats_list)
         for stats in self.stats_list:
             stats.compute(psf,psf.stars,logger=logger)
             stats.write(logger=logger)
@@ -161,6 +163,8 @@ class OutputFile(Output):
         :returns: a piff.PSF instance
         """
         import piff
+        if logger:
+            logger.info("Reading PSF from %s", self.file_name)
         piff.PSF.read(self.file_name)
 
 

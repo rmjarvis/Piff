@@ -131,7 +131,7 @@ class SimplePSF(PSF):
         nremoved = 0
         for iteration in range(max_iterations):
             if logger:
-                logger.info("Iteration %d: Fitting %d stars", iteration, len(self.stars))
+                logger.warning("Iteration %d: Fitting %d stars", iteration+1, len(self.stars))
 
             if quadratic_chisq:
                 self.stars = [self.model.chisq(s) for s in self.stars]
@@ -164,7 +164,7 @@ class SimplePSF(PSF):
             chisq = np.sum([s.fit.chisq for s in self.stars])
             dof   = np.sum([s.fit.dof for s in self.stars])
             if logger:
-                logger.info("             Total chisq = %.2f / %d dof", chisq, dof)
+                logger.warn("             Total chisq = %.2f / %d dof", chisq, dof)
 
             # Very simple convergence test here:
             # Note, the lack of abs here means if chisq increases, we also stop.
