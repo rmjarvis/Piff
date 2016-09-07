@@ -145,7 +145,7 @@ class Star(object):
 
     @classmethod
     def makeTarget(cls, x=None, y=None, u=None, v=None, properties={}, wcs=None, scale=None,
-                   stamp_size=48, flux=1.0, **kwargs):
+                   stamp_size=48, image=None, flux=1.0, **kwargs):
         """
         Make a target Star object with the requested properties.
 
@@ -170,6 +170,8 @@ class Star(object):
         :param wcs:         The requested WCS.  [optional]
         :param scale:       If wcs is None, you may instead provide a pixel scale. [default: None]
         :param stamp_size:  The size in each direction of the (blank) image. [default: 48]
+        :param image:       An existing image to use instead of making a new one, if desired.
+                            [default: None; this overrides stamp_size]
         :param flux:        The flux of the target star. [default: 1]
         :param **kwargs:    Additional properties can also be given as keyword arguments if that
                             is more conventient than populating the properties dict.
@@ -203,7 +205,8 @@ class Star(object):
             wcs = galsim.PixelScale(scale)
 
         # Make the blank image
-        image = galsim.Image(stamp_size, stamp_size, dtype=float)
+        if image is None:
+            image = galsim.Image(stamp_size, stamp_size, dtype=float)
 
         # Figure out the image_pos
         if x is None:
@@ -221,7 +224,8 @@ class Star(object):
 
         # Make the center of the image (close to) the image_pos
         image.setCenter(int(x+0.5), int(y+0.5))
-        image.wcs = wcs
+        if image.wcs is None:
+            image.wcs = wcs
 
         # Build the StarData instance
         data = StarData(image, image_pos, properties=properties)
