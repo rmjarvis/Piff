@@ -630,7 +630,17 @@ class PixelGrid(Model):
                 logger.debug("initial chisq = %s",chisq)
             beta = np.dot( derivs.T,rw)
             alpha = np.dot( derivs.T*weight, derivs)
-            df = np.linalg.solve(alpha, beta)
+            try:
+                df = np.linalg.solve(alpha, beta)
+            except Exception as e:
+                if do_center:
+                    if logger:
+                        logger.debug("Caught exception %s",e)
+                        logger.debug("Turning off centering and retrying")
+                    do_center = False
+                    continue
+                else:
+                    raise
             dchi = np.dot(beta, df)
             chisq = chisq - dchi
             if logger:

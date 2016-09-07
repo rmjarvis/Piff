@@ -147,19 +147,30 @@ class SimplePSF(PSF):
                 logger.debug("             Re-fluxing stars")
 
             if hasattr(self.model, 'reflux'):
-                self.stars = [self.model.reflux(self.interp.interpolate(s),logger=logger)
-                              for s in self.stars]
+                new_stars = []
+                for s in self.stars:
+                    try:
+                        new_star = self.model.reflux(self.interp.interpolate(s),logger=logger)
+                    except:
+                        if logger:
+                            logger.warn("Error trying to reflux star at %s.  Excluding it.",
+                                        s.image_pos)
+                        nremoved = nremoved + 1
+                    else:
+                        new_stars.append(new_star)
+                self.stars = new_stars
 
             if self.outliers and (iteration > 0 or not self.interp.degenerate_points):
                 # Perform outlier rejection, but not on first iteration for degenerate solvers.
                 if logger:
                     logger.debug("             Looking for outliers")
-                self.stars, nremoved = self.outliers.removeOutliers(self.stars, logger=logger)
+                self.stars, nremoved1 = self.outliers.removeOutliers(self.stars, logger=logger)
                 if logger:
-                    if nremoved == 0:
+                    if nremoved1 == 0:
                         logger.debug("             No outliers found")
                     else:
-                        logger.info("             Removed %d outliers", nremoved)
+                        logger.info("             Removed %d outliers", nremoved1)
+                nremoved = nremoved + nremoved1
 
             chisq = np.sum([s.fit.chisq for s in self.stars])
             dof   = np.sum([s.fit.dof for s in self.stars])
