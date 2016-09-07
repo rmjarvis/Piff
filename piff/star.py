@@ -347,6 +347,82 @@ class Star(object):
         stars = [ Star(d,f) for (d,f) in zip(data_list, fit_list) ]
         return stars
 
+    @staticmethod
+    def load_images(stars, file_name, image_hdu=None, weight_hdu=None, badpix_hdu=None,
+                    logger=None):
+        """Load the image data into a list of Stars.
+
+        We don't store the image data for Stars when we write them to a file, since that
+        would take up a lot of space and is usually not desired.  However, we do store the
+        bounds in the original image where the star was cutout, so if you want to load back in
+        the original data from the image file, you can do so with this function.
+
+        :param stars:           A list of Star instances.
+        :param file_name:       The file with the image data for these stars.
+        :param image_hdu:       The hdu to use for the main image. [default: None, which means
+                                either 0 or 1 as appropriate according to the compression.]
+        :param weight_hdu:      The hdu to use for the weight image. [default: None]
+        :param badpix_hdu:      The hdu to use for the bad pixel mask. [default: None]
+        :param logger:          A logger object for logging debug info. [default: None]
+
+        :returns: a new list of Stars with the images information loaded.
+        """
+        # TODO: This is largely copied from InputHandler.readImages.
+        #       This should probably be refactored a bit to avoid the duplicated code.
+        if logger:
+            logger.info("Loading image information from file %s",file_name)
+        image = galsim.fits.read(file_name, hdu=image_hdu)
+
+        # Either read in the weight image, or build a dummy one
+        if weight_hdu is None:
+            if logger:
+                logger.debug("Making trivial (wt==1) weight image")
+            weight = galsim.ImageI(image.bounds, init_value=1)
+        else:
+            if logger:
+                logger.info("Reading weight image from hdu %d.", weight_hdu)
+            weight = galsim.fits.read(file_name, hdu=weight_hdu)
+            if np.all(weight.array == 0):
+                logger.error("According to the weight mask in %s, all pixels have zero weight!",
+                             file_name)
+
+        # If requested, set wt=0 for any bad pixels
+        if badpix_hdu is not None:
+            if logger:
+                logger.info("Reading badpix image from hdu %d.", badpix_hdu)
+            badpix = galsim.fits.read(file_name, hdu=badpix_hdu)
+            # The badpix image may be offset by 32768 from the true value.
+            # If so, subtract it off.
+            if np.any(badpix.array > 32767):
+                if logger:
+                    logger.debug('min(badpix) = %s',np.min(badpix.array))
+                    logger.debug('max(badpix) = %s',np.max(badpix.array))
+                    logger.debug("subtracting 32768 from all values in badpix image")
+                badpix -= 32768
+            if np.any(badpix.array < -32767):
+                if logger:
+                    logger.debug('min(badpix) = %s',np.min(badpix.array))
+                    logger.debug('max(badpix) = %s',np.max(badpix.array))
+                    logger.debug("adding 32768 to all values in badpix image")
+                badpix += 32768
+            # Also, convert to int16, in case it isn't by default.
+            badpix = galsim.ImageS(badpix)
+            if np.all(badpix.array != 0):
+                logger.error("According to the bad pixel array in %s, all pixels are masked!",
+                                file_name)
+            weight.array[badpix.array != 0] = 0
+
+        stars = [ Star(data = StarData(image=image[star.data.image.bounds],
+                                       image_pos=star.data.image_pos,
+                                       weight=weight[star.data.image.bounds],
+                                       pointing=star.data.pointing,
+                                       values_are_sb=star.data.values_are_sb,
+                                       properties=star.data.properties),
+                       fit = star.fit)
+                  for star in stars ]
+        return stars
+
+
     def offset_to_center(self, offset):
         """A utility routine to convert from an offset in image coordinates to the corresponding
         center position in focal plane coordinates on the postage stamp image.
