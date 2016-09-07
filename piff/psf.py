@@ -21,10 +21,7 @@ from __future__ import print_function
 import numpy as np
 import fitsio
 
-from .star import Star, StarFit, StarData
-from .model import Model
-from .interp import Interp
-from .outliers import Outliers
+from .star import Star, StarData
 from .util import write_kwargs, read_kwargs
 
 class PSF(object):
