@@ -191,6 +191,7 @@ class Input(object):
             fname = self.cat_files[i]
             if logger:
                 logger.info("Processing catalog %s with %d stars",fname,len(cat))
+            nstars_in_image = 0
             for k in range(len(cat)):
                 x = cat[self.x_col][k]
                 y = cat[self.y_col][k]
@@ -218,11 +219,20 @@ class Input(object):
                 wt_stamp = wt[bounds]
                 # if a star is totally masked, then don't add it!
                 if np.all(wt_stamp.array == 0):
+                    if logger:
+                        logger.warning("Star at position %f,%f is completely masked."%(x,y))
+                        logger.warning("Skipping this star.")
                     continue
                 pos = galsim.PositionD(x,y)
                 data = piff.StarData(stamp, pos, weight=wt_stamp, pointing=self.pointing,
                                      properties=props)
                 stars.append(piff.Star(data, None))
+
+                nstars_in_image += 1
+                if self.nstars is not None and nstars_in_image >= self.nstars:
+                    if logger:
+                        logger.info("Reached limit of %d stars in image %d",self.nstars,i)
+                    break
         if logger:
             logger.warning("Read a total of %d stars from %d image%s",len(stars),len(self.images),
                            "s" if len(self.images) > 1 else "")
@@ -247,7 +257,8 @@ class InputFiles(Input):
                  dir=None, image_dir=None, cat_dir=None,
                  x_col='x', y_col='y', sky_col=None, flag_col=None, use_col=None,
                  image_hdu=None, weight_hdu=None, badpix_hdu=None, cat_hdu=1,
-                 stamp_size=32, ra=None, dec=None, gain=None, logger=None):
+                 stamp_size=32, ra=None, dec=None, gain=None,
+                 nstars=None, logger=None):
         """
         There are a number of ways to specify the input files (parameters `images` and `cats`):
 
@@ -314,6 +325,7 @@ class InputFiles(Input):
                             :setPointing: for details about how this can be specified]
         :param gain:        The gain to use for adding Poisson noise to the weight map.
                             [default: None]
+        :param nstars:      Stop reading the input file at this many stars. [default: None]
         :param logger:      A logger object for logging debug info. [default: None]
         """
         if image_dir is None: image_dir = dir
@@ -386,6 +398,7 @@ class InputFiles(Input):
         self.ra = ra
         self.dec = dec
         self.gain = gain
+        self.nstars = nstars
         self.pointing = None
 
     def _get_file_list(self, s, d, chipnums, logger):
