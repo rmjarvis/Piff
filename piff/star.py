@@ -210,17 +210,20 @@ class Star(object):
 
         # Figure out the image_pos
         if x is None:
-            world_pos = galsim.PositionD(u,v)
-            image_pos = wcs.toImage(world_pos)
+            field_pos = galsim.PositionD(u,v)
+            image_pos = wcs.toImage(field_pos)
             x = image_pos.x
             y = image_pos.y
         else:
             image_pos = galsim.PositionD(x,y)
 
         # Make wcs locally accurate affine transformation
-        if x is not None and u is not None:
-            world_pos = galsim.PositionD(u,v)
-            wcs = wcs.local(image_pos).withOrigin(image_pos, world_pos)
+        if x is not None:
+            if u is not None:
+                field_pos = galsim.PositionD(u,v)
+                wcs = wcs.local(image_pos).withOrigin(image_pos, field_pos)
+            else:
+                field_pos = None
 
         # Make the center of the image (close to) the image_pos
         image.setCenter(int(x+0.5), int(y+0.5))
@@ -228,7 +231,7 @@ class Star(object):
             image.wcs = wcs
 
         # Build the StarData instance
-        data = StarData(image, image_pos, properties=properties)
+        data = StarData(image, image_pos, field_pos=field_pos, properties=properties)
         fit = StarFit(None, flux=flux, center=(0.,0.))
         return cls(data, fit)
 
@@ -560,13 +563,15 @@ class StarData(object):
                         But it should be the same for all StarData objects in the exposure.
                         This is required if image.wcs is a CelestialWCS, but should be None
                         if image.wcs is a EuclideanWCS. [default: None]
+    :param field_pos:   Optionally provide the field_pos directly, rather than calculating it from
+                        the wcs and a pointing. [default: None]
     :param properties:  A dict containing other properties about the star that might be of
                         interest. [default: None]
     :param values_are_sb: True if pixel data give surface brightness, False if they're flux
                           [default: False]
     """
-    def __init__(self, image, image_pos, weight=None, pointing=None, values_are_sb=False,
-                 properties=None, logger=None, _xyuv_set=False):
+    def __init__(self, image, image_pos, weight=None, pointing=None, field_pos=None,
+                 values_are_sb=False, properties=None, logger=None, _xyuv_set=False):
         import galsim
         # Save all of these as attributes.
         self.image = image
@@ -591,7 +596,10 @@ class StarData(object):
             self.properties = properties
 
         self.pointing = pointing
-        self.field_pos = self.calculateFieldPos(image_pos, image.wcs, pointing, self.properties)
+        if field_pos is None:
+            self.field_pos = self.calculateFieldPos(image_pos, image.wcs, pointing, self.properties)
+        else:
+            self.field_pos = field_pos
         self.pixel_area = self.local_wcs.pixelArea()
 
         # Make sure the user didn't provide their own x,y,u,v in properties.
@@ -727,6 +735,7 @@ class StarData(object):
                         image_pos=self.image_pos,
                         weight=self.weight,
                         pointing=self.pointing,
+                        field_pos=self.field_pos,
                         values_are_sb=self.values_are_sb,
                         properties=self.properties,
                         _xyuv_set=True)
