@@ -767,6 +767,7 @@ def test_single_image():
         np.testing.assert_almost_equal(test_star.image.array, test_im.array, decimal=3)
 
     # Test using the piffify executable
+    config['verbose'] = 0
     with open('pixel_moffat.yaml','w') as f:
         f.write(yaml.dump(config, default_flow_style=False))
     if __name__ == '__main__':
@@ -933,6 +934,7 @@ def test_des_image():
         np.testing.assert_almost_equal(fit_stamp.array/flux, orig_stamp.array/flux, decimal=2)
 
     # Test using the piffify executable
+    config['verbose'] = 0
     with open('pixel_des.yaml','w') as f:
         f.write(yaml.dump(config, default_flow_style=False))
     if __name__ == '__main__':
