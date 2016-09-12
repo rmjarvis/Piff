@@ -369,7 +369,7 @@ class Star(object):
 
     @staticmethod
     def load_images(stars, file_name, pointing=None,
-                    image_hdu=None, weight_hdu=None, badpix_hdu=None,
+                    image_hdu=None, weight_hdu=None, badpix_hdu=None, sky=None,
                     logger=None):
         """Load the image data into a list of Stars.
 
@@ -385,6 +385,8 @@ class Star(object):
                                 either 0 or 1 as appropriate according to the compression.]
         :param weight_hdu:      The hdu to use for the weight image. [default: None]
         :param badpix_hdu:      The hdu to use for the bad pixel mask. [default: None]
+        :param sky:             Optional sky image or float value to subtract from the main
+                                image. [default: None]
         :param logger:          A logger object for logging debug info. [default: None]
 
         :returns: a new list of Stars with the images information loaded.
@@ -395,6 +397,9 @@ class Star(object):
         if logger:
             logger.info("Loading image information from file %s",file_name)
         image = galsim.fits.read(file_name, hdu=image_hdu)
+
+        if sky is not None:
+            image = image - sky
 
         # Either read in the weight image, or build a dummy one
         if weight_hdu is None:

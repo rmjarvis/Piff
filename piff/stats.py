@@ -155,6 +155,9 @@ class Stats(object):
         if logger:
             logger.debug("Measuring shapes of real stars")
         shapes_truth = np.array([ self.hsm(star) for star in stars ])
+        for star, shape in zip(stars, shapes_truth):
+            if logger:
+                logger.debug("real shape for star at %s is %s",star.image_pos, shape)
 
         # Pull out the positions to return
         positions = np.array([ (star.data.properties['u'], star.data.properties['v'])
@@ -164,6 +167,9 @@ class Stats(object):
         if logger:
             logger.debug("Generating and Measuring Model Stars")
         shapes_model = np.array([ self.hsm(psf.drawStar(star)) for star in stars ])
+        for star, shape in zip(stars, shapes_model):
+            if logger:
+                logger.debug("model shape for star at %s is %s",star.image_pos, shape)
 
         return positions, shapes_truth, shapes_model
 
