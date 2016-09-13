@@ -67,6 +67,8 @@ class Star(object):
         star.u          The u position of the star in field coordinates
         star.v          The v position of the star in field coordinates
         star.chipnum    The chip number where this star was observed (or would be observed)
+        star.flux       The flux of the object
+        star.center     The nominal center of the object (not necessarily the centroid)
     """
     def __init__(self, data, fit):
         """Constructor for Star instance.
@@ -133,15 +135,26 @@ class Star(object):
 
     @property
     def u(self):
-        return self.data.image_pos.u
+        return self.data.field_pos.x
 
     @property
     def v(self):
-        return self.data.image_pos.v
+        return self.data.field_pos.y
 
     @property
     def chipnum(self):
-        return self.data.image_pos.chipnum
+        if 'chipnum' in self.data.properties:
+            return self.data.properties['chipnum']
+        else:
+            return 0
+
+    @property
+    def flux(self):
+        return self.fit.flux
+
+    @property
+    def center(self):
+        return self.fit.center
 
     @classmethod
     def makeTarget(cls, x=None, y=None, u=None, v=None, properties={}, wcs=None, scale=None,
