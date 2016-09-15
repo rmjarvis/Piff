@@ -207,3 +207,64 @@ class Kolmogorov(Model):
         image = prof.drawImage(star.image.copy(), method='no_pixel', offset=offset)
         data = StarData(image, star.image_pos, star.weight, star.data.pointing)
         return Star(data, star.fit)
+
+    def reflux(self, star, fit_center=True, logger=None):
+        """Fit the Model to the star's data, varying only the flux (and
+        center, if it is free).  Flux and center are updated in the Star's
+        attributes.  This is a single-step solution if only solving for flux,
+        otherwise an iterative operation.  DOF in the result assume
+        only flux (& center) are free parameters.
+
+        :param star:        A Star instance
+        :param fit_center:  If False, disable any motion of center
+        :param logger:      A logger object for logging debug info. [default: None]
+
+        :returns:           New Star instance, with updated flux, center, chisq, dof, worst
+        """
+        if logger:
+            logger.debug("Reflux for star:")
+            logger.debug("    flux = %s",star.fit.flux)
+            logger.debug("    center = %s",star.fit.center)
+            logger.debug("    props = %s",star.data.properties)
+            logger.debug("    image = %s",star.data.image)
+            #logger.debug("    image = %s",star.data.image.array)
+            #logger.debug("    weight = %s",star.data.weight.array)
+            logger.debug("    image center = %s",star.data.image(star.data.image.center()))
+            logger.debug("    weight center = %s",star.data.weight(star.data.weight.center()))
+
+        if fit_center:
+            import lmfit
+
+            params = lmfit.Parameters()
+            # Order is important for params!
+            params.add('flux', value=star.fit.flux)
+            params.add('cenx', value=star.fit.center[0])
+            params.add('ceny', value=star.fit.center[1])
+            params.add('fwhm', value=star.fit.params[0], vary=False)
+            params.add('g1', value=star.fit.params[1], vary=False)
+            params.add('g2', value=star.fit.params[2], vary=False)
+            import time
+            t0 = time.time()
+            if logger:
+                logger.debug("Start lmfit.")
+            results = lmfit.minimize(self.lmfit_resid, params, args=(star,))
+            if logger:
+                logger.debug("End lmfit.  {0} sec elapsed.".format(time.time()-t0))
+            return Star(star.data, StarFit(star.fit.params,
+                                           flux = results.params['flux'].value,
+                                           center = np.array([results.params['cenx'].value,
+                                                              results.params['ceny'].value]),
+                                           chisq = results.chisq,
+                                           alpha = star.fit.alpha,
+                                           beta = star.fit.beta))
+        else:
+            image, weight, image_pos = star.data.getImage()
+            model_image = self.draw(star).image
+            flux = np.sum(weight*image*model_image) / np.sum(weight*model_image*model_image)
+            chisq = np.sum(weight * (image - flux*model_image)**2)
+            return Star(star.data, StarFit(star.fit.params,
+                                           flux = flux,
+                                           center = star.fit.center,
+                                           chisq = chisq,
+                                           alpha = star.fit.alpha,
+                                           beta = star.fit.beta))
