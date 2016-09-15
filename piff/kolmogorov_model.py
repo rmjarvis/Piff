@@ -64,46 +64,74 @@ class Kolmogorov(Model):
         return (flux, center.x, center.y, fwhm, shape.g1, shape.g2, flag)
 
     @staticmethod
-    def lmfit(star):
+    def lmfit_resid(params, star):
+        """Residual function to use with lmfit.  Essentially `chi` from `chisq`.
+        :param params:  An lmfit.Parameters() instance
+        :param star:    A Star instance
+
+        :returns: (flux, cenx, ceny, fwhm, g1, g2, flag)
+        """
+        import galsim
+        image, weight, image_pos = star.data.getImage()
+        prof = galsim.Kolmogorov(fwhm=params['fwhm'].value)
+        prof *= params['flux'].value
+        prof = prof.shear(g1=params['g1'].value, g2=params['g2'].value)
+        # cenx and ceny are in image coords; need to convert
+        prof = prof.shift(
+            image.wcs.toWorld(
+                galsim.PositionD(
+                    params['cenx'].value - image.trueCenter().x,
+                    params['ceny'].value - image.trueCenter().y)))
+        model = prof.drawImage(image=image.copy(), method='no_pixel')
+        return (weight.array*(model.array - image.array)).ravel()
+
+    @staticmethod
+    def lmfit_params(flux, cenx, ceny, fwhm, g1, g2,
+                     vary_params=True, vary_flux=True, vary_center=True):
+        """Generate an lmfit.Parameters() instance from arguments.
+
+        :param flux:
+        :param cenx:
+        :param ceny:
+        :param fwhm:
+        :param g1:
+        :param g2:
+        :param vary_params:  Allow non-flux and non-center params to vary?
+        :param vary_flux:  Allow flux to vary?
+        :param vary_center:  Allow center to vary?
+
+        :returns: lmfit.Parameters() instance.
+        """
+        import lmfit
+        params = lmfit.Parameters()
+        # Order of params is important!
+        params.add('flux', value=flux, vary=vary_flux)
+        params.add('cenx', value=cenx, vary=vary_center)
+        params.add('ceny', value=ceny, vary=vary_center)
+        params.add('fwhm', value=fwhm, vary=vary_params)
+        params.add('g1', value=g1, vary=vary_params)
+        params.add('g2', value=g2, vary=vary_params)
+        return params
+
+    @classmethod
+    def lmfit(cls, star):
         """Fit parameters of the given star using lmfit.
 
         :param star:    A Star instance
 
         :returns: (flux, cenx, ceny, sigma, g1, g2, flag)
         """
-        import galsim
         import lmfit
 
-        image, weight, image_pos = star.data.getImage()
-
-        def resid(params):
-            prof = galsim.Kolmogorov(fwhm=params['fwhm'].value)
-            prof *= params['flux'].value
-            prof = prof.shear(g1=params['g1'].value, g2=params['g2'].value)
-            # cenx and ceny are in image coords; need to convert
-            prof = prof.shift(
-                image.wcs.toWorld(
-                    galsim.PositionD(
-                        params['cenx'].value - image.trueCenter().x,
-                        params['ceny'].value - image.trueCenter().y)))
-            model = prof.drawImage(image=image.copy(), method='no_pixel')
-            return (weight.array*(model.array - image.array)).ravel()
-
         flux, cenx, ceny, fwhm, g1, g2, flag = Kolmogorov.hsm(star)
-        params = lmfit.Parameters()
-        # Order is important for params!
-        params.add('flux', value=flux)
-        params.add('cenx', value=cenx)
-        params.add('ceny', value=ceny)
-        params.add('fwhm', value=fwhm)
-        params.add('g1', value=g1)
-        params.add('g2', value=g2)
+        params = cls.lmfit_params(flux, cenx, ceny, fwhm, g1, g2)
+
         import time
         t0 = time.time()
-        print("Start lmfit")
-        results = lmfit.minimize(resid, params)
+        print("Start lmfit.")
+        results = lmfit.minimize(cls.lmfit_resid, params, args=(star,))
         print("End lmfit.  {0} sec elapsed.".format(time.time()-t0))
-        return results.params.valuesdict().values() + [0]
+        return results.params.valuesdict().values() + [0 if results.success else 1]
 
     def initialize(self, star, mask=True, logger=None):
         """Initialize a star to work with the current model.
@@ -124,7 +152,7 @@ class Kolmogorov(Model):
         # stars need to have initial fit params
         return self.fit(star)
 
-    def fit(self, star):
+    def fit(self, star, logger=None):
         """Fit the image by ...
 
         :param star:    A Star instance
@@ -136,7 +164,7 @@ class Kolmogorov(Model):
         if self._fastfit:
             flux, cenx, ceny, fwhm, g1, g2, flag = self.hsm(star)
         else:
-            flux, cenx, ceny, fwhm, g1, g2, flag = self.lmfit(star)
+            flux, cenx, ceny, fwhm, g1, g2, flag = self.lmfit(star, logger=logger)
 
         # Make a StarFit object with these parameters
         params = np.array([ fwhm, g1, g2 ])
