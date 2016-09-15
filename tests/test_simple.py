@@ -101,8 +101,8 @@ def test_Kolmogorov():
     stardata = piff.StarData(image, image.trueCenter())
     star = piff.Star(stardata, None)
 
-    # Fit the model from the image
-    model = piff.Kolmogorov()
+    # First try fastfit.
+    model = piff.Kolmogorov(fastfit=True)
     fit = model.fit(star).fit
 
     print('True fwhm = ',fwhm,', model fwhm = ',fit.params[0])
@@ -116,6 +116,22 @@ def test_Kolmogorov():
     np.testing.assert_allclose(fit.params[0], fwhm, rtol=1e-2)
     np.testing.assert_almost_equal(fit.params[1], g1, decimal=3)
     np.testing.assert_almost_equal(fit.params[2], g2, decimal=3)
+
+    # Now try fastfit=False and up the accuracy requirements.
+    model = piff.Kolmogorov(fastfit=False)
+    fit = model.fit(star).fit
+
+    print('True fwhm = ',fwhm,', model fwhm = ',fit.params[0])
+    print('True g1 = ',g1,', model g1 = ',fit.params[1])
+    print('True g2 = ',g2,', model g2 = ',fit.params[2])
+
+    # This test is fairly accurate, since we didn't add any noise and didn't convolve by
+    # the pixel, so the image is very accurately a sheared Kolmogorov.  Only wrinkle is that
+    # HSM is adapted to Gaussians, not Kolmogorovs, so the requirements aren't as strict as
+    # for Gaussian.
+    np.testing.assert_almost_equal(fit.params[0], fwhm, decimal=5)
+    np.testing.assert_almost_equal(fit.params[1], g1, decimal=5)
+    np.testing.assert_almost_equal(fit.params[2], g2, decimal=5)
 
     # Now test running it via the config parser
     config = {

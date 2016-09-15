@@ -25,7 +25,8 @@ from .star import Star, StarFit, StarData
 class Kolmogorov(Model):
     """An extremely simple PSF model that just considers the PSF as a sheared Kolmogorov.
     """
-    def __init__(self, logger=None):
+    def __init__(self, logger=None, fastfit=True):
+        self._fastfit = fastfit
         self.kwargs = {}
 
     @staticmethod
@@ -40,7 +41,7 @@ class Kolmogorov(Model):
         image, weight, image_pos = star.data.getImage()
         mom = image.FindAdaptiveMom(weight=weight, strict=False)
 
-        fwhm = mom.moments_sigma /0.4519  # Magic number to convert sigma -> FWHM for a Kolmogorov
+        fwhm = mom.moments_sigma / 0.4519  # Magic number to convert sigma -> FWHM for a Kolmogorov
         shape = mom.observed_shape
         # These are in pixel coordinates.  Need to convert to world coords.
         jac = image.wcs.jacobian(image_pos=image_pos)
@@ -61,6 +62,48 @@ class Kolmogorov(Model):
         flag = mom.moments_status
 
         return (flux, center.x, center.y, fwhm, shape.g1, shape.g2, flag)
+
+    @staticmethod
+    def lmfit(star):
+        """Fit parameters of the given star using lmfit.
+
+        :param star:    A Star instance
+
+        :returns: (flux, cenx, ceny, sigma, g1, g2, flag)
+        """
+        import galsim
+        import lmfit
+
+        image, weight, image_pos = star.data.getImage()
+
+        def resid(params):
+            prof = galsim.Kolmogorov(fwhm=params['fwhm'].value)
+            prof *= params['flux'].value
+            prof = prof.shear(g1=params['g1'].value, g2=params['g2'].value)
+            # cenx and ceny are in image coords; need to convert
+            prof = prof.shift(
+                image.wcs.toWorld(
+                    galsim.PositionD(
+                        params['cenx'].value - image.trueCenter().x,
+                        params['ceny'].value - image.trueCenter().y)))
+            model = prof.drawImage(image=image.copy(), method='no_pixel')
+            return (weight.array*(model.array - image.array)).ravel()
+
+        flux, cenx, ceny, fwhm, g1, g2, flag = Kolmogorov.hsm(star)
+        params = lmfit.Parameters()
+        # Order is important for params!
+        params.add('flux', value=flux)
+        params.add('cenx', value=cenx)
+        params.add('ceny', value=ceny)
+        params.add('fwhm', value=fwhm)
+        params.add('g1', value=g1)
+        params.add('g2', value=g2)
+        import time
+        t0 = time.time()
+        print("Start lmfit")
+        results = lmfit.minimize(resid, params)
+        print("End lmfit.  {0} sec elapsed.".format(time.time()-t0))
+        return results.params.valuesdict().values() + [0]
 
     def initialize(self, star, mask=True, logger=None):
         """Initialize a star to work with the current model.
@@ -90,7 +133,10 @@ class Kolmogorov(Model):
         """
         import galsim
 
-        flux, cenx, ceny, fwhm, g1, g2, flag = self.hsm(star)
+        if self._fastfit:
+            flux, cenx, ceny, fwhm, g1, g2, flag = self.hsm(star)
+        else:
+            flux, cenx, ceny, fwhm, g1, g2, flag = self.lmfit(star)
 
         # Make a StarFit object with these parameters
         params = np.array([ fwhm, g1, g2 ])
