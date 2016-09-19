@@ -132,12 +132,12 @@ class Kolmogorov(Model):
 
         params = lmfit.Parameters()
         # Order of params is important!
-        params.add('flux', value=flux, vary=vary_flux)
+        params.add('flux', value=flux, vary=vary_flux, min=0.0)
         params.add('cenu', value=cenu, vary=vary_center)
         params.add('cenv', value=cenv, vary=vary_center)
-        params.add('fwhm', value=fwhm, vary=vary_params)
-        params.add('g1', value=g1, vary=vary_params)
-        params.add('g2', value=g2, vary=vary_params)
+        params.add('fwhm', value=fwhm, vary=vary_params, min=0.0)
+        params.add('g1', value=g1, vary=vary_params, min=-0.7, max=0.7)
+        params.add('g2', value=g2, vary=vary_params, min=-0.7, max=0.7)
         return params
 
     @classmethod
