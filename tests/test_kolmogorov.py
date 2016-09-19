@@ -293,8 +293,167 @@ def test_missing():
     np.testing.assert_almost_equal(s1.image.array/peak, s0.image.array/peak, decimal=1)
 
 
+def test_gradient():
+    """Next: fit spatially-varying PSF to multiple images.
+    """
+    mod = piff.Kolmogorov()
+
+    # Interpolator will be linear
+    interp = piff.Polynomial(order=1)
+
+    # Draw stars on a 2d grid of "focal plane" with 0<=u,v<=1
+    positions = np.linspace(0.,1.,4)
+    influx = 150.
+    stars = []
+    np.random.seed(1234)
+    rng = galsim.BaseDeviate(1234)
+    for u in positions:
+        # Put gradient in pixel size
+        for v in positions:
+            # Draw stars in focal plane positions around a unit ring
+            # spatially-varying fwhm, g1, g2.
+            s = make_kolmogorov_data(1.0+u*0.1+0.1*v, 0.1*u, 0.1*v, 0.5*u, 0.5*v, influx,
+                                     noise=0.1, du=0.5, fpu=u, fpv=v, rng=rng)
+            s = mod.initialize(s)
+            stars.append(s)
+
+    # import matplotlib.pyplot as plt
+    # fig, axes = plt.subplots(4, 4)
+    # for star, ax in zip(stars, axes.ravel()):
+    #     ax.imshow(star.data.image.array)
+    # plt.show()
+
+    # Also store away a noiseless copy of the PSF, origin of focal plane
+    s0 = make_kolmogorov_data(1.0, 0., 0., 0., 0., influx, du=0.5)
+    s0 = mod.initialize(s0)
+
+    # Polynomial doesn't need this, but it should work nonetheless.
+    interp.initialize(stars)
+
+    oldchisq = 0.
+    # Iterate solution using interpolator
+    for iteration in range(40):
+        # Refit PSFs star by star:
+        for i,s in enumerate(stars):
+            stars[i] = mod.fit(s)
+        # Run the interpolator
+        interp.solve(stars)
+        # Install interpolator solution into each
+        # star, recalculate flux, report chisq
+        chisq = 0.
+        dof = 0
+        for i,s in enumerate(stars):
+            s = interp.interpolate(s)
+            s = mod.reflux(s)
+            chisq += s.fit.chisq
+            dof += s.fit.dof
+            stars[i] = s
+            ###print('   chisq=',s.fit.chisq, 'dof=',s.fit.dof)
+        print('iteration',iteration,'chisq=',chisq, 'dof=',dof)
+        if oldchisq>0 and np.abs(oldchisq-chisq) < dof/10.:
+            break
+        else:
+            oldchisq = chisq
+
+    for i, s in enumerate(stars):
+        print(i, s.fit.center)
+
+    # Now use the interpolator to produce a noiseless rendering
+    s1 = interp.interpolate(s0)
+    s1 = mod.reflux(s1)
+    print('Flux, ctr, chisq after interpolation: ',s1.fit.flux, s1.fit.center, s1.fit.chisq)
+    # Less than 2 dp of accuracy here!
+    np.testing.assert_almost_equal(s1.fit.flux/influx, 1.0, decimal=1)
+
+    s1 = mod.draw(s1)
+    print('max image abs diff = ',np.max(np.abs(s1.image.array-s0.image.array)))
+    print('max image abs value = ',np.max(np.abs(s0.image.array)))
+    peak = np.max(np.abs(s0.image.array))
+    np.testing.assert_almost_equal(s1.image.array/peak, s0.image.array/peak, decimal=1)
+
+
+def test_gradient_center():
+    """Next: fit spatially-varying PSF, with spatially-varying centers to multiple images.
+    """
+    mod = piff.Kolmogorov(force_model_center=False)
+
+    # Interpolator will be linear
+    interp = piff.Polynomial(order=1)
+
+    # Draw stars on a 2d grid of "focal plane" with 0<=u,v<=1
+    positions = np.linspace(0.,1.,4)
+    influx = 150.
+    stars = []
+    np.random.seed(1234)
+    rng = galsim.BaseDeviate(1234)
+    for u in positions:
+        # Put gradient in pixel size
+        for v in positions:
+            # Draw stars in focal plane positions around a unit ring
+            # spatially-varying fwhm, g1, g2.
+            s = make_kolmogorov_data(1.0+u*0.1+0.1*v, 0.1*u, 0.1*v, 0.5*u, 0.5*v,
+                                     influx, noise=0.1, du=0.5, fpu=u, fpv=v, rng=rng)
+            s = mod.initialize(s)
+            stars.append(s)
+
+    # import matplotlib.pyplot as plt
+    # fig, axes = plt.subplots(4, 4)
+    # for star, ax in zip(stars, axes.ravel()):
+    #     ax.imshow(star.data.image.array)
+    # plt.show()
+
+    # Also store away a noiseless copy of the PSF, origin of focal plane
+    s0 = make_kolmogorov_data(1.0, 0., 0., 0., 0., influx, du=0.5)
+    s0 = mod.initialize(s0)
+
+    # Polynomial doesn't need this, but it should work nonetheless.
+    interp.initialize(stars)
+
+    oldchisq = 0.
+    # Iterate solution using interpolator
+    for iteration in range(40):
+        # Refit PSFs star by star:
+        for i,s in enumerate(stars):
+            stars[i] = mod.fit(s)
+        # Run the interpolator
+        interp.solve(stars)
+        # Install interpolator solution into each
+        # star, recalculate flux, report chisq
+        chisq = 0.
+        dof = 0
+        for i,s in enumerate(stars):
+            s = interp.interpolate(s)
+            s = mod.reflux(s)
+            chisq += s.fit.chisq
+            dof += s.fit.dof
+            stars[i] = s
+            ###print('   chisq=',s.fit.chisq, 'dof=',s.fit.dof)
+        print('iteration',iteration,'chisq=',chisq, 'dof=',dof)
+        if oldchisq>0 and np.abs(oldchisq-chisq) < dof/10.:
+            break
+        else:
+            oldchisq = chisq
+
+    for i, s in enumerate(stars):
+        print(i, s.fit.center, s.fit.params[0:2])
+
+    # Now use the interpolator to produce a noiseless rendering
+    s1 = interp.interpolate(s0)
+    s1 = mod.reflux(s1)
+    print('Flux, ctr, chisq after interpolation: ',s1.fit.flux, s1.fit.center, s1.fit.chisq)
+    # Less than 2 dp of accuracy here!
+    np.testing.assert_almost_equal(s1.fit.flux/influx, 1.0, decimal=1)
+
+    s1 = mod.draw(s1)
+    print('max image abs diff = ',np.max(np.abs(s1.image.array-s0.image.array)))
+    print('max image abs value = ',np.max(np.abs(s0.image.array)))
+    peak = np.max(np.abs(s0.image.array))
+    np.testing.assert_almost_equal(s1.image.array/peak, s0.image.array/peak, decimal=1)
+
 if __name__ == '__main__':
     test_simple()
     test_center()
     test_interp()
     test_missing()
+    test_gradient()
+    test_gradient_center()
