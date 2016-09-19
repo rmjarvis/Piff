@@ -234,7 +234,7 @@ class Kolmogorov(Model):
     def initialize(self, star, logger=None):
         if star.fit.params is None:
             star = self.fit(star, fastfit=True)
-        star = self.reflux(star)
+        star = self.reflux(star, fit_center=False)
         return star
 
     def reflux(self, star, fit_center=True, logger=None):
@@ -269,18 +269,19 @@ class Kolmogorov(Model):
                                            center = (results.params['cenu'].value,
                                                      results.params['cenv'].value),
                                            chisq = results.chisqr,
-                                           dof = np.count_nonzero(star.data.weight) - 3,
+                                           dof = np.count_nonzero(star.data.weight.array) - 3,
                                            alpha = star.fit.alpha,
                                            beta = star.fit.beta))
         else:
             image, weight, image_pos = star.data.getImage()
             model_image = self.draw(star).image
-            new_flux = np.sum(weight*image*model_image) / np.sum(weight*model_image*model_image)
-            new_chisq = np.sum(weight * (image - new_flux*model_image)**2)
+            new_flux = (np.sum(weight.array * image.array * model_image.array)
+                        / np.sum(weight.array * model_image.array**2))
+            new_chisq = np.sum(weight.array * (image.array - new_flux*model_image.array)**2)
             return Star(star.data, StarFit(star.fit.params,
                                            flux = new_flux,
                                            center = star.fit.center,
                                            chisq = new_chisq,
-                                           dof = np.count_nonzero(weight) - 1,
+                                           dof = np.count_nonzero(weight.array) - 1,
                                            alpha = star.fit.alpha,
                                            beta = star.fit.beta))
