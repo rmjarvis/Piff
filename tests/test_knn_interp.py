@@ -148,6 +148,7 @@ def test_yaml():
     }
 
     # using piffify executable
+    config['verbose'] = 0
     with open('knn.yaml','w') as f:
         f.write(yaml.dump(config, default_flow_style=False))
     piffify_exe = get_script_name('piffify')

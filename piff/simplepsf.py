@@ -128,7 +128,6 @@ class SimplePSF(PSF):
 
         # Begin iterations.  Very simple convergence criterion right now.
         oldchisq = 0.
-        nremoved = 0
         for iteration in range(max_iterations):
             if logger:
                 logger.warning("Iteration %d: Fitting %d stars", iteration+1, len(self.stars))
@@ -146,6 +145,7 @@ class SimplePSF(PSF):
             if logger:
                 logger.debug("             Re-fluxing stars")
 
+            nremoved = 0
             if hasattr(self.model, 'reflux'):
                 new_stars = []
                 for s in self.stars:

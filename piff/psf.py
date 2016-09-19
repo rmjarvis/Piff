@@ -156,7 +156,7 @@ class PSF(object):
                                                properties)
         u,v = world_pos.x, world_pos.y
 
-        # We always use the correct wcs above for world_pos, but in makeTarget, we allos the
+        # We always use the correct wcs above for world_pos, but in makeTarget, we allow the
         # user's image.wcs to override.
         if image is None or image.wcs is None:
             wcs = self.wcs[chipnum]
