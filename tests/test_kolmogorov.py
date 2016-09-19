@@ -161,6 +161,69 @@ def test_center():
     np.testing.assert_almost_equal(star2.image.array[mask]/peak, s.image.array[mask]/peak,
                                    decimal=2)
 
+def test_interp():
+    """First test of use with interpolator.  Make a bunch of noisy
+    versions of the same PSF, interpolate them with constant interp
+    to get an average PSF
+    """
+    mod = piff.Kolmogorov()
+    g1 = g2 = u0 = v0 = 0.0
+
+    # Interpolator will be simple mean
+    interp = piff.Polynomial(order=0)
+
+    # Draw stars on a 2d grid of "focal plane" with 0<=u,v<=1
+    positions = np.linspace(0.,1.,10.)
+    influx = 150.
+    stars = []
+    np.random.seed(1234)
+    rng = galsim.BaseDeviate(1234)
+    for u in positions:
+        for v in positions:
+            # Draw stars in focal plane positions around a unit ring
+            s = make_kolmogorov_data(1.0, g1, g2, u0, v0, influx, noise=0.1, du=0.5, fpu=u, fpv=v, rng=rng)
+            s = mod.initialize(s)
+            stars.append(s)
+
+    # Also store away a noiseless copy of the PSF, origin of focal plane
+    s0 = make_kolmogorov_data(1.0, g1, g2, u0, v0, influx, du=0.5)
+    s0 = mod.initialize(s0)
+
+    # Polynomial doesn't need this, but it should work nonetheless.
+    interp.initialize(stars)
+
+    # Iterate solution using interpolator
+    for iteration in range(3):
+        # Refit PSFs star by star:
+        for i,s in enumerate(stars):
+            stars[i] = mod.fit(s)
+        # Run the interpolator
+        interp.solve(stars)
+        # Install interpolator solution into each
+        # star, recalculate flux, report chisq
+        chisq = 0.
+        dof = 0
+        for i,s in enumerate(stars):
+            s = interp.interpolate(s)
+            s = mod.reflux(s)
+            chisq += s.fit.chisq
+            dof += s.fit.dof
+            stars[i] = s
+        print('iteration',iteration,'chisq=',chisq, 'dof=',dof)
+
+    # Now use the interpolator to produce a noiseless rendering
+    s1 = interp.interpolate(s0)
+    s1 = mod.reflux(s1)
+    print('Flux, ctr after interpolation: ',s1.fit.flux, s1.fit.center, s1.fit.chisq)
+    np.testing.assert_almost_equal(s1.fit.flux/influx, 1.0, decimal=2)
+
+    s1 = mod.draw(s1)
+    print('max image abs diff = ',np.max(np.abs(s1.image.array-s0.image.array)))
+    print('max image abs value = ',np.max(np.abs(s0.image.array)))
+    peak = np.max(np.abs(s0.image.array))
+    np.testing.assert_almost_equal(s1.image.array/peak, s0.image.array/peak, decimal=2)
+
 if __name__ == '__main__':
     test_simple()
     test_center()
+    test_interp()

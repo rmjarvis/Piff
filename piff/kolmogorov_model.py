@@ -27,7 +27,7 @@ class Kolmogorov(Model):
     parameters for full-width-half-maximum `fwhm`, the applied shear `g1` and `g2`, and optionally,
     centroid parameters `cenu` and `cenv`.
     """
-    def __init__(self, fastfit=True, force_model_center=True, logger=None):
+    def __init__(self, fastfit=False, force_model_center=True, logger=None):
         """A PSF modeled as a Kolmogorov profile.
 
         :param fastfit:  Use HSM moments for fitting.  Approximate, but fast.  [default: True]
