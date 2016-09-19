@@ -190,7 +190,8 @@ class Input(object):
             chipnum = self.chipnums[i]
             fname = self.cat_files[i]
             if logger:
-                logger.debug("Processing catalog %s with %d stars",fname,len(cat))
+                logger.info("Processing catalog %s with %d stars",fname,len(cat))
+            nstars_in_image = 0
             for k in range(len(cat)):
                 x = cat[self.x_col][k]
                 y = cat[self.y_col][k]
@@ -199,20 +200,57 @@ class Input(object):
                 half_size = self.stamp_size // 2
                 bounds = galsim.BoundsI(icen+half_size-self.stamp_size+1, icen+half_size,
                                         jcen+half_size-self.stamp_size+1, jcen+half_size)
+                if not image.bounds.includes(bounds):
+                    bounds = bounds & image.bounds
+                    if not bounds.isDefined():
+                        if logger:
+                            logger.warning("Star at position %f,%f is off the edge of the image."%(x,y))
+                            logger.warning("Skipping this star.")
+                        continue
+                    if logger:
+                        logger.info("Star at position %f,%f is near the edge of the image."%(x,y))
+                        logger.info("Using smaller than the full stamp size: %s"%bounds)
                 stamp = image[bounds]
                 props = { 'chipnum' : chipnum }
+                sky = None
                 if self.sky_col is not None:
                     sky = cat[self.sky_col][k]
+                elif self.sky is not None:
+                    if type(self.sky) in [float, int]:
+                        sky = float(self.sky)
+                    elif str(self.sky) != self.sky:
+                        raise ValueError("Unable to parse input sky: %s"%self.sky)
+                    else:
+                        file_name = self.image_files[0]
+                        fits = fitsio.FITS(file_name)
+                        hdu = 1 if file_name.endswith('.fz') else 0
+                        header = fits[hdu].read_header()
+                        sky = float(header[self.sky])
+                if sky is not None:
+                    if logger:
+                        logger.debug("Subtracting off sky = %f", sky)
                     stamp = stamp - sky  # Don't change the original!
                     props['sky'] = sky
                 wt_stamp = wt[bounds]
                 # if a star is totally masked, then don't add it!
                 if np.all(wt_stamp.array == 0):
+                    if logger:
+                        logger.warning("Star at position %f,%f is completely masked."%(x,y))
+                        logger.warning("Skipping this star.")
                     continue
                 pos = galsim.PositionD(x,y)
                 data = piff.StarData(stamp, pos, weight=wt_stamp, pointing=self.pointing,
                                      properties=props)
                 stars.append(piff.Star(data, None))
+
+                nstars_in_image += 1
+                if self.nstars is not None and nstars_in_image >= self.nstars:
+                    if logger:
+                        logger.info("Reached limit of %d stars in image %d",self.nstars,i)
+                    break
+        if logger:
+            logger.warning("Read a total of %d stars from %d image%s",len(stars),len(self.images),
+                           "s" if len(self.images) > 1 else "")
 
         return stars
 
@@ -234,7 +272,8 @@ class InputFiles(Input):
                  dir=None, image_dir=None, cat_dir=None,
                  x_col='x', y_col='y', sky_col=None, flag_col=None, use_col=None,
                  image_hdu=None, weight_hdu=None, badpix_hdu=None, cat_hdu=1,
-                 stamp_size=32, ra=None, dec=None, gain=None, logger=None):
+                 stamp_size=32, ra=None, dec=None, gain=None, sky=None, noise=None,
+                 nstars=None, logger=None):
         """
         There are a number of ways to specify the input files (parameters `images` and `cats`):
 
@@ -301,6 +340,10 @@ class InputFiles(Input):
                             :setPointing: for details about how this can be specified]
         :param gain:        The gain to use for adding Poisson noise to the weight map.
                             [default: None]
+        :param sky:         The sky level to subtract from the image values. [default: None]
+        :param noise:       Rather than a weight image, provide the noise variance in the image.
+                            (Useful for simulations where this is a known value.) [default: None]
+        :param nstars:      Stop reading the input file at this many stars. [default: None]
         :param logger:      A logger object for logging debug info. [default: None]
         """
         if image_dir is None: image_dir = dir
@@ -373,6 +416,9 @@ class InputFiles(Input):
         self.ra = ra
         self.dec = dec
         self.gain = gain
+        self.sky = sky
+        self.noise = noise
+        self.nstars = nstars
         self.pointing = None
 
     def _get_file_list(self, s, d, chipnums, logger):
@@ -462,7 +508,7 @@ class InputFiles(Input):
         self.images = []
         for fname in self.image_files:
             if logger:
-                logger.info("Reading image file %s",fname)
+                logger.warning("Reading image file %s",fname)
             self.images.append(galsim.fits.read(fname, hdu=self.image_hdu))
 
         # Either read in the weight image, or build a dummy one
@@ -470,11 +516,7 @@ class InputFiles(Input):
             plural = ''
         else:
             plural = 's'
-        if self.weight_hdu is None:
-            if logger:
-                logger.debug("Making trivial (wt==1) weight image%s", plural)
-            self.weight = [ galsim.ImageI(im.bounds, init_value=1) for im in self.images ]
-        else:
+        if self.weight_hdu is not None:
             if logger:
                 logger.info("Reading weight image%s from hdu %d.", plural, self.weight_hdu)
             self.weight = [ galsim.fits.read(fname, hdu=self.weight_hdu)
@@ -483,6 +525,15 @@ class InputFiles(Input):
                 if np.all(wt.array == 0):
                     logger.error("According to the weight mask in %s, all pixels have zero weight!",
                                  fname)
+        elif self.noise is not None:
+            if logger:
+                logger.debug("Making uniform weight image%s based on noise variance = %f", plural,
+                             self.noise)
+            self.weight = [ galsim.ImageF(im.bounds, init_value=1./self.noise) for im in self.images ]
+        else:
+            if logger:
+                logger.debug("Making trivial (wt==1) weight image%s", plural)
+            self.weight = [ galsim.ImageF(im.bounds, init_value=1) for im in self.images ]
 
         # If requested, set wt=0 for any bad pixels
         if self.badpix_hdu is not None:
@@ -525,7 +576,7 @@ class InputFiles(Input):
         self.cats = []
         for fname in self.cat_files:
             if logger:
-                logger.info("Reading star catalog %s.",fname)
+                logger.warning("Reading star catalog %s.",fname)
             self.cats.append(fitsio.read(fname,self.cat_hdu))
 
         # Remove any objects with flag != 0

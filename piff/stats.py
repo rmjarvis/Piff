@@ -114,7 +114,7 @@ class Stats(object):
         """Write plots to a file.
 
         :param file_name:   The name of the file to write to. [default: Use self.file_name,
-                            which is typically read from the config fiel.]
+                            which is typically read from the config field.]
         :param logger:      A logger object for logging debug info. [default: None]
         :param **kwargs:    Optionally, provide extra kwargs for the matplotlib plot command.
         """
@@ -128,7 +128,7 @@ class Stats(object):
             raise ValueError("No file_name specified for %s"%self.__class__.__name__)
 
         if logger:
-            logger.info("Writing plot to file %s",file_name)
+            logger.warning("Writing %s plot to file %s",self.__class__.__name__,file_name)
         fig.savefig(file_name)
 
     def hsm(self, star):
@@ -155,6 +155,9 @@ class Stats(object):
         if logger:
             logger.debug("Measuring shapes of real stars")
         shapes_truth = np.array([ self.hsm(star) for star in stars ])
+        for star, shape in zip(stars, shapes_truth):
+            if logger:
+                logger.debug("real shape for star at %s is %s",star.image_pos, shape)
 
         # Pull out the positions to return
         positions = np.array([ (star.data.properties['u'], star.data.properties['v'])
@@ -164,6 +167,9 @@ class Stats(object):
         if logger:
             logger.debug("Generating and Measuring Model Stars")
         shapes_model = np.array([ self.hsm(psf.drawStar(star)) for star in stars ])
+        for star, shape in zip(stars, shapes_model):
+            if logger:
+                logger.debug("model shape for star at %s is %s",star.image_pos, shape)
 
         return positions, shapes_truth, shapes_model
 
@@ -214,7 +220,7 @@ class ShapeHistogramsStats(Stats):
         """
         # get the shapes
         if logger:
-            logger.info("Measuring Star and Model Shapes")
+            logger.warning("Calculating shape histograms for %d stars",len(stars))
         positions, shapes_truth, shapes_model = self.measureShapes(psf, stars, logger=logger)
 
         # Only use stars for which hsm was successful
@@ -245,7 +251,9 @@ class ShapeHistogramsStats(Stats):
         """
         if not hasattr(self, 'T'):
             raise RuntimeError("Shape Histogram has not been computed yet.  Cannot plot.")
-
+#
+        import matplotlib
+        matplotlib.use('Agg')
         import matplotlib.pyplot as plt
         fig, axs = plt.subplots(ncols=3, nrows=2, figsize=(15, 10))
 
@@ -346,7 +354,7 @@ class RhoStats(Stats):
 
         # get the shapes
         if logger:
-            logger.info("Measuring Star and Model Shapes")
+            logger.warning("Calculating rho statistics for %d stars",len(stars))
         positions, shapes_truth, shapes_model = self.measureShapes(psf, stars, logger=logger)
 
         # Only use stars for which hsm was successful
@@ -395,6 +403,8 @@ class RhoStats(Stats):
         # Leaving this version here in case useful, but I (MJ) have a new version of this
         # below based on the figures I made for the DES SV shear catalog paper that I think
         # looks a bit nicer.
+        import matplotlib
+        matplotlib.use('Agg')
         import matplotlib.pyplot as plt
         fig, axs = plt.subplots(ncols=2, figsize=(10, 5))
 
@@ -459,6 +469,8 @@ class RhoStats(Stats):
         :returns: fig, ax
         """
         # MJ: Based on the code I used for the plot in the DES SV paper:
+        import matplotlib
+        matplotlib.use('Agg')
         import matplotlib.pyplot as plt
         fig, ax = plt.subplots(ncols=2, figsize=(10, 5))
 

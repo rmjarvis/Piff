@@ -75,8 +75,22 @@ def parse_variables(config, variables, logger):
             value = yaml.load(value)
         except:
             logger.debug('Unable to parse %s.  Treating it as a string.',value)
-        config[key] = value
-
+        # The key is allowed to be something like input.file_name, so we need to break that
+        # up to turn it into config['input']['file_name']
+        # N.B. This is copied from the GalSim function galsim.config.ParseExtendedKey.
+        try:
+            chain = key.split('.')
+            d = config
+            while len(chain) > 1:
+                k = chain.pop(0)
+                try: k = int(k)  # In case e.g. output.stats.1.file_name
+                except ValueError: pass
+                d = d[k]
+            k = chain[0]
+            d[k] = value
+        except Exception as e:
+            logger.debug('Caught exception: %s',e)
+            raise KeyError("Invalid key: %s"%key)
 
 def read_config(file_name):
     """Read a configuration dict from a file.
@@ -117,5 +131,5 @@ def piffify(config, logger=None):
 
     # write it out to a file
     output = piff.Output.process(config['output'], logger=logger)
-    output.write(psf)
+    output.write(psf, logger=logger)
 

@@ -237,7 +237,14 @@ class Polynomial(Interp):
 
         :returns: a new list of Star instances
         """
-        self.solve(stars, logger=logger)
+        parameters = np.array([s.fit.params for s in stars]).T
+        positions = np.array([self.getProperties(s) for s in stars]).T
+        nparam = len(parameters)
+        self._setup_indices(nparam)
+        self.coeffs = []
+        for i, parameter in enumerate(parameters):
+            p0 = self._pack_coefficients(i, self._initialGuess(positions, parameter, i))
+            self.coeffs.append(self._unpack_coefficients(i,p0))
         return self.interpolateList(stars)
 
     def solve(self, stars, logger=None):
