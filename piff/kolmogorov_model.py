@@ -39,7 +39,8 @@ class Kolmogorov(Model):
         """
         self._fastfit = fastfit
         self._force_model_center = force_model_center
-        self._nparams = 3 if force_model_center else 5  # Flux doesn't count as param.
+        # Params are [u, v], fwhm, g1, g2
+        self._nparams = 3 if force_model_center else 5
 
         self.kwargs = {
             'fastfit' : fastfit,
@@ -76,7 +77,6 @@ class Kolmogorov(Model):
         # Another magic number below to convert flux -> actual flux for Kolmogorov.
         flux = mom.moments_amp / 0.9053
 
-        # center = image.wcs.toWorld(mom.moments_centroid - image_pos)
         center = image.wcs.toWorld(mom.moments_centroid) - image.wcs.toWorld(image_pos)
         flag = mom.moments_status
 
@@ -98,7 +98,6 @@ class Kolmogorov(Model):
         prof *= params['flux'].value
         prof = prof.shear(g1=params['g1'].value, g2=params['g2'].value)
         prof = prof.shift(params['cenu'].value, params['cenv'].value)
-        #print(prof)
         model_image = image.copy()
         prof.drawImage(model_image, method='no_pixel',
                        offset=(image_pos - model_image.trueCenter()))
@@ -136,12 +135,22 @@ class Kolmogorov(Model):
         params.add('cenu', value=cenu, vary=vary_center)
         params.add('cenv', value=cenv, vary=vary_center)
         params.add('fwhm', value=fwhm, vary=vary_params, min=0.0)
+        # Limits of +/- 0.7 is definitely a hack to avoid |g| > 1, but if the PSF is ever actually
+        # this elliptical then we have more serious problems to worry about than hacky code!
         params.add('g1', value=g1, vary=vary_params, min=-0.7, max=0.7)
         params.add('g2', value=g2, vary=vary_params, min=-0.7, max=0.7)
         return params
 
     @classmethod
     def _lmfit_minimize(cls, params, star, logger=None):
+        """ Run lmfit.minimize with given lmfit.Parameters() and on given star data.
+
+        :param params: lmfit.Parameters() instance (holds initial guess and which params to let
+                       float or hold fixed).
+        :param star:   Star to fit.
+
+        :returns: lmfit.MinimizerResult instance containing fit results.
+        """
         import lmfit
         if logger:
             import time
@@ -153,9 +162,10 @@ class Kolmogorov(Model):
         return results
 
     def lmfit(self, star, logger=None):
-        """Fit parameters of the given star using lmfit.
+        """Fit parameters of the given star using lmfit (Levenberg-Marquardt minimization
+        algorithm).
 
-        :param star:    A Star instance
+        :param star:    A Star to fit.
         :param logger:  A logger object for logging debug info. [default: None]
 
         :returns: (flux, cenx, ceny, sigma, g1, g2, flag)
@@ -168,10 +178,16 @@ class Kolmogorov(Model):
         return results.params.valuesdict().values() + [0 if results.success else 1]
 
     def fit(self, star, fastfit=False, logger=None):
-        """Fit the image by ...
+        """Fit the image either using HSM or lmfit.
 
-        :param star:    A Star instance
-        :param fastfit: Use HSM moments to fit [default: False]
+        If `fastfit` is True, then the galsim.hsm module will be used to estimate the parameters of
+        the Kolmogorov PSF from image moments.  If `fastfit` is False, then the Levenberg-Marquardt
+        minimization algorithm as implemented by lmfit will be used instead.  The latter should
+        generally be more accurate, but slower due to the need to iteratively propose model
+        improvements.
+
+        :param star:    A Star to fit.
+        :param fastfit: Use fast HSM moments to fit? [default: False]
         :param logger:  A logger object for logging debug info. [default: None]
 
         :returns: a new Star with the fitted parameters in star.fit
@@ -203,9 +219,10 @@ class Kolmogorov(Model):
     def getProfile(self, params):
         """Get a version of the model as a GalSim GSObject
 
-        :param params:      A numpy array with either [ fwhm, g1, g2 ]
+        :param params:      A numpy array with either  [ fwhm, g1, g2 ]
                             or  [ cenu, cenv, fwhm, g1, g2 ]
-                            depending on _force_model_center.
+                            depending on if the center of the model is being forced to (0.0, 0.0)
+                            or not.
 
         :returns: a galsim.GSObject instance
         """
@@ -232,6 +249,13 @@ class Kolmogorov(Model):
         return Star(data, star.fit)
 
     def initialize(self, star, logger=None):
+        """Initialize the given star's fit parameters.
+
+        :param star:  The Star to initialize.
+        :param logger:  A logger object for logging debug info. [default: None]
+
+        :returns: a new initialized Star.
+        """
         if star.fit.params is None:
             star = self.fit(star, fastfit=True)
         star = self.reflux(star, fit_center=False)
