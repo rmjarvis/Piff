@@ -337,4 +337,3 @@ if __name__ == '__main__':
     test_Gaussian()
     test_Mean()
     test_single_image()
-

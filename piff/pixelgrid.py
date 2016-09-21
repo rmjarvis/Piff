@@ -60,7 +60,7 @@ class PixelGrid(Model):
         :param force_model_center: If True, PSF model centroid is fixed at origin and
                             PSF fitting will marginalize over stellar position.  If False, stellar
                             position is fixed at input value and the fitted PSF may be off-center.
-                            [default: False]
+                            [default: True]
         :param degenerate:  Is it possible that individual stars give degenerate PSF sol'n?
                             If False, it runs faster, but fails on degeneracies. [default: True]
         :param logger:      A logger object for logging debug info. [default: None]
@@ -572,6 +572,7 @@ class PixelGrid(Model):
 
         # This will be an iterative process if the centroid is free.
         max_iterations = 100    # Max iteration count
+
         chisq_thresh = 0.01     # Quit when reduced chisq changes less than this
         do_center = fit_center and self._force_model_center
         flux = star.fit.flux
@@ -889,4 +890,3 @@ class Bilinear(PixelInterpolant):
             return coeffs, dcdu, dcdv, x, y
         else:
             return coeffs, x, y
-
