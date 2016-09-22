@@ -84,6 +84,7 @@ from .mean_interp import Mean
 from .polynomial_interp import Polynomial, polynomial_types
 from .basis_interp import BasisInterp, BasisPolynomial
 from .knn_interp import kNNInterp
+from .gp_interp import GPInterp
 
 # Outlier handlers are named BlahOutliers where Blah is what they are called in teh config file
 from .outliers import Outliers, ChisqOutliers
