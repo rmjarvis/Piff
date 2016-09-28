@@ -68,7 +68,7 @@ def test_gp_poly():
     u0_fn = lambda u,v: 0.5*u
     v0_fn = lambda u,v: 0.3*u+0.3*v
 
-    mod = piff.Kolmogorov(force_model_center=False)  # Center is marginalized, not part of PSF params.
+    mod = piff.Kolmogorov(force_model_center=False)  # Center is part of the PSF params.
 
     stars = []
     for u, v, flux in zip(upositions, vpositions, fluxes):
@@ -140,7 +140,7 @@ def test_gp_poly():
         # Run the interpolator
         interp.solve(stars)
 
-        visualize = True
+        visualize = False
         if visualize:
             # Make a grid of output locations to visualize GP interpolation performance (for g1).
             uposout = np.linspace(0.0, 1.0, 21)
@@ -212,5 +212,164 @@ def test_gp_poly():
     np.testing.assert_allclose(s1.image.array, s0.image.array, rtol=1e-2)
 
 
+def test_gp_gp():
+    """ Test that Gaussian Process interpolation works reasonably well for densely packed Kolmogorov
+    star field with params that are also drawn from a Gaussian Process.
+    """
+    bd = galsim.BaseDeviate(1029384756)
+    grid_spacing = 1
+    ngrid = 21
+
+    import warnings
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore",category=RuntimeWarning)
+        ps = galsim.PowerSpectrum(lambda k:3e-4*k**(-5), lambda k:3e-4*k**(-5))
+    ps.buildGrid(grid_spacing=grid_spacing, ngrid=ngrid, rng=bd)
+
+    gridmin = (-ngrid/2 + 0.5) * grid_spacing
+    gridmax = (ngrid/2 - 0.5) * grid_spacing
+    uposout, vposout = np.meshgrid(np.arange(gridmin, gridmax+grid_spacing, grid_spacing),
+                                   np.arange(gridmin, gridmax+grid_spacing, grid_spacing))
+    g1_out, g2_out = ps.getShear((uposout.ravel(), vposout.ravel()))
+
+    bd = galsim.BaseDeviate(5647382910)
+    ud = galsim.UniformDeviate(bd)
+    nstars = 200
+    upositions = [ud()*20-10 for i in xrange(nstars)]
+    vpositions = [ud()*20-10 for i in xrange(nstars)]
+    fluxes = [ud()*100.0 + 50 for i in xrange(nstars)]  # Uniform [50, 150]
+    g1s, g2s = ps.getShear((upositions, vpositions))
+
+    mod = piff.Kolmogorov(force_model_center=False)  # Center is part of the PSF params.
+
+    stars = []
+    for u, v, g1, g2, flux in zip(upositions, vpositions, g1s, g2s, fluxes):
+        s = make_kolmogorov_data(1.0, g1, g2, 0., 0., flux,
+                                 noise=0.1, du=0.5, fpu=u, fpv=v, rng=bd)
+        s = mod.initialize(s)
+        stars.append(s)
+
+    # Get noiseless copy of the PSF at the center of the FOV
+    u,v = 0.0, 0.0
+    g1_0, g2_0 = ps.getShear((0,0))
+    s0 = make_kolmogorov_data(1.0, g1_0, g2_0, 0.0, 0.0, 1.0, du=0.5, fpu=u, fpv=v)
+    s0 = mod.initialize(s0)
+
+    interp = piff.GPInterp(thetaL=1e-6, theta0=1e0, thetaU=1e6, nugget=1e-4)
+    interp.initialize(stars)
+
+    chisq = 0.0
+    dof = 0
+    for s in stars:
+        chisq += s.fit.chisq
+        dof += s.fit.dof
+    print()
+    print("Initial state")
+    print("chisq: {0}    dof: {1}".format(chisq, dof))
+    print("chisq/dof: {0}".format(chisq/dof))
+
+    # Go through and look for bad outliers that may confuse the GP interpolator
+    old_stars = stars
+    stars = []
+    for i, s in enumerate(old_stars):
+        # arbitrary cutoff, but for simulated data should be reasonable.
+        if (s.fit.chisq / s.fit.dof) > 4:
+            # print("star {0} has chisq/dof = {1}".format(i, s.fit.chisq/s.fit.dof))
+            # try fitting again with lmfit instead of hsm...
+            s1 = piff.Star(s.data, piff.StarFit(None))
+            s1 = mod.fit(s1)
+            s1 = mod.reflux(s1)
+            # print("after refit, chisq/dof = {0}".format(s1.fit.chisq/s1.fit.dof))
+            # if still bad, break loop, excluding star from further processing
+            if (s1.fit.chisq / s1.fit.dof) > 4:
+                # print("rejecting star {0}".format(i))
+                continue
+            stars.append(s1)
+        else:
+            # chisq/dof is okay, so keep this star.
+            stars.append(s)
+
+    chisq = 0.0
+    dof = 0
+    for s in stars:
+        chisq += s.fit.chisq
+        dof += s.fit.dof
+        if (s.fit.chisq / s.fit.dof) > 4:
+            print("chisq/dof = {0}".format(s.fit.chisq / s.fit.dof))
+    print()
+    print("After refitting / outlier rejection")
+    print("chisq: {0}    dof: {1}".format(chisq, dof))
+    print("chisq/dof: {0}".format(chisq/dof))
+
+    oldchisq = 0.
+    print()
+    for iteration in range(10):
+        # Refit PSFs star by star:
+        stars = [mod.fit(s) for s in stars]
+        # Run the interpolator
+        interp.solve(stars)
+
+        visualize = False
+        if visualize:
+            # Make a grid of output locations to visualize GP interpolation performance (for g1).
+            interpstars = []
+            for u, v in zip(uposout.ravel(), vposout.ravel()):
+                interpstars.append(
+                        make_kolmogorov_data(1.0, 0.0, 0.0, 0.0, 0.0, 1.0, du=0.5, fpu=u, fpv=v))
+            interpstars = interp.interpolateList(interpstars)
+            interp_g1 = [s.fit.params[3] for s in interpstars]
+
+            import matplotlib.pyplot as plt
+            fig = plt.figure(figsize=(14, 3))
+            ax1 = fig.add_subplot(141)
+            ax1.set_title("sampling")
+            ax1.set_xlim((-10,10))
+            ax1.set_ylim((-10,10))
+            meas = ax1.scatter(upositions, vpositions, c=g1s, vmin=-0.05, vmax=0.05)
+            plt.colorbar(meas)
+
+            ax2 = fig.add_subplot(142)
+            ax2.set_title("truth")
+            ax2.set_xlim((-10,10))
+            ax2.set_ylim((-10,10))
+            truth = ax2.scatter(uposout, vposout, c=g1_out, vmin=-0.05, vmax=0.05)
+            plt.colorbar(truth)
+
+            ax3 = fig.add_subplot(143)
+            ax3.set_title("interp")
+            ax3.set_xlim((-10,10))
+            ax3.set_ylim((-10,10))
+            interp_scat = ax3.scatter(uposout, vposout, c=interp_g1, vmin=-0.05, vmax=0.05)
+            plt.colorbar(interp_scat)
+
+            ax4 = fig.add_subplot(144)
+            ax4.set_title("resid")
+            ax4.set_xlim((-10,10))
+            ax4.set_ylim((-10,10))
+            resid = ax4.scatter(uposout.ravel(), vposout.ravel(),
+                                c=[i-t for i,t in zip(interp_g1, g1_out)],
+                                vmin=-0.02, vmax=0.02)
+            plt.colorbar(resid)
+            plt.show()
+
+        # Install interpolator solution into each
+        # star, recalculate flux, report chisq
+        chisq = 0.
+        dof = 0
+        stars = interp.interpolateList(stars)
+        for i, s in enumerate(stars):
+            s = mod.reflux(s)
+            chisq += s.fit.chisq
+            dof += s.fit.dof
+            stars[i] = s
+        print("iteration: {}  chisq: {}  dof: {}".format(iteration, chisq, dof))
+        if oldchisq>0 and np.abs(oldchisq-chisq) < dof/10.0:
+            break
+        else:
+            oldchisq = chisq
+
+
+
 if __name__ == '__main__':
     test_gp_poly()
+    test_gp_gp()
