@@ -101,7 +101,7 @@ class Kolmogorov(Model):
         model_image = image.copy()
         prof.drawImage(model_image, method='no_pixel',
                        offset=(image_pos - model_image.trueCenter()))
-        return (weight.array*(model_image.array - image.array)).ravel()
+        return (np.sqrt(weight.array)*(model_image.array - image.array)).ravel()
 
     def _lmfit_params(self, star, vary_params=True, vary_flux=True, vary_center=True):
         """Generate an lmfit.Parameters() instance from arguments.
@@ -212,7 +212,21 @@ class Kolmogorov(Model):
                                      offset=(star.image_pos - model_image.trueCenter()))
         chisq = np.sum(star.weight.array * (star.image.array - model_image.array)**2)
         dof = np.count_nonzero(star.weight.array) - self._nparams
+        # if (chisq/dof) > 4:
+        #     import matplotlib.pyplot as plt
+        #     fig = plt.figure(figsize=(8, 2))
+        #     ax1 = fig.add_subplot(131)
+        #     im1 = ax1.imshow(star.image.array)
+        #     plt.colorbar(im1)
+        #     ax2 = fig.add_subplot(132)
+        #     im2 = ax2.imshow(model_image.array)
+        #     plt.colorbar(im2)
+        #     ax3 = fig.add_subplot(133)
+        #     im3 = ax3.imshow(np.sqrt(star.weight.image.array) * (star.image.array - model_image.array))
+        #     plt.colorbar(im3)
+        #     fig.show()
 
+        # print("chisq: {0}  dof: {1}".format(chisq, dof))
         fit = StarFit(params, flux=flux, center=center, chisq=chisq, dof=dof)
         return Star(star.data, fit)
 
@@ -299,11 +313,11 @@ class Kolmogorov(Model):
         else:
             image, weight, image_pos = star.data.getImage()
             model_image = self.draw(star).image
-            new_flux = (np.sum(weight.array * image.array * model_image.array)
-                        / np.sum(weight.array * model_image.array**2))
-            new_chisq = np.sum(weight.array * (image.array - new_flux*model_image.array)**2)
+            flux_ratio = (np.sum(weight.array * image.array * model_image.array)
+                          / np.sum(weight.array * model_image.array**2))
+            new_chisq = np.sum(weight.array * (image.array - flux_ratio*model_image.array)**2)
             return Star(star.data, StarFit(star.fit.params,
-                                           flux = new_flux,
+                                           flux = star.flux*flux_ratio,
                                            center = star.fit.center,
                                            chisq = new_chisq,
                                            dof = np.count_nonzero(weight.array) - 1,
