@@ -25,7 +25,7 @@ class GPInterp(Interp):
     """
     An interpolator that uses sklearn.gaussian_process to interpolate a single surface.
     """
-    def __init__(self, theta0=1e-1, thetaL=None, thetaU=None, logger=None):
+    def __init__(self, theta0=1e-1, thetaL=None, thetaU=None, nugget=None, logger=None):
         """Create the GP interpolator.
 
         :param logger:      A logger object for logging debug info. [default: None]
@@ -53,7 +53,8 @@ class GPInterp(Interp):
         self.gp_kwargs = {
             'theta0' : theta0,
             'thetaL' : thetaL,
-            'thetaU' : thetaU
+            'thetaU' : thetaU,
+            'nugget' : nugget
         }
 
         from sklearn.gaussian_process import GaussianProcess
@@ -74,6 +75,9 @@ class GPInterp(Interp):
         # self._scaled_targets = self._Y_scaler.fit_transform(targets)
         # self.gp.fit(self._scaled_locations, self._scaled_targets)
         self.gp.fit(locations, targets)
+        # print("locations.shape = {}".format(locations.shape))
+        # print("targets.shape = {}".format(targets.shape))
+        # print("theta_ = {}".format(self.gp.theta_))
         if logger:
             logger.debug("theta_ = {}".format(self.gp.theta_))
             logger.debug("GP updated!")
@@ -86,6 +90,7 @@ class GPInterp(Interp):
 
         :returns:   Regressed parameters y (n_samples, n_targets)
         """
+        # print("locations.shape = {}".format(locations.shape))
         return self.gp.predict(locations)
 
     def initialize(self, stars, logger=None):
