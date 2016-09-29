@@ -51,7 +51,7 @@ def make_kolmogorov_data(fwhm, g1, g2, u0, v0, flux, noise=0., du=1., fpu=0., fp
     return star
 
 
-def test_gp_poly():
+def check_gp_poly(npca=0):
     """ Test that Gaussian Process interpolation works reasonably well for densely packed Kolmogorov
     star field with params that vary as polynomials.
     """
@@ -86,7 +86,7 @@ def test_gp_poly():
     # theta is the inverse correlation length.  Sadly, the default settings for this in sklearn
     # lead to an exception for this dataset.  Fortunately, we can pass in an initial value (theta0)
     # and some bounds (thetaL and thetaU), and the GP framework will solve for the best value.
-    interp = piff.GPInterp(thetaL=1e-6, theta0=1e0, thetaU=1e6, nugget=1e-4)
+    interp = piff.GPInterp(thetaL=1e-6, theta0=1e0, thetaU=1e6, nugget=1e-4, npca=npca)
     interp.initialize(stars)
 
     chisq = 0.0
@@ -139,46 +139,9 @@ def test_gp_poly():
         stars = [mod.fit(s) for s in stars]
         # Run the interpolator
         interp.solve(stars)
-
-        visualize = False
-        if visualize:
-            # Make a grid of output locations to visualize GP interpolation performance (for g1).
-            uposout = np.linspace(0.0, 1.0, 21)
-            vposout = np.linspace(0.0, 1.0, 21)
-            uposout, vposout = np.meshgrid(uposout, vposout)
-            interpstars = []
-            for u, v in zip(uposout.ravel(), vposout.ravel()):
-                interpstars.append(
-                        make_kolmogorov_data(1.0, 0.0, 0.0, 0.0, 0.0, 1.0,du=0.5, fpu=u, fpv=v))
-            interpstars = interp.interpolateList(interpstars)
-            truth_g1 = [g1_fn(u, v) for (u, v) in zip(uposout.ravel(), vposout.ravel())]
-            interp_g1 = [s.fit.params[3] for s in interpstars]
-
-            import matplotlib.pyplot as plt
-            fig = plt.figure(figsize=(14, 3))
-            ax1 = fig.add_subplot(141)
-            ax1.set_title("sampling")
-            meas = ax1.scatter(upositions, vpositions,
-                               c=[g1_fn(u,v) for u,v in zip(upositions, vpositions)],
-                               vmin=-0.1, vmax=0.1)
-            plt.colorbar(meas)
-
-            ax2 = fig.add_subplot(142)
-            ax2.set_title("truth")
-            truth = ax2.scatter(uposout, vposout, c=truth_g1, vmin=-0.1, vmax=0.1)
-            plt.colorbar(truth)
-
-            ax3 = fig.add_subplot(143)
-            ax3.set_title("interp")
-            interp_scat = ax3.scatter(uposout, vposout, c=interp_g1, vmin=-0.1, vmax=0.1)
-            plt.colorbar(interp_scat)
-
-            ax4 = fig.add_subplot(144)
-            ax4.set_title("resid")
-            resid = ax4.scatter(uposout, vposout, c=[i-t for i,t in zip(interp_g1, truth_g1)],
-                                vmin=-0.001, vmax=0.001)
-            plt.colorbar(resid)
-            plt.show()
+        print('theta_ = ', interp.gp.theta_)
+        if npca > 0:
+            print('explained_variance_ratio = ', np.cumsum(interp._pca.explained_variance_ratio_))
 
         # Install interpolator solution into each
         # star, recalculate flux, report chisq
@@ -196,6 +159,55 @@ def test_gp_poly():
         else:
             oldchisq = chisq
 
+    visualize = False
+    if visualize:
+        # Make a grid of output locations to visualize GP interpolation performance (for g1).
+        uposout = np.linspace(0.0, 1.0, 21)
+        vposout = np.linspace(0.0, 1.0, 21)
+        uposout, vposout = np.meshgrid(uposout, vposout)
+        interpstars = []
+        for u, v in zip(uposout.ravel(), vposout.ravel()):
+            interpstars.append(
+                    make_kolmogorov_data(1.0, 0.0, 0.0, 0.0, 0.0, 1.0,du=0.5, fpu=u, fpv=v))
+        interpstars = interp.interpolateList(interpstars)
+        truth_g1 = [g1_fn(u, v) for (u, v) in zip(uposout.ravel(), vposout.ravel())]
+        interp_g1 = [s.fit.params[3] for s in interpstars]
+
+        import matplotlib.pyplot as plt
+        fig = plt.figure(figsize=(14, 3))
+        ax1 = fig.add_subplot(141)
+        ax1.set_title("sampling")
+        ax1.set_xlim((-0.2,1.2))
+        ax1.set_ylim((-0.2,1.2))
+        meas = ax1.scatter(upositions, vpositions,
+                           c=[g1_fn(u,v) for u,v in zip(upositions, vpositions)],
+                           vmin=-0.1, vmax=0.1)
+        plt.colorbar(meas)
+
+        ax2 = fig.add_subplot(142)
+        ax2.set_title("truth")
+        ax2.set_xlim((-0.2,1.2))
+        ax2.set_ylim((-0.2,1.2))
+        truth = ax2.scatter(uposout, vposout, c=truth_g1, vmin=-0.1, vmax=0.1)
+        plt.colorbar(truth)
+
+        ax3 = fig.add_subplot(143)
+        ax3.set_title("interp")
+        ax3.set_xlim((-0.2,1.2))
+        ax3.set_ylim((-0.2,1.2))
+        interp_scat = ax3.scatter(uposout, vposout, c=interp_g1, vmin=-0.1, vmax=0.1)
+        plt.colorbar(interp_scat)
+
+        ax4 = fig.add_subplot(144)
+        ax4.set_title("resid")
+        ax4.set_xlim((-0.2,1.2))
+        ax4.set_ylim((-0.2,1.2))
+        resid = ax4.scatter(uposout, vposout, c=[i-t for i,t in zip(interp_g1, truth_g1)],
+                            vmin=-0.001, vmax=0.001)
+        plt.colorbar(resid)
+        plt.show()
+
+
     s1 = interp.interpolate(s0)
     s1 = mod.reflux(s1)
     print()
@@ -209,10 +221,16 @@ def test_gp_poly():
     print()
     print('max image abs diff = ',np.max(np.abs(s1.image.array-s0.image.array)))
     print('max image abs value = ',np.max(np.abs(s0.image.array)))
+    print('min rtol = ', np.max(np.abs(s1.image.array - s0.image.array)/np.abs(s0.image.array)))
     np.testing.assert_allclose(s1.image.array, s0.image.array, rtol=1e-2)
 
 
-def test_gp_gp():
+def test_gp_poly():
+    check_gp_poly(npca=0)
+    check_gp_poly(npca=2)  # For this test, 2 PCs already describe ~99.7% of the variance.
+
+
+def check_gp_gp(npca=0):
     """ Test that Gaussian Process interpolation works reasonably well for densely packed Kolmogorov
     star field with params that are also drawn from a Gaussian Process.
     """
@@ -226,8 +244,8 @@ def test_gp_gp():
         ps = galsim.PowerSpectrum(lambda k:3e-4*k**(-5), lambda k:3e-4*k**(-5))
     ps.buildGrid(grid_spacing=grid_spacing, ngrid=ngrid, rng=bd)
 
-    gridmin = (-ngrid/2 + 0.5) * grid_spacing
-    gridmax = (ngrid/2 - 0.5) * grid_spacing
+    gridmin = (-ngrid/2. + 0.5) * grid_spacing
+    gridmax = (ngrid/2. - 0.5) * grid_spacing
     uposout, vposout = np.meshgrid(np.arange(gridmin, gridmax+grid_spacing, grid_spacing),
                                    np.arange(gridmin, gridmax+grid_spacing, grid_spacing))
     g1_out, g2_out = ps.getShear((uposout.ravel(), vposout.ravel()))
@@ -255,7 +273,7 @@ def test_gp_gp():
     s0 = make_kolmogorov_data(1.0, g1_0, g2_0, 0.0, 0.0, 1.0, du=0.5, fpu=u, fpv=v)
     s0 = mod.initialize(s0)
 
-    interp = piff.GPInterp(thetaL=1e-6, theta0=1e0, thetaU=1e6, nugget=1e-4)
+    interp = piff.GPInterp(thetaL=1e-6, theta0=1e0, thetaU=1e6, nugget=1e-4, npca=npca)
     interp.initialize(stars)
 
     chisq = 0.0
@@ -308,49 +326,9 @@ def test_gp_gp():
         stars = [mod.fit(s) for s in stars]
         # Run the interpolator
         interp.solve(stars)
-
-        visualize = False
-        if visualize:
-            # Make a grid of output locations to visualize GP interpolation performance (for g1).
-            interpstars = []
-            for u, v in zip(uposout.ravel(), vposout.ravel()):
-                interpstars.append(
-                        make_kolmogorov_data(1.0, 0.0, 0.0, 0.0, 0.0, 1.0, du=0.5, fpu=u, fpv=v))
-            interpstars = interp.interpolateList(interpstars)
-            interp_g1 = [s.fit.params[3] for s in interpstars]
-
-            import matplotlib.pyplot as plt
-            fig = plt.figure(figsize=(14, 3))
-            ax1 = fig.add_subplot(141)
-            ax1.set_title("sampling")
-            ax1.set_xlim((-10,10))
-            ax1.set_ylim((-10,10))
-            meas = ax1.scatter(upositions, vpositions, c=g1s, vmin=-0.05, vmax=0.05)
-            plt.colorbar(meas)
-
-            ax2 = fig.add_subplot(142)
-            ax2.set_title("truth")
-            ax2.set_xlim((-10,10))
-            ax2.set_ylim((-10,10))
-            truth = ax2.scatter(uposout, vposout, c=g1_out, vmin=-0.05, vmax=0.05)
-            plt.colorbar(truth)
-
-            ax3 = fig.add_subplot(143)
-            ax3.set_title("interp")
-            ax3.set_xlim((-10,10))
-            ax3.set_ylim((-10,10))
-            interp_scat = ax3.scatter(uposout, vposout, c=interp_g1, vmin=-0.05, vmax=0.05)
-            plt.colorbar(interp_scat)
-
-            ax4 = fig.add_subplot(144)
-            ax4.set_title("resid")
-            ax4.set_xlim((-10,10))
-            ax4.set_ylim((-10,10))
-            resid = ax4.scatter(uposout.ravel(), vposout.ravel(),
-                                c=[i-t for i,t in zip(interp_g1, g1_out)],
-                                vmin=-0.02, vmax=0.02)
-            plt.colorbar(resid)
-            plt.show()
+        print('theta_ = ', interp.gp.theta_)
+        if npca > 0:
+            print('explained_variance_ratio = ', np.cumsum(interp._pca.explained_variance_ratio_))
 
         # Install interpolator solution into each
         # star, recalculate flux, report chisq
@@ -368,6 +346,69 @@ def test_gp_gp():
         else:
             oldchisq = chisq
 
+    visualize = False
+    if visualize:
+        # Make a grid of output locations to visualize GP interpolation performance (for g1).
+        interpstars = []
+        for u, v in zip(uposout.ravel(), vposout.ravel()):
+            interpstars.append(
+                    make_kolmogorov_data(1.0, 0.0, 0.0, 0.0, 0.0, 1.0, du=0.5, fpu=u, fpv=v))
+        interpstars = interp.interpolateList(interpstars)
+        interp_g1 = [s.fit.params[3] for s in interpstars]
+
+        import matplotlib.pyplot as plt
+        fig = plt.figure(figsize=(14, 3))
+        ax1 = fig.add_subplot(141)
+        ax1.set_title("sampling")
+        ax1.set_xlim((-14,14))
+        ax1.set_ylim((-14,14))
+        meas = ax1.scatter(upositions, vpositions, c=g1s, vmin=-0.05, vmax=0.05)
+        plt.colorbar(meas)
+
+        ax2 = fig.add_subplot(142)
+        ax2.set_title("truth")
+        ax2.set_xlim((-14,14))
+        ax2.set_ylim((-14,14))
+        truth = ax2.scatter(uposout, vposout, c=g1_out, vmin=-0.05, vmax=0.05)
+        plt.colorbar(truth)
+
+        ax3 = fig.add_subplot(143)
+        ax3.set_title("interp")
+        ax3.set_xlim((-14,14))
+        ax3.set_ylim((-14,14))
+        interp_scat = ax3.scatter(uposout, vposout, c=interp_g1, vmin=-0.05, vmax=0.05)
+        plt.colorbar(interp_scat)
+
+        ax4 = fig.add_subplot(144)
+        ax4.set_title("resid")
+        ax4.set_xlim((-14,14))
+        ax4.set_ylim((-14,14))
+        resid = ax4.scatter(uposout.ravel(), vposout.ravel(),
+                            c=[i-t for i,t in zip(interp_g1, g1_out)],
+                            vmin=-0.01, vmax=0.01)
+        plt.colorbar(resid)
+        plt.show()
+
+    s1 = interp.interpolate(s0)
+    s1 = mod.reflux(s1)
+    print()
+    print(("s0: "+"{:< 8.4f} "*len(s0.fit.params)).format(*s0.fit.params))
+    print(("s1: "+"{:< 8.4f} "*len(s1.fit.params)).format(*s1.fit.params))
+    print()
+    print('Flux, ctr, chisq after interpolation: \n', s1.fit.flux, s1.fit.center, s1.fit.chisq)
+    np.testing.assert_allclose(s1.fit.flux, 1.0, rtol=1e-3)
+
+    s1 = mod.draw(s1)
+    print()
+    print('max image abs diff = ',np.max(np.abs(s1.image.array-s0.image.array)))
+    print('max image abs value = ',np.max(np.abs(s0.image.array)))
+    print('min rtol = ', np.max(np.abs(s1.image.array - s0.image.array)/np.abs(s0.image.array)))
+    np.testing.assert_allclose(s1.image.array, s0.image.array, rtol=1e-1)
+
+
+def test_gp_gp():
+    check_gp_gp(npca=0)
+    check_gp_gp(npca=2)  # capture 99.3% of the variance in 2 PCs
 
 
 if __name__ == '__main__':

@@ -25,29 +25,32 @@ class GPInterp(Interp):
     """
     An interpolator that uses sklearn.gaussian_process to interpolate a single surface.
     """
-    def __init__(self, theta0=1e-1, thetaL=None, thetaU=None, nugget=None, logger=None):
+    def __init__(self, theta0=1e-1, thetaL=None, thetaU=None, nugget=None, logger=None, npca=0):
         """Create the GP interpolator.
 
         :param logger:      A logger object for logging debug info. [default: None]
         :param theta0:      Double array_like, optional
-            An array with shape (n_features, ) or (1, ).
-            The parameters in the autocorrelation model.
-            If thetaL and thetaU are also specified, theta0 is considered as
-            the starting point for the maximum likelihood estimation of the
-            best set of parameters.
-            Default assumes isotropic autocorrelation model with theta0 = 1e-1.
+                            An array with shape (n_features, ) or (1, ).
+                            The parameters in the autocorrelation model.
+                            If thetaL and thetaU are also specified, theta0 is considered as
+                            the starting point for the maximum likelihood estimation of the
+                            best set of parameters.
+                            Default assumes isotropic autocorrelation model with theta0 = 1e-1.
         :param thetaL:      Double array_like, optional
-            An array with shape matching theta0's.
-            Lower bound on the autocorrelation parameters for maximum
-            likelihood estimation.
-            Default is None, so that it skips maximum likelihood estimation and
-            it uses theta0.
+                            An array with shape matching theta0's.
+                            Lower bound on the autocorrelation parameters for maximum
+                            likelihood estimation.
+                            Default is None, so that it skips maximum likelihood estimation and
+                            it uses theta0.
         :param thetaU:      Double array_like, optional
-            An array with shape matching theta0's.
-            Upper bound on the autocorrelation parameters for maximum
-            likelihood estimation.
-            Default is None, so that it skips maximum likelihood estimation and
-            it uses theta0.
+                            An array with shape matching theta0's.
+                            Upper bound on the autocorrelation parameters for maximum
+                            likelihood estimation.
+                            Default is None, so that it skips maximum likelihood estimation and
+                            it uses theta0.
+        :param npca:        Integer.  If >0, then model the variation of PSF principle components as
+                            a Gaussian process, retaining `npca` components.  If =0, then model the
+                            PSF parameters directly as a Gaussian process instead.  [default: 0]
         """
 
         self.gp_kwargs = {
@@ -59,6 +62,7 @@ class GPInterp(Interp):
 
         from sklearn.gaussian_process import GaussianProcess
         self.gp = GaussianProcess(**self.gp_kwargs)
+        self.npca = npca
 
     def _fit(self, locations, targets, logger=None):
         """Update the Gaussian Process Regressor with data (and solve for hyperparameters?)
@@ -68,16 +72,12 @@ class GPInterp(Interp):
         :param targets:     The target values. (n_samples, n_targets).
                             (In sklearn parlance, this is 'y'.)
         """
-        # from sklearn.preprocessing import StandardScaler
-        # self._X_scaler = StandardScaler()
-        # self._Y_scaler = StandardScaler()
-        # self._scaled_locations = self._X_scaler.fit_transform(locations)
-        # self._scaled_targets = self._Y_scaler.fit_transform(targets)
-        # self.gp.fit(self._scaled_locations, self._scaled_targets)
+        if self.npca > 0:
+            from sklearn.decomposition import PCA
+            self._pca = PCA(n_components=self.npca, whiten=True)
+            self._pca.fit(targets)
+            targets = self._pca.transform(targets)
         self.gp.fit(locations, targets)
-        # print("locations.shape = {}".format(locations.shape))
-        # print("targets.shape = {}".format(targets.shape))
-        # print("theta_ = {}".format(self.gp.theta_))
         if logger:
             logger.debug("theta_ = {}".format(self.gp.theta_))
             logger.debug("GP updated!")
@@ -90,15 +90,17 @@ class GPInterp(Interp):
 
         :returns:   Regressed parameters y (n_samples, n_targets)
         """
-        # print("locations.shape = {}".format(locations.shape))
-        return self.gp.predict(locations)
+        results = self.gp.predict(locations)
+        if self.npca > 0:
+            results = self._pca.inverse_transform(results)
+        return results
 
     def initialize(self, stars, logger=None):
         """Initialize both the interpolator to some state prefatory to any solve iterations and
         initialize the stars for use with this interpolator.
 
         :param stars:   A list of Star instances to interpolate between
-        :param logger:      A logger object for logging debug info. [default: None]
+        :param logger:  A logger object for logging debug info. [default: None]
         """
         self.solve(stars, logger=logger)
         return self.interpolateList(stars)
