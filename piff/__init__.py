@@ -45,7 +45,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 # The version is stored in _version.py as recommended here:
 # http://stackoverflow.com/questions/458550/standard-way-to-embed-version-into-python-package
-from _version import __version__, __version_info__
+from ._version import __version__, __version_info__
 
 # Also let piff.version show the version.
 version = __version__
