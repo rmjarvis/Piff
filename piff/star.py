@@ -67,6 +67,8 @@ class Star(object):
         star.u          The u position of the star in field coordinates
         star.v          The v position of the star in field coordinates
         star.chipnum    The chip number where this star was observed (or would be observed)
+        star.flux       The flux of the object
+        star.center     The nominal center of the object (not necessarily the centroid)
     """
     def __init__(self, data, fit):
         """Constructor for Star instance.
@@ -133,19 +135,30 @@ class Star(object):
 
     @property
     def u(self):
-        return self.data.image_pos.u
+        return self.data.field_pos.x
 
     @property
     def v(self):
-        return self.data.image_pos.v
+        return self.data.field_pos.y
 
     @property
     def chipnum(self):
-        return self.data.image_pos.chipnum
+        if 'chipnum' in self.data.properties:
+            return self.data.properties['chipnum']
+        else:
+            return 0
+
+    @property
+    def flux(self):
+        return self.fit.flux
+
+    @property
+    def center(self):
+        return self.fit.center
 
     @classmethod
     def makeTarget(cls, x=None, y=None, u=None, v=None, properties={}, wcs=None, scale=None,
-                   stamp_size=48, flux=1.0, **kwargs):
+                   stamp_size=48, image=None, flux=1.0, **kwargs):
         """
         Make a target Star object with the requested properties.
 
@@ -170,6 +183,8 @@ class Star(object):
         :param wcs:         The requested WCS.  [optional]
         :param scale:       If wcs is None, you may instead provide a pixel scale. [default: None]
         :param stamp_size:  The size in each direction of the (blank) image. [default: 48]
+        :param image:       An existing image to use instead of making a new one, if desired.
+                            [default: None; this overrides stamp_size]
         :param flux:        The flux of the target star. [default: 1]
         :param **kwargs:    Additional properties can also be given as keyword arguments if that
                             is more conventient than populating the properties dict.
@@ -203,28 +218,33 @@ class Star(object):
             wcs = galsim.PixelScale(scale)
 
         # Make the blank image
-        image = galsim.Image(stamp_size, stamp_size, dtype=float)
+        if image is None:
+            image = galsim.Image(stamp_size, stamp_size, dtype=float)
 
         # Figure out the image_pos
         if x is None:
-            world_pos = galsim.PositionD(u,v)
-            image_pos = wcs.toImage(world_pos)
+            field_pos = galsim.PositionD(u,v)
+            image_pos = wcs.toImage(field_pos)
             x = image_pos.x
             y = image_pos.y
         else:
             image_pos = galsim.PositionD(x,y)
 
         # Make wcs locally accurate affine transformation
-        if x is not None and u is not None:
-            world_pos = galsim.PositionD(u,v)
-            wcs = wcs.local(image_pos).withOrigin(image_pos, world_pos)
+        if x is not None:
+            if u is not None:
+                field_pos = galsim.PositionD(u,v)
+                wcs = wcs.local(image_pos).withOrigin(image_pos, field_pos)
+            else:
+                field_pos = None
 
         # Make the center of the image (close to) the image_pos
         image.setCenter(int(x+0.5), int(y+0.5))
-        image.wcs = wcs
+        if image.wcs is None:
+            image.wcs = wcs
 
         # Build the StarData instance
-        data = StarData(image, image_pos, properties=properties)
+        data = StarData(image, image_pos, field_pos=field_pos, properties=properties)
         fit = StarFit(None, flux=flux, center=(0.,0.))
         return cls(data, fit)
 
@@ -236,6 +256,7 @@ class Star(object):
         :param fits:        An open fitsio.FITS object
         :param extname:     The name of the extension to write to
         """
+        import galsim
         # TODO This doesn't write everything out.  Probably want image as an optional I/O.
 
         cols = []
@@ -277,6 +298,12 @@ class Star(object):
         if stars[0].fit.params is not None:
             dtypes.append( ('params', float, len(stars[0].fit.params)) )
             cols.append( [ s.fit.params for s in stars ] )
+
+        # If pointing is set, write that
+        if stars[0].data.pointing is not None:
+            dtypes.extend( [('point_ra', float), ('point_dec', float)] )
+            cols.append( [s.data.pointing.ra / galsim.degrees for s in stars ] )
+            cols.append( [s.data.pointing.dec / galsim.degrees for s in stars ] )
 
         data = np.array(zip(*cols), dtype=dtypes)
         fits.write_table(data, extname=extname)
@@ -324,6 +351,15 @@ class Star(object):
         else:
             params = [ None ] * len(data)
 
+        if 'point_ra' in colnames:
+            pointing_list = [ galsim.CelestialCoord(row['point_ra'] * galsim.degrees,
+                                                    row['point_dec'] * galsim.degrees)
+                              for row in data ]
+            colnames.remove('point_ra')
+            colnames.remove('point_dec')
+        else:
+            pointing_list = [ None ] * len(data)
+
         fit_list = [ StarFit(p, flux=f, center=c, chisq=x)
                      for (p,f,c,x) in zip(params, flux, center, chisq) ]
 
@@ -337,11 +373,98 @@ class Star(object):
         bounds_list = [ galsim.BoundsI(*b) for b in zip(xmin,xmax,ymin,ymax) ]
         image_list = [ galsim.Image(bounds=b, wcs=w) for b,w in zip(bounds_list, wcs_list) ]
         weight_list = [ galsim.Image(bounds=b, wcs=w) for b,w in zip(bounds_list, wcs_list) ]
-        data_list = [ StarData(im, pos, weight=w, properties=p)
-                      for im,pos,w,p in zip(image_list, pos_list, weight_list, prop_list) ]
+        data_list = [ StarData(im, pos, weight=w, properties=prop, pointing=point)
+                      for im,pos,w,prop,point in zip(image_list, pos_list, weight_list,
+                                                     prop_list, pointing_list) ]
 
         stars = [ Star(d,f) for (d,f) in zip(data_list, fit_list) ]
         return stars
+
+    @staticmethod
+    def load_images(stars, file_name, pointing=None,
+                    image_hdu=None, weight_hdu=None, badpix_hdu=None, sky=None,
+                    logger=None):
+        """Load the image data into a list of Stars.
+
+        We don't store the image data for Stars when we write them to a file, since that
+        would take up a lot of space and is usually not desired.  However, we do store the
+        bounds in the original image where the star was cutout, so if you want to load back in
+        the original data from the image file, you can do so with this function.
+
+        :param stars:           A list of Star instances.
+        :param file_name:       The file with the image data for these stars.
+        :param pointing:        The pointing direction to use. [default: None]
+        :param image_hdu:       The hdu to use for the main image. [default: None, which means
+                                either 0 or 1 as appropriate according to the compression.]
+        :param weight_hdu:      The hdu to use for the weight image. [default: None]
+        :param badpix_hdu:      The hdu to use for the bad pixel mask. [default: None]
+        :param sky:             Optional sky image or float value to subtract from the main
+                                image. [default: None]
+        :param logger:          A logger object for logging debug info. [default: None]
+
+        :returns: a new list of Stars with the images information loaded.
+        """
+        import galsim
+        # TODO: This is largely copied from InputHandler.readImages.
+        #       This should probably be refactored a bit to avoid the duplicated code.
+        if logger:
+            logger.info("Loading image information from file %s",file_name)
+        image = galsim.fits.read(file_name, hdu=image_hdu)
+
+        if sky is not None:
+            image = image - sky
+
+        # Either read in the weight image, or build a dummy one
+        if weight_hdu is None:
+            if logger:
+                logger.debug("Making trivial (wt==1) weight image")
+            weight = galsim.ImageI(image.bounds, init_value=1)
+        else:
+            if logger:
+                logger.info("Reading weight image from hdu %d.", weight_hdu)
+            weight = galsim.fits.read(file_name, hdu=weight_hdu)
+            if np.all(weight.array == 0):
+                logger.error("According to the weight mask in %s, all pixels have zero weight!",
+                             file_name)
+
+        # If requested, set wt=0 for any bad pixels
+        if badpix_hdu is not None:
+            if logger:
+                logger.info("Reading badpix image from hdu %d.", badpix_hdu)
+            badpix = galsim.fits.read(file_name, hdu=badpix_hdu)
+            # The badpix image may be offset by 32768 from the true value.
+            # If so, subtract it off.
+            if np.any(badpix.array > 32767):
+                if logger:
+                    logger.debug('min(badpix) = %s',np.min(badpix.array))
+                    logger.debug('max(badpix) = %s',np.max(badpix.array))
+                    logger.debug("subtracting 32768 from all values in badpix image")
+                badpix -= 32768
+            if np.any(badpix.array < -32767):
+                if logger:
+                    logger.debug('min(badpix) = %s',np.min(badpix.array))
+                    logger.debug('max(badpix) = %s',np.max(badpix.array))
+                    logger.debug("adding 32768 to all values in badpix image")
+                badpix += 32768
+            # Also, convert to int16, in case it isn't by default.
+            badpix = galsim.ImageS(badpix)
+            if np.all(badpix.array != 0):
+                logger.error("According to the bad pixel array in %s, all pixels are masked!",
+                                file_name)
+            weight.array[badpix.array != 0] = 0
+
+        stars = [ Star(data = StarData(image=image[star.data.image.bounds],
+                                       image_pos=star.data.image_pos,
+                                       weight=weight[star.data.image.bounds],
+                                       pointing= (pointing if pointing is not None
+                                                  else star.data.pointing),
+                                       values_are_sb=star.data.values_are_sb,
+                                       properties=star.data.properties,
+                                       _xyuv_set=True),
+                       fit = star.fit)
+                  for star in stars ]
+        return stars
+
 
     def offset_to_center(self, offset):
         """A utility routine to convert from an offset in image coordinates to the corresponding
@@ -458,13 +581,15 @@ class StarData(object):
                         But it should be the same for all StarData objects in the exposure.
                         This is required if image.wcs is a CelestialWCS, but should be None
                         if image.wcs is a EuclideanWCS. [default: None]
+    :param field_pos:   Optionally provide the field_pos directly, rather than calculating it from
+                        the wcs and a pointing. [default: None]
     :param properties:  A dict containing other properties about the star that might be of
                         interest. [default: None]
     :param values_are_sb: True if pixel data give surface brightness, False if they're flux
                           [default: False]
     """
-    def __init__(self, image, image_pos, weight=None, pointing=None, values_are_sb=False,
-                 properties=None, logger=None):
+    def __init__(self, image, image_pos, weight=None, pointing=None, field_pos=None,
+                 values_are_sb=False, properties=None, logger=None, _xyuv_set=False):
         import galsim
         # Save all of these as attributes.
         self.image = image
@@ -489,12 +614,15 @@ class StarData(object):
             self.properties = properties
 
         self.pointing = pointing
-        self.field_pos = self.calculateFieldPos(image_pos, image.wcs, pointing, self.properties)
+        if field_pos is None:
+            self.field_pos = self.calculateFieldPos(image_pos, image.wcs, pointing, self.properties)
+        else:
+            self.field_pos = field_pos
         self.pixel_area = self.local_wcs.pixelArea()
 
         # Make sure the user didn't provide their own x,y,u,v in properties.
         for key in ['x', 'y', 'u', 'v']:
-            if properties is not None and key in properties:
+            if properties is not None and key in properties and not _xyuv_set:
                 raise AttributeError("Cannot provide property %s in properties dict."%key)
 
         self.properties['x'] = self.image_pos.x
@@ -523,13 +651,9 @@ class StarData(object):
         """
         import galsim
         # Calculate the field_pos, the position in the fov coordinates
-        if pointing is None:
-            if wcs.isCelestial():
+        if wcs.isCelestial():
+            if pointing is None:
                 raise AttributeError("If the image uses a CelestialWCS then pointing is required.")
-            return wcs.toWorld(image_pos)
-        else:
-            if not wcs.isCelestial():
-                raise AttributeError("Cannot provide pointing unless the image uses a CelestialWCS")
             sky_pos = wcs.toWorld(image_pos)
             if properties is not None:
                 if 'ra' not in properties:
@@ -537,6 +661,8 @@ class StarData(object):
                 if 'dec' not in properties:
                     properties['dec'] = sky_pos.dec / galsim.degrees
             return pointing.project(sky_pos)
+        else:
+            return wcs.toWorld(image_pos)
 
     def __getitem__(self, key):
         """Get a property of the star.
@@ -623,16 +749,14 @@ class StarData(object):
             newimage.array[ignore] = 0.
             newimage.array[~ignore] = data
 
-        props = self.properties.copy()
-        for key in ['x', 'y', 'u', 'v']:
-            # Get rid of keys that constructor doesn't want to see:
-            props.pop(key,None)
         return StarData(image=newimage,
                         image_pos=self.image_pos,
                         weight=self.weight,
                         pointing=self.pointing,
+                        field_pos=self.field_pos,
                         values_are_sb=self.values_are_sb,
-                        properties=props)
+                        properties=self.properties,
+                        _xyuv_set=True)
 
     def addPoisson(self, signal=None, gain=None):
         """Return new StarData with the weight values altered to reflect
@@ -679,17 +803,13 @@ class StarData(object):
         newweight.array[use] = 1. / (1./self.weight.array[use] + variance / gain)
 
         # Return new object
-        props = self.properties.copy()
-        for key in ['x', 'y', 'u', 'v']:
-            # Get rid of keys that constructor doesn't want to see:
-            props.pop(key,None)
-        props['gain'] = gain
         return StarData(image=self.image,
                         image_pos=self.image_pos,
                         weight=newweight,
                         pointing=self.pointing,
                         values_are_sb=self.values_are_sb,
-                        properties=props)
+                        properties=dict(self.properties, gain=gain),
+                        _xyuv_set = True)
 
     def maskPixels(self, mask):
         """Return new StarData with weight nulled at pixels marked as False in the mask.
@@ -719,16 +839,13 @@ class StarData(object):
         newweight.array[use] = np.where(m, self.weight.array[use], 0.)
 
         # Return new object
-        props = self.properties.copy()
-        for key in ['x', 'y', 'u', 'v']:
-            # Get rid of keys that constructor doesn't want to see:
-            props.pop(key,None)
         return StarData(image=self.image,
                         image_pos=self.image_pos,
                         weight=newweight,
                         pointing=self.pointing,
                         values_are_sb=self.values_are_sb,
-                        properties=props)
+                        properties=self.properties,
+                        _xyuv_set=True)
 
 
 class StarFit(object):
@@ -804,3 +921,13 @@ class StarFit(object):
         return StarFit(self.params, self.flux, self.center, self.alpha, self.beta,
                        self.chisq, self.dof, self.worst_chisq)
 
+    def __getitem__(self, key):
+        """Get a property of the star fit.
+
+        Looks at params to get the property
+
+        :param key:     The name of the property to return
+
+        :returns: the value of the given property.
+        """
+        return self.params[key]

@@ -279,7 +279,7 @@ class ChisqOutliers(Outliers):
         nremoved = np.sum(chisq > thresh)
 
         if logger:
-            logger.debug("Found %d stars with chisq > thresh", nremoved)
+            logger.info("Found %d stars with chisq > thresh", nremoved)
             logger.debug("chisq = %s",chisq[chisq > thresh])
             logger.debug("thresh = %s",thresh[chisq > thresh])
 

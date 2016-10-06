@@ -70,7 +70,7 @@ def test_Gaussian():
     if __name__ == '__main__':
         logger = piff.config.setup_logger(verbose=3)
     else:
-        logger = piff.config.setup_logger(verbose=1)
+        logger = piff.config.setup_logger(verbose=0)
     model = piff.Model.process(config['model'], logger)
     fit = model.fit(star).fit
 
@@ -228,7 +228,7 @@ def test_single_image():
     if __name__ == '__main__':
         logger = piff.config.setup_logger(verbose=3)
     else:
-        logger = piff.config.setup_logger(verbose=1)
+        logger = piff.config.setup_logger(verbose=0)
     orig_stars, wcs, pointing = piff.Input.process(config['input'], logger)
 
     # Use a SimplePSF to process the stars data this time.
@@ -255,6 +255,7 @@ def test_single_image():
 
     # Test using the piffify executable
     os.remove(psf_file)
+    config['verbose'] = 0
     with open('simple.yaml','w') as f:
         f.write(yaml.dump(config, default_flow_style=False))
     piffify_exe = get_script_name('piffify')
@@ -287,7 +288,7 @@ def test_single_image():
         np.testing.assert_array_less(0, np.sum(np.abs(rho.xip)))
 
     # Test the plotting and writing
-    rho_psf_file = os.path.join('output','simple_psf_rhostats.png')
+    rho_psf_file = os.path.join('output','simple_psf_rhostats.pdf')
     stats.write(rho_psf_file)
 
     # Test that we can make summary shape statistics, using HSM
@@ -302,7 +303,7 @@ def test_single_image():
     np.testing.assert_array_almost_equal(g2, shapeStats.g2, decimal=4)
     np.testing.assert_array_almost_equal(g2, shapeStats.g2_model, decimal=3)
 
-    shape_psf_file = os.path.join('output','simple_psf_shapestats.png')
+    shape_psf_file = os.path.join('output','simple_psf_shapestats.pdf')
     shapeStats.write(shape_psf_file)
 
     # Test that we can use the config parser for both RhoStats and ShapeHistogramsStats
@@ -320,15 +321,15 @@ def test_single_image():
     os.remove(psf_file)
     os.remove(rho_psf_file)
     os.remove(shape_psf_file)
-    piff.piffify(config)
+    piff.piffify(config, logger)
 
     # Test using the piffify executable
     os.remove(psf_file)
     os.remove(rho_psf_file)
     os.remove(shape_psf_file)
+    config['verbose'] = 0
     with open('simple.yaml','w') as f:
         f.write(yaml.dump(config, default_flow_style=False))
-    piffify_exe = get_script_name('piffify')
     p = subprocess.Popen( [piffify_exe, 'simple.yaml'] )
     p.communicate()
 

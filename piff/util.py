@@ -70,8 +70,15 @@ def make_dtype(key, value):
         t = int
     elif dt.kind in np.typecodes['AllFloat']:
         t = float
-    else:
+    elif dt.kind == 'S' and not isinstance(value, (str, unicode)):
+        # catch lists of strings
+        t = np.array(value).dtype.str
+    elif dt.kind == 'S':
         t = str
+    else:
+        # Other objects should be manually serialized by the initializer or the finish_read and
+        # finish_write functions.
+        raise ValueError("Cannot serialize object of type %s"%t)
     dt = make_dt_tuple(key, t, size)
 
     return dt
