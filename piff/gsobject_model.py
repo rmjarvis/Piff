@@ -174,7 +174,7 @@ class GSObjectModel(Model):
             flux = star.fit.flux
             if self._force_model_center:
                 cenu, cenv = star.fit.center
-                fwhm, g1, g2 = star.fit.params
+                size, g1, g2 = star.fit.params
             else:
                 cenu, cenv, size, g1, g2 = star.fit.params
 
