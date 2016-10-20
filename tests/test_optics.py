@@ -60,7 +60,7 @@ def test_pupil_im(pupil_plane_im='optics_test/DECam_pupil_128.fits'):
 def test_kolmogorov():
     print('test kolmogorov')
     # make sure if we put in different kolmogorov things that things change
-    star = make_empty_star(params=[])
+    star = make_empty_star()
 
     model = piff.Optical(r0=0.1, template='des')
     star = model.draw(star)
@@ -74,7 +74,7 @@ def test_kolmogorov():
 def test_shearing():
     print('test shearing')
     # make sure if we put in common mode ellipticities that things change
-    star = make_empty_star(params=[])
+    star = make_empty_star()
     g1 = 0
     g2 = 0.05
     model = piff.Optical(r0=0.1, g1=g1, g2=g2, template='des')
@@ -87,7 +87,7 @@ def test_shearing():
 def test_gaussian():
     gaussian = piff.Gaussian()
     print('test gaussian')
-    star = make_empty_star(params=[])
+    star = make_empty_star()
     # test gaussian alone
     sigma = 1
     g1 = -0.1
@@ -167,7 +167,7 @@ def make_empty_star(icen=500, jcen=700, ccdnum=28, params=None,
     star = piff.Star.makeTarget(x=icen, y=jcen, properties=properties,
                                 scale=0.263)
 
-    if np.shape(params) == ():
+    if params is None:
         starfit = None
     else:
         starfit = piff.StarFit(params, **fit_kwargs)

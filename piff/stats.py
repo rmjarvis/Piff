@@ -22,8 +22,6 @@ from __future__ import print_function
 import numpy as np
 import os
 
-from .gaussian_model import Gaussian
-
 class Stats(object):
     """The base class for getting the statistics of a set of stars.
 
@@ -131,16 +129,6 @@ class Stats(object):
             logger.warning("Writing %s plot to file %s",self.__class__.__name__,file_name)
         fig.savefig(file_name)
 
-    def hsm(self, star):
-        """Return HSM Shape Measurements for a star
-
-        :param star:        The star to measure.
-
-        :returns (flux, cenx, ceny, sigma, g1, g2, flag)
-        """
-        # The Gaussian model does this, so use that to avoid code duplication.
-        return Gaussian.hsm(star)
-
     def measureShapes(self, psf, stars, logger=None):
         """Compare PSF and true star shapes with HSM algorithm
 
@@ -151,10 +139,11 @@ class Stats(object):
         :returns:           positions of stars, shapes of stars, and shapes of
                             models of stars (sigma, g1, g2)
         """
+        import piff
         # measure moments with Gaussian on image
         if logger:
             logger.debug("Measuring shapes of real stars")
-        shapes_truth = np.array([ self.hsm(star) for star in stars ])
+        shapes_truth = np.array([ piff.util.hsm(star) for star in stars ])
         for star, shape in zip(stars, shapes_truth):
             if logger:
                 logger.debug("real shape for star at %s is %s",star.image_pos, shape)
@@ -166,7 +155,7 @@ class Stats(object):
         # generate the model stars and measure moments
         if logger:
             logger.debug("Generating and Measuring Model Stars")
-        shapes_model = np.array([ self.hsm(psf.drawStar(star)) for star in stars ])
+        shapes_model = np.array([ piff.util.hsm(psf.drawStar(star)) for star in stars ])
         for star, shape in zip(stars, shapes_model):
             if logger:
                 logger.debug("model shape for star at %s is %s",star.image_pos, shape)
@@ -505,5 +494,3 @@ class RhoStats(Stats):
 
         fig.set_tight_layout(True)
         return fig, ax
-
-

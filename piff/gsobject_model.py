@@ -35,6 +35,7 @@ class GSObjectModel(Model):
     :param logger:  A logger object for logging debug info. [default: None]
     """
     def __init__(self, gsobj, fastfit=False, force_model_center=True, logger=None):
+        self.kwargs = {}
         self.gsobj = gsobj
         self._fastfit = fastfit
         self._force_model_center = force_model_center
@@ -267,7 +268,7 @@ class GSObjectModel(Model):
         fit = StarFit(params, flux=flux, center=center, chisq=chisq, dof=dof)
         return Star(star.data, fit)
 
-    def initialize(self, star, logger=None):
+    def initialize(self, star, mask=True, logger=None):
         """Initialize the given star's fit parameters.
 
         :param star:  The Star to initialize.
@@ -328,3 +329,13 @@ class GSObjectModel(Model):
                                            dof = np.count_nonzero(weight.array) - 1,
                                            alpha = star.fit.alpha,
                                            beta = star.fit.beta))
+
+
+# Wrapped Gaussian model for backwards compatibility.
+# Should we do this for Kolmogorov and Moffat too?
+class Gaussian(GSObjectModel):
+    def __init__(self, logger=None):
+        import galsim
+        self.kwargs = {}
+        gsobj = galsim.Gaussian(sigma=1.)
+        GSObjectModel.__init__(self, gsobj)

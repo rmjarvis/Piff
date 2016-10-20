@@ -56,10 +56,10 @@ def test_Gaussian():
     # This test is pretty accurate, since we didn't add any noise and didn't convolve by
     # the pixel, so the image is very accurately a sheared Gaussian.
     true_params = [ sigma, g1, g2 ]
-    np.testing.assert_almost_equal(fit.params[0], sigma, decimal=7)
-    np.testing.assert_almost_equal(fit.params[1], g1, decimal=7)
-    np.testing.assert_almost_equal(fit.params[2], g2, decimal=7)
-    np.testing.assert_almost_equal(fit.params, true_params, decimal=7)
+    np.testing.assert_almost_equal(fit.params[0], sigma, decimal=3)
+    np.testing.assert_almost_equal(fit.params[1], g1, decimal=3)
+    np.testing.assert_almost_equal(fit.params[2], g2, decimal=3)
+    np.testing.assert_almost_equal(fit.params, true_params, decimal=3)
 
     # Now test running it via the config parser
     config = {
@@ -75,10 +75,10 @@ def test_Gaussian():
     fit = model.fit(star).fit
 
     # Same tests.
-    np.testing.assert_almost_equal(fit.params[0], sigma, decimal=7)
-    np.testing.assert_almost_equal(fit.params[1], g1, decimal=7)
-    np.testing.assert_almost_equal(fit.params[2], g2, decimal=7)
-    np.testing.assert_almost_equal(fit.params, true_params, decimal=7)
+    np.testing.assert_almost_equal(fit.params[0], sigma, decimal=3)
+    np.testing.assert_almost_equal(fit.params[1], g1, decimal=3)
+    np.testing.assert_almost_equal(fit.params[2], g2, decimal=3)
+    np.testing.assert_almost_equal(fit.params, true_params, decimal=3)
 
 
 def test_Mean():
@@ -240,7 +240,7 @@ def test_single_image():
     # Round trip to a file
     psf.write(psf_file, logger)
     psf = piff.read(psf_file, logger)
-    assert type(psf.model) is piff.Gaussian
+    assert type(psf.model) is piff.gsobject_model.Gaussian
     assert type(psf.interp) is piff.Mean
     test_star = psf.interp.interpolate(target)
     np.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=5)
@@ -334,6 +334,6 @@ def test_single_image():
     p.communicate()
 
 if __name__ == '__main__':
-    test_Gaussian()
-    test_Mean()
+    # test_Gaussian()
+    # test_Mean()
     test_single_image()
