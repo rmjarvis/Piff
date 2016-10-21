@@ -17,6 +17,8 @@ import galsim
 import numpy as np
 import piff
 
+fiducial_kolmogorov = galsim.Kolmogorov(half_light_radius=1.0)
+
 def make_kolmogorov_data(fwhm, g1, g2, u0, v0, flux, noise=0., du=1., fpu=0., fpv=0., nside=32,
                          nom_u0=0., nom_v0=0., rng=None):
     """Make a Star instance filled with a Kolmogorov profile
@@ -68,7 +70,8 @@ def check_gp_poly(npca=0):
     u0_fn = lambda u,v: 0.5*u
     v0_fn = lambda u,v: 0.3*u+0.3*v
 
-    mod = piff.Kolmogorov(force_model_center=False)  # Center is part of the PSF params.
+    # Center is part of the PSF params.
+    mod = piff.GSObjectModel(fiducial_kolmogorov, force_model_center=False)
 
     stars = []
     for u, v, flux in zip(upositions, vpositions, fluxes):
@@ -258,7 +261,8 @@ def check_gp_gp(npca=0):
     fluxes = [ud()*100.0 + 50 for i in xrange(nstars)]  # Uniform [50, 150]
     g1s, g2s = ps.getShear((upositions, vpositions))
 
-    mod = piff.Kolmogorov(force_model_center=False)  # Center is part of the PSF params.
+    # Center is part of the PSF params.
+    mod = piff.GSObjectModel(fiducial_kolmogorov, force_model_center=False)
 
     stars = []
     for u, v, g1, g2, flux in zip(upositions, vpositions, g1s, g2s, fluxes):

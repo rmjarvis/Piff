@@ -21,15 +21,15 @@ from .star import Star, StarFit
 
 import numpy as np
 
-class GPInterp(Interp):
+class SKLearnGPInterp(Interp):
     """
     An interpolator that uses sklearn.gaussian_process to interpolate a single surface.
     """
-    def __init__(self, kernel=None, npca=0, logger=None):
+    def __init__(self, kernel=None, optimizer='fmin_l_bfgs_b', npca=0, logger=None):
         from sklearn.gaussian_process import GaussianProcessRegressor
         self.kernel = kernel
         self.npca = npca
-        self.gp = GaussianProcessRegressor(self.kernel)
+        self.gp = GaussianProcessRegressor(self.kernel, optimizer=optimizer)
 
     def _fit(self, X, y, logger=None):
         if self.npca > 0:
@@ -41,7 +41,7 @@ class GPInterp(Interp):
 
     def _predict(self, Xstar):
         ystar = self.gp.predict(Xstar)
-        if self._npca > 0:
+        if self.npca > 0:
             ystar = self._pca.inverse_transform(ystar)
         return ystar
 
@@ -49,13 +49,13 @@ class GPInterp(Interp):
         self.solve(stars, logger=logger)
         return self.interpolateList(stars)
 
-    def solve(self, star_list=None, logger=None):
-        X = np.array([(star.u, star.v) for star in star_list])
-        y = np.array([star.fit.params for star in star_list])
+    def solve(self, stars=None, logger=None):
+        X = np.array([(star.u, star.v) for star in stars])
+        y = np.array([star.fit.params for star in stars])
         self._fit(X, y, logger=logger)
 
     def interpolate(self, star, logger=None):
-        return self.interpolateList([star], logger=logger)
+        return self.interpolateList([star], logger=logger)[0]
 
     def interpolateList(self, stars, logger=None):
         X = np.array([(star.u, star.v) for star in stars])
@@ -65,6 +65,6 @@ class GPInterp(Interp):
             if star.fit is None:
                 fit = StarFit(y)
             else:
-                fit = star.fit.newParams(y)
+                fit = star.fit.newParams(y0)
             fitted_stars.append(Star(star.data, fit))
         return fitted_stars
