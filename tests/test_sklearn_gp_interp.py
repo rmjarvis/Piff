@@ -18,7 +18,18 @@ import numpy as np
 import piff
 from sklearn.gaussian_process import kernels
 
+
 fiducial_kolmogorov = galsim.Kolmogorov(half_light_radius=1.0)
+
+star_type = np.dtype([('u', float),
+                      ('v', float),
+                      ('hlr', float),
+                      ('g1', float),
+                      ('g2', float),
+                      ('u0', float),
+                      ('v0', float),
+                      ('flux', float)])
+
 
 def make_star(hlr, g1, g2, u0, v0, flux, noise=0., du=1., fpu=0., fpv=0., nside=32,
               nom_u0=0., nom_v0=0., rng=None):
@@ -53,15 +64,6 @@ def make_star(hlr, g1, g2, u0, v0, flux, noise=0., du=1., fpu=0., fpv=0., nside=
         star.image.addNoise(gn)
     return star
 
-
-star_type = np.dtype([('u', float),
-                      ('v', float),
-                      ('hlr', float),
-                      ('g1', float),
-                      ('g2', float),
-                      ('u0', float),
-                      ('v0', float),
-                      ('flux', float)])
 
 def make_constant_psf_params(ntrain, nvalidate, nvis):
     # every data set defined on unit square field-of-view.
@@ -175,11 +177,12 @@ def make_grf_psf_params(ntrain, nvalidate, nvis):
     # Next, generate input data by drawing from a single Gaussian Random Field.
     from scipy.spatial.distance import pdist, squareform
     dists = squareform(pdist(np.array([us, vs]).T))
-    cov = np.exp(-0.5*dists**2/0.3**2)
+    cov = np.exp(-0.5*dists**2/0.3**2)  # Use 0.3 as arbitrary scale length.
 
     params['u'] = us
     params['v'] = vs
     # independently draw hlr, g1, g2, u0, v0
+    np.random.seed(1234567890)
     params['hlr'] = np.random.multivariate_normal([0]*ntotal, cov)*0.05+0.4
     params['g1'] = np.random.multivariate_normal([0]*ntotal, cov)*0.05
     params['g2'] = np.random.multivariate_normal([0]*ntotal, cov)*0.05
@@ -267,7 +270,7 @@ def display(training_data, vis_data, mod, interp):
     ax1.set_ylim((-0.2,1.2))
     meas = ax1.scatter(training_data['u'], training_data['v'],
                        c=training_data['g1'], vmin=vmin, vmax=vmax)
-    # import ipdb; ipdb.set_trace()
+
     plt.colorbar(meas)
 
     ax2 = fig.add_subplot(142)
@@ -310,14 +313,14 @@ def validate(validate_stars, mod, interp):
         print("s1 flux:", s1.fit.flux)
         print()
         print('Flux, ctr, chisq after interpolation: \n', s1.fit.flux, s1.fit.center, s1.fit.chisq)
-        # np.testing.assert_allclose(s1.fit.flux, s0.fit.flux, rtol=1e-3)
+        np.testing.assert_allclose(s1.fit.flux, s0.fit.flux, rtol=2e-3)
 
         s1 = mod.draw(s1)
         print()
         print('max image abs diff = ',np.max(np.abs(s1.image.array-s0.image.array)))
         print('max image abs value = ',np.max(np.abs(s0.image.array)))
         print('min rtol = ', np.max(np.abs(s1.image.array - s0.image.array)/np.abs(s0.image.array)))
-        # np.testing.assert_allclose(s1.image.array, s0.image.array, rtol=2e-2)
+        np.testing.assert_allclose(s1.image.array, s0.image.array, rtol=2e-2)
 
 
 def check_constant_psf(npca, optimizer, visualize=False):
@@ -395,7 +398,7 @@ def check_grf_psf(npca, optimizer, visualize=False):
     stars = params_to_stars(training_data, mod, noise=0.03, rng=bd)
     validate_stars = params_to_stars(validate_data, mod, noise=0.0)
 
-    kernel = kernels.RBF(1.0, (1e-1, 1e3))  # Should be nearly flat covariance...
+    kernel = kernels.RBF(0.3, (1e-1, 1e0))
     # We probably aren't measuring fwhm, g1, g2, etc. to better than 1e-5...
     kernel += kernels.WhiteKernel(1e-5, (1e-7, 1e-1))
     interp = piff.SKLearnGPInterp(kernel, optimizer=optimizer, npca=npca)
@@ -411,12 +414,51 @@ def check_grf_psf(npca, optimizer, visualize=False):
 
 
 def test_grf_psf():
-    check_grf_psf(0, None, visualize=True)
-    check_grf_psf(0, 'fmin_l_bfgs_b', visualize=True)
-    check_grf_psf(4, None, visualize=True)
-    check_grf_psf(4, 'fmin_l_bfgs_b', visualize=True)
+    check_grf_psf(0, None, visualize=False)
+    check_grf_psf(0, 'fmin_l_bfgs_b', visualize=False)
+    check_grf_psf(5, None, visualize=False)
+    check_grf_psf(5, 'fmin_l_bfgs_b', visualize=False)
+
+
+def check_empirical_kernel(npca, visualize):
+    bd = galsim.BaseDeviate(12020569031)
+    ntrain, nvalidate, nvis = 100, 1, 21
+
+    training_data, validate_data, vis_data = make_grf_psf_params(ntrain, nvalidate, nvis)
+
+    mod = piff.GSObjectModel(fiducial_kolmogorov, force_model_center=False)
+
+    stars = params_to_stars(training_data, mod, noise=0.03, rng=bd)
+    validate_stars = params_to_stars(validate_data, mod, noise=0.0)
+
+
+    # We could in principal use any function of dx, dy here.  For simplicity, just assert a
+    # Gaussian = SquaredExponential.
+    def fn(dx, dy):
+        return np.exp(-0.5*(dx**2+dy**2)/0.2**2)
+
+    kernel = piff.EmpiricalKernel(fn)
+    # We probably aren't measuring fwhm, g1, g2, etc. to better than 1e-5...
+    kernel += kernels.WhiteKernel(1e-5)
+    interp = piff.SKLearnGPInterp(kernel, optimizer=None, npca=npca)
+
+    interp.initialize(stars)
+
+    iterate(stars, mod, interp)
+
+    if visualize:
+        display(training_data, vis_data, mod, interp)
+
+    validate(validate_stars, mod, interp)
+
+
+def test_empirical_kernel():
+    check_empirical_kernel(0, False)
+    check_empirical_kernel(5, False)
+
 
 if __name__ == '__main__':
-    # test_constant_psf()
-    # test_polynomial_psf()
+    test_constant_psf()
+    test_polynomial_psf()
     test_grf_psf()
+    test_empirical_kernel()

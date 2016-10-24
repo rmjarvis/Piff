@@ -68,3 +68,24 @@ class SKLearnGPInterp(Interp):
                 fit = star.fit.newParams(y0)
             fitted_stars.append(Star(star.data, fit))
         return fitted_stars
+
+
+from sklearn.gaussian_process.kernels import StationaryKernelMixin, NormalizedKernelMixin, Kernel
+
+class EmpiricalKernel(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
+    def __init__(self, fn):
+        self.fn = fn
+        assert self.fn(0, 0) == 1
+
+    def __call__(self, X, Y=None, eval_gradient=False):
+        if eval_gradient:
+            raise RuntimeError("Cannot evaluate gradient for EmpiricalKernel.")
+
+        X = np.atleast_2d(X)
+        if Y is None:
+            Y = X
+
+        # Only writen for 2D covariance at the moment
+        xshift = np.subtract.outer(X[:,0], Y[:,0])
+        yshift = np.subtract.outer(X[:,1], Y[:,1])
+        return self.fn(xshift, yshift)

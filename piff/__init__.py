@@ -84,7 +84,7 @@ from .polynomial_interp import Polynomial, polynomial_types
 from .basis_interp import BasisInterp, BasisPolynomial
 from .knn_interp import kNNInterp
 from .gp_interp import GPInterp
-from .sklearn_gp_interp import SKLearnGPInterp
+from .sklearn_gp_interp import SKLearnGPInterp, EmpiricalKernel
 
 # Outlier handlers are named BlahOutliers where Blah is what they are called in teh config file
 from .outliers import Outliers, ChisqOutliers
