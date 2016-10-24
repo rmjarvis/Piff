@@ -21,7 +21,7 @@ from .star import Star, StarFit
 
 import numpy as np
 
-class SKLearnGPInterp(Interp):
+class GPInterp(Interp):
     """
     An interpolator that uses sklearn.gaussian_process to interpolate a single surface.
     """

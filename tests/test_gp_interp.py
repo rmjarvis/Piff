@@ -201,7 +201,6 @@ def params_to_stars(params, mod, noise=0.0, rng=None):
     stars = []
     for param in params.ravel():
         u, v, hlr, g1, g2, u0, v0, flux = param
-        # I think the following line is bounded between
         s = make_star(hlr, g1, g2, u0, v0, flux, noise=noise, du=0.2, fpu=u, fpv=v, rng=rng)
         s = mod.initialize(s)
         stars.append(s)
@@ -337,7 +336,7 @@ def check_constant_psf(npca, optimizer, visualize=False):
     kernel = kernels.RBF(1.0, (1e-1, 1e3))  # Should be nearly flat covariance...
     # We probably aren't measuring fwhm, g1, g2, etc. to better than 1e-5...
     kernel += kernels.WhiteKernel(1e-5, (1e-7, 1e-1))
-    interp = piff.SKLearnGPInterp(kernel, optimizer=optimizer, npca=npca)
+    interp = piff.GPInterp(kernel, optimizer=optimizer, npca=npca)
 
     interp.initialize(stars)
 
@@ -369,7 +368,7 @@ def check_polynomial_psf(npca, optimizer, visualize=False):
     kernel = kernels.RBF(1.0, (1e-1, 1e3))  # Should be nearly flat covariance...
     # We probably aren't measuring fwhm, g1, g2, etc. to better than 1e-5...
     kernel += kernels.WhiteKernel(1e-5, (1e-7, 1e-1))
-    interp = piff.SKLearnGPInterp(kernel, optimizer=optimizer, npca=npca)
+    interp = piff.GPInterp(kernel, optimizer=optimizer, npca=npca)
 
     interp.initialize(stars)
 
@@ -401,7 +400,7 @@ def check_grf_psf(npca, optimizer, visualize=False):
     kernel = kernels.RBF(0.3, (1e-1, 1e0))
     # We probably aren't measuring fwhm, g1, g2, etc. to better than 1e-5...
     kernel += kernels.WhiteKernel(1e-5, (1e-7, 1e-1))
-    interp = piff.SKLearnGPInterp(kernel, optimizer=optimizer, npca=npca)
+    interp = piff.GPInterp(kernel, optimizer=optimizer, npca=npca)
 
     interp.initialize(stars)
 
@@ -440,7 +439,7 @@ def check_empirical_kernel(npca, visualize):
     kernel = piff.EmpiricalKernel(fn)
     # We probably aren't measuring fwhm, g1, g2, etc. to better than 1e-5...
     kernel += kernels.WhiteKernel(1e-5)
-    interp = piff.SKLearnGPInterp(kernel, optimizer=None, npca=npca)
+    interp = piff.GPInterp(kernel, optimizer=None, npca=npca)
 
     interp.initialize(stars)
 
