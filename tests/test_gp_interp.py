@@ -16,14 +16,26 @@ from __future__ import print_function
 import galsim
 import numpy as np
 import piff
+from sklearn.gaussian_process import kernels
+
 
 fiducial_kolmogorov = galsim.Kolmogorov(half_light_radius=1.0)
 
-def make_kolmogorov_data(fwhm, g1, g2, u0, v0, flux, noise=0., du=1., fpu=0., fpv=0., nside=32,
-                         nom_u0=0., nom_v0=0., rng=None):
+star_type = np.dtype([('u', float),
+                      ('v', float),
+                      ('hlr', float),
+                      ('g1', float),
+                      ('g2', float),
+                      ('u0', float),
+                      ('v0', float),
+                      ('flux', float)])
+
+
+def make_star(hlr, g1, g2, u0, v0, flux, noise=0., du=1., fpu=0., fpv=0., nside=32,
+              nom_u0=0., nom_v0=0., rng=None):
     """Make a Star instance filled with a Kolmogorov profile
 
-    :param fwhm:        The fwhm of the Kolmogorov.
+    :param hlr:         The half_light_radius of the Kolmogorov.
     :param g1, g2:      Shear applied to profile.
     :param u0, v0:      The sub-pixel offset to apply.
     :param flux:        The flux of the star
@@ -35,7 +47,7 @@ def make_kolmogorov_data(fwhm, g1, g2, u0, v0, flux, noise=0., du=1., fpu=0., fp
     :param rng:         If adding noise, the galsim deviate to use for the random numbers
                         [default: None]
     """
-    k = galsim.Kolmogorov(fwhm=fwhm, flux=flux).shear(g1=g1, g2=g2).shift(u0,v0)
+    k = galsim.Kolmogorov(half_light_radius=hlr, flux=flux).shear(g1=g1, g2=g2).shift(u0,v0)
     if noise == 0.:
         var = 0.1
     else:
@@ -53,45 +65,150 @@ def make_kolmogorov_data(fwhm, g1, g2, u0, v0, flux, noise=0., du=1., fpu=0., fp
     return star
 
 
-def check_gp_poly(npca=0):
-    """ Test that Gaussian Process interpolation works reasonably well for densely packed Kolmogorov
-    star field with params that vary as polynomials.
-    """
+def make_constant_psf_params(ntrain, nvalidate, nvis):
+    # every data set defined on unit square field-of-view.
     bd = galsim.BaseDeviate(5647382910)
     ud = galsim.UniformDeviate(bd)
-    nstars = 100
-    upositions = [ud() for i in xrange(nstars)]
-    vpositions = [ud() for i in xrange(nstars)]
-    fluxes = [ud()*100.0 + 50 for i in xrange(nstars)]  # Uniform [50, 150]
 
-    g1_fn = lambda u,v: 0.1*u - 0.1*v
-    g2_fn = lambda u,v: -0.1*v + 0.1*u*v
-    fwhm_fn = lambda u,v: 1.0-0.05*u+0.05*v
-    u0_fn = lambda u,v: 0.5*u
-    v0_fn = lambda u,v: 0.3*u+0.3*v
+    training_data = np.recarray((ntrain,), dtype=star_type)
+    validate_data = np.recarray((nvalidate,), dtype=star_type)
 
-    # Center is part of the PSF params.
-    mod = piff.GSObjectModel(fiducial_kolmogorov, force_model_center=False)
+    hlr, g1, g2, u0, v0 = 0.4, 0.03, 0.06, 0.1, 0.2
+    for i in range(ntrain):
+        u = ud()
+        v = ud()
+        flux = ud()*50+100
+        training_data[i] = np.array([u, v, hlr, g1, g2, u0, v0, flux])
 
+    for i in range(nvalidate):
+        u = ud()*0.5 + 0.25
+        v = ud()*0.5 + 0.25
+        flux = 1.0
+        validate_data[i] = np.array([u, v, hlr, g1, g2, u0, v0, flux])
+
+    vis_data = np.recarray((nvis, nvis), dtype=star_type)
+    u = v = np.linspace(0, 1, nvis)
+    u, v = np.meshgrid(u, v)
+    vis_data['u'] = u
+    vis_data['v'] = v
+    vis_data['hlr'] = hlr
+    vis_data['g1'] = g1
+    vis_data['g2'] = g2
+    vis_data['u0'] = u0
+    vis_data['v0'] = v0
+    vis_data['flux'] = flux
+
+    return training_data, validate_data, vis_data
+
+
+def make_polynomial_psf_params(ntrain, nvalidate, nvis):
+    # every data set defined on unit square field-of-view.
+    bd = galsim.BaseDeviate(5772156649)
+    ud = galsim.UniformDeviate(bd)
+
+    training_data = np.recarray((ntrain,), dtype=star_type)
+    validate_data = np.recarray((nvalidate,), dtype=star_type)
+
+    coefs = np.empty((4, 4, 5), dtype=float)
+    for (i, j, k), _ in np.ndenumerate(coefs):
+        coefs[i, j, k] = 2*ud() - 1.0
+
+    for i in range(ntrain):
+        u = ud()
+        v = ud()
+        flux = ud()*50+100
+        vals = np.polynomial.chebyshev.chebval2d(u, v, coefs)/6  # range is [-0.5, 0.5]
+        hlr = vals[0] * 0.1 + 0.35
+        g1 = vals[1] * 0.1
+        g2 = vals[2] * 0.1
+        u0 = vals[3]
+        v0 = vals[4]
+        training_data[i] = np.array([u, v, hlr, g1, g2, u0, v0, flux])
+
+    for i in range(nvalidate):
+        u = ud()*0.5 + 0.25
+        v = ud()*0.5 + 0.25
+        flux = 1.0
+        vals = np.polynomial.chebyshev.chebval2d(u, v, coefs)/6  # range is [-0.5, 0.5]
+        hlr = vals[0] * 0.1 + 0.35
+        g1 = vals[1] * 0.1
+        g2 = vals[2] * 0.1
+        u0 = vals[3]
+        v0 = vals[4]
+        validate_data[i] = np.array([u, v, hlr, g1, g2, u0, v0, flux])
+
+    vis_data = np.recarray((nvis*nvis), dtype=star_type)
+    u = v = np.linspace(0, 1, nvis)
+    u, v = np.meshgrid(u, v)
+    for i, (u1, v1) in enumerate(zip(u.ravel(), v.ravel())):
+        vals = np.polynomial.chebyshev.chebval2d(u1, v1, coefs)/6  # range is [-0.5, 0.5]
+        hlr = vals[0] * 0.1 + 0.35
+        g1 = vals[1] * 0.1
+        g2 = vals[2] * 0.1
+        u0 = vals[3]
+        v0 = vals[4]
+        vis_data[i] = np.array([u1, v1, hlr, g1, g2, u0, v0, 1.0])
+
+    return training_data, validate_data, vis_data.reshape((nvis, nvis))
+
+
+def make_grf_psf_params(ntrain, nvalidate, nvis):
+    # Gaussian Random Field data.
+    bd = galsim.BaseDeviate(5772156649)
+    ud = galsim.UniformDeviate(bd)
+
+    ntotal = ntrain + nvalidate + nvis**2
+    params = np.recarray((ntotal,), dtype=star_type)
+
+    # Training
+    us = [ud() for i in range(ntrain)]
+    vs = [ud() for i in range(ntrain)]
+    fluxes = [ud()*50+100 for i in range(ntrain)]
+    # Validate
+    us += [ud()*0.5+0.25 for i in range(nvalidate)]
+    vs += [ud()*0.5+0.25 for i in range(nvalidate)]
+    fluxes += [1.0]
+    # Visualize
+    umesh, vmesh = np.meshgrid(np.linspace(0, 1, nvis), np.linspace(0, 1, nvis))
+    us += list(umesh.ravel())
+    vs += list(vmesh.ravel())
+    fluxes += [1.0] * nvis**2
+
+    # Next, generate input data by drawing from a single Gaussian Random Field.
+    from scipy.spatial.distance import pdist, squareform
+    dists = squareform(pdist(np.array([us, vs]).T))
+    cov = np.exp(-0.5*dists**2/0.3**2)  # Use 0.3 as arbitrary scale length.
+
+    params['u'] = us
+    params['v'] = vs
+    # independently draw hlr, g1, g2, u0, v0
+    np.random.seed(1234567890)
+    params['hlr'] = np.random.multivariate_normal([0]*ntotal, cov)*0.05+0.4
+    params['g1'] = np.random.multivariate_normal([0]*ntotal, cov)*0.05
+    params['g2'] = np.random.multivariate_normal([0]*ntotal, cov)*0.05
+    params['u0'] = np.random.multivariate_normal([0]*ntotal, cov)*0.3
+    params['v0'] = np.random.multivariate_normal([0]*ntotal, cov)*0.3
+    params['flux'] = fluxes
+
+    training_data = params[:ntrain]
+    validate_data = params[ntrain:ntrain+nvalidate]
+    vis_data = params[ntrain+nvalidate:].reshape((nvis, nvis))
+
+    return training_data, validate_data, vis_data
+
+
+def params_to_stars(params, mod, noise=0.0, rng=None):
     stars = []
-    for u, v, flux in zip(upositions, vpositions, fluxes):
-        s = make_kolmogorov_data(fwhm_fn(u,v), g1_fn(u,v), g2_fn(u,v), u0_fn(u,v), v0_fn(u,v), flux,
-                                 noise=0.1, du=0.5, fpu=u, fpv=v, rng=bd)
+    for param in params.ravel():
+        u, v, hlr, g1, g2, u0, v0, flux = param
+        # I think the following line is bounded between
+        s = make_star(hlr, g1, g2, u0, v0, flux, noise=noise, du=0.2, fpu=u, fpv=v, rng=rng)
         s = mod.initialize(s)
         stars.append(s)
+    return stars
 
-    # Get noiseless copy of the PSF at the center of the FOV
-    u,v = 0.5, 0.5
-    s0 = make_kolmogorov_data(fwhm_fn(u,v), g1_fn(u,v), g2_fn(u,v), u0_fn(u,v), v0_fn(u,v), 1.0,
-                              du=0.5, fpu=u, fpv=v)
-    s0 = mod.initialize(s0)
 
-    # theta is the inverse correlation length.  Sadly, the default settings for this in sklearn
-    # lead to an exception for this dataset.  Fortunately, we can pass in an initial value (theta0)
-    # and some bounds (thetaL and thetaU), and the GP framework will solve for the best value.
-    interp = piff.GPInterp(thetaL=1e-6, theta0=1e0, thetaU=1e6, nugget=1e-4, npca=npca)
-    interp.initialize(stars)
-
+def iterate(stars, mod, interp):
     chisq = 0.0
     dof = 0
     for s in stars:
@@ -102,39 +219,6 @@ def check_gp_poly(npca=0):
     print("chisq: {0}    dof: {1}".format(chisq, dof))
     print("chisq/dof: {0}".format(chisq/dof))
 
-    # Go through and look for bad outliers that may confuse the GP interpolator
-    old_stars = stars
-    stars = []
-    for i, s in enumerate(old_stars):
-        # arbitrary cutoff, but for simulated data should be reasonable.
-        if (s.fit.chisq / s.fit.dof) > 4:
-            # print("star {0} has chisq/dof = {1}".format(i, s.fit.chisq/s.fit.dof))
-            # try fitting again with lmfit instead of hsm...
-            s1 = piff.Star(s.data, piff.StarFit(None))
-            s1 = mod.fit(s1)
-            s1 = mod.reflux(s1)
-            # print("after refit, chisq/dof = {0}".format(s1.fit.chisq/s1.fit.dof))
-            # if still bad, break loop, excluding star from further processing
-            if (s1.fit.chisq / s1.fit.dof) > 4:
-                # print("rejecting star {0}".format(i))
-                continue
-            stars.append(s1)
-        else:
-            # chisq/dof is okay, so keep this star.
-            stars.append(s)
-
-    chisq = 0.0
-    dof = 0
-    for s in stars:
-        chisq += s.fit.chisq
-        dof += s.fit.dof
-        if (s.fit.chisq / s.fit.dof) > 4:
-            print("chisq/dof = {0}".format(s.fit.chisq / s.fit.dof))
-    print()
-    print("After refitting / outlier rejection")
-    print("chisq: {0}    dof: {1}".format(chisq, dof))
-    print("chisq/dof: {0}".format(chisq/dof))
-
     oldchisq = 0.
     print()
     for iteration in range(10):
@@ -142,9 +226,9 @@ def check_gp_poly(npca=0):
         stars = [mod.fit(s) for s in stars]
         # Run the interpolator
         interp.solve(stars)
-        print('theta_ = ', interp.gp.theta_)
-        if npca > 0:
-            print('explained_variance_ratio = ', np.cumsum(interp._pca.explained_variance_ratio_))
+        # print('theta_ = ', interp.gp.theta_)
+        # if npca > 0:
+        #     print('explained_variance_ratio = ', np.cumsum(interp._pca.explained_variance_ratio_))
 
         # Install interpolator solution into each
         # star, recalculate flux, report chisq
@@ -157,264 +241,224 @@ def check_gp_poly(npca=0):
             dof += s.fit.dof
             stars[i] = s
         print("iteration: {}  chisq: {}  dof: {}".format(iteration, chisq, dof))
-        if oldchisq>0 and np.abs(oldchisq-chisq) < dof/10.0:
+        if oldchisq>0 and abs(oldchisq-chisq) < dof/10.0:
             break
         else:
             oldchisq = chisq
-
-    visualize = False
-    if visualize:
-        # Make a grid of output locations to visualize GP interpolation performance (for g1).
-        uposout = np.linspace(0.0, 1.0, 21)
-        vposout = np.linspace(0.0, 1.0, 21)
-        uposout, vposout = np.meshgrid(uposout, vposout)
-        interpstars = []
-        for u, v in zip(uposout.ravel(), vposout.ravel()):
-            interpstars.append(
-                    make_kolmogorov_data(1.0, 0.0, 0.0, 0.0, 0.0, 1.0,du=0.5, fpu=u, fpv=v))
-        interpstars = interp.interpolateList(interpstars)
-        truth_g1 = [g1_fn(u, v) for (u, v) in zip(uposout.ravel(), vposout.ravel())]
-        interp_g1 = [s.fit.params[3] for s in interpstars]
-
-        import matplotlib.pyplot as plt
-        fig = plt.figure(figsize=(14, 3))
-        ax1 = fig.add_subplot(141)
-        ax1.set_title("sampling")
-        ax1.set_xlim((-0.2,1.2))
-        ax1.set_ylim((-0.2,1.2))
-        meas = ax1.scatter(upositions, vpositions,
-                           c=[g1_fn(u,v) for u,v in zip(upositions, vpositions)],
-                           vmin=-0.1, vmax=0.1)
-        plt.colorbar(meas)
-
-        ax2 = fig.add_subplot(142)
-        ax2.set_title("truth")
-        ax2.set_xlim((-0.2,1.2))
-        ax2.set_ylim((-0.2,1.2))
-        truth = ax2.scatter(uposout, vposout, c=truth_g1, vmin=-0.1, vmax=0.1)
-        plt.colorbar(truth)
-
-        ax3 = fig.add_subplot(143)
-        ax3.set_title("interp")
-        ax3.set_xlim((-0.2,1.2))
-        ax3.set_ylim((-0.2,1.2))
-        interp_scat = ax3.scatter(uposout, vposout, c=interp_g1, vmin=-0.1, vmax=0.1)
-        plt.colorbar(interp_scat)
-
-        ax4 = fig.add_subplot(144)
-        ax4.set_title("resid")
-        ax4.set_xlim((-0.2,1.2))
-        ax4.set_ylim((-0.2,1.2))
-        resid = ax4.scatter(uposout, vposout, c=[i-t for i,t in zip(interp_g1, truth_g1)],
-                            vmin=-0.001, vmax=0.001)
-        plt.colorbar(resid)
-        plt.show()
+    print(interp.gp.kernel_)
 
 
-    s1 = interp.interpolate(s0)
-    s1 = mod.reflux(s1)
-    print()
-    print(("s0: "+"{:< 8.4f} "*len(s0.fit.params)).format(*s0.fit.params))
-    print(("s1: "+"{:< 8.4f} "*len(s1.fit.params)).format(*s1.fit.params))
-    print()
-    print('Flux, ctr, chisq after interpolation: \n', s1.fit.flux, s1.fit.center, s1.fit.chisq)
-    np.testing.assert_allclose(s1.fit.flux, 1.0, rtol=1e-3)
+def display(training_data, vis_data, mod, interp):
+    interpstars = params_to_stars(vis_data, mod, noise=0.0)
 
-    s1 = mod.draw(s1)
-    print()
-    print('max image abs diff = ',np.max(np.abs(s1.image.array-s0.image.array)))
-    print('max image abs value = ',np.max(np.abs(s0.image.array)))
-    print('min rtol = ', np.max(np.abs(s1.image.array - s0.image.array)/np.abs(s0.image.array)))
-    np.testing.assert_allclose(s1.image.array, s0.image.array, rtol=1e-2)
+    # Make a grid of output locations to visualize GP interpolation performance (for g1).
+    ctruth = np.array(vis_data['g1']).ravel()
+    interpstars = interp.interpolateList(interpstars)
+    cinterp = np.array([s.fit.params[3] for s in interpstars])
+
+    vmin = np.min(ctruth)
+    vmax = np.max(ctruth)
+    if vmin == vmax:
+        vmin -= 0.01
+        vmax += 0.01
+
+    import matplotlib.pyplot as plt
+    fig = plt.figure(figsize=(14, 3))
+    ax1 = fig.add_subplot(141)
+    ax1.set_title("sampling")
+    ax1.set_xlim((-0.2,1.2))
+    ax1.set_ylim((-0.2,1.2))
+    meas = ax1.scatter(training_data['u'], training_data['v'],
+                       c=training_data['g1'], vmin=vmin, vmax=vmax)
+
+    plt.colorbar(meas)
+
+    ax2 = fig.add_subplot(142)
+    ax2.set_title("truth")
+    ax2.set_xlim((-0.2,1.2))
+    ax2.set_ylim((-0.2,1.2))
+    truth = ax2.scatter(vis_data['u'], vis_data['v'], c=ctruth, vmin=vmin, vmax=vmax)
+    plt.colorbar(truth)
+
+    ax3 = fig.add_subplot(143)
+    ax3.set_title("interp")
+    ax3.set_xlim((-0.2,1.2))
+    ax3.set_ylim((-0.2,1.2))
+    interp_scat = ax3.scatter(vis_data['u'], vis_data['v'], c=cinterp, vmin=vmin, vmax=vmax)
+    plt.colorbar(interp_scat)
+
+    ax4 = fig.add_subplot(144)
+    ax4.set_title("resid")
+    ax4.set_xlim((-0.2,1.2))
+    ax4.set_ylim((-0.2,1.2))
+    resid = ax4.scatter(vis_data['u'], vis_data['v'], c=(cinterp-ctruth),
+                        vmin=vmin/10, vmax=vmax/10)
+    plt.colorbar(resid)
+    plt.show()
 
 
-def test_gp_poly():
-    check_gp_poly(npca=0)
-    check_gp_poly(npca=2)  # For this test, 2 PCs already describe ~99.7% of the variance.
+def validate(validate_stars, mod, interp):
+    # Noiseless copy of the PSF at the center of the FOV
+    for s0 in validate_stars:
+        s0 = mod.initialize(s0)
+        s0 = mod.fit(s0)
+        s0 = mod.reflux(s0)
+
+        s1 = interp.interpolate(s0)
+        s1 = mod.reflux(s1)
+        print()
+        print(("s0: "+"{:< 8.4f} "*len(s0.fit.params)).format(*s0.fit.params))
+        print(("s1: "+"{:< 8.4f} "*len(s1.fit.params)).format(*s1.fit.params))
+        print("s0 flux:", s0.fit.flux)
+        print("s1 flux:", s1.fit.flux)
+        print()
+        print('Flux, ctr, chisq after interpolation: \n', s1.fit.flux, s1.fit.center, s1.fit.chisq)
+        np.testing.assert_allclose(s1.fit.flux, s0.fit.flux, rtol=2e-3)
+
+        s1 = mod.draw(s1)
+        print()
+        print('max image abs diff = ',np.max(np.abs(s1.image.array-s0.image.array)))
+        print('max image abs value = ',np.max(np.abs(s0.image.array)))
+        print('min rtol = ', np.max(np.abs(s1.image.array - s0.image.array)/np.abs(s0.image.array)))
+        np.testing.assert_allclose(s1.image.array, s0.image.array, rtol=2e-2)
 
 
-def check_gp_gp(npca=0):
-    """ Test that Gaussian Process interpolation works reasonably well for densely packed Kolmogorov
-    star field with params that are also drawn from a Gaussian Process.
-    """
-    bd = galsim.BaseDeviate(1029384756)
-    grid_spacing = 1
-    ngrid = 21
+def check_constant_psf(npca, optimizer, visualize=False):
+    # Simplest possible interpolation: the PSF is constant.
+    bd = galsim.BaseDeviate(5610472938)
+    ntrain = 100
+    training_data, validate_data, vis_data = make_constant_psf_params(ntrain, 1, 21)
 
-    import warnings
-    with warnings.catch_warnings():
-        warnings.filterwarnings("ignore",category=RuntimeWarning)
-        ps = galsim.PowerSpectrum(lambda k:3e-4*k**(-5), lambda k:3e-4*k**(-5))
-    ps.buildGrid(grid_spacing=grid_spacing, ngrid=ngrid, rng=bd)
-
-    gridmin = (-ngrid/2. + 0.5) * grid_spacing
-    gridmax = (ngrid/2. - 0.5) * grid_spacing
-    uposout, vposout = np.meshgrid(np.arange(gridmin, gridmax+grid_spacing, grid_spacing),
-                                   np.arange(gridmin, gridmax+grid_spacing, grid_spacing))
-    g1_out, g2_out = ps.getShear((uposout.ravel(), vposout.ravel()))
-
-    bd = galsim.BaseDeviate(5647382910)
-    ud = galsim.UniformDeviate(bd)
-    nstars = 200
-    upositions = [ud()*20-10 for i in xrange(nstars)]
-    vpositions = [ud()*20-10 for i in xrange(nstars)]
-    fluxes = [ud()*100.0 + 50 for i in xrange(nstars)]  # Uniform [50, 150]
-    g1s, g2s = ps.getShear((upositions, vpositions))
-
-    # Center is part of the PSF params.
     mod = piff.GSObjectModel(fiducial_kolmogorov, force_model_center=False)
 
-    stars = []
-    for u, v, g1, g2, flux in zip(upositions, vpositions, g1s, g2s, fluxes):
-        s = make_kolmogorov_data(1.0, g1, g2, 0., 0., flux,
-                                 noise=0.1, du=0.5, fpu=u, fpv=v, rng=bd)
-        s = mod.initialize(s)
-        stars.append(s)
+    stars = params_to_stars(training_data, mod, noise=0.03, rng=bd)
+    validate_stars = params_to_stars(validate_data, mod, noise=0.0)
 
-    # Get noiseless copy of the PSF at the center of the FOV
-    u,v = 0.0, 0.0
-    g1_0, g2_0 = ps.getShear((0,0))
-    s0 = make_kolmogorov_data(1.0, g1_0, g2_0, 0.0, 0.0, 1.0, du=0.5, fpu=u, fpv=v)
-    s0 = mod.initialize(s0)
+    kernel = kernels.RBF(1.0, (1e-1, 1e3))  # Should be nearly flat covariance...
+    # We probably aren't measuring fwhm, g1, g2, etc. to better than 1e-5...
+    kernel += kernels.WhiteKernel(1e-5, (1e-7, 1e-1))
+    interp = piff.SKLearnGPInterp(kernel, optimizer=optimizer, npca=npca)
 
-    interp = piff.GPInterp(thetaL=1e-6, theta0=1e0, thetaU=1e6, nugget=1e-4, npca=npca)
     interp.initialize(stars)
 
-    chisq = 0.0
-    dof = 0
-    for s in stars:
-        chisq += s.fit.chisq
-        dof += s.fit.dof
-    print()
-    print("Initial state")
-    print("chisq: {0}    dof: {1}".format(chisq, dof))
-    print("chisq/dof: {0}".format(chisq/dof))
+    iterate(stars, mod, interp)
 
-    # Go through and look for bad outliers that may confuse the GP interpolator
-    old_stars = stars
-    stars = []
-    for i, s in enumerate(old_stars):
-        # arbitrary cutoff, but for simulated data should be reasonable.
-        if (s.fit.chisq / s.fit.dof) > 4:
-            # print("star {0} has chisq/dof = {1}".format(i, s.fit.chisq/s.fit.dof))
-            # try fitting again with lmfit instead of hsm...
-            s1 = piff.Star(s.data, piff.StarFit(None))
-            s1 = mod.fit(s1)
-            s1 = mod.reflux(s1)
-            # print("after refit, chisq/dof = {0}".format(s1.fit.chisq/s1.fit.dof))
-            # if still bad, break loop, excluding star from further processing
-            if (s1.fit.chisq / s1.fit.dof) > 4:
-                # print("rejecting star {0}".format(i))
-                continue
-            stars.append(s1)
-        else:
-            # chisq/dof is okay, so keep this star.
-            stars.append(s)
-
-    chisq = 0.0
-    dof = 0
-    for s in stars:
-        chisq += s.fit.chisq
-        dof += s.fit.dof
-        if (s.fit.chisq / s.fit.dof) > 4:
-            print("chisq/dof = {0}".format(s.fit.chisq / s.fit.dof))
-    print()
-    print("After refitting / outlier rejection")
-    print("chisq: {0}    dof: {1}".format(chisq, dof))
-    print("chisq/dof: {0}".format(chisq/dof))
-
-    oldchisq = 0.
-    print()
-    for iteration in range(10):
-        # Refit PSFs star by star:
-        stars = [mod.fit(s) for s in stars]
-        # Run the interpolator
-        interp.solve(stars)
-        print('theta_ = ', interp.gp.theta_)
-        if npca > 0:
-            print('explained_variance_ratio = ', np.cumsum(interp._pca.explained_variance_ratio_))
-
-        # Install interpolator solution into each
-        # star, recalculate flux, report chisq
-        chisq = 0.
-        dof = 0
-        stars = interp.interpolateList(stars)
-        for i, s in enumerate(stars):
-            s = mod.reflux(s)
-            chisq += s.fit.chisq
-            dof += s.fit.dof
-            stars[i] = s
-        print("iteration: {}  chisq: {}  dof: {}".format(iteration, chisq, dof))
-        if oldchisq>0 and np.abs(oldchisq-chisq) < dof/10.0:
-            break
-        else:
-            oldchisq = chisq
-
-    visualize = False
     if visualize:
-        # Make a grid of output locations to visualize GP interpolation performance (for g1).
-        interpstars = []
-        for u, v in zip(uposout.ravel(), vposout.ravel()):
-            interpstars.append(
-                    make_kolmogorov_data(1.0, 0.0, 0.0, 0.0, 0.0, 1.0, du=0.5, fpu=u, fpv=v))
-        interpstars = interp.interpolateList(interpstars)
-        interp_g1 = [s.fit.params[3] for s in interpstars]
+        display(training_data, vis_data, mod, interp)
 
-        import matplotlib.pyplot as plt
-        fig = plt.figure(figsize=(14, 3))
-        ax1 = fig.add_subplot(141)
-        ax1.set_title("sampling")
-        ax1.set_xlim((-14,14))
-        ax1.set_ylim((-14,14))
-        meas = ax1.scatter(upositions, vpositions, c=g1s, vmin=-0.05, vmax=0.05)
-        plt.colorbar(meas)
-
-        ax2 = fig.add_subplot(142)
-        ax2.set_title("truth")
-        ax2.set_xlim((-14,14))
-        ax2.set_ylim((-14,14))
-        truth = ax2.scatter(uposout, vposout, c=g1_out, vmin=-0.05, vmax=0.05)
-        plt.colorbar(truth)
-
-        ax3 = fig.add_subplot(143)
-        ax3.set_title("interp")
-        ax3.set_xlim((-14,14))
-        ax3.set_ylim((-14,14))
-        interp_scat = ax3.scatter(uposout, vposout, c=interp_g1, vmin=-0.05, vmax=0.05)
-        plt.colorbar(interp_scat)
-
-        ax4 = fig.add_subplot(144)
-        ax4.set_title("resid")
-        ax4.set_xlim((-14,14))
-        ax4.set_ylim((-14,14))
-        resid = ax4.scatter(uposout.ravel(), vposout.ravel(),
-                            c=[i-t for i,t in zip(interp_g1, g1_out)],
-                            vmin=-0.01, vmax=0.01)
-        plt.colorbar(resid)
-        plt.show()
-
-    s1 = interp.interpolate(s0)
-    s1 = mod.reflux(s1)
-    print()
-    print(("s0: "+"{:< 8.4f} "*len(s0.fit.params)).format(*s0.fit.params))
-    print(("s1: "+"{:< 8.4f} "*len(s1.fit.params)).format(*s1.fit.params))
-    print()
-    print('Flux, ctr, chisq after interpolation: \n', s1.fit.flux, s1.fit.center, s1.fit.chisq)
-    np.testing.assert_allclose(s1.fit.flux, 1.0, rtol=1e-3)
-
-    s1 = mod.draw(s1)
-    print()
-    print('max image abs diff = ',np.max(np.abs(s1.image.array-s0.image.array)))
-    print('max image abs value = ',np.max(np.abs(s0.image.array)))
-    print('min rtol = ', np.max(np.abs(s1.image.array - s0.image.array)/np.abs(s0.image.array)))
-    np.testing.assert_allclose(s1.image.array, s0.image.array, rtol=1e-1)
+    validate(validate_stars, mod, interp)
 
 
-def test_gp_gp():
-    check_gp_gp(npca=0)
-    check_gp_gp(npca=2)  # capture 99.3% of the variance in 2 PCs
+def test_constant_psf():
+    check_constant_psf(0, None)
+    check_constant_psf(0, 'fmin_l_bfgs_b')
+    check_constant_psf(2, None)
+    check_constant_psf(2, 'fmin_l_bfgs_b')
+
+
+def check_polynomial_psf(npca, optimizer, visualize=False):
+    bd = galsim.BaseDeviate(5610472938)
+    ntrain = 100
+    training_data, validate_data, vis_data = make_polynomial_psf_params(ntrain, 1, 21)
+
+    mod = piff.GSObjectModel(fiducial_kolmogorov, force_model_center=False)
+
+    stars = params_to_stars(training_data, mod, noise=0.03, rng=bd)
+    validate_stars = params_to_stars(validate_data, mod, noise=0.0)
+
+    kernel = kernels.RBF(1.0, (1e-1, 1e3))  # Should be nearly flat covariance...
+    # We probably aren't measuring fwhm, g1, g2, etc. to better than 1e-5...
+    kernel += kernels.WhiteKernel(1e-5, (1e-7, 1e-1))
+    interp = piff.SKLearnGPInterp(kernel, optimizer=optimizer, npca=npca)
+
+    interp.initialize(stars)
+
+    iterate(stars, mod, interp)
+
+    if visualize:
+        display(training_data, vis_data, mod, interp)
+
+    validate(validate_stars, mod, interp)
+
+
+def test_polynomial_psf():
+    check_polynomial_psf(0, None)
+    check_polynomial_psf(0, 'fmin_l_bfgs_b')
+    check_polynomial_psf(5, None)
+    check_polynomial_psf(5, 'fmin_l_bfgs_b')
+
+
+def check_grf_psf(npca, optimizer, visualize=False):
+    bd = galsim.BaseDeviate(12020569031)
+    ntrain = 100
+    training_data, validate_data, vis_data = make_grf_psf_params(ntrain, 1, 21)
+
+    mod = piff.GSObjectModel(fiducial_kolmogorov, force_model_center=False)
+
+    stars = params_to_stars(training_data, mod, noise=0.03, rng=bd)
+    validate_stars = params_to_stars(validate_data, mod, noise=0.0)
+
+    kernel = kernels.RBF(0.3, (1e-1, 1e0))
+    # We probably aren't measuring fwhm, g1, g2, etc. to better than 1e-5...
+    kernel += kernels.WhiteKernel(1e-5, (1e-7, 1e-1))
+    interp = piff.SKLearnGPInterp(kernel, optimizer=optimizer, npca=npca)
+
+    interp.initialize(stars)
+
+    iterate(stars, mod, interp)
+
+    if visualize:
+        display(training_data, vis_data, mod, interp)
+
+    validate(validate_stars, mod, interp)
+
+
+def test_grf_psf():
+    check_grf_psf(0, None, visualize=False)
+    check_grf_psf(0, 'fmin_l_bfgs_b', visualize=False)
+    check_grf_psf(5, None, visualize=False)
+    check_grf_psf(5, 'fmin_l_bfgs_b', visualize=False)
+
+
+def check_empirical_kernel(npca, visualize):
+    bd = galsim.BaseDeviate(12020569031)
+    ntrain, nvalidate, nvis = 100, 1, 21
+
+    training_data, validate_data, vis_data = make_grf_psf_params(ntrain, nvalidate, nvis)
+
+    mod = piff.GSObjectModel(fiducial_kolmogorov, force_model_center=False)
+
+    stars = params_to_stars(training_data, mod, noise=0.03, rng=bd)
+    validate_stars = params_to_stars(validate_data, mod, noise=0.0)
+
+
+    # We could in principal use any function of dx, dy here.  For simplicity, just assert a
+    # Gaussian = SquaredExponential.
+    def fn(dx, dy):
+        return np.exp(-0.5*(dx**2+dy**2)/0.2**2)
+
+    kernel = piff.EmpiricalKernel(fn)
+    # We probably aren't measuring fwhm, g1, g2, etc. to better than 1e-5...
+    kernel += kernels.WhiteKernel(1e-5)
+    interp = piff.SKLearnGPInterp(kernel, optimizer=None, npca=npca)
+
+    interp.initialize(stars)
+
+    iterate(stars, mod, interp)
+
+    if visualize:
+        display(training_data, vis_data, mod, interp)
+
+    validate(validate_stars, mod, interp)
+
+
+def test_empirical_kernel():
+    check_empirical_kernel(0, False)
+    check_empirical_kernel(5, False)
 
 
 if __name__ == '__main__':
-    test_gp_poly()
-    test_gp_gp()
+    test_constant_psf()
+    test_polynomial_psf()
+    test_grf_psf()
+    test_empirical_kernel()

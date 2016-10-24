@@ -13,7 +13,7 @@
 #    and/or other materials provided with the distribution.
 
 """
-.. module:: gp_interp
+.. module:: sklearn_gp_interp
 """
 
 from .interp import Interp
@@ -21,128 +21,71 @@ from .star import Star, StarFit
 
 import numpy as np
 
-class GPInterp(Interp):
+class SKLearnGPInterp(Interp):
     """
     An interpolator that uses sklearn.gaussian_process to interpolate a single surface.
     """
-    def __init__(self, theta0=1e-1, thetaL=None, thetaU=None, nugget=None, logger=None, npca=0):
-        """Create the GP interpolator.
-
-        :param logger:      A logger object for logging debug info. [default: None]
-        :param theta0:      Double array_like, optional
-                            An array with shape (n_features, ) or (1, ).
-                            The parameters in the autocorrelation model.
-                            If thetaL and thetaU are also specified, theta0 is considered as
-                            the starting point for the maximum likelihood estimation of the
-                            best set of parameters.
-                            Default assumes isotropic autocorrelation model with theta0 = 1e-1.
-        :param thetaL:      Double array_like, optional
-                            An array with shape matching theta0's.
-                            Lower bound on the autocorrelation parameters for maximum
-                            likelihood estimation.
-                            Default is None, so that it skips maximum likelihood estimation and
-                            it uses theta0.
-        :param thetaU:      Double array_like, optional
-                            An array with shape matching theta0's.
-                            Upper bound on the autocorrelation parameters for maximum
-                            likelihood estimation.
-                            Default is None, so that it skips maximum likelihood estimation and
-                            it uses theta0.
-        :param npca:        Integer.  If >0, then model the variation of PSF principle components as
-                            a Gaussian process, retaining `npca` components.  If =0, then model the
-                            PSF parameters directly as a Gaussian process instead.  [default: 0]
-        """
-
-        self.gp_kwargs = {
-            'theta0' : theta0,
-            'thetaL' : thetaL,
-            'thetaU' : thetaU,
-            'nugget' : nugget
-        }
-
-        from sklearn.gaussian_process import GaussianProcess
-        self.gp = GaussianProcess(**self.gp_kwargs)
+    def __init__(self, kernel=None, optimizer='fmin_l_bfgs_b', npca=0, logger=None):
+        from sklearn.gaussian_process import GaussianProcessRegressor
+        self.kernel = kernel
         self.npca = npca
+        self.gp = GaussianProcessRegressor(self.kernel, optimizer=optimizer)
 
-    def _fit(self, locations, targets, logger=None):
-        """Update the Gaussian Process Regressor with data (and solve for hyperparameters?)
-
-        :param locations:   The locations for interpolating. (n_samples, n_features).
-                            (In sklearn parlance, this is 'X'.)
-        :param targets:     The target values. (n_samples, n_targets).
-                            (In sklearn parlance, this is 'y'.)
-        """
+    def _fit(self, X, y, logger=None):
         if self.npca > 0:
             from sklearn.decomposition import PCA
             self._pca = PCA(n_components=self.npca, whiten=True)
-            self._pca.fit(targets)
-            targets = self._pca.transform(targets)
-        self.gp.fit(locations, targets)
-        if logger:
-            logger.debug("theta_ = {}".format(self.gp.theta_))
-            logger.debug("GP updated!")
+            self._pca.fit(y)
+            y = self._pca.transform(y)
+        self.gp.fit(X, y)
 
-    def _predict(self, locations, logger=None):
-        """Predict from gp.
-
-        :param locations:   The locations for interpolating. (n_samples, n_features).
-                            In sklearn parlance, this is 'X'
-
-        :returns:   Regressed parameters y (n_samples, n_targets)
-        """
-        results = self.gp.predict(locations)
+    def _predict(self, Xstar):
+        ystar = self.gp.predict(Xstar)
         if self.npca > 0:
-            results = self._pca.inverse_transform(results)
-        return results
+            ystar = self._pca.inverse_transform(ystar)
+        return ystar
 
     def initialize(self, stars, logger=None):
-        """Initialize both the interpolator to some state prefatory to any solve iterations and
-        initialize the stars for use with this interpolator.
-
-        :param stars:   A list of Star instances to interpolate between
-        :param logger:  A logger object for logging debug info. [default: None]
-        """
         self.solve(stars, logger=logger)
         return self.interpolateList(stars)
 
-    def solve(self, star_list, logger=None):
-        """Solve for the interpolation coefficients given stars and attributes
-
-        :param star_list:   A list of Star instances to interpolate between
-        :param logger:      A logger object for logging debug info. [default: None]
-        """
-        locations = np.array([(star.u, star.v) for star in star_list])
-        targets = np.array([star.fit.params for star in star_list])
-        self._fit(locations, targets)
+    def solve(self, stars=None, logger=None):
+        X = np.array([(star.u, star.v) for star in stars])
+        y = np.array([star.fit.params for star in stars])
+        self._fit(X, y, logger=logger)
 
     def interpolate(self, star, logger=None):
-        """Perform the interpolation to find the interpolated parameter vector at some position.
-        Calls interpolateList because sklearn prefers list input anyways.
-
-        :param star:        A Star instance to which one wants to interpolate
-        :param logger:      A logger object for logging debug info. [default: None]
-
-        :returns: a new Star instance with its StarFit member holding the interpolated parameters
-        """
-        # because of sklearn formatting, call interpolateList and take 0th entry
         return self.interpolateList([star], logger=logger)[0]
 
-    def interpolateList(self, star_list, logger=None):
-        """Perform the interpolation for a list of stars.
-
-        :param star_list:   A list of Star instances to which to interpolate.
-        :param logger:      A logger object for logging debug info. [default: None]
-
-        :returns: a list of new Star instances with interpolated parameters
-        """
-
-        locations = np.array([(star.u, star.v) for star in star_list])
-        targets = self._predict(locations)
-        star_list_fitted = []
-        for yi, star in zip(targets, star_list):
+    def interpolateList(self, stars, logger=None):
+        X = np.array([(star.u, star.v) for star in stars])
+        y = self._predict(X)
+        fitted_stars = []
+        for y0, star in zip(y, stars):
             if star.fit is None:
-                fit = StarFit(yi)
+                fit = StarFit(y)
             else:
-                fit = star.fit.newParams(yi)
-            star_list_fitted.append(Star(star.data, fit))
-        return star_list_fitted
+                fit = star.fit.newParams(y0)
+            fitted_stars.append(Star(star.data, fit))
+        return fitted_stars
+
+
+from sklearn.gaussian_process.kernels import StationaryKernelMixin, NormalizedKernelMixin, Kernel
+
+class EmpiricalKernel(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
+    def __init__(self, fn):
+        self.fn = fn
+        assert self.fn(0, 0) == 1
+
+    def __call__(self, X, Y=None, eval_gradient=False):
+        if eval_gradient:
+            raise RuntimeError("Cannot evaluate gradient for EmpiricalKernel.")
+
+        X = np.atleast_2d(X)
+        if Y is None:
+            Y = X
+
+        # Only writen for 2D covariance at the moment
+        xshift = np.subtract.outer(X[:,0], Y[:,0])
+        yshift = np.subtract.outer(X[:,1], Y[:,1])
+        return self.fn(xshift, yshift)
