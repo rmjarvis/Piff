@@ -197,6 +197,57 @@ def make_grf_psf_params(ntrain, nvalidate, nvis):
     return training_data, validate_data, vis_data
 
 
+def make_anisotropic_grf_psf_params(ntrain, nvalidate, nvis):
+    # Gaussian Random Field data.
+    bd = galsim.BaseDeviate(5772156649)
+    ud = galsim.UniformDeviate(bd)
+
+    ntotal = ntrain + nvalidate + nvis**2
+    params = np.recarray((ntotal,), dtype=star_type)
+
+    # Training
+    us = [ud() for i in range(ntrain)]
+    vs = [ud() for i in range(ntrain)]
+    fluxes = [ud()*50+100 for i in range(ntrain)]
+    # Validate
+    us += [ud()*0.5+0.25 for i in range(nvalidate)]
+    vs += [ud()*0.5+0.25 for i in range(nvalidate)]
+    fluxes += [1.0]
+    # Visualize
+    umesh, vmesh = np.meshgrid(np.linspace(0, 1, nvis), np.linspace(0, 1, nvis))
+    us += list(umesh.ravel())
+    vs += list(vmesh.ravel())
+    fluxes += [1.0] * nvis**2
+
+    # Next, generate input data by drawing from a single Gaussian Random Field.
+    from scipy.spatial.distance import pdist, squareform
+    # Use an anisotropic covariance.
+    var1 = 0.1**2
+    var2 = 0.2**2
+    corr = 0.7
+    cov = np.array([[var1, np.sqrt(var1*var2)*corr],
+                    [np.sqrt(var1*var2)*corr, var2]])
+    dists = pdist(np.array([us, vs]).T, metric='mahalanobis', VI=np.linalg.inv(cov))
+    bigcov = squareform(np.exp(-0.5*dists**2))
+
+    params['u'] = us
+    params['v'] = vs
+    # independently draw hlr, g1, g2, u0, v0
+    np.random.seed(1234567890)
+    params['hlr'] = np.random.multivariate_normal([0]*ntotal, bigcov)*0.05+0.4
+    params['g1'] = np.random.multivariate_normal([0]*ntotal, bigcov)*0.05
+    params['g2'] = np.random.multivariate_normal([0]*ntotal, bigcov)*0.05
+    params['u0'] = np.random.multivariate_normal([0]*ntotal, bigcov)*0.3
+    params['v0'] = np.random.multivariate_normal([0]*ntotal, bigcov)*0.3
+    params['flux'] = fluxes
+
+    training_data = params[:ntrain]
+    validate_data = params[ntrain:ntrain+nvalidate]
+    vis_data = params[ntrain+nvalidate:].reshape((nvis, nvis))
+
+    return training_data, validate_data, vis_data
+
+
 def params_to_stars(params, mod, noise=0.0, rng=None):
     stars = []
     for param in params.ravel():
@@ -456,8 +507,43 @@ def test_empirical_kernel():
     check_empirical_kernel(5, False)
 
 
+def check_anisotropic_rbf_kernel(npca, optimizer=None, visualize=False):
+    bd = galsim.BaseDeviate(91342875)
+    ntrain, nvalidate, nvis = 500, 1, 21
+    training_data, validate_data, vis_data = make_anisotropic_grf_psf_params(ntrain, nvalidate, nvis)
+
+    mod = piff.GSObjectModel(fiducial_kolmogorov, force_model_center=False)
+
+    stars = params_to_stars(training_data, mod, noise=0.03, rng=bd)
+    validate_stars = params_to_stars(validate_data, mod, noise=0.0)
+
+    var1 = 0.1**2
+    var2 = 0.2**2
+    corr = 0.7
+    cov = np.array([[var1, np.sqrt(var1*var2)*corr],
+                    [np.sqrt(var1*var2)*corr, var2]])
+    kernel = piff.AnisotropicRBF(invLam=np.linalg.inv(cov))
+    # We probably aren't measuring fwhm, g1, g2, etc. to better than 1e-5...
+    kernel += kernels.WhiteKernel(1e-5, (1e-7, 1e-1))
+    interp = piff.GPInterp(kernel, optimizer=optimizer, npca=npca)
+
+    interp.initialize(stars)
+
+    iterate(stars, mod, interp)
+
+    if visualize:
+        display(training_data, vis_data, mod, interp)
+
+    validate(validate_stars, mod, interp)
+
+
+
+def test_anisotropic_rbf_kernel():
+    check_anisotropic_rbf_kernel(0, None, visualize=True)
+
 if __name__ == '__main__':
     test_constant_psf()
     test_polynomial_psf()
     test_grf_psf()
     test_empirical_kernel()
+    test_anisotropic_rbf_kernel()
