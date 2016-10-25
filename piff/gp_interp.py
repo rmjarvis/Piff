@@ -127,16 +127,17 @@ class AnisotropicRBF(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
                 dMdths[(np.arange(self.ntheta),)+np.tril_indices(self.ndim)] = 1.0
                 # d/dth [M*M.T] = dM/dth * M.T + dM.T/dth * M = halfDInvLam + halfDInvLam.T
                 halfDInvLam = np.dot(dMdths, M.T)
-                dMdths = halfDInvLam + np.transpose(halfDInvLam, (0, 2, 1))
-                dists = np.array([squareform(pdist(X, metric='mahalanobis', VI=dMdth))
-                                  for dMdth in dMdths])
-                return K, -0.5 * K * dists**2
+                dInvLams = halfDInvLam + np.transpose(halfDInvLam, (0, 2, 1))
+                dX = X[:, np.newaxis, :] - X[np.newaxis, :, :]
+                dists = np.einsum("ijk,lkm,ijm->ijl", dX, dInvLams, dX)
+                K_gradient = -0.5 * K[:, :, np.newaxis] * dists
+                return K, K_gradient
         else:
             return K
 
     @property
     def hyperparameter_cho_factor(self):
-        return Hyperparameter("ChoFactor", "numeric", (1e-5, 1e5), int(self.n))
+        return Hyperparameter("ChoFactor", "numeric", (1e-5, 1e5), int(self.ntheta))
 
     def get_params(self, deep=True):
         return {"invLam":self.invLam}
@@ -157,4 +158,4 @@ class AnisotropicRBF(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
 
     @property
     def bounds(self):
-        return np.array([(-5, 5)]*int(self.ntheta))
+        return np.array([(-25, 25)]*int(self.ntheta))

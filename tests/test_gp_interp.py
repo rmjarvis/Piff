@@ -509,7 +509,7 @@ def test_empirical_kernel():
 
 def check_anisotropic_rbf_kernel(npca, optimizer=None, visualize=False):
     bd = galsim.BaseDeviate(91342875)
-    ntrain, nvalidate, nvis = 500, 1, 21
+    ntrain, nvalidate, nvis = 400, 1, 21
     training_data, validate_data, vis_data = make_anisotropic_grf_psf_params(ntrain, nvalidate, nvis)
 
     mod = piff.GSObjectModel(fiducial_kolmogorov, force_model_center=False)
@@ -537,9 +537,11 @@ def check_anisotropic_rbf_kernel(npca, optimizer=None, visualize=False):
     validate(validate_stars, mod, interp)
 
 
-
 def test_anisotropic_rbf_kernel():
-    check_anisotropic_rbf_kernel(0, None, visualize=True)
+    check_anisotropic_rbf_kernel(0, None, visualize=False)
+    check_anisotropic_rbf_kernel(0, 'fmin_l_bfgs_b', visualize=False)
+    check_anisotropic_rbf_kernel(5, None, visualize=False)
+    check_anisotropic_rbf_kernel(5, 'fmin_l_bfgs_b', visualize=False)
 
 if __name__ == '__main__':
     test_constant_psf()
