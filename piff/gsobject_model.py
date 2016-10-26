@@ -58,7 +58,7 @@ class GSObjectModel(Model):
         # Calibrate gsobj by measuring it with HSM.  This way we can use differences in HSM moments
         # to get a reasonable starting guess for stars.
         prof = self.getProfile(params)
-        img = prof.drawImage()
+        img = prof.drawImage(method='no_pixel')
         sd = StarData(img, img.trueCenter())
         fiducial_star = Star(sd, None)
         flux, centroid, size, shape, flag = self.hsm_moments(fiducial_star)
@@ -337,13 +337,3 @@ class GSObjectModel(Model):
                                            dof = np.count_nonzero(weight.array) - 1,
                                            alpha = star.fit.alpha,
                                            beta = star.fit.beta))
-
-
-# Wrapped Gaussian model for backwards compatibility.
-# Should we do this for Kolmogorov and Moffat too?
-class Gaussian(GSObjectModel):
-    def __init__(self, logger=None):
-        import galsim
-        self.kwargs = {}
-        gsobj = galsim.Gaussian(sigma=1.)
-        GSObjectModel.__init__(self, gsobj)

@@ -46,7 +46,8 @@ def test_Gaussian():
     star = piff.Star(stardata, None)
 
     # Fit the model from the image
-    model = piff.Gaussian()
+    fiducial_gaussian = galsim.Gaussian(sigma=1.0)
+    model = piff.GSObjectModel(fiducial_gaussian)
     fit = model.fit(star).fit
 
     print('True sigma = ',sigma,', model sigma = ',fit.params[0])
@@ -64,7 +65,8 @@ def test_Gaussian():
     # Now test running it via the config parser
     config = {
         'model' : {
-            'type' : 'Gaussian'
+            'type' : 'GSObjectModel',
+            'gsobj': repr(fiducial_gaussian)
         }
     }
     if __name__ == '__main__':
@@ -197,7 +199,8 @@ def test_single_image():
     assert orig_stars[0].image.array.shape == (48,48)
 
     # Process the star data
-    model = piff.Gaussian()
+    fiducial_gaussian = galsim.Gaussian(sigma=1.0)
+    model = piff.GSObjectModel(fiducial_gaussian, fastfit=True)
     interp = piff.Mean()
     fitted_stars = [ model.fit(star) for star in orig_stars ]
     interp.solve(fitted_stars)
@@ -207,7 +210,7 @@ def test_single_image():
     target = piff.Star.makeTarget(x=1024, y=123) # Any position would work here.
     true_params = [ sigma, g1, g2 ]
     test_star = interp.interpolate(target)
-    np.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=5)
+    np.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=4)
 
     # Now test running it via the config parser
     psf_file = os.path.join('output','simple_psf.fits')
@@ -220,7 +223,9 @@ def test_single_image():
             'stamp_size' : 48
         },
         'psf' : {
-            'model' : { 'type' : 'Gaussian' },
+            'model' : { 'type' : 'GSObjectModel',
+                        'gsobj': repr(fiducial_gaussian),
+                        'fastfit': True },
             'interp' : { 'type' : 'Mean' },
         },
         'output' : { 'file_name' : psf_file },
@@ -235,15 +240,15 @@ def test_single_image():
     psf = piff.SimplePSF(model, interp)
     psf.fit(orig_stars, wcs, pointing, logger=logger)
     test_star = psf.interp.interpolate(target)
-    np.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=5)
+    np.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=4)
 
     # Round trip to a file
     psf.write(psf_file, logger)
     psf = piff.read(psf_file, logger)
-    assert type(psf.model) is piff.gsobject_model.Gaussian
+    assert type(psf.model) is piff.GSObjectModel
     assert type(psf.interp) is piff.Mean
     test_star = psf.interp.interpolate(target)
-    np.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=5)
+    np.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=4)
 
     # Do the whole thing with the config parser
     os.remove(psf_file)
@@ -251,7 +256,7 @@ def test_single_image():
     piff.piffify(config, logger)
     psf = piff.read(psf_file)
     test_star = psf.interp.interpolate(target)
-    np.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=5)
+    np.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=4)
 
     # Test using the piffify executable
     os.remove(psf_file)
@@ -263,7 +268,7 @@ def test_single_image():
     p.communicate()
     psf = piff.read(psf_file)
     test_star = psf.interp.interpolate(target)
-    np.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=5)
+    np.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=4)
 
     # Test that we can make rho statistics
     min_sep = 1
@@ -334,6 +339,6 @@ def test_single_image():
     p.communicate()
 
 if __name__ == '__main__':
-    # test_Gaussian()
-    # test_Mean()
+    test_Gaussian()
+    test_Mean()
     test_single_image()
