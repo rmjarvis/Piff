@@ -36,13 +36,13 @@ def test_poly_indexing():
     # x^1 y^0   3
 
     # x^0 y^2   4
-    # x^1 y^1   5 
+    # x^1 y^1   5
     # x^2 y^0   6
 
     # x^0 y^3   7
     # x^1 y^2   8
     # x^2 y^1   9
-    # x^3 y^0   10 
+    # x^3 y^0   10
 
     # Check that we have the indices we expect
     assert interp.indices[0] == [
@@ -53,7 +53,7 @@ def test_poly_indexing():
     ]
     assert interp.nvariables[0]==10
 
-    # check the packing then unpacking a 
+    # check the packing then unpacking a
     packed = np.random.uniform(size=interp.nvariables[0])
     unpacked = interp._unpack_coefficients(0,packed)
     packed_test = interp._pack_coefficients(0,unpacked)
@@ -77,7 +77,7 @@ def test_poly_indexing():
                 assert unpacked[i,j]==0.0
                 unpacked_test[i,j]=0.0
 
-    # Now do the test the other way around, checking that 
+    # Now do the test the other way around, checking that
     # we can pack and then unpack
     packed_test_2 = interp._pack_coefficients(0,unpacked_test)
     unpacked_test_2 = interp._unpack_coefficients(0,packed_test_2)
@@ -147,7 +147,7 @@ def sub_poly_linear(type1):
     np.random.seed(12834)
     nparam = 3
     N = 1
-    nstars=50   
+    nstars=50
     orders = [N for i in xrange(nparam)]
     interp = piff.Polynomial(orders=orders, poly_type=type1)
     X = 10.0 # size of the field
@@ -290,12 +290,12 @@ def test_poly_guess():
 
 
 def poly_load_save_sub(type1, type2):
-    # Test that we can serialize and deserialize a polynomial 
+    # Test that we can serialize and deserialize a polynomial
     # interpolator correctly.  Copying all this stuff from above:
 
     np.random.seed(12434)
     nparam = 3
-    nstars=50   
+    nstars=50
     # Use three different sizes to test everything
     orders = [1,2,3]
     interp = piff.Polynomial(orders=orders, poly_type=type1)
@@ -355,7 +355,7 @@ def poly_load_save_sub(type1, type2):
         np.testing.assert_almost_equal(target1.fit.params, target2.fit.params)
 
 def test_poly_raise():
-    # Test that we can serialize and deserialize a polynomial 
+    # Test that we can serialize and deserialize a polynomial
     # interpolator correctly.  Copying all this stuff from above:
 
     np.random.seed(12434)

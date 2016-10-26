@@ -16,6 +16,8 @@ from __future__ import print_function
 import galsim
 import piff
 import numpy as np
+import os
+import fitsio
 
 fiducial_kolmogorov = galsim.Kolmogorov(half_light_radius=1.0)
 fiducial_gaussian = galsim.Gaussian(half_light_radius=1.0)
@@ -137,6 +139,13 @@ def test_simple():
         # np.testing.assert_allclose(fit.params[1], g1, atol=1e-3)
         # np.testing.assert_allclose(fit.params[2], g2, atol=1e-3)
 
+        # Also need to test ability to serialize
+        outfile = os.path.join('output', 'gsobject_test.fits')
+        with fitsio.FITS(outfile, 'rw', clobber=True) as f:
+            model.write(f, 'psf_model')
+        with fitsio.FITS(outfile, 'r') as f:
+            roundtrip_model = piff.GSObjectModel.read(f, 'psf_model')
+        assert model.__dict__ == roundtrip_model.__dict__
 
 def test_center():
     """Fit with centroid free and PSF center constrained to an initially mis-registered PSF.

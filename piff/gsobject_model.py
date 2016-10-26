@@ -20,6 +20,7 @@ import numpy as np
 
 from .model import Model
 from .star import Star, StarFit, StarData
+from .util import write_kwargs
 
 
 class GSObjectModel(Model):
@@ -35,7 +36,14 @@ class GSObjectModel(Model):
     :param logger:  A logger object for logging debug info. [default: None]
     """
     def __init__(self, gsobj, fastfit=False, force_model_center=True, logger=None):
-        self.kwargs = {}
+        if isinstance(gsobj, basestring):
+            import galsim
+            gsobj = eval(gsobj)
+
+        self.kwargs = {'fastfit':fastfit,
+                       'force_model_center':force_model_center,
+                       'gsobj':repr(gsobj)}
+
         self.gsobj = gsobj
         self._fastfit = fastfit
         self._force_model_center = force_model_center
@@ -50,7 +58,7 @@ class GSObjectModel(Model):
         # Calibrate gsobj by measuring it with HSM.  This way we can use differences in HSM moments
         # to get a reasonable starting guess for stars.
         prof = self.getProfile(params)
-        img = prof.drawImage()
+        img = prof.drawImage(method='no_pixel')
         sd = StarData(img, img.trueCenter())
         fiducial_star = Star(sd, None)
         flux, centroid, size, shape, flag = self.hsm_moments(fiducial_star)
@@ -329,13 +337,3 @@ class GSObjectModel(Model):
                                            dof = np.count_nonzero(weight.array) - 1,
                                            alpha = star.fit.alpha,
                                            beta = star.fit.beta))
-
-
-# Wrapped Gaussian model for backwards compatibility.
-# Should we do this for Kolmogorov and Moffat too?
-class Gaussian(GSObjectModel):
-    def __init__(self, logger=None):
-        import galsim
-        self.kwargs = {}
-        gsobj = galsim.Gaussian(sigma=1.)
-        GSObjectModel.__init__(self, gsobj)
