@@ -20,6 +20,7 @@ import numpy as np
 
 from .model import Model
 from .star import Star, StarFit, StarData
+from .util import write_kwargs
 
 
 class GSObjectModel(Model):
@@ -35,7 +36,14 @@ class GSObjectModel(Model):
     :param logger:  A logger object for logging debug info. [default: None]
     """
     def __init__(self, gsobj, fastfit=False, force_model_center=True, logger=None):
-        self.kwargs = {}
+        if isinstance(gsobj, basestring):
+            import galsim
+            gsobj = eval(gsobj)
+
+        self.kwargs = {'fastfit':fastfit,
+                       'force_model_center':force_model_center,
+                       'gsobj':repr(gsobj)}
+
         self.gsobj = gsobj
         self._fastfit = fastfit
         self._force_model_center = force_model_center
