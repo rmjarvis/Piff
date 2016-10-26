@@ -172,11 +172,12 @@ class AnisotropicRBF(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
         # related to the parameters `theta` as:
         #
         # invLam = L * L.T
-        # L = [[exp(theta[0])  0                 ...                0              ]
-        #       theta[n]       exp(theta[1])]    ...                ...            ]
-        #       theta[n+1]     theta[n+1]        ...                ...            ]
-        #       ...            ...               ...                0              ]
-        #       ...            ...               theta[n*(n+1)/2]   exp(theta[n-1])]]
+        # L = [[exp(th[0])  0              0           ...    0               0           ]
+        #       th[n]       exp(th[1])]    0           ...    0               0           ]
+        #       th[n+1]     th[n+2]        exp(th[3])  ...    0               0           ]
+        #       ...         ...            ...         ...    ...             ...         ]
+        #       th[]        th[]           th[]        ...    exp(th[n-2])    0           ]
+        #       th[]        th[]           th[]        ...    th[n*(n+1)/2]   exp(th[n-1])]]
         #
         # I.e., the inverse covariance matrix is Cholesky-decomposed, exp(theta[0:n]) lie
         # on the diagonal of the Cholesky matrix, and theta[n:n*(n+1)/2] lie in the lower triangular
