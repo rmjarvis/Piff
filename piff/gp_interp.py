@@ -94,9 +94,11 @@ class EmpiricalKernel(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
 
 class AnisotropicRBF(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
     def __init__(self, invLam):
-        self.invLam = invLam
         self.ndim = invLam.shape[0]
         self.ntheta = self.ndim*(self.ndim+1)//2
+        self._d = np.diag_indices(self.ndim)
+        self._t = np.tril_indices(self.ndim, -1)
+        self.set_params(invLam)
 
     def __call__(self, X, Y=None, eval_gradient=False):
         from scipy.spatial.distance import pdist, cdist, squareform
@@ -118,19 +120,16 @@ class AnisotropicRBF(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
             if self.hyperparameter_cho_factor.fixed:
                 return K, np.empty((X.shape[0], X.shape[0], 0))
             else:
-                # Use Cholesky decomposition of inverse covariance: invLam
-                M = np.zeros_like(self.invLam)
-                M[np.tril_indices(self.ndim)] = self.theta
-                # Derivatives of Cholesky matrix wrt individual elements are matrices with all
-                # zeros and one 1.0.
-                dMdths = np.zeros((self.ntheta, self.ndim, self.ndim), dtype=float)
-                dMdths[(np.arange(self.ntheta),)+np.tril_indices(self.ndim)] = 1.0
-                # d/dth [M*M.T] = dM/dth * M.T + dM.T/dth * M = halfDInvLam + halfDInvLam.T
-                halfDInvLam = np.dot(dMdths, M.T)
-                dInvLams = halfDInvLam + np.transpose(halfDInvLam, (0, 2, 1))
+                L_grad = np.zeros((self.ntheta, self.ndim, self.ndim), dtype=float)
+                L_grad[(np.arange(self.ndim),)+self._d] = self._L[self._d]
+                L_grad[(np.arange(self.ndim, self.ntheta),)+self._t] = 1.0
+
+                half_invLam_grad = np.dot(L_grad, self._L.T)
+                invLam_grad = half_invLam_grad + np.transpose(half_invLam_grad, (0, 2, 1))
+
                 dX = X[:, np.newaxis, :] - X[np.newaxis, :, :]
-                dists = np.einsum("ijk,lkm,ijm->ijl", dX, dInvLams, dX)
-                K_gradient = -0.5 * K[:, :, np.newaxis] * dists
+                dist_grad = np.einsum("ijk,lkm,ijm->ijl", dX, invLam_grad, dX)
+                K_gradient = -0.5 * K[:, :, np.newaxis] * dist_grad
                 return K, K_gradient
         else:
             return K
@@ -145,17 +144,21 @@ class AnisotropicRBF(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
     def set_params(self, invLam=None):
         if invLam is not None:
             self.invLam = invLam
+            self._L = np.linalg.cholesky(self.invLam)
+            self._theta = np.hstack([np.log(self._L[self._d]), self._L[self._t]])
 
     @property
     def theta(self):
-        return np.linalg.cholesky(self.invLam)[np.tril_indices(self.ndim)]
+        return self._theta
 
     @theta.setter
     def theta(self, theta):
-        L = np.zeros_like(self.invLam)
-        L[np.tril_indices(self.ndim)] = theta
-        self.invLam = np.dot(L, L.T)
+        self._theta = theta
+        self._L = np.zeros_like(self.invLam)
+        self._L[np.diag_indices(self.ndim)] = np.exp(theta[:self.ndim])
+        self._L[np.tril_indices(self.ndim, -1)] = theta[self.ndim:]
+        self.invLam = np.dot(self._L, self._L.T)
 
     @property
     def bounds(self):
-        return np.array([(-25, 25)]*int(self.ntheta))
+        return np.array([(-5, 5)]*int(self.ntheta))
