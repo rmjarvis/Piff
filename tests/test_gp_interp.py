@@ -67,7 +67,9 @@ def make_star(hlr, g1, g2, u0, v0, flux, noise=0., du=1., fpu=0., fpv=0., nside=
 
 
 def make_constant_psf_params(ntrain, nvalidate, nvisualize):
-    # every data set defined on unit square field-of-view.
+    """ Make training/testing data for a constant PSF.
+    """
+
     bd = galsim.BaseDeviate(5647382910)
     ud = galsim.UniformDeviate(bd)
 
@@ -103,7 +105,8 @@ def make_constant_psf_params(ntrain, nvalidate, nvisualize):
 
 
 def make_polynomial_psf_params(ntrain, nvalidate, nvisualize):
-    # every data set defined on unit square field-of-view.
+    """ Make training/testing data for PSF with params varying as polynomials.
+    """
     bd = galsim.BaseDeviate(5772156649)
     ud = galsim.UniformDeviate(bd)
 
@@ -156,7 +159,8 @@ def make_polynomial_psf_params(ntrain, nvalidate, nvisualize):
 
 
 def make_grf_psf_params(ntrain, nvalidate, nvisualize):
-    # Gaussian Random Field data.
+    """ Make training/testing data for PSF with params drawn from isotropic Gaussian random field.
+    """
     bd = galsim.BaseDeviate(5772156649)
     ud = galsim.UniformDeviate(bd)
 
@@ -201,7 +205,8 @@ def make_grf_psf_params(ntrain, nvalidate, nvisualize):
 
 
 def make_anisotropic_grf_psf_params(ntrain, nvalidate, nvisualize):
-    # Gaussian Random Field data.
+    """ Make training/testing data for PSF with params drawn from anisotropic Gaussian random field.
+    """
     bd = galsim.BaseDeviate(5772156649)
     ud = galsim.UniformDeviate(bd)
 
@@ -262,6 +267,8 @@ def params_to_stars(params, noise=0.0, rng=None):
 
 
 def iterate(stars, interp):
+    """Iteratively improve the global PSF model.
+    """
     chisq = 0.0
     dof = 0
     for s in stars:
@@ -279,12 +286,7 @@ def iterate(stars, interp):
         stars = [mod.fit(s) for s in stars]
         # Run the interpolator
         interp.solve(stars)
-        # print('theta_ = ', interp.gp.theta_)
-        # if npca > 0:
-        #     print('explained_variance_ratio = ', np.cumsum(interp._pca.explained_variance_ratio_))
-
-        # Install interpolator solution into each
-        # star, recalculate flux, report chisq
+        # Install interpolator solution into each star, recalculate flux, report chisq
         chisq = 0.
         dof = 0
         stars = interp.interpolateList(stars)
@@ -302,6 +304,8 @@ def iterate(stars, interp):
 
 
 def display(training_data, vis_data, interp):
+    """Display training samples, true PSF, model PSF, and residual over field-of-view.
+    """
     interpstars = params_to_stars(vis_data, noise=0.0)
 
     # Make a grid of output locations to visualize GP interpolation performance (for g1).
@@ -351,6 +355,8 @@ def display(training_data, vis_data, interp):
 
 
 def validate(validate_stars, interp):
+    """ Check that global PSF model sufficiently interpolates some stars.
+    """
     # Noiseless copy of the PSF at the center of the FOV
     for s0 in validate_stars:
         s0 = mod.initialize(s0)
@@ -378,9 +384,11 @@ def validate(validate_stars, interp):
 
 def check_gp(training_data, validation_data, visualization_data,
              kernel, npca=0, optimizer=None, visualize=False):
+    """ Solve for global PSF model, test it, and optionally display it.
+    """
     stars = params_to_stars(training_data, noise=0.03)
     validate_stars = params_to_stars(validation_data, noise=0.0)
-    interp = piff.GPInterp(kernel, optimizer=optimizer, npca=npca)
+    interp = piff.GPInterp(kernel=kernel, optimizer=optimizer, npca=npca)
     interp.initialize(stars)
     iterate(stars, interp)
     if visualize:
