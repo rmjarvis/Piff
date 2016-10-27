@@ -337,7 +337,7 @@ class Gaussian(GSObjectModel):
         GSObjectModel.__init__(self, gsobj, fastfit, force_model_center, include_pixel, logger)
         # We'd need self.kwargs['gsobj'] if we were reconstituting via the GSObjectModel
         # constructor, but since config['type'] for this will be Gaussian, it gets reconstituted
-        # here, where there is no `gsobj` argument.  So remove from kwargs.
+        # here, where there is no `gsobj` argument.  So remove `gsobj` from kwargs.
         del self.kwargs['gsobj']
 
 
@@ -357,8 +357,8 @@ class Kolmogorov(GSObjectModel):
         gsobj = galsim.Kolmogorov(half_light_radius=1.0)
         GSObjectModel.__init__(self, gsobj, fastfit, force_model_center, include_pixel, logger)
         # We'd need self.kwargs['gsobj'] if we were reconstituting via the GSObjectModel
-        # constructor, but since config['type'] for this will be Gaussian, it gets reconstituted
-        # here, where there is no `gsobj` argument.  So remove from kwargs.
+        # constructor, but since config['type'] for this will be Kolmogorov, it gets reconstituted
+        # here, where there is no `gsobj` argument.  So remove `gsobj` from kwargs.
         del self.kwargs['gsobj']
 
 
@@ -382,8 +382,8 @@ class Moffat(GSObjectModel):
         gsobj = galsim.Moffat(half_light_radius=1.0, beta=beta, trunc=trunc)
         GSObjectModel.__init__(self, gsobj, fastfit, force_model_center, include_pixel, logger)
         # We'd need self.kwargs['gsobj'] if we were reconstituting via the GSObjectModel
-        # constructor, but since config['type'] for this will be Gaussian, it gets reconstituted
-        # here, where there is no `gsobj` argument.  So remove from kwargs.
+        # constructor, but since config['type'] for this will be Moffat, it gets reconstituted
+        # here, where there is no `gsobj` argument.  So remove `gsobj` from kwargs.
         del self.kwargs['gsobj']
         # Need to add `beta` and `trunc` though.
         self.kwargs.update(dict(beta=beta, trunc=trunc))
