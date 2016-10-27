@@ -33,20 +33,23 @@ class GSObjectModel(Model):
                         PSF fitting will marginalize over stellar position.  If False, stellar
                         position is fixed at input value and the fitted PSF may be off-center.
                         [default: True]
-    :param logger:  A logger object for logging debug info. [default: None]
+    :param method:   galsim GSObject.drawImage() `method` parameter.  [default: 'auto']
+    :param logger:   A logger object for logging debug info. [default: None]
     """
-    def __init__(self, gsobj, fastfit=False, force_model_center=True, logger=None):
+    def __init__(self, gsobj, fastfit=False, force_model_center=True, method='auto', logger=None):
         import galsim
         if isinstance(gsobj, basestring):
             gsobj = eval(gsobj)
 
-        self.kwargs = {'fastfit':fastfit,
+        self.kwargs = {'gsobj':repr(gsobj),
+                       'fastfit':fastfit,
                        'force_model_center':force_model_center,
-                       'gsobj':repr(gsobj)}
+                       'method':method}
 
         self.gsobj = gsobj
         self._fastfit = fastfit
         self._force_model_center = force_model_center
+        self._method = method
         # Params are [u, v], size, g1, g2
         if self._force_model_center:
             self._nparams = 3
@@ -58,7 +61,7 @@ class GSObjectModel(Model):
         # Calibrate gsobj by measuring it with HSM.  This way we can use differences in HSM moments
         # to get a reasonable starting guess for stars.
         prof = self.getProfile(params)
-        img = prof.drawImage(method='no_pixel')
+        img = prof.drawImage(method=self._method)
         sd = StarData(img, img.trueCenter())
         fiducial_star = Star(sd, None)
         flux, cenu, cenv, size, g1, g2, flag = hsm(fiducial_star)
@@ -113,7 +116,7 @@ class GSObjectModel(Model):
         """
         prof = self.getProfile(star.fit.params).shift(star.fit.center) * star.fit.flux
         image = star.image.copy()
-        prof.drawImage(image, method='no_pixel', offset=(star.image_pos-image.trueCenter()))
+        prof.drawImage(image, method=self._method, offset=(star.image_pos-image.trueCenter()))
         data = StarData(image, star.image_pos, star.weight, star.data.pointing)
         return Star(data, star.fit)
 
@@ -132,7 +135,7 @@ class GSObjectModel(Model):
         # value is recorded (force_model_center=False) or discarded (force_model_center=True).
         prof = self.gsobj.dilate(size).shear(g1=g1, g2=g2).shift(cenu, cenv) * flux
         model_image = image.copy()
-        prof.drawImage(model_image, method='no_pixel',
+        prof.drawImage(model_image, method=self._method,
                        offset=(image_pos - model_image.trueCenter()))
         return (np.sqrt(weight.array)*(model_image.array - image.array)).ravel()
 
@@ -244,7 +247,7 @@ class GSObjectModel(Model):
         # Also need to compute chisq
         prof = self.getProfile(params) * flux
         model_image = star.image.copy()
-        prof.shift(center).drawImage(model_image, method='no_pixel',
+        prof.shift(center).drawImage(model_image, method=self._method,
                                      offset=(star.image_pos - model_image.trueCenter()))
         chisq = np.sum(star.weight.array * (star.image.array - model_image.array)**2)
         dof = np.count_nonzero(star.weight.array) - self._nparams
