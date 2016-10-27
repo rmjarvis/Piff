@@ -363,7 +363,7 @@ class Kolmogorov(GSObjectModel):
 
 
 class Moffat(GSObjectModel):
-    """ Model PSFs as an elliptical Gaussian.
+    """ Model PSFs as an elliptical Moffats.
 
     :param beta:  Moffat shape parameter.
     :param trunc:  Optional truncation radius at which profile drops to zero.  Measured in half
