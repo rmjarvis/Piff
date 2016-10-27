@@ -20,7 +20,7 @@ import numpy as np
 
 from .model import Model
 from .star import Star, StarFit, StarData
-from .util import write_kwargs, hsm
+from .util import hsm
 
 
 class GSObjectModel(Model):
@@ -28,7 +28,7 @@ class GSObjectModel(Model):
     good match to stars.
 
     :param gsobj:    GSObject to use as fiducial profile.
-    :param fastfit:  Use HSM moments for fitting.  Approximate, but fast.  [default: True]
+    :param fastfit:  Use HSM moments for fitting.  Approximate, but fast.  [default: False]
     :param force_model_center: If True, PSF model centroid is fixed at origin and
                         PSF fitting will marginalize over stellar position.  If False, stellar
                         position is fixed at input value and the fitted PSF may be off-center.
