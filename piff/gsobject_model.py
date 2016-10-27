@@ -20,7 +20,7 @@ import numpy as np
 
 from .model import Model
 from .star import Star, StarFit, StarData
-from .util import write_kwargs
+from .util import write_kwargs, hsm
 
 
 class GSObjectModel(Model):
@@ -36,8 +36,8 @@ class GSObjectModel(Model):
     :param logger:  A logger object for logging debug info. [default: None]
     """
     def __init__(self, gsobj, fastfit=False, force_model_center=True, logger=None):
+        import galsim
         if isinstance(gsobj, basestring):
-            import galsim
             gsobj = eval(gsobj)
 
         self.kwargs = {'fastfit':fastfit,
@@ -61,46 +61,21 @@ class GSObjectModel(Model):
         img = prof.drawImage(method='no_pixel')
         sd = StarData(img, img.trueCenter())
         fiducial_star = Star(sd, None)
-        flux, centroid, size, shape, flag = self.hsm_moments(fiducial_star)
+        flux, cenu, cenv, size, g1, g2, flag = hsm(fiducial_star)
         if flag != 0:
             raise RuntimeError("Error calculating fiducial moments for this gsobject.")
         self._fiducial_size = size
-        self._fiducial_shape = shape
+        self._fiducial_shape = galsim.Shear(g1=g1, g2=g2)
         self._fiducial_flux = flux
-        self._fiducial_centroid = centroid
-
-    def hsm_moments(self, star):
-        """ Use HSM to measure moments of star image.
-        """
-        import galsim
-        image, weight, image_pos = star.data.getImage()
-        mom = image.FindAdaptiveMom(weight=weight, strict=False)
-
-        size = mom.moments_sigma
-        shape = mom.observed_shape
-        # These are in pixel coordinates.  Need to convert to world coords.
-        jac = image.wcs.jacobian(image_pos=image_pos)
-        scale, shear, theta, flip = jac.getDecomposition()
-        # Fix sigma
-        size *= scale
-        # Fix shear.  First the flip, if any.
-        if flip:
-            shape = galsim.Shear(g1 = -shape.g1, g2 = shape.g2)
-        # Next the rotation
-        shape = galsim.Shear(g = shape.g, beta = shape.beta + theta)
-        # Finally the shear
-        shape = shear + shape
-
-        flux = mom.moments_amp
-
-        center = image.wcs.toWorld(mom.moments_centroid) - image.wcs.toWorld(image_pos)
-        flag = mom.moments_status
-
-        return flux, center, size, shape, flag
+        self._fiducial_centroid = galsim.PositionD(cenu, cenv)
 
     def moment_fit(self, star, logger=None):
         """Estimate transformations needed to bring self.gsobj towards given star."""
-        flux, centroid, size, shape, flag = self.hsm_moments(star)
+        import galsim
+        flux, cenu, cenv, size, g1, g2, flag = hsm(star)
+        centroid = galsim.PositionD(cenu, cenv)
+        shape = galsim.Shear(g1=g1, g2=g2)
+
         if flag:
             raise RuntimeError("Failed measuring HSM moments of star.")
 
