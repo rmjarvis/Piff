@@ -218,7 +218,7 @@ class GSObjectModel(Model):
 
         return dflux, dcenu, dcenv, dsize, dg1, dg2, flag
 
-    def fit(self, star, fastfit=False, logger=None):
+    def fit(self, star, fastfit=None, logger=None):
         """Fit the image either using HSM or lmfit.
 
         If `fastfit` is True, then the galsim.hsm module will be used to estimate the parameters of
@@ -227,12 +227,15 @@ class GSObjectModel(Model):
         but slower due to the need to iteratively propose model improvements.
 
         :param star:    A Star to fit.
-        :param fastfit: Use fast HSM moments to fit? [default: False]
+        :param fastfit: Use fast HSM moments to fit? [default: None, which means use fitting mode
+                        specified in the constructor.]
         :param logger:  A logger object for logging debug info. [default: None]
 
         :returns: a new Star with the fitted parameters in star.fit
         """
-        if self._fastfit or fastfit:
+        if fastfit is None:
+            fastfit = self._fastfit
+        if fastfit:
             flux, cenu, cenv, size, g1, g2, flag = self.moment_fit(star, logger=logger)
         else:
             flux, cenu, cenv, size, g1, g2, flag = self.lmfit(star, logger=logger)
