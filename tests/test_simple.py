@@ -47,7 +47,7 @@ def test_Gaussian():
 
     # Fit the model from the image
     fiducial_gaussian = galsim.Gaussian(sigma=1.0)
-    model = piff.GSObjectModel(fiducial_gaussian, method='no_pixel')
+    model = piff.GSObjectModel(fiducial_gaussian, include_pixel=False)
     fit = model.fit(star).fit
 
     print('True sigma = ',sigma,', model sigma = ',fit.params[0])
@@ -67,7 +67,7 @@ def test_Gaussian():
         'model' : {
             'type' : 'GSObjectModel',
             'gsobj': repr(fiducial_gaussian),
-            'method': 'no_pixel'
+            'include_pixel': False
         }
     }
     if __name__ == '__main__':
@@ -201,8 +201,8 @@ def test_single_image():
 
     # Process the star data
     fiducial_gaussian = galsim.Gaussian(sigma=1.0)
-    # can only compare to truth if method='no_pixel'
-    model = piff.GSObjectModel(fiducial_gaussian, fastfit=True, method='no_pixel')
+    # can only compare to truth if include_pixel=False
+    model = piff.GSObjectModel(fiducial_gaussian, fastfit=True, include_pixel=False)
     interp = piff.Mean()
     fitted_stars = [ model.fit(star) for star in orig_stars ]
     interp.solve(fitted_stars)
@@ -228,7 +228,7 @@ def test_single_image():
             'model' : { 'type' : 'GSObjectModel',
                         'gsobj': repr(fiducial_gaussian),
                         'fastfit': True,
-                        'method': 'no_pixel' },
+                        'include_pixel': False},
             'interp' : { 'type' : 'Mean' },
         },
         'output' : { 'file_name' : psf_file },

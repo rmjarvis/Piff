@@ -24,7 +24,7 @@ fiducial_gaussian = galsim.Gaussian(half_light_radius=1.0)
 fiducial_moffat = galsim.Moffat(half_light_radius=1.0, beta=3.0)
 
 def make_data(gsobject, size, g1, g2, u0, v0, flux, noise=0., du=1., fpu=0., fpv=0., nside=32,
-              nom_u0=0., nom_v0=0., rng=None, method='auto'):
+              nom_u0=0., nom_v0=0., rng=None, include_pixel=True):
     """Make a Star instance filled with a Kolmogorov profile
 
     :param gsobject     The fiducial gsobject profile to use.
@@ -39,7 +39,7 @@ def make_data(gsobject, size, g1, g2, u0, v0, flux, noise=0., du=1., fpu=0., fpv
     :param nom_u0, nom_v0:  The nominal u0,v0 in the StarData [default: 0,0]
     :param rng:         If adding noise, the galsim deviate to use for the random numbers
                         [default: None]
-    :param method:      GSObject.drawImage() `method` kwarg.
+    :param include_pixel:  Include integration over pixel.  [default: True]
     """
     k = gsobject.withFlux(flux).dilate(size).shear(g1=g1, g2=g2).shift(u0, v0)
     if noise == 0.:
@@ -49,6 +49,7 @@ def make_data(gsobject, size, g1, g2, u0, v0, flux, noise=0., du=1., fpu=0., fpv
     star = piff.Star.makeTarget(x=nside/2+nom_u0/du, y=nside/2+nom_v0/du,
                                 u=fpu, v=fpv, scale=du, stamp_size=nside)
     star.image.setOrigin(0,0)
+    method = 'auto' if include_pixel else 'no_pixel'
     k.drawImage(star.image, method=method,
                 offset=galsim.PositionD(nom_u0/du,nom_v0/du), use_true_center=False)
     star.data.weight = star.image.copy()
@@ -84,7 +85,7 @@ def test_simple():
 
         # First try fastfit.
         print('Fast fit')
-        model = piff.GSObjectModel(fiducial, fastfit=True, method='no_pixel')
+        model = piff.GSObjectModel(fiducial, fastfit=True, include_pixel=False)
         fit = model.fit(star).fit
 
         print('True size = ',size,', model size = ',fit.params[0])
@@ -103,7 +104,7 @@ def test_simple():
 
         # Now try fastfit=False.
         print('Slow fit')
-        model = piff.GSObjectModel(fiducial, fastfit=False, method='no_pixel')
+        model = piff.GSObjectModel(fiducial, fastfit=False, include_pixel=False)
         fit = model.fit(star).fit
 
         print('True size = ',size,', model size = ',fit.params[0])
@@ -123,7 +124,7 @@ def test_simple():
             'model' : {
                 'type' : 'GSObjectModel',
                 'gsobj': repr(fiducial),
-                'method': 'no_pixel'
+                'include_pixel': False
             }
         }
         if __name__ == '__main__':
@@ -163,7 +164,7 @@ def test_simple():
         star = piff.Star(stardata, None)
 
         print('Slow fit, pixel convolution included.')
-        model = piff.GSObjectModel(fiducial, fastfit=False, method='auto')
+        model = piff.GSObjectModel(fiducial, fastfit=False, include_pixel=True)
         fit = model.fit(star).fit
 
         print('True size = ',size,', model size = ',fit.params[0])
@@ -187,9 +188,9 @@ def test_center():
     u0, v0 = 0.6, -0.4
     g1, g2 = 0.1, 0.2
     for fiducial in [fiducial_gaussian, fiducial_kolmogorov, fiducial_moffat]:
-        s = make_data(fiducial, size, g1, g2, u0, v0, influx, du=0.5, method='no_pixel')
+        s = make_data(fiducial, size, g1, g2, u0, v0, influx, du=0.5, include_pixel=False)
 
-        mod = piff.GSObjectModel(fiducial, method='no_pixel')
+        mod = piff.GSObjectModel(fiducial, include_pixel=False)
         star = mod.initialize(s)
         print('Flux, ctr after reflux:',star.fit.flux,star.fit.center)
         for i in range(3):
@@ -218,7 +219,7 @@ def test_interp():
     """
     influx = 150.
     for fiducial in [fiducial_gaussian, fiducial_kolmogorov, fiducial_moffat]:
-        mod = piff.GSObjectModel(fiducial, method='no_pixel')
+        mod = piff.GSObjectModel(fiducial, include_pixel=False)
         g1 = g2 = u0 = v0 = 0.0
 
          # Interpolator will be simple mean
@@ -232,12 +233,12 @@ def test_interp():
         for u in positions:
             for v in positions:
                 s = make_data(fiducial, 1.0, g1, g2, u0, v0, influx,
-                              noise=0.1, du=0.5, fpu=u, fpv=v, rng=rng, method='no_pixel')
+                              noise=0.1, du=0.5, fpu=u, fpv=v, rng=rng, include_pixel=False)
                 s = mod.initialize(s)
                 stars.append(s)
 
          # Also store away a noiseless copy of the PSF, origin of focal plane
-        s0 = make_data(fiducial, 1.0, g1, g2, u0, v0, influx, du=0.5, method='no_pixel')
+        s0 = make_data(fiducial, 1.0, g1, g2, u0, v0, influx, du=0.5, include_pixel=False)
         s0 = mod.initialize(s0)
 
          # Polynomial doesn't need this, but it should work nonetheless.
@@ -279,7 +280,7 @@ def test_missing():
     """Next: fit mean PSF to multiple images, with missing pixels.
     """
     for fiducial in [fiducial_gaussian, fiducial_kolmogorov, fiducial_moffat]:
-        mod = piff.GSObjectModel(fiducial, method='no_pixel')
+        mod = piff.GSObjectModel(fiducial, include_pixel=False)
         g1 = g2 = u0 = v0 = 0.0
 
         # Draw stars on a 2d grid of "focal plane" with 0<=u,v<=1
@@ -292,7 +293,7 @@ def test_missing():
             for v in positions:
                 # Draw stars in focal plane positions around a unit ring
                 s = make_data(fiducial, 1.0, g1, g2, u0, v0, influx,
-                              noise=0.1, du=0.5, fpu=u, fpv=v, rng=rng, method='no_pixel')
+                              noise=0.1, du=0.5, fpu=u, fpv=v, rng=rng, include_pixel=False)
                 s = mod.initialize(s)
                 # Kill 10% of each star's pixels
                 bad = np.random.rand(*s.image.array.shape) < 0.1
@@ -302,7 +303,7 @@ def test_missing():
                 stars.append(s)
 
         # Also store away a noiseless copy of the PSF, origin of focal plane
-        s0 = make_data(fiducial, 1.0, g1, g2, u0, v0, influx, du=0.5, method='no_pixel')
+        s0 = make_data(fiducial, 1.0, g1, g2, u0, v0, influx, du=0.5, include_pixel=False)
         s0 = mod.initialize(s0)
 
         interp = piff.Polynomial(order=0)
@@ -352,7 +353,7 @@ def test_gradient():
     """
 
     for fiducial in [fiducial_gaussian, fiducial_kolmogorov, fiducial_moffat]:
-        mod = piff.GSObjectModel(fiducial, method='no_pixel')
+        mod = piff.GSObjectModel(fiducial, include_pixel=False)
 
         # Interpolator will be linear
         interp = piff.Polynomial(order=1)
@@ -370,7 +371,7 @@ def test_gradient():
                 # spatially-varying fwhm, g1, g2.
                 s = make_data(fiducial, 1.0+u*0.1+0.1*v, 0.1*u, 0.1*v, 0.5*u, 0.5*v, influx,
                                          noise=0.1, du=0.5, fpu=u, fpv=v, rng=rng,
-                                         method='no_pixel')
+                                         include_pixel=False)
                 s = mod.initialize(s)
                 stars.append(s)
 
@@ -381,7 +382,7 @@ def test_gradient():
         # plt.show()
 
         # Also store away a noiseless copy of the PSF, origin of focal plane
-        s0 = make_data(fiducial, 1.0, 0., 0., 0., 0., influx, du=0.5, method='no_pixel')
+        s0 = make_data(fiducial, 1.0, 0., 0., 0., 0., influx, du=0.5, include_pixel=False)
         s0 = mod.initialize(s0)
 
         # Polynomial doesn't need this, but it should work nonetheless.
@@ -432,7 +433,7 @@ def test_gradient_center():
     """Next: fit spatially-varying PSF, with spatially-varying centers to multiple images.
     """
     for fiducial in [fiducial_gaussian, fiducial_kolmogorov, fiducial_moffat]:
-        mod = piff.GSObjectModel(fiducial, method='no_pixel')
+        mod = piff.GSObjectModel(fiducial, include_pixel=False)
 
         # Interpolator will be linear
         interp = piff.Polynomial(order=1)
@@ -449,7 +450,7 @@ def test_gradient_center():
                 # Draw stars in focal plane positions around a unit ring
                 # spatially-varying fwhm, g1, g2.
                 s = make_data(fiducial, 1.0+u*0.1+0.1*v, 0.1*u, 0.1*v, 0.5*u, 0.5*v,
-                              influx, noise=0.1, du=0.5, fpu=u, fpv=v, rng=rng, method='no_pixel')
+                              influx, noise=0.1, du=0.5, fpu=u, fpv=v, rng=rng, include_pixel=False)
                 s = mod.initialize(s)
                 stars.append(s)
 
@@ -460,7 +461,7 @@ def test_gradient_center():
         # plt.show()
 
         # Also store away a noiseless copy of the PSF, origin of focal plane
-        s0 = make_data(fiducial, 1.0, 0., 0., 0., 0., influx, du=0.5, method='no_pixel')
+        s0 = make_data(fiducial, 1.0, 0., 0., 0., 0., influx, du=0.5, include_pixel=False)
         s0 = mod.initialize(s0)
 
         # Polynomial doesn't need this, but it should work nonetheless.
