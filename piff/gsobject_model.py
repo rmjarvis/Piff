@@ -20,7 +20,7 @@ import numpy as np
 
 from .model import Model
 from .star import Star, StarFit, StarData
-from .util import write_kwargs
+from .util import hsm
 
 
 class GSObjectModel(Model):
@@ -28,25 +28,29 @@ class GSObjectModel(Model):
     good match to stars.
 
     :param gsobj:    GSObject to use as fiducial profile.
-    :param fastfit:  Use HSM moments for fitting.  Approximate, but fast.  [default: True]
+    :param fastfit:  Use HSM moments for fitting.  Approximate, but fast.  [default: False]
     :param force_model_center: If True, PSF model centroid is fixed at origin and
                         PSF fitting will marginalize over stellar position.  If False, stellar
                         position is fixed at input value and the fitted PSF may be off-center.
                         [default: True]
-    :param logger:  A logger object for logging debug info. [default: None]
+    :param include_pixel:   Include integration over pixel?  [default: True]
+    :param logger:   A logger object for logging debug info. [default: None]
     """
-    def __init__(self, gsobj, fastfit=False, force_model_center=True, logger=None):
+    def __init__(self, gsobj, fastfit=False, force_model_center=True, include_pixel=True,
+                 logger=None):
+        import galsim
         if isinstance(gsobj, basestring):
-            import galsim
             gsobj = eval(gsobj)
 
-        self.kwargs = {'fastfit':fastfit,
+        self.kwargs = {'gsobj':repr(gsobj),
+                       'fastfit':fastfit,
                        'force_model_center':force_model_center,
-                       'gsobj':repr(gsobj)}
+                       'include_pixel':include_pixel}
 
         self.gsobj = gsobj
         self._fastfit = fastfit
         self._force_model_center = force_model_center
+        self._method = 'auto' if include_pixel else 'no_pixel'
         # Params are [u, v], size, g1, g2
         if self._force_model_center:
             self._nparams = 3
@@ -58,49 +62,24 @@ class GSObjectModel(Model):
         # Calibrate gsobj by measuring it with HSM.  This way we can use differences in HSM moments
         # to get a reasonable starting guess for stars.
         prof = self.getProfile(params)
-        img = prof.drawImage(method='no_pixel')
+        img = prof.drawImage(method=self._method)
         sd = StarData(img, img.trueCenter())
         fiducial_star = Star(sd, None)
-        flux, centroid, size, shape, flag = self.hsm_moments(fiducial_star)
+        flux, cenu, cenv, size, g1, g2, flag = hsm(fiducial_star)
         if flag != 0:
             raise RuntimeError("Error calculating fiducial moments for this gsobject.")
         self._fiducial_size = size
-        self._fiducial_shape = shape
+        self._fiducial_shape = galsim.Shear(g1=g1, g2=g2)
         self._fiducial_flux = flux
-        self._fiducial_centroid = centroid
-
-    def hsm_moments(self, star):
-        """ Use HSM to measure moments of star image.
-        """
-        import galsim
-        image, weight, image_pos = star.data.getImage()
-        mom = image.FindAdaptiveMom(weight=weight, strict=False)
-
-        size = mom.moments_sigma
-        shape = mom.observed_shape
-        # These are in pixel coordinates.  Need to convert to world coords.
-        jac = image.wcs.jacobian(image_pos=image_pos)
-        scale, shear, theta, flip = jac.getDecomposition()
-        # Fix sigma
-        size *= scale
-        # Fix shear.  First the flip, if any.
-        if flip:
-            shape = galsim.Shear(g1 = -shape.g1, g2 = shape.g2)
-        # Next the rotation
-        shape = galsim.Shear(g = shape.g, beta = shape.beta + theta)
-        # Finally the shear
-        shape = shear + shape
-
-        flux = mom.moments_amp
-
-        center = image.wcs.toWorld(mom.moments_centroid) - image.wcs.toWorld(image_pos)
-        flag = mom.moments_status
-
-        return flux, center, size, shape, flag
+        self._fiducial_centroid = galsim.PositionD(cenu, cenv)
 
     def moment_fit(self, star, logger=None):
         """Estimate transformations needed to bring self.gsobj towards given star."""
-        flux, centroid, size, shape, flag = self.hsm_moments(star)
+        import galsim
+        flux, cenu, cenv, size, g1, g2, flag = hsm(star)
+        centroid = galsim.PositionD(cenu, cenv)
+        shape = galsim.Shear(g1=g1, g2=g2)
+
         if flag:
             raise RuntimeError("Failed measuring HSM moments of star.")
 
@@ -138,7 +117,7 @@ class GSObjectModel(Model):
         """
         prof = self.getProfile(star.fit.params).shift(star.fit.center) * star.fit.flux
         image = star.image.copy()
-        prof.drawImage(image, method='no_pixel', offset=(star.image_pos-image.trueCenter()))
+        prof.drawImage(image, method=self._method, offset=(star.image_pos-image.trueCenter()))
         data = StarData(image, star.image_pos, star.weight, star.data.pointing)
         return Star(data, star.fit)
 
@@ -157,7 +136,7 @@ class GSObjectModel(Model):
         # value is recorded (force_model_center=False) or discarded (force_model_center=True).
         prof = self.gsobj.dilate(size).shear(g1=g1, g2=g2).shift(cenu, cenv) * flux
         model_image = image.copy()
-        prof.drawImage(model_image, method='no_pixel',
+        prof.drawImage(model_image, method=self._method,
                        offset=(image_pos - model_image.trueCenter()))
         return (np.sqrt(weight.array)*(model_image.array - image.array)).ravel()
 
@@ -239,22 +218,24 @@ class GSObjectModel(Model):
 
         return dflux, dcenu, dcenv, dsize, dg1, dg2, flag
 
-    def fit(self, star, fastfit=False, logger=None):
+    def fit(self, star, fastfit=None, logger=None):
         """Fit the image either using HSM or lmfit.
 
         If `fastfit` is True, then the galsim.hsm module will be used to estimate the parameters of
         the Kolmogorov PSF from image moments.  If `fastfit` is False, then the Levenberg-Marquardt
-        minimization algorithm as implemented by lmfit will be used instead.  The latter should
-        generally be more accurate, but slower due to the need to iteratively propose model
-        improvements.
+        minimization algorithm will be used instead.  The latter should generally be more accurate,
+        but slower due to the need to iteratively propose model improvements.
 
         :param star:    A Star to fit.
-        :param fastfit: Use fast HSM moments to fit? [default: False]
+        :param fastfit: Use fast HSM moments to fit? [default: None, which means use fitting mode
+                        specified in the constructor.]
         :param logger:  A logger object for logging debug info. [default: None]
 
         :returns: a new Star with the fitted parameters in star.fit
         """
-        if self._fastfit or fastfit:
+        if fastfit is None:
+            fastfit = self._fastfit
+        if fastfit:
             flux, cenu, cenv, size, g1, g2, flag = self.moment_fit(star, logger=logger)
         else:
             flux, cenu, cenv, size, g1, g2, flag = self.lmfit(star, logger=logger)
@@ -269,7 +250,7 @@ class GSObjectModel(Model):
         # Also need to compute chisq
         prof = self.getProfile(params) * flux
         model_image = star.image.copy()
-        prof.shift(center).drawImage(model_image, method='no_pixel',
+        prof.shift(center).drawImage(model_image, method=self._method,
                                      offset=(star.image_pos - model_image.trueCenter()))
         chisq = np.sum(star.weight.array * (star.image.array - model_image.array)**2)
         dof = np.count_nonzero(star.weight.array) - self._nparams
@@ -337,3 +318,72 @@ class GSObjectModel(Model):
                                            dof = np.count_nonzero(weight.array) - 1,
                                            alpha = star.fit.alpha,
                                            beta = star.fit.beta))
+
+
+class Gaussian(GSObjectModel):
+    """ Model PSFs as elliptical Gaussians.
+
+    :param fastfit:  Use HSM moments for fitting.  Approximate, but fast.  [default: False]
+    :param force_model_center: If True, PSF model centroid is fixed at origin and
+                        PSF fitting will marginalize over stellar position.  If False, stellar
+                        position is fixed at input value and the fitted PSF may be off-center.
+                        [default: True]
+    :param include_pixel:   Include integration over pixel?  [default: True]
+    :param logger:   A logger object for logging debug info. [default: None]
+    """
+    def __init__(self, fastfit=False, force_model_center=True, include_pixel=True, logger=None):
+        import galsim
+        gsobj = galsim.Gaussian(sigma=1.0)
+        GSObjectModel.__init__(self, gsobj, fastfit, force_model_center, include_pixel, logger)
+        # We'd need self.kwargs['gsobj'] if we were reconstituting via the GSObjectModel
+        # constructor, but since config['type'] for this will be Gaussian, it gets reconstituted
+        # here, where there is no `gsobj` argument.  So remove `gsobj` from kwargs.
+        del self.kwargs['gsobj']
+
+
+class Kolmogorov(GSObjectModel):
+    """ Model PSFs as elliptical Kolmogorovs.
+
+    :param fastfit:  Use HSM moments for fitting.  Approximate, but fast.  [default: False]
+    :param force_model_center: If True, PSF model centroid is fixed at origin and
+                        PSF fitting will marginalize over stellar position.  If False, stellar
+                        position is fixed at input value and the fitted PSF may be off-center.
+                        [default: True]
+    :param include_pixel:   Include integration over pixel?  [default: True]
+    :param logger:   A logger object for logging debug info. [default: None]
+    """
+    def __init__(self, fastfit=False, force_model_center=True, include_pixel=True, logger=None):
+        import galsim
+        gsobj = galsim.Kolmogorov(half_light_radius=1.0)
+        GSObjectModel.__init__(self, gsobj, fastfit, force_model_center, include_pixel, logger)
+        # We'd need self.kwargs['gsobj'] if we were reconstituting via the GSObjectModel
+        # constructor, but since config['type'] for this will be Kolmogorov, it gets reconstituted
+        # here, where there is no `gsobj` argument.  So remove `gsobj` from kwargs.
+        del self.kwargs['gsobj']
+
+
+class Moffat(GSObjectModel):
+    """ Model PSFs as elliptical Moffats.
+
+    :param beta:  Moffat shape parameter.
+    :param trunc:  Optional truncation radius at which profile drops to zero.  Measured in half
+                   light radii.  [default: 0, indicating no truncation]
+    :param fastfit:  Use HSM moments for fitting.  Approximate, but fast.  [default: False]
+    :param force_model_center: If True, PSF model centroid is fixed at origin and
+                        PSF fitting will marginalize over stellar position.  If False, stellar
+                        position is fixed at input value and the fitted PSF may be off-center.
+                        [default: True]
+    :param include_pixel:   Include integration over pixel?  [default: True]
+    :param logger:   A logger object for logging debug info. [default: None]
+    """
+    def __init__(self, beta, trunc=0., fastfit=False, force_model_center=True, include_pixel=True,
+                 logger=None):
+        import galsim
+        gsobj = galsim.Moffat(half_light_radius=1.0, beta=beta, trunc=trunc)
+        GSObjectModel.__init__(self, gsobj, fastfit, force_model_center, include_pixel, logger)
+        # We'd need self.kwargs['gsobj'] if we were reconstituting via the GSObjectModel
+        # constructor, but since config['type'] for this will be Moffat, it gets reconstituted
+        # here, where there is no `gsobj` argument.  So remove `gsobj` from kwargs.
+        del self.kwargs['gsobj']
+        # Need to add `beta` and `trunc` though.
+        self.kwargs.update(dict(beta=beta, trunc=trunc))

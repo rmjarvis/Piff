@@ -139,7 +139,8 @@ def test_yaml():
         },
         'psf' : {
             'model' : { 'type': 'GSObjectModel',
-                        'gsobj': 'galsim.Gaussian(half_light_radius=1.0)' },
+                        'fastfit': True,
+                        'gsobj': 'galsim.Gaussian(sigma=1.0)' },
             'interp' : { 'type': 'kNNInterp',
                          'attr_interp': ['u', 'v'],
                          'attr_target': [0, 1, 2],
