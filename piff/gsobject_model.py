@@ -223,9 +223,8 @@ class GSObjectModel(Model):
 
         If `fastfit` is True, then the galsim.hsm module will be used to estimate the parameters of
         the Kolmogorov PSF from image moments.  If `fastfit` is False, then the Levenberg-Marquardt
-        minimization algorithm as implemented by lmfit will be used instead.  The latter should
-        generally be more accurate, but slower due to the need to iteratively propose model
-        improvements.
+        minimization algorithm will be used instead.  The latter should generally be more accurate,
+        but slower due to the need to iteratively propose model improvements.
 
         :param star:    A Star to fit.
         :param fastfit: Use fast HSM moments to fit? [default: False]
