@@ -57,10 +57,10 @@ def test_Gaussian():
     # This test is pretty accurate, since we didn't add any noise and didn't convolve by
     # the pixel, so the image is very accurately a sheared Gaussian.
     true_params = [ sigma, g1, g2 ]
-    np.testing.assert_almost_equal(fit.params[0], sigma, decimal=3)
-    np.testing.assert_almost_equal(fit.params[1], g1, decimal=3)
-    np.testing.assert_almost_equal(fit.params[2], g2, decimal=3)
-    np.testing.assert_almost_equal(fit.params, true_params, decimal=3)
+    np.testing.assert_almost_equal(fit.params[0], sigma, decimal=6)
+    np.testing.assert_almost_equal(fit.params[1], g1, decimal=5)
+    np.testing.assert_almost_equal(fit.params[2], g2, decimal=5)
+    np.testing.assert_almost_equal(fit.params, true_params, decimal=5)
 
     # Now test running it via the config parser
     config = {
@@ -78,10 +78,10 @@ def test_Gaussian():
     fit = model.fit(star).fit
 
     # Same tests.
-    np.testing.assert_almost_equal(fit.params[0], sigma, decimal=3)
-    np.testing.assert_almost_equal(fit.params[1], g1, decimal=3)
-    np.testing.assert_almost_equal(fit.params[2], g2, decimal=3)
-    np.testing.assert_almost_equal(fit.params, true_params, decimal=3)
+    np.testing.assert_almost_equal(fit.params[0], sigma, decimal=6)
+    np.testing.assert_almost_equal(fit.params[1], g1, decimal=5)
+    np.testing.assert_almost_equal(fit.params[2], g2, decimal=5)
+    np.testing.assert_almost_equal(fit.params, true_params, decimal=5)
 
 
 def test_Mean():

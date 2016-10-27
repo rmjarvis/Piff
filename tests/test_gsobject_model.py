@@ -198,8 +198,7 @@ def test_center():
             star = mod.reflux(star)
             print('Flux, ctr, chisq after fit {:d}:'.format(i),
                   star.fit.flux, star.fit.center, star.fit.chisq)
-            # These fluxes are not at all close to influx.  Not sure why...
-            # np.testing.assert_almost_equal(star.fit.flux/influx, 1.0, decimal=2)
+            np.testing.assert_almost_equal(star.fit.flux/influx, 1.0, decimal=14)
 
         # Residual image when done should be dominated by structure off the edge of the fitted region.
         mask = star.weight.array > 0
@@ -209,7 +208,7 @@ def test_center():
         print('max image abs value = ',np.max(np.abs(s.image.array)))
         peak = np.max(np.abs(s.image.array[mask]))
         np.testing.assert_almost_equal(star2.image.array[mask]/peak, s.image.array[mask]/peak,
-                                       decimal=2)
+                                       decimal=14)
 
 
 def test_interp():
@@ -267,13 +266,13 @@ def test_interp():
         s1 = interp.interpolate(s0)
         s1 = mod.reflux(s1)
         print('Flux, ctr, chisq after interpolation: ',s1.fit.flux, s1.fit.center, s1.fit.chisq)
-        np.testing.assert_almost_equal(s1.fit.flux/influx, 1.0, decimal=2)
+        np.testing.assert_almost_equal(s1.fit.flux/influx, 1.0, decimal=3)
 
         s1 = mod.draw(s1)
         print('max image abs diff = ',np.max(np.abs(s1.image.array-s0.image.array)))
         print('max image abs value = ',np.max(np.abs(s0.image.array)))
         peak = np.max(np.abs(s0.image.array))
-        np.testing.assert_almost_equal(s1.image.array/peak, s0.image.array/peak, decimal=2)
+        np.testing.assert_almost_equal(s1.image.array/peak, s0.image.array/peak, decimal=3)
 
 
 def test_missing():
@@ -339,13 +338,13 @@ def test_missing():
         s1 = mod.reflux(s1)
         print('Flux, ctr after interpolation: ',s1.fit.flux, s1.fit.center, s1.fit.chisq)
         # Less than 2 dp of accuracy here!
-        np.testing.assert_almost_equal(s1.fit.flux/influx, 1.0, decimal=1)
+        np.testing.assert_almost_equal(s1.fit.flux/influx, 1.0, decimal=3)
 
         s1 = mod.draw(s1)
         print('max image abs diff = ',np.max(np.abs(s1.image.array-s0.image.array)))
         print('max image abs value = ',np.max(np.abs(s0.image.array)))
         peak = np.max(np.abs(s0.image.array))
-        np.testing.assert_almost_equal(s1.image.array/peak, s0.image.array/peak, decimal=1)
+        np.testing.assert_almost_equal(s1.image.array/peak, s0.image.array/peak, decimal=3)
 
 
 def test_gradient():
@@ -420,14 +419,13 @@ def test_gradient():
         s1 = interp.interpolate(s0)
         s1 = mod.reflux(s1)
         print('Flux, ctr, chisq after interpolation: ',s1.fit.flux, s1.fit.center, s1.fit.chisq)
-        # Less than 2 dp of accuracy here!
-        np.testing.assert_almost_equal(s1.fit.flux/influx, 1.0, decimal=1)
+        np.testing.assert_almost_equal(s1.fit.flux/influx, 1.0, decimal=2)
 
         s1 = mod.draw(s1)
         print('max image abs diff = ',np.max(np.abs(s1.image.array-s0.image.array)))
         print('max image abs value = ',np.max(np.abs(s0.image.array)))
         peak = np.max(np.abs(s0.image.array))
-        np.testing.assert_almost_equal(s1.image.array/peak, s0.image.array/peak, decimal=1)
+        np.testing.assert_almost_equal(s1.image.array/peak, s0.image.array/peak, decimal=2)
 
 def test_gradient_center():
     """Next: fit spatially-varying PSF, with spatially-varying centers to multiple images.
@@ -500,18 +498,18 @@ def test_gradient_center():
         s1 = mod.reflux(s1)
         print('Flux, ctr, chisq after interpolation: ',s1.fit.flux, s1.fit.center, s1.fit.chisq)
         # Less than 2 dp of accuracy here!
-        np.testing.assert_almost_equal(s1.fit.flux/influx, 1.0, decimal=1)
+        np.testing.assert_almost_equal(s1.fit.flux/influx, 1.0, decimal=2)
 
         s1 = mod.draw(s1)
         print('max image abs diff = ',np.max(np.abs(s1.image.array-s0.image.array)))
         print('max image abs value = ',np.max(np.abs(s0.image.array)))
         peak = np.max(np.abs(s0.image.array))
-        np.testing.assert_almost_equal(s1.image.array/peak, s0.image.array/peak, decimal=1)
+        np.testing.assert_almost_equal(s1.image.array/peak, s0.image.array/peak, decimal=2)
 
 if __name__ == '__main__':
-    test_simple()
-    test_center()
-    test_interp()
-    test_missing()
-    test_gradient()
+    # test_simple()
+    # test_center()
+    # test_interp()
+    # test_missing()
+    # test_gradient()
     test_gradient_center()
