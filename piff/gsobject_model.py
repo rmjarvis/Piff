@@ -342,7 +342,7 @@ class Gaussian(GSObjectModel):
 
 
 class Kolmogorov(GSObjectModel):
-    """ Model a PSFs as elliptical Kolmogorovs.
+    """ Model PSFs as elliptical Kolmogorovs.
 
     :param fastfit:  Use HSM moments for fitting.  Approximate, but fast.  [default: False]
     :param force_model_center: If True, PSF model centroid is fixed at origin and
@@ -363,7 +363,7 @@ class Kolmogorov(GSObjectModel):
 
 
 class Moffat(GSObjectModel):
-    """ Model PSFs as an elliptical Moffats.
+    """ Model PSFs as elliptical Moffats.
 
     :param beta:  Moffat shape parameter.
     :param trunc:  Optional truncation radius at which profile drops to zero.  Measured in half
