@@ -507,9 +507,9 @@ def test_gradient_center():
         np.testing.assert_almost_equal(s1.image.array/peak, s0.image.array/peak, decimal=2)
 
 if __name__ == '__main__':
-    # test_simple()
-    # test_center()
-    # test_interp()
-    # test_missing()
-    # test_gradient()
+    test_simple()
+    test_center()
+    test_interp()
+    test_missing()
+    test_gradient()
     test_gradient_center()
