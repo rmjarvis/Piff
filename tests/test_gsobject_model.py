@@ -94,14 +94,12 @@ def test_simple():
         print('True cenv = ', cenv, ', model cenv = ', fit.center[1])
 
         # This test is fairly accurate, since we didn't add any noise and didn't convolve by
-        # the pixel, so the image is very accurately a sheared Kolmogorov.  Only wrinkle is that
-        # HSM is adapted to Gaussians, not Kolmogorovs, so the requirements aren't as strict as
-        # for Gaussian.
-        np.testing.assert_allclose(fit.params[0], size, rtol=5e-2)
-        np.testing.assert_allclose(fit.params[1], g1, atol=1e-4)
-        np.testing.assert_allclose(fit.params[2], g2, atol=1e-4)
-        np.testing.assert_allclose(fit.center[0], cenu, atol=1e-3)
-        np.testing.assert_allclose(fit.center[1], cenv, atol=1e-3)
+        # the pixel, so the image is very accurately a sheared GSObject.
+        np.testing.assert_allclose(fit.params[0], size, rtol=1e-4)
+        np.testing.assert_allclose(fit.params[1], g1, rtol=0, atol=1e-7)
+        np.testing.assert_allclose(fit.params[2], g2, rtol=0, atol=1e-7)
+        np.testing.assert_allclose(fit.center[0], cenu, rtol=0, atol=1e-7)
+        np.testing.assert_allclose(fit.center[1], cenv, rtol=0, atol=1e-7)
 
         # Now try fastfit=False.
         print('Slow fit')
@@ -114,31 +112,33 @@ def test_simple():
         print('True cenu = ', cenu, ', model cenu = ', fit.center[0])
         print('True cenv = ', cenv, ', model cenv = ', fit.center[1])
 
-        # The sensitivity of this test is somewhat dependent on what the wcs is, and whether the fit
-        # center parameters are in image coords or world coords.
-        np.testing.assert_allclose(fit.params[0], size, rtol=1e-3)
-        np.testing.assert_allclose(fit.params[1], g1, atol=1e-3)
-        np.testing.assert_allclose(fit.params[2], g2, atol=1e-3)
-        np.testing.assert_allclose(fit.center[0], cenu, atol=1e-3)
-        np.testing.assert_allclose(fit.center[1], cenv, atol=1e-3)
+        np.testing.assert_allclose(fit.params[0], size, rtol=1e-6)
+        np.testing.assert_allclose(fit.params[1], g1, rtol=0, atol=1e-6)
+        np.testing.assert_allclose(fit.params[2], g2, rtol=0, atol=1e-6)
+        np.testing.assert_allclose(fit.center[0], cenu, rtol=0, atol=1e-6)
+        np.testing.assert_allclose(fit.center[1], cenv, rtol=0, atol=1e-6)
 
-        # # Now test running it via the config parser
-        # config = {
-        #     'model' : {
-        #         'type' : 'GSObjectModel'
-        #     }
-        # }
-        # if __name__ == '__main__':
-        #     logger = piff.config.setup_logger(verbose=3)
-        # else:
-        #     logger = piff.config.setup_logger(verbose=1)
-        # model = piff.Model.process(config['model'], logger)
-        # fit = model.fit(star).fit
-        #
-        # # Same tests.
-        # np.testing.assert_allclose(fit.params[0], size, rtol=1e-3)
-        # np.testing.assert_allclose(fit.params[1], g1, atol=1e-3)
-        # np.testing.assert_allclose(fit.params[2], g2, atol=1e-3)
+        # Now test running it via the config parser
+        config = {
+            'model' : {
+                'type' : 'GSObjectModel',
+                'gsobj': repr(fiducial),
+                'method': 'no_pixel'
+            }
+        }
+        if __name__ == '__main__':
+            logger = piff.config.setup_logger(verbose=3)
+        else:
+            logger = piff.config.setup_logger(verbose=1)
+        model = piff.Model.process(config['model'], logger)
+        fit = model.fit(star).fit
+
+        # Same tests.
+        np.testing.assert_allclose(fit.params[0], size, rtol=1e-6)
+        np.testing.assert_allclose(fit.params[1], g1, rtol=0, atol=1e-6)
+        np.testing.assert_allclose(fit.params[2], g2, rtol=0, atol=1e-6)
+        np.testing.assert_allclose(fit.center[0], cenu, rtol=0, atol=1e-6)
+        np.testing.assert_allclose(fit.center[1], cenv, rtol=0, atol=1e-6)
 
         # Also need to test ability to serialize
         outfile = os.path.join('output', 'gsobject_test.fits')
@@ -147,6 +147,37 @@ def test_simple():
         with fitsio.FITS(outfile, 'r') as f:
             roundtrip_model = piff.GSObjectModel.read(f, 'psf_model')
         assert model.__dict__ == roundtrip_model.__dict__
+
+        # Finally, we should also test with pixel convolution included.  This really only makes
+        # sense for fastfit=False, since HSM FindAdaptiveMom doesn't account for the pixel shape
+        # in its measurements.
+
+        # Draw the PSF onto an image.  Let's go ahead and give it a non-trivial WCS.
+        wcs = galsim.JacobianWCS(0.26, 0.05, -0.08, -0.29)
+        image = galsim.Image(64,64, wcs=wcs)
+
+        psf.drawImage(image, method='auto')
+
+        # Make a StarData instance for this image
+        stardata = piff.StarData(image, image.trueCenter())
+        star = piff.Star(stardata, None)
+
+        print('Slow fit, pixel convolution included.')
+        model = piff.GSObjectModel(fiducial, fastfit=False, method='auto')
+        fit = model.fit(star).fit
+
+        print('True size = ',size,', model size = ',fit.params[0])
+        print('True g1 = ',g1,', model g1 = ',fit.params[1])
+        print('True g2 = ',g2,', model g2 = ',fit.params[2])
+        print('True cenu = ', cenu, ', model cenu = ', fit.center[0])
+        print('True cenv = ', cenv, ', model cenv = ', fit.center[1])
+
+        np.testing.assert_allclose(fit.params[0], size, rtol=1e-4)
+        np.testing.assert_allclose(fit.params[1], g1, rtol=0, atol=1e-4)
+        np.testing.assert_allclose(fit.params[2], g2, rtol=0, atol=1e-4)
+        np.testing.assert_allclose(fit.center[0], cenu, rtol=0, atol=1e-3)
+        np.testing.assert_allclose(fit.center[1], cenv, rtol=0, atol=1e-3)
+
 
 def test_center():
     """Fit with centroid free and PSF center constrained to an initially mis-registered PSF.
