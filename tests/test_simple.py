@@ -46,8 +46,7 @@ def test_Gaussian():
     star = piff.Star(stardata, None)
 
     # Fit the model from the image
-    fiducial_gaussian = galsim.Gaussian(sigma=1.0)
-    model = piff.GSObjectModel(fiducial_gaussian, include_pixel=False)
+    model = piff.Gaussian(include_pixel=False)
     fit = model.fit(star).fit
 
     print('True sigma = ',sigma,', model sigma = ',fit.params[0])
@@ -65,8 +64,7 @@ def test_Gaussian():
     # Now test running it via the config parser
     config = {
         'model' : {
-            'type' : 'GSObjectModel',
-            'gsobj': repr(fiducial_gaussian),
+            'type' : 'Gaussian',
             'include_pixel': False
         }
     }
@@ -200,9 +198,8 @@ def test_single_image():
     assert orig_stars[0].image.array.shape == (48,48)
 
     # Process the star data
-    fiducial_gaussian = galsim.Gaussian(sigma=1.0)
     # can only compare to truth if include_pixel=False
-    model = piff.GSObjectModel(fiducial_gaussian, fastfit=True, include_pixel=False)
+    model = piff.Gaussian(fastfit=True, include_pixel=False)
     interp = piff.Mean()
     fitted_stars = [ model.fit(star) for star in orig_stars ]
     interp.solve(fitted_stars)
@@ -225,8 +222,7 @@ def test_single_image():
             'stamp_size' : 48
         },
         'psf' : {
-            'model' : { 'type' : 'GSObjectModel',
-                        'gsobj': repr(fiducial_gaussian),
+            'model' : { 'type' : 'Gaussian',
                         'fastfit': True,
                         'include_pixel': False},
             'interp' : { 'type' : 'Mean' },
@@ -248,7 +244,7 @@ def test_single_image():
     # Round trip to a file
     psf.write(psf_file, logger)
     psf = piff.read(psf_file, logger)
-    assert type(psf.model) is piff.GSObjectModel
+    assert type(psf.model) is piff.Gaussian
     assert type(psf.interp) is piff.Mean
     test_star = psf.interp.interpolate(target)
     np.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=4)

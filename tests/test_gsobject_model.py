@@ -506,6 +506,117 @@ def test_gradient_center():
         peak = np.max(np.abs(s0.image.array))
         np.testing.assert_almost_equal(s1.image.array/peak, s0.image.array/peak, decimal=2)
 
+
+def test_direct():
+    """ Simple test for directly instantiated Gaussian, Kolmogorov, and Moffat without going through
+    GSObjectModel explicitly.
+    """
+    # Here is the true PSF
+    size = 1.3
+    g1 = 0.23
+    g2 = -0.17
+    cenu = 0.1
+    cenv = 0.4
+
+    gsobjs = [galsim.Gaussian(sigma=1.0),
+              galsim.Kolmogorov(half_light_radius=1.0),
+              galsim.Moffat(half_light_radius=1.0, beta=3.0),
+              galsim.Moffat(half_light_radius=1.0, beta=2.5, trunc=3.0)]
+
+    models = [piff.Gaussian(fastfit=True, include_pixel=False),
+              piff.Kolmogorov(fastfit=True, include_pixel=False),
+              piff.Moffat(fastfit=True, beta=3.0, include_pixel=False),
+              piff.Moffat(fastfit=True, beta=2.5, trunc=3.0, include_pixel=False)]
+
+    for gsobj, model in zip(gsobjs, models):
+        psf = gsobj.dilate(size).shear(g1=g1, g2=g2).shift(cenu, cenv)
+
+        # Draw the PSF onto an image.  Let's go ahead and give it a non-trivial WCS.
+        wcs = galsim.JacobianWCS(0.26, 0.05, -0.08, -0.29)
+        image = galsim.Image(64,64, wcs=wcs)
+
+        # This is only going to come out right if we (unphysically) don't convolve by the pixel.
+        psf.drawImage(image, method='no_pixel')
+
+        # Make a StarData instance for this image
+        stardata = piff.StarData(image, image.trueCenter())
+        star = piff.Star(stardata, None)
+
+        # First try fastfit.
+        print('Fast fit')
+        fit = model.fit(star).fit
+
+        print('True size = ',size,', model size = ',fit.params[0])
+        print('True g1 = ',g1,', model g1 = ',fit.params[1])
+        print('True g2 = ',g2,', model g2 = ',fit.params[2])
+        print('True cenu = ', cenu, ', model cenu = ', fit.center[0])
+        print('True cenv = ', cenv, ', model cenv = ', fit.center[1])
+
+        # This test is fairly accurate, since we didn't add any noise and didn't convolve by
+        # the pixel, so the image is very accurately a sheared GSObject.
+        # These tests are more strict above.  The truncated Moffat included here but not there
+        # doesn't work quite as well.
+        np.testing.assert_allclose(fit.params[0], size, rtol=1e-4)
+        np.testing.assert_allclose(fit.params[1], g1, rtol=0, atol=1e-5)
+        np.testing.assert_allclose(fit.params[2], g2, rtol=0, atol=1e-5)
+        np.testing.assert_allclose(fit.center[0], cenu, rtol=0, atol=1e-5)
+        np.testing.assert_allclose(fit.center[1], cenv, rtol=0, atol=1e-5)
+
+        # Also need to test ability to serialize
+        outfile = os.path.join('output', 'gsobject_direct_test.fits')
+        with fitsio.FITS(outfile, 'rw', clobber=True) as f:
+            model.write(f, 'psf_model')
+        with fitsio.FITS(outfile, 'r') as f:
+            roundtrip_model = piff.GSObjectModel.read(f, 'psf_model')
+        assert model.__dict__ == roundtrip_model.__dict__
+
+    # repeat with fastfit=False
+
+    models = [piff.Gaussian(fastfit=False, include_pixel=False),
+              piff.Kolmogorov(fastfit=False, include_pixel=False),
+              piff.Moffat(fastfit=False, beta=3.0, include_pixel=False),
+              piff.Moffat(fastfit=False, beta=2.5, trunc=3.0, include_pixel=False)]
+
+    for gsobj, model in zip(gsobjs, models):
+        psf = gsobj.dilate(size).shear(g1=g1, g2=g2).shift(cenu, cenv)
+
+        # Draw the PSF onto an image.  Let's go ahead and give it a non-trivial WCS.
+        wcs = galsim.JacobianWCS(0.26, 0.05, -0.08, -0.29)
+        image = galsim.Image(64,64, wcs=wcs)
+
+        # This is only going to come out right if we (unphysically) don't convolve by the pixel.
+        psf.drawImage(image, method='no_pixel')
+
+        # Make a StarData instance for this image
+        stardata = piff.StarData(image, image.trueCenter())
+        star = piff.Star(stardata, None)
+
+        print('Slow fit')
+        fit = model.fit(star).fit
+
+        print('True size = ',size,', model size = ',fit.params[0])
+        print('True g1 = ',g1,', model g1 = ',fit.params[1])
+        print('True g2 = ',g2,', model g2 = ',fit.params[2])
+        print('True cenu = ', cenu, ', model cenu = ', fit.center[0])
+        print('True cenv = ', cenv, ', model cenv = ', fit.center[1])
+
+        # This test is fairly accurate, since we didn't add any noise and didn't convolve by
+        # the pixel, so the image is very accurately a sheared GSObject.
+        np.testing.assert_allclose(fit.params[0], size, rtol=1e-6)
+        np.testing.assert_allclose(fit.params[1], g1, rtol=0, atol=1e-6)
+        np.testing.assert_allclose(fit.params[2], g2, rtol=0, atol=1e-6)
+        np.testing.assert_allclose(fit.center[0], cenu, rtol=0, atol=1e-5)
+        np.testing.assert_allclose(fit.center[1], cenv, rtol=0, atol=1e-5)
+
+        # Also need to test ability to serialize
+        outfile = os.path.join('output', 'gsobject_direct_test.fits')
+        with fitsio.FITS(outfile, 'rw', clobber=True) as f:
+            model.write(f, 'psf_model')
+        with fitsio.FITS(outfile, 'r') as f:
+            roundtrip_model = piff.GSObjectModel.read(f, 'psf_model')
+        assert model.__dict__ == roundtrip_model.__dict__
+
+
 if __name__ == '__main__':
     test_simple()
     test_center()
@@ -513,3 +624,4 @@ if __name__ == '__main__':
     test_missing()
     test_gradient()
     test_gradient_center()
+    test_direct()

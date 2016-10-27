@@ -318,3 +318,72 @@ class GSObjectModel(Model):
                                            dof = np.count_nonzero(weight.array) - 1,
                                            alpha = star.fit.alpha,
                                            beta = star.fit.beta))
+
+
+class Gaussian(GSObjectModel):
+    """ Model PSFs as elliptical Gaussians.
+
+    :param fastfit:  Use HSM moments for fitting.  Approximate, but fast.  [default: False]
+    :param force_model_center: If True, PSF model centroid is fixed at origin and
+                        PSF fitting will marginalize over stellar position.  If False, stellar
+                        position is fixed at input value and the fitted PSF may be off-center.
+                        [default: True]
+    :param include_pixel:   Include integration over pixel?  [default: True]
+    :param logger:   A logger object for logging debug info. [default: None]
+    """
+    def __init__(self, fastfit=False, force_model_center=True, include_pixel=True, logger=None):
+        import galsim
+        gsobj = galsim.Gaussian(sigma=1.0)
+        GSObjectModel.__init__(self, gsobj, fastfit, force_model_center, include_pixel, logger)
+        # We'd need self.kwargs['gsobj'] if we were reconstituting via the GSObjectModel
+        # constructor, but since config['type'] for this will be Gaussian, it gets reconstituted
+        # here, where there is no `gsobj` argument.  So remove from kwargs.
+        del self.kwargs['gsobj']
+
+
+class Kolmogorov(GSObjectModel):
+    """ Model a PSFs as elliptical Kolmogorovs.
+
+    :param fastfit:  Use HSM moments for fitting.  Approximate, but fast.  [default: False]
+    :param force_model_center: If True, PSF model centroid is fixed at origin and
+                        PSF fitting will marginalize over stellar position.  If False, stellar
+                        position is fixed at input value and the fitted PSF may be off-center.
+                        [default: True]
+    :param include_pixel:   Include integration over pixel?  [default: True]
+    :param logger:   A logger object for logging debug info. [default: None]
+    """
+    def __init__(self, fastfit=False, force_model_center=True, include_pixel=True, logger=None):
+        import galsim
+        gsobj = galsim.Kolmogorov(half_light_radius=1.0)
+        GSObjectModel.__init__(self, gsobj, fastfit, force_model_center, include_pixel, logger)
+        # We'd need self.kwargs['gsobj'] if we were reconstituting via the GSObjectModel
+        # constructor, but since config['type'] for this will be Gaussian, it gets reconstituted
+        # here, where there is no `gsobj` argument.  So remove from kwargs.
+        del self.kwargs['gsobj']
+
+
+class Moffat(GSObjectModel):
+    """ Model PSFs as an elliptical Gaussian.
+
+    :param beta:  Moffat shape parameter.
+    :param trunc:  Optional truncation radius at which profile drops to zero.  Measured in half
+                   light radii.  [default: 0, indicating no truncation]
+    :param fastfit:  Use HSM moments for fitting.  Approximate, but fast.  [default: False]
+    :param force_model_center: If True, PSF model centroid is fixed at origin and
+                        PSF fitting will marginalize over stellar position.  If False, stellar
+                        position is fixed at input value and the fitted PSF may be off-center.
+                        [default: True]
+    :param include_pixel:   Include integration over pixel?  [default: True]
+    :param logger:   A logger object for logging debug info. [default: None]
+    """
+    def __init__(self, beta, trunc=0., fastfit=False, force_model_center=True, include_pixel=True,
+                 logger=None):
+        import galsim
+        gsobj = galsim.Moffat(half_light_radius=1.0, beta=beta, trunc=trunc)
+        GSObjectModel.__init__(self, gsobj, fastfit, force_model_center, include_pixel, logger)
+        # We'd need self.kwargs['gsobj'] if we were reconstituting via the GSObjectModel
+        # constructor, but since config['type'] for this will be Gaussian, it gets reconstituted
+        # here, where there is no `gsobj` argument.  So remove from kwargs.
+        del self.kwargs['gsobj']
+        # Need to add `beta` and `trunc` though.
+        self.kwargs.update(dict(beta=beta, trunc=trunc))
