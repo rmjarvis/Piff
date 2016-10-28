@@ -36,6 +36,8 @@ class GPInterp(Interp):
     def __init__(self, attr_interp=None, kernel=None, optimizer='fmin_l_bfgs_b', npca=0,
                  logger=None):
         from sklearn.gaussian_process import GaussianProcessRegressor
+        if isinstance(kernel, basestring):
+            kernel = self._eval_kernel(kernel)
 
         if attr_interp is None:
             attr_interp = ['u', 'v']
@@ -43,13 +45,31 @@ class GPInterp(Interp):
         self.attr_interp = attr_interp
         self.kernel = kernel
         self.npca = npca
+
+        self.kwargs = {
+            'attr_interp': attr_interp,
+            'optimizer': optimizer,
+            'npca': npca,
+            'kernel': repr(kernel)
+        }
+
         self.gp = GaussianProcessRegressor(self.kernel, optimizer=optimizer)
+
+    @staticmethod
+    def _eval_kernel(kernel):
+        from sklearn.gaussian_process.kernels import WhiteKernel, RBF, Matern, RationalQuadratic
+        from sklearn.gaussian_process.kernels import ExpSineSquared, DotProduct, PairwiseKernel
+        from numpy import array
+        return eval(kernel)
 
     def _fit(self, X, y, logger=None):
         """Update the GaussianProcessRegressor with data
         :param X:  The independent covariates.  (n_samples, n_features)
         :param y:  The dependent responses.  (n_samples, n_targets)
         """
+        # Save these for potential read/write.
+        self._X = X
+        self._y = y
         if self.npca > 0:
             from sklearn.decomposition import PCA
             self._pca = PCA(n_components=self.npca, whiten=True)
@@ -129,6 +149,40 @@ class GPInterp(Interp):
             fitted_stars.append(Star(star.data, fit))
         return fitted_stars
 
+    def _finish_write(self, fits, extname):
+        # Note, we're only storing the training data and hyperparameters here, which means the
+        # Cholesky decomposition will have to be re-computed when this object is read back from
+        # disk.
+        init_theta = self.kernel.theta
+        fit_theta = self.gp.kernel_.theta
+        dtypes = [('INIT_THETA', init_theta.dtype, init_theta.shape),
+                  ('FIT_THETA', fit_theta.dtype, fit_theta.shape),
+                  ('X', self._X.dtype, self._X.shape),
+                  ('Y', self._y.dtype, self._y.shape)]
+
+        data = np.empty(1, dtype=dtypes)
+        data['INIT_THETA'] = init_theta
+        data['FIT_THETA'] = fit_theta
+        data['X'] = self._X
+        data['Y'] = self._y
+
+        fits.write_table(data, extname=extname+'_kernel')
+
+    def _finish_read(self, fits, extname):
+        data = fits[extname+'_kernel'].read()
+        optimizer = self.gp.optimizer
+
+        # Run fit to set up GP, but don't actually do any hyperparameter optimization.  Just
+        # set the GP up using the current hyperparameters.
+        self.gp.kernel.theta = data['FIT_THETA'][0]
+        optimizer = self.gp.optimizer
+        self.gp.optimizer = None
+        self._fit(data['X'][0], data['Y'][0])
+        self.gp.optimizer = optimizer
+        # Now that gp is setup, we can restore it's initial kernel.
+        self.gp.kernel.theta = self.kernel.theta = data['INIT_THETA'][0]
+
+
 
 from sklearn.gaussian_process.kernels import StationaryKernelMixin, NormalizedKernelMixin, Kernel
 from sklearn.gaussian_process.kernels import Hyperparameter
@@ -172,12 +226,12 @@ class AnisotropicRBF(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
         # related to the parameters `theta` as:
         #
         # invLam = L * L.T
-        # L = [[exp(th[0])  0              0           ...    0               0           ]
-        #       th[n]       exp(th[1])]    0           ...    0               0           ]
-        #       th[n+1]     th[n+2]        exp(th[3])  ...    0               0           ]
-        #       ...         ...            ...         ...    ...             ...         ]
-        #       th[]        th[]           th[]        ...    exp(th[n-2])    0           ]
-        #       th[]        th[]           th[]        ...    th[n*(n+1)/2]   exp(th[n-1])]]
+        # L = [[exp(th[0])  0              0           ...    0                 0           ]
+        #       th[n]       exp(th[1])]    0           ...    0                 0           ]
+        #       th[n+1]     th[n+2]        exp(th[3])  ...    0                 0           ]
+        #       ...         ...            ...         ...    ...               ...         ]
+        #       th[]        th[]           th[]        ...    exp(th[n-2])      0           ]
+        #       th[]        th[]           th[]        ...    th[n*(n+1)/2-1]   exp(th[n-1])]]
         #
         # I.e., the inverse covariance matrix is Cholesky-decomposed, exp(theta[0:n]) lie
         # on the diagonal of the Cholesky matrix, and theta[n:n*(n+1)/2] lie in the lower triangular
@@ -258,3 +312,7 @@ class AnisotropicRBF(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
     @property
     def bounds(self):
         return np.array([(-5, 5)]*int(self.ntheta))
+
+
+    def __repr__(self):
+        return "{0}(invLam={1!r})".format(self.__class__.__name__, self.invLam)

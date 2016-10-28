@@ -18,10 +18,12 @@ import galsim
 import numpy as np
 import piff
 from sklearn.gaussian_process import kernels
+import os
+import fitsio
 
 
 fiducial_kolmogorov = galsim.Kolmogorov(half_light_radius=1.0)
-mod = piff.GSObjectModel(fiducial_kolmogorov, force_model_center=False)
+mod = piff.GSObjectModel(fiducial_kolmogorov, force_model_center=False, include_pixel=False)
 
 star_type = np.dtype([('u', float),
                       ('v', float),
@@ -108,7 +110,7 @@ def make_constant_psf_params(ntrain, nvalidate, nvisualize):
 def make_polynomial_psf_params(ntrain, nvalidate, nvisualize):
     """ Make training/testing data for PSF with params varying as polynomials.
     """
-    bd = galsim.BaseDeviate(5772156649)
+    bd = galsim.BaseDeviate(5772156649+3141159)
     ud = galsim.UniformDeviate(bd)
 
     training_data = np.recarray((ntrain,), dtype=star_type)
@@ -162,7 +164,7 @@ def make_polynomial_psf_params(ntrain, nvalidate, nvisualize):
 def make_grf_psf_params(ntrain, nvalidate, nvisualize):
     """ Make training/testing data for PSF with params drawn from isotropic Gaussian random field.
     """
-    bd = galsim.BaseDeviate(5772156649)
+    bd = galsim.BaseDeviate(5772156649+2718281828)
     ud = galsim.UniformDeviate(bd)
 
     ntotal = ntrain + nvalidate + nvisualize**2
@@ -210,7 +212,7 @@ def make_grf_psf_params(ntrain, nvalidate, nvisualize):
 def make_anisotropic_grf_psf_params(ntrain, nvalidate, nvisualize):
     """ Make training/testing data for PSF with params drawn from anisotropic Gaussian random field.
     """
-    bd = galsim.BaseDeviate(5772156649)
+    bd = galsim.BaseDeviate(314159+2718281828)
     ud = galsim.UniformDeviate(bd)
 
     ntotal = ntrain + nvalidate + nvisualize**2
@@ -247,11 +249,11 @@ def make_anisotropic_grf_psf_params(ntrain, nvalidate, nvisualize):
     np.random.seed(1234567890)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        params['hlr'] = np.random.multivariate_normal([0]*ntotal, bigcov)*0.05+0.4
+        params['hlr'] = np.random.multivariate_normal([0]*ntotal, bigcov)*0.05+0.5
         params['g1'] = np.random.multivariate_normal([0]*ntotal, bigcov)*0.05
         params['g2'] = np.random.multivariate_normal([0]*ntotal, bigcov)*0.05
-        params['u0'] = np.random.multivariate_normal([0]*ntotal, bigcov)*0.3
-        params['v0'] = np.random.multivariate_normal([0]*ntotal, bigcov)*0.3
+        params['u0'] = np.random.multivariate_normal([0]*ntotal, bigcov)*0.1
+        params['v0'] = np.random.multivariate_normal([0]*ntotal, bigcov)*0.1
     params['flux'] = fluxes
 
     training_data = params[:ntrain]
@@ -280,7 +282,9 @@ def iterate(stars, interp):
         chisq += s.fit.chisq
         dof += s.fit.dof
     print()
+    print()
     print("Initial state")
+    print("-------------")
     print("chisq: {0}    dof: {1}".format(chisq, dof))
     print("chisq/dof: {0}".format(chisq/dof))
 
@@ -388,75 +392,104 @@ def validate(validate_stars, interp):
 
 
 def check_gp(training_data, validation_data, visualization_data,
-             kernel, npca=0, optimizer=None, visualize=False):
+             kernel, npca=0, optimizer=None, filename=None, rng=None,
+             visualize=False):
     """ Solve for global PSF model, test it, and optionally display it.
     """
-    stars = params_to_stars(training_data, noise=0.03)
-    validate_stars = params_to_stars(validation_data, noise=0.0)
+    stars = params_to_stars(training_data, noise=0.03, rng=rng)
+    validate_stars = params_to_stars(validation_data, noise=0.0, rng=rng)
     interp = piff.GPInterp(kernel=kernel, optimizer=optimizer, npca=npca)
     interp.initialize(stars)
     iterate(stars, interp)
     if visualize:
         display(training_data, visualization_data, interp)
     validate(validate_stars, interp)
+    # Check that we can write interp to disk and read back in.
+
+    # Can't do EmpericalKernel since it has an arbitrary python callable, which is hard to serialize
+    # in a fits file.  Maybe make an explicit LookupTable2DKernel?
+    if 'EmpiricalKernel' not in repr(interp.kernel) and filename is not None:
+        testfile = os.path.join('output', filename)
+        with fitsio.FITS(testfile, 'rw', clobber=True) as f:
+            interp.write(f, 'interp')
+        with fitsio.FITS(testfile, 'r') as f:
+            interp2 = piff.GPInterp.read(f, 'interp')
+        print("Revalidating after i/o.")
+        X = np.vstack([training_data['u'], training_data['v']]).T
+        np.testing.assert_allclose(interp.kernel(X), interp2.kernel(X))
+        np.testing.assert_allclose(interp.gp.kernel.theta, interp2.gp.kernel.theta)
+        np.testing.assert_allclose(interp.gp.kernel_.theta, interp2.gp.kernel_.theta)
+        np.testing.assert_allclose(interp.gp.alpha_, interp2.gp.alpha_)
+        np.testing.assert_allclose(interp.gp.X_train_, interp2.gp.X_train_)
+        np.testing.assert_allclose(interp.gp.y_train_mean, interp2.gp.y_train_mean)
+        validate(validate_stars, interp2)
 
 
 def test_constant_psf():
+    rng = galsim.BaseDeviate(572958179)
     ntrain, nvalidate, nvisualize = 100, 1, 21
     training_data, validation_data, visualization_data = \
         make_constant_psf_params(ntrain, nvalidate, nvisualize)
 
-    kernel = kernels.RBF(1.0, (1e-1, 1e3))
+    kernel = 1*kernels.RBF(1.0, (1e-1, 1e3))
     # We probably aren't measuring fwhm, g1, g2, etc. to better than 1e-5...
     kernel += kernels.WhiteKernel(1e-5, (1e-7, 1e-1))
 
     for npca in [0, 2]:
         for optimizer in [None, 'fmin_l_bfgs_b']:
             check_gp(training_data, validation_data, visualization_data, kernel,
-                     npca=npca, optimizer=optimizer)
+                     npca=npca, optimizer=optimizer, rng=rng)
 
 
 def test_polynomial_psf():
+    rng = galsim.BaseDeviate(1203985)
     ntrain, nvalidate, nvisualize = 200, 1, 21
     training_data, validation_data, visualization_data = \
         make_polynomial_psf_params(ntrain, nvalidate, nvisualize)
-    kernel = kernels.RBF(0.3, (1e-1, 1e3))
+    kernel = 1*kernels.RBF(0.3, (1e-1, 1e3))
     # We probably aren't measuring fwhm, g1, g2, etc. to better than 1e-5...
     kernel += kernels.WhiteKernel(1e-5, (1e-7, 1e-1))
     for npca in [0, 5]:
         for optimizer in [None, 'fmin_l_bfgs_b']:
             check_gp(training_data, validation_data, visualization_data, kernel,
-                     npca=npca, optimizer=optimizer)
+                     npca=npca, optimizer=optimizer, rng=rng)
 
 
 def test_grf_psf():
+    rng = galsim.BaseDeviate(987654334587656)
     ntrain, nvalidate, nvisualize = 100, 1, 21
     training_data, validation_data, visualization_data = \
         make_grf_psf_params(ntrain, nvalidate, nvisualize)
-    kernel = kernels.RBF(0.3, (1e-1, 1e1))
+    kernel = 1*kernels.RBF(0.3, (1e-1, 1e1))
     # We probably aren't measuring fwhm, g1, g2, etc. to better than 1e-5...
     kernel += kernels.WhiteKernel(1e-5, (1e-7, 1e-1))
     for npca in [0, 5]:
         for optimizer in [None, 'fmin_l_bfgs_b']:
             check_gp(training_data, validation_data, visualization_data, kernel,
-                     npca=npca, optimizer=optimizer)
+                     npca=npca, optimizer=optimizer, filename="test_gp_grf.fits", rng=rng)
 
     # Check EmpiricalKernel here too
     #
     # We could in principal use any function of dx, dy here, for instance a galsim.LookupTable2D.
     # For simplicity, though, just assert a Gaussian == SquaredExponential with scale-length
-    # of 0.2.
+    # of 0.3.
+    scale_length = 0.3
     def fn(dx, dy):
-        return np.exp(-0.5*(dx**2+dy**2)/0.2**2)
-    kernel = piff.EmpiricalKernel(fn) + kernels.WhiteKernel(1e-5)
-    # No optimizer loop, since EmpiercalKernel is not optimizable.
+        return np.exp(-0.5*(dx**2+dy**2)/scale_length**2)
+    emp_kernel = piff.EmpiricalKernel(fn) + kernels.WhiteKernel(1e-5)
+    kernel = kernels.RBF(scale_length) + kernels.WhiteKernel(1e-5)
+    X = np.vstack([training_data['u'], training_data['v']]).T
+    np.testing.assert_allclose(emp_kernel(X), kernel(X))
+
+    # No optimizer loop, since EmpiricalKernel is not optimizable.
     for npca in [0, 5]:
-        check_gp(training_data, validation_data, visualization_data, kernel,
-                 npca=npca)
+        check_gp(training_data, validation_data, visualization_data, emp_kernel,
+                 npca=npca, rng=rng)
 
 
 def test_anisotropic_rbf_kernel():
-    ntrain, nvalidate, nvisualize = 400, 1, 21
+    rng = galsim.BaseDeviate(5867943)
+    ntrain, nvalidate, nvisualize = 250, 1, 21
     training_data, validation_data, visualization_data = \
         make_anisotropic_grf_psf_params(ntrain, nvalidate, nvisualize)
     var1 = 0.1**2
@@ -464,7 +497,7 @@ def test_anisotropic_rbf_kernel():
     corr = 0.7
     cov = np.array([[var1, np.sqrt(var1*var2)*corr],
                     [np.sqrt(var1*var2)*corr, var2]])
-    kernel = (piff.AnisotropicRBF(invLam=np.linalg.inv(cov))
+    kernel = (0.1*piff.AnisotropicRBF(invLam=np.linalg.inv(cov))
               + kernels.WhiteKernel(1e-5, (1e-7, 1e-2)))
     if __name__ == '__main__':
         npcas = [0, 5]
@@ -473,7 +506,8 @@ def test_anisotropic_rbf_kernel():
     for npca in npcas:
         for optimizer in [None, 'fmin_l_bfgs_b']:
             check_gp(training_data, validation_data, visualization_data, kernel,
-                     npca=npca, optimizer=optimizer)
+                     npca=npca, optimizer=optimizer, filename="test_anisotropic_rbf.fits",
+                     rng=rng)
 
 
 if __name__ == '__main__':
