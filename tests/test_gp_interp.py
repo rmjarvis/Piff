@@ -312,7 +312,7 @@ def iterate(stars, interp):
     print(interp.gp.kernel_)
 
 
-def display(training_data, vis_data, interp):
+def display_old(training_data, vis_data, interp):
     """Display training samples, true PSF, model PSF, and residual over field-of-view.
     """
     interpstars = params_to_stars(vis_data, noise=0.0)
@@ -362,6 +362,58 @@ def display(training_data, vis_data, interp):
     plt.colorbar(resid)
     plt.show()
 
+def display(training_data, vis_data, interp):
+    """Display training samples, true PSF, model PSF, and residual over field-of-view.
+    """
+    import matplotlib.pyplot as plt
+    interpstars = params_to_stars(vis_data, noise=0.0)
+    interpstars = interp.interpolateList(interpstars)
+
+
+    fig, axarr = plt.subplots(5, 4, figsize=(7, 10))
+
+    rows = ['u0', 'v0', 'hlr', 'g1', 'g2']
+    for irow, var in enumerate(rows):
+        # Make a grid of output locations to visualize GP interpolation performance (for g1).
+        ctruth = np.array(vis_data[var]).ravel()
+        cinterp = np.array([s.fit.params[irow] for s in interpstars])
+
+        vmin = np.min(ctruth)
+        vmax = np.max(ctruth)
+        if vmin == vmax:
+            vmin -= 0.01
+            vmax += 0.01
+
+        ax1 = axarr[irow, 0]
+        ax1.set_title("sampling")
+        ax1.set_xlim((-0.2,1.2))
+        ax1.set_ylim((-0.2,1.2))
+        meas = ax1.scatter(training_data['u'], training_data['v'],
+                           c=training_data[var], vmin=vmin, vmax=vmax)
+
+        ax2 = axarr[irow, 1]
+        ax2.set_title("truth")
+        ax2.set_xlim((-0.2,1.2))
+        ax2.set_ylim((-0.2,1.2))
+        truth = ax2.scatter(vis_data['u'], vis_data['v'], c=ctruth, vmin=vmin, vmax=vmax)
+
+        ax3 = axarr[irow, 2]
+        ax3.set_title("interp")
+        ax3.set_xlim((-0.2,1.2))
+        ax3.set_ylim((-0.2,1.2))
+        interp_scat = ax3.scatter(vis_data['u'], vis_data['v'], c=cinterp, vmin=vmin, vmax=vmax)
+
+        ax4 = axarr[irow, 3]
+        ax4.set_title("resid")
+        ax4.set_xlim((-0.2,1.2))
+        ax4.set_ylim((-0.2,1.2))
+        resid = ax4.scatter(vis_data['u'], vis_data['v'], c=(cinterp-ctruth),
+                            vmin=vmin/10, vmax=vmax/10)
+    for ax in axarr.ravel():
+        ax.xaxis.set_ticks([])
+        ax.yaxis.set_ticks([])
+    plt.show()
+
 
 def validate(validate_stars, interp):
     """ Check that global PSF model sufficiently interpolates some stars.
@@ -393,7 +445,7 @@ def validate(validate_stars, interp):
 
 def check_gp(training_data, validation_data, visualization_data,
              kernel, npca=0, optimizer=None, filename=None, rng=None,
-             visualize=False):
+             visualize=True):
     """ Solve for global PSF model, test it, and optionally display it.
     """
     stars = params_to_stars(training_data, noise=0.03, rng=rng)
