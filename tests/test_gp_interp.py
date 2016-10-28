@@ -388,27 +388,28 @@ def display(training_data, vis_data, interp):
         ax1.set_title("sampling")
         ax1.set_xlim((-0.2,1.2))
         ax1.set_ylim((-0.2,1.2))
-        meas = ax1.scatter(training_data['u'], training_data['v'],
-                           c=training_data[var], vmin=vmin, vmax=vmax)
+        ax1.scatter(training_data['u'], training_data['v'],
+                    c=training_data[var], vmin=vmin, vmax=vmax)
 
         ax2 = axarr[irow, 1]
         ax2.set_title("truth")
         ax2.set_xlim((-0.2,1.2))
         ax2.set_ylim((-0.2,1.2))
-        truth = ax2.scatter(vis_data['u'], vis_data['v'], c=ctruth, vmin=vmin, vmax=vmax)
+        ax2.scatter(vis_data['u'], vis_data['v'], c=ctruth, vmin=vmin, vmax=vmax)
 
         ax3 = axarr[irow, 2]
         ax3.set_title("interp")
         ax3.set_xlim((-0.2,1.2))
         ax3.set_ylim((-0.2,1.2))
-        interp_scat = ax3.scatter(vis_data['u'], vis_data['v'], c=cinterp, vmin=vmin, vmax=vmax)
+        ax3.scatter(vis_data['u'], vis_data['v'], c=cinterp, vmin=vmin, vmax=vmax)
 
         ax4 = axarr[irow, 3]
         ax4.set_title("resid")
         ax4.set_xlim((-0.2,1.2))
         ax4.set_ylim((-0.2,1.2))
-        resid = ax4.scatter(vis_data['u'], vis_data['v'], c=(cinterp-ctruth),
+        ax4.scatter(vis_data['u'], vis_data['v'], c=(cinterp-ctruth),
                             vmin=vmin/10, vmax=vmax/10)
+
     for ax in axarr.ravel():
         ax.xaxis.set_ticks([])
         ax.yaxis.set_ticks([])
@@ -445,7 +446,7 @@ def validate(validate_stars, interp):
 
 def check_gp(training_data, validation_data, visualization_data,
              kernel, npca=0, optimizer=None, filename=None, rng=None,
-             visualize=True):
+             visualize=False):
     """ Solve for global PSF model, test it, and optionally display it.
     """
     stars = params_to_stars(training_data, noise=0.03, rng=rng)
