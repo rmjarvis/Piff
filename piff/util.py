@@ -123,7 +123,7 @@ def write_kwargs(fits, extname, kwargs):
         value = adjust_value(value,dt)
         cols.append([value])
         dtypes.append(dt)
-    data = np.array(zip(*cols), dtype=dtypes)
+    data = np.array(list(zip(*cols)), dtype=dtypes)
     fits.write_table(data, extname=extname)
 
 def read_kwargs(fits, extname):
