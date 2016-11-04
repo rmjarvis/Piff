@@ -381,8 +381,8 @@ def test_poly_load_save():
         poly_load_save_sub(poly_type,poly_type)
 
 def test_poly_load_err():
-    for poly_type1 in PolynomialsTypes[:]:
-        for poly_type2 in PolynomialsTypes[:]:
+    for poly_type1 in PolynomialsTypes:
+        for poly_type2 in PolynomialsTypes:
             if poly_type1!=poly_type2:
                 poly_load_save_sub(poly_type1,poly_type2)
 

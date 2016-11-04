@@ -73,7 +73,7 @@ def make_dtype(key, value):
     elif dt.kind == 'S' and not isinstance(value, (str, unicode)):
         # catch lists of strings
         t = np.array(value).dtype.str
-    elif dt.kind == 'S':
+    elif dt.kind in ['S', 'U']:
         t = str
     else:
         # Other objects should be manually serialized by the initializer or the finish_read and
