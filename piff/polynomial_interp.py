@@ -365,7 +365,7 @@ class Polynomial(Interp):
         header = { 'NPARAM' : self.nparam }
 
         # Finally, write all of this to a FITS table.
-        data = np.array(zip(*cols), dtype=dtypes)
+        data = np.array(list(zip(*cols)), dtype=dtypes)
         fits.write_table(data, extname=extname + '_solution', header=header)
 
 
