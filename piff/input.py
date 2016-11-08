@@ -346,11 +346,14 @@ class InputFiles(Input):
         :param nstars:      Stop reading the input file at this many stars. [default: None]
         :param logger:      A logger object for logging debug info. [default: None]
         """
+        import six
+
         if image_dir is None: image_dir = dir
         if cat_dir is None: cat_dir = dir
 
         # Try to eval chipnums that come in as a string.
-        if isinstance(chipnums, basestring):
+        # Use six for Py2/Py3 compatibility.
+        if isinstance(chipnums, six.string_types):
             try:
                 chipnums = eval(chipnums)
             except Exception as e:
@@ -422,7 +425,9 @@ class InputFiles(Input):
         self.pointing = None
 
     def _get_file_list(self, s, d, chipnums, logger):
-        if isinstance(s, basestring):
+        import six
+
+        if isinstance(s, six.string_types):
             # First try "{chipnum}" style formatting.
             if (chipnums is not None) and ('{' in s) and ('}' in s):
                 try:
@@ -694,4 +699,3 @@ class InputFiles(Input):
             hdu = 1 if file_name.endswith('.fz') else 0
             header = fits[hdu].read_header()
             self.gain = float(header[self.gain])
-

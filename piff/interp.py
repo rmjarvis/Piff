@@ -193,6 +193,8 @@ class Interp(object):
         interp_type = fits[extname].read()['type']
         assert len(interp_type) == 1
         interp_type = interp_type[0]
+        if isinstance(interp_type, bytes):
+            interp_type = interp_type.decode('ascii')
 
         # Check that interp_type is a valid Interp type.
         interp_classes = piff.util.get_all_subclasses(piff.Interp)
@@ -204,6 +206,7 @@ class Interp(object):
         kwargs = read_kwargs(fits, extname)
         kwargs.pop('type')
         interp = interp_cls(**kwargs)
+#        interp = interp_cls(**{key: x.decode('ascii') if isinstance(x, bytes) else x for key, x in kwargs.items()})
         interp._finish_read(fits, extname)
         return interp
 
@@ -217,4 +220,3 @@ class Interp(object):
         :param extname:     The base name of the extension.
         """
         pass
-

@@ -266,6 +266,7 @@ class TwoDHistStats(Stats):
 
     def _shift_cmap(self, vmin, vmax):
         import matplotlib.pyplot as plt
+        print('vmin, vmax: ', vmin, vmax)
         midpoint = (0 - vmin) / (vmax - vmin)
 
         # if b <= 0, then we want Blues_r

@@ -161,6 +161,8 @@ class Model(object):
         model_type = fits[extname].read()['type']
         assert len(model_type) == 1
         model_type = model_type[0]
+        if isinstance(model_type, bytes):
+            model_type = model_type.decode('ascii')
 
         # Check that model_type is a valid Model type.
         model_classes = piff.util.get_all_subclasses(piff.Model)
