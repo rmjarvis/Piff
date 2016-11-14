@@ -23,17 +23,18 @@ fiducial_kolmogorov = galsim.Kolmogorov(half_light_radius=1.0)
 fiducial_gaussian = galsim.Gaussian(half_light_radius=1.0)
 fiducial_moffat = galsim.Moffat(half_light_radius=1.0, beta=3.0)
 
-def make_data(gsobject, size, g1, g2, u0, v0, flux, noise=0., du=1., fpu=0., fpv=0., nside=32,
-              nom_u0=0., nom_v0=0., rng=None, include_pixel=True):
+
+def make_data(gsobject, scale, g1, g2, u0, v0, flux, noise=0., pix_scale=1., fpu=0., fpv=0.,
+              nside=32, nom_u0=0., nom_v0=0., rng=None, include_pixel=True):
     """Make a Star instance filled with a Kolmogorov profile
 
     :param gsobject     The fiducial gsobject profile to use.
-    :param size:        The size of the GSObject.
-    :param g1, g2:      Shear applied to profile.
+    :param scale:       The scale to apply to the gsobject.
+    :param g1, g2:      The shear to apply to the gsobject.
     :param u0, v0:      The sub-pixel offset to apply.
     :param flux:        The flux of the star
     :param noise:       RMS Gaussian noise to be added to each pixel [default: 0]
-    :param du:          pixel size in "wcs" units [default: 1.]
+    :param pix_scale:   pixel size in "wcs" units [default: 1.]
     :param fpu,fpv:     position of this cutout in some larger focal plane [default: 0,0]
     :param nside:       The size of the array [default: 32]
     :param nom_u0, nom_v0:  The nominal u0,v0 in the StarData [default: 0,0]
@@ -41,17 +42,17 @@ def make_data(gsobject, size, g1, g2, u0, v0, flux, noise=0., du=1., fpu=0., fpv
                         [default: None]
     :param include_pixel:  Include integration over pixel.  [default: True]
     """
-    k = gsobject.withFlux(flux).dilate(size).shear(g1=g1, g2=g2).shift(u0, v0)
+    k = gsobject.withFlux(flux).dilate(scale).shear(g1=g1, g2=g2).shift(u0, v0)
     if noise == 0.:
         var = 0.1
     else:
         var = noise
-    star = piff.Star.makeTarget(x=nside/2+nom_u0/du, y=nside/2+nom_v0/du,
-                                u=fpu, v=fpv, scale=du, stamp_size=nside)
+    star = piff.Star.makeTarget(x=nside/2+nom_u0/pix_scale, y=nside/2+nom_v0/pix_scale,
+                                u=fpu, v=fpv, scale=pix_scale, stamp_size=nside)
     star.image.setOrigin(0,0)
     method = 'auto' if include_pixel else 'no_pixel'
     k.drawImage(star.image, method=method,
-                offset=galsim.PositionD(nom_u0/du,nom_v0/du), use_true_center=False)
+                offset=galsim.PositionD(nom_u0/pix_scale, nom_v0/pix_scale), use_true_center=False)
     star.data.weight = star.image.copy()
     star.weight.fill(1./var/var)
     if noise != 0:
@@ -64,17 +65,17 @@ def test_simple():
     """Initial simple test of Gaussian, Kolmogorov, and Moffat PSFs.
     """
     # Here is the true PSF
-    size = 1.3
+    scale = 1.3
     g1 = 0.23
     g2 = -0.17
-    cenu = 0.1
-    cenv = 0.4
+    du = 0.1
+    dv = 0.4
     for fiducial in [fiducial_gaussian, fiducial_kolmogorov, fiducial_moffat]:
-        psf = fiducial.dilate(size).shear(g1=g1, g2=g2).shift(cenu, cenv)
+        psf = fiducial.dilate(scale).shear(g1=g1, g2=g2).shift(du, dv)
 
         # Draw the PSF onto an image.  Let's go ahead and give it a non-trivial WCS.
         wcs = galsim.JacobianWCS(0.26, 0.05, -0.08, -0.29)
-        image = galsim.Image(64,64, wcs=wcs)
+        image = galsim.Image(64, 64, wcs=wcs)
 
         # This is only going to come out right if we (unphysically) don't convolve by the pixel.
         psf.drawImage(image, method='no_pixel')
@@ -88,36 +89,36 @@ def test_simple():
         model = piff.GSObjectModel(fiducial, fastfit=True, include_pixel=False)
         fit = model.fit(star).fit
 
-        print('True size = ',size,', model size = ',fit.params[0])
-        print('True g1 = ',g1,', model g1 = ',fit.params[1])
-        print('True g2 = ',g2,', model g2 = ',fit.params[2])
-        print('True cenu = ', cenu, ', model cenu = ', fit.center[0])
-        print('True cenv = ', cenv, ', model cenv = ', fit.center[1])
+        print('True scale = ', scale, ', model scale = ', fit.params[0])
+        print('True g1 = ', g1, ', model g1 = ', fit.params[1])
+        print('True g2 = ', g2, ', model g2 = ', fit.params[2])
+        print('True du = ', du, ', model du = ', fit.center[0])
+        print('True dv = ', dv, ', model dv = ', fit.center[1])
 
         # This test is fairly accurate, since we didn't add any noise and didn't convolve by
         # the pixel, so the image is very accurately a sheared GSObject.
-        np.testing.assert_allclose(fit.params[0], size, rtol=1e-4)
+        np.testing.assert_allclose(fit.params[0], scale, rtol=1e-4)
         np.testing.assert_allclose(fit.params[1], g1, rtol=0, atol=1e-7)
         np.testing.assert_allclose(fit.params[2], g2, rtol=0, atol=1e-7)
-        np.testing.assert_allclose(fit.center[0], cenu, rtol=0, atol=1e-7)
-        np.testing.assert_allclose(fit.center[1], cenv, rtol=0, atol=1e-7)
+        np.testing.assert_allclose(fit.center[0], du, rtol=0, atol=1e-7)
+        np.testing.assert_allclose(fit.center[1], dv, rtol=0, atol=1e-7)
 
         # Now try fastfit=False.
         print('Slow fit')
         model = piff.GSObjectModel(fiducial, fastfit=False, include_pixel=False)
         fit = model.fit(star).fit
 
-        print('True size = ',size,', model size = ',fit.params[0])
-        print('True g1 = ',g1,', model g1 = ',fit.params[1])
-        print('True g2 = ',g2,', model g2 = ',fit.params[2])
-        print('True cenu = ', cenu, ', model cenu = ', fit.center[0])
-        print('True cenv = ', cenv, ', model cenv = ', fit.center[1])
+        print('True scale = ', scale, ', model scale = ', fit.params[0])
+        print('True g1 = ', g1, ', model g1 = ', fit.params[1])
+        print('True g2 = ', g2, ', model g2 = ', fit.params[2])
+        print('True du = ', du, ', model du = ', fit.center[0])
+        print('True dv = ', dv, ', model dv = ', fit.center[1])
 
-        np.testing.assert_allclose(fit.params[0], size, rtol=1e-6)
+        np.testing.assert_allclose(fit.params[0], scale, rtol=1e-6)
         np.testing.assert_allclose(fit.params[1], g1, rtol=0, atol=1e-6)
         np.testing.assert_allclose(fit.params[2], g2, rtol=0, atol=1e-6)
-        np.testing.assert_allclose(fit.center[0], cenu, rtol=0, atol=1e-6)
-        np.testing.assert_allclose(fit.center[1], cenv, rtol=0, atol=1e-6)
+        np.testing.assert_allclose(fit.center[0], du, rtol=0, atol=1e-6)
+        np.testing.assert_allclose(fit.center[1], dv, rtol=0, atol=1e-6)
 
         # Now test running it via the config parser
         config = {
@@ -135,11 +136,11 @@ def test_simple():
         fit = model.fit(star).fit
 
         # Same tests.
-        np.testing.assert_allclose(fit.params[0], size, rtol=1e-6)
+        np.testing.assert_allclose(fit.params[0], scale, rtol=1e-6)
         np.testing.assert_allclose(fit.params[1], g1, rtol=0, atol=1e-6)
         np.testing.assert_allclose(fit.params[2], g2, rtol=0, atol=1e-6)
-        np.testing.assert_allclose(fit.center[0], cenu, rtol=0, atol=1e-6)
-        np.testing.assert_allclose(fit.center[1], cenv, rtol=0, atol=1e-6)
+        np.testing.assert_allclose(fit.center[0], du, rtol=0, atol=1e-6)
+        np.testing.assert_allclose(fit.center[1], dv, rtol=0, atol=1e-6)
 
         # Also need to test ability to serialize
         outfile = os.path.join('output', 'gsobject_test.fits')
@@ -167,28 +168,28 @@ def test_simple():
         model = piff.GSObjectModel(fiducial, fastfit=False, include_pixel=True)
         fit = model.fit(star).fit
 
-        print('True size = ',size,', model size = ',fit.params[0])
-        print('True g1 = ',g1,', model g1 = ',fit.params[1])
-        print('True g2 = ',g2,', model g2 = ',fit.params[2])
-        print('True cenu = ', cenu, ', model cenu = ', fit.center[0])
-        print('True cenv = ', cenv, ', model cenv = ', fit.center[1])
+        print('True scale = ', scale, ', model scale = ', fit.params[0])
+        print('True g1 = ', g1, ', model g1 = ', fit.params[1])
+        print('True g2 = ', g2, ', model g2 = ', fit.params[2])
+        print('True du = ', du, ', model du = ', fit.center[0])
+        print('True dv = ', dv, ', model dv = ', fit.center[1])
 
-        np.testing.assert_allclose(fit.params[0], size, rtol=1e-4)
+        np.testing.assert_allclose(fit.params[0], scale, rtol=1e-4)
         np.testing.assert_allclose(fit.params[1], g1, rtol=0, atol=1e-4)
         np.testing.assert_allclose(fit.params[2], g2, rtol=0, atol=1e-4)
-        np.testing.assert_allclose(fit.center[0], cenu, rtol=0, atol=1e-3)
-        np.testing.assert_allclose(fit.center[1], cenv, rtol=0, atol=1e-3)
+        np.testing.assert_allclose(fit.center[0], du, rtol=0, atol=1e-3)
+        np.testing.assert_allclose(fit.center[1], dv, rtol=0, atol=1e-3)
 
 
 def test_center():
     """Fit with centroid free and PSF center constrained to an initially mis-registered PSF.
     """
     influx = 150.
-    size = 2.0
+    scale = 2.0
     u0, v0 = 0.6, -0.4
     g1, g2 = 0.1, 0.2
     for fiducial in [fiducial_gaussian, fiducial_kolmogorov, fiducial_moffat]:
-        s = make_data(fiducial, size, g1, g2, u0, v0, influx, du=0.5, include_pixel=False)
+        s = make_data(fiducial, scale, g1, g2, u0, v0, influx, du=0.5, include_pixel=False)
 
         mod = piff.GSObjectModel(fiducial, include_pixel=False)
         star = mod.initialize(s)
@@ -427,6 +428,7 @@ def test_gradient():
         peak = np.max(np.abs(s0.image.array))
         np.testing.assert_almost_equal(s1.image.array/peak, s0.image.array/peak, decimal=2)
 
+
 def test_gradient_center():
     """Next: fit spatially-varying PSF, with spatially-varying centers to multiple images.
     """
@@ -512,11 +514,11 @@ def test_direct():
     GSObjectModel explicitly.
     """
     # Here is the true PSF
-    size = 1.3
+    scale = 1.3
     g1 = 0.23
     g2 = -0.17
-    cenu = 0.1
-    cenv = 0.4
+    du = 0.1
+    dv = 0.4
 
     gsobjs = [galsim.Gaussian(sigma=1.0),
               galsim.Kolmogorov(half_light_radius=1.0),
@@ -529,7 +531,7 @@ def test_direct():
               piff.Moffat(fastfit=True, beta=2.5, trunc=3.0, include_pixel=False)]
 
     for gsobj, model in zip(gsobjs, models):
-        psf = gsobj.dilate(size).shear(g1=g1, g2=g2).shift(cenu, cenv)
+        psf = gsobj.dilate(scale).shear(g1=g1, g2=g2).shift(du, dv)
 
         # Draw the PSF onto an image.  Let's go ahead and give it a non-trivial WCS.
         wcs = galsim.JacobianWCS(0.26, 0.05, -0.08, -0.29)
@@ -546,21 +548,21 @@ def test_direct():
         print('Fast fit')
         fit = model.fit(star).fit
 
-        print('True size = ',size,', model size = ',fit.params[0])
-        print('True g1 = ',g1,', model g1 = ',fit.params[1])
-        print('True g2 = ',g2,', model g2 = ',fit.params[2])
-        print('True cenu = ', cenu, ', model cenu = ', fit.center[0])
-        print('True cenv = ', cenv, ', model cenv = ', fit.center[1])
+        print('True scale = ', scale, ', model scale = ', fit.params[0])
+        print('True g1 = ', g1, ', model g1 = ', fit.params[1])
+        print('True g2 = ', g2, ', model g2 = ', fit.params[2])
+        print('True du = ', du, ', model du = ', fit.center[0])
+        print('True dv = ', dv, ', model dv = ', fit.center[1])
 
         # This test is fairly accurate, since we didn't add any noise and didn't convolve by
         # the pixel, so the image is very accurately a sheared GSObject.
         # These tests are more strict above.  The truncated Moffat included here but not there
         # doesn't work quite as well.
-        np.testing.assert_allclose(fit.params[0], size, rtol=1e-4)
+        np.testing.assert_allclose(fit.params[0], scale, rtol=1e-4)
         np.testing.assert_allclose(fit.params[1], g1, rtol=0, atol=1e-5)
         np.testing.assert_allclose(fit.params[2], g2, rtol=0, atol=1e-5)
-        np.testing.assert_allclose(fit.center[0], cenu, rtol=0, atol=1e-5)
-        np.testing.assert_allclose(fit.center[1], cenv, rtol=0, atol=1e-5)
+        np.testing.assert_allclose(fit.center[0], du, rtol=0, atol=1e-5)
+        np.testing.assert_allclose(fit.center[1], dv, rtol=0, atol=1e-5)
 
         # Also need to test ability to serialize
         outfile = os.path.join('output', 'gsobject_direct_test.fits')
@@ -578,7 +580,7 @@ def test_direct():
               piff.Moffat(fastfit=False, beta=2.5, trunc=3.0, include_pixel=False)]
 
     for gsobj, model in zip(gsobjs, models):
-        psf = gsobj.dilate(size).shear(g1=g1, g2=g2).shift(cenu, cenv)
+        psf = gsobj.dilate(scale).shear(g1=g1, g2=g2).shift(du, dv)
 
         # Draw the PSF onto an image.  Let's go ahead and give it a non-trivial WCS.
         wcs = galsim.JacobianWCS(0.26, 0.05, -0.08, -0.29)
@@ -594,19 +596,19 @@ def test_direct():
         print('Slow fit')
         fit = model.fit(star).fit
 
-        print('True size = ',size,', model size = ',fit.params[0])
-        print('True g1 = ',g1,', model g1 = ',fit.params[1])
-        print('True g2 = ',g2,', model g2 = ',fit.params[2])
-        print('True cenu = ', cenu, ', model cenu = ', fit.center[0])
-        print('True cenv = ', cenv, ', model cenv = ', fit.center[1])
+        print('True scale = ', scale, ', model scale = ', fit.params[0])
+        print('True g1 = ', g1, ', model g1 = ', fit.params[1])
+        print('True g2 = ', g2, ', model g2 = ', fit.params[2])
+        print('True du = ', du, ', model du = ', fit.center[0])
+        print('True dv = ', dv, ', model dv = ', fit.center[1])
 
         # This test is fairly accurate, since we didn't add any noise and didn't convolve by
         # the pixel, so the image is very accurately a sheared GSObject.
-        np.testing.assert_allclose(fit.params[0], size, rtol=1e-6)
+        np.testing.assert_allclose(fit.params[0], scale, rtol=1e-6)
         np.testing.assert_allclose(fit.params[1], g1, rtol=0, atol=1e-6)
         np.testing.assert_allclose(fit.params[2], g2, rtol=0, atol=1e-6)
-        np.testing.assert_allclose(fit.center[0], cenu, rtol=0, atol=1e-5)
-        np.testing.assert_allclose(fit.center[1], cenv, rtol=0, atol=1e-5)
+        np.testing.assert_allclose(fit.center[0], du, rtol=0, atol=1e-5)
+        np.testing.assert_allclose(fit.center[1], dv, rtol=0, atol=1e-5)
 
         # Also need to test ability to serialize
         outfile = os.path.join('output', 'gsobject_direct_test.fits')
