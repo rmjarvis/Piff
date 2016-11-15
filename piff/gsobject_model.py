@@ -38,8 +38,8 @@ class GSObjectModel(Model):
     """
     def __init__(self, gsobj, fastfit=False, force_model_center=True, include_pixel=True,
                  logger=None):
-        import galsim
         if isinstance(gsobj, basestring):
+            import galsim
             gsobj = eval(gsobj)
 
         self.kwargs = {'gsobj':repr(gsobj),
@@ -47,6 +47,7 @@ class GSObjectModel(Model):
                        'force_model_center':force_model_center,
                        'include_pixel':include_pixel}
 
+        # Center and normalize the fiducial model.
         self.gsobj = gsobj.withFlux(1.0).shift(-gsobj.centroid())
         self._fastfit = fastfit
         self._force_model_center = force_model_center
@@ -55,41 +56,37 @@ class GSObjectModel(Model):
         # fiducial gsobject towards the data.
         if self._force_model_center:
             self._nparams = 3
-            params = [1.0, 0.0, 0.0]
         else:
             self._nparams = 5
-            params = [0.0, 0.0, 1.0, 0.0, 0.0]
-
-        # Calibrate gsobj by measuring it with HSM.  This way we can use differences in HSM moments
-        # to get a reasonable starting guess for stars.
-        prof = self.getProfile(params)
-        img = prof.drawImage(method=self._method)
-        sd = StarData(img, img.trueCenter())
-        fiducial_star = Star(sd, None)
-        flux, cenu, cenv, size, g1, g2, flag = hsm(fiducial_star)
-        if flag != 0:
-            raise RuntimeError("Error calculating fiducial moments for this gsobject.")
-        self._fiducial_size = size
-        self._fiducial_shape = galsim.Shear(g1=g1, g2=g2)
-        self._fiducial_flux = flux
-        self._fiducial_centroid = galsim.PositionD(cenu, cenv)
 
     def moment_fit(self, star, logger=None):
         """Estimate transformations needed to bring self.gsobj towards given star."""
         import galsim
-        flux, cenu, cenv, size, g1, g2, flag = hsm(star)
-        centroid = galsim.PositionD(cenu, cenv)
+        flux, cenu, cenv, size, g1, g2 = star.data.properties['hsm']
         shape = galsim.Shear(g1=g1, g2=g2)
 
+        ref_flux, ref_cenu, ref_cenv, ref_size, ref_g1, ref_g2, flag = hsm(self.draw(star))
+        ref_shape = galsim.Shear(g1=ref_g1, g2=ref_g2)
         if flag:
-            raise RuntimeError("Failed measuring HSM moments of star.")
+            raise RuntimeError("Error calculating model moments for this star.")
 
-        flux /= self._fiducial_flux
-        dcentroid = centroid - self._fiducial_centroid
-        scale = size/self._fiducial_size
-        shear = shape - self._fiducial_shape
+        param_flux = star.fit.flux
+        if self._force_model_center:
+            param_scale, param_g1, param_g2 = star.fit.params
+            param_du, param_dv = star.fit.center
+        else:
+            param_du, param_dv, param_scale, param_g1, param_g2 = star.fit.params
+        param_shear = galsim.Shear(g1=param_g1, g2=param_g2)
 
-        return flux, dcentroid.x, dcentroid.y, scale, shear.g1, shear.g2, flag
+        param_flux *= flux / ref_flux
+        param_du += cenu - ref_cenu
+        param_dv += cenv - ref_cenv
+        param_scale *= size / ref_size
+        param_shear += (shape - ref_shape)
+        param_g1 = param_shear.g1
+        param_g2 = param_shear.g2
+
+        return param_flux, param_du, param_dv, param_scale, param_g1, param_g2
 
     def getProfile(self, params):
         """Get a version of the model as a GalSim GSObject
@@ -215,9 +212,21 @@ class GSObjectModel(Model):
             import lmfit
             logger.debug(lmfit.fit_report(results))
         flux, du, dv, scale, g1, g2 = results.params.valuesdict().values()
-        flag = 0 if results.success else 1
+        if not results.success:
+            raise RuntimeError("Error fitting with lmfit.")
 
-        return flux, du, dv, scale, g1, g2, flag
+        return flux, du, dv, scale, g1, g2
+
+    @staticmethod
+    def with_hsm(star):
+        if not hasattr(star.data.properties, 'hsm'):
+            flux, cenu, cenv, size, g1, g2, flag = hsm(star)
+            if flag != 0:
+                raise RuntimeError("Error initializing star fit values using hsm.")
+            sd = star.data.copy()
+            sd.properties['hsm'] = flux, cenu, cenv, size, g1, g2
+            return Star(sd, star.fit)
+        return star
 
     def fit(self, star, fastfit=None, logger=None):
         """Fit the image either using HSM or lmfit.
@@ -237,10 +246,14 @@ class GSObjectModel(Model):
         """
         if fastfit is None:
             fastfit = self._fastfit
+
+        if not hasattr(star.data.properties, 'hsm'):
+            star = self.initialize(star)
+
         if fastfit:
-            flux, du, dv, scale, g1, g2, flag = self.moment_fit(star, logger=logger)
+            flux, du, dv, scale, g1, g2 = self.moment_fit(star, logger=logger)
         else:
-            flux, du, dv, scale, g1, g2, flag = self.lmfit(star, logger=logger)
+            flux, du, dv, scale, g1, g2 = self.lmfit(star, logger=logger)
         # Make a StarFit object with these parameters
         if self._force_model_center:
             params = np.array([ scale, g1, g2 ])
@@ -267,7 +280,14 @@ class GSObjectModel(Model):
 
         :returns: a new initialized Star.
         """
+        star = self.with_hsm(star)
         if star.fit.params is None:
+            if self._force_model_center:
+                params = np.array([ 1.0, 0.0, 0.0])
+            else:
+                params = np.array([ 0.0, 0.0, 1.0, 0.0, 0.0])
+            fit = StarFit(params, flux=1.0, center=(0.0, 0.0))
+            star = Star(star.data, fit)
             star = self.fit(star, fastfit=True)
         star = self.reflux(star, fit_center=False)
         return star

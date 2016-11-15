@@ -167,6 +167,7 @@ def test_simple():
         stardata = piff.StarData(image, image.trueCenter())
         star = piff.Star(stardata, None)
 
+
         print('Slow fit, pixel convolution included.')
         model = piff.GSObjectModel(fiducial, fastfit=False, include_pixel=True)
         fit = model.fit(star).fit
@@ -177,9 +178,10 @@ def test_simple():
         print('True du = ', du, ', model du = ', fit.center[0])
         print('True dv = ', dv, ', model dv = ', fit.center[1])
 
-        np.testing.assert_allclose(fit.params[0], scale, rtol=1e-3)
-        np.testing.assert_allclose(fit.params[1], g1, rtol=0, atol=1e-3)
-        np.testing.assert_allclose(fit.params[2], g2, rtol=0, atol=1e-3)
+        # Accuracy goals are a bit looser here since it's harder to fit with the pixel involved.
+        np.testing.assert_allclose(fit.params[0], scale, rtol=1e-5)
+        np.testing.assert_allclose(fit.params[1], g1, rtol=0, atol=1e-4)
+        np.testing.assert_allclose(fit.params[2], g2, rtol=0, atol=1e-4)
         np.testing.assert_allclose(fit.center[0], du, rtol=0, atol=1e-3)
         np.testing.assert_allclose(fit.center[1], dv, rtol=0, atol=1e-3)
 
@@ -551,6 +553,9 @@ def test_direct():
               piff.Moffat(fastfit=True, beta=2.5, trunc=3.0, include_pixel=False)]
 
     for gsobj, model in zip(gsobjs, models):
+        print()
+        print("gsobj = ", gsobj)
+        print()
         psf = gsobj.dilate(scale).shear(g1=g1, g2=g2).shift(du, dv)
 
         # Draw the PSF onto an image.  Let's go ahead and give it a non-trivial WCS.
@@ -563,6 +568,7 @@ def test_direct():
         # Make a StarData instance for this image
         stardata = piff.StarData(image, image.trueCenter())
         star = piff.Star(stardata, None)
+        star = model.initialize(star)
 
         # First try fastfit.
         print('Fast fit')
@@ -600,6 +606,9 @@ def test_direct():
               piff.Moffat(fastfit=False, beta=2.5, trunc=3.0, include_pixel=False)]
 
     for gsobj, model in zip(gsobjs, models):
+        print()
+        print("gsobj = ", gsobj)
+        print()
         psf = gsobj.dilate(scale).shear(g1=g1, g2=g2).shift(du, dv)
 
         # Draw the PSF onto an image.  Let's go ahead and give it a non-trivial WCS.
@@ -612,6 +621,7 @@ def test_direct():
         # Make a StarData instance for this image
         stardata = piff.StarData(image, image.trueCenter())
         star = piff.Star(stardata, None)
+        star = model.initialize(star)
 
         print('Slow fit')
         fit = model.fit(star).fit
@@ -624,9 +634,9 @@ def test_direct():
 
         # This test is fairly accurate, since we didn't add any noise and didn't convolve by
         # the pixel, so the image is very accurately a sheared GSObject.
-        np.testing.assert_allclose(fit.params[0], scale, rtol=1e-6)
-        np.testing.assert_allclose(fit.params[1], g1, rtol=0, atol=1e-6)
-        np.testing.assert_allclose(fit.params[2], g2, rtol=0, atol=1e-6)
+        np.testing.assert_allclose(fit.params[0], scale, rtol=1e-5)
+        np.testing.assert_allclose(fit.params[1], g1, rtol=0, atol=1e-5)
+        np.testing.assert_allclose(fit.params[2], g2, rtol=0, atol=1e-5)
         np.testing.assert_allclose(fit.center[0], du, rtol=0, atol=1e-5)
         np.testing.assert_allclose(fit.center[1], dv, rtol=0, atol=1e-5)
 
