@@ -39,7 +39,7 @@ except ImportError:
         return found
     print("Using distutils version",distutils.__version__)
 
-from distutils.command.install_headers import install_headers 
+from distutils.command.install_headers import install_headers
 
 try:
     from sysconfig import get_config_vars
@@ -143,7 +143,7 @@ def get_compiler(cc):
         return 'icc'
     else:
         # OK, the main thing we need to know is what openmp flag we need for this compiler,
-        # so let's just try the various options and see what works.  Don't try icc, since 
+        # so let's just try the various options and see what works.  Don't try icc, since
         # the -openmp flag there gets treated as '-o penmp' by gcc and clang, which is bad.
         # Plus, icc should be detected correctly by the above procedure anyway.
         for cc_type in ['gcc', 'clang']:
@@ -293,7 +293,7 @@ ext=Extension("piff._piff",
               depends=headers,
               undef_macros = undef_macros)
 
-dependencies = ['numpy', 'six', 'cffi', 'fitsio', 'sklearn']
+dependencies = ['numpy', 'six', 'cffi', 'fitsio', 'sklearn', 'treecorr', 'lmfit']
 if py_version < '2.7':
     dependencies += ['argparse']
 
@@ -320,7 +320,7 @@ else:
     raise RuntimeError("Unable to find version string in %s." % (version_file,))
 print('Piff version is %s'%(piff_version))
 
-dist = setup(name="Piff", 
+dist = setup(name="Piff",
       version=piff_version,
       author="Mike Jarvis",
       author_email="michael@jarvis.net",

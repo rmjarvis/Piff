@@ -271,8 +271,12 @@ class Star(object):
             prop_keys.remove(key)
         # Add any remaining properties
         for key in prop_keys:
-            dtypes.append( (key, float) )
-            cols.append( [ s.data.properties[key] for s in stars ] )
+            if hasattr(stars[0].data.properties[key], '__iter__'):
+                dtypes.append( (key, float, len(stars[0].data.properties[key])))
+                cols.append( [ s.data.properties[key] for s in stars ])
+            else:
+                dtypes.append( (key, float) )
+                cols.append( [ s.data.properties[key] for s in stars ] )
 
         # Add the local WCS values
         dtypes.extend( [('dudx', float), ('dudy', float), ('dvdx', float), ('dvdy', float) ] )

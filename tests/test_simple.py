@@ -47,6 +47,7 @@ def test_Gaussian():
 
     # Fit the model from the image
     model = piff.Gaussian(include_pixel=False)
+    star = model.initialize(star)
     fit = model.fit(star).fit
 
     print('True sigma = ',sigma,', model sigma = ',fit.params[0])
@@ -56,10 +57,10 @@ def test_Gaussian():
     # This test is pretty accurate, since we didn't add any noise and didn't convolve by
     # the pixel, so the image is very accurately a sheared Gaussian.
     true_params = [ sigma, g1, g2 ]
-    np.testing.assert_almost_equal(fit.params[0], sigma, decimal=6)
-    np.testing.assert_almost_equal(fit.params[1], g1, decimal=5)
-    np.testing.assert_almost_equal(fit.params[2], g2, decimal=5)
-    np.testing.assert_almost_equal(fit.params, true_params, decimal=5)
+    np.testing.assert_almost_equal(fit.params[0], sigma, decimal=7)
+    np.testing.assert_almost_equal(fit.params[1], g1, decimal=7)
+    np.testing.assert_almost_equal(fit.params[2], g2, decimal=7)
+    np.testing.assert_almost_equal(fit.params, true_params, decimal=7)
 
     # Now test running it via the config parser
     config = {
@@ -76,10 +77,10 @@ def test_Gaussian():
     fit = model.fit(star).fit
 
     # Same tests.
-    np.testing.assert_almost_equal(fit.params[0], sigma, decimal=6)
-    np.testing.assert_almost_equal(fit.params[1], g1, decimal=5)
-    np.testing.assert_almost_equal(fit.params[2], g2, decimal=5)
-    np.testing.assert_almost_equal(fit.params, true_params, decimal=5)
+    np.testing.assert_almost_equal(fit.params[0], sigma, decimal=7)
+    np.testing.assert_almost_equal(fit.params[1], g1, decimal=7)
+    np.testing.assert_almost_equal(fit.params[2], g2, decimal=7)
+    np.testing.assert_almost_equal(fit.params, true_params, decimal=7)
 
 
 def test_Mean():
@@ -151,6 +152,7 @@ def test_single_image():
             ar = image[bounds].array
             im_max = np.max(ar) * 0.2
             ar[ar > im_max] = im_max
+    image.addNoise(galsim.GaussianNoise(rng=galsim.BaseDeviate(1234), sigma=1e-6))
 
     # Write out the image to a file
     image_file = os.path.join('data','simple_image.fits')
@@ -201,7 +203,7 @@ def test_single_image():
     # can only compare to truth if include_pixel=False
     model = piff.Gaussian(fastfit=True, include_pixel=False)
     interp = piff.Mean()
-    fitted_stars = [ model.fit(star) for star in orig_stars ]
+    fitted_stars = [ model.fit(model.initialize(star)) for star in orig_stars ]
     interp.solve(fitted_stars)
     print('mean = ',interp.mean)
 
@@ -237,6 +239,7 @@ def test_single_image():
 
     # Use a SimplePSF to process the stars data this time.
     psf = piff.SimplePSF(model, interp)
+
     psf.fit(orig_stars, wcs, pointing, logger=logger)
     test_star = psf.interp.interpolate(target)
     np.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=4)
@@ -288,7 +291,7 @@ def test_single_image():
         # Test that the max absolute value of each rho isn't crazy
         np.testing.assert_array_less(np.abs(rho.xip), 1)
 
-        # Check that each rho isn't precisely zero. This means the sum of abs > 0
+        # # Check that each rho isn't precisely zero. This means the sum of abs > 0
         np.testing.assert_array_less(0, np.sum(np.abs(rho.xip)))
 
     # Test the plotting and writing
@@ -319,6 +322,19 @@ def test_single_image():
         {
             'type': 'Rho',
             'file_name': rho_psf_file
+        },
+        {
+            'type': 'TwoDHist',
+            'file_name': os.path.join('output', 'simple_psf_twodhiststats.pdf'),
+            'number_bins_u': 3,
+            'number_bins_v': 3,
+        },
+        {
+            'type': 'TwoDHist',
+            'file_name': os.path.join('output', 'simple_psf_twodhiststats_std.pdf'),
+            'reducing_function': 'np.std',
+            'number_bins_u': 3,
+            'number_bins_v': 3,
         },
     ]
 
