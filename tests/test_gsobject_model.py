@@ -85,12 +85,12 @@ def test_simple():
 
         # Make a StarData instance for this image
         stardata = piff.StarData(image, image.trueCenter())
-        star = piff.Star(stardata, None)
+        fiducial_star = piff.Star(stardata, None)
 
         # First try fastfit.
         print('Fast fit')
         model = piff.GSObjectModel(fiducial, fastfit=True, include_pixel=False)
-        fit = model.fit(star).fit
+        fit = model.fit(model.initialize(fiducial_star)).fit
 
         print('True scale = ', scale, ', model scale = ', fit.params[0])
         print('True g1 = ', g1, ', model g1 = ', fit.params[1])
@@ -109,7 +109,7 @@ def test_simple():
         # Now try fastfit=False.
         print('Slow fit')
         model = piff.GSObjectModel(fiducial, fastfit=False, include_pixel=False)
-        fit = model.fit(star).fit
+        fit = model.fit(model.initialize(fiducial_star)).fit
 
         print('True scale = ', scale, ', model scale = ', fit.params[0])
         print('True g1 = ', g1, ', model g1 = ', fit.params[1])
@@ -136,7 +136,7 @@ def test_simple():
         else:
             logger = piff.config.setup_logger(verbose=1)
         model = piff.Model.process(config['model'], logger)
-        fit = model.fit(star).fit
+        fit = model.fit(model.initialize(fiducial_star)).fit
 
         # Same tests.
         np.testing.assert_allclose(fit.params[0], scale, rtol=1e-6)
@@ -165,11 +165,13 @@ def test_simple():
 
         # Make a StarData instance for this image
         stardata = piff.StarData(image, image.trueCenter())
-        star = piff.Star(stardata, None)
+        fiducial_star = piff.Star(stardata, None)
 
 
         print('Slow fit, pixel convolution included.')
         model = piff.GSObjectModel(fiducial, fastfit=False, include_pixel=True)
+        star = model.initialize(fiducial_star)
+        star = model.fit(star, fastfit=True)  # Get better results with one round of fastfit.
         fit = model.fit(star).fit
 
         print('True scale = ', scale, ', model scale = ', fit.params[0])
@@ -179,11 +181,11 @@ def test_simple():
         print('True dv = ', dv, ', model dv = ', fit.center[1])
 
         # Accuracy goals are a bit looser here since it's harder to fit with the pixel involved.
-        np.testing.assert_allclose(fit.params[0], scale, rtol=1e-5)
-        np.testing.assert_allclose(fit.params[1], g1, rtol=0, atol=1e-4)
-        np.testing.assert_allclose(fit.params[2], g2, rtol=0, atol=1e-4)
-        np.testing.assert_allclose(fit.center[0], du, rtol=0, atol=1e-3)
-        np.testing.assert_allclose(fit.center[1], dv, rtol=0, atol=1e-3)
+        np.testing.assert_allclose(fit.params[0], scale, rtol=1e-6)
+        np.testing.assert_allclose(fit.params[1], g1, rtol=0, atol=1e-6)
+        np.testing.assert_allclose(fit.params[2], g2, rtol=0, atol=1e-6)
+        np.testing.assert_allclose(fit.center[0], du, rtol=0, atol=1e-5)
+        np.testing.assert_allclose(fit.center[1], dv, rtol=0, atol=1e-5)
 
 
 def test_center():
