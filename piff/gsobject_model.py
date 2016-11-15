@@ -47,7 +47,7 @@ class GSObjectModel(Model):
                        'force_model_center':force_model_center,
                        'include_pixel':include_pixel}
 
-        self.gsobj = gsobj.withFlux(1.0)
+        self.gsobj = gsobj.withFlux(1.0).shift(-gsobj.centroid())
         self._fastfit = fastfit
         self._force_model_center = force_model_center
         self._method = 'auto' if include_pixel else 'no_pixel'
