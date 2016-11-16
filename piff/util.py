@@ -61,7 +61,6 @@ def make_dtype(key, value):
     try:
         # Note: this works for either arrays or strings
         size = len(value)
-        t = type(value[0])
         if isinstance(value, bytes):
             t = bytes
         else:
@@ -77,6 +76,11 @@ def make_dtype(key, value):
     # TODO: use six.string_types for py2 support
     elif dt.kind in ['S', 'U'] and not isinstance(value, (bytes, str)):
         # catch lists of strings
+        try:
+            value = [v.encode('ascii') for v in value]
+        # throws an error in Py2
+        except AttributeError:
+            pass
         t = np.array(value).dtype.str
     elif dt.kind in ['S', 'U']:
         t = str
@@ -118,6 +122,8 @@ def write_kwargs(fits, extname, kwargs):
     :param extname:     The extension to write to
     :param kwargs:      A kwargs dict to be written as a FITS binary table.
     """
+    import six
+
     cols = []
     dtypes = []
     for key, value in kwargs.items():
@@ -136,8 +142,8 @@ def write_kwargs(fits, extname, kwargs):
         return tuple(x)
 
     dtypes = [convert_str_to_bytes(x) for x in dtypes]
-
     data = np.array(list(zip(*cols)), dtype=dtypes)
+
     fits.write_table(data, extname=extname)
 
 def read_kwargs(fits, extname):
@@ -157,6 +163,8 @@ def read_kwargs(fits, extname):
         x = d[c][0]
         if type(x) == np.bytes_:
             x = x.decode('ascii')
+        elif type(x) == np.ndarray and type(x[0]) == np.bytes_:
+            x = [y.decode('ascii') for y in x]
         return (c, x)
 
     kwargs = dict([ convert_bytes_to_str(data, col) for col in cols ])

@@ -301,6 +301,7 @@ class PSF(object):
             import cPickle as pickle
         except:
             import pickle
+        import base64
 
         # Start with the chipnums, which may be int or str type.
         # Assume they are all the same type at least.
@@ -315,7 +316,8 @@ class PSF(object):
             dtypes = [ ('chipnums', str, max_len) ]
 
         # GalSim WCS objects can be serialized via pickle
-        wcs_str = [ pickle.dumps(w, protocol=0) for w in self.wcs.values() ]
+        wcs_str = [ base64.b64encode(pickle.dumps(w, protocol=0)) for w in self.wcs.values() ]
+        print(len(wcs_str[0]), "\n")
         cols.append(wcs_str)
         max_len = np.max([ len(s) for s in wcs_str ])
         dtypes.append( ('wcs_str', type(wcs_str[0]), max_len) )
@@ -346,6 +348,7 @@ class PSF(object):
             import cPickle as pickle
         except:
             import pickle
+        import base64
 
         assert extname in fits
         assert 'chipnums' in fits[extname].get_colnames()
@@ -356,7 +359,10 @@ class PSF(object):
         chipnums = data['chipnums']
         wcs_str = data['wcs_str']
 
-        wcs_list = [ pickle.loads(s) for s in wcs_str ]
+        try:
+            wcs_list = [ pickle.loads(s) for s in wcs_str]
+        except:
+            wcs_list = [ pickle.loads(base64.b64decode(s)) for s in wcs_str ]
         wcs = dict( zip(chipnums, wcs_list) )
 
         if 'ra' in fits[extname].get_colnames():
