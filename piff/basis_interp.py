@@ -194,6 +194,10 @@ class BasisPolynomial(BasisInterp):
         # Start with 1d arrays giving orders in all dimensions
         ord_ranges = [np.arange(order+1,dtype=int) for order in self._orders]
         # Nifty trick to produce n-dim array holding total order
+        # WHY NOT DO:
+        #   a, b = np.ix_(*ord_ranges)
+        #   sumorder = a + b
+        # ISN'T THAT A LOT CLEARER... PLUS AVOIDS USING THE OBSOLETE REDUCE FUNCTION?   
         sumorder = reduce(np.add, np.ix_(*ord_ranges))
         self._mask = sumorder <= self._maxorder
 
