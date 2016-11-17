@@ -119,7 +119,7 @@ class PixelGrid(Model):
         # In this array, a negative entry is a pixel that is not being
         # fit (and always assumed to be zero, for interpolation purposes).
         self._indices = np.where( self._mask, self._constraints, -1)
-        self._origin = (self.ny/2, self.nx/2)
+        self._origin = (self.ny//2, self.nx//2)
         if not self._mask[self._origin]:
             raise ValueError("Not happy with central PSF pixel being masked")
         self._indices[self._origin] = 0    # Central pixel for flux constraint
