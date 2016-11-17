@@ -45,7 +45,7 @@ class DECamWavefront(kNNInterp):
         self.z_max = 11
         # these were kwargs in knn interp, but are no longer kwargs because they are fixed by our wavefront model!
         self.attr_interp = ['focal_x', 'focal_y']
-        self.attr_target_wavefront = ['z{0}'.format(zi) for zi in xrange(self.z_min, self.z_max + 1)]
+        self.attr_target_wavefront = ['z{0}'.format(zi) for zi in range(self.z_min, self.z_max + 1)]
         self.attr_target = range(0, self.z_max + 1 - self.z_min)
 
         self.kwargs = {
@@ -89,7 +89,7 @@ class DECamWavefront(kNNInterp):
         # if dictionary, translate terms to array
         if type(misalignment) == dict:
             nu_misalignment = np.array([[0.0, 0.0, 0.0]] * (self.z_max - self.z_min + 1))
-            for zi in xrange(self.z_min, self.z_max + 1):
+            for zi in range(self.z_min, self.z_max + 1):
                 indx = zi - 4
                 # delta
                 key = 'z{0:02}d'.format(zi)

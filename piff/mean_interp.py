@@ -65,7 +65,7 @@ class Mean(Interp):
         """
         cols = [ self.mean ]
         dtypes = [ ('mean', float) ]
-        data = np.array(zip(*cols), dtype=dtypes)
+        data = np.array(list(zip(*cols)), dtype=dtypes)
         fits.write_table(data, extname=extname + '_solution')
 
     def _finish_read(self, fits, extname):
@@ -76,4 +76,3 @@ class Mean(Interp):
         """
         data = fits[extname + '_solution'].read()
         self.mean = data['mean']
-
