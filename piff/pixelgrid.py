@@ -240,7 +240,7 @@ class PixelGrid(Model):
         x = np.where(nopsf, 0, x)
         y = np.where(nopsf, 0, y)
         # Then read all indices, setting invalid ones to -1
-        return np.where(nopsf, -1, self._indices[y, x])
+        return np.where(nopsf, -1, self._indices[y.astype(int), x.astype(int)])
 
     def _fullPsf1d(self, star):
         """ Using stored PSF parameters, create full 1d array of PSF grid
