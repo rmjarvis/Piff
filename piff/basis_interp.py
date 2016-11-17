@@ -244,9 +244,9 @@ class BasisPolynomial(BasisInterp):
             p[1:] = vals[i]
             pows1d.append(np.cumprod(p))
         # Use trick to produce outer product of all these powers
-        pows2d = 1
-        for p in np.ix_(*pows1d):
-            pows2d *= p
+        pows2d = np.ix_(*pows1d)[0]
+        for p in np.ix_(*pows1d)[1:]:
+            pows2d = pows2d * p
 
         # Return linear array of terms making total power constraint
         return pows2d[self._mask]
