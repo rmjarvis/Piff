@@ -119,7 +119,7 @@ class PixelGrid(Model):
         # In this array, a negative entry is a pixel that is not being
         # fit (and always assumed to be zero, for interpolation purposes).
         self._indices = np.where( self._mask, self._constraints, -1)
-        self._origin = (self.ny/2, self.nx/2)
+        self._origin = (self.ny//2, self.nx//2)
         if not self._mask[self._origin]:
             raise ValueError("Not happy with central PSF pixel being masked")
         self._indices[self._origin] = 0    # Central pixel for flux constraint
@@ -240,7 +240,7 @@ class PixelGrid(Model):
         x = np.where(nopsf, 0, x)
         y = np.where(nopsf, 0, y)
         # Then read all indices, setting invalid ones to -1
-        return np.where(nopsf, -1, self._indices[y, x])
+        return np.where(nopsf, -1, self._indices[y.astype(int), x.astype(int)])
 
     def _fullPsf1d(self, star):
         """ Using stored PSF parameters, create full 1d array of PSF grid

@@ -61,7 +61,10 @@ def make_dtype(key, value):
     try:
         # Note: this works for either arrays or strings
         size = len(value)
-        t = type(value[0])
+        if isinstance(value, bytes):
+            t = bytes
+        else:
+            t = type(value[0])
     except:
         size = 0
         t = type(value)
@@ -70,10 +73,16 @@ def make_dtype(key, value):
         t = int
     elif dt.kind in np.typecodes['AllFloat']:
         t = float
-    elif dt.kind == 'S' and not isinstance(value, (str, unicode)):
+    # TODO: use six.string_types for py2 support
+    elif dt.kind in ['S', 'U'] and not isinstance(value, (bytes, str)):
         # catch lists of strings
+        try:
+            value = [v.encode('ascii') for v in value]
+        # throws an error in Py2
+        except AttributeError:
+            pass
         t = np.array(value).dtype.str
-    elif dt.kind == 'S':
+    elif dt.kind in ['S', 'U']:
         t = str
     else:
         # Other objects should be manually serialized by the initializer or the finish_read and
@@ -123,7 +132,16 @@ def write_kwargs(fits, extname, kwargs):
         value = adjust_value(value,dt)
         cols.append([value])
         dtypes.append(dt)
-    data = np.array(zip(*cols), dtype=dtypes)
+
+    def convert_str_to_bytes(x):
+        x = list(x)
+        if x[1] == str:
+            x[1] = bytes
+        return tuple(x)
+
+    dtypes = [convert_str_to_bytes(x) for x in dtypes]
+    data = np.array(list(zip(*cols)), dtype=dtypes)
+
     fits.write_table(data, extname=extname)
 
 def read_kwargs(fits, extname):
@@ -138,5 +156,15 @@ def read_kwargs(fits, extname):
     cols = fits[extname].get_colnames()
     data = fits[extname].read()
     assert len(data) == 1
-    kwargs = dict([ (col, data[col][0]) for col in cols ])
+
+    def convert_bytes_to_str(d, c):
+        x = d[c][0]
+        if type(x) == np.bytes_:
+            x = x.decode('ascii')
+        elif type(x) == np.ndarray and type(x[0]) == np.bytes_:
+            x = [y.decode('ascii') for y in x]
+        return (c, x)
+    
+    kwargs = dict([ convert_bytes_to_str(data, col) for col in cols ])
+
     return kwargs

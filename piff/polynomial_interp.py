@@ -121,8 +121,8 @@ class Polynomial(Interp):
                         i+j where p(x,y) ~ x^i y^j
         """
         indices = []
-        for p in xrange(order+1):
-            for i in xrange(p+1):
+        for p in range(order+1):
+            for i in range(p+1):
                 j = p-i
                 indices.append((i,j))
         return indices
@@ -139,7 +139,7 @@ class Polynomial(Interp):
         as long as _pack_coefficients can convert this into a 1D array and _unpack_coefficients
         convert it the other way.
 
-        :param parameter_index: The integer index of the parameter; the lets us
+        :param parameter_index: The integer index of the parameter; this lets us
                                 find the order of the parameter from self.
         :param C:               A 2D matrix of polynomial coefficients in the form that
                                 the numpy polynomial form is expecting:
@@ -343,7 +343,7 @@ class Polynomial(Interp):
         v_exponent_col = []
         coeff_col = []
 
-        for p in xrange(self.nparam):
+        for p in range(self.nparam):
             # This is a bit ugly, but we still have to tell self
             # what parameter we are using so the system knows the
             # order of the parameter. Hmm.
@@ -365,7 +365,7 @@ class Polynomial(Interp):
         header = { 'NPARAM' : self.nparam }
 
         # Finally, write all of this to a FITS table.
-        data = np.array(zip(*cols), dtype=dtypes)
+        data = np.array(list(zip(*cols)), dtype=dtypes)
         fits.write_table(data, extname=extname + '_solution', header=header)
 
 
@@ -389,7 +389,7 @@ class Polynomial(Interp):
         coeff_data = data['COEFF']
 
         self.coeffs = []
-        for p in xrange(self.nparam):
+        for p in range(self.nparam):
             this_param_range = param_indices==p
             col = coeff_data[this_param_range]
             self.coeffs.append(self._unpack_coefficients(p,col))
@@ -410,4 +410,3 @@ class Polynomial(Interp):
         else:
             fit = star.fit.newParams(p)
         return Star(star.data, fit)
-

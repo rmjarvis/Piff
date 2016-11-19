@@ -37,7 +37,7 @@ def generate_data(n_samples=100):
         # Draw the PSF onto an image.  Let's go ahead and give it a non-trivial WCS.
         wcs = galsim.JacobianWCS(0.26, 0.05, -0.08, -0.29)
         image = galsim.Image(64,64, wcs=wcs)
-        properties = {attr_interp[ith]: Xi[ith] for ith in xrange(len(attr_interp))}
+        properties = {attr_interp[ith]: Xi[ith] for ith in range(len(attr_interp))}
         stardata = piff.StarData(image, image.trueCenter(), properties=properties)
 
         params = np.array([yi[ith] for ith in attr_target])
@@ -180,6 +180,7 @@ def test_disk():
 def test_decam_wavefront():
     file_name = 'wavefront_test/Science-20121120s1-v20i2.fits'
     extname = 'Science-20121120s1-v20i2'
+
     knn = piff.des.DECamWavefront(file_name, extname)
 
     n_samples = 2000
