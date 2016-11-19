@@ -122,8 +122,6 @@ def write_kwargs(fits, extname, kwargs):
     :param extname:     The extension to write to
     :param kwargs:      A kwargs dict to be written as a FITS binary table.
     """
-    import six
-
     cols = []
     dtypes = []
     for key, value in kwargs.items():
@@ -166,6 +164,7 @@ def read_kwargs(fits, extname):
         elif type(x) == np.ndarray and type(x[0]) == np.bytes_:
             x = [y.decode('ascii') for y in x]
         return (c, x)
-
+    
     kwargs = dict([ convert_bytes_to_str(data, col) for col in cols ])
+
     return kwargs
