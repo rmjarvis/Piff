@@ -289,8 +289,8 @@ def test_poly_guess():
 
 
 
-def poly_load_save_sub(type1, type2):
-    # Test that we can serialize and deserialize a polynomial 
+def poly_load_save_sub(type1, type2, fname):
+    # Test that we can serialize and deserialize a polynomial
     # interpolator correctly.  Copying all this stuff from above:
 
     np.random.seed(12434)
@@ -332,7 +332,7 @@ def poly_load_save_sub(type1, type2):
     import fitsio
     extname = "interp"
     dirname = 'output'
-    filename=os.path.join(dirname,'poly_test_file.fits')
+    filename=os.path.join(dirname, fname)
     with fitsio.FITS(filename,'rw',clobber=True) as f:
         interp.write(f, extname=extname)
     with fitsio.FITS(filename, "r") as f2:
@@ -378,13 +378,13 @@ def test_poly_raise():
 
 def test_poly_load_save():
     for poly_type in PolynomialsTypes:
-        poly_load_save_sub(poly_type,poly_type)
+        poly_load_save_sub(poly_type, poly_type, 'poly_test_load_save.fits')
 
 def test_poly_load_err():
     for poly_type1 in PolynomialsTypes[:]:
         for poly_type2 in PolynomialsTypes[:]:
             if poly_type1!=poly_type2:
-                poly_load_save_sub(poly_type1,poly_type2)
+                poly_load_save_sub(poly_type1, poly_type2, 'poly_test_load_err.fits')
 
 if __name__ == '__main__':
     test_poly_indexing()
