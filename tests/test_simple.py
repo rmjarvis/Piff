@@ -20,6 +20,8 @@ import os
 import subprocess
 import yaml
 import fitsio
+import matplotlib
+matplotlib.use('Agg',warn=False)
 
 from test_helper import get_script_name
 

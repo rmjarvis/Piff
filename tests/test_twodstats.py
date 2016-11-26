@@ -16,6 +16,8 @@ from __future__ import print_function
 import numpy as np
 import piff
 import os
+import matplotlib
+matplotlib.use('Agg',warn=False)
 
 def test_twodstats():
     """Make sure we can execute and print a readout of the plot

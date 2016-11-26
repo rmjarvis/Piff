@@ -240,9 +240,9 @@ class ShapeHistogramsStats(Stats):
         """
         if not hasattr(self, 'T'):
             raise RuntimeError("Shape Histogram has not been computed yet.  Cannot plot.")
-#
+
         import matplotlib
-        matplotlib.use('Agg')
+        #matplotlib.use('Agg')
         import matplotlib.pyplot as plt
         fig, axs = plt.subplots(ncols=3, nrows=2, figsize=(15, 10))
 
@@ -393,7 +393,7 @@ class RhoStats(Stats):
         # below based on the figures I made for the DES SV shear catalog paper that I think
         # looks a bit nicer.
         import matplotlib
-        matplotlib.use('Agg')
+        #matplotlib.use('Agg')
         import matplotlib.pyplot as plt
         fig, axs = plt.subplots(ncols=2, figsize=(10, 5))
 
@@ -459,7 +459,7 @@ class RhoStats(Stats):
         """
         # MJ: Based on the code I used for the plot in the DES SV paper:
         import matplotlib
-        matplotlib.use('Agg')
+        #matplotlib.use('Agg')
         import matplotlib.pyplot as plt
         fig, ax = plt.subplots(ncols=2, figsize=(10, 5))
 
