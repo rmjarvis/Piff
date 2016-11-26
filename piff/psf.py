@@ -295,6 +295,7 @@ class PSF(object):
         :param extname:     The name of the extension to write to
         """
         import galsim
+        import base64
         try:
             import cPickle as pickle
         except:
@@ -302,7 +303,7 @@ class PSF(object):
 
         # Start with the chipnums, which may be int or str type.
         # Assume they are all the same type at least.
-        chipnums = self.wcs.keys()
+        chipnums = list(self.wcs.keys())
         cols = [ chipnums ]
         if np.dtype(type(chipnums[0])).kind in np.typecodes['AllInteger']:
             dtypes = [ ('chipnums', int) ]
@@ -313,7 +314,7 @@ class PSF(object):
             dtypes = [ ('chipnums', str, max_len) ]
 
         # GalSim WCS objects can be serialized via pickle
-        wcs_str = [ pickle.dumps(w) for w in self.wcs.values() ]
+        wcs_str = [ base64.b64encode(pickle.dumps(w)) for w in self.wcs.values() ]
         cols.append(wcs_str)
         max_len = np.max([ len(s) for s in wcs_str ])
         dtypes.append( ('wcs_str', str, max_len) )
@@ -326,7 +327,7 @@ class PSF(object):
             dec = [self.pointing.dec / galsim.degrees] * len(chipnums)
             cols.extend( (ra, dec) )
 
-        data = np.array(zip(*cols), dtype=dtypes)
+        data = np.array(list(zip(*cols)), dtype=dtypes)
         fits.write_table(data, extname=extname)
 
     @classmethod
@@ -340,6 +341,7 @@ class PSF(object):
                                       pointing is a galsim.CelestialCoord instance
         """
         import galsim
+        import base64
         try:
             import cPickle as pickle
         except:
@@ -354,8 +356,8 @@ class PSF(object):
         chipnums = data['chipnums']
         wcs_str = data['wcs_str']
 
-        wcs_list = [ pickle.loads(s) for s in wcs_str ]
-        wcs = dict( zip(chipnums, wcs_list) )
+        wcs_list = [ pickle.loads(base64.b64decode(s)) for s in wcs_str ]
+        wcs = dict(zip(chipnums, wcs_list))
 
         if 'ra' in fits[extname].get_colnames():
             ra = data['ra']

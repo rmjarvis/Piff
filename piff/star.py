@@ -309,7 +309,7 @@ class Star(object):
             cols.append( [s.data.pointing.ra / galsim.degrees for s in stars ] )
             cols.append( [s.data.pointing.dec / galsim.degrees for s in stars ] )
 
-        data = np.array(zip(*cols), dtype=dtypes)
+        data = np.array(list(zip(*cols)), dtype=dtypes)
         fits.write_table(data, extname=extname)
 
     @classmethod

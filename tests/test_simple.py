@@ -89,7 +89,7 @@ def test_Mean():
     """For the interpolation, the simplest possible model is just a mean value, which barely
     even qualifies as doing any kind of interpolating.  But it tests the basic glue software.
     """
-    # Make a list of paramter vectors to "interpolate"
+    # Make a list of parameter vectors to "interpolate"
     np.random.seed(123)
     nstars = 100
     vectors = [ np.random.random(10) for i in range(nstars) ]

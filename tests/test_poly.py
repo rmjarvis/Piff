@@ -70,8 +70,8 @@ def test_poly_indexing():
     # We don't want any terms with total exponent > N.
     # The variabled "unpacked" was created above by unpacking a random vector.
     # it should be zero where i+j>3 and have the random valus below that.
-    for i in xrange(N+1):
-        for j in xrange(N+1):
+    for i in range(N+1):
+        for j in range(N+1):
             if i+j>N:
                 #Note we have two arrays, unpacked and unpacked_test
                 assert unpacked[i,j]==0.0
@@ -117,7 +117,7 @@ def test_poly_mean():
 
     # We also expect that if we interpolate to any point we just
     # get the mean as well
-    for i in xrange(30):
+    for i in range(30):
         target = piff.Star.makeTarget(u=np.random.random()*10, v=np.random.random()*10)
         target = interp.interpolate(target)
         np.testing.assert_almost_equal(target.fit.params, mean)
@@ -148,7 +148,7 @@ def sub_poly_linear(type1):
     nparam = 3
     N = 1
     nstars=50
-    orders = [N for i in xrange(nparam)]
+    orders = [N for i in range(nparam)]
     interp = piff.Polynomial(orders=orders, poly_type=type1)
     X = 10.0 # size of the field
     Y = 10.0
@@ -177,7 +177,7 @@ def sub_poly_linear(type1):
     interp.solve(stars)
 
     # Check that the interpolation recovers the desired function
-    for i in xrange(30):
+    for i in range(30):
         p=(np.random.random()*X, np.random.random()*Y)
         target = piff.Star.makeTarget(u=p[0], v=p[1])
         target = interp.interpolate(target)
@@ -207,7 +207,7 @@ def sub_poly_quadratic(type1):
     nparam = 3
     N = 2
     nstars=50
-    orders = [N for i in xrange(nparam)]
+    orders = [N for i in range(nparam)]
     interp = piff.Polynomial(N, poly_type=type1)
     X = 10.0 # size of the field
     Y = 10.0
@@ -238,7 +238,7 @@ def sub_poly_quadratic(type1):
     interp.solve(stars)
 
     # Check that the interpolation recovers the desired function
-    for i in xrange(30):
+    for i in range(30):
         p=(np.random.random()*X, np.random.random()*Y)
         target = piff.Star.makeTarget(u=p[0], v=p[1])
         target = interp.interpolate(target)
@@ -276,7 +276,7 @@ def test_poly_guess():
             for i in range(nstars) ]
 
     interp._setup_indices(nparam)
-    for i in xrange(nparam):
+    for i in range(nparam):
         param = np.random.random(size=nstars)
         p0 = interp._initialGuess(pos, param, i)
         mu = param.mean()
@@ -347,7 +347,7 @@ def poly_load_save_sub(type1, type2):
 
     # Check that the old and new interpolators generate the same
     # value
-    for i in xrange(30):
+    for i in range(30):
         p=(np.random.random()*X, np.random.random()*Y)
         target = piff.Star.makeTarget(u=p[0], v=p[1])
         target1 = interp.interpolate(target)
@@ -381,8 +381,8 @@ def test_poly_load_save():
         poly_load_save_sub(poly_type,poly_type)
 
 def test_poly_load_err():
-    for poly_type1 in PolynomialsTypes[:]:
-        for poly_type2 in PolynomialsTypes[:]:
+    for poly_type1 in PolynomialsTypes:
+        for poly_type2 in PolynomialsTypes:
             if poly_type1!=poly_type2:
                 poly_load_save_sub(poly_type1,poly_type2)
 

@@ -267,7 +267,8 @@ class DECamInfo(object):
         :returns stardata:  New stardata with updated properties
         """
         # stardata needs to have ccdnum as a property!
-        focal_x, focal_y = self.getPosition_chipnum([stardata['ccdnum']], [stardata['x']], [stardata['y']])
+        focal_x, focal_y = self.getPosition_chipnum(
+            np.array([stardata['ccdnum']]), np.array([stardata['x']]), np.array([stardata['y']]))
         properties = stardata.properties.copy()
         properties['focal_x'] = focal_x[0]
         properties['focal_y'] = focal_y[0]

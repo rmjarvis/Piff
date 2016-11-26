@@ -38,7 +38,7 @@ class GSObjectModel(Model):
     """
     def __init__(self, gsobj, fastfit=False, force_model_center=True, include_pixel=True,
                  logger=None):
-        if isinstance(gsobj, basestring):
+        if isinstance(gsobj, str):
             import galsim
             gsobj = eval(gsobj)
 

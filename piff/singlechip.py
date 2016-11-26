@@ -122,7 +122,7 @@ class SingleChipPSF(PSF):
         chipnums = [ adjust_value(c,dt) for c in chipnums ]
         cols = [ chipnums ]
         dtypes = [ dt ]
-        data = np.array(zip(*cols), dtype=dtypes)
+        data = np.array(list(zip(*cols)), dtype=dtypes)
         fits.write_table(data, extname=extname + '_chipnums')
 
         # Add _1, _2, etc. to the extname for the psf model of each chip.
