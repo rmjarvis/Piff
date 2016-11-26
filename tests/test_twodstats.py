@@ -21,7 +21,7 @@ def test_twodstats():
     """Make sure we can execute and print a readout of the plot
     """
 
-    model = piff.Gaussian()
+    model = piff.Gaussian(fastfit=True)
     interp = piff.Polynomial(order=1)  # should find that order=1 is better
     # create background model
     stars, true_model = generate_starlist()
@@ -112,8 +112,9 @@ def generate_starlist(n_samples=500):
                  in zip(icens, jcens, ccdnums, sigmas, g1s, g2s)]
 
     # load up model and draw the stars
-    model = piff.Gaussian()
+    model = piff.Gaussian(fastfit=True)
     star_list = [model.draw(star) for star in star_list]
+    star_list = [model.initialize(star) for star in star_list]
     star_list = [model.fit(star) for star in star_list]
 
     return star_list, model

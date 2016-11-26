@@ -75,7 +75,7 @@ from .config import piffify, setup_logger, read_config
 # Models -- Class names here match what they are called in the config file
 from .model import Model
 from .pixelgrid import PixelGrid, Lanczos, Bilinear
-from .gaussian_model import Gaussian
+from .gsobject_model import GSObjectModel, Gaussian, Kolmogorov, Moffat
 
 # Interpolators -- Class names here match what they are called in the config file
 from .interp import Interp

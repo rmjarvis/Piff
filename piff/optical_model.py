@@ -195,7 +195,7 @@ class Optical(Model):
             atm = galsim.Kolmogorov(**self.kolmogorov_kwargs)
             prof.append(atm)
         # optics
-        if len(params) == 0:
+        if params is None or len(params) == 0:
             # no optics here
             pass
         else:
@@ -229,5 +229,3 @@ class Optical(Model):
         image = prof.drawImage(star.data.image.copy(), method='no_pixel', offset=offset)
         data = StarData(image, star.data.image_pos, star.data.weight)
         return Star(data, star.fit)
-
-

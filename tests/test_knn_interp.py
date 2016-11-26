@@ -138,7 +138,9 @@ def test_yaml():
             'stamp_size': 31,
         },
         'psf' : {
-            'model' : { 'type': 'Gaussian' },
+            'model' : { 'type': 'GSObjectModel',
+                        'fastfit': True,
+                        'gsobj': 'galsim.Gaussian(sigma=1.0)' },
             'interp' : { 'type': 'kNNInterp',
                          'attr_interp': ['u', 'v'],
                          'attr_target': [0, 1, 2],
