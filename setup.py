@@ -293,7 +293,7 @@ ext=Extension("piff._piff",
               depends=headers,
               undef_macros = undef_macros)
 
-dependencies = ['numpy', 'cffi', 'fitsio', 'sklearn', 'treecorr', 'lmfit']
+dependencies = ['numpy', 'scipy', 'matplotlib', 'fitsio', 'treecorr', 'sklearn', 'lmfit']
 if py_version < '2.7':
     dependencies += ['argparse']
 
