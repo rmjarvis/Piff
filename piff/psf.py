@@ -241,7 +241,7 @@ class PSF(object):
         assert 'type' in fits[extname].get_colnames()
         psf_type = fits[extname].read()['type']
         assert len(psf_type) == 1
-        psf_type = psf_type[0]
+        psf_type = str(psf_type[0].decode())
 
         # Check that this is a valid PSF type
         psf_classes = piff.util.get_all_subclasses(piff.PSF)
@@ -311,13 +311,13 @@ class PSF(object):
             # coerce to string, just in case it's something else.
             chipnums = [ str(c) for c in chipnums ]
             max_len = np.max([ len(c) for c in chipnums ])
-            dtypes = [ ('chipnums', str, max_len) ]
+            dtypes = [ ('chipnums', bytes, max_len) ]
 
         # GalSim WCS objects can be serialized via pickle
         wcs_str = [ base64.b64encode(pickle.dumps(w)) for w in self.wcs.values() ]
         cols.append(wcs_str)
         max_len = np.max([ len(s) for s in wcs_str ])
-        dtypes.append( ('wcs_str', str, max_len) )
+        dtypes.append( ('wcs_str', bytes, max_len) )
 
         if self.pointing is not None:
             # Currently, there is only one pointing for all the chips, but write it out
