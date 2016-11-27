@@ -77,6 +77,10 @@ class DECamWavefront(kNNInterp):
             logger.debug("Made regressor")
 
         fits = fitsio.FITS(file_name)
+        if logger:
+            logger.debug("Made fits")
+            logger.debug(fits)
+            logger.debug(fits[1])
         data = fits[extname].read()
         if logger:
             logger.debug("read data from fits file")
