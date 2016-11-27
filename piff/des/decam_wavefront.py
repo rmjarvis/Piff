@@ -73,21 +73,35 @@ class DECamWavefront(kNNInterp):
         from sklearn.neighbors import KNeighborsRegressor
         for target in self.attr_target:
             self.knn[target] = KNeighborsRegressor(**self.knr_kwargs)
+        if logger:
+            logger.debug("Made regressor")
 
         fits = fitsio.FITS(file_name)
         data = fits[extname].read()
+        if logger:
+            logger.debug("read data from fits file")
         locations = np.array([data[attr] for attr in self.attr_interp]).T
+        if logger:
+            logger.debug("locations shape = %s",locations.shape)
         targets = np.array([data[attr] for attr in self.attr_target_wavefront]).T
+        if logger:
+            logger.debug("targets shape = %s",targets.shape)
 
         self._fit(locations, targets)
+        if logger:
+            logger.debug("done fit")
 
         # set misalignment as [[delta_i, thetax_i, thetay_i]] with i == 0 corresponding to defocus
         self.misalignment = np.array([[0.0, 0.0, 0.0]] * (self.z_max - self.z_min + 1))
+        if logger:
+            logger.debug("misalignement shape = %s",self.misalignment.shape)
 
         # to get the ccd coords
         attr_save = ['x', 'y', 'ccdnum']
         Xpixel = np.array([data[attr] for attr in attr_save]).T
         self.Xpixel = Xpixel
+        if logger:
+            logger.debug("Xpixel shape = %s",self.Xpixel.shape)
 
     def misalign_wavefront(self, misalignment):
         """Pass along misalignment parameter

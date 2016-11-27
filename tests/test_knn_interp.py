@@ -185,7 +185,8 @@ def test_decam_wavefront():
 
     print('file_name = ',file_name)
     print('extname = ',extname)
-    knn = piff.des.DECamWavefront(file_name, extname)
+    logger = piff.config.setup_logger(verbose=3)
+    knn = piff.des.DECamWavefront(file_name, extname, logger=logger)
     print('knn = ',knn)
 
     n_samples = 2000
