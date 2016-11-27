@@ -24,7 +24,7 @@ before_install:
 
     # Add ~/bin and ~/lib, etc. to the appropriate paths where scons install will put things.
     - export PYHOME=$HOME/virtualenv/python${TRAVIS_PYTHON_VERSION}
-    - export PATH=$HOME/bin:$PATH
+    - export PATH=$HOME/bin:$PYHOME/bin:$PATH
     - export LD_LIBRARY_PATH=$HOME/lib:$LD_LIBRARY_PATH
 
     # Fix a directory name in 3.x installations so boost can find it.
