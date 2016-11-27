@@ -99,17 +99,11 @@ def get_compiler(cc):
     print('compiler version information: ')
     for line in lines:
         print(line.strip())
-    try:
-        # Python3 needs this decode bit.
-        # Python2.7 doesn't need it, but it works fine.
-        line = lines[0].decode(encoding='UTF-8')
-        if line.startswith('Configured'):
-            line = lines[1].decode(encoding='UTF-8')
-    except TypeError:
-        # Python2.6 throws a TypeError, so just use the lines as they are.
-        line = lines[0]
-        if line.startswith('Configured'):
-            line = lines[1]
+    # Python3 needs this decode bit.
+    # Python2.7 doesn't need it, but it works fine.
+    line = lines[0].decode(encoding='UTF-8')
+    if line.startswith('Configured'):
+        line = lines[1].decode(encoding='UTF-8')
 
     if "clang" in line:
         # clang 3.7 is the first with openmp support. So check the version number.
@@ -294,8 +288,6 @@ ext=Extension("piff._piff",
               undef_macros = undef_macros)
 
 dependencies = ['numpy', 'scipy', 'matplotlib', 'fitsio', 'treecorr', 'sklearn', 'lmfit']
-if py_version < '2.7':
-    dependencies += ['argparse']
 
 try:
     import galsim
