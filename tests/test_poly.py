@@ -17,7 +17,6 @@ import numpy as np
 import piff
 
 from piff_test_helper import get_script_name
-from nose.tools import assert_raises
 
 PolynomialsTypes = piff.polynomial_types.keys()
 
@@ -371,8 +370,10 @@ def test_poly_raise():
     data = [ piff.Star.makeTarget(u=p[0], v=p[1]).data for p in pos ]
     fit = [ piff.StarFit(v) for v in vectors ]
     stars = [ piff.Star(d, f) for d,f in zip(data, fit) ]
-    assert_raises(ValueError, interp.solve, stars)
-
+    try:
+        np.testing.assert_raises(ValueError, interp.solve, stars)
+    except ImportError:
+        pass
 
 
 def test_poly_load_save():
