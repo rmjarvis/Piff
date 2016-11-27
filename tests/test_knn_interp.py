@@ -182,6 +182,7 @@ def test_disk():
 def test_decam_wavefront():
     file_name = 'wavefront_test/Science-20121120s1-v20i2.fits'
     extname = 'Science-20121120s1-v20i2'
+
     knn = piff.des.DECamWavefront(file_name, extname)
 
     n_samples = 2000

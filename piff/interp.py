@@ -217,4 +217,3 @@ class Interp(object):
         :param extname:     The base name of the extension.
         """
         pass
-

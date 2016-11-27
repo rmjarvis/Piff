@@ -147,7 +147,7 @@ class DECamInfo(object):
         # do getPosition but with chipnum instead
         xpixHalfSize = 1024. * np.ones(len(chipnums))
         ypixHalfSize = 1024. * np.ones(len(chipnums))
-        ypixHalfSize = np.where(chipnums > 62, 1024., 2048.)
+        ypixHalfSize = np.where(np.array(chipnums) > 62, 1024., 2048.)
         xCenter = self.infoArr[chipnums][:, 0]
         yCenter = self.infoArr[chipnums][:, 1]
 
@@ -167,7 +167,7 @@ class DECamInfo(object):
         # do getPixel but with chipnum instead
         xpixHalfSize = 1024. * np.ones(len(chipnums))
         ypixHalfSize = 1024. * np.ones(len(chipnums))
-        ypixHalfSize = np.where(chipnums > 62, 1024., 2048.)
+        ypixHalfSize = np.where(np.array(chipnums) > 62, 1024., 2048.)
         xCenter = self.infoArr[chipnums][:, 0]
         yCenter = self.infoArr[chipnums][:, 1]
 

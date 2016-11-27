@@ -694,4 +694,3 @@ class InputFiles(Input):
             hdu = 1 if file_name.endswith('.fz') else 0
             header = fits[hdu].read_header()
             self.gain = float(header[self.gain])
-

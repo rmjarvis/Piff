@@ -76,4 +76,3 @@ class Mean(Interp):
         """
         data = fits[extname + '_solution'].read()
         self.mean = data['mean']
-
