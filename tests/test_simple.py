@@ -72,7 +72,7 @@ def test_Gaussian():
         }
     }
     if __name__ == '__main__':
-        logger = piff.config.setup_logger(verbose=3)
+        logger = piff.config.setup_logger(verbose=2)
     else:
         logger = piff.config.setup_logger(verbose=0)
     model = piff.Model.process(config['model'], logger)
@@ -234,7 +234,7 @@ def test_single_image():
         'output' : { 'file_name' : psf_file },
     }
     if __name__ == '__main__':
-        logger = piff.config.setup_logger(verbose=3)
+        logger = piff.config.setup_logger(verbose=2)
     else:
         logger = piff.config.setup_logger(verbose=0)
     orig_stars, wcs, pointing = piff.Input.process(config['input'], logger)
