@@ -1,0 +1,85 @@
+branches:
+    only:
+        - master
+
+language: python
+python:
+    - 2.7
+    - 3.4
+    - 3.5
+
+compiler:
+    - g++
+
+before_install:
+    - export PATH=$(echo $PATH | tr ':' "\n" | sed '/\/opt\/python/d' | tr "\n" ":" | sed "s|::|:|g")
+    - sudo apt-get -qq update
+    - sudo apt-get install -y python-dev libfftw3-dev scons libblas-dev liblapack-dev gfortran
+
+    # List current contents of directories that should be being cached.
+    - ls -l $HOME
+    - if test -d $HOME/GalSim-1.4.2; then ls -l $HOME/GalSim-1.4.2; fi
+    - if test -d $HOME/tmv-0.73; then ls -l $HOME/tmv-0.73; fi
+    - if test -d $HOME/boost_1_61_0; then ls -l $HOME/boost_1_61_0; fi
+    - if test -d $HOME/des_data; then ls -l $HOME/des_data; fi
+
+    # Add ~/bin and ~/lib, etc. to the appropriate paths where scons install will put things.
+    - export PYHOME=$HOME/virtualenv/python${TRAVIS_PYTHON_VERSION}
+    - export PATH=$HOME/bin:$PATH
+    - export LD_LIBRARY_PATH=$HOME/lib:$LD_LIBRARY_PATH
+
+    # Fix a directory name in 3.x installations so boost can find it.
+    - if test -d $PYHOME/include/python${TRAVIS_PYTHON_VERSION}m; then ln -s $PYHOME/include/python${TRAVIS_PYTHON_VERSION}m $PYHOME/include/python${TRAVIS_PYTHON_VERSION}; fi
+
+    # Only get TMV if not cached
+    - pushd $HOME
+    - if ! test -d tmv-0.73 || ! test -f tmv-0.73/SConstruct; then wget https://github.com/rmjarvis/tmv/archive/v0.73.tar.gz && tar -xf v0.73.tar.gz ; else echo Using cached TMV; fi
+    # But always install it to /usr/local
+    - cd tmv-0.73
+    - sudo scons install
+    - popd
+
+    # Only get Boost if not cached
+    - pushd $HOME
+    - if ! test -d boost_1_61_0 || ! test -f boost_1_61_0/bootstrap.sh; then wget https://sourceforge.net/projects/boost/files/boost/1.61.0/boost_1_61_0.tar.bz2 --no-check-certificate && tar --bzip2 -xf boost_1_61_0.tar.bz2 && cd boost_1_61_0 && ./bootstrap.sh --with-python=python$TRAVIS_PYTHON_VERSION && ./b2 link=shared && cd ..; else echo Using cached Boost; fi
+    - cd boost_1_61_0
+    - sudo ./b2 -d0 link=shared install
+    - popd
+
+    # Only get GalSim if not cached
+    - pushd $HOME
+    - if ! test -d GalSim-1.4.2 || ! test -f GalSim-1.4.2/SConstruct; then wget https://github.com/GalSim-developers/GalSim/archive/v1.4.2.tar.gz && tar -xf v1.4.2.tar.gz ; else echo Using cached GalSim; fi
+    - cd GalSim-1.4.2
+    # This lets scons work even on Python 3 builds
+    # cf. https://github.com/travis-ci/travis-ci/issues/5961
+    - source $HOME/virtualenv/python2.7/bin/activate
+    # But now we need to manually set the python, since it's not the default in this virtualenv.
+    - sudo scons PREFIX=$HOME PYTHON=$PYHOME/bin/python PYPREFIX=$PYHOME/lib/python${TRAVIS_PYTHON_VERSION}/site-packages BOOST_DIR=$PYHOME install
+    # Go back to the regular python environment
+    - source $PYHOME/bin/activate
+    - popd
+
+cache:
+    pip: true
+    directories:
+    - $HOME/GalSim-1.4.2
+    - $HOME/tmv-0.73
+    - $HOME/boost_1_61_0
+    - $HOME/des_data
+
+install:
+    - travis_wait 30 pip install numpy astropy==1.1.1 future pyyaml nose codecov coveralls matplotlib==1.5.2 scipy==0.17.0
+
+script:
+    - python setup.py install --prefix=$HOME
+    - cd tests
+    - "nosetests test*.py --with-coverage --cover-package=galsim --with-doctest --cover-erase"
+
+after_success:
+    - coverage combine .
+    - coverage xml
+    - codecov
+
+before_cache:
+    - rm -rf $HOME/.cache/pip/log
+    - rm -rf $HOME/.cache/pip/http
