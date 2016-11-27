@@ -73,7 +73,7 @@ cache:
 
 install:
     - ls
-    #- travis_wait 30 pip install -r requirements.txt
+    - travis_wait 30 pip install -r requirements.txt
     #- python setup.py install --prefix=$PYHOME
 
 script:
