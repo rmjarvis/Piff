@@ -57,7 +57,8 @@ before_install:
     # cf. https://github.com/travis-ci/travis-ci/issues/5961
     - source $HOME/virtualenv/python2.7/bin/activate
     # But now we need to manually set the python, since it's not the default in this virtualenv.
-    - sudo scons PREFIX=$HOME PYTHON=$PYHOME/bin/python PYPREFIX=$PYHOME/lib/python${TRAVIS_PYTHON_VERSION}/site-packages BOOST_DIR=$PYHOME install
+    - scons PREFIX=$HOME PYTHON=$PYHOME/bin/python PYPREFIX=$PYHOME/lib/python${TRAVIS_PYTHON_VERSION}/site-packages BOOST_DIR=$PYHOME
+    - sudo scons install
     # Go back to the regular python environment
     - source $PYHOME/bin/activate
     - popd
