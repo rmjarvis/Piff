@@ -21,7 +21,6 @@ before_install:
     - if test -d $HOME/GalSim-1.4.2; then ls -l $HOME/GalSim-1.4.2; fi
     - if test -d $HOME/tmv-0.73; then ls -l $HOME/tmv-0.73; fi
     - if test -d $HOME/boost_1_61_0; then ls -l $HOME/boost_1_61_0; fi
-    - if test -d $HOME/des_data; then ls -l $HOME/des_data; fi
 
     # Add ~/bin and ~/lib, etc. to the appropriate paths where scons install will put things.
     - export PYHOME=$HOME/virtualenv/python${TRAVIS_PYTHON_VERSION}
@@ -69,7 +68,6 @@ cache:
     - $HOME/GalSim-1.4.2
     - $HOME/tmv-0.73
     - $HOME/boost_1_61_0
-    - $HOME/des_data
 
 install:
     - ls
