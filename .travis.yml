@@ -77,7 +77,7 @@ install:
 script:
     - cd tests
     #- "nosetests test*.py --with-coverage --cover-package=piff --with-doctest --cover-erase"
-    - "nosetests -v"
+    - "nosetests -vs"
 
 after_success:
     - coverage combine .
