@@ -62,6 +62,11 @@ before_install:
     - source $PYHOME/bin/activate
     - popd
 
+    # Workaround for fitsio bug that has been fixed on master, but not pip yet.
+    - git clone git@github.com:esheldon/fitsio.git
+    - cd fitsio
+    - python setup.py install --prefix=$PYHOME
+
 cache:
     pip: true
     directories:
