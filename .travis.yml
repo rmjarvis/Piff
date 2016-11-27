@@ -73,7 +73,7 @@ cache:
 
 install:
     - travis_wait 30 pip install nose codecov coveralls
-    - python setup.py install --prefix=$HOME
+    - python setup.py install --prefix=$PYHOME
 
 script:
     - cd tests
