@@ -19,7 +19,7 @@ import galsim
 import yaml
 import subprocess
 
-from test_helper import get_script_name
+from piff_test_helper import get_script_name
 
 def make_gaussian_data(sigma, u0, v0, flux, noise=0., du=1., fpu=0., fpv=0., nside=32,
                        nom_u0=0., nom_v0=0., rng=None):

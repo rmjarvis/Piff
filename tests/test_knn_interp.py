@@ -21,7 +21,7 @@ import subprocess
 import yaml
 import fitsio
 
-from test_helper import get_script_name
+from piff_test_helper import get_script_name
 
 attr_interp = ['focal_x', 'focal_y']
 attr_target = list(range(5))

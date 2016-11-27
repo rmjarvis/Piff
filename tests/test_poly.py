@@ -16,7 +16,7 @@ from __future__ import print_function
 import numpy as np
 import piff
 
-from test_helper import get_script_name
+from piff_test_helper import get_script_name
 from nose.tools import assert_raises
 
 PolynomialsTypes = piff.polynomial_types.keys()

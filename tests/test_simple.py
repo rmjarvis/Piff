@@ -23,7 +23,7 @@ import fitsio
 import matplotlib
 matplotlib.use('Agg',warn=False)
 
-from test_helper import get_script_name
+from piff_test_helper import get_script_name
 
 def test_Gaussian():
     """This is about the simplest possible model I could think of.  It just uses the
