@@ -63,7 +63,7 @@ before_install:
     - popd
 
     # Workaround for fitsio bug that has been fixed on master, but not pip yet.
-    - git clone git@github.com:esheldon/fitsio.git
+    - git clone https://github.com/esheldon/fitsio.git
     - cd fitsio
     - python setup.py install --prefix=$PYHOME
 
