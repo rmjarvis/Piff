@@ -534,7 +534,12 @@ class WhiskerStats(Stats):
         # raw whiskers
         ax = axs[0]
         # data
-        Q = ax.quiver(self.twodhists['u'], self.twodhists['v'], self.twodhists['w1'], self.twodhists['w2'], scale=2.5e-3, **quiver_dict)
+        u = self.twodhists['u']
+        v = self.twodhists['v']
+        w1 = self.twodhists['w1']
+        w2 = self.twodhists['w2']
+        use = u.mask == 0
+        Q = ax.quiver(u[use], v[use], w1[use], w2[use], scale=2.5e-3, **quiver_dict)
         # quiverkey
         ax.quiverkey(Q, 0.10, 0.10, 0.03, 'e = 0.03', coordinates='axes', color='darkred', labelcolor='darkred', labelpos='S')
 
@@ -542,7 +547,7 @@ class WhiskerStats(Stats):
         ax = axs[1]
 
         # dw
-        Q = ax.quiver(self.twodhists['u'], self.twodhists['v'], self.twodhists['dw1'], self.twodhists['dw2'], scale=4.0e-4, **quiver_dict)
+        Q = ax.quiver(u[use], v[use], dw1[use], dw2[use], scale=4.0e-4, **quiver_dict)
         # quiverkey
         ax.quiverkey(Q, 0.90, 0.10, 0.03, 'de = 0.03', coordinates='axes', color='darkred', labelcolor='darkred', labelpos='S')
 
