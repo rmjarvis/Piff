@@ -16,8 +16,7 @@ from __future__ import print_function
 import numpy as np
 import piff
 
-from test_helper import get_script_name
-from nose.tools import assert_raises
+from piff_test_helper import get_script_name
 
 PolynomialsTypes = piff.polynomial_types.keys()
 
@@ -36,13 +35,13 @@ def test_poly_indexing():
     # x^1 y^0   3
 
     # x^0 y^2   4
-    # x^1 y^1   5 
+    # x^1 y^1   5
     # x^2 y^0   6
 
     # x^0 y^3   7
     # x^1 y^2   8
     # x^2 y^1   9
-    # x^3 y^0   10 
+    # x^3 y^0   10
 
     # Check that we have the indices we expect
     assert interp.indices[0] == [
@@ -53,7 +52,7 @@ def test_poly_indexing():
     ]
     assert interp.nvariables[0]==10
 
-    # check the packing then unpacking a 
+    # check the packing then unpacking a
     packed = np.random.uniform(size=interp.nvariables[0])
     unpacked = interp._unpack_coefficients(0,packed)
     packed_test = interp._pack_coefficients(0,unpacked)
@@ -70,14 +69,14 @@ def test_poly_indexing():
     # We don't want any terms with total exponent > N.
     # The variabled "unpacked" was created above by unpacking a random vector.
     # it should be zero where i+j>3 and have the random valus below that.
-    for i in xrange(N+1):
-        for j in xrange(N+1):
+    for i in range(N+1):
+        for j in range(N+1):
             if i+j>N:
                 #Note we have two arrays, unpacked and unpacked_test
                 assert unpacked[i,j]==0.0
                 unpacked_test[i,j]=0.0
 
-    # Now do the test the other way around, checking that 
+    # Now do the test the other way around, checking that
     # we can pack and then unpack
     packed_test_2 = interp._pack_coefficients(0,unpacked_test)
     unpacked_test_2 = interp._unpack_coefficients(0,packed_test_2)
@@ -117,7 +116,7 @@ def test_poly_mean():
 
     # We also expect that if we interpolate to any point we just
     # get the mean as well
-    for i in xrange(30):
+    for i in range(30):
         target = piff.Star.makeTarget(u=np.random.random()*10, v=np.random.random()*10)
         target = interp.interpolate(target)
         np.testing.assert_almost_equal(target.fit.params, mean)
@@ -147,8 +146,8 @@ def sub_poly_linear(type1):
     np.random.seed(12834)
     nparam = 3
     N = 1
-    nstars=50   
-    orders = [N for i in xrange(nparam)]
+    nstars=50
+    orders = [N for i in range(nparam)]
     interp = piff.Polynomial(orders=orders, poly_type=type1)
     X = 10.0 # size of the field
     Y = 10.0
@@ -177,7 +176,7 @@ def sub_poly_linear(type1):
     interp.solve(stars)
 
     # Check that the interpolation recovers the desired function
-    for i in xrange(30):
+    for i in range(30):
         p=(np.random.random()*X, np.random.random()*Y)
         target = piff.Star.makeTarget(u=p[0], v=p[1])
         target = interp.interpolate(target)
@@ -207,7 +206,7 @@ def sub_poly_quadratic(type1):
     nparam = 3
     N = 2
     nstars=50
-    orders = [N for i in xrange(nparam)]
+    orders = [N for i in range(nparam)]
     interp = piff.Polynomial(N, poly_type=type1)
     X = 10.0 # size of the field
     Y = 10.0
@@ -238,7 +237,7 @@ def sub_poly_quadratic(type1):
     interp.solve(stars)
 
     # Check that the interpolation recovers the desired function
-    for i in xrange(30):
+    for i in range(30):
         p=(np.random.random()*X, np.random.random()*Y)
         target = piff.Star.makeTarget(u=p[0], v=p[1])
         target = interp.interpolate(target)
@@ -276,7 +275,7 @@ def test_poly_guess():
             for i in range(nstars) ]
 
     interp._setup_indices(nparam)
-    for i in xrange(nparam):
+    for i in range(nparam):
         param = np.random.random(size=nstars)
         p0 = interp._initialGuess(pos, param, i)
         mu = param.mean()
@@ -288,14 +287,13 @@ def test_poly_guess():
         np.testing.assert_almost_equal(interp._interpolationModel(pos, p0), mu)
 
 
-
-def poly_load_save_sub(type1, type2):
-    # Test that we can serialize and deserialize a polynomial 
+def poly_load_save_sub(type1, type2, fname):
+    # Test that we can serialize and deserialize a polynomial
     # interpolator correctly.  Copying all this stuff from above:
 
     np.random.seed(12434)
     nparam = 3
-    nstars=50   
+    nstars=50
     # Use three different sizes to test everything
     orders = [1,2,3]
     interp = piff.Polynomial(orders=orders, poly_type=type1)
@@ -332,7 +330,7 @@ def poly_load_save_sub(type1, type2):
     import fitsio
     extname = "interp"
     dirname = 'output'
-    filename=os.path.join(dirname,'poly_test_file.fits')
+    filename=os.path.join(dirname, fname)
     with fitsio.FITS(filename,'rw',clobber=True) as f:
         interp.write(f, extname=extname)
     with fitsio.FITS(filename, "r") as f2:
@@ -347,7 +345,7 @@ def poly_load_save_sub(type1, type2):
 
     # Check that the old and new interpolators generate the same
     # value
-    for i in xrange(30):
+    for i in range(30):
         p=(np.random.random()*X, np.random.random()*Y)
         target = piff.Star.makeTarget(u=p[0], v=p[1])
         target1 = interp.interpolate(target)
@@ -355,7 +353,7 @@ def poly_load_save_sub(type1, type2):
         np.testing.assert_almost_equal(target1.fit.params, target2.fit.params)
 
 def test_poly_raise():
-    # Test that we can serialize and deserialize a polynomial 
+    # Test that we can serialize and deserialize a polynomial
     # interpolator correctly.  Copying all this stuff from above:
 
     np.random.seed(12434)
@@ -372,19 +370,21 @@ def test_poly_raise():
     data = [ piff.Star.makeTarget(u=p[0], v=p[1]).data for p in pos ]
     fit = [ piff.StarFit(v) for v in vectors ]
     stars = [ piff.Star(d, f) for d,f in zip(data, fit) ]
-    assert_raises(ValueError, interp.solve, stars)
-
+    try:
+        np.testing.assert_raises(ValueError, interp.solve, stars)
+    except ImportError:
+        pass
 
 
 def test_poly_load_save():
     for poly_type in PolynomialsTypes:
-        poly_load_save_sub(poly_type,poly_type)
+        poly_load_save_sub(poly_type, poly_type, 'poly_test_load_save.fits')
 
 def test_poly_load_err():
-    for poly_type1 in PolynomialsTypes[:]:
-        for poly_type2 in PolynomialsTypes[:]:
+    for poly_type1 in PolynomialsTypes:
+        for poly_type2 in PolynomialsTypes:
             if poly_type1!=poly_type2:
-                poly_load_save_sub(poly_type1,poly_type2)
+                poly_load_save_sub(poly_type1, poly_type2, 'poly_test_load_err.fits')
 
 if __name__ == '__main__':
     test_poly_indexing()

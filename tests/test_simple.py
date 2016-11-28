@@ -21,7 +21,7 @@ import subprocess
 import yaml
 import fitsio
 
-from test_helper import get_script_name
+from piff_test_helper import get_script_name
 
 def test_Gaussian():
     """This is about the simplest possible model I could think of.  It just uses the
@@ -46,7 +46,8 @@ def test_Gaussian():
     star = piff.Star(stardata, None)
 
     # Fit the model from the image
-    model = piff.Gaussian()
+    model = piff.Gaussian(include_pixel=False)
+    star = model.initialize(star)
     fit = model.fit(star).fit
 
     print('True sigma = ',sigma,', model sigma = ',fit.params[0])
@@ -64,13 +65,14 @@ def test_Gaussian():
     # Now test running it via the config parser
     config = {
         'model' : {
-            'type' : 'Gaussian'
+            'type' : 'Gaussian',
+            'include_pixel': False
         }
     }
     if __name__ == '__main__':
-        logger = piff.config.setup_logger(verbose=3)
+        logger = piff.config.setup_logger(verbose=2)
     else:
-        logger = piff.config.setup_logger(verbose=1)
+        logger = piff.config.setup_logger(verbose=0)
     model = piff.Model.process(config['model'], logger)
     fit = model.fit(star).fit
 
@@ -85,7 +87,7 @@ def test_Mean():
     """For the interpolation, the simplest possible model is just a mean value, which barely
     even qualifies as doing any kind of interpolating.  But it tests the basic glue software.
     """
-    # Make a list of paramter vectors to "interpolate"
+    # Make a list of parameter vectors to "interpolate"
     np.random.seed(123)
     nstars = 100
     vectors = [ np.random.random(10) for i in range(nstars) ]
@@ -150,6 +152,7 @@ def test_single_image():
             ar = image[bounds].array
             im_max = np.max(ar) * 0.2
             ar[ar > im_max] = im_max
+    image.addNoise(galsim.GaussianNoise(rng=galsim.BaseDeviate(1234), sigma=1e-6))
 
     # Write out the image to a file
     image_file = os.path.join('data','simple_image.fits')
@@ -197,9 +200,10 @@ def test_single_image():
     assert orig_stars[0].image.array.shape == (48,48)
 
     # Process the star data
-    model = piff.Gaussian()
+    # can only compare to truth if include_pixel=False
+    model = piff.Gaussian(fastfit=True, include_pixel=False)
     interp = piff.Mean()
-    fitted_stars = [ model.fit(star) for star in orig_stars ]
+    fitted_stars = [ model.fit(model.initialize(star)) for star in orig_stars ]
     interp.solve(fitted_stars)
     print('mean = ',interp.mean)
 
@@ -207,7 +211,7 @@ def test_single_image():
     target = piff.Star.makeTarget(x=1024, y=123) # Any position would work here.
     true_params = [ sigma, g1, g2 ]
     test_star = interp.interpolate(target)
-    np.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=5)
+    np.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=4)
 
     # Now test running it via the config parser
     psf_file = os.path.join('output','simple_psf.fits')
@@ -220,22 +224,25 @@ def test_single_image():
             'stamp_size' : 48
         },
         'psf' : {
-            'model' : { 'type' : 'Gaussian' },
+            'model' : { 'type' : 'Gaussian',
+                        'fastfit': True,
+                        'include_pixel': False},
             'interp' : { 'type' : 'Mean' },
         },
         'output' : { 'file_name' : psf_file },
     }
     if __name__ == '__main__':
-        logger = piff.config.setup_logger(verbose=3)
+        logger = piff.config.setup_logger(verbose=2)
     else:
-        logger = piff.config.setup_logger(verbose=1)
+        logger = piff.config.setup_logger(verbose=0)
     orig_stars, wcs, pointing = piff.Input.process(config['input'], logger)
 
     # Use a SimplePSF to process the stars data this time.
     psf = piff.SimplePSF(model, interp)
+
     psf.fit(orig_stars, wcs, pointing, logger=logger)
     test_star = psf.interp.interpolate(target)
-    np.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=5)
+    np.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=4)
 
     # Round trip to a file
     psf.write(psf_file, logger)
@@ -243,7 +250,7 @@ def test_single_image():
     assert type(psf.model) is piff.Gaussian
     assert type(psf.interp) is piff.Mean
     test_star = psf.interp.interpolate(target)
-    np.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=5)
+    np.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=4)
 
     # Do the whole thing with the config parser
     os.remove(psf_file)
@@ -251,10 +258,11 @@ def test_single_image():
     piff.piffify(config, logger)
     psf = piff.read(psf_file)
     test_star = psf.interp.interpolate(target)
-    np.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=5)
+    np.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=4)
 
     # Test using the piffify executable
     os.remove(psf_file)
+    config['verbose'] = 0
     with open('simple.yaml','w') as f:
         f.write(yaml.dump(config, default_flow_style=False))
     piffify_exe = get_script_name('piffify')
@@ -262,7 +270,7 @@ def test_single_image():
     p.communicate()
     psf = piff.read(psf_file)
     test_star = psf.interp.interpolate(target)
-    np.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=5)
+    np.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=4)
 
     # Test that we can make rho statistics
     min_sep = 1
@@ -283,11 +291,11 @@ def test_single_image():
         # Test that the max absolute value of each rho isn't crazy
         np.testing.assert_array_less(np.abs(rho.xip), 1)
 
-        # Check that each rho isn't precisely zero. This means the sum of abs > 0
+        # # Check that each rho isn't precisely zero. This means the sum of abs > 0
         np.testing.assert_array_less(0, np.sum(np.abs(rho.xip)))
 
     # Test the plotting and writing
-    rho_psf_file = os.path.join('output','simple_psf_rhostats.png')
+    rho_psf_file = os.path.join('output','simple_psf_rhostats.pdf')
     stats.write(rho_psf_file)
 
     # Test that we can make summary shape statistics, using HSM
@@ -302,7 +310,7 @@ def test_single_image():
     np.testing.assert_array_almost_equal(g2, shapeStats.g2, decimal=4)
     np.testing.assert_array_almost_equal(g2, shapeStats.g2_model, decimal=3)
 
-    shape_psf_file = os.path.join('output','simple_psf_shapestats.png')
+    shape_psf_file = os.path.join('output','simple_psf_shapestats.pdf')
     shapeStats.write(shape_psf_file)
 
     # Test that we can use the config parser for both RhoStats and ShapeHistogramsStats
@@ -315,20 +323,33 @@ def test_single_image():
             'type': 'Rho',
             'file_name': rho_psf_file
         },
+        {
+            'type': 'TwoDHist',
+            'file_name': os.path.join('output', 'simple_psf_twodhiststats.pdf'),
+            'number_bins_u': 3,
+            'number_bins_v': 3,
+        },
+        {
+            'type': 'TwoDHist',
+            'file_name': os.path.join('output', 'simple_psf_twodhiststats_std.pdf'),
+            'reducing_function': 'np.std',
+            'number_bins_u': 3,
+            'number_bins_v': 3,
+        },
     ]
 
     os.remove(psf_file)
     os.remove(rho_psf_file)
     os.remove(shape_psf_file)
-    piff.piffify(config)
+    piff.piffify(config, logger)
 
     # Test using the piffify executable
     os.remove(psf_file)
     os.remove(rho_psf_file)
     os.remove(shape_psf_file)
+    config['verbose'] = 0
     with open('simple.yaml','w') as f:
         f.write(yaml.dump(config, default_flow_style=False))
-    piffify_exe = get_script_name('piffify')
     p = subprocess.Popen( [piffify_exe, 'simple.yaml'] )
     p.communicate()
 
@@ -336,4 +357,3 @@ if __name__ == '__main__':
     test_Gaussian()
     test_Mean()
     test_single_image()
-

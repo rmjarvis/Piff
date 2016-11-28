@@ -21,10 +21,7 @@ from __future__ import print_function
 import numpy as np
 import fitsio
 
-from .star import Star, StarFit, StarData
-from .model import Model
-from .interp import Interp
-from .outliers import Outliers
+from .star import Star, StarData
 from .util import write_kwargs, read_kwargs
 
 class PSF(object):
@@ -106,9 +103,9 @@ class PSF(object):
         kwargs.update(config_psf)
         return kwargs
 
-    def draw(self, x, y, chipnum=0, flux=1.0, offset=(0,0), stamp_size=48,
+    def draw(self, x, y, chipnum=0, flux=1.0, offset=(0,0), stamp_size=48, image=None,
              logger=None, **kwargs):
-        """Generates PSF image at a given location.
+        """Draws an image of the PSF at a given location.
 
         The normal usage would be to specify (chipnum, x, y), in which case Piff will use the
         stored wcs information for that chip to interpolate to the given position and draw
@@ -123,6 +120,13 @@ class PSF(object):
             ('ri_color',)
             >>> image = psf.draw(chipnum=4, x=103.3, y=592.0, ri_color=0.23, stamp_size=48)
 
+        Normally, the image is constructed automatically based on stamp_size, in which case
+        the WCS will be taken to be the local Jacobian at this location on the original image.
+        However, if you provide your own image using the :image: argument, then whatever WCS
+        is present in that image will be respected.  E.g. if you want an image of the PSF in
+        sky coordinates rather than image coordinates, you can provide an image with just a
+        pixel scale for the WCS.
+
         :param x:           The image x position.
         :param y:           The image y position.
         :param chipnum:     Which chip to use for WCS information. [default: 0, which is
@@ -130,13 +134,15 @@ class PSF(object):
         :param flux:        Flux of PSF to be drawn [default: 1.0]
         :param offset:      (dx,dy) tuple giving offset of stellar center relative
                             to star.data.image_pos [default: (0,0)]
+        :param stamp_size:  The size of the image to construct if no image is provided.
+                            [default: 48]
+        :param image:       An existing image on which to draw, if desired. [default: None]
         :param logger:      A logger object for logging debug info. [default: None]
         :param **kwargs:    Additional properties required for the interpolation.
 
         :returns:           A GalSim Image of the PSF
         """
         import galsim
-        wcs = self.wcs[chipnum]
         properties = {'chipnum' : chipnum}
         for key in self.extra_interp_properties:
             if key not in kwargs:
@@ -146,10 +152,19 @@ class PSF(object):
             raise TypeError("draw got an unexpecte keyword argument %r"%kwargs.keys()[0])
 
         image_pos = galsim.PositionD(x,y)
-        world_pos = StarData.calculateFieldPos(image_pos, wcs, self.pointing, properties)
+        world_pos = StarData.calculateFieldPos(image_pos, self.wcs[chipnum], self.pointing,
+                                               properties)
         u,v = world_pos.x, world_pos.y
+
+        # We always use the correct wcs above for world_pos, but in makeTarget, we allow the
+        # user's image.wcs to override.
+        if image is None or image.wcs is None:
+            wcs = self.wcs[chipnum]
+        else:
+            wcs = image.wcs
+
         star = Star.makeTarget(x=x, y=y, u=u, v=v, wcs=wcs, properties=properties,
-                               stamp_size=stamp_size)
+                               stamp_size=stamp_size, image=image)
         if logger:
             logger.debug("Drawing star at (%s,%s) on chip %s", x, y, chipnum)
 
@@ -168,7 +183,7 @@ class PSF(object):
         :param logger:      A logger object for logging debug info. [default: None]
         """
         if logger:
-            logger.info("Writing PSF to file %s",file_name)
+            logger.warning("Writing PSF to file %s",file_name)
 
         with fitsio.FITS(file_name,'rw',clobber=True) as f:
             self._write(f, 'psf', logger)
@@ -203,7 +218,7 @@ class PSF(object):
         :returns: a PSF instance
         """
         if logger:
-            logger.info("Reading PSF from file %s",file_name)
+            logger.warning("Reading PSF from file %s",file_name)
 
         with fitsio.FITS(file_name,'r') as f:
             if logger:
@@ -226,7 +241,7 @@ class PSF(object):
         assert 'type' in fits[extname].get_colnames()
         psf_type = fits[extname].read()['type']
         assert len(psf_type) == 1
-        psf_type = psf_type[0]
+        psf_type = str(psf_type[0].decode())
 
         # Check that this is a valid PSF type
         psf_classes = piff.util.get_all_subclasses(piff.PSF)
@@ -280,6 +295,7 @@ class PSF(object):
         :param extname:     The name of the extension to write to
         """
         import galsim
+        import base64
         try:
             import cPickle as pickle
         except:
@@ -287,7 +303,7 @@ class PSF(object):
 
         # Start with the chipnums, which may be int or str type.
         # Assume they are all the same type at least.
-        chipnums = self.wcs.keys()
+        chipnums = list(self.wcs.keys())
         cols = [ chipnums ]
         if np.dtype(type(chipnums[0])).kind in np.typecodes['AllInteger']:
             dtypes = [ ('chipnums', int) ]
@@ -295,13 +311,13 @@ class PSF(object):
             # coerce to string, just in case it's something else.
             chipnums = [ str(c) for c in chipnums ]
             max_len = np.max([ len(c) for c in chipnums ])
-            dtypes = [ ('chipnums', str, max_len) ]
+            dtypes = [ ('chipnums', bytes, max_len) ]
 
         # GalSim WCS objects can be serialized via pickle
-        wcs_str = [ pickle.dumps(w) for w in self.wcs.values() ]
+        wcs_str = [ base64.b64encode(pickle.dumps(w)) for w in self.wcs.values() ]
         cols.append(wcs_str)
         max_len = np.max([ len(s) for s in wcs_str ])
-        dtypes.append( ('wcs_str', str, max_len) )
+        dtypes.append( ('wcs_str', bytes, max_len) )
 
         if self.pointing is not None:
             # Currently, there is only one pointing for all the chips, but write it out
@@ -311,7 +327,7 @@ class PSF(object):
             dec = [self.pointing.dec / galsim.degrees] * len(chipnums)
             cols.extend( (ra, dec) )
 
-        data = np.array(zip(*cols), dtype=dtypes)
+        data = np.array(list(zip(*cols)), dtype=dtypes)
         fits.write_table(data, extname=extname)
 
     @classmethod
@@ -325,6 +341,7 @@ class PSF(object):
                                       pointing is a galsim.CelestialCoord instance
         """
         import galsim
+        import base64
         try:
             import cPickle as pickle
         except:
@@ -339,8 +356,8 @@ class PSF(object):
         chipnums = data['chipnums']
         wcs_str = data['wcs_str']
 
-        wcs_list = [ pickle.loads(s) for s in wcs_str ]
-        wcs = dict( zip(chipnums, wcs_list) )
+        wcs_list = [ pickle.loads(base64.b64decode(s)) for s in wcs_str ]
+        wcs = dict(zip(chipnums, wcs_list))
 
         if 'ra' in fits[extname].get_colnames():
             ra = data['ra']

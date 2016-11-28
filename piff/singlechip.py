@@ -92,8 +92,8 @@ class SingleChipPSF(PSF):
 
             # Run the psf_chip fit function using this stars and wcs (and the same pointing)
             if logger:
-                logger.info("Building solution for chip %s with %d stars",
-                            chipnum, len(stars_chip))
+                logger.warning("Building solution for chip %s with %d stars",
+                               chipnum, len(stars_chip))
             psf_chip.fit(stars_chip, wcs_chip, pointing, logger=logger)
         # update stars from psf outlier rejection
         self.stars = [ star for chipnum in wcs for star in self.psf_by_chip[chipnum].stars ]
@@ -122,7 +122,7 @@ class SingleChipPSF(PSF):
         chipnums = [ adjust_value(c,dt) for c in chipnums ]
         cols = [ chipnums ]
         dtypes = [ dt ]
-        data = np.array(zip(*cols), dtype=dtypes)
+        data = np.array(list(zip(*cols)), dtype=dtypes)
         fits.write_table(data, extname=extname + '_chipnums')
 
         # Add _1, _2, etc. to the extname for the psf model of each chip.

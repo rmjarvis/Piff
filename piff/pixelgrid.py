@@ -60,7 +60,7 @@ class PixelGrid(Model):
         :param force_model_center: If True, PSF model centroid is fixed at origin and
                             PSF fitting will marginalize over stellar position.  If False, stellar
                             position is fixed at input value and the fitted PSF may be off-center.
-                            [default: False]
+                            [default: True]
         :param degenerate:  Is it possible that individual stars give degenerate PSF sol'n?
                             If False, it runs faster, but fails on degeneracies. [default: True]
         :param logger:      A logger object for logging debug info. [default: None]
@@ -119,7 +119,7 @@ class PixelGrid(Model):
         # In this array, a negative entry is a pixel that is not being
         # fit (and always assumed to be zero, for interpolation purposes).
         self._indices = np.where( self._mask, self._constraints, -1)
-        self._origin = (self.ny/2, self.nx/2)
+        self._origin = (self.ny//2, self.nx//2)
         if not self._mask[self._origin]:
             raise ValueError("Not happy with central PSF pixel being masked")
         self._indices[self._origin] = 0    # Central pixel for flux constraint
@@ -572,6 +572,7 @@ class PixelGrid(Model):
 
         # This will be an iterative process if the centroid is free.
         max_iterations = 100    # Max iteration count
+
         chisq_thresh = 0.01     # Quit when reduced chisq changes less than this
         do_center = fit_center and self._force_model_center
         flux = star.fit.flux
@@ -630,7 +631,17 @@ class PixelGrid(Model):
                 logger.debug("initial chisq = %s",chisq)
             beta = np.dot( derivs.T,rw)
             alpha = np.dot( derivs.T*weight, derivs)
-            df = np.linalg.solve(alpha, beta)
+            try:
+                df = np.linalg.solve(alpha, beta)
+            except Exception as e:
+                if do_center:
+                    if logger:
+                        logger.debug("Caught exception %s",e)
+                        logger.debug("Turning off centering and retrying")
+                    do_center = False
+                    continue
+                else:
+                    raise
             dchi = np.dot(beta, df)
             chisq = chisq - dchi
             if logger:
@@ -879,4 +890,3 @@ class Bilinear(PixelInterpolant):
             return coeffs, dcdu, dcdv, x, y
         else:
             return coeffs, x, y
-

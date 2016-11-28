@@ -180,7 +180,7 @@ class Model(object):
         assert 'type' in fits[extname].get_colnames()
         model_type = fits[extname].read()['type']
         assert len(model_type) == 1
-        model_type = model_type[0]
+        model_type = str(model_type[0].decode())
 
         # Check that model_type is a valid Model type.
         model_classes = piff.util.get_all_subclasses(piff.Model)

@@ -19,7 +19,7 @@ import galsim
 import yaml
 import subprocess
 
-from test_helper import get_script_name
+from piff_test_helper import get_script_name
 
 def make_gaussian_data(sigma, u0, v0, flux, noise=0., du=1., fpu=0., fpv=0., nside=32,
                        nom_u0=0., nom_v0=0., rng=None):
@@ -100,7 +100,7 @@ def test_oversample():
 
     # Pixelized model with Lanczos 3 interp, coarser pix scale
     interp = piff.Lanczos(3)
-    mod = piff.PixelGrid(2*du, nside/2, interp, start_sigma=1.5, force_model_center=False)
+    mod = piff.PixelGrid(2*du, nside//2, interp, start_sigma=1.5, force_model_center=False)
     star = mod.initialize(s).withFlux(flux=np.sum(s.image.array))
 
     for i in range(2):
@@ -183,6 +183,9 @@ def test_interp():
     s0 = make_gaussian_data(1.0, 0., 0., influx, du=0.5)
     s0 = mod.initialize(s0)
 
+    # Polynomial doesn't need this, but it should work nonetheless.
+    interp.initialize(stars)
+
     # Iterate solution using interpolator
     for iteration in range(3):
         # Refit PSFs star by star:
@@ -254,6 +257,7 @@ def test_missing():
     for interp in interps:
         # Interpolator will be simple mean
         interp = piff.Polynomial(order=0)
+        interp.initialize(stars)
 
         oldchisq = 0.
         # Iterate solution using interpolator
@@ -324,6 +328,9 @@ def test_gradient():
     # Also store away a noiseless copy of the PSF, origin of focal plane
     s0 = make_gaussian_data(1.0, 0., 0., influx, du=0.5)
     s0 = mod.initialize(s0)
+
+    # Polynomial doesn't need this, but it should work nonetheless.
+    interp.initialize(stars)
 
     oldchisq = 0.
     # Iterate solution using interpolator
@@ -399,6 +406,9 @@ def test_undersamp():
     # Also store away a noiseless copy of the PSF, origin of focal plane
     s0 = make_gaussian_data(1.0, 0., 0., influx, du=0.5)
     s0 = mod.initialize(s0)
+
+    # Polynomial doesn't need this, but it should work nonetheless.
+    interp.initialize(stars)
 
     oldchisq = 0.
     # Iterate solution using interpolator
@@ -757,6 +767,7 @@ def test_single_image():
         np.testing.assert_almost_equal(test_star.image.array, test_im.array, decimal=3)
 
     # Test using the piffify executable
+    config['verbose'] = 0
     with open('pixel_moffat.yaml','w') as f:
         f.write(yaml.dump(config, default_flow_style=False))
     if __name__ == '__main__':
@@ -923,6 +934,7 @@ def test_des_image():
         np.testing.assert_almost_equal(fit_stamp.array/flux, orig_stamp.array/flux, decimal=2)
 
     # Test using the piffify executable
+    config['verbose'] = 0
     with open('pixel_des.yaml','w') as f:
         f.write(yaml.dump(config, default_flow_style=False))
     if __name__ == '__main__':
