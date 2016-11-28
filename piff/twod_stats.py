@@ -521,7 +521,7 @@ class WhiskerStats(Stats):
         # bigger scale = smaller whiskers
         quiver_dict = dict(alpha=1,
                            angles='uv',
-                           headlength=0,
+                           headlength=1.e-10,  # Using zero emits divide-by-zero warnings.
                            headwidth=0,
                            headaxislength=0,
                            minlength=0,
@@ -543,7 +543,8 @@ class WhiskerStats(Stats):
         use = u.mask == 0
         Q = ax.quiver(u[use], v[use], w1[use], w2[use], scale=2.5e-3, **quiver_dict)
         # quiverkey
-        ax.quiverkey(Q, 0.10, 0.10, 0.03, 'e = 0.03', coordinates='axes', color='darkred', labelcolor='darkred', labelpos='S')
+        ax.quiverkey(Q, 0.10, 0.10, 0.03, 'e = 0.03', coordinates='axes', color='darkred',
+                     labelcolor='darkred', labelpos='S')
 
         # residual whiskers
         ax = axs[1]
@@ -551,7 +552,8 @@ class WhiskerStats(Stats):
         # dw
         Q = ax.quiver(u[use], v[use], dw1[use], dw2[use], scale=4.0e-4, **quiver_dict)
         # quiverkey
-        ax.quiverkey(Q, 0.90, 0.10, 0.03, 'de = 0.03', coordinates='axes', color='darkred', labelcolor='darkred', labelpos='S')
+        ax.quiverkey(Q, 0.90, 0.10, 0.03, 'de = 0.03', coordinates='axes', color='darkred',
+                     labelcolor='darkred', labelpos='S')
 
         plt.tight_layout()
 
