@@ -17,7 +17,7 @@ before_install:
     - sudo apt-get install -y python-dev libfftw3-dev scons libblas-dev liblapack-dev gfortran
 
     # List current contents of directories that should be being cached.
-    - ls -l $HOME
+    - ls -la $HOME
     - if test -d $HOME/GalSim-1.4.2; then ls -l $HOME/GalSim-1.4.2; fi
     - if test -d $HOME/tmv-0.73; then ls -l $HOME/tmv-0.73; fi
     - if test -d $HOME/boost_1_61_0; then ls -l $HOME/boost_1_61_0; fi
@@ -76,17 +76,14 @@ cache:
     - $HOME/GalSim-1.4.2
     - $HOME/tmv-0.73
     - $HOME/boost_1_61_0
+    - $HOME/.cache/matplotlib
 
 install:
     - pip install -r requirements.txt
     - pip install nose codecov
     # Do the matplotlib build before going into nosetests
-    - python -c "import matplotlib"
-    # Check treecorr import
-    - ls $PYHOME/lib/python${TRAVIS_PYTHON_VERSION}/site-packages/
-    - ls $PYHOME/lib/python${TRAVIS_PYTHON_VERSION}/site-packages/treecorr
-    - python -c "import treecorr"
-    - ls
+    - sudo python -c "import matplotlib.pyplot"
+    # Copy the .matplotlib directory to $HOME to force Agg backend.
     - cp -r tests/.matplotlib $HOME
     - python setup.py install --prefix=$PYHOME
 
