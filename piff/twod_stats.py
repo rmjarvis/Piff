@@ -538,6 +538,8 @@ class WhiskerStats(Stats):
         v = self.twodhists['v']
         w1 = self.twodhists['w1']
         w2 = self.twodhists['w2']
+        dw1 = self.twodhists['dw1']
+        dw2 = self.twodhists['dw2']
         use = u.mask == 0
         Q = ax.quiver(u[use], v[use], w1[use], w2[use], scale=2.5e-3, **quiver_dict)
         # quiverkey
