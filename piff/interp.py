@@ -119,6 +119,15 @@ class Interp(object):
         """
         raise NotImplemented("Derived classes must define the solve function")
 
+    def update(self, logger=None, **kwargs):
+        """Update the interpolant
+
+        :param kwargs:      Whatever you want to pass for updating the interpolant.
+
+        By default does NOTHING
+        """
+        pass
+
     def interpolate(self, star, logger=None):
         """Perform the interpolation to find the interpolated parameter vector at some position.
 
@@ -196,7 +205,7 @@ class Interp(object):
 
         # Check that interp_type is a valid Interp type.
         interp_classes = piff.util.get_all_subclasses(piff.Interp)
-        valid_interp_types = dict([ (cls.__name__, cls) for cls in interp_classes ])
+        valid_interp_types = dict([ (c.__name__, c) for c in interp_classes ])
         if interp_type not in valid_interp_types:
             raise ValueError("interpolator type %s is not a valid Piff Interpolator"%interp_type)
         interp_cls = valid_interp_types[interp_type]

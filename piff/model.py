@@ -101,6 +101,26 @@ class Model(object):
         """
         raise NotImplemented("Derived classes must define the fit function")
 
+    def solve(self, star_list, logger=None):
+        """Solve for any model coefficients given some data.
+
+        :param star_list:   A list of Star instances to fit model parameters with
+        :param logger:      A logger object for logging debug info. [default: None]
+
+        By default does NOTHING since you may have no hyperparameters to put in
+        """
+        pass
+
+    def update(self, logger=None, **kwargs):
+        """Update the model
+
+        :param kwargs:      Whatever you want to pass for updating the model.
+        :param logger:      A logger object for logging debug info. [default: None]
+
+        By default does NOTHING
+        """
+        pass
+
     def draw(self, star):
         """Create new Star instance that has star.data filled with a rendering
         of the PSF specified by the current StarFit parameters, flux, and center.
@@ -186,4 +206,3 @@ class Model(object):
         :param extname:     The base name of the extension.
         """
         pass
-

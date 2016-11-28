@@ -98,6 +98,7 @@ from .output import Output, OutputFile
 from .psf import PSF, read
 from .simplepsf import SimplePSF
 from .singlechip import SingleChipPSF
+from .hyperpsf import HyperPSF
 
 # Stats classes are named BlahStats where Blah is what they are called in the config file
 from .stats import Stats, RhoStats, ShapeHistogramsStats
