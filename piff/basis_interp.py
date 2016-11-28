@@ -194,7 +194,7 @@ class BasisPolynomial(BasisInterp):
         # Start with 1d arrays giving orders in all dimensions
         ord_ranges = [np.arange(order+1,dtype=int) for order in self._orders]
         # Nifty trick to produce n-dim array holding total order
-        sumorder = reduce(np.add, np.ix_(*ord_ranges))
+        sumorder = np.sum(np.ix_(*ord_ranges))
         self._mask = sumorder <= self._maxorder
 
         # Set up the ranges: save the additive and multiplicative factors
@@ -244,7 +244,7 @@ class BasisPolynomial(BasisInterp):
             p[1:] = vals[i]
             pows1d.append(np.cumprod(p))
         # Use trick to produce outer product of all these powers
-        pows2d = reduce(np.multiply, np.ix_(*pows1d))
+        pows2d = np.prod(np.ix_(*pows1d))
         # Return linear array of terms making total power constraint
         return pows2d[self._mask]
 

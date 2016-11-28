@@ -223,17 +223,17 @@ class Star(object):
 
         # Figure out the image_pos
         if x is None:
-            field_pos = galsim.PositionD(u,v)
+            field_pos = galsim.PositionD(float(u),float(v))
             image_pos = wcs.toImage(field_pos)
             x = image_pos.x
             y = image_pos.y
         else:
-            image_pos = galsim.PositionD(x,y)
+            image_pos = galsim.PositionD(float(x),float(y))
 
         # Make wcs locally accurate affine transformation
         if x is not None:
             if u is not None:
-                field_pos = galsim.PositionD(u,v)
+                field_pos = galsim.PositionD(float(u),float(v))
                 wcs = wcs.local(image_pos).withOrigin(image_pos, field_pos)
             else:
                 field_pos = None
@@ -309,7 +309,7 @@ class Star(object):
             cols.append( [s.data.pointing.ra / galsim.degrees for s in stars ] )
             cols.append( [s.data.pointing.dec / galsim.degrees for s in stars ] )
 
-        data = np.array(zip(*cols), dtype=dtypes)
+        data = np.array(list(zip(*cols)), dtype=dtypes)
         fits.write_table(data, extname=extname)
 
     @classmethod

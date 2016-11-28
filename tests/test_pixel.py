@@ -19,7 +19,7 @@ import galsim
 import yaml
 import subprocess
 
-from test_helper import get_script_name
+from piff_test_helper import get_script_name
 
 def make_gaussian_data(sigma, u0, v0, flux, noise=0., du=1., fpu=0., fpv=0., nside=32,
                        nom_u0=0., nom_v0=0., rng=None):
@@ -100,7 +100,7 @@ def test_oversample():
 
     # Pixelized model with Lanczos 3 interp, coarser pix scale
     interp = piff.Lanczos(3)
-    mod = piff.PixelGrid(2*du, nside/2, interp, start_sigma=1.5, force_model_center=False)
+    mod = piff.PixelGrid(2*du, nside//2, interp, start_sigma=1.5, force_model_center=False)
     star = mod.initialize(s).withFlux(flux=np.sum(s.image.array))
 
     for i in range(2):

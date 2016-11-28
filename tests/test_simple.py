@@ -21,7 +21,7 @@ import subprocess
 import yaml
 import fitsio
 
-from test_helper import get_script_name
+from piff_test_helper import get_script_name
 
 def test_Gaussian():
     """This is about the simplest possible model I could think of.  It just uses the
@@ -70,7 +70,7 @@ def test_Gaussian():
         }
     }
     if __name__ == '__main__':
-        logger = piff.config.setup_logger(verbose=3)
+        logger = piff.config.setup_logger(verbose=2)
     else:
         logger = piff.config.setup_logger(verbose=0)
     model = piff.Model.process(config['model'], logger)
@@ -87,7 +87,7 @@ def test_Mean():
     """For the interpolation, the simplest possible model is just a mean value, which barely
     even qualifies as doing any kind of interpolating.  But it tests the basic glue software.
     """
-    # Make a list of paramter vectors to "interpolate"
+    # Make a list of parameter vectors to "interpolate"
     np.random.seed(123)
     nstars = 100
     vectors = [ np.random.random(10) for i in range(nstars) ]
@@ -232,7 +232,7 @@ def test_single_image():
         'output' : { 'file_name' : psf_file },
     }
     if __name__ == '__main__':
-        logger = piff.config.setup_logger(verbose=3)
+        logger = piff.config.setup_logger(verbose=2)
     else:
         logger = piff.config.setup_logger(verbose=0)
     orig_stars, wcs, pointing = piff.Input.process(config['input'], logger)

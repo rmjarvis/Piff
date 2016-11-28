@@ -66,15 +66,17 @@ def make_dtype(key, value):
         size = 0
         t = type(value)
     dt = np.dtype(t) # just used to categorize the type into int, float, str
+
     if dt.kind in np.typecodes['AllInteger']:
         t = int
     elif dt.kind in np.typecodes['AllFloat']:
         t = float
-    elif dt.kind == 'S' and not isinstance(value, (str, unicode)):
+    elif dt.kind in ['S','U'] and not isinstance(value, str):
         # catch lists of strings
         t = np.array(value).dtype.str
-    elif dt.kind == 'S':
-        t = str
+        t = t.replace('U','S')
+    elif dt.kind in ['S','U']:
+        t = bytes
     else:
         # Other objects should be manually serialized by the initializer or the finish_read and
         # finish_write functions.
@@ -97,13 +99,19 @@ def adjust_value(value, dtype):
         # dtype is either (key, t) or (key, t, size)
         # if no size or size == 0, then just use t as the type.
         return t(value)
-    elif t == str:
-        # Strings have a size, and they are probably already a str, but go ahead and
-        # recast as str(value) just in case.
-        return str(value)
+    elif t == bytes:
+        # Strings may need to be encoded.
+        try:
+            return value.encode()
+        except AttributeError:
+            return value
     else:
-        # For numpy arrays, we can use astype instead.
-        return np.array(value).astype(t)
+        try:
+            # Arrays of strings may need to be encoded.
+            return np.array([v.encode() for v in value])
+        except AttributeError:
+            # For other numpy arrays, we can use astype instead.
+            return np.array(value).astype(t)
 
 def write_kwargs(fits, extname, kwargs):
     """A helper function for writing a single row table into a fits file with the values
@@ -123,7 +131,7 @@ def write_kwargs(fits, extname, kwargs):
         value = adjust_value(value,dt)
         cols.append([value])
         dtypes.append(dt)
-    data = np.array(zip(*cols), dtype=dtypes)
+    data = np.array(list(zip(*cols)), dtype=dtypes)
     fits.write_table(data, extname=extname)
 
 def read_kwargs(fits, extname):
@@ -139,6 +147,18 @@ def read_kwargs(fits, extname):
     data = fits[extname].read()
     assert len(data) == 1
     kwargs = dict([ (col, data[col][0]) for col in cols ])
+    for key,value in kwargs.items():
+        # Convert any byte strings to a regular str
+        try:
+            value = str(value.decode())
+            kwargs[key] = value
+        except:
+            # Also convert arrays of bytes into arrays of strings.
+            try:
+                value = np.array([str(v.decode()) for v in value])
+                kwargs[key] = value
+            except:
+                pass
     return kwargs
 
 def hsm(star):

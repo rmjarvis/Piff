@@ -123,8 +123,6 @@ def test_disk():
         model.write(f, 'optics')
         model2 = piff.Optical.read(f, 'optics')
 
-    print('model.kwargs = ',model.kwargs)
-    print('model2.kwargs = ',model2.kwargs)
     for key in model.kwargs:
         assert key in model2.kwargs, 'key %r missing from model2 kwargs'%key
         assert model.kwargs[key] == model2.kwargs[key], 'key %r mismatch'%key

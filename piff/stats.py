@@ -21,6 +21,7 @@
 from __future__ import print_function
 import numpy as np
 import os
+import warnings
 
 class Stats(object):
     """The base class for getting the statistics of a set of stars.
@@ -238,12 +239,15 @@ class ShapeHistogramsStats(Stats):
 
         :returns: fig, ax
         """
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore")
+            import matplotlib
+            matplotlib.use('Agg')
+            import matplotlib.pyplot as plt
+
         if not hasattr(self, 'T'):
             raise RuntimeError("Shape Histogram has not been computed yet.  Cannot plot.")
-#
-        import matplotlib
-        matplotlib.use('Agg')
-        import matplotlib.pyplot as plt
+
         fig, axs = plt.subplots(ncols=3, nrows=2, figsize=(15, 10))
 
         # some defaults for the kwargs
@@ -392,9 +396,11 @@ class RhoStats(Stats):
         # Leaving this version here in case useful, but I (MJ) have a new version of this
         # below based on the figures I made for the DES SV shear catalog paper that I think
         # looks a bit nicer.
-        import matplotlib
-        matplotlib.use('Agg')
-        import matplotlib.pyplot as plt
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore")
+            import matplotlib
+            matplotlib.use('Agg')
+            import matplotlib.pyplot as plt
         fig, axs = plt.subplots(ncols=2, figsize=(10, 5))
 
         # axs[0] gets rho1 rho3 and rho4
@@ -458,9 +464,11 @@ class RhoStats(Stats):
         :returns: fig, ax
         """
         # MJ: Based on the code I used for the plot in the DES SV paper:
-        import matplotlib
-        matplotlib.use('Agg')
-        import matplotlib.pyplot as plt
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore")
+            import matplotlib
+            matplotlib.use('Agg')
+            import matplotlib.pyplot as plt
         fig, ax = plt.subplots(ncols=2, figsize=(10, 5))
 
         # Left plot is rho1,3,4

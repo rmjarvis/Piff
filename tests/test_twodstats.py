@@ -20,11 +20,15 @@ import os
 def test_twodstats():
     """Make sure we can execute and print a readout of the plot
     """
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(2)
+    else:
+        logger = None
 
     model = piff.Gaussian(fastfit=True)
     interp = piff.Polynomial(order=1)  # should find that order=1 is better
     # create background model
-    stars, true_model = generate_starlist()
+    stars, true_model = generate_starlist(100)
     psf = piff.SimplePSF(model, interp)
     psf.fit(stars, None, None)
 
@@ -34,14 +38,16 @@ def test_twodstats():
     np.testing.assert_almost_equal(psf.interp.coeffs[0].flatten(), np.array([0.4, 0, 1. / (0.263 * 2048), 0]), decimal=4)
     np.testing.assert_almost_equal(psf.interp.coeffs[2].flatten(), np.array([-0.1 * 1000 / 2048, 0, 0.1 / (0.263 * 2048), 0]), decimal=4)
 
-    stats = piff.TwoDHistStats(number_bins_u=21, number_bins_v=21, reducing_function='np.mean')
-    stats.compute(psf, stars)
+    stats = piff.TwoDHistStats(number_bins_u=5, number_bins_v=5, reducing_function='np.mean')
+    stats.compute(psf, stars, logger=logger)
     # check the twodhists
     # get the average value in the bin
     u_i = 2
     v_i = 2
     icen = stats.twodhists['u'][v_i, u_i] / 0.263
     jcen = stats.twodhists['v'][v_i, u_i] / 0.263
+    print('icen = ',icen)
+    print('jcen = ',jcen)
     icenter = 1000
     jcenter = 2000
     # the average value in the bin should match up with the model for the average coordinates
@@ -50,7 +56,10 @@ def test_twodstats():
     g1_average = stats.twodhists['g1'][v_i, u_i]
     g2_average = stats.twodhists['g2'][v_i, u_i]
     # assert equal to 4th decimal
-    np.testing.assert_almost_equal([sigma, g1, g2], [sigma_average, g1_average, g2_average], decimal=4)
+    print('sigma, g1, g2 = ',[sigma,g1,g2])
+    print('av sigma, g1, g2 = ',[sigma_average,g1_average,g2_average])
+    np.testing.assert_almost_equal([sigma, g1, g2], [sigma_average, g1_average, g2_average],
+                                   decimal=2)
 
     # Test the plotting and writing
     twodstats_file = os.path.join('output','twodstats.pdf')
@@ -90,6 +99,7 @@ def psf_model(icens, jcens, icenter, jcenter):
 
 def generate_starlist(n_samples=500):
     # create n_samples images from the 63 ccds and pixel coordinates
+    np.random.seed(1234)
     icens = np.random.randint(100, 2048, n_samples)
     jcens = np.random.randint(100, 4096, n_samples)
     ccdnums = np.random.randint(1, 63, n_samples)

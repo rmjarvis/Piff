@@ -99,17 +99,11 @@ def get_compiler(cc):
     print('compiler version information: ')
     for line in lines:
         print(line.strip())
-    try:
-        # Python3 needs this decode bit.
-        # Python2.7 doesn't need it, but it works fine.
-        line = lines[0].decode(encoding='UTF-8')
-        if line.startswith('Configured'):
-            line = lines[1].decode(encoding='UTF-8')
-    except TypeError:
-        # Python2.6 throws a TypeError, so just use the lines as they are.
-        line = lines[0]
-        if line.startswith('Configured'):
-            line = lines[1]
+    # Python3 needs this decode bit.
+    # Python2.7 doesn't need it, but it works fine.
+    line = lines[0].decode(encoding='UTF-8')
+    if line.startswith('Configured'):
+        line = lines[1].decode(encoding='UTF-8')
 
     if "clang" in line:
         # clang 3.7 is the first with openmp support. So check the version number.
@@ -293,9 +287,7 @@ ext=Extension("piff._piff",
               depends=headers,
               undef_macros = undef_macros)
 
-dependencies = ['numpy', 'six', 'cffi', 'fitsio', 'sklearn', 'treecorr', 'lmfit']
-if py_version < '2.7':
-    dependencies += ['argparse']
+dependencies = ['numpy', 'scipy', 'matplotlib', 'fitsio', 'treecorr', 'sklearn', 'lmfit']
 
 try:
     import galsim
@@ -344,7 +336,8 @@ dist = setup(name="Piff",
       )
 
 # Check that the path includes the directory where the scripts are installed.
-if dist.script_install_dir not in os.environ['PATH'].split(':'):
+if (dist.script_install_dir not in os.environ['PATH'].split(':') and
+    os.path.realpath(dist.script_install_dir) not in os.environ['PATH'].split(':')):
     print('\nWARNING: The Piff executables were installed in a directory not in your PATH')
     print('         If you want to use the executables, you should add the directory')
     print('\n             ',dist.script_install_dir,'\n')

@@ -147,7 +147,7 @@ class DECamInfo(object):
         # do getPosition but with chipnum instead
         xpixHalfSize = 1024. * np.ones(len(chipnums))
         ypixHalfSize = 1024. * np.ones(len(chipnums))
-        ypixHalfSize = np.where(chipnums > 62, 1024., 2048.)
+        ypixHalfSize = np.where(np.array(chipnums) > 62, 1024., 2048.)
         xCenter = self.infoArr[chipnums][:, 0]
         yCenter = self.infoArr[chipnums][:, 1]
 
@@ -167,7 +167,7 @@ class DECamInfo(object):
         # do getPixel but with chipnum instead
         xpixHalfSize = 1024. * np.ones(len(chipnums))
         ypixHalfSize = 1024. * np.ones(len(chipnums))
-        ypixHalfSize = np.where(chipnums > 62, 1024., 2048.)
+        ypixHalfSize = np.where(np.array(chipnums) > 62, 1024., 2048.)
         xCenter = self.infoArr[chipnums][:, 0]
         yCenter = self.infoArr[chipnums][:, 1]
 
@@ -267,7 +267,8 @@ class DECamInfo(object):
         :returns stardata:  New stardata with updated properties
         """
         # stardata needs to have ccdnum as a property!
-        focal_x, focal_y = self.getPosition_chipnum([stardata['ccdnum']], [stardata['x']], [stardata['y']])
+        focal_x, focal_y = self.getPosition_chipnum(
+            np.array([stardata['ccdnum']]), np.array([stardata['x']]), np.array([stardata['y']]))
         properties = stardata.properties.copy()
         properties['focal_x'] = focal_x[0]
         properties['focal_y'] = focal_y[0]

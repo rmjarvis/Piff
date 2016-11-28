@@ -350,7 +350,7 @@ class InputFiles(Input):
         if cat_dir is None: cat_dir = dir
 
         # Try to eval chipnums that come in as a string.
-        if isinstance(chipnums, basestring):
+        if isinstance(chipnums, str):
             try:
                 chipnums = eval(chipnums)
             except Exception as e:
@@ -422,7 +422,7 @@ class InputFiles(Input):
         self.pointing = None
 
     def _get_file_list(self, s, d, chipnums, logger):
-        if isinstance(s, basestring):
+        if isinstance(s, str):
             # First try "{chipnum}" style formatting.
             if (chipnums is not None) and ('{' in s) and ('}' in s):
                 try:
@@ -694,4 +694,3 @@ class InputFiles(Input):
             hdu = 1 if file_name.endswith('.fz') else 0
             header = fits[hdu].read_header()
             self.gain = float(header[self.gain])
-
