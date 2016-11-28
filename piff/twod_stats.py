@@ -21,6 +21,7 @@ from __future__ import print_function
 import numpy as np
 
 from .stats import Stats
+import warnings
 
 class TwoDHistStats(Stats):
     """Statistics class that can make pretty colormaps where each bin has some
@@ -149,9 +150,11 @@ class TwoDHistStats(Stats):
 
         :returns: fig, ax
         """
-        import matplotlib
-        matplotlib.use('Agg',warn=False)
-        import matplotlib.pyplot as plt
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore")
+            import matplotlib
+            matplotlib.use('Agg')
+            import matplotlib.pyplot as plt
 
         fig, axs = plt.subplots(ncols=3, nrows=3, figsize=(12, 9))
         # left column gets the Y coordinate label
@@ -281,9 +284,11 @@ class TwoDHistStats(Stats):
         return C
 
     def _shift_cmap(self, vmin, vmax):
-        import matplotlib
-        matplotlib.use('Agg',warn=False)
-        import matplotlib.pyplot as plt
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore")
+            import matplotlib
+            matplotlib.use('Agg')
+            import matplotlib.pyplot as plt
         midpoint = (0 - vmin) / (vmax - vmin)
 
         # if b <= 0, then we want Blues_r
@@ -325,10 +330,12 @@ class TwoDHistStats(Stats):
               Defaults to 1.0 (no upper ofset). Should be between
               `midpoint` and 1.0.
         '''
-        import matplotlib
-        matplotlib.use('Agg',warn=False)
-        import matplotlib.pyplot as plt
-        from matplotlib.colors import LinearSegmentedColormap
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore")
+            import matplotlib
+            matplotlib.use('Agg')
+            import matplotlib.pyplot as plt
+            from matplotlib.colors import LinearSegmentedColormap
         cdict = {
             'red': [],
             'green': [],
@@ -503,9 +510,11 @@ class WhiskerStats(Stats):
 
         :returns: fig, ax
         """
-        import matplotlib
-        matplotlib.use('Agg',warn=False)
-        import matplotlib.pyplot as plt
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore")
+            import matplotlib
+            matplotlib.use('Agg')
+            import matplotlib.pyplot as plt
 
         fig, axs = plt.subplots(1, 2, sharey=True, subplot_kw={'aspect' : 'equal'})
         axs[0].set_xlabel('u')
