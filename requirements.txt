@@ -5,5 +5,3 @@ treecorr
 sklearn
 lmfit
 matplotlib
-nose
-codecov
