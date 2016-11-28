@@ -26,6 +26,7 @@ before_install:
     - export PYHOME=$HOME/virtualenv/python${TRAVIS_PYTHON_VERSION}
     - export PATH=$HOME/bin:$PYHOME/bin:$PATH
     - export LD_LIBRARY_PATH=$HOME/lib:$LD_LIBRARY_PATH
+    - export MATPLOTLIBRC=$HOME/.matplotlib
 
     # Fix a directory name in 3.x installations so boost can find it.
     - if test -d $PYHOME/include/python${TRAVIS_PYTHON_VERSION}m; then ln -s $PYHOME/include/python${TRAVIS_PYTHON_VERSION}m $PYHOME/include/python${TRAVIS_PYTHON_VERSION}; fi
@@ -75,13 +76,14 @@ cache:
 
 install:
     - ls
+    - cp -r tests/.matplotlib $HOME
     - travis_wait 30 pip install -r requirements.txt
     - python setup.py install --prefix=$PYHOME
 
 script:
     - cd tests
     #- "nosetests test*.py --with-coverage --cover-package=piff --with-doctest --cover-erase"
-    - "nosetests -vs"
+    - "nosetests -v"
 
 after_success:
     - coverage combine .
