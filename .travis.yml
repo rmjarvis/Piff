@@ -78,6 +78,8 @@ cache:
     - $HOME/boost_1_61_0
 
 install:
+    - pip install -r requirements.txt
+    - pip install nose codecov
     # Do the matplotlib build before going into nosetests
     - python -c "import matplotlib"
     # Check treecorr import
@@ -86,8 +88,6 @@ install:
     - python -c "import treecorr"
     - ls
     - cp -r tests/.matplotlib $HOME
-    - pip install -r requirements.txt
-    - pip install nose codecov
     - python setup.py install --prefix=$PYHOME
 
 script:
