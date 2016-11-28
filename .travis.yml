@@ -82,18 +82,16 @@ install:
     - pip install -r requirements.txt
     - pip install nose codecov
     # Do the matplotlib build before going into nosetests
-    - sudo python -c "import matplotlib.pyplot"
+    - python -c "import matplotlib.pyplot"
     # Copy the .matplotlib directory to $HOME to force Agg backend.
     - cp -r tests/.matplotlib $HOME
-    - python setup.py install --prefix=$PYHOME
 
 script:
+    - python setup.py install --prefix=$PYHOME
     - cd tests
-    - "nosetests test*.py --with-coverage --cover-package=piff --with-doctest --cover-erase"
+    - nosetests --with-coverage --cover-package=piff --with-doctest
 
 after_success:
-    - coverage combine .
-    - coverage xml
     - codecov
 
 before_cache:
