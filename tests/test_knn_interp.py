@@ -183,15 +183,14 @@ def test_decam_wavefront():
     file_name = 'wavefront_test/Science-20121120s1-v20i2.fits'
     extname = 'Science-20121120s1-v20i2'
 
-    print('file_name = ',file_name)
-    print('extname = ',extname)
-    logger = piff.config.setup_logger(verbose=3)
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(verbose=2)
+    else:
+        logger = None
     knn = piff.des.DECamWavefront(file_name, extname, logger=logger)
-    print('knn = ',knn)
 
     n_samples = 2000
     ccdnums = np.random.randint(1, 63, n_samples)
-    print('made ccdnums')
 
     star_list = []
     for ccdnum in ccdnums:
@@ -209,32 +208,26 @@ def test_decam_wavefront():
 
         star = piff.Star(stardata, None)
         star_list.append(star)
-    print('made star_list')
 
     # get the focal positions
     star_list = piff.des.DECamInfo().pixel_to_focalList(star_list)
-    print('converted to focal')
 
     star_list_predicted = knn.interpolateList(star_list)
-    print('made predicted')
 
     # test misalignment
     misalignment = {'z04d': 10, 'z10x': 10, 'z09y': -10}
     knn.misalign_wavefront(misalignment)
     star_list_misaligned = knn.interpolateList(star_list)
-    print('made misaligned')
 
     # test the prediction algorithm
     y_predicted = np.array([knn.getFitProperties(s) for s in star_list_predicted])
     y_misaligned = np.array([knn.getFitProperties(s) for s in star_list_misaligned])
     X = np.array([knn.getProperties(s) for s in star_list])
-    print('made knn properties')
 
     # check the misalignments work
     np.testing.assert_array_almost_equal(y_predicted[:,0], y_misaligned[:,0] - misalignment['z04d'])
     np.testing.assert_array_almost_equal(y_predicted[:,5], y_misaligned[:,5] - misalignment['z09y'] * X[:,0])
     np.testing.assert_array_almost_equal(y_predicted[:,6], y_misaligned[:,6] - misalignment['z10x'] * X[:,1])
-    print('done')
 
 
 def test_decam_disk():
