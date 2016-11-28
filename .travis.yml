@@ -32,9 +32,10 @@ before_install:
     - if test -d $PYHOME/include/python${TRAVIS_PYTHON_VERSION}m; then ln -s $PYHOME/include/python${TRAVIS_PYTHON_VERSION}m $PYHOME/include/python${TRAVIS_PYTHON_VERSION}; fi
 
     # Only get TMV if not cached
+    - pushd $HOME
     - if ! test -d tmv-0.73 || ! test -f tmv-0.73/SConstruct; then wget https://github.com/rmjarvis/tmv/archive/v0.73.tar.gz && tar -xf v0.73.tar.gz ; else echo Using cached TMV; fi
     # But always install it to /usr/local
-    - pushd tmv-0.73
+    - cd tmv-0.73
     - sudo scons install
     - popd
 
@@ -49,8 +50,9 @@ before_install:
     - travis_wait 30 pip install numpy astropy==1.1.1 future pyyaml
 
     # Only get GalSim if not cached
+    - pushd $HOME
     - if ! test -d GalSim-1.4.2 || ! test -f GalSim-1.4.2/SConstruct; then wget https://github.com/GalSim-developers/GalSim/archive/v1.4.2.tar.gz && tar -xf v1.4.2.tar.gz ; else echo Using cached GalSim; fi
-    - pushd GalSim-1.4.2
+    - cd GalSim-1.4.2
     # This lets scons work even on Python 3 builds
     # cf. https://github.com/travis-ci/travis-ci/issues/5961
     - source $HOME/virtualenv/python2.7/bin/activate
@@ -62,8 +64,9 @@ before_install:
     - popd
 
     # Workaround for fitsio bug that has been fixed on master, but not pip yet.
+    - pushd $HOME
     - git clone https://github.com/esheldon/fitsio.git
-    - pushd fitsio
+    - cd fitsio
     - python setup.py install --prefix=$PYHOME
     - popd
 
