@@ -336,7 +336,8 @@ dist = setup(name="Piff",
       )
 
 # Check that the path includes the directory where the scripts are installed.
-if dist.script_install_dir not in os.environ['PATH'].split(':'):
+if (dist.script_install_dir not in os.environ['PATH'].split(':') and
+    os.path.realpath(dist.script_install_dir) not in os.environ['PATH'].split(':')):
     print('\nWARNING: The Piff executables were installed in a directory not in your PATH')
     print('         If you want to use the executables, you should add the directory')
     print('\n             ',dist.script_install_dir,'\n')
