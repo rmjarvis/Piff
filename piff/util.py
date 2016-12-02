@@ -62,7 +62,7 @@ def make_dtype(key, value):
         # Note: this works for either arrays or strings
         size = len(value)
         t = type(value[0])
-    except:
+    except TypeError:
         size = 0
         t = type(value)
     dt = np.dtype(t) # just used to categorize the type into int, float, str
@@ -152,12 +152,12 @@ def read_kwargs(fits, extname):
         try:
             value = str(value.decode())
             kwargs[key] = value
-        except:
+        except AttributeError:
             # Also convert arrays of bytes into arrays of strings.
             try:
                 value = np.array([str(v.decode()) for v in value])
                 kwargs[key] = value
-            except:
+            except (AttributeError, TypeError):
                 pass
     return kwargs
 
