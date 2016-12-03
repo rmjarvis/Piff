@@ -287,7 +287,7 @@ ext=Extension("piff._piff",
               depends=headers,
               undef_macros = undef_macros)
 
-dependencies = ['numpy', 'scipy', 'matplotlib', 'fitsio', 'treecorr', 'sklearn', 'lmfit']
+dependencies = ['numpy', 'scipy', 'matplotlib', 'fitsio', 'treecorr', 'scikit-learn>=0.18', 'sklearn', 'lmfit']
 
 try:
     import galsim
