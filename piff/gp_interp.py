@@ -36,7 +36,7 @@ class GPInterp(Interp):
     def __init__(self, attr_interp=None, kernel=None, optimizer='fmin_l_bfgs_b', npca=0,
                  logger=None):
         from sklearn.gaussian_process import GaussianProcessRegressor
-        if isinstance(kernel, basestring):
+        if isinstance(kernel, str):
             kernel = self._eval_kernel(kernel)
 
         if attr_interp is None:

@@ -110,7 +110,7 @@ def make_constant_psf_params(ntrain, nvalidate, nvisualize):
 def make_polynomial_psf_params(ntrain, nvalidate, nvisualize):
     """ Make training/testing data for PSF with params varying as polynomials.
     """
-    bd = galsim.BaseDeviate(5772156649+3141159)
+    bd = galsim.BaseDeviate(5772156649+314159)
     ud = galsim.UniformDeviate(bd)
 
     training_data = np.recarray((ntrain,), dtype=star_type)
@@ -195,7 +195,7 @@ def make_grf_psf_params(ntrain, nvalidate, nvisualize):
     np.random.seed(1234567890)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        params['hlr'] = np.random.multivariate_normal([0]*ntotal, cov)*0.05+0.4
+        params['hlr'] = np.random.multivariate_normal([0]*ntotal, cov)*0.05+0.6
         params['g1'] = np.random.multivariate_normal([0]*ntotal, cov)*0.05
         params['g2'] = np.random.multivariate_normal([0]*ntotal, cov)*0.05
         params['u0'] = np.random.multivariate_normal([0]*ntotal, cov)*0.3
@@ -440,8 +440,18 @@ def validate(validate_stars, interp):
         print()
         print('max image abs diff = ',np.max(np.abs(s1.image.array-s0.image.array)))
         print('max image abs value = ',np.max(np.abs(s0.image.array)))
-        print('min rtol = ', np.max(np.abs(s1.image.array - s0.image.array)/np.abs(s0.image.array)))
-        np.testing.assert_allclose(s1.image.array, s0.image.array, rtol=2e-2)
+        print('min rtol = ', np.max(np.abs(s1.image.array - s0.image.array)/s0.image.array.max()))
+        np.testing.assert_allclose(s1.image.array, s0.image.array,
+                                   rtol=0, atol=s0.image.array.max()*0.01)
+
+        if False:
+            import matplotlib.pyplot as plt
+            fig, axes = plt.subplots(1, 3)
+            axes[0].imshow(s0.image.array)
+            axes[1].imshow(s1.image.array)
+            axes[2].imshow(s1.image.array - s0.image.array)
+            plt.show()
+
 
 
 def check_gp(training_data, validation_data, visualization_data,
