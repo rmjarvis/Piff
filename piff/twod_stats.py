@@ -150,13 +150,21 @@ class TwoDHistStats(Stats):
 
         :returns: fig, ax
         """
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore")
-            import matplotlib
-            matplotlib.use('Agg')
-            import matplotlib.pyplot as plt
+        from matplotlib.figure import Figure
+        fig = Figure(figsize=(12,9))
+        # In matplotlib 2.0, this will be
+        # axs = fig.subplots(ncols=3, nrows=3)
+        axs = [[ fig.add_subplot(3,3,1),
+                 fig.add_subplot(3,3,2),
+                 fig.add_subplot(3,3,3) ],
+               [ fig.add_subplot(3,3,4),
+                 fig.add_subplot(3,3,5),
+                 fig.add_subplot(3,3,6) ],
+               [ fig.add_subplot(3,3,7),
+                 fig.add_subplot(3,3,8),
+                 fig.add_subplot(3,3,9) ]]
+        axs = np.array(axs, dtype=object)
 
-        fig, axs = plt.subplots(ncols=3, nrows=3, figsize=(12, 9))
         # left column gets the Y coordinate label
         axs[0, 0].set_ylabel('v')
         axs[1, 0].set_ylabel('v')
@@ -264,8 +272,6 @@ class TwoDHistStats(Stats):
         ax.set_ylim(min(self.bins_v), max(self.bins_v))
         fig.colorbar(IM, ax=ax)
 
-        plt.tight_layout()
-
         return fig, axs
 
     def _array_to_2dhist(self, z, indx_u, indx_v, unique_indx):
@@ -284,21 +290,17 @@ class TwoDHistStats(Stats):
         return C
 
     def _shift_cmap(self, vmin, vmax):
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore")
-            import matplotlib
-            matplotlib.use('Agg')
-            import matplotlib.pyplot as plt
+        from matplotlib import cm
         midpoint = (0 - vmin) / (vmax - vmin)
 
         # if b <= 0, then we want Blues_r
         if vmax <= 0:
-            return plt.cm.Blues_r
+            return cm.Blues_r
         # if a >= 0, then we want Reds
         elif vmin >= 0:
-            return plt.cm.Reds
+            return cm.Reds
         else:
-            return self._shiftedColorMap(plt.cm.RdBu_r, midpoint=midpoint)
+            return self._shiftedColorMap(cm.RdBu_r, midpoint=midpoint)
 
     def _shiftedColorMap(self, cmap, start=0, midpoint=0.5, stop=1.0,
                          name='shiftedcmap'):
@@ -330,12 +332,8 @@ class TwoDHistStats(Stats):
               Defaults to 1.0 (no upper ofset). Should be between
               `midpoint` and 1.0.
         '''
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore")
-            import matplotlib
-            matplotlib.use('Agg')
-            import matplotlib.pyplot as plt
-            from matplotlib.colors import LinearSegmentedColormap
+        from matplotlib.colors import LinearSegmentedColormap
+        from matplotlib import cm
         cdict = {
             'red': [],
             'green': [],
@@ -367,7 +365,7 @@ class TwoDHistStats(Stats):
         newcmap.set_over(color='m', alpha=0.75)
         newcmap.set_under(color='c', alpha=0.75)
 
-        plt.register_cmap(cmap=newcmap)
+        cm.register_cmap(cmap=newcmap)
 
         return newcmap
 
@@ -510,13 +508,19 @@ class WhiskerStats(Stats):
 
         :returns: fig, ax
         """
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore")
-            import matplotlib
-            matplotlib.use('Agg')
-            import matplotlib.pyplot as plt
+        from matplotlib.figure import Figure
+        fig = Figure()
+        # In matplotlib 2.0, this will be
+        # axs = fig.subplots(1, 2, sharey=True, subplot_kw={'aspect' : 'equal'})
+        ax0 = fig.add_subplot(1,2,1, aspect='equal')
+        ax1 = fig.add_subplot(1,2,2, sharey=ax0, aspect='equal')
 
-        fig, axs = plt.subplots(1, 2, sharey=True, subplot_kw={'aspect' : 'equal'})
+        for label in ax1.get_yticklabels():
+            label.set_visible(False)
+        ax1.yaxis.offsetText.set_visible(False)
+
+        axs = np.array([ax0, ax1], dtype=object)
+
         axs[0].set_xlabel('u')
         axs[0].set_ylabel('v')
         axs[1].set_xlabel('u')
@@ -563,8 +567,6 @@ class WhiskerStats(Stats):
         # quiverkey
         ax.quiverkey(Q, 0.90, 0.10, 0.03, 'de = 0.03', coordinates='axes', color='darkred',
                      labelcolor='darkred', labelpos='S')
-
-        plt.tight_layout()
 
         return fig, axs
 
