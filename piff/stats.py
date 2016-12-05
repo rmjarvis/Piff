@@ -402,7 +402,7 @@ class RhoStats(Stats):
         self.rho5 = treecorr.GGCorrelation(self.tckwargs)
         self.rho5.process(cat_g, cat_gdTT)
 
-    def alt_plot(self, logger=None, **kwargs):
+    def alt_plot(self, logger=None, **kwargs):  # pragma: no cover
         # Leaving this version here in case useful, but I (MJ) have a new version of this
         # below based on the figures I made for the DES SV shear catalog paper that I think
         # looks a bit nicer.
