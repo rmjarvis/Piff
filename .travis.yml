@@ -65,7 +65,7 @@ before_install:
 
     # Workaround for fitsio bug that has been fixed on master, but not pip yet.
     - pushd $HOME
-    - git clone https://github.com/esheldon/fitsio.git
+    - if ! test -d fitsio || ! test -f fitsio/setup.py; then git clone https://github.com/esheldon/fitsio.git ; else echo Using cached fitsio; fi
     - cd fitsio
     - python setup.py install --prefix=$PYHOME
     - popd
@@ -74,9 +74,9 @@ cache:
     pip: true
     directories:
     - $HOME/GalSim-1.4.2
+    - $HOME/fitsio
     - $HOME/tmv-0.73
     - $HOME/boost_1_61_0
-    - $HOME/.cache
     - $HOME/.matplotlib
 
 install:
