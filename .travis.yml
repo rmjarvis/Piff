@@ -76,7 +76,8 @@ cache:
     - $HOME/GalSim-1.4.2
     - $HOME/tmv-0.73
     - $HOME/boost_1_61_0
-    - $HOME/.cache/matplotlib
+    - $HOME/.cache
+    - $HOME/.matplotlib
 
 install:
     - pip install -r requirements.txt
