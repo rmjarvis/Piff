@@ -117,6 +117,9 @@ class Stats(object):
         :param logger:      A logger object for logging debug info. [default: None]
         :param **kwargs:    Optionally, provide extra kwargs for the matplotlib plot command.
         """
+        # Note: don't import matplotlib.pyplot, since that can mess around with the user's
+        # pyplot state.  Better to do everything with the matplotlib object oriented API.
+        # cf. http://www.dalkescientific.com/writings/diary/archive/2005/04/23/matplotlib_without_gui.html
         from matplotlib.backends.backend_agg import FigureCanvasAgg
 
         if logger:
