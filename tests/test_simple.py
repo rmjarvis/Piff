@@ -88,16 +88,16 @@ def test_Mean():
     even qualifies as doing any kind of interpolating.  But it tests the basic glue software.
     """
     # Make a list of parameter vectors to "interpolate"
-    np.random.seed(123)
+    np_rng = np.random.RandomState(1234)
     nstars = 100
-    vectors = [ np.random.random(10) for i in range(nstars) ]
+    vectors = [ np_rng.random_sample(10) for i in range(nstars) ]
     mean = np.mean(vectors, axis=0)
     print('mean = ',mean)
 
     # Make some dummy StarData objects to use.  The only thing we really need is the properties,
     # although for the Mean interpolator, even this is ignored.
     target_data = [
-            piff.Star.makeTarget(x=np.random.random()*2048, y=np.random.random()*2048).data
+            piff.Star.makeTarget(x=np_rng.random_sample()*2048, y=np_rng.random_sample()*2048).data
             for i in range(nstars) ]
     fit = [ piff.StarFit(v) for v in vectors ]
     stars = [ piff.Star(d, f) for d,f in zip(target_data,fit) ]
