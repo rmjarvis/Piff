@@ -132,10 +132,21 @@ class SimplePSF(PSF):
             if logger:
                 logger.warning("Iteration %d: Fitting %d stars", iteration+1, len(self.stars))
 
-            if quadratic_chisq:
-                self.stars = [self.model.chisq(s) for s in self.stars]
-            else:
-                self.stars = [self.model.fit(s) for s in self.stars]
+            fit_fn = self.model.chisq if quadratic_chisq else self.model.fit
+
+            nremoved = 0
+            new_stars = []
+            for s in self.stars:
+                try:
+                    new_star = fit_fn(s, logger=logger)
+                except:
+                    if logger:
+                        logger.warn("Error trying to fit star at %s.  Excluding it.",
+                                    s.image_pos)
+                    nremoved += 1
+                else:
+                    new_stars.append(new_star)
+            self.stars = new_stars
 
             if logger:
                 logger.debug("             Calculating the interpolation")
@@ -145,7 +156,6 @@ class SimplePSF(PSF):
             if logger:
                 logger.debug("             Re-fluxing stars")
 
-            nremoved = 0
             if hasattr(self.model, 'reflux'):
                 new_stars = []
                 for s in self.stars:
@@ -155,7 +165,7 @@ class SimplePSF(PSF):
                         if logger:
                             logger.warn("Error trying to reflux star at %s.  Excluding it.",
                                         s.image_pos)
-                        nremoved = nremoved + 1
+                        nremoved += 1
                     else:
                         new_stars.append(new_star)
                 self.stars = new_stars
@@ -170,7 +180,7 @@ class SimplePSF(PSF):
                         logger.debug("             No outliers found")
                     else:
                         logger.info("             Removed %d outliers", nremoved1)
-                nremoved = nremoved + nremoved1
+                nremoved += nremoved1
 
             chisq = np.sum([s.fit.chisq for s in self.stars])
             dof   = np.sum([s.fit.dof for s in self.stars])
@@ -231,4 +241,3 @@ class SimplePSF(PSF):
             self.outliers = Outliers.read(fits, extname + '_outliers')
         else:
             self.outliers = None
-
