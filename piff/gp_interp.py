@@ -104,8 +104,7 @@ class GPInterp(Interp):
         :param stars:   A list of Star instances to interpolate between
         :param logger:  A logger object for logging debug info. [default: None]
         """
-        self.solve(stars, logger=logger)
-        return self.interpolateList(stars)
+        return stars
 
     def solve(self, stars=None, logger=None):
         """Set up the GaussianProcessRegressor to be able to predict.
