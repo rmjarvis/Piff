@@ -19,10 +19,8 @@
 from __future__ import print_function
 
 import numpy as np
-import fitsio
 
-from .star import Star, StarFit, StarData
-from .model import Model
+from .model import Model, ModelFitError
 from .interp import Interp
 from .outliers import Outliers
 from .psf import PSF
@@ -139,7 +137,7 @@ class SimplePSF(PSF):
             for s in self.stars:
                 try:
                     new_star = fit_fn(s, logger=logger)
-                except:
+                except ModelFitError:
                     if logger:
                         logger.warn("Error trying to fit star at %s.  Excluding it.",
                                     s.image_pos)
