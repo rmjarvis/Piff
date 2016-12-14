@@ -26,12 +26,11 @@ class kNNInterp(Interp):
     An interpolator that uses sklearn KNeighborsRegressor to interpolate a
     single surface
     """
-    def __init__(self, attr_interp, attr_target, n_neighbors=15, weights='uniform', algorithm='auto',
+    def __init__(self, attr_interp, n_neighbors=15, weights='uniform', algorithm='auto',
                  p=2,logger=None):
         """Create the kNN interpolator
 
         :param attr_interp: A list of star attributes to interpolate from
-        :param attr_target: A list of star attributes to interpolate to
         :param n_neighbors: Number of neighbors used for interpolation. [default: 15]
         :param weights:     Weight function used in prediction. Possible values are 'uniform', 'distance', and a callable function which accepts an array of distances and returns an array of the same shape containing the weights. [default: 'uniform']
         :param algorithm:   Algorithm used to compute nearest neighbors. Possible values are 'ball_tree', 'kd_tree', 'brute', and 'auto', which tries to determine the best choice. [default: 'auto']
@@ -41,7 +40,6 @@ class kNNInterp(Interp):
 
         self.kwargs = {
             'attr_interp': attr_interp,
-            'attr_target': attr_target,
             }
         self.knr_kwargs = {
             'n_neighbors': n_neighbors,
@@ -52,12 +50,9 @@ class kNNInterp(Interp):
         self.kwargs.update(self.knr_kwargs)
 
         self.attr_interp = attr_interp
-        self.attr_target = attr_target
 
-        self.knn = {}
         from sklearn.neighbors import KNeighborsRegressor
-        for target in self.attr_target:
-            self.knn[target] = KNeighborsRegressor(**self.knr_kwargs)
+        self.knn = KNeighborsRegressor(**self.knr_kwargs)
 
     def _fit(self, locations, targets, logger=None):
         """Update the Neighbors Regressor with data
@@ -67,10 +62,7 @@ class kNNInterp(Interp):
         :param targets:     The target values. (n_samples, n_targets).
                             (In sklearn parlance, this is 'y'.)
         """
-        for key, yi in zip(self.attr_target, targets.T):
-            self.knn[key].fit(locations, yi)
-        if logger:
-            logger.debug('knn updated to keys: %s', self.knn.keys())
+        self.knn.fit(locations, targets)
         self.locations = locations
         if logger:
             logger.debug('locations updated to shape: %s', self.locations.shape)
@@ -86,7 +78,7 @@ class kNNInterp(Interp):
 
         :returns:   Regressed parameters y (n_samples, n_targets)
         """
-        regression = np.array([self.knn[key].predict(locations) for key in self.attr_target]).T
+        regression = self.knn.predict(locations)
         if logger:
             logger.debug('Regression shape: %s', regression.shape)
         return regression
@@ -103,18 +95,6 @@ class kNNInterp(Interp):
         """
         return np.array([star.data[key] for key in self.attr_interp])
 
-    def getFitProperties(self, star, logger=None):
-        """Extract the appropriate properties to use as the dependent variables for the
-        interpolation.
-
-        Take self.attr_target from star.fit
-
-        :param star:    A Star instances from which to extract the properties to use.
-
-        :returns:       A np vector of these properties.
-        """
-        return np.array([star.fit.params[key] for key in self.attr_target])
-
     def initialize(self, stars, logger=None):
         """Initialize both the interpolator to some state prefatory to any solve iterations and
         initialize the stars for use with this interpolator.
@@ -122,8 +102,7 @@ class kNNInterp(Interp):
         :param stars:   A list of Star instances to interpolate between
         :param logger:      A logger object for logging debug info. [default: None]
         """
-        self.solve(stars, logger=logger)
-        return self.interpolateList(stars)
+        return stars
 
     def solve(self, star_list, logger=None):
         """Solve for the interpolation coefficients given stars and attributes
@@ -132,7 +111,7 @@ class kNNInterp(Interp):
         :param logger:      A logger object for logging debug info. [default: None]
         """
         locations = np.array([self.getProperties(star) for star in star_list])
-        targets = np.array([self.getFitProperties(star) for star in star_list])
+        targets = np.array([star.fit.params for star in star_list])
         self._fit(locations, targets)
 
     def interpolate(self, star, logger=None):
@@ -156,7 +135,6 @@ class kNNInterp(Interp):
         """
 
         locations = np.array([self.getProperties(star) for star in star_list])
-        # targets = np.array([self.getFitProperties(star) for star in star_list])
         targets = self._predict(locations)
         star_list_fitted = []
         for yi, star in zip(targets, star_list):
@@ -167,7 +145,7 @@ class kNNInterp(Interp):
                     fit = star.fit.newParams(yi)
                 except TypeError:
                     if logger:
-                        logger.info('Warning, stars interpolated to fewer params! %s', len(fit))
+                        logger.info('Warning, stars interpolated to wrong number of params! %s', len(fit))
                     fit = StarFit(yi)
             star_list_fitted.append(Star(star.data, fit))
         return star_list_fitted

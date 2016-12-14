@@ -54,7 +54,6 @@ class DECamWavefront(kNNInterp):
         # wavefront model!
         self.attr_interp = ['focal_x', 'focal_y']
         self.attr_target_wavefront = ['z{0}'.format(zi) for zi in range(self.z_min, self.z_max + 1)]
-        self.attr_target = range(0, self.z_max + 1 - self.z_min)
 
         self.kwargs = {
             'file_name': file_name,
@@ -69,10 +68,8 @@ class DECamWavefront(kNNInterp):
             }
         self.kwargs.update(self.knr_kwargs)
 
-        self.knn = {}
         from sklearn.neighbors import KNeighborsRegressor
-        for target in self.attr_target:
-            self.knn[target] = KNeighborsRegressor(**self.knr_kwargs)
+        self.knn = KNeighborsRegressor(**self.knr_kwargs)
         if logger:
             logger.debug("Made regressor")
 
@@ -147,7 +144,7 @@ class DECamWavefront(kNNInterp):
         """
         if np.shape(targets) == ():
             # if no y, then interpolate
-            targets = np.array([self.knn[key].predict(locations) for key in self.attr_target]).T
+            targets = self.knn.predict(locations)
         if logger:
             logger.debug('Regression shape: %s', targets.shape)
         # add misalignment shape (n_targets, 3)
