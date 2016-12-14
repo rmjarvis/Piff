@@ -17,7 +17,7 @@
 """
 
 from .interp import Interp
-from .star import Star, StarFit, StarData
+from .star import Star, StarFit
 
 import numpy as np
 
@@ -26,11 +26,11 @@ class kNNInterp(Interp):
     An interpolator that uses sklearn KNeighborsRegressor to interpolate a
     single surface
     """
-    def __init__(self, attr_interp, n_neighbors=15, weights='uniform', algorithm='auto',
+    def __init__(self, keys=('u','v'), n_neighbors=15, weights='uniform', algorithm='auto',
                  p=2,logger=None):
         """Create the kNN interpolator
 
-        :param attr_interp: A list of star attributes to interpolate from
+        :param keys:        A list of star attributes to interpolate from [default: ('u', 'v')]
         :param n_neighbors: Number of neighbors used for interpolation. [default: 15]
         :param weights:     Weight function used in prediction. Possible values are 'uniform', 'distance', and a callable function which accepts an array of distances and returns an array of the same shape containing the weights. [default: 'uniform']
         :param algorithm:   Algorithm used to compute nearest neighbors. Possible values are 'ball_tree', 'kd_tree', 'brute', and 'auto', which tries to determine the best choice. [default: 'auto']
@@ -39,7 +39,7 @@ class kNNInterp(Interp):
         """
 
         self.kwargs = {
-            'attr_interp': attr_interp,
+            'keys': keys,
             }
         self.knr_kwargs = {
             'n_neighbors': n_neighbors,
@@ -49,7 +49,7 @@ class kNNInterp(Interp):
             }
         self.kwargs.update(self.knr_kwargs)
 
-        self.attr_interp = attr_interp
+        self.keys = keys
 
         from sklearn.neighbors import KNeighborsRegressor
         self.knn = KNeighborsRegressor(**self.knr_kwargs)
@@ -87,13 +87,13 @@ class kNNInterp(Interp):
         """Extract the appropriate properties to use as the independent variables for the
         interpolation.
 
-        Take self.attr_interp from star.data
+        Take self.keys from star.data
 
         :param star:    A Star instances from which to extract the properties to use.
 
         :returns:       A np vector of these properties.
         """
-        return np.array([star.data[key] for key in self.attr_interp])
+        return np.array([star.data[key] for key in self.keys])
 
     def initialize(self, stars, logger=None):
         """Initialize both the interpolator to some state prefatory to any solve iterations and

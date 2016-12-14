@@ -23,20 +23,19 @@ import fitsio
 
 from piff_test_helper import get_script_name
 
-attr_interp = ['focal_x', 'focal_y']
+keys = ['focal_x', 'focal_y']
 ntarget = 5
 
 def generate_data(n_samples=100):
     # generate as Norm(0, 1) for all parameters
-    X = np.random.normal(0, 1, size=(n_samples, len(attr_interp)))
+    X = np.random.normal(0, 1, size=(n_samples, len(keys)))
     y = np.random.normal(0, 1, size=(n_samples, ntarget))
 
     star_list = []
     for Xi, yi in zip(X, y):
         wcs = galsim.JacobianWCS(0.26, 0.05, -0.08, -0.29)
         image = galsim.Image(64,64, wcs=wcs)
-        # properties = {attr_interp[ith]: Xi[ith] for ith in range(len(attr_interp))}
-        properties = {k:v for k,v in zip(attr_interp, Xi)}
+        properties = {k:v for k,v in zip(keys, Xi)}
         stardata = piff.StarData(image, image.trueCenter(), properties=properties)
 
         # params = np.array([yi[ith] for ith in attr_target])
@@ -49,14 +48,14 @@ def generate_data(n_samples=100):
 
 def test_init():
     # make sure we can init the interpolator
-    knn = piff.kNNInterp(attr_interp)
+    knn = piff.kNNInterp(keys)
 
 def test_interp():
     # logger = piff.config.setup_logger(verbose=3, log_file='test_knn_interp.log')
     logger = None
     # make sure we can put in the data
     star_list = generate_data()
-    knn = piff.kNNInterp(attr_interp, n_neighbors=1)
+    knn = piff.kNNInterp(keys, n_neighbors=1)
     knn.initialize(star_list, logger=logger)
     knn.solve(star_list, logger=logger)
 
@@ -69,7 +68,7 @@ def test_interp():
 
     # predicted stars should find their exact partner here, so they have the same data
     np.testing.assert_array_equal(star_predicted.fit.params, star_predict.fit.params)
-    for attr in attr_interp:
+    for attr in keys:
         np.testing.assert_equal(star_predicted.data[attr], star_predict.data[attr])
 
     # repeat for a star with its starfit removed
@@ -80,7 +79,7 @@ def test_interp():
     # predicted stars should find their exact partner here, so they have the same data
     # removed the fit, so don't check that
     # np.testing.assert_array_equal(star_predicted.fit.params, star_predict.fit.params)
-    for attr in attr_interp:
+    for attr in keys:
         np.testing.assert_equal(star_predicted.data[attr], star_predict.data[attr])
 
 def test_yaml():
@@ -113,7 +112,7 @@ def test_yaml():
                         'fastfit': True,
                         'gsobj': 'galsim.Gaussian(sigma=1.0)' },
             'interp' : { 'type': 'kNNInterp',
-                         'attr_interp': ['u', 'v'],
+                         'keys': ['u', 'v'],
                          'n_neighbors': 115,}
         },
         'output' : { 'file_name' : psf_file },
@@ -139,7 +138,7 @@ def test_yaml():
 def test_disk():
     # make sure reading and writing of data works
     star_list = generate_data()
-    knn = piff.kNNInterp(attr_interp, n_neighbors=2)
+    knn = piff.kNNInterp(keys, n_neighbors=2)
     knn.initialize(star_list)
     knn.solve(star_list)
     knn_file = os.path.join('output','knn_interp.fits')
@@ -148,7 +147,7 @@ def test_disk():
         knn2 = piff.kNNInterp.read(f, 'knn')
     np.testing.assert_array_equal(knn.locations, knn2.locations)
     np.testing.assert_array_equal(knn.targets, knn2.targets)
-    np.testing.assert_array_equal(knn.kwargs['attr_interp'], knn2.kwargs['attr_interp'])
+    np.testing.assert_array_equal(knn.kwargs['keys'], knn2.kwargs['keys'])
     np.testing.assert_equal(knn.knr_kwargs['n_neighbors'], knn2.knr_kwargs['n_neighbors'])
     np.testing.assert_equal(knn.knr_kwargs['algorithm'], knn2.knr_kwargs['algorithm'])
 
@@ -217,7 +216,7 @@ def test_decam_disk():
         knn2 = piff.des.DECamWavefront.read(f, 'decam_wavefront')
     np.testing.assert_array_equal(knn.locations, knn2.locations)
     np.testing.assert_array_equal(knn.targets, knn2.targets)
-    np.testing.assert_array_equal(knn.attr_interp, knn2.attr_interp)
+    np.testing.assert_array_equal(knn.keys, knn2.keys)
     np.testing.assert_array_equal(knn.misalignment, knn2.misalignment)
     assert knn.knr_kwargs['n_neighbors'] == knn2.knr_kwargs['n_neighbors'], 'n_neighbors not equal'
     assert knn.knr_kwargs['algorithm'] == knn2.knr_kwargs['algorithm'], 'algorithm not equal'

@@ -52,7 +52,7 @@ class DECamWavefront(kNNInterp):
         self.z_max = 11
         # these were kwargs in knn interp, but are no longer kwargs because they are fixed by our
         # wavefront model!
-        self.attr_interp = ['focal_x', 'focal_y']
+        self.keys = ['focal_x', 'focal_y']
         self.attr_target_wavefront = ['z{0}'.format(zi) for zi in range(self.z_min, self.z_max + 1)]
 
         self.kwargs = {
@@ -81,7 +81,7 @@ class DECamWavefront(kNNInterp):
         data = fits[extname].read()
         if logger:
             logger.debug("read data from fits file")
-        locations = np.array([data[attr] for attr in self.attr_interp]).T
+        locations = np.array([data[attr] for attr in self.keys]).T
         if logger:
             logger.debug("locations shape = %s",locations.shape)
         targets = np.array([data[attr] for attr in self.attr_target_wavefront]).T

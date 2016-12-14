@@ -21,11 +21,12 @@ from .star import Star, StarFit
 
 import numpy as np
 
+
 class GPInterp(Interp):
     """
     An interpolator that uses sklearn.gaussian_process to interpolate a single surface.
 
-    :param  attr_interp: A list of star attributes to interpolate from
+    :param  keys: A list of star attributes to interpolate from
     :param  kernel:      A Kernel object indicating how the different stars are correlated.
     :param  optimizer:   Optimizer to use for optimizing the kernel.  Set to `None` to skip
                          kernel optimization.
@@ -33,21 +34,18 @@ class GPInterp(Interp):
                          of PSF model into principal components.
     :param  logger:      A logger object for logging debug info. [default: None]
     """
-    def __init__(self, attr_interp=None, kernel=None, optimizer='fmin_l_bfgs_b', npca=0,
+    def __init__(self, keys=('u','v'), kernel=None, optimizer='fmin_l_bfgs_b', npca=0,
                  logger=None):
         from sklearn.gaussian_process import GaussianProcessRegressor
         if isinstance(kernel, str):
             kernel = self._eval_kernel(kernel)
 
-        if attr_interp is None:
-            attr_interp = ['u', 'v']
-
-        self.attr_interp = attr_interp
+        self.keys = keys
         self.kernel = kernel
         self.npca = npca
 
         self.kwargs = {
-            'attr_interp': attr_interp,
+            'keys': keys,
             'optimizer': optimizer,
             'npca': npca,
             'kernel': repr(kernel)
@@ -91,13 +89,13 @@ class GPInterp(Interp):
         """Extract the appropriate properties to use as the independent variables for the
         interpolation.
 
-        Take self.attr_interp from star.data
+        Take self.keys from star.data
 
         :param star:    A Star instances from which to extract the properties to use.
 
         :returns:       A np vector of these properties.
         """
-        return np.array([star.data[key] for key in self.attr_interp])
+        return np.array([star.data[key] for key in self.keys])
 
     def initialize(self, stars, logger=None):
         """Initialize both the interpolator to some state prefatory to any solve iterations and
