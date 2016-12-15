@@ -66,13 +66,13 @@ class GPInterp(Interp):
             out = []
             for c in cls.__subclasses__():
                 out.append(c)
-                out.extend(c.__subclasses__())
+                out.extend(recurse_subclasses(c))
             return out
         clses = recurse_subclasses(Kernel)
         for cls in clses:
             module = __import__(cls.__module__, globals(), locals(), cls)
             execstr = "{0} = module.{0}".format(cls.__name__)
-            exec(execstr)
+            exec(execstr, globals(), locals())
 
         from numpy import array
 
