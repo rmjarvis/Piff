@@ -1,7 +1,6 @@
 from __future__ import print_function
 import sys,os,glob,re
 
-
 try:
     from setuptools import setup, Extension, find_packages
     from setuptools.command.build_ext import build_ext
@@ -336,7 +335,9 @@ dist = setup(name="Piff",
       )
 
 # Check that the path includes the directory where the scripts are installed.
-if (dist.script_install_dir not in os.environ['PATH'].split(':') and
+# NB. If not running install, then script_install_dir won't be there...
+if (hasattr(dist,'script_install_dir') and
+    dist.script_install_dir not in os.environ['PATH'].split(':') and
     os.path.realpath(dist.script_install_dir) not in os.environ['PATH'].split(':')):
     print('\nWARNING: The Piff executables were installed in a directory not in your PATH')
     print('         If you want to use the executables, you should add the directory')
