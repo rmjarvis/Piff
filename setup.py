@@ -22,7 +22,7 @@ except ImportError:
         scheme['data'] = scheme['purelib']
     # cf. http://stackoverflow.com/questions/37350816/whats-distutils-equivalent-of-setuptools-find-packages-python
     from distutils.util import convert_path
-    def find_packages(base_path):
+    def find_packages(base_path='.'):
         base_path = convert_path(base_path)
         found = []
         for root, dirs, files in os.walk(base_path, followlinks=True):
