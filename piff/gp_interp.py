@@ -36,8 +36,8 @@ class GPInterp(Interp):
                          custom piff AnisotropicRBF or ExplicitKernel object.  [default: 'RBF()']
     :param  optimizer:   Optimizer to use for optimizing the kernel.  Set to `None` to skip
                          kernel optimization.
-    :param  npca:        Number of principal components to keep.  Set to `0` to skip decomposition
-                         of PSF model into principal components.
+    :param  npca:        Number of principal components to keep.  [default: 0, which means don't
+                         decompose PSF parameters into principle components]
     :param  logger:      A logger object for logging debug info. [default: None]
     """
     def __init__(self, keys=('u','v'), kernel='RBF()', optimizer='fmin_l_bfgs_b', npca=0,
@@ -125,7 +125,7 @@ class GPInterp(Interp):
         return stars
 
     def solve(self, stars=None, logger=None):
-        """Set up the GaussianProcessRegressor to be able to predict.
+        """Set up this GPInterp object.
 
         :param stars:    A list of Star instances to interpolate between
         :param logger:   A logger object for logging debug info. [default: None]
