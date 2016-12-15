@@ -563,6 +563,13 @@ def test_grf_psf():
                  npca=npca, filename="test_explicit_grf.fits", rng=rng,
                  check_config=True)
 
+    # Try out an AnisotropicRBF on the isotropic data too.
+    kernel = "1*AnisotropicRBF(scale_length=[0.3, 0.3])"
+    kernel += " + WhiteKernel(1e-5)"
+    check_gp(training_data, validation_data, visualization_data, kernel,
+             npca=0, optimizer='fmin_l_bfgs_b',
+             filename="test_aniso_isotropic_grf.fits", rng=rng)
+
 
 def test_anisotropic_rbf_kernel():
     rng = galsim.BaseDeviate(5867943)
@@ -641,9 +648,24 @@ def test_yaml():
 
     # Doesn't actually check results, just checks that everything runs.
 
+
+def test_anisotropic_limit():
+    """Test that AnisotropicRBF with isotropic covariance equals RBF"""
+
+    kernel1 = "RBF(0.45)"
+    kernel2 = "AnisotropicRBF(scale_length=[0.45, 0.45])"
+
+    gp1 = piff.GPInterp(kernel=kernel1)
+    gp2 = piff.GPInterp(kernel=kernel2)
+
+    X = np.random.rand(1000, 2)
+    np.testing.assert_allclose(gp1.gp.kernel(X), gp2.gp.kernel(X))
+
+
 if __name__ == '__main__':
     test_constant_psf()
     test_polynomial_psf()
     test_grf_psf()
     test_anisotropic_rbf_kernel()
     test_yaml()
+    test_anisotropic_limit()

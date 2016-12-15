@@ -260,12 +260,23 @@ class AnisotropicRBF(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
     part of the Cholesky matrix.  This parameterization invertably maps all valid n x n
     covariance matrices to R^(n*(n+1)/2).  I.e., the range of each theta[i] is -inf ... inf.
 
-    :param  invLam:  Inverse covariance matrix of radial basis function.
-    :param  bounds:  Optional keyword indicating fitting bounds on *theta*.  Can either a 2-element
-                     iterable, which will be taken to be the min and max value for every theta
-                     element, or an [ntheta, 2] array indicating bounds on each of ntheta elements.
+    :param  invLam:  Inverse covariance matrix of radial basis function.  Exactly one of invLam and
+                     scale_length must be provided.
+    :param  scale_length:  Axes-aligned scale lengths of the kernel.  len(scale_length) must be the
+                     same as the dimensionality of the kernel, even if the scale length is the same
+                     for each axis (i.e., even if the kernel is isotropic).  Exactly one of invLam
+                     and scale_length must be provided.
+    :param  bounds:  Optional keyword indicating fitting bounds on *theta*.  Can either be a
+                     2-element iterable, which will be taken to be the min and max value for every
+                     theta element, or an [ntheta, 2] array indicating bounds on each of ntheta
+                     elements.
     """
-    def __init__(self, invLam, bounds=(-5,5)):
+    def __init__(self, invLam=None, scale_length=None, bounds=(-5,5)):
+        if scale_length is not None:
+            if invLam is not None:
+                raise TypeError("Cannot set both invLam and scale_length in AnisotropicRBF.")
+            invLam = np.diag(1./np.array(scale_length)**2)
+
         self.ndim = invLam.shape[0]
         self.ntheta = self.ndim*(self.ndim+1)//2
         self._d = np.diag_indices(self.ndim)
