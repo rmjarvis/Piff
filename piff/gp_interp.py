@@ -21,6 +21,9 @@ from .star import Star, StarFit
 
 import numpy as np
 
+from sklearn.gaussian_process.kernels import StationaryKernelMixin, NormalizedKernelMixin, Kernel
+from sklearn.gaussian_process.kernels import Hyperparameter
+
 
 class GPInterp(Interp):
     """
@@ -56,8 +59,23 @@ class GPInterp(Interp):
 
     @staticmethod
     def _eval_kernel(kernel):
-        from sklearn.gaussian_process.kernels import *
+        # Some import trickery to get all subclasses of sklearn.gaussian_process.kernels.Kernel
+        # into the local namespace without doing "from sklearn.gaussian_process.kernels import *"
+        # and without importing them all manually.
+        def recurse_subclasses(cls):
+            out = []
+            for c in cls.__subclasses__():
+                out.append(c)
+                out.extend(c.__subclasses__())
+            return out
+        clses = recurse_subclasses(Kernel)
+        for cls in clses:
+            module = __import__(cls.__module__, globals(), locals(), cls)
+            execstr = "{0} = module.{0}".format(cls.__name__)
+            exec(execstr)
+
         from numpy import array
+
         return eval(kernel)
 
     def _fit(self, X, y, logger=None):
@@ -176,9 +194,6 @@ class GPInterp(Interp):
         # Now that gp is setup, we can restore it's initial kernel.
         self.gp.kernel.theta = np.atleast_1d(data['INIT_THETA'][0])
 
-
-from sklearn.gaussian_process.kernels import StationaryKernelMixin, NormalizedKernelMixin, Kernel
-from sklearn.gaussian_process.kernels import Hyperparameter
 
 class ExplicitKernel(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
     """ A kernel that wraps an arbitrary python function.
