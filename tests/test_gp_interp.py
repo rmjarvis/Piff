@@ -17,7 +17,6 @@ import warnings
 import galsim
 import numpy as np
 import piff
-from sklearn.gaussian_process import kernels
 import os
 import fitsio
 
@@ -362,6 +361,7 @@ def display_old(training_data, vis_data, interp):
     plt.colorbar(resid)
     plt.show()
 
+
 def display(training_data, vis_data, interp):
     """Display training samples, true PSF, model PSF, and residual over field-of-view.
     """
@@ -453,7 +453,6 @@ def validate(validate_stars, interp):
             plt.show()
 
 
-
 def check_gp(training_data, validation_data, visualization_data,
              kernel, npca=0, optimizer=None, filename=None, rng=None,
              visualize=False):
@@ -467,11 +466,9 @@ def check_gp(training_data, validation_data, visualization_data,
     if visualize:
         display(training_data, visualization_data, interp)
     validate(validate_stars, interp)
-    # Check that we can write interp to disk and read back in.
 
-    # Can't do EmpericalKernel since it has an arbitrary python callable, which is hard to serialize
-    # in a fits file.  Maybe make an explicit LookupTable2DKernel?
-    if 'EmpiricalKernel' not in repr(interp.kernel) and filename is not None:
+    # Check that we can write interp to disk and read back in.
+    if filename is not None:
         testfile = os.path.join('output', filename)
         with fitsio.FITS(testfile, 'rw', clobber=True) as f:
             interp.write(f, 'interp')
@@ -479,7 +476,7 @@ def check_gp(training_data, validation_data, visualization_data,
             interp2 = piff.GPInterp.read(f, 'interp')
         print("Revalidating after i/o.")
         X = np.vstack([training_data['u'], training_data['v']]).T
-        np.testing.assert_allclose(interp.kernel(X), interp2.kernel(X))
+        np.testing.assert_allclose(interp.gp.kernel(X), interp2.gp.kernel(X))
         np.testing.assert_allclose(interp.gp.kernel.theta, interp2.gp.kernel.theta)
         np.testing.assert_allclose(interp.gp.kernel_.theta, interp2.gp.kernel_.theta)
         np.testing.assert_allclose(interp.gp.alpha_, interp2.gp.alpha_)
@@ -494,9 +491,9 @@ def test_constant_psf():
     training_data, validation_data, visualization_data = \
         make_constant_psf_params(ntrain, nvalidate, nvisualize)
 
-    kernel = 1*kernels.RBF(1.0, (1e-1, 1e3))
+    kernel = "1*RBF(1.0, (1e-1, 1e3))"
     # We probably aren't measuring fwhm, g1, g2, etc. to better than 1e-5...
-    kernel += kernels.WhiteKernel(1e-5, (1e-7, 1e-1))
+    kernel += " + WhiteKernel(1e-5, (1e-7, 1e-1))"
 
     for npca in [0, 2]:
         for optimizer in [None, 'fmin_l_bfgs_b']:
@@ -509,9 +506,11 @@ def test_polynomial_psf():
     ntrain, nvalidate, nvisualize = 200, 1, 21
     training_data, validation_data, visualization_data = \
         make_polynomial_psf_params(ntrain, nvalidate, nvisualize)
-    kernel = 1*kernels.RBF(0.3, (1e-1, 1e3))
-    # We probably aren't measuring fwhm, g1, g2, etc. to better than 1e-5...
-    kernel += kernels.WhiteKernel(1e-5, (1e-7, 1e-1))
+    kernel = "1*RBF(0.3, (1e-1, 1e3))"
+    # We probably aren't measuring fwhm, g1, g2, etc. to better than 1e-5, so add that amount of
+    # white noise
+    kernel += " + WhiteKernel(1e-5, (1e-7, 1e-1))"
+
     for npca in [0, 5]:
         for optimizer in [None, 'fmin_l_bfgs_b']:
             check_gp(training_data, validation_data, visualization_data, kernel,
@@ -523,31 +522,27 @@ def test_grf_psf():
     ntrain, nvalidate, nvisualize = 100, 1, 21
     training_data, validation_data, visualization_data = \
         make_grf_psf_params(ntrain, nvalidate, nvisualize)
-    kernel = 1*kernels.RBF(0.3, (1e-1, 1e1))
-    # We probably aren't measuring fwhm, g1, g2, etc. to better than 1e-5...
-    kernel += kernels.WhiteKernel(1e-5, (1e-7, 1e-1))
+
+    kernel = "1*RBF(0.3, (1e-1, 1e1))"
+    # We probably aren't measuring fwhm, g1, g2, etc. to better than 1e-5, so add that amount of
+    # white noise
+    kernel += " + WhiteKernel(1e-5, (1e-7, 1e-1))"
     for npca in [0, 5]:
         for optimizer in [None, 'fmin_l_bfgs_b']:
             check_gp(training_data, validation_data, visualization_data, kernel,
                      npca=npca, optimizer=optimizer, filename="test_gp_grf.fits", rng=rng)
 
-    # Check EmpiricalKernel here too
+    # Check ExplicitKernel here too
     #
     # We could in principal use any function of dx, dy here, for instance a galsim.LookupTable2D.
     # For simplicity, though, just assert a Gaussian == SquaredExponential with scale-length
     # of 0.3.
-    scale_length = 0.3
-    def fn(dx, dy):
-        return np.exp(-0.5*(dx**2+dy**2)/scale_length**2)
-    emp_kernel = piff.EmpiricalKernel(fn) + kernels.WhiteKernel(1e-5)
-    kernel = kernels.RBF(scale_length) + kernels.WhiteKernel(1e-5)
-    X = np.vstack([training_data['u'], training_data['v']]).T
-    np.testing.assert_allclose(emp_kernel(X), kernel(X))
-
-    # No optimizer loop, since EmpiricalKernel is not optimizable.
+    kernel = "ExplicitKernel('np.exp(-0.5*(du**2+dv**2)/0.3**2)')"
+    kernel += " + WhiteKernel(1e-5)"
+    # No optimizer loop, since ExplicitKernel is not optimizable.
     for npca in [0, 5]:
-        check_gp(training_data, validation_data, visualization_data, emp_kernel,
-                 npca=npca, rng=rng)
+        check_gp(training_data, validation_data, visualization_data, kernel,
+                 npca=npca, filename="test_explicit_grf.fits", rng=rng)
 
 
 def test_anisotropic_rbf_kernel():
@@ -560,8 +555,13 @@ def test_anisotropic_rbf_kernel():
     corr = 0.7
     cov = np.array([[var1, np.sqrt(var1*var2)*corr],
                     [np.sqrt(var1*var2)*corr, var2]])
-    kernel = (0.1*piff.AnisotropicRBF(invLam=np.linalg.inv(cov))
-              + kernels.WhiteKernel(1e-5, (1e-7, 1e-2)))
+    invLam = np.linalg.inv(cov)
+
+    kernel = "0.1*AnisotropicRBF(invLam={0!r})".format(invLam)
+    kernel += "+ WhiteKernel(1e-5, (1e-7, 1e-2))"
+
+    print(kernel)
+
     if __name__ == '__main__':
         npcas = [0, 5]
     else:

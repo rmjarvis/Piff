@@ -27,18 +27,19 @@ class GPInterp(Interp):
     An interpolator that uses sklearn.gaussian_process to interpolate a single surface.
 
     :param  keys: A list of star attributes to interpolate from
-    :param  kernel:      A Kernel object indicating how the different stars are correlated.
+    :param  kernel:      A string that can be `eval`ed to make a
+                         sklearn.gaussian_process.kernels.Kernel object.  The reprs of
+                         sklearn.gaussian_process.kernels will work, as well as the repr of a
+                         custom piff AnisotropicRBF or ExplicitKernel object.  [default: 'RBF()']
     :param  optimizer:   Optimizer to use for optimizing the kernel.  Set to `None` to skip
                          kernel optimization.
     :param  npca:        Number of principal components to keep.  Set to `0` to skip decomposition
                          of PSF model into principal components.
     :param  logger:      A logger object for logging debug info. [default: None]
     """
-    def __init__(self, keys=('u','v'), kernel=None, optimizer='fmin_l_bfgs_b', npca=0,
+    def __init__(self, keys=('u','v'), kernel='RBF()', optimizer='fmin_l_bfgs_b', npca=0,
                  logger=None):
         from sklearn.gaussian_process import GaussianProcessRegressor
-        if isinstance(kernel, str):
-            kernel = self._eval_kernel(kernel)
 
         self.keys = keys
         self.kernel = kernel
@@ -48,15 +49,14 @@ class GPInterp(Interp):
             'keys': keys,
             'optimizer': optimizer,
             'npca': npca,
-            'kernel': repr(kernel)
+            'kernel': kernel
         }
 
-        self.gp = GaussianProcessRegressor(self.kernel, optimizer=optimizer)
+        self.gp = GaussianProcessRegressor(self._eval_kernel(self.kernel), optimizer=optimizer)
 
     @staticmethod
     def _eval_kernel(kernel):
-        from sklearn.gaussian_process.kernels import WhiteKernel, RBF, Matern, RationalQuadratic
-        from sklearn.gaussian_process.kernels import ExpSineSquared, DotProduct, PairwiseKernel
+        from sklearn.gaussian_process.kernels import *
         from numpy import array
         return eval(kernel)
 
@@ -150,7 +150,7 @@ class GPInterp(Interp):
         # Note, we're only storing the training data and hyperparameters here, which means the
         # Cholesky decomposition will have to be re-computed when this object is read back from
         # disk.
-        init_theta = self.kernel.theta
+        init_theta = self.gp.kernel.theta
         fit_theta = self.gp.kernel_.theta
         dtypes = [('INIT_THETA', init_theta.dtype, init_theta.shape),
                   ('FIT_THETA', fit_theta.dtype, fit_theta.shape),
@@ -171,33 +171,46 @@ class GPInterp(Interp):
 
         # Run fit to set up GP, but don't actually do any hyperparameter optimization.  Just
         # set the GP up using the current hyperparameters.
-        self.gp.kernel.theta = data['FIT_THETA'][0]
+        self.gp.kernel.theta = np.atleast_1d(data['FIT_THETA'][0])
         optimizer = self.gp.optimizer
         self.gp.optimizer = None
         self._fit(data['X'][0], data['Y'][0])
         self.gp.optimizer = optimizer
         # Now that gp is setup, we can restore it's initial kernel.
-        self.gp.kernel.theta = self.kernel.theta = data['INIT_THETA'][0]
-
+        self.gp.kernel.theta = np.atleast_1d(data['INIT_THETA'][0])
 
 
 from sklearn.gaussian_process.kernels import StationaryKernelMixin, NormalizedKernelMixin, Kernel
 from sklearn.gaussian_process.kernels import Hyperparameter
 
-class EmpiricalKernel(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
-    """ A GaussianProcessRegressor Kernel that just wraps an arbitrary python function.
+class ExplicitKernel(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
+    """ A kernel that wraps an arbitrary python function.
 
-    :param  fn:  Python callable that accepts two numpy arrays indicating the differences in two
-                 covariates and returns a numpy array indicating the covariances implied by those
-                 differences.
+    :param  fn:  String that can be combined with 'lambda du,dv:' to eval into a lambda expression.
+                 For example, fn="np.exp(-0.5*np.sqrt(du**2+dv**2)/0.1**2)" would make a Gaussian
+                 kernel with scale length of 0.1.
     """
     def __init__(self, fn):
         self.fn = fn
-        assert self.fn(0, 0) == 1
+
+        self.kwargs = {
+            'fn': fn
+        }
+
+        self._fn = self._eval_fn(fn)
+        self.theta = []
+
+    @staticmethod
+    def _eval_fn(fn):
+        # Some potentially useful imports for the eval string.
+        import math
+        import numpy
+        import numpy as np
+        return eval("lambda du,dv:" + fn)
 
     def __call__(self, X, Y=None, eval_gradient=False):
         if eval_gradient:
-            raise RuntimeError("Cannot evaluate gradient for EmpiricalKernel.")
+            raise RuntimeError("Cannot evaluate gradient for ExplicitKernel.")
 
         X = np.atleast_2d(X)
         if Y is None:
@@ -206,7 +219,7 @@ class EmpiricalKernel(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
         # Only writen for 2D covariance at the moment
         xshift = np.subtract.outer(X[:,0], Y[:,0])
         yshift = np.subtract.outer(X[:,1], Y[:,1])
-        return self.fn(xshift, yshift)
+        return self._fn(xshift, yshift)
 
 
 class AnisotropicRBF(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
