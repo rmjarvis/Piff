@@ -275,7 +275,7 @@ class AnisotropicRBF(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
             K = np.exp(-0.5 * dists**2)
 
         if eval_gradient:
-            if self.hyperparameter_cho_factor.fixed:
+            if self.hyperparameter_cholesky_factor.fixed:
                 return K, np.empty((X.shape[0], X.shape[0], 0))
             else:
                 # dK_pq/dth_k = -0.5 * K_pq *
@@ -299,8 +299,8 @@ class AnisotropicRBF(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
             return K
 
     @property
-    def hyperparameter_cho_factor(self):
-        return Hyperparameter("ChoFactor", "numeric", (1e-5, 1e5), int(self.ntheta))
+    def hyperparameter_cholesky_factor(self):
+        return Hyperparameter("CholeskyFactor", "numeric", (1e-5, 1e5), int(self.ntheta))
 
     def get_params(self, deep=True):
         return {"invLam":self.invLam}
