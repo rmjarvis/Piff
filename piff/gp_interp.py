@@ -167,15 +167,12 @@ class GPInterp(Interp):
 
     def _finish_read(self, fits, extname):
         data = fits[extname+'_kernel'].read()
-        optimizer = self.gp.optimizer
-
         # Run fit to set up GP, but don't actually do any hyperparameter optimization.  Just
         # set the GP up using the current hyperparameters.
         self.gp.kernel.theta = np.atleast_1d(data['FIT_THETA'][0])
-        optimizer = self.gp.optimizer
-        self.gp.optimizer = None
+        old_optimizer, self.gp.optimizer = self.gp.optimizer, None
         self._fit(data['X'][0], data['Y'][0])
-        self.gp.optimizer = optimizer
+        self.gp.optimizer = old_optimizer
         # Now that gp is setup, we can restore it's initial kernel.
         self.gp.kernel.theta = np.atleast_1d(data['INIT_THETA'][0])
 
