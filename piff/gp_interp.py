@@ -76,7 +76,11 @@ class GPInterp(Interp):
 
         from numpy import array
 
-        return eval(kernel)
+        try:
+            k = eval(kernel)
+        except:
+            raise RuntimeError("Failed to evaluate kernel string {0!r}".format(kernel))
+        return k
 
     def _fit(self, X, y, logger=None):
         """Update the GaussianProcessRegressor with data
