@@ -18,8 +18,11 @@ import galsim
 import numpy as np
 import piff
 import os
+import subprocess
+import yaml
 import fitsio
 
+from piff_test_helper import get_script_name
 
 fiducial_kolmogorov = galsim.Kolmogorov(half_light_radius=1.0)
 mod = piff.GSObjectModel(fiducial_kolmogorov, force_model_center=False, include_pixel=False)
@@ -455,7 +458,7 @@ def validate(validate_stars, interp):
 
 def check_gp(training_data, validation_data, visualization_data,
              kernel, npca=0, optimizer=None, filename=None, rng=None,
-             visualize=False):
+             visualize=False, check_config=False):
     """ Solve for global PSF model, test it, and optionally display it.
     """
     stars = params_to_stars(training_data, noise=0.03, rng=rng)
@@ -466,6 +469,20 @@ def check_gp(training_data, validation_data, visualization_data,
     if visualize:
         display(training_data, visualization_data, interp)
     validate(validate_stars, interp)
+
+    if check_config:
+        config = {
+            'interp' : {
+                'type' : 'GPInterp',
+                'kernel' : kernel,
+                'npca' : npca,
+                'optimizer' : optimizer
+            }
+        }
+        logger = piff.config.setup_logger()
+        interp3 = piff.Interp.process(config['interp'], logger)
+        iterate(stars, interp3)
+        validate(validate_stars, interp3)
 
     # Check that we can write interp to disk and read back in.
     if filename is not None:
@@ -498,7 +515,7 @@ def test_constant_psf():
     for npca in [0, 2]:
         for optimizer in [None, 'fmin_l_bfgs_b']:
             check_gp(training_data, validation_data, visualization_data, kernel,
-                     npca=npca, optimizer=optimizer, rng=rng)
+                     npca=npca, optimizer=optimizer, rng=rng, check_config=True)
 
 
 def test_polynomial_psf():
@@ -530,7 +547,8 @@ def test_grf_psf():
     for npca in [0, 5]:
         for optimizer in [None, 'fmin_l_bfgs_b']:
             check_gp(training_data, validation_data, visualization_data, kernel,
-                     npca=npca, optimizer=optimizer, filename="test_gp_grf.fits", rng=rng)
+                     npca=npca, optimizer=optimizer, filename="test_gp_grf.fits", rng=rng,
+                     check_config=True)
 
     # Check ExplicitKernel here too
     #
@@ -542,7 +560,8 @@ def test_grf_psf():
     # No optimizer loop, since ExplicitKernel is not optimizable.
     for npca in [0, 5]:
         check_gp(training_data, validation_data, visualization_data, kernel,
-                 npca=npca, filename="test_explicit_grf.fits", rng=rng)
+                 npca=npca, filename="test_explicit_grf.fits", rng=rng,
+                 check_config=True)
 
 
 def test_anisotropic_rbf_kernel():
@@ -570,11 +589,61 @@ def test_anisotropic_rbf_kernel():
         for optimizer in [None, 'fmin_l_bfgs_b']:
             check_gp(training_data, validation_data, visualization_data, kernel,
                      npca=npca, optimizer=optimizer, filename="test_anisotropic_rbf.fits",
-                     rng=rng)
+                     rng=rng, check_config=True)
 
+
+def test_yaml():
+    # Take DES test image, and test doing a psf run with GP interpolator
+    # Use config parser:
+    psf_file = os.path.join('output','gp_psf.fits')
+    config = {
+        'input' : {
+            'images' : 'y1_test/DECam_00241238_01.fits.fz',
+            'cats' : 'y1_test/DECam_00241238_01_psfcat_tb_maxmag_17.0_magcut_3.0_findstars.fits',
+
+            # What hdu is everything in?
+            'image_hdu' : 1,
+            'badpix_hdu' : 2,
+            'weight_hdu' : 3,
+            'cat_hdu' : 2,
+
+            # What columns in the catalog have things we need?
+            'x_col' : 'XWIN_IMAGE',
+            'y_col' : 'YWIN_IMAGE',
+            'ra' : 'TELRA',
+            'dec' : 'TELDEC',
+            'gain' : 'GAINA',
+            'sky_col' : 'BACKGROUND',
+
+            # How large should the postage stamp cutouts of the stars be?
+            'stamp_size' : 31,
+            },
+        'psf' : {
+            'model' : { 'type' : 'GSObjectModel',
+                        'fastfit' : True,
+                        'gsobj' : 'galsim.Gaussian(sigma=1.0)' },
+            'interp' : { 'type' : 'GPInterp',
+                         'keys' : ['u', 'v'],
+                         'kernel' : 'RBF(200.0)',
+                         'optimizer' : None,}
+        },
+        'output' : { 'file_name' : psf_file },
+    }
+
+    # using piffify executable
+    config['verbose'] = 0
+    with open('gp.yaml','w') as f:
+        f.write(yaml.dump(config, default_flow_style=False))
+    piffify_exe = get_script_name('piffify')
+    p = subprocess.Popen( [piffify_exe, 'gp.yaml'] )
+    p.communicate()
+    piff.read(psf_file)
+
+    # Doesn't actually check results, just checks that everything runs.
 
 if __name__ == '__main__':
     test_constant_psf()
     test_polynomial_psf()
     test_grf_psf()
     test_anisotropic_rbf_kernel()
+    test_yaml()
