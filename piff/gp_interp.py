@@ -241,23 +241,27 @@ class AnisotropicRBF(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
     """ A GaussianProcessRegressor Kernel representing a radial basis function (essentially a
     squared exponential or Gaussian) but with arbitrary anisotropic covariance.
 
-    While the parameter for this kernel is an inverse covariance function, for the purposes of
-    optimization, it's necessary to reparameterize in such a way to ensure that the covariance
-    matrix is always positive definite.  To this end, we define `theta` (abbreviated `th` below)
-    such that
+    While the parameter for this kernel, an inverse covariance matrix, can be specified directly
+    with the `invLam` kwarg, it may be more convenient to instead specify a characteristic
+    scale-length for each axis using the `scale_length` kwarg.  Note that a list or array is
+    required so that the dimensionality of the kernel can be determined from its length.
+
+    For optimization, it's necessary to reparameterize the inverse covariance matrix in such a way
+    as to ensure that it's always positive definite.  To this end, we define `theta` (abbreviated
+    `th` below) such that
 
     invLam = L * L.T
     L = [[exp(th[0])  0              0           ...    0                 0           ]
-          th[n]       exp(th[1])]    0           ...    0                 0           ]
-          th[n+1]     th[n+2]        exp(th[3])  ...    0                 0           ]
-          ...         ...            ...         ...    ...               ...         ]
-          th[]        th[]           th[]        ...    exp(th[n-2])      0           ]
-          th[]        th[]           th[]        ...    th[n*(n+1)/2-1]   exp(th[n-1])]]
+         [th[n]       exp(th[1])]    0           ...    0                 0           ]
+         [th[n+1]     th[n+2]        exp(th[3])  ...    0                 0           ]
+         [...         ...            ...         ...    ...               ...         ]
+         [th[]        th[]           th[]        ...    exp(th[n-2])      0           ]
+         [th[]        th[]           th[]        ...    th[n*(n+1)/2-1]   exp(th[n-1])]]
 
-    I.e., the inverse covariance matrix is Cholesky-decomposed, exp(theta[0:n]) lie
-    on the diagonal of the Cholesky matrix, and theta[n:n*(n+1)/2] lie in the lower triangular
-    part of the Cholesky matrix.  This parameterization invertably maps all valid n x n
-    covariance matrices to R^(n*(n+1)/2).  I.e., the range of each theta[i] is -inf ... inf.
+    I.e., the inverse covariance matrix is Cholesky-decomposed, exp(theta[0:n]) lie on the diagonal
+    of the Cholesky matrix, and theta[n:n*(n+1)/2] lie in the lower triangular part of the Cholesky
+    matrix.  This parameterization invertably maps all valid n x n covariance matrices to
+    R^(n*(n+1)/2).  I.e., the range of each theta[i] is -inf...inf.
 
     :param  invLam:  Inverse covariance matrix of radial basis function.  Exactly one of invLam and
                      scale_length must be provided.
