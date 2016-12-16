@@ -662,6 +662,35 @@ def test_anisotropic_limit():
     np.testing.assert_allclose(gp1.gp.kernel(X), gp2.gp.kernel(X))
 
 
+def test_guess():
+    rng = galsim.BaseDeviate(8675309)
+    ntrain, nvalidate, nvisualize = 100, 1, 21
+    training_data, validation_data, visualization_data = \
+        make_grf_psf_params(ntrain, nvalidate, nvisualize)
+
+
+    inferred_scale_length = []
+    guesses = [0.03, 0.1, 0.3, 1.0, 3.0]
+    for guess in guesses:
+        # noise of 0.3 turns out to be pretty significant here.
+        stars = params_to_stars(training_data, noise=0.3, rng=rng)
+        kernel = "1*RBF({0}, (1e-1, 1e1))".format(guess)
+        kernel += " + WhiteKernel(1e-5, (1e-7, 1e-1))"
+        interp = piff.GPInterp(kernel=kernel)
+        stars = [mod.fit(s) for s in stars]
+        stars = interp.initialize(stars)
+        interp.solve(stars)
+
+        # A bit complicated, but this extracts the scale-length
+        inferred_scale_length.append(np.exp(interp.gp.kernel_.theta[1]))
+
+    # Check that the inferred scale length is close to the input value of 0.3
+    np.testing.assert_allclose(inferred_scale_length, 0.3, rtol=0.1)
+    # More interesting however, is how independent is the optimization wrt the initial value.
+    # So check that the standard deviation of the results is much smaller than the value.
+    np.testing.assert_array_less(np.std(inferred_scale_length), 0.3*0.01)
+
+
 if __name__ == '__main__':
     test_constant_psf()
     test_polynomial_psf()
@@ -669,3 +698,4 @@ if __name__ == '__main__':
     test_anisotropic_rbf_kernel()
     test_yaml()
     test_anisotropic_limit()
+    test_guess()
