@@ -34,14 +34,13 @@ class GPInterp(Interp):
                          sklearn.gaussian_process.kernels.Kernel object.  The reprs of
                          sklearn.gaussian_process.kernels will work, as well as the repr of a
                          custom piff AnisotropicRBF or ExplicitKernel object.  [default: 'RBF()']
-    :param  optimizer:   Optimizer to use for optimizing the kernel.  Set to `None` to skip
-                         kernel optimization.
+    :param  optimize:    Boolean indicating whether or not to try and optimize the kernel by
+                         maximizing the marginal likelihood.  [default: True]
     :param  npca:        Number of principal components to keep.  [default: 0, which means don't
                          decompose PSF parameters into principle components]
     :param  logger:      A logger object for logging debug info. [default: None]
     """
-    def __init__(self, keys=('u','v'), kernel='RBF()', optimizer='fmin_l_bfgs_b', npca=0,
-                 logger=None):
+    def __init__(self, keys=('u','v'), kernel='RBF()', optimize=True, npca=0, logger=None):
         from sklearn.gaussian_process import GaussianProcessRegressor
 
         self.keys = keys
@@ -50,11 +49,11 @@ class GPInterp(Interp):
 
         self.kwargs = {
             'keys': keys,
-            'optimizer': optimizer,
+            'optimize': optimize,
             'npca': npca,
             'kernel': kernel
         }
-
+        optimizer = 'fmin_l_bfgs_b' if optimize else None
         self.gp = GaussianProcessRegressor(self._eval_kernel(self.kernel), optimizer=optimizer)
 
     @staticmethod
