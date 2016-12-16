@@ -179,7 +179,7 @@ def make_grf_psf_params(ntrain, nvalidate, nvisualize):
     # Validate
     us += [ud()*0.5+0.25 for i in range(nvalidate)]
     vs += [ud()*0.5+0.25 for i in range(nvalidate)]
-    fluxes += [1.0]
+    fluxes += [1.0] * nvalidate
     # Visualize
     umesh, vmesh = np.meshgrid(np.linspace(0, 1, nvisualize), np.linspace(0, 1, nvisualize))
     us += list(umesh.ravel())
@@ -227,7 +227,7 @@ def make_anisotropic_grf_psf_params(ntrain, nvalidate, nvisualize):
     # Validate
     us += [ud()*0.5+0.25 for i in range(nvalidate)]
     vs += [ud()*0.5+0.25 for i in range(nvalidate)]
-    fluxes += [1.0]
+    fluxes += [1.0] * nvalidate
     # Visualize
     umesh, vmesh = np.meshgrid(np.linspace(0, 1, nvisualize), np.linspace(0, 1, nvisualize))
     us += list(umesh.ravel())
@@ -242,8 +242,9 @@ def make_anisotropic_grf_psf_params(ntrain, nvalidate, nvisualize):
     corr = 0.7
     cov = np.array([[var1, np.sqrt(var1*var2)*corr],
                     [np.sqrt(var1*var2)*corr, var2]])
-    dists = pdist(np.array([us, vs]).T, metric='mahalanobis', VI=np.linalg.inv(cov))
-    bigcov = squareform(np.exp(-0.5*dists**2))
+
+    dists = squareform(pdist(np.array([us, vs]).T, metric='mahalanobis', VI=np.linalg.inv(cov)))
+    bigcov = np.exp(-0.5*dists**2)
 
     params['u'] = us
     params['v'] = vs
@@ -668,7 +669,6 @@ def test_guess():
     training_data, validation_data, visualization_data = \
         make_grf_psf_params(ntrain, nvalidate, nvisualize)
 
-
     inferred_scale_length = []
     guesses = [0.03, 0.1, 0.3, 1.0, 3.0]
     for guess in guesses:
@@ -691,6 +691,49 @@ def test_guess():
     np.testing.assert_array_less(np.std(inferred_scale_length), 0.3*0.01)
 
 
+def test_anisotropic_guess():
+    rng = galsim.BaseDeviate(8675309)
+    # ntrain, nvalidate, nvisualize = 100, 1, 1
+    # training_data, validation_data, visualization_data = \
+    #     make_grf_psf_params(ntrain, nvalidate, nvisualize)
+    ntrain, nvalidate, nvisualize = 100, 1, 1
+    training_data, validation_data, visualization_data = \
+        make_anisotropic_grf_psf_params(ntrain, nvalidate, nvisualize)
+
+    var1s = []
+    var2s = []
+    corrs = []
+
+    guesses = [0.03, 0.1, 0.3, 1.0, 3.0]
+    for guess in guesses:
+        # noise of 0.3 turns out to be pretty significant here.
+        stars = params_to_stars(training_data, noise=0.03, rng=rng)
+        kernel = "1*AnisotropicRBF(scale_length={0!r})".format([guess, guess])
+        kernel += " + WhiteKernel(1e-5, (1e-7, 1e-1))"
+        interp = piff.GPInterp(kernel=kernel)
+        stars = [mod.fit(s) for s in stars]
+        stars = interp.initialize(stars)
+        interp.solve(stars)
+
+        invLam = interp.gp.kernel_.get_params()['k1__k2__invLam']
+        Lam = np.linalg.inv(invLam)
+        var1s.append(Lam[0, 0])
+        var2s.append(Lam[1, 1])
+        corrs.append(Lam[0, 1] / np.sqrt(Lam[0, 0]*Lam[1, 1]))
+        print(var1s[-1], var2s[-1], corrs[-1])
+    # Check that the inferred correlation is close to the input correlation with params:
+    # var1 = 0.1**2, var2 = 0.2**2, corr = 0.7
+    np.testing.assert_allclose(var1s, 0.1**2, rtol=1.0)  # Only get right order-of-magnitude or so
+    np.testing.assert_allclose(var2s, 0.2**2, rtol=1.0)  # Only get right order-of-magnitude or so
+    np.testing.assert_allclose(corrs, 0.7, rtol=0.1)  # This one works much better
+    # More interesting however, is how independent is the optimization wrt the initial value.
+    # So check that the standard deviation of the results is small.
+    np.testing.assert_array_less(np.std(var1s), 0.1**2*0.05)
+    np.testing.assert_array_less(np.std(var2s), 0.2**2*0.05)
+    np.testing.assert_array_less(np.std(corrs), 0.7*0.05)
+
+
+
 if __name__ == '__main__':
     test_constant_psf()
     test_polynomial_psf()
@@ -699,3 +742,4 @@ if __name__ == '__main__':
     test_yaml()
     test_anisotropic_limit()
     test_guess()
+    test_anisotropic_guess()
