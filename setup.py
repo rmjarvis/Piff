@@ -1,7 +1,6 @@
 from __future__ import print_function
 import sys,os,glob,re
 
-
 try:
     from setuptools import setup, Extension, find_packages
     from setuptools.command.build_ext import build_ext
@@ -22,7 +21,7 @@ except ImportError:
         scheme['data'] = scheme['purelib']
     # cf. http://stackoverflow.com/questions/37350816/whats-distutils-equivalent-of-setuptools-find-packages-python
     from distutils.util import convert_path
-    def find_packages(base_path):
+    def find_packages(base_path='.'):
         base_path = convert_path(base_path)
         found = []
         for root, dirs, files in os.walk(base_path, followlinks=True):
@@ -336,8 +335,12 @@ dist = setup(name="Piff",
       )
 
 # Check that the path includes the directory where the scripts are installed.
-if (dist.script_install_dir not in os.environ['PATH'].split(':') and
-    os.path.realpath(dist.script_install_dir) not in os.environ['PATH'].split(':')):
+# NB. If not running install, then script_install_dir won't be there...
+real_env_path = [os.path.realpath(d) for d in os.environ['PATH'].split(':')]
+if (hasattr(dist,'script_install_dir') and
+    dist.script_install_dir not in os.environ['PATH'].split(':') and
+    os.path.realpath(dist.script_install_dir) not in real_env_path):
+
     print('\nWARNING: The Piff executables were installed in a directory not in your PATH')
     print('         If you want to use the executables, you should add the directory')
     print('\n             ',dist.script_install_dir,'\n')

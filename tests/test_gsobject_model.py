@@ -242,7 +242,6 @@ def test_interp():
          # Draw stars on a 2d grid of "focal plane" with 0<=u,v<=1
         positions = np.linspace(0.,1.,10.)
         stars = []
-        np.random.seed(1234)
         rng = galsim.BaseDeviate(1234)
         for u in positions:
             for v in positions:
@@ -304,7 +303,7 @@ def test_missing():
         positions = np.linspace(0.,1.,4)
         influx = 150.
         stars = []
-        np.random.seed(1234)
+        np_rng = np.random.RandomState(1234)
         rng = galsim.BaseDeviate(1234)
         for u in positions:
             for v in positions:
@@ -313,7 +312,7 @@ def test_missing():
                               noise=0.1, pix_scale=0.5, fpu=u, fpv=v, rng=rng, include_pixel=False)
                 s = mod.initialize(s)
                 # Kill 10% of each star's pixels
-                bad = np.random.rand(*s.image.array.shape) < 0.1
+                bad = np_rng.rand(*s.image.array.shape) < 0.1
                 s.weight.array[bad] = 0.
                 s.image.array[bad] = -999.
                 s = mod.reflux(s, fit_center=False) # Start with a sensible flux
@@ -382,7 +381,6 @@ def test_gradient():
         positions = np.linspace(0.,1.,4)
         influx = 150.
         stars = []
-        np.random.seed(1234)
         rng = galsim.BaseDeviate(1234)
         for u in positions:
             # Put gradient in pixel size
@@ -465,7 +463,6 @@ def test_gradient_center():
         positions = np.linspace(0.,1.,4)
         influx = 150.
         stars = []
-        np.random.seed(1234)
         rng = galsim.BaseDeviate(1234)
         for u in positions:
             # Put gradient in pixel size

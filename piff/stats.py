@@ -117,6 +117,11 @@ class Stats(object):
         :param logger:      A logger object for logging debug info. [default: None]
         :param **kwargs:    Optionally, provide extra kwargs for the matplotlib plot command.
         """
+        # Note: don't import matplotlib.pyplot, since that can mess around with the user's
+        # pyplot state.  Better to do everything with the matplotlib object oriented API.
+        # cf. http://www.dalkescientific.com/writings/diary/archive/2005/04/23/matplotlib_without_gui.html
+        from matplotlib.backends.backend_agg import FigureCanvasAgg
+
         if logger:
             logger.info("Creating plot for %s", self.__class__.__name__)
         fig, ax = self.plot(logger=logger, **kwargs)
@@ -128,7 +133,11 @@ class Stats(object):
 
         if logger:
             logger.warning("Writing %s plot to file %s",self.__class__.__name__,file_name)
-        fig.savefig(file_name)
+
+        canvas = FigureCanvasAgg(fig)
+        # Do this after we've set the canvas to use Agg to avoid warning.
+        fig.set_tight_layout(True)
+        canvas.print_figure(file_name, dpi=100)
 
     def measureShapes(self, psf, stars, logger=None):
         """Compare PSF and true star shapes with HSM algorithm
@@ -239,16 +248,20 @@ class ShapeHistogramsStats(Stats):
 
         :returns: fig, ax
         """
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore")
-            import matplotlib
-            matplotlib.use('Agg')
-            import matplotlib.pyplot as plt
-
         if not hasattr(self, 'T'):
             raise RuntimeError("Shape Histogram has not been computed yet.  Cannot plot.")
 
-        fig, axs = plt.subplots(ncols=3, nrows=2, figsize=(15, 10))
+        from matplotlib.figure import Figure
+        fig = Figure(figsize = (15,10))
+        # In matplotlib 2.0, this will be
+        # axs = fig.subplots(ncols=3, nrows=2)
+        axs = [[ fig.add_subplot(2,3,1),
+                 fig.add_subplot(2,3,2),
+                 fig.add_subplot(2,3,3) ],
+               [ fig.add_subplot(2,3,4),
+                 fig.add_subplot(2,3,5),
+                 fig.add_subplot(2,3,6) ]]
+        axs = np.array(axs, dtype=object)
 
         # some defaults for the kwargs
         if 'histtype' not in kwargs:
@@ -392,16 +405,18 @@ class RhoStats(Stats):
         self.rho5 = treecorr.GGCorrelation(self.tckwargs)
         self.rho5.process(cat_g, cat_gdTT)
 
-    def alt_plot(self, logger=None, **kwargs):
+    def alt_plot(self, logger=None, **kwargs):  # pragma: no cover
         # Leaving this version here in case useful, but I (MJ) have a new version of this
         # below based on the figures I made for the DES SV shear catalog paper that I think
         # looks a bit nicer.
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore")
-            import matplotlib
-            matplotlib.use('Agg')
-            import matplotlib.pyplot as plt
-        fig, axs = plt.subplots(ncols=2, figsize=(10, 5))
+        from matplotlib.figure import Figure
+        fig = Figure(figsize = (10,5))
+        # In matplotlib 2.0, this will be
+        # axs = fig.subplots(ncols=2)
+        axs = [ fig.add_subplot(1,2,1),
+                fig.add_subplot(1,2,2) ]
+        axs = np.array(axs, dtype=object)
+
 
         # axs[0] gets rho1 rho3 and rho4
         # axs[1] gets rho2 and rho5
@@ -440,7 +455,6 @@ class RhoStats(Stats):
                 ax.plot(r[neg], -xi[neg], linestyle=linestyle_neg, color=color, **kwargs)
             ax.legend(loc='upper right')
 
-        fig.set_tight_layout(True)
         return fig, axs
 
     def _plot_single(self, ax, rho, color, marker, offset=0.):
@@ -464,41 +478,42 @@ class RhoStats(Stats):
         :returns: fig, ax
         """
         # MJ: Based on the code I used for the plot in the DES SV paper:
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore")
-            import matplotlib
-            matplotlib.use('Agg')
-            import matplotlib.pyplot as plt
-        fig, ax = plt.subplots(ncols=2, figsize=(10, 5))
+        from matplotlib.figure import Figure
+        fig = Figure(figsize = (10,5))
+        # In matplotlib 2.0, this will be
+        # axs = fig.subplots(ncols=2)
+        axs = [ fig.add_subplot(1,2,1),
+                fig.add_subplot(1,2,2) ]
+        axs = np.array(axs, dtype=object)
+
 
         # Left plot is rho1,3,4
-        rho1 = self._plot_single(ax[0], self.rho1, 'blue', 'o')
-        rho3 = self._plot_single(ax[0], self.rho3, 'green', 's', 0.1)
-        rho4 = self._plot_single(ax[0], self.rho4, 'red', '^', 0.2)
+        rho1 = self._plot_single(axs[0], self.rho1, 'blue', 'o')
+        rho3 = self._plot_single(axs[0], self.rho3, 'green', 's', 0.1)
+        rho4 = self._plot_single(axs[0], self.rho4, 'red', '^', 0.2)
 
-        ax[0].legend([rho1, rho3, rho4],
+        axs[0].legend([rho1, rho3, rho4],
                      [r'$\rho_1(\theta)$', r'$\rho_3(\theta)$', r'$\rho_4(\theta)$'],
                      loc='upper right', fontsize=12)
-        ax[0].set_ylim(1.e-9, None)
-        ax[0].set_xlim(self.tckwargs['min_sep'], self.tckwargs['max_sep'])
-        ax[0].set_xlabel(r'$\theta$ (arcmin)')
-        ax[0].set_ylabel(r'$\rho(\theta)$')
-        ax[0].set_xscale('log')
-        ax[0].set_yscale('log', nonposy='clip')
+        axs[0].set_ylim(1.e-9, None)
+        axs[0].set_xlim(self.tckwargs['min_sep'], self.tckwargs['max_sep'])
+        axs[0].set_xlabel(r'$\theta$ (arcmin)')
+        axs[0].set_ylabel(r'$\rho(\theta)$')
+        axs[0].set_xscale('log')
+        axs[0].set_yscale('log', nonposy='clip')
 
         # Right plot is rho2,5
-        rho2 = self._plot_single(ax[1], self.rho2, 'blue', 'o')
-        rho5 = self._plot_single(ax[1], self.rho5, 'green', 's', 0.1)
+        rho2 = self._plot_single(axs[1], self.rho2, 'blue', 'o')
+        rho5 = self._plot_single(axs[1], self.rho5, 'green', 's', 0.1)
 
-        ax[1].legend([rho2, rho5],
+        axs[1].legend([rho2, rho5],
                      [r'$\rho_2(\theta)$', r'$\rho_5(\theta)$'],
                      loc='upper right', fontsize=12)
-        ax[1].set_ylim(1.e-7, None)
-        ax[1].set_xlim(self.tckwargs['min_sep'], self.tckwargs['max_sep'])
-        ax[1].set_xlabel(r'$\theta$ (arcmin)')
-        ax[1].set_ylabel(r'$\rho(\theta)$')
-        ax[1].set_xscale('log')
-        ax[1].set_yscale('log', nonposy='clip')
+        axs[1].set_ylim(1.e-7, None)
+        axs[1].set_xlim(self.tckwargs['min_sep'], self.tckwargs['max_sep'])
+        axs[1].set_xlabel(r'$\theta$ (arcmin)')
+        axs[1].set_ylabel(r'$\rho(\theta)$')
+        axs[1].set_xscale('log')
+        axs[1].set_yscale('log', nonposy='clip')
 
-        fig.set_tight_layout(True)
-        return fig, ax
+        return fig, axs

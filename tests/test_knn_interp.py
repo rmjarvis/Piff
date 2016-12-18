@@ -28,8 +28,9 @@ ntarget = 5
 
 def generate_data(n_samples=100):
     # generate as Norm(0, 1) for all parameters
-    X = np.random.normal(0, 1, size=(n_samples, len(keys)))
-    y = np.random.normal(0, 1, size=(n_samples, ntarget))
+    np_rng = np.random.RandomState(1234)
+    X = np_rng.normal(0, 1, size=(n_samples, len(keys)))
+    y = np_rng.normal(0, 1, size=(n_samples, ntarget))
 
     star_list = []
     for Xi, yi in zip(X, y):
@@ -162,7 +163,8 @@ def test_decam_wavefront():
     knn = piff.des.DECamWavefront(file_name, extname, logger=logger)
 
     n_samples = 2000
-    ccdnums = np.random.randint(1, 63, n_samples)
+    np_rng = np.random.RandomState(1234)
+    ccdnums = np_rng.randint(1, 63, n_samples)
 
     star_list = []
     for ccdnum in ccdnums:
@@ -171,8 +173,8 @@ def test_decam_wavefront():
         wcs = galsim.JacobianWCS(0.26, 0.05, -0.08, -0.29)
         image = galsim.Image(64,64, wcs=wcs)
         # set icen and jcen
-        icen = np.random.randint(100, 2048)
-        jcen = np.random.randint(100, 4096)
+        icen = np_rng.randint(100, 2048)
+        jcen = np_rng.randint(100, 4096)
         image.setCenter(icen, jcen)
         image_pos = image.center()
 
@@ -224,9 +226,10 @@ def test_decam_disk():
 def test_decaminfo():
     # test switching between focal and pixel coordinates
     n_samples = 500000
-    chipnums = np.random.randint(1, 63, n_samples)
-    icen = np.random.randint(1, 2048, n_samples)
-    jcen = np.random.randint(1, 4096, n_samples)
+    np_rng = np.random.RandomState(1234)
+    chipnums = np_rng.randint(1, 63, n_samples)
+    icen = np_rng.randint(1, 2048, n_samples)
+    jcen = np_rng.randint(1, 4096, n_samples)
 
     decaminfo = piff.des.DECamInfo()
     xPos, yPos = decaminfo.getPosition(chipnums, icen, jcen)

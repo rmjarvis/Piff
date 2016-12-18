@@ -25,6 +25,13 @@ Aspirational features: (We're still working on the code!)
 - Uses highly readable YAML configuration files to set the various options.
 - Includes Python code to read in the PSF files and use it to draw an image
   of the PSF at an arbitrary location.
+- Currently, the lead developers are:
+  - Mike Jarvis (mikejarvis17 at gmail)
+  - Chris Davis (chris.pa.davis at gmail)
+  - Josh Meyers (jmeyers314 at gmail)
+  If you'd like to join the development effort, or if you have any other
+  questions or comments about the code, feel free to contact us at the above
+  email addresses.
 
 
 Installation
@@ -57,7 +64,8 @@ After installing Piff, you can run the unit tests by doing::
 Reporting bugs
 --------------
 
-If you find a bug running the code, please report it at:
+If you have any trouble installing or using the code, or if you find a bug,
+please report it at:
 
 https://github.com/rmjarvis/Piff/issues
 

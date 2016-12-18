@@ -99,10 +99,10 @@ def psf_model(icens, jcens, icenter, jcenter):
 
 def generate_starlist(n_samples=500):
     # create n_samples images from the 63 ccds and pixel coordinates
-    np.random.seed(1234)
-    icens = np.random.randint(100, 2048, n_samples)
-    jcens = np.random.randint(100, 4096, n_samples)
-    ccdnums = np.random.randint(1, 63, n_samples)
+    np_rng = np.random.RandomState(1234)
+    icens = np_rng.randint(100, 2048, n_samples)
+    jcens = np_rng.randint(100, 4096, n_samples)
+    ccdnums = np_rng.randint(1, 63, n_samples)
     icenter = 1000
     jcenter = 2000
 
