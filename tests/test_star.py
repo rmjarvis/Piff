@@ -235,21 +235,21 @@ def test_celestial():
 
 
 def test_io():
-    np.random.seed(1234)
+    np_rng = np.random.RandomState(1234)
     nstars = 100
-    x = np.random.random(nstars) * 2048.
-    y = np.random.random(nstars) * 2048.
-    flux = np.random.random(nstars) * 1000.
-    cenx = 2.*np.random.random(nstars) - 1.
-    ceny = 2.*np.random.random(nstars) - 1.
-    color_ri = np.random.random(nstars) * 1.4 - 0.8
-    color_iz = np.random.random(nstars) * 1.9 - 0.6
+    x = np_rng.random_sample(nstars) * 2048.
+    y = np_rng.random_sample(nstars) * 2048.
+    flux = np_rng.random_sample(nstars) * 1000.
+    cenx = 2.*np_rng.random_sample(nstars) - 1.
+    ceny = 2.*np_rng.random_sample(nstars) - 1.
+    color_ri = np_rng.random_sample(nstars) * 1.4 - 0.8
+    color_iz = np_rng.random_sample(nstars) * 1.9 - 0.6
     stars = [ piff.Star.makeTarget(x=x[i], y=y[i], scale=0.26, color_ri=color_ri[i],
                                    color_iz=color_iz[i]).withFlux(flux[i]) for i in range(nstars) ]
     for star in stars:
-        star.data.image.array[:] = np.random.random(star.data.image.array.shape)
+        star.data.image.array[:] = np_rng.random_sample(star.data.image.array.shape)
         star.data.weight = star.data.image.copy()
-        star.data.weight.array[:] = np.random.random(star.data.image.array.shape)
+        star.data.weight.array[:] = np_rng.random_sample(star.data.image.array.shape)
 
     file_name = os.path.join('output','star_io.fits')
     print('Writing stars to ',file_name)
