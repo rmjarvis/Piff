@@ -21,7 +21,7 @@ import subprocess
 import yaml
 import fitsio
 
-from piff_test_helper import get_script_name
+from piff_test_helper import get_script_name, timer
 
 attr_interp = ['focal_x', 'focal_y']
 attr_target = list(range(5))
@@ -48,10 +48,12 @@ def generate_data(n_samples=100):
 
     return star_list
 
+@timer
 def test_init():
     # make sure we can init the interpolator
     knn = piff.kNNInterp(attr_interp, attr_target)
 
+@timer
 def test_interp():
     # logger = piff.config.setup_logger(verbose=3, log_file='test_knn_interp.log')
     logger = None
@@ -83,6 +85,7 @@ def test_interp():
     for attr in attr_interp:
         np.testing.assert_equal(star_predicted.data[attr], star_predict.data[attr])
 
+@timer
 def test_attr_target():
     # make sure we can do the interpolation only over certain indices in params
     # make sure we can put in the data
@@ -113,6 +116,7 @@ def test_attr_target():
     for attr in attr_interp:
         np.testing.assert_equal(star_predicted.data[attr], star_predict.data[attr])
 
+@timer
 def test_yaml():
     # Take DES test image, and test doing a psf run with kNN interpolator
     # Now test running it via the config parser
@@ -164,6 +168,7 @@ def test_yaml():
     np.testing.assert_allclose(psf.drawStar(psf.stars[0]).fit.params,
                                psf.drawStar(psf.stars[-1]).fit.params)
 
+@timer
 def test_disk():
     # make sure reading and writing of data works
     star_list = generate_data()
@@ -180,6 +185,7 @@ def test_disk():
     np.testing.assert_equal(knn.knr_kwargs['n_neighbors'], knn2.knr_kwargs['n_neighbors'])
     np.testing.assert_equal(knn.knr_kwargs['algorithm'], knn2.knr_kwargs['algorithm'])
 
+@timer
 def test_decam_wavefront():
     file_name = 'wavefront_test/Science-20121120s1-v20i2.fits'
     extname = 'Science-20121120s1-v20i2'
@@ -232,6 +238,7 @@ def test_decam_wavefront():
     np.testing.assert_array_almost_equal(y_predicted[:,6], y_misaligned[:,6] - misalignment['z10x'] * X[:,1])
 
 
+@timer
 def test_decam_disk():
     file_name = 'wavefront_test/Science-20121120s1-v20i2.fits'
     extname = 'Science-20121120s1-v20i2'
@@ -252,6 +259,7 @@ def test_decam_disk():
     assert knn.knr_kwargs['n_neighbors'] == knn2.knr_kwargs['n_neighbors'], 'n_neighbors not equal'
     assert knn.knr_kwargs['algorithm'] == knn2.knr_kwargs['algorithm'], 'algorithm not equal'
 
+@timer
 def test_decaminfo():
     # test switching between focal and pixel coordinates
     n_samples = 500000

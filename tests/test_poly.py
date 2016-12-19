@@ -16,12 +16,12 @@ from __future__ import print_function
 import numpy as np
 import piff
 
-from piff_test_helper import get_script_name
+from piff_test_helper import get_script_name, timer
 
 PolynomialsTypes = piff.polynomial_types.keys()
 
 
-
+@timer
 def test_poly_indexing():
     # Some indexing tests for a polynomial up to order 3
     N = 3
@@ -83,6 +83,7 @@ def test_poly_indexing():
     unpacked_test_2 = interp._unpack_coefficients(0,packed_test_2)
     np.testing.assert_array_equal(unpacked_test_2,unpacked_test)
 
+@timer
 def test_poly_mean():
     # Zero'th order polynomial fitting should be pretty trivial, just
     # the same as the mean fitting. So much of this code is just taken from
@@ -141,6 +142,7 @@ def test_poly_mean():
     np.testing.assert_almost_equal(target.fit.params, mean)
 
 
+@timer
 def sub_poly_linear(type1):
     # Now lets do something more interesting - test a linear model.
     # with no noise this should fit really well, though again not
@@ -197,6 +199,7 @@ def sub_poly_linear(type1):
     np.testing.assert_almost_equal(linear_func(p), target.fit.params)
 
 
+@timer
 def test_poly_linear():
     for poly_type in PolynomialsTypes:
         sub_poly_linear(poly_type)
@@ -258,11 +261,13 @@ def sub_poly_quadratic(type1):
     np.testing.assert_almost_equal(quadratic_func(p), target.fit.params)
 
 
+@timer
 def test_poly_quadratic():
     for poly_type in PolynomialsTypes:
         sub_poly_quadratic(poly_type)
 
 
+@timer
 def test_poly_guess():
     # test that our initial guess gives us a flat function given
     # by the mean
@@ -354,6 +359,7 @@ def poly_load_save_sub(type1, type2, fname):
         target2 = interp.interpolate(target)
         np.testing.assert_almost_equal(target1.fit.params, target2.fit.params)
 
+@timer
 def test_poly_raise():
     # Test that we can serialize and deserialize a polynomial
     # interpolator correctly.  Copying all this stuff from above:
@@ -378,10 +384,12 @@ def test_poly_raise():
         pass
 
 
+@timer
 def test_poly_load_save():
     for poly_type in PolynomialsTypes:
         poly_load_save_sub(poly_type, poly_type, 'poly_test_load_save.fits')
 
+@timer
 def test_poly_load_err():
     for poly_type1 in PolynomialsTypes:
         for poly_type2 in PolynomialsTypes:

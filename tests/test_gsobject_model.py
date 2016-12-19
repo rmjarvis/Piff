@@ -19,6 +19,8 @@ import numpy as np
 import os
 import fitsio
 
+from piff_test_helper import timer
+
 fiducial_kolmogorov = galsim.Kolmogorov(half_light_radius=1.0)
 fiducial_gaussian = galsim.Gaussian(half_light_radius=1.0)
 fiducial_moffat = galsim.Moffat(half_light_radius=1.0, beta=3.0)
@@ -61,6 +63,7 @@ def make_data(gsobject, scale, g1, g2, u0, v0, flux, noise=0., pix_scale=1., fpu
     return star
 
 
+@timer
 def test_simple():
     """Initial simple test of Gaussian, Kolmogorov, and Moffat PSFs.
     """
@@ -188,6 +191,7 @@ def test_simple():
         np.testing.assert_allclose(fit.center[1], dv, rtol=0, atol=1e-5)
 
 
+@timer
 def test_center():
     """Fit with centroid free and PSF center constrained to an initially mis-registered PSF.
     """
@@ -223,6 +227,7 @@ def test_center():
                                        decimal=14)
 
 
+@timer
 def test_interp():
     """First test of use with interpolator.  Make a bunch of noisy
     versions of the same PSF, interpolate them with constant interp
@@ -289,6 +294,7 @@ def test_interp():
         np.testing.assert_almost_equal(s1.image.array/peak, s0.image.array/peak, decimal=3)
 
 
+@timer
 def test_missing():
     """Next: fit mean PSF to multiple images, with missing pixels.
     """
@@ -364,6 +370,7 @@ def test_missing():
         np.testing.assert_almost_equal(s1.image.array/peak, s0.image.array/peak, decimal=3)
 
 
+@timer
 def test_gradient():
     """Next: fit spatially-varying PSF to multiple images.
     """
@@ -447,6 +454,7 @@ def test_gradient():
         np.testing.assert_almost_equal(s1.image.array/peak, s0.image.array/peak, decimal=2)
 
 
+@timer
 def test_gradient_center():
     """Next: fit spatially-varying PSF, with spatially-varying centers to multiple images.
     """
@@ -530,6 +538,7 @@ def test_gradient_center():
         np.testing.assert_almost_equal(s1.image.array/peak, s0.image.array/peak, decimal=2)
 
 
+@timer
 def test_direct():
     """ Simple test for directly instantiated Gaussian, Kolmogorov, and Moffat without going through
     GSObjectModel explicitly.
