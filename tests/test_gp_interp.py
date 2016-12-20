@@ -25,7 +25,8 @@ import fitsio
 from piff_test_helper import get_script_name, timer
 
 fiducial_kolmogorov = galsim.Kolmogorov(half_light_radius=1.0)
-mod = piff.GSObjectModel(fiducial_kolmogorov, force_model_center=False, include_pixel=False)
+mod = piff.GSObjectModel(fiducial_kolmogorov, force_model_center=False, include_pixel=False,
+                         fastfit=True)
 
 star_type = np.dtype([('u', float),
                       ('v', float),
@@ -710,7 +711,7 @@ def test_guess():
     inferred_scale_length = []
     if __name__ == '__main__':
         guesses =  [0.03, 0.1, 0.3, 1.0, 3.0]
-        rtol = 0.01
+        rtol = 0.015
     else:
         guesses = [0.03, 0.3, 3.0]
         rtol = 0.02
@@ -783,6 +784,9 @@ def test_anisotropic_guess():
 
 
 if __name__ == '__main__':
+    # import cProfile, pstats
+    # pr = cProfile.Profile()
+    # pr.enable()
     test_constant_psf()
     test_polynomial_psf()
     test_grf_psf()
@@ -791,3 +795,6 @@ if __name__ == '__main__':
     test_anisotropic_limit()
     test_guess()
     test_anisotropic_guess()
+    # pr.disable()
+    # ps = pstats.Stats(pr).sort_stats('tottime')
+    # ps.print_stats(25)
