@@ -21,7 +21,7 @@ import subprocess
 import yaml
 import fitsio
 
-from piff_test_helper import get_script_name
+from piff_test_helper import get_script_name, timer
 
 keys = ['focal_x', 'focal_y']
 ntarget = 5
@@ -47,10 +47,14 @@ def generate_data(n_samples=100):
 
     return star_list
 
+
+@timer
 def test_init():
     # make sure we can init the interpolator
     knn = piff.kNNInterp(keys)
 
+
+@timer
 def test_interp():
     # logger = piff.config.setup_logger(verbose=3, log_file='test_knn_interp.log')
     logger = None
@@ -83,6 +87,8 @@ def test_interp():
     for attr in keys:
         np.testing.assert_equal(star_predicted.data[attr], star_predict.data[attr])
 
+
+@timer
 def test_yaml():
     # Take DES test image, and test doing a psf run with kNN interpolator
     # Now test running it via the config parser
@@ -136,6 +142,8 @@ def test_yaml():
             0.01*np.mean([s.fit.params for s in psf.stars], axis=0),
             err_msg="Interpolated parameters show too much variation.")
 
+
+@timer
 def test_disk():
     # make sure reading and writing of data works
     star_list = generate_data()
@@ -152,6 +160,8 @@ def test_disk():
     np.testing.assert_equal(knn.knr_kwargs['n_neighbors'], knn2.knr_kwargs['n_neighbors'])
     np.testing.assert_equal(knn.knr_kwargs['algorithm'], knn2.knr_kwargs['algorithm'])
 
+
+@timer
 def test_decam_wavefront():
     file_name = 'wavefront_test/Science-20121120s1-v20i2.fits'
     extname = 'Science-20121120s1-v20i2'
@@ -204,6 +214,7 @@ def test_decam_wavefront():
     np.testing.assert_array_almost_equal(y_predicted[:,6], y_misaligned[:,6] - misalignment['z10x'] * X[:,1])
 
 
+@timer
 def test_decam_disk():
     file_name = 'wavefront_test/Science-20121120s1-v20i2.fits'
     extname = 'Science-20121120s1-v20i2'
@@ -223,6 +234,8 @@ def test_decam_disk():
     assert knn.knr_kwargs['n_neighbors'] == knn2.knr_kwargs['n_neighbors'], 'n_neighbors not equal'
     assert knn.knr_kwargs['algorithm'] == knn2.knr_kwargs['algorithm'], 'algorithm not equal'
 
+
+@timer
 def test_decaminfo():
     # test switching between focal and pixel coordinates
     n_samples = 500000

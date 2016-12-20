@@ -21,8 +21,10 @@ import subprocess
 import yaml
 import fitsio
 
-from piff_test_helper import get_script_name
+from piff_test_helper import get_script_name, timer
 
+
+@timer
 def test_Gaussian():
     """This is about the simplest possible model I could think of.  It just uses the
     HSM adaptive moments routine to measure the moments, and then it models the
@@ -83,6 +85,7 @@ def test_Gaussian():
     np.testing.assert_almost_equal(fit.params, true_params, decimal=7)
 
 
+@timer
 def test_Mean():
     """For the interpolation, the simplest possible model is just a mean value, which barely
     even qualifies as doing any kind of interpolating.  But it tests the basic glue software.
@@ -125,6 +128,7 @@ def test_Mean():
     np.testing.assert_almost_equal(mean, interp.mean)
 
 
+@timer
 def test_single_image():
     """Test the simple case of one image and one catalog.
     """

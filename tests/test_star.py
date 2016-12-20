@@ -15,11 +15,14 @@
 from __future__ import print_function
 import galsim
 import numpy as np
-import math
 import fitsio
 import os
 import piff
 
+from piff_test_helper import timer
+
+
+@timer
 def test_init():
     """Test the basic initialization of a StarData object.
     """
@@ -39,7 +42,7 @@ def test_init():
 
     # Update the bounds so the image is centered at icen, jcen.
     # Note: this also updates the wcs, so u,v at the center is still field_pos
-    image.setCenter(icen, jcen)  
+    image.setCenter(icen, jcen)
 
     # Just draw something so it has non-trivial pixel values.
     galsim.Gaussian(sigma=5).drawImage(image)
@@ -131,7 +134,7 @@ def test_euclidean():
     print('field pos (u,v) = ',field_pos)
     print('origin of ps image is at u,v = ',image.wcs.toWorld(image.origin()))
     print('center of ps image is at u,v = ',image.wcs.toWorld(image.center()))
-    
+
     # Just draw something so it has non-trivial pixel values.
     galsim.Gaussian(sigma=5).drawImage(image)
     weight += image

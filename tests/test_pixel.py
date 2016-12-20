@@ -19,8 +19,10 @@ import galsim
 import yaml
 import subprocess
 
-from piff_test_helper import get_script_name
+from piff_test_helper import get_script_name, timer
 
+
+@timer
 def make_gaussian_data(sigma, u0, v0, flux, noise=0., du=1., fpu=0., fpv=0., nside=32,
                        nom_u0=0., nom_v0=0., rng=None):
     """Make a Star instance filled with a Gaussian profile
@@ -54,6 +56,7 @@ def make_gaussian_data(sigma, u0, v0, flux, noise=0., du=1., fpu=0., fpv=0., nsi
     return star
 
 
+@timer
 def test_simplest():
     """Fit a PSF to noiseless Gaussian data at same sampling
     """
@@ -90,6 +93,7 @@ def test_simplest():
     np.testing.assert_almost_equal(star2.image.array, s.image.array, decimal=7)
 
 
+@timer
 def test_oversample():
     """Fit to oversampled data, decentered PSF.
     """
@@ -121,6 +125,7 @@ def test_oversample():
     np.testing.assert_almost_equal(star2.image.array/peak, s.image.array/peak, decimal=3)
 
 
+@timer
 def test_center():
     """Fit with centroid free and PSF center constrained to an initially mis-registered PSF.
     """
@@ -153,6 +158,7 @@ def test_center():
                                    decimal=2)
 
 
+@timer
 def test_interp():
     """First test of use with interpolator.  Make a bunch of noisy
     versions of the same PSF, interpolate them with constant interp
@@ -217,6 +223,7 @@ def test_interp():
     np.testing.assert_almost_equal(s1.image.array/peak, s0.image.array/peak, decimal=2)
 
 
+@timer
 def test_missing():
     """Next: fit mean PSF to multiple images, with missing pixels.
     """
@@ -297,6 +304,7 @@ def test_missing():
         np.testing.assert_almost_equal(s1.image.array/peak, s0.image.array/peak, decimal=1)
 
 
+@timer
 def test_gradient():
     """Next: fit spatially-varying PSF to multiple images.
     """
@@ -369,6 +377,7 @@ def test_gradient():
     np.testing.assert_almost_equal(s1.image.array/peak, s0.image.array/peak, decimal=1)
 
 
+@timer
 def test_undersamp():
     """Next: fit PSF to undersampled, dithered data with fixed centroids
     ***Doesn't work well! Need to work on the SV pruning***
@@ -446,6 +455,7 @@ def test_undersamp():
     np.testing.assert_almost_equal(s1.image.array/peak, s0.image.array/peak, decimal=1)
 
 
+@timer
 def test_undersamp_shift():
     """Next: fit PSF to undersampled, dithered data with variable centroids,
     this time using chisq() and summing alpha,beta instead of fit() per star
@@ -591,10 +601,14 @@ def do_undersamp_drift(fit_centers=False):
     peak = np.max(np.abs(s0.image.array))
     np.testing.assert_almost_equal(s1.image.array/peak, s0.image.array/peak, decimal=1)
 
+
+@timer
 def test_undersamp_drift():
     do_undersamp_drift(True)
     do_undersamp_drift(False)
 
+
+@timer
 def test_single_image():
     """Test the whole process with a single image.
 
@@ -779,6 +793,8 @@ def test_single_image():
         test_star = psf.drawStar(target_star)
         np.testing.assert_almost_equal(test_star.image.array, test_im.array, decimal=3)
 
+
+@timer
 def test_des_image():
     """Test the whole process with a DES CCD.
     """

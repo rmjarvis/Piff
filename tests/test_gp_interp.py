@@ -22,7 +22,7 @@ import subprocess
 import yaml
 import fitsio
 
-from piff_test_helper import get_script_name
+from piff_test_helper import get_script_name, timer
 
 fiducial_kolmogorov = galsim.Kolmogorov(half_light_radius=1.0)
 mod = piff.GSObjectModel(fiducial_kolmogorov, force_model_center=False, include_pixel=False)
@@ -503,6 +503,7 @@ def check_gp(training_data, validation_data, visualization_data,
         validate(validate_stars, interp2)
 
 
+@timer
 def test_constant_psf():
     rng = galsim.BaseDeviate(572958179)
     ntrain, nvalidate, nvisualize = 100, 1, 21
@@ -518,7 +519,7 @@ def test_constant_psf():
             check_gp(training_data, validation_data, visualization_data, kernel,
                      npca=npca, optimize=optimize, rng=rng, check_config=True)
 
-
+@timer
 def test_polynomial_psf():
     rng = galsim.BaseDeviate(1203985)
     ntrain, nvalidate, nvisualize = 200, 1, 21
@@ -535,6 +536,7 @@ def test_polynomial_psf():
                      npca=npca, optimize=optimize, rng=rng)
 
 
+@timer
 def test_grf_psf():
     rng = galsim.BaseDeviate(987654334587656)
     ntrain, nvalidate, nvisualize = 100, 1, 21
@@ -572,6 +574,7 @@ def test_grf_psf():
              filename="test_aniso_isotropic_grf.fits", rng=rng)
 
 
+@timer
 def test_anisotropic_rbf_kernel():
     rng = galsim.BaseDeviate(5867943)
     ntrain, nvalidate, nvisualize = 250, 1, 21
@@ -600,6 +603,7 @@ def test_anisotropic_rbf_kernel():
                      rng=rng, check_config=True)
 
 
+@timer
 def test_yaml():
     # Take DES test image, and test doing a psf run with GP interpolator
     # Use config parser:
@@ -650,6 +654,7 @@ def test_yaml():
     # Doesn't actually check results, just checks that everything runs.
 
 
+@timer
 def test_anisotropic_limit():
     """Test that AnisotropicRBF with isotropic covariance equals RBF"""
 
@@ -663,6 +668,7 @@ def test_anisotropic_limit():
     np.testing.assert_allclose(gp1.gp.kernel(X), gp2.gp.kernel(X))
 
 
+@timer
 def test_guess():
     rng = galsim.BaseDeviate(8675309)
     ntrain, nvalidate, nvisualize = 100, 1, 21
@@ -691,6 +697,7 @@ def test_guess():
     np.testing.assert_array_less(np.std(inferred_scale_length), 0.3*0.01)
 
 
+@timer
 def test_anisotropic_guess():
     rng = galsim.BaseDeviate(8675309)
     # ntrain, nvalidate, nvisualize = 100, 1, 1
