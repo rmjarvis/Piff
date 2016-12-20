@@ -438,7 +438,7 @@ def validate(validate_stars, interp):
         print("s1 flux:", s1.fit.flux)
         print()
         print('Flux, ctr, chisq after interpolation: \n', s1.fit.flux, s1.fit.center, s1.fit.chisq)
-        np.testing.assert_allclose(s1.fit.flux, s0.fit.flux, rtol=3e-3)
+        np.testing.assert_allclose(s1.fit.flux, s0.fit.flux, rtol=1e-2)
 
         s1 = mod.draw(s1)
         print()
@@ -497,7 +497,7 @@ def check_gp(training_data, validation_data, visualization_data,
         np.testing.assert_allclose(interp.gp.kernel(X), interp2.gp.kernel(X))
         np.testing.assert_allclose(interp.gp.kernel.theta, interp2.gp.kernel.theta)
         np.testing.assert_allclose(interp.gp.kernel_.theta, interp2.gp.kernel_.theta)
-        np.testing.assert_allclose(interp.gp.alpha_, interp2.gp.alpha_)
+        np.testing.assert_allclose(interp.gp.alpha_, interp2.gp.alpha_, rtol=1e-6)
         np.testing.assert_allclose(interp.gp.X_train_, interp2.gp.X_train_)
         np.testing.assert_allclose(interp.gp.y_train_mean, interp2.gp.y_train_mean)
         validate(validate_stars, interp2)
@@ -514,8 +514,15 @@ def test_constant_psf():
     # We probably aren't measuring fwhm, g1, g2, etc. to better than 1e-5...
     kernel += " + WhiteKernel(1e-5, (1e-7, 1e-1))"
 
-    for npca in [0, 2]:
-        for optimize in [True, False]:
+    if __name__ == '__main__':
+        npcas = [0, 2]
+        optimizes = [True, False]
+    else:
+        npcas = [0]
+        optimizes = [False]
+
+    for npca in npcas:
+        for optimize in optimizes:
             check_gp(training_data, validation_data, visualization_data, kernel,
                      npca=npca, optimize=optimize, rng=rng, check_config=True)
 
@@ -530,8 +537,15 @@ def test_polynomial_psf():
     # white noise
     kernel += " + WhiteKernel(1e-5, (1e-7, 1e-1))"
 
-    for npca in [0, 5]:
-        for optimize in [True, False]:
+    if __name__ == '__main__':
+        npcas = [0, 2]
+        optimizes = [True, False]
+    else:
+        npcas = [0]
+        optimizes = [True]
+
+    for npca in npcas:
+        for optimize in optimizes:
             check_gp(training_data, validation_data, visualization_data, kernel,
                      npca=npca, optimize=optimize, rng=rng)
 
@@ -547,11 +561,21 @@ def test_grf_psf():
     # We probably aren't measuring fwhm, g1, g2, etc. to better than 1e-5, so add that amount of
     # white noise
     kernel += " + WhiteKernel(1e-5, (1e-7, 1e-1))"
-    for npca in [0, 5]:
-        for optimize in [True, False]:
+
+    if __name__ == '__main__':
+        npcas = [0, 5]
+        optimizes = [True, False]
+        check_config = True
+    else:
+        npcas = [0]
+        optimizes = [False]
+        check_config = False
+
+    for npca in npcas:
+        for optimize in optimizes:
             check_gp(training_data, validation_data, visualization_data, kernel,
                      npca=npca, optimize=optimize, filename="test_gp_grf.fits", rng=rng,
-                     check_config=True)
+                     check_config=check_config)
 
     # Check ExplicitKernel here too
     #
@@ -561,17 +585,20 @@ def test_grf_psf():
     kernel = "ExplicitKernel('np.exp(-0.5*(du**2+dv**2)/0.3**2)')"
     kernel += " + WhiteKernel(1e-5)"
     # No optimize loop, since ExplicitKernel is not optimizable.
-    for npca in [0, 5]:
+    for npca in npcas:
         check_gp(training_data, validation_data, visualization_data, kernel,
                  npca=npca, filename="test_explicit_grf.fits", rng=rng,
-                 check_config=True)
+                 check_config=check_config)
 
     # Try out an AnisotropicRBF on the isotropic data too.
     kernel = "1*AnisotropicRBF(scale_length=[0.3, 0.3])"
     kernel += " + WhiteKernel(1e-5)"
-    check_gp(training_data, validation_data, visualization_data, kernel,
-             npca=0, optimize=True,
-             filename="test_aniso_isotropic_grf.fits", rng=rng)
+    for npca in npcas:
+        for optimize in optimizes:
+            check_gp(training_data, validation_data, visualization_data, kernel,
+                     npca=npca, optimize=optimize,
+                     filename="test_aniso_isotropic_grf.fits", rng=rng,
+                     check_config=check_config)
 
 
 @timer
@@ -594,13 +621,18 @@ def test_anisotropic_rbf_kernel():
 
     if __name__ == '__main__':
         npcas = [0, 5]
+        optimizes = [True, False]
+        check_config = True
     else:
         npcas = [0]
+        optimizes = [False]
+        check_config = False
+
     for npca in npcas:
-        for optimize in [True, False]:
+        for optimize in optimizes:
             check_gp(training_data, validation_data, visualization_data, kernel,
                      npca=npca, optimize=optimize, filename="test_anisotropic_rbf.fits",
-                     rng=rng, check_config=True)
+                     rng=rng, check_config=check_config)
 
 
 @timer
@@ -676,7 +708,12 @@ def test_guess():
         make_grf_psf_params(ntrain, nvalidate, nvisualize)
 
     inferred_scale_length = []
-    guesses = [0.03, 0.1, 0.3, 1.0, 3.0]
+    if __name__ == '__main__':
+        guesses =  [0.03, 0.1, 0.3, 1.0, 3.0]
+        rtol = 0.01
+    else:
+        guesses = [0.03, 0.3, 3.0]
+        rtol = 0.02
     for guess in guesses:
         # noise of 0.3 turns out to be pretty significant here.
         stars = params_to_stars(training_data, noise=0.3, rng=rng)
@@ -691,10 +728,10 @@ def test_guess():
         inferred_scale_length.append(np.exp(interp.gp.kernel_.theta[1]))
 
     # Check that the inferred scale length is close to the input value of 0.3
-    np.testing.assert_allclose(inferred_scale_length, 0.3, rtol=0.1)
+    np.testing.assert_allclose(inferred_scale_length, 0.3, rtol=0.15)
     # More interesting however, is how independent is the optimization wrt the initial value.
     # So check that the standard deviation of the results is much smaller than the value.
-    np.testing.assert_array_less(np.std(inferred_scale_length), 0.3*0.01)
+    np.testing.assert_array_less(np.std(inferred_scale_length), 0.3*rtol)
 
 
 @timer
@@ -711,7 +748,12 @@ def test_anisotropic_guess():
     var2s = []
     corrs = []
 
-    guesses = [0.03, 0.1, 0.3, 1.0, 3.0]
+    if __name__ == '__main__':
+        guesses =  [0.03, 0.1, 0.3, 1.0, 3.0]
+        rtol = 0.05
+    else:
+        guesses = [0.03, 0.3, 3.0]
+        rtol = 0.10
     for guess in guesses:
         # noise of 0.3 turns out to be pretty significant here.
         stars = params_to_stars(training_data, noise=0.03, rng=rng)
@@ -735,10 +777,9 @@ def test_anisotropic_guess():
     np.testing.assert_allclose(corrs, 0.7, rtol=0.1)  # This one works much better
     # More interesting however, is how independent is the optimization wrt the initial value.
     # So check that the standard deviation of the results is small.
-    np.testing.assert_array_less(np.std(var1s), 0.1**2*0.05)
-    np.testing.assert_array_less(np.std(var2s), 0.2**2*0.05)
-    np.testing.assert_array_less(np.std(corrs), 0.7*0.05)
-
+    np.testing.assert_array_less(np.std(var1s), 0.1**2*rtol)
+    np.testing.assert_array_less(np.std(var2s), 0.2**2*rtol)
+    np.testing.assert_array_less(np.std(corrs), 0.7*rtol)
 
 
 if __name__ == '__main__':
