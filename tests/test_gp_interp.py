@@ -712,10 +712,10 @@ def test_guess():
     inferred_scale_length = []
     if __name__ == '__main__':
         guesses =  [0.03, 0.1, 0.3, 1.0, 3.0]
-        rtol = 0.015
+        rtol = 0.02
     else:
         guesses = [0.03, 0.3, 3.0]
-        rtol = 0.02
+        rtol = 0.03
     for guess in guesses:
         # noise of 0.3 turns out to be pretty significant here.
         stars = params_to_stars(training_data, noise=0.3, rng=rng)
