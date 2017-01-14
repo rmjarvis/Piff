@@ -26,6 +26,7 @@ from piff_test_helper import get_script_name, timer
 keys = ['focal_x', 'focal_y']
 ntarget = 5
 
+
 def generate_data(n_samples=100):
     # generate as Norm(0, 1) for all parameters
     np_rng = np.random.RandomState(1234)

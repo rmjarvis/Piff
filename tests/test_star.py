@@ -104,6 +104,7 @@ def test_init():
     print("Passed basic initialization of StarData")
 
 
+@timer
 def test_euclidean():
     """Test a slightly more complicated WCS and an object not centered at the center of the image.
     """
@@ -171,6 +172,7 @@ def test_euclidean():
     print("Passed tests of StarData with EuclideanWCS")
 
 
+@timer
 def test_celestial():
     """Test using a (realistic) CelestialWCS for the main image.
     """
@@ -237,6 +239,7 @@ def test_celestial():
     print("Passed tests of StarData with CelestialWCS")
 
 
+@timer
 def test_io():
     np_rng = np.random.RandomState(1234)
     nstars = 100

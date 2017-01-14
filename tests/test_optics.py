@@ -20,6 +20,7 @@ import fitsio
 
 from piff_test_helper import timer
 
+
 @timer
 def test_init():
     print('test init')

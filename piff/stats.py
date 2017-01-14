@@ -297,7 +297,6 @@ class ShapeHistogramsStats(Stats):
         ax.hist(self.dg2, bins=self.bins_shape, **kwargs)
         ax.set_xlabel(r'$g_{2, data} - g_{2, model}$')
 
-        fig.set_tight_layout(True)
         return fig, ax
 
 class RhoStats(Stats):

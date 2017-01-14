@@ -143,6 +143,7 @@ def test_poly_mean():
     np.testing.assert_almost_equal(target.fit.params, mean)
 
 
+@timer
 def sub_poly_linear(type1):
     # Now lets do something more interesting - test a linear model.
     # with no noise this should fit really well, though again not
@@ -390,6 +391,7 @@ def test_poly_raise():
 def test_poly_load_save():
     for poly_type in PolynomialsTypes:
         poly_load_save_sub(poly_type, poly_type, 'poly_test_load_save.fits')
+
 
 @timer
 def test_poly_load_err():

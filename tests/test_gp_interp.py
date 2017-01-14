@@ -527,6 +527,7 @@ def test_constant_psf():
             check_gp(training_data, validation_data, visualization_data, kernel,
                      npca=npca, optimize=optimize, rng=rng, check_config=True)
 
+
 @timer
 def test_polynomial_psf():
     rng = galsim.BaseDeviate(1203985)

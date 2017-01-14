@@ -793,7 +793,6 @@ def test_single_image():
         test_star = psf.drawStar(target_star)
         np.testing.assert_almost_equal(test_star.image.array, test_im.array, decimal=3)
 
-
 @timer
 def test_des_image():
     """Test the whole process with a DES CCD.
