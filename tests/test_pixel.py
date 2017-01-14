@@ -21,6 +21,8 @@ import subprocess
 
 from piff_test_helper import get_script_name, timer
 
+
+@timer
 def make_gaussian_data(sigma, u0, v0, flux, noise=0., du=1., fpu=0., fpv=0., nside=32,
                        nom_u0=0., nom_v0=0., rng=None):
     """Make a Star instance filled with a Gaussian profile
@@ -599,10 +601,12 @@ def do_undersamp_drift(fit_centers=False):
     peak = np.max(np.abs(s0.image.array))
     np.testing.assert_almost_equal(s1.image.array/peak, s0.image.array/peak, decimal=1)
 
+
 @timer
 def test_undersamp_drift():
     do_undersamp_drift(True)
     do_undersamp_drift(False)
+
 
 @timer
 def test_single_image():

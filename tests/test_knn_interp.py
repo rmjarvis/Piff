@@ -23,35 +23,37 @@ import fitsio
 
 from piff_test_helper import get_script_name, timer
 
-attr_interp = ['focal_x', 'focal_y']
-attr_target = list(range(5))
+keys = ['focal_x', 'focal_y']
+ntarget = 5
+
 
 def generate_data(n_samples=100):
     # generate as Norm(0, 1) for all parameters
     np_rng = np.random.RandomState(1234)
-    X = np_rng.normal(0, 1, size=(n_samples, len(attr_interp)))
-    y = np_rng.normal(0, 1, size=(n_samples, len(attr_target)))
+    X = np_rng.normal(0, 1, size=(n_samples, len(keys)))
+    y = np_rng.normal(0, 1, size=(n_samples, ntarget))
 
     star_list = []
     for Xi, yi in zip(X, y):
-        # make some basic images, pass Xi as properties
-        # Draw the PSF onto an image.  Let's go ahead and give it a non-trivial WCS.
         wcs = galsim.JacobianWCS(0.26, 0.05, -0.08, -0.29)
         image = galsim.Image(64,64, wcs=wcs)
-        properties = {attr_interp[ith]: Xi[ith] for ith in range(len(attr_interp))}
+        properties = {k:v for k,v in zip(keys, Xi)}
         stardata = piff.StarData(image, image.trueCenter(), properties=properties)
 
-        params = np.array([yi[ith] for ith in attr_target])
+        # params = np.array([yi[ith] for ith in attr_target])
+        params = yi
         starfit = piff.StarFit(params)
         star = piff.Star(stardata, starfit)
         star_list.append(star)
 
     return star_list
 
+
 @timer
 def test_init():
     # make sure we can init the interpolator
-    knn = piff.kNNInterp(attr_interp, attr_target)
+    knn = piff.kNNInterp(keys)
+
 
 @timer
 def test_interp():
@@ -59,8 +61,9 @@ def test_interp():
     logger = None
     # make sure we can put in the data
     star_list = generate_data()
-    knn = piff.kNNInterp(attr_interp, attr_target, n_neighbors=1)
+    knn = piff.kNNInterp(keys, n_neighbors=1)
     knn.initialize(star_list, logger=logger)
+    knn.solve(star_list, logger=logger)
 
     # make prediction on first 10 items of star_list
     star_list_predict = star_list[:10]
@@ -71,7 +74,7 @@ def test_interp():
 
     # predicted stars should find their exact partner here, so they have the same data
     np.testing.assert_array_equal(star_predicted.fit.params, star_predict.fit.params)
-    for attr in attr_interp:
+    for attr in keys:
         np.testing.assert_equal(star_predicted.data[attr], star_predict.data[attr])
 
     # repeat for a star with its starfit removed
@@ -82,39 +85,9 @@ def test_interp():
     # predicted stars should find their exact partner here, so they have the same data
     # removed the fit, so don't check that
     # np.testing.assert_array_equal(star_predicted.fit.params, star_predict.fit.params)
-    for attr in attr_interp:
+    for attr in keys:
         np.testing.assert_equal(star_predicted.data[attr], star_predict.data[attr])
 
-@timer
-def test_attr_target():
-    # make sure we can do the interpolation only over certain indices in params
-    # make sure we can put in the data
-    star_list = generate_data()
-    attr_target_one = [1]
-    attr_interp_one = ['focal_y']
-    knn = piff.kNNInterp(attr_interp_one, attr_target_one, n_neighbors=1)
-    knn.initialize(star_list)
-
-    # predict
-    star_predict = star_list[0]
-    star_predicted = knn.interpolate(star_predict)
-
-    # predicted stars should find their exact partner here, so they have the same data
-    # but here the fit params are not the same!!
-    np.testing.assert_equal(star_predict.fit.params[attr_target_one[0]], star_predicted.fit.params[0])
-    # we should still have the other interp parameter, however, so look at both!
-    for attr in attr_interp:
-        np.testing.assert_equal(star_predicted.data[attr], star_predict.data[attr])
-
-    # repeat for a star with its starfit removed
-    star_predict = star_list[0]
-    star_predict.fit = None
-    star_predicted = knn.interpolate(star_predict)
-
-    # predicted stars should find their exact partner here, so they have the same data
-    # we should still have the other interp parameter, however, so look at both!
-    for attr in attr_interp:
-        np.testing.assert_equal(star_predicted.data[attr], star_predict.data[attr])
 
 @timer
 def test_yaml():
@@ -147,9 +120,8 @@ def test_yaml():
                         'fastfit': True,
                         'gsobj': 'galsim.Gaussian(sigma=1.0)' },
             'interp' : { 'type': 'kNNInterp',
-                         'attr_interp': ['u', 'v'],
-                         'attr_target': [0, 1, 2],
-                         'n_neighbors': 117,}
+                         'keys': ['u', 'v'],
+                         'n_neighbors': 115,}
         },
         'output' : { 'file_name' : psf_file },
     }
@@ -163,27 +135,32 @@ def test_yaml():
     p.communicate()
     psf = piff.read(psf_file)
 
-    # by taking every star in ccd as 'nearest' neighbor, we should get same value
-    # for each star's interpolation
-    np.testing.assert_allclose(psf.drawStar(psf.stars[0]).fit.params,
-                               psf.drawStar(psf.stars[-1]).fit.params)
+    # by using n_neighbors = 115, when there are only 117 stars in the catalog, we should expect
+    # that the standard deviation of the interpolated parameters should be small, since almost the
+    # same set of stars are being averaged in every case.
+    np.testing.assert_array_less(
+            np.std([s.fit.params for s in psf.stars], axis=0),
+            0.01*np.mean([s.fit.params for s in psf.stars], axis=0),
+            err_msg="Interpolated parameters show too much variation.")
+
 
 @timer
 def test_disk():
     # make sure reading and writing of data works
     star_list = generate_data()
-    knn = piff.kNNInterp(attr_interp, attr_target, n_neighbors=2)
+    knn = piff.kNNInterp(keys, n_neighbors=2)
     knn.initialize(star_list)
+    knn.solve(star_list)
     knn_file = os.path.join('output','knn_interp.fits')
     with fitsio.FITS(knn_file,'rw',clobber=True) as f:
         knn.write(f, 'knn')
         knn2 = piff.kNNInterp.read(f, 'knn')
     np.testing.assert_array_equal(knn.locations, knn2.locations)
     np.testing.assert_array_equal(knn.targets, knn2.targets)
-    np.testing.assert_array_equal(knn.kwargs['attr_target'], knn2.kwargs['attr_target'])
-    np.testing.assert_array_equal(knn.kwargs['attr_interp'], knn2.kwargs['attr_interp'])
+    np.testing.assert_array_equal(knn.kwargs['keys'], knn2.kwargs['keys'])
     np.testing.assert_equal(knn.knr_kwargs['n_neighbors'], knn2.knr_kwargs['n_neighbors'])
     np.testing.assert_equal(knn.knr_kwargs['algorithm'], knn2.knr_kwargs['algorithm'])
+
 
 @timer
 def test_decam_wavefront():
@@ -228,8 +205,8 @@ def test_decam_wavefront():
     star_list_misaligned = knn.interpolateList(star_list)
 
     # test the prediction algorithm
-    y_predicted = np.array([knn.getFitProperties(s) for s in star_list_predicted])
-    y_misaligned = np.array([knn.getFitProperties(s) for s in star_list_misaligned])
+    y_predicted = np.array([s.fit.params for s in star_list_predicted])
+    y_misaligned = np.array([s.fit.params for s in star_list_misaligned])
     X = np.array([knn.getProperties(s) for s in star_list])
 
     # check the misalignments work
@@ -253,11 +230,11 @@ def test_decam_disk():
         knn2 = piff.des.DECamWavefront.read(f, 'decam_wavefront')
     np.testing.assert_array_equal(knn.locations, knn2.locations)
     np.testing.assert_array_equal(knn.targets, knn2.targets)
-    np.testing.assert_array_equal(knn.attr_target, knn2.attr_target)
-    np.testing.assert_array_equal(knn.attr_interp, knn2.attr_interp)
+    np.testing.assert_array_equal(knn.keys, knn2.keys)
     np.testing.assert_array_equal(knn.misalignment, knn2.misalignment)
     assert knn.knr_kwargs['n_neighbors'] == knn2.knr_kwargs['n_neighbors'], 'n_neighbors not equal'
     assert knn.knr_kwargs['algorithm'] == knn2.knr_kwargs['algorithm'], 'algorithm not equal'
+
 
 @timer
 def test_decaminfo():
@@ -284,15 +261,13 @@ if __name__ == '__main__':
     test_init()
     print('test interp')
     test_interp()
-    print('test attr_target')
-    test_attr_target()
-    print('test disk')
-    test_disk()
-    print('test decaminfo')
-    test_decaminfo()
     print('test yaml')
     test_yaml()
+    print('test disk')
+    test_disk()
     print('test decam wavefront')
     test_decam_wavefront()
     print('test decam disk')
     test_decam_disk()
+    print('test decaminfo')
+    test_decaminfo()

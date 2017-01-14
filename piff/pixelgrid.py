@@ -361,7 +361,7 @@ class PixelGrid(Model):
                                    - 2 * np.dot(star1.fit.beta, dparam))
         return Star(star1.data, starfit2)
 
-    def chisq(self, star):
+    def chisq(self, star, logger=None):
         """Calculate dependence of chi^2 = -2 log L(D|p) on PSF parameters for single star.
         as a quadratic form chi^2 = dp^T*alpha*dp - 2*beta*dp + chisq,
         where dp is the *shift* from current parameter values.  Marginalization over
@@ -370,7 +370,7 @@ class PixelGrid(Model):
         but params vector has not have been updated yet (could be degenerate).
 
         :param star:   A Star instance
-
+        :param logger: A logger object for logging debug info. [default: None]
         :returns:      New Star instance with updated StarFit
         """
 

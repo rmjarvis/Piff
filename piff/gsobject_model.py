@@ -18,7 +18,7 @@
 
 import numpy as np
 
-from .model import Model
+from .model import Model, ModelFitError
 from .star import Star, StarFit, StarData
 from .util import hsm
 
@@ -68,7 +68,7 @@ class GSObjectModel(Model):
         ref_flux, ref_cenu, ref_cenv, ref_size, ref_g1, ref_g2, flag = hsm(self.draw(star))
         ref_shape = galsim.Shear(g1=ref_g1, g2=ref_g2)
         if flag:
-            raise RuntimeError("Error calculating model moments for this star.")
+            raise ModelFitError("Error calculating model moments for this star.")
 
         param_flux = star.fit.flux
         if self._force_model_center:

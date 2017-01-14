@@ -16,7 +16,7 @@ from __future__ import print_function
 import numpy as np
 import piff
 
-from piff_test_helper import get_script_name, timer
+from piff_test_helper import timer
 
 PolynomialsTypes = piff.polynomial_types.keys()
 
@@ -82,6 +82,7 @@ def test_poly_indexing():
     packed_test_2 = interp._pack_coefficients(0,unpacked_test)
     unpacked_test_2 = interp._unpack_coefficients(0,packed_test_2)
     np.testing.assert_array_equal(unpacked_test_2,unpacked_test)
+
 
 @timer
 def test_poly_mean():
@@ -203,6 +204,7 @@ def sub_poly_linear(type1):
 def test_poly_linear():
     for poly_type in PolynomialsTypes:
         sub_poly_linear(poly_type)
+
 
 def sub_poly_quadratic(type1):
     # This is basically the same as linear but with
@@ -359,6 +361,7 @@ def poly_load_save_sub(type1, type2, fname):
         target2 = interp.interpolate(target)
         np.testing.assert_almost_equal(target1.fit.params, target2.fit.params)
 
+
 @timer
 def test_poly_raise():
     # Test that we can serialize and deserialize a polynomial
@@ -389,12 +392,14 @@ def test_poly_load_save():
     for poly_type in PolynomialsTypes:
         poly_load_save_sub(poly_type, poly_type, 'poly_test_load_save.fits')
 
+
 @timer
 def test_poly_load_err():
     for poly_type1 in PolynomialsTypes:
         for poly_type2 in PolynomialsTypes:
             if poly_type1!=poly_type2:
                 poly_load_save_sub(poly_type1, poly_type2, 'poly_test_load_err.fits')
+
 
 if __name__ == '__main__':
     test_poly_indexing()

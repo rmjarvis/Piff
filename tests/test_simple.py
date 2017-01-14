@@ -23,6 +23,7 @@ import fitsio
 
 from piff_test_helper import get_script_name, timer
 
+
 @timer
 def test_Gaussian():
     """This is about the simplest possible model I could think of.  It just uses the

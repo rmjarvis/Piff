@@ -19,8 +19,12 @@
 from __future__ import print_function
 import numpy as np
 
-from .star import Star, StarFit, StarData
 from .util import write_kwargs, read_kwargs
+
+
+# Raise this if there's a failure in the Model.fit() method.
+class ModelFitError(Exception):
+    pass
 
 
 class Model(object):
@@ -186,4 +190,3 @@ class Model(object):
         :param extname:     The base name of the extension.
         """
         pass
-

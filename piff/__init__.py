@@ -73,7 +73,7 @@ if False:
 from .config import piffify, setup_logger, read_config
 
 # Models -- Class names here match what they are called in the config file
-from .model import Model
+from .model import Model, ModelFitError
 from .pixelgrid import PixelGrid, Lanczos, Bilinear
 from .gsobject_model import GSObjectModel, Gaussian, Kolmogorov, Moffat
 
@@ -83,6 +83,7 @@ from .mean_interp import Mean
 from .polynomial_interp import Polynomial, polynomial_types
 from .basis_interp import BasisInterp, BasisPolynomial
 from .knn_interp import kNNInterp
+from .gp_interp import GPInterp, ExplicitKernel, AnisotropicRBF
 
 # Outlier handlers are named BlahOutliers where Blah is what they are called in teh config file
 from .outliers import Outliers, ChisqOutliers

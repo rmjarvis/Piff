@@ -20,12 +20,14 @@ import fitsio
 
 from piff_test_helper import timer
 
+
 @timer
 def test_init():
     print('test init')
     # make sure we can init with defaults
     model = piff.Optical(template='des')
     return model
+
 
 @timer
 def test_optical(model=None):
@@ -43,6 +45,7 @@ def test_optical(model=None):
     np.testing.assert_almost_equal(star_fitted.fit.chisq, 0)
     np.testing.assert_almost_equal(star_fitted.fit.flux, star.fit.flux)
     np.testing.assert_almost_equal(star_fitted.fit.params, star.fit.params)
+
 
 @timer
 def test_pupil_im(pupil_plane_im='optics_test/DECam_pupil_128.fits'):
@@ -62,6 +65,7 @@ def test_pupil_im(pupil_plane_im='optics_test/DECam_pupil_128.fits'):
     model_pupil_plane_im = model.optical_psf_kwargs['pupil_plane_im']
     np.testing.assert_array_equal(pupil_plane_im.array, model_pupil_plane_im.array)
 
+
 @timer
 def test_kolmogorov():
     print('test kolmogorov')
@@ -77,6 +81,7 @@ def test_kolmogorov():
     chi2 = np.std((star.image - star2.image).array)
     assert chi2 != 0,'chi2 is zero!?'
 
+
 @timer
 def test_shearing():
     print('test shearing')
@@ -90,6 +95,7 @@ def test_shearing():
     star_gaussian = gaussian.fit(star)
     np.testing.assert_almost_equal(star_gaussian.fit.params[1], g1, 5)
     np.testing.assert_almost_equal(star_gaussian.fit.params[2], g2, 5)
+
 
 @timer
 def test_gaussian():
@@ -117,6 +123,7 @@ def test_gaussian():
     star = make_empty_star(params=[0.5, 0.8, -0.7, 0.5, -0.2, 0.9, -1, 2.0])
     model = piff.Optical(r0=0.1, sigma=sigma, g1=g1, g2=g2, template='des')
     star = model.draw(star)
+
 
 @timer
 def test_disk():

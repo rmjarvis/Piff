@@ -19,6 +19,7 @@ import os
 
 from piff_test_helper import timer
 
+
 @timer
 def test_twodstats():
     """Make sure we can execute and print a readout of the plot

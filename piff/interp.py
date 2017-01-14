@@ -28,14 +28,14 @@ class Interp(object):
     a Model instance.  Thus, the same interpolators may be used with many different Model
     types.
 
-    The principal ways that interpolators will differ are
+    The principal ways that interpolators will differ are:
 
-    1. Which properties of the star are used for ther interpolation
+    1. Which properties of the star are used for their interpolation.
     2. What functional form (or algorithm) is used to interpolate between measurements.
     3. Whether the interpolator assumes each sample has a non-degenerate parameter fit, vs
        getting a differential quadratic form for chisq from each sample.
 
-    This answer to #3 is given in a boolean property degenerate_points.
+    The answer to #3 is given in a boolean property degenerate_points.
 
     This is essentially an abstract base class intended to define the methods that should be
     implemented by any derived class.
@@ -89,7 +89,7 @@ class Interp(object):
 
         The base class implementation returns the field position (u,v) as a 1d numpy array.
 
-        :param star:    A Star instances from which to extract the properties to use.
+        :param star:    A Star instance from which to extract the properties to use.
 
         :returns:       A numpy vector of these properties.
         """
@@ -117,7 +117,7 @@ class Interp(object):
         :param stars:       A list of Star instances to interpolate between
         :param logger:      A logger object for logging debug info. [default: None]
         """
-        raise NotImplemented("Derived classes must define the solve function")
+        raise NotImplementedError("Derived classes must define the solve method.")
 
     def interpolate(self, star, logger=None):
         """Perform the interpolation to find the interpolated parameter vector at some position.
@@ -127,7 +127,7 @@ class Interp(object):
 
         :returns: a new Star instance holding the interpolated parameters
         """
-        raise NotImplemented("Derived classes must define the interpolate function")
+        raise NotImplementedError("Derived classes must define the interpolate method.")
 
     def interpolateList(self, stars, logger=None):
         """Perform the interpolation for a list of stars.
@@ -173,7 +173,7 @@ class Interp(object):
         :param fits:        An open fitsio.FITS object
         :param extname:     The base name of the extension
         """
-        pass
+        raise NotImplementedError("Derived classes must define the _finish_write method.")
 
     @classmethod
     def read(cls, fits, extname):
@@ -196,7 +196,7 @@ class Interp(object):
 
         # Check that interp_type is a valid Interp type.
         interp_classes = piff.util.get_all_subclasses(piff.Interp)
-        valid_interp_types = dict([ (cls.__name__, cls) for cls in interp_classes ])
+        valid_interp_types = dict([ (kls.__name__, kls) for kls in interp_classes ])
         if interp_type not in valid_interp_types:
             raise ValueError("interpolator type %s is not a valid Piff Interpolator"%interp_type)
         interp_cls = valid_interp_types[interp_type]
@@ -216,4 +216,4 @@ class Interp(object):
         :param fits:        An open fitsio.FITS object.
         :param extname:     The base name of the extension.
         """
-        pass
+        raise NotImplementedError("Derived classes must define the _finish_read method.")
