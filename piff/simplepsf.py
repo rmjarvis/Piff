@@ -124,10 +124,11 @@ class SimplePSF(PSF):
                 nremoved += 1
             else:
                 new_stars.append(new_star)
-        if nremoved == 0:
-            logger.debug("No stars removed in initialize step")
-        else:
-            logger.info("Removed %d stars in initialize", nremoved)
+        if logger:
+            if nremoved == 0:
+                logger.debug("No stars removed in initialize step")
+            else:
+                logger.info("Removed %d stars in initialize", nremoved)
         self.stars = new_stars
 
         if logger:
