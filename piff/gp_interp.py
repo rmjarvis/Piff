@@ -46,6 +46,7 @@ class GPInterp(Interp):
         self.keys = keys
         self.kernel = kernel
         self.npca = npca
+        self.degenerate_points = False
 
         self.kwargs = {
             'keys': keys,
