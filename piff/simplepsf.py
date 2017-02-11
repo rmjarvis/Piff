@@ -118,6 +118,8 @@ class SimplePSF(PSF):
         for s in self.stars:
             try:
                 new_star = self.model.initialize(s, mask=True, logger=logger)
+            except (KeyboardInterrupt, SystemExit):
+                raise
             except:
                 if logger:
                     logger.warn("Error initializing star at %s. Excluding it.", s.image_pos)
@@ -154,6 +156,8 @@ class SimplePSF(PSF):
             for s in self.stars:
                 try:
                     new_star = fit_fn(s, logger=logger)
+                except (KeyboardInterrupt, SystemExit):
+                    raise
                 except ModelFitError:
                     if logger:
                         logger.warn("Error trying to fit star at %s.  Excluding it.",
@@ -176,6 +180,8 @@ class SimplePSF(PSF):
                 for s in self.stars:
                     try:
                         new_star = self.model.reflux(self.interp.interpolate(s),logger=logger)
+                    except (KeyboardInterrupt, SystemExit):
+                        raise
                     except:
                         if logger:
                             logger.warn("Error trying to reflux star at %s.  Excluding it.",
