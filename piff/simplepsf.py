@@ -112,7 +112,23 @@ class SimplePSF(PSF):
 
         if logger:
             logger.debug("Initializing models")
-        self.stars = [self.model.initialize(s, mask=True, logger=logger) for s in self.stars]
+        # model.initialize may fail
+        nremoved = 0
+        new_stars = []
+        for s in self.stars:
+            try:
+                new_star = self.model.initialize(s, mask=True, logger=logger)
+            except:
+                if logger:
+                    logger.warn("Error initializing star at %s. Excluding it.", s.image_pos)
+                nremoved += 1
+            else:
+                new_stars.append(new_star)
+        if nremoved == 0:
+            logger.debug("No stars removed in initialize step")
+        else:
+            logger.info("Removed %d stars in initialize", nremoved)
+        self.stars = new_stars
 
         if logger:
             logger.debug("Initializing interpolator")
