@@ -905,9 +905,6 @@ class StarFit(object):
         self.worst_chisq = worst_chisq
         return
 
-    def copy(self):
-        return copy.deepcopy(self)
-
     def newParams(self, p):
         """Return new StarFit that has the array p installed as new parameters.
 
