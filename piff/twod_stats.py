@@ -275,8 +275,8 @@ class TwoDHistStats(Stats):
         return fig, axs
 
     def _array_to_2dhist(self, z, indx_u, indx_v, unique_indx):
-        C = np.ma.zeros((self.number_bins_v - 1, self.number_bins_u - 1))
-        C.mask = np.ones((self.number_bins_v - 1, self.number_bins_u - 1))
+        C = np.ma.zeros((self.number_bins_v, self.number_bins_u))
+        C.mask = np.ones((self.number_bins_v, self.number_bins_u))
 
         for unique in unique_indx:
             ui, vi = unique
@@ -571,8 +571,8 @@ class WhiskerStats(Stats):
         return fig, axs
 
     def _array_to_2dhist(self, z, indx_u, indx_v, unique_indx):
-        C = np.ma.zeros((self.number_bins_v - 1, self.number_bins_u - 1))
-        C.mask = np.ones((self.number_bins_v - 1, self.number_bins_u - 1))
+        C = np.ma.zeros((self.number_bins_v, self.number_bins_u))
+        C.mask = np.ones((self.number_bins_v, self.number_bins_u))
 
         for unique in unique_indx:
             ui, vi = unique
