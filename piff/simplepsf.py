@@ -92,7 +92,7 @@ class SimplePSF(PSF):
         return kwargs
 
     def fit(self, stars, wcs, pointing,
-            chisq_threshold=0.1, max_iterations=30, logger=None):
+            chisq_threshold=0.1, max_iterations=30, profiles=[], logger=None):
         """Fit interpolated PSF model to star data using standard sequence of operations.
 
         :param stars:           A list of Star instances.
@@ -102,6 +102,7 @@ class SimplePSF(PSF):
         :param chisq_threshold: Change in reduced chisq at which iteration will terminate.
                                 [default: 0.1]
         :param max_iterations:  Maximum number of iterations to try. [default: 30]
+        :param profiles:        Galsim profiles to convolve with model during fit.
         :param logger:          A logger object for logging debug info. [default: None]
         """
         # TODO: Make chisq_thresh and max_iterations configurable paramters and move them
@@ -131,12 +132,16 @@ class SimplePSF(PSF):
                 logger.warning("Iteration %d: Fitting %d stars", iteration+1, len(self.stars))
 
             fit_fn = self.model.chisq if quadratic_chisq else self.model.fit
+            convolve_profiles = len(profiles) and getattr(self.model, "getProfile", False)
 
             nremoved = 0
             new_stars = []
-            for s in self.stars:
+            for si, s in enumerate(self.stars):
                 try:
-                    new_star = fit_fn(s, logger=logger)
+                    if convolve_profiles:
+                        new_star = fit_fn(s, profile=profiles[si], logger=logger)
+                    else:
+                        new_star = fit_fn(s, logger=logger)
                 except ModelFitError:
                     if logger:
                         logger.warn("Error trying to fit star at %s.  Excluding it.",
@@ -156,9 +161,12 @@ class SimplePSF(PSF):
 
             if hasattr(self.model, 'reflux'):
                 new_stars = []
-                for s in self.stars:
+                for si, s in enumerate(self.stars):
                     try:
-                        new_star = self.model.reflux(self.interp.interpolate(s),logger=logger)
+                        if convolve_profiles:
+                            new_star = self.model.reflux(self.interp.interpolate(s),profile=profiles[si],logger=logger)
+                        else:
+                            new_star = self.model.reflux(self.interp.interpolate(s),logger=logger)
                     except:
                         if logger:
                             logger.warn("Error trying to reflux star at %s.  Excluding it.",
@@ -207,6 +215,20 @@ class SimplePSF(PSF):
         star = self.interp.interpolate(star)
         # Render the image
         return self.model.draw(star)
+
+    def getProfile(self, star):
+        """Get galsim profile for a given star.
+
+        :param star:        Star instance holding information needed for interpolation as
+                            well as an image/WCS into which PSF will be rendered.
+
+        :returns:           Galsim profile
+        """
+        # Interpolate parameters to this position/properties:
+        star = self.interp.interpolate(star)
+        # get the profile
+        prof = self.model.getProfile(star.fit.params).shift(star.fit.center) * star.fit.flux
+        return prof
 
     def _finish_write(self, fits, extname, logger):
         """Finish the writing process with any class-specific steps.

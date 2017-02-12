@@ -22,34 +22,35 @@ import numpy as np
 import copy
 
 from .psf import PSF
+from .star import Star, StarFit, StarData
 from .util import write_kwargs, read_kwargs, make_dtype, adjust_value
 
-class ChipFullPSF(PSF):
+# TODO: in principal, can be arbitrary number of PSFs
+class CompoundPSF(PSF):
     """A PSF class that uses two PSF solutions -- one for each chip, one for the full.
     """
-    def __init__(self, single_psf_chip, single_psf_full,
+    def __init__(self, psf_1, psf_2,
                  extra_interp_properties=None):
         """
-        :param single_psf_chip:     A PSF instance to use for the PSF solution
-                                    on each chip.  (This will be turned into
-                                    nchips copies of the provided object.)
-        :param single_psf_full:     A PSF instance to use for the PSF solution
-                                    on the full field.
+        :param psf_1:     A PSF instance to use for the PSF solution on each
+                          chip.  (This will be turned into nchips copies of the
+                          provided object.)
+        :param psf_2:     A PSF instance to use for the PSF solution on the
+                          full field.
         :param extra_interp_properties:     A list of any extra properties that
                                             will be used for the interpolation
                                             in addition to (u,v).
                                             [default: None]
         """
-        self.single_psf_chip = single_psf_chip
-        self.single_psf_full = single_psf_full
+        self.psfs = [psf_1, psf_2]
         if extra_interp_properties is None:
             self.extra_interp_properties = []
         else:
             self.extra_interp_properties = extra_interp_properties
 
         self.kwargs = {
-            'single_psf_chip': 0,
-            'single_psf_full': 0,
+            'psf_1': 0,
+            'psf_2': 0,
         }
 
     @classmethod
@@ -67,9 +68,9 @@ class ChipFullPSF(PSF):
         config_psf = config_psf.copy()  # Don't alter the original dict.
 
         kwargs = {}
-        for psf_kind in ['chip', 'full']:
+        for psf_kind in ['1', '2']:
             config = config_psf.pop(psf_kind)
-            kwargs['single_psf_{0}'.format(psf_kind)] = piff.PSF.process(config, logger)
+            kwargs['psf_{0}'.format(psf_kind)] = piff.PSF.process(config, logger)
 
         return kwargs
 
@@ -86,44 +87,58 @@ class ChipFullPSF(PSF):
         :param max_iterations:  Maximum number of iterations to try. [default: 30]
         :param logger:          A logger object for logging debug info. [default: None]
         """
+        import galsim
+
         self.stars = stars
         self.wcs = wcs
         self.pointing = pointing
-        self.psf_by_chip = {}
-
-        # TODO: redo this part of the fit!
-        # for chipnum in wcs:
-        #     # Make a copy of single_psf for each chip
-        #     psf_chip = copy.deepcopy(self.single_psf)
-        #     self.psf_by_chip[chipnum] = psf_chip
-
-        #     # Break the list of stars up into a list for each chip
-        #     stars_chip = [ s for s in stars if s['chipnum'] == chipnum ]
-        #     wcs_chip = { chipnum : wcs[chipnum] }
-
-        #     # Run the psf_chip fit function using this stars and wcs (and the same pointing)
-        #     if logger:
-        #         logger.warning("Building solution for chip %s with %d stars",
-        #                        chipnum, len(stars_chip))
-        #     psf_chip.fit(stars_chip, wcs_chip, pointing, logger=logger)
-        # # update stars from psf outlier rejection
-        # self.stars = [ star for chipnum in wcs for star in self.psf_by_chip[chipnum].stars ]
-
-        """
-        The awkward thing is that model.fit(Image) would presumably be for Image_full / Image_other_psf, but you can't really do that.
-        """
-
-        # initialize full and chip
 
         # iterate:
+        self.stars = stars
+        oldchisq = 0.
+        for iteration in range(max_iterations):
+            if logger:
+                logger.warning("Iteration %d: Fitting %d stars", iteration+1, len(self.stars))
 
-        # fit full
+            nremoved = 0
+            for i, psf_i in enumerate(self.psfs):
+                # collect other profiles
+                profiles = []
+                for star in self.stars:
+                    profiles_star = []
+                    for j, psf_j in enumerate(self.psfs):
+                        # on the first passthrough, later PSFs haven't been
+                        # initialized, so skip them
+                        if iteration == 0 and j > i:
+                            continue
+                        if i == j:
+                            continue
+                        profiles_star.append(psf_j.getProfile(star))
+                    if len(profiles_star) > 0:
+                        profiles.append(galsim.Convolve(profiles_star))
+                if len(profiles) == 0:
+                    profiles = None
 
-        # update stars from outlier rejection
+                # fit
+                psf_i.fit(self.stars, wcs, pointing, profiles=profiles, logger=logger)
 
-        # fit chip
+                # update stars from outlier rejection
+                nremoved += len(self.stars) - len(psf_i.stars)
+                self.stars = psf_i.stars
 
-        # update stars from outlier rejection
+            chisq = np.sum([s.fit.chisq for s in self.stars])
+            dof   = np.sum([s.fit.dof for s in self.stars])
+            if logger:
+                logger.warn("             Total chisq = %.2f / %d dof", chisq, dof)
+
+            # Very simple convergence test here:
+            # Note, the lack of abs here means if chisq increases, we also stop.
+            # Also, don't quit if we removed any outliers.
+            if (nremoved == 0) and (oldchisq > 0) and (oldchisq-chisq < chisq_threshold*dof):
+                return
+            oldchisq = chisq
+
+        logger.warning("PSF fit did not converge.  Max iterations = %d reached.",max_iterations)
 
     def drawStar(self, star):
         """Generate PSF image for a given star.
@@ -133,32 +148,22 @@ class ChipFullPSF(PSF):
 
         :returns:           Star instance with its image filled with rendered PSF
         """
-        # first draw the wide field piece
-        full_star = self.psf_full.drawStar(star)
+        import galsim
+        # TODO: is there a way to collect fit params without drawStar?
+        params = []
+        profs = []
+        for psf_i in self.psfs:
+            star = psf_i.drawStar(star)
+            profs.append(psf_i.getProfile(star))
+            params.append(star.fit.params)
+        params = np.hstack(params)
 
-        # now draw the chip piece
-        chipnum = star['chipnum']
-        chip_star = self.psf_by_chip[chipnum].drawStar(star)
-
-        # now convolve them
-        return self.convolve(full_star, chip_star)
-
-    def convolve(self, star1, star2):
-        """Given two stars, combine together via convolution
-
-        :param star1, star2:    Star instances for our two stars
-
-        :returns:               Star instance with image filled by convolution
-                                of the two rendered PSFs
-        """
-        # create empty star by copying star1
-
-        # combine star1 and star2 fit params
-
-        # convolve star1 and star2 image
-
-        pass
-
+        # draw star
+        prof = galsim.Convolve(profs)
+        image = star.image.copy()
+        prof.drawImage(image, method=self._method, offset=(star.image_pos-image.trueCenter()))
+        data = StarData(image, star.image_pos, star.weight, star.data.pointing)
+        return Star(data, StarFit(params))
 
     def _finish_write(self, fits, extname, logger):
         """Finish the writing process with any class-specific steps.
@@ -167,21 +172,8 @@ class ChipFullPSF(PSF):
         :param extname:     The base name of the extension to write to.
         :param logger:      A logger object for logging debug info.
         """
-        # Write the colnums to an extension.
-        chipnums = self.psf_by_chip.keys()
-        dt = make_dtype('chipnums', chipnums[0])
-        chipnums = [ adjust_value(c,dt) for c in chipnums ]
-        cols = [ chipnums ]
-        dtypes = [ dt ]
-        data = np.array(list(zip(*cols)), dtype=dtypes)
-        fits.write_table(data, extname=extname + '_chipnums')
-
-        # Add _1, _2, etc. to the extname for the psf model of each chip.
-        for chipnum in self.psf_by_chip:
-            self.psf_by_chip[chipnum]._write(fits, extname + '_%s'%chipnum, logger)
-
-        # repeat for the full psf
-        self.psf_full._write(fits, extname + '_full', logger)
+        for i, psf_i in enumerate(self.psfs):
+            psf_i.write(fits, extname + '_{0}'.format(i), logger)
 
     def _finish_read(self, fits, extname, logger):
         """Finish the reading process with any class-specific steps.
@@ -190,11 +182,7 @@ class ChipFullPSF(PSF):
         :param extname:     The base name of the extension to write to.
         :param logger:      A logger object for logging debug info.
         """
-        chipnums = fits[extname + '_chipnums'].read()['chipnums']
-        self.psf_by_chip = {}
-        for chipnum in chipnums:
-            self.psf_by_chip[chipnum] = PSF._read(fits, extname + '_%s'%chipnum, logger)
-
-        # repeat for the full psf
-        self.psf_full = PSF._read(fits, extname + '_full', logger)
-
+        # TODO: need to specify how many psfs in advance!
+        self.psfs = []
+        for i in range(2):
+            self.psfs.append(PSF._read(fits, extname + '_{0}'.format(i), logger))

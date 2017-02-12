@@ -68,13 +68,14 @@ class SingleChipPSF(PSF):
 
         return { 'single_psf' : single_psf }
 
-    def fit(self, stars, wcs, pointing, logger=None):
+    def fit(self, stars, wcs, pointing, profiles=None, logger=None):
         """Fit interpolated PSF model to star data using standard sequence of operations.
 
         :param stars:           A list of Star instances.
         :param wcs:             A dict of WCS solutions indexed by chipnum.
         :param pointing:        A galsim.CelestialCoord object giving the telescope pointing.
                                 [Note: pointing should be None if the WCS is not a CelestialWCS]
+        :param profiles:        Galsim profiles to convolve with model during fit.
         :param logger:          A logger object for logging debug info. [default: None]
         """
         self.stars = stars
@@ -94,7 +95,7 @@ class SingleChipPSF(PSF):
             if logger:
                 logger.warning("Building solution for chip %s with %d stars",
                                chipnum, len(stars_chip))
-            psf_chip.fit(stars_chip, wcs_chip, pointing, logger=logger)
+            psf_chip.fit(stars_chip, wcs_chip, pointing, profiles=profiles, logger=logger)
         # update stars from psf outlier rejection
         self.stars = [ star for chipnum in wcs for star in self.psf_by_chip[chipnum].stars ]
 
@@ -108,6 +109,21 @@ class SingleChipPSF(PSF):
         """
         chipnum = star['chipnum']
         return self.psf_by_chip[chipnum].drawStar(star)
+
+    def getProfile(self, star):
+        """Get galsim profile for a given star.
+
+        :param star:        Star instance holding information needed for interpolation as
+                            well as an image/WCS into which PSF will be rendered.
+
+        :returns:           Galsim profile
+        """
+        chipnum = star['chipnum']
+        # Interpolate parameters to this position/properties:
+        star = self.psf_by_chip[chipnum].interp.interpolate(star)
+        # get the profile
+        prof = self.psf_by_chip[chipnum].model.getProfile(star.fit.params).shift(star.fit.center) * star.fit.flux
+        return prof
 
     def _finish_write(self, fits, extname, logger):
         """Finish the writing process with any class-specific steps.
