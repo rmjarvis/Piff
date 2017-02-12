@@ -133,7 +133,7 @@ class SingleChipPSF(PSF):
         :param logger:      A logger object for logging debug info.
         """
         # Write the colnums to an extension.
-        chipnums = self.psf_by_chip.keys()
+        chipnums = list(self.psf_by_chip.keys())
         dt = make_dtype('chipnums', chipnums[0])
         chipnums = [ adjust_value(c,dt) for c in chipnums ]
         cols = [ chipnums ]
@@ -156,4 +156,3 @@ class SingleChipPSF(PSF):
         self.psf_by_chip = {}
         for chipnum in chipnums:
             self.psf_by_chip[chipnum] = PSF._read(fits, extname + '_%s'%chipnum, logger)
-

@@ -96,8 +96,8 @@ class TwoDHistStats(Stats):
             logger.info("Computing TwoDHist indices")
 
         # fudge the bins by multiplying 1.01 so that the max entries are in the bins
-        self.bins_u = np.linspace(np.min(u), np.max(u) * 1.01, num=self.number_bins_u)
-        self.bins_v = np.linspace(np.min(v), np.max(v) * 1.01, num=self.number_bins_v)
+        self.bins_u = np.linspace(np.min(u), np.max(u) * 1.01, num=self.number_bins_u + 1)
+        self.bins_v = np.linspace(np.min(v), np.max(v) * 1.01, num=self.number_bins_v + 1)
 
         # digitize u and v. No such thing as entries below their min, so -1 to index
         indx_u = np.digitize(u, self.bins_u) - 1
@@ -275,8 +275,8 @@ class TwoDHistStats(Stats):
         return fig, axs
 
     def _array_to_2dhist(self, z, indx_u, indx_v, unique_indx):
-        C = np.ma.zeros((self.number_bins_v - 1, self.number_bins_u - 1))
-        C.mask = np.ones((self.number_bins_v - 1, self.number_bins_u - 1))
+        C = np.ma.zeros((self.number_bins_v, self.number_bins_u))
+        C.mask = np.ones((self.number_bins_v, self.number_bins_u))
 
         for unique in unique_indx:
             ui, vi = unique
@@ -463,8 +463,8 @@ class WhiskerStats(Stats):
             logger.info("Computing TwoDHist indices")
 
         # fudge the bins by multiplying 1.01 so that the max entries are in the bins
-        self.bins_u = np.linspace(np.min(u), np.max(u) * 1.01, num=self.number_bins_u)
-        self.bins_v = np.linspace(np.min(v), np.max(v) * 1.01, num=self.number_bins_v)
+        self.bins_u = np.linspace(np.min(u), np.max(u) * 1.01, num=self.number_bins_u + 1)
+        self.bins_v = np.linspace(np.min(v), np.max(v) * 1.01, num=self.number_bins_v + 1)
 
         # digitize u and v. No such thing as entries below their min, so -1 to index
         indx_u = np.digitize(u, self.bins_u) - 1
@@ -571,8 +571,8 @@ class WhiskerStats(Stats):
         return fig, axs
 
     def _array_to_2dhist(self, z, indx_u, indx_v, unique_indx):
-        C = np.ma.zeros((self.number_bins_v - 1, self.number_bins_u - 1))
-        C.mask = np.ones((self.number_bins_v - 1, self.number_bins_u - 1))
+        C = np.ma.zeros((self.number_bins_v, self.number_bins_u))
+        C.mask = np.ones((self.number_bins_v, self.number_bins_u))
 
         for unique in unique_indx:
             ui, vi = unique

@@ -663,7 +663,7 @@ def test_yaml():
 
             # How large should the postage stamp cutouts of the stars be?
             'stamp_size' : 31,
-            },
+        },
         'psf' : {
             'model' : { 'type' : 'GSObjectModel',
                         'fastfit' : True,
