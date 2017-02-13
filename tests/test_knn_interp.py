@@ -164,8 +164,8 @@ def test_disk():
 
 @timer
 def test_decam_wavefront():
-    file_name = 'wavefront_test/Science-20121120s1-v20i2_noextname.fits'
-    extname = 1 #'Science-20121120s1-v20i2'
+    file_name = 'wavefront_test/Science-20121120s1-v20i2.fits'
+    extname = 'Science-20121120s1-v20i2'
 
     if __name__ == '__main__':
         logger = piff.config.setup_logger(verbose=2)
@@ -217,12 +217,13 @@ def test_decam_wavefront():
 
 @timer
 def test_decam_disk():
-    file_name = 'wavefront_test/Science-20121120s1-v20i2_noextname.fits'
-    extname = 1 # 'Science-20121120s1-v20i2'
+    file_name = 'wavefront_test/Science-20121120s1-v20i2.fits'
+    extname = 'Science-20121120s1-v20i2'
     knn = piff.des.DECamWavefront(file_name, extname, n_neighbors=30)
 
     misalignment = {'z04d': 10, 'z10x': 10, 'z09y': -10}
     knn.misalign_wavefront(misalignment)
+
     knn_file = os.path.join('output','decam_wavefront.fits')
     with fitsio.FITS(knn_file,'rw',clobber=True) as f:
         knn.write(f, 'decam_wavefront')
