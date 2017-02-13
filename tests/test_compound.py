@@ -23,12 +23,6 @@ import fitsio
 
 from piff_test_helper import get_script_name, timer
 
-"""
-Open questions:
-    - parameter sharing between two PSFs (how do I check that the fit params work? create a partway interpolant?)
-    - outlier removal -- shared or unshared?
-"""
-
 @timer
 def test_compound():
     """This code tests the double PSF model. The wide-field piece is a
@@ -37,14 +31,14 @@ def test_compound():
 
     # true PSF params
     N_chips = 3
-    N_stars_per_chip = 100
+    N_stars_per_chip = 500
     # set RNG
     np_rng = np.random.RandomState(1234)
 
     # need to generate the pixel coordinates for the stars per chip
     n_samples = N_chips * N_stars_per_chip
-    icens = np_rng.randint(400, 1700, n_samples)
-    jcens = np_rng.randint(400, 1700, n_samples)
+    icens = np_rng.randint(100, 2048 - 100, n_samples)
+    jcens = np_rng.randint(100, 2048 - 100, n_samples)
     ccdnums = np_rng.randint(5, 5 + N_chips, n_samples)
 
     # x0 gets shifted 2048 for each chip
@@ -55,15 +49,13 @@ def test_compound():
     center_u = (5 + (5 + N_chips)) * 2048 / 2.
     delta_v = 2048.
     center_v = 1024.
-    print(delta_u, delta_v, center_u, center_v, centers_u)
-
     # now generate the values for each star
-    sigma_wide_vals = [0.2, 0.05, -0.05, 0, 0, 0]
-    g1_wide_vals = [0, 0.05, -0.05, 0, 0, 0]
-    g2_wide_vals = [0, 0.05, -0.05, 0, 0, 0]
-    sigma_chip_vals = [0.2, -0.05, 0.05, 0.05, 0.05, 0.05]
-    g1_chip_vals = [0, -0.05, 0.05, 0.05, 0.05, -0.05]
-    g2_chip_vals = [0, -0.05, 0.05, 0.05, 0.05, -0.05]
+    sigma_wide_vals = [0.5, 0.10, -0.10, 0, 0, 0]
+    g1_wide_vals = [0, 0.10, -0.10, 0, 0, 0]
+    g2_wide_vals = [0, 0.10, -0.10, 0, 0, 0]
+    sigma_chip_vals = [0.5, -0.10, 0.10, 0.10, 0.10, 0.10]
+    g1_chip_vals = [0, -0.10, 0.10, 0.10, 0.10, -0.10]
+    g2_chip_vals = [0, -0.10, 0.10, 0.10, 0.10, -0.10]
     sigma_wide = [  sigma_wide_vals[0] +
                     sigma_wide_vals[1] * (u - center_u) / delta_u +
                     sigma_wide_vals[2] * (v - center_v) / delta_v +
@@ -132,7 +124,7 @@ def test_compound():
         # x0 gets shifted 2048 for each chip
         x0 = 2048 * ccdnum
         wcs = galsim.OffsetWCS(scale=0.26, origin=galsim.PositionD(-x0, 0))
-        image = galsim.Image(2048, 2048, scale=0.26)
+        image = galsim.Image(2048, 2048, wcs=wcs)
 
         # select only stars with ccdnum property
         x_list = [icen for (icen, ccd) in zip(icens, ccdnums) if ccd == ccdnum]
@@ -142,7 +134,7 @@ def test_compound():
             # write images
             bounds = galsim.BoundsI(int(x-31), int(x+32), int(y-31), int(y+32))
             offset = galsim.PositionD( x-int(x)-0.5 , y-int(y)-0.5 )
-            prof.drawImage(image=image[bounds], method='no_pixel', offset=offset)
+            prof.drawImage(image=image[bounds], method='no_pixel', offset=offset, add_to_image=True)
 
         image.write(image_file.format(ccdnum))
 
@@ -217,7 +209,7 @@ def test_compound():
     }
     }
     if __name__ == '__main__':
-        logger = piff.config.setup_logger(verbose=2)
+        logger = piff.config.setup_logger(verbose=3)
     else:
         logger = piff.config.setup_logger(verbose=0)
 
@@ -227,7 +219,7 @@ def test_compound():
     # Test using the piffify executable
     if os.path.exists(psf_file):
         os.remove(psf_file)
-    config['verbose'] = 2
+    config['verbose'] = 3
     with open('compound.yaml','w') as f:
         f.write(yaml.dump(config, default_flow_style=False))
     piffify_exe = get_script_name('piffify')
@@ -241,8 +233,10 @@ def test_compound():
     assert type(psf.psfs[0].model) is piff.Gaussian
     assert type(psf.psfs[0].interp) is piff.Polynomial
     assert type(psf.psfs[1]) is piff.SingleChipPSF
-    assert type(psf.psfs[1].model) is piff.Gaussian
-    assert type(psf.psfs[1].interp) is piff.Polynomial
+    assert len(psf.psfs[1].psf_by_chip) == N_chips
+    assert type(psf.psfs[1].psf_by_chip[5]) is piff.SimplePSF
+    assert type(psf.psfs[1].psf_by_chip[5].model) is piff.Gaussian
+    assert type(psf.psfs[1].psf_by_chip[5].interp) is piff.Polynomial
 
 
     # check fit
