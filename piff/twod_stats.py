@@ -179,7 +179,7 @@ class TwoDHistStats(Stats):
         if logger:
             logger.info("Creating TwoDHist colormaps")
         # T and T_model share colorbar
-        vmin__T = np.min([self.twodhists['T'], self.twodhists['T_model']])
+        vmin__T = np.percentile([self.twodhists['T'], self.twodhists['T_model']], 10)
         vmax__T = np.max([self.twodhists['T'], self.twodhists['T_model']])
         cmap__T = self._shift_cmap(vmin__T, vmax__T)
         # g1, g2, g1_model, g2_model share colorbar

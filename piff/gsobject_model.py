@@ -47,6 +47,9 @@ class GSObjectModel(Model):
                        'force_model_center':force_model_center,
                        'include_pixel':include_pixel}
 
+        self.min_scale = 0.1
+        self.max_shear = 0.7
+
         # Center and normalize the fiducial model.
         self.gsobj = gsobj.withFlux(1.0).shift(-gsobj.centroid())
         self._fastfit = fastfit
@@ -59,14 +62,29 @@ class GSObjectModel(Model):
         else:
             self._nparams = 5
 
-    def moment_fit(self, star, logger=None):
+    def moment_fit(self, star, profile=None, logger=None):
         """Estimate transformations needed to bring self.gsobj towards given star."""
         import galsim
         flux, cenu, cenv, size, g1, g2 = star.data.properties['hsm']
         shape = galsim.Shear(g1=g1, g2=g2)
 
-        ref_flux, ref_cenu, ref_cenv, ref_size, ref_g1, ref_g2, flag = hsm(self.draw(star))
+        ref_flux, ref_cenu, ref_cenv, ref_size, ref_g1, ref_g2, flag = hsm(self.draw(star, profile=profile))
         ref_shape = galsim.Shear(g1=ref_g1, g2=ref_g2)
+        if logger:
+            logger.debug("    hsm_flux = {0}".format(flux))
+            logger.debug("    hsm_cenu = {0}".format(cenu))
+            logger.debug("    hsm_cenv = {0}".format(cenv))
+            logger.debug("    hsm_size = {0}".format(size))
+            logger.debug("    hsm_g1 = {0}".format(g1))
+            logger.debug("    hsm_g2 = {0}".format(g2))
+            logger.debug("    fit params = {0}".format(star.fit.params))
+            logger.debug("    ref_flux = {0}".format(ref_flux))
+            logger.debug("    ref_cenu = {0}".format(ref_cenu))
+            logger.debug("    ref_cenv = {0}".format(ref_cenv))
+            logger.debug("    ref_size = {0}".format(ref_size))
+            logger.debug("    ref_g1 = {0}".format(ref_g1))
+            logger.debug("    ref_g2 = {0}".format(ref_g2))
+            logger.debug("    flag = {0}".format(flag))
         if flag:
             raise ModelFitError("Error calculating model moments for this star.")
 
@@ -85,6 +103,14 @@ class GSObjectModel(Model):
         param_shear += (shape - ref_shape)
         param_g1 = param_shear.g1
         param_g2 = param_shear.g2
+
+        if logger:
+            logger.debug("    flux = {0}".format(param_flux))
+            logger.debug("    du = {0}".format(param_du))
+            logger.debug("    dv = {0}".format(param_dv))
+            logger.debug("    scale = {0}".format(param_scale))
+            logger.debug("    g1 = {0}".format(param_g1))
+            logger.debug("    g2 = {0}".format(param_g2))
 
         return param_flux, param_du, param_dv, param_scale, param_g1, param_g2
 
@@ -105,7 +131,7 @@ class GSObjectModel(Model):
             du, dv, scale, g1, g2 = params
         return self.gsobj.dilate(scale).shear(g1=g1, g2=g2).shift(du, dv)
 
-    def draw(self, star):
+    def draw(self, star, profile=None):
         """Draw the model on the given image.
 
         :param star:    A Star instance with the fitted parameters to use for drawing and a
@@ -114,12 +140,15 @@ class GSObjectModel(Model):
         :returns: a new Star instance with the data field having an image of the drawn model.
         """
         prof = self.getProfile(star.fit.params).shift(star.fit.center) * star.fit.flux
+        if profile:
+            from galsim import Convolve
+            prof = Convolve([profile, prof])
         image = star.image.copy()
         prof.drawImage(image, method=self._method, offset=(star.image_pos-image.trueCenter()))
         data = StarData(image, star.image_pos, star.weight, star.data.pointing)
         return Star(data, star.fit)
 
-    def _lmfit_resid(self, lmparams, star):
+    def _lmfit_resid(self, lmparams, star, profile=None):
         """Residual function to use with lmfit.  Essentially `chi` from `chisq`, but not summed
         over pixels yet.
 
@@ -133,12 +162,15 @@ class GSObjectModel(Model):
         # Fit du and dv regardless of force_model_center.  The difference is whether the fit
         # value is recorded (force_model_center=False) or discarded (force_model_center=True).
         prof = self.gsobj.dilate(scale).shear(g1=g1, g2=g2).shift(du, dv) * flux
+        if profile:
+            from galsim import Convolve
+            prof = Convolve([profile, prof])
         model_image = image.copy()
         prof.drawImage(model_image, method=self._method,
                        offset=(image_pos - model_image.trueCenter()))
         return (np.sqrt(weight.array)*(model_image.array - image.array)).ravel()
 
-    def _lmfit_params(self, star, vary_params=True, vary_flux=True, vary_center=True):
+    def _lmfit_params(self, star, vary_params=True, vary_flux=True, vary_center=True, profile=None):
         """Generate an lmfit.Parameters() instance from arguments.
 
         :param star:         A Star from which to initialize parameter values.
@@ -153,7 +185,7 @@ class GSObjectModel(Model):
         # Get initial parameter values.  Either use values currently in star.fit, or if those are
         # absent, run HSM to get initial values.
         if star.fit.params is None:
-            flux, du, dv, scale, g1, g2, flag = self.moment_fit(star)
+            flux, du, dv, scale, g1, g2, flag = self.moment_fit(star, profile=profile)
             if flag != 0:
                 raise RuntimeError("Error initializing star fit values using hsm.")
         else:
@@ -169,14 +201,14 @@ class GSObjectModel(Model):
         params.add('flux', value=flux, vary=vary_flux, min=0.0)
         params.add('du', value=du, vary=vary_center)
         params.add('dv', value=dv, vary=vary_center)
-        params.add('scale', value=scale, vary=vary_params, min=0.0)
+        params.add('scale', value=scale, vary=vary_params, min=self.min_scale)
         # Limits of +/- 0.7 is definitely a hack to avoid |g| > 1, but if the PSF is ever actually
         # this elliptical then we have more serious problems to worry about than hacky code!
-        params.add('g1', value=g1, vary=vary_params, min=-0.7, max=0.7)
-        params.add('g2', value=g2, vary=vary_params, min=-0.7, max=0.7)
+        params.add('g1', value=g1, vary=vary_params, min=-self.max_shear, max=self.max_shear)
+        params.add('g2', value=g2, vary=vary_params, min=-self.max_shear, max=self.max_shear)
         return params
 
-    def _lmfit_minimize(self, params, star, logger=None):
+    def _lmfit_minimize(self, params, star, profile=None, logger=None):
         """ Run lmfit.minimize with given lmfit.Parameters() and on given star data.
 
         :param params: lmfit.Parameters() instance (holds initial guess and which params to let
@@ -190,14 +222,14 @@ class GSObjectModel(Model):
             import time
             t0 = time.time()
             logger.debug("Start lmfit minimize.")
-        results = lmfit.minimize(self._lmfit_resid, params, args=(star,))
+        results = lmfit.minimize(self._lmfit_resid, params, args=(star,profile,))
         flux, du, dv, scale, g1, g2 = results.params.valuesdict().values()
 
         if logger:
             logger.debug("End lmfit minimize.  Elapsed time: {0}".format(time.time() - t0))
         return results
 
-    def lmfit(self, star, logger=None):
+    def lmfit(self, star, profile=None, logger=None):
         """Fit parameters of the given star using lmfit (Levenberg-Marquardt minimization
         algorithm).
 
@@ -206,8 +238,8 @@ class GSObjectModel(Model):
 
         :returns: (flux, dx, dy, scale, g1, g2, flag)
         """
-        params = self._lmfit_params(star)
-        results = self._lmfit_minimize(params, star, logger=logger)
+        params = self._lmfit_params(star, profile=profile)
+        results = self._lmfit_minimize(params, star, profile=profile, logger=logger)
         if logger:
             import lmfit
             logger.debug(lmfit.fit_report(results))
@@ -228,7 +260,7 @@ class GSObjectModel(Model):
             return Star(sd, star.fit)
         return star
 
-    def fit(self, star, fastfit=None, logger=None):
+    def fit(self, star, fastfit=None, profile=None, logger=None):
         """Fit the image either using HSM or lmfit.
 
         If `fastfit` is True, then the galsim.hsm module will be used to estimate the transformation
@@ -240,6 +272,7 @@ class GSObjectModel(Model):
         :param star:    A Star to fit.
         :param fastfit: Use fast HSM moments to fit? [default: None, which means use fitting mode
                         specified in the constructor.]
+        :param profile: A galsim profile which is convolved with gsobject's
         :param logger:  A logger object for logging debug info. [default: None]
 
         :returns: a new Star with the fitted parameters in star.fit
@@ -248,12 +281,12 @@ class GSObjectModel(Model):
             fastfit = self._fastfit
 
         if not hasattr(star.data.properties, 'hsm'):
-            star = self.initialize(star)
+            star = self.initialize(star, logger=logger)
 
         if fastfit:
-            flux, du, dv, scale, g1, g2 = self.moment_fit(star, logger=logger)
+            flux, du, dv, scale, g1, g2 = self.moment_fit(star, profile=profile, logger=logger)
         else:
-            flux, du, dv, scale, g1, g2 = self.lmfit(star, logger=logger)
+            flux, du, dv, scale, g1, g2 = self.lmfit(star, profile=profile, logger=logger)
         # Make a StarFit object with these parameters
         if self._force_model_center:
             params = np.array([ scale, g1, g2 ])
@@ -265,7 +298,12 @@ class GSObjectModel(Model):
         # Also need to compute chisq
         prof = self.getProfile(params) * flux
         model_image = star.image.copy()
-        prof.shift(center).drawImage(model_image, method=self._method,
+        prof = prof.shift(center)
+        if profile:
+            # not sure if importing here is kosher
+            from galsim import Convolve
+            prof = Convolve([profile, prof])
+        prof.drawImage(model_image, method=self._method,
                                      offset=(star.image_pos - model_image.trueCenter()))
         chisq = np.sum(star.weight.array * (star.image.array - model_image.array)**2)
         dof = np.count_nonzero(star.weight.array) - self._nparams
@@ -288,11 +326,11 @@ class GSObjectModel(Model):
                 params = np.array([ 0.0, 0.0, 1.0, 0.0, 0.0])
             fit = StarFit(params, flux=1.0, center=(0.0, 0.0))
             star = Star(star.data, fit)
-            star = self.fit(star, fastfit=True)
-        star = self.reflux(star, fit_center=False)
+            star = self.fit(star, fastfit=True, logger=logger)
+        star = self.reflux(star, fit_center=False, logger=logger)
         return star
 
-    def reflux(self, star, fit_center=True, logger=None):
+    def reflux(self, star, fit_center=True, profile=None, logger=None):
         """Fit the Model to the star's data, varying only the flux (and
         center, if it is free).  Flux and center are updated in the Star's
         attributes.  This is a single-step solution if only solving for flux,
@@ -301,6 +339,7 @@ class GSObjectModel(Model):
 
         :param star:        A Star instance
         :param fit_center:  If False, disable any motion of center
+        :param profile: A galsim profile which is convolved with gsobject's
         :param logger:      A logger object for logging debug info. [default: None]
 
         :returns:           New Star instance, with updated flux, center, chisq, dof, worst
@@ -318,7 +357,7 @@ class GSObjectModel(Model):
         do_center = fit_center and self._force_model_center
         if do_center:
             params = self._lmfit_params(star, vary_params=False)
-            results = self._lmfit_minimize(params, star, logger=logger)
+            results = self._lmfit_minimize(params, star, profile=profile, logger=logger)
             return Star(star.data, StarFit(star.fit.params,
                                            flux = results.params['flux'].value,
                                            center = (results.params['du'].value,
@@ -329,7 +368,7 @@ class GSObjectModel(Model):
                                            beta = star.fit.beta))
         else:
             image, weight, image_pos = star.data.getImage()
-            model_image = self.draw(star).image
+            model_image = self.draw(star, profile=profile).image
             flux_ratio = (np.sum(weight.array * image.array * model_image.array)
                           / np.sum(weight.array * model_image.array**2))
             new_chisq = np.sum(weight.array * (image.array - flux_ratio*model_image.array)**2)
