@@ -31,15 +31,20 @@ def test_compound():
 
     # true PSF params
     N_chips = 3
-    N_stars_per_chip = 500
+    n_per_row = 25
+    N_stars_per_chip = n_per_row ** 2
     # set RNG
     np_rng = np.random.RandomState(1234)
 
-    # need to generate the pixel coordinates for the stars per chip
-    n_samples = N_chips * N_stars_per_chip
-    icens = np_rng.randint(100, 2048 - 100, n_samples)
-    jcens = np_rng.randint(100, 2048 - 100, n_samples)
-    ccdnums = np_rng.randint(5, 5 + N_chips, n_samples)
+    # generate grid of stars instead.
+    ICENS = np.linspace(100, 2048 - 100, n_per_row)
+    icens, jcens = np.meshgrid(ICENS, ICENS)
+    icens = icens.flatten().tolist() * N_chips
+    jcens = jcens.flatten().tolist() * N_chips
+    ccdnums = []
+    for i in range(5, 5 + N_chips):
+        for j in range(n_per_row * n_per_row):
+            ccdnums.append(i)
 
     # x0 gets shifted 2048 for each chip
     us = [icen + 2048 * ccdnum for (icen, ccdnum) in zip(icens, ccdnums)]
@@ -202,14 +207,14 @@ def test_compound():
             {
                 'type': 'TwoDHist',
                 'file_name': os.path.join('output', 'compound_psf_twodhiststats.png'),
-                'number_bins_u': 10,
+                'number_bins_u': 30,
                 'number_bins_v': 10
                 }
             ]
     }
     }
     if __name__ == '__main__':
-        logger = piff.config.setup_logger(verbose=3)
+        logger = piff.config.setup_logger(verbose=2)
     else:
         logger = piff.config.setup_logger(verbose=0)
 
@@ -219,7 +224,7 @@ def test_compound():
     # Test using the piffify executable
     if os.path.exists(psf_file):
         os.remove(psf_file)
-    config['verbose'] = 3
+    config['verbose'] = 2
     with open('compound.yaml','w') as f:
         f.write(yaml.dump(config, default_flow_style=False))
     piffify_exe = get_script_name('piffify')

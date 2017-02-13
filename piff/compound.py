@@ -120,8 +120,8 @@ class CompoundPSF(PSF):
 
             # Very simple convergence test here:
             # Note, the lack of abs here means if chisq increases, we also stop.
-            # Also, don't quit if we removed any outliers.
-            if (nremoved == 0) and (oldchisq > 0) and (oldchisq-chisq < chisq_threshold*dof):
+            # Also don't quit if a substantial fraction of stars were removed. Basically, having 1 removed out of 1k is not a good reason to keep iterating...
+            if (nremoved / len(self.stars) < 0.01) and (oldchisq > 0) and (oldchisq-chisq < chisq_threshold*dof):
                 return
             oldchisq = chisq
 
