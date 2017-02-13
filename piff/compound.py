@@ -37,7 +37,7 @@ class CompoundPSF(PSF):
         self.psfs = []
         for i in range(self._npsfs):
             psf_key = 'psf_{0}'.format(i)
-            self.kwargs[psf_key] = psfs[psf_key]
+            self.kwargs[psf_key] = 0
             self.psfs.append(psfs[psf_key])
 
     @classmethod
