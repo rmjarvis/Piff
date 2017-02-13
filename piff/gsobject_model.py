@@ -22,7 +22,6 @@ from .model import Model, ModelFitError
 from .star import Star, StarFit, StarData
 from .util import hsm
 
-# TODO: make sure profile is in all the right places!
 
 class GSObjectModel(Model):
     """ Model that takes a fiducial GalSim.GSObject and dilates, shifts, and shears it to get a
@@ -286,53 +285,6 @@ class GSObjectModel(Model):
 
         if fastfit:
             flux, du, dv, scale, g1, g2 = self.moment_fit(star, profile=profile, logger=logger)
-            # if profile:
-            #     # if a profile is provided, then let's pretend that the end star is
-            #     # the result of the convolution of the gsobject as a gaussian and
-            #     # the profile as a gaussian.
-            #     image = star.image.copy()
-            #     profile.drawImage(image, method=self._method, offset=(star.image_pos-image.trueCenter()))
-            #     data = StarData(image, star.image_pos, star.weight, star.data.pointing)
-            #     star_profile = Star(data, star.fit)
-            #     # have to initialize star_profile
-            #     print('star profile')
-            #     star_profile = self.initialize(star_profile, logger=logger)
-            #     flux_profile, du_profile, dv_profile, scale_profile, g1_profile, g2_profile = self.moment_fit(star_profile, logger=logger)
-            #     # TODO: if I recall correctly,
-            #     # moments add under convolution
-            #     flux = flux / flux_profile
-            #     du = du - du_profile
-            #     dv = dv - dv_profile
-            #     # g12 = (g1 * s1^2 + g2 * s2^2) / (s1^2 + s2^2 = s12^2)
-            #     # -> g1 = (g12 * s12^2 - g2 * s2^2) / (s12^2 - s2^2)
-            #     # TODO: what do I do if s1^2 < 0?
-            #     g1_old = g1
-            #     g2_old = g2
-            #     g1 = (g1 * scale ** 2 - g1_profile * scale_profile ** 2) / (scale ** 2 - scale_profile ** 2)
-            #     g2 = (g2 * scale ** 2 - g2_profile * scale_profile ** 2) / (scale ** 2 - scale_profile ** 2)
-            #     scale_old = scale
-            #     scale = np.sqrt(scale ** 2 - scale_profile ** 2)
-            #     if scale != scale:
-            #         # set a minimum stretch scale
-            #         scale = self.min_scale
-            #         if logger:
-            #             logger.debug("Profile scale is {0}, measured scale is {1}. Setting scale to {2} for star at {3}".format(scale_profile, scale_old, scale, star.fit.center))
-            #     if g1 < -self.max_shear:
-            #         g1 = -self.max_shear
-            #         if logger:
-            #             logger.debug("Profile g1 is {0}, measured g1 is {1}. Setting g1 to {2} for star at {3}".format(g1_profile, g1_old, g1, star.fit.center))
-            #     elif g1 > self.max_shear:
-            #         g1 = self.max_shear
-            #         if logger:
-            #             logger.debug("Profile g1 is {0}, measured g1 is {1}. Setting g1 to {2} for star at {3}".format(g1_profile, g1_old, g1, star.fit.center))
-            #     if g2 < -self.max_shear:
-            #         g2 = -self.max_shear
-            #         if logger:
-            #             logger.debug("Profile g2 is {0}, measured g2 is {1}. Setting g2 to {2} for star at {3}".format(g2_profile, g2_old, g2, star.fit.center))
-            #     elif g2 > self.max_shear:
-            #         g2 = self.max_shear
-            #         if logger:
-            #             logger.debug("Profile g2 is {0}, measured g2 is {1}. Setting g2 to {2} for star at {3}".format(g2_profile, g2_old, g2, star.fit.center))
         else:
             flux, du, dv, scale, g1, g2 = self.lmfit(star, profile=profile, logger=logger)
         # Make a StarFit object with these parameters
