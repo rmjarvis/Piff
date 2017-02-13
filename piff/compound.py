@@ -19,39 +19,26 @@
 from __future__ import print_function
 
 import numpy as np
-import copy
 
 from .psf import PSF
 from .star import Star, StarFit, StarData
 from .util import write_kwargs, read_kwargs, make_dtype, adjust_value
 
-# TODO: in principal, can be arbitrary number of PSFs
 class CompoundPSF(PSF):
-    """A PSF class that uses two PSF solutions -- one for each chip, one for the full.
+    """A PSF class that uses two PSF solutions.
     """
-    def __init__(self, psf_1, psf_2,
-                 extra_interp_properties=None):
+    def __init__(self, **psfs):
         """
-        :param psf_1:     A PSF instance to use for the PSF solution on each
-                          chip.  (This will be turned into nchips copies of the
-                          provided object.)
-        :param psf_2:     A PSF instance to use for the PSF solution on the
-                          full field.
-        :param extra_interp_properties:     A list of any extra properties that
-                                            will be used for the interpolation
-                                            in addition to (u,v).
-                                            [default: None]
+        :param psfs:     PSF instances to use, labelled by 'psf_0', 'psf_1', etc (for order in operation)
         """
-        self.psfs = [psf_1, psf_2]
-        if extra_interp_properties is None:
-            self.extra_interp_properties = []
-        else:
-            self.extra_interp_properties = extra_interp_properties
 
-        self.kwargs = {
-            'psf_1': 0,
-            'psf_2': 0,
-        }
+        self._npsfs = len(psfs)
+        self.kwargs = {}
+        self.psfs = []
+        for i in range(self._npsfs):
+            psf_key = 'psf_{0}'.format(i)
+            self.kwargs[psf_key] = psfs[psf_key]
+            self.psfs.append(psfs[psf_key])
 
     @classmethod
     def parseKwargs(cls, config_psf, logger):
@@ -68,9 +55,11 @@ class CompoundPSF(PSF):
         config_psf = config_psf.copy()  # Don't alter the original dict.
 
         kwargs = {}
-        for psf_kind in ['1', '2']:
+        # find the psf_kinds
+        psf_kinds = [key for key in config_psf.keys() if 'psf_' == key[:4]]
+        for psf_kind in psf_kinds:
             config = config_psf.pop(psf_kind)
-            kwargs['psf_{0}'.format(psf_kind)] = piff.PSF.process(config, logger)
+            kwargs[psf_kind] = piff.PSF.process(config, logger)
 
         return kwargs
 
@@ -98,7 +87,7 @@ class CompoundPSF(PSF):
         oldchisq = 0.
         for iteration in range(max_iterations):
             if logger:
-                logger.warning("Iteration %d: Fitting %d stars", iteration+1, len(self.stars))
+                logger.warning("Iteration %d of compound: Fitting %d stars", iteration+1, len(self.stars))
 
             nremoved = 0
             for i, psf_i in enumerate(self.psfs):
@@ -116,8 +105,6 @@ class CompoundPSF(PSF):
                         profiles_star.append(psf_j.getProfile(star))
                     if len(profiles_star) > 0:
                         profiles.append(galsim.Convolve(profiles_star))
-                if len(profiles) == 0:
-                    profiles = None
 
                 # fit
                 psf_i.fit(self.stars, wcs, pointing, profiles=profiles, logger=logger)
@@ -149,19 +136,17 @@ class CompoundPSF(PSF):
         :returns:           Star instance with its image filled with rendered PSF
         """
         import galsim
-        # TODO: is there a way to collect fit params without drawStar?
         params = []
         profs = []
         for psf_i in self.psfs:
-            star = psf_i.drawStar(star)
             profs.append(psf_i.getProfile(star))
-            params.append(star.fit.params)
+            params.append(psf_i.drawStar(star).fit.params)
         params = np.hstack(params)
 
         # draw star
         prof = galsim.Convolve(profs)
         image = star.image.copy()
-        prof.drawImage(image, method=self._method, offset=(star.image_pos-image.trueCenter()))
+        prof.drawImage(image, method='auto', offset=(star.image_pos-image.trueCenter()))
         data = StarData(image, star.image_pos, star.weight, star.data.pointing)
         return Star(data, StarFit(params))
 
@@ -173,7 +158,7 @@ class CompoundPSF(PSF):
         :param logger:      A logger object for logging debug info.
         """
         for i, psf_i in enumerate(self.psfs):
-            psf_i.write(fits, extname + '_{0}'.format(i), logger)
+            psf_i._write(fits, extname + '_{0}'.format(i), logger)
 
     def _finish_read(self, fits, extname, logger):
         """Finish the reading process with any class-specific steps.
@@ -182,7 +167,6 @@ class CompoundPSF(PSF):
         :param extname:     The base name of the extension to write to.
         :param logger:      A logger object for logging debug info.
         """
-        # TODO: need to specify how many psfs in advance!
         self.psfs = []
-        for i in range(2):
+        for i in range(self._npsfs):
             self.psfs.append(PSF._read(fits, extname + '_{0}'.format(i), logger))

@@ -36,7 +36,7 @@ def test_compound():
     """
 
     # true PSF params
-    N_chips = 4
+    N_chips = 3
     N_stars_per_chip = 100
     # set RNG
     np_rng = np.random.RandomState(1234)
@@ -49,51 +49,67 @@ def test_compound():
 
     # x0 gets shifted 2048 for each chip
     us = [icen + 2048 * ccdnum for (icen, ccdnum) in zip(icens, ccdnums)]
-    centers_u = [2048 * (ccdnum + 0.5) for ccdnum in ccdnums]
+    centers_u = [2048 * (ccdnum + 0.5) for ccdnum in range(0, 5 + N_chips)]
     vs = jcens
-    delta_u = max(us) - min(us)
-    delta_v = max(vs) - min(vs)
-    center_u = 0.5 * (max(us) + min(us))
-    center_v = 0.5 * (max(vs) + min(vs))
+    delta_u = N_chips * 2048
+    center_u = (5 + (5 + N_chips)) * 2048 / 2.
+    delta_v = 2048.
+    center_v = 1024.
+    print(delta_u, delta_v, center_u, center_v, centers_u)
 
     # now generate the values for each star
-    sigma_wide_vals = [0.5, 0.05, -0.05]
-    g1_wide_vals = [0, 0.05, -0.05]
-    g2_wide_vals = [0, 0.05, -0.05]
-    sigma_chip_vals = [0.5, 0.05, -0.05]
-    g1_chip_vals = [0, 0.05, -0.05]
-    g2_chip_vals = [0, 0.05, -0.05]
+    sigma_wide_vals = [0.2, 0.05, -0.05, 0, 0, 0]
+    g1_wide_vals = [0, 0.05, -0.05, 0, 0, 0]
+    g2_wide_vals = [0, 0.05, -0.05, 0, 0, 0]
+    sigma_chip_vals = [0.2, -0.05, 0.05, 0.05, 0.05, 0.05]
+    g1_chip_vals = [0, -0.05, 0.05, 0.05, 0.05, -0.05]
+    g2_chip_vals = [0, -0.05, 0.05, 0.05, 0.05, -0.05]
     sigma_wide = [  sigma_wide_vals[0] +
                     sigma_wide_vals[1] * (u - center_u) / delta_u +
-                    sigma_wide_vals[2] * (v - center_v) / delta_v
+                    sigma_wide_vals[2] * (v - center_v) / delta_v +
+                    sigma_wide_vals[3] * ((u - center_u) / delta_u) ** 2 +
+                    sigma_wide_vals[4] * ((v - center_v) / delta_v) ** 2 +
+                    sigma_wide_vals[5] * (u - center_u) / delta_u * (v - center_v) / delta_v
                     for (u, v) in zip(us, vs)]
     g1_wide = [ g1_wide_vals[0] +
                 g1_wide_vals[1] * (u - center_u) / delta_u +
-                g1_wide_vals[2] * (v - center_v) / delta_v
+                g1_wide_vals[2] * (v - center_v) / delta_v +
+                g1_wide_vals[3] * ((u - center_u) / delta_u) ** 2 +
+                g1_wide_vals[4] * ((v - center_v) / delta_v) ** 2 +
+                g1_wide_vals[5] * (u - center_u) / delta_u * (v - center_v) / delta_v
                 for (u, v) in zip(us, vs)]
     g2_wide = [ g2_wide_vals[0] +
                 g2_wide_vals[1] * (u - center_u) / delta_u +
-                g2_wide_vals[2] * (v - center_v) / delta_v
+                g2_wide_vals[2] * (v - center_v) / delta_v +
+                g2_wide_vals[3] * ((u - center_u) / delta_u) ** 2 +
+                g2_wide_vals[4] * ((v - center_v) / delta_v) ** 2 +
+                g2_wide_vals[5] * (u - center_u) / delta_u * (v - center_v) / delta_v
                 for (u, v) in zip(us, vs)]
     # now we do the chips. Because we only care about local chip coordinates,
     # which are all delta_v in size, we use those coordinates.
     sigma_chip = [  sigma_chip_vals[0] +
                     sigma_chip_vals[1] * (u - centers_u[ccdnum]) / delta_v +
-                    sigma_chip_vals[2] * (v - center_v) / delta_v
+                    sigma_chip_vals[2] * (v - center_v) / delta_v +
+                    sigma_chip_vals[3] * ((u - centers_u[ccdnum]) / delta_v) ** 2 +
+                    sigma_chip_vals[4] * ((v - center_v) / delta_v) ** 2 +
+                    sigma_chip_vals[5] * (u - centers_u[ccdnum]) / delta_v * (v - center_v) / delta_v
                     for (u, v, ccdnum) in zip(us, vs, ccdnums)]
     g1_chip = [ g1_chip_vals[0] +
                 g1_chip_vals[1] * (u - centers_u[ccdnum]) / delta_v +
-                g1_chip_vals[2] * (v - center_v) / delta_v
+                g1_chip_vals[2] * (v - center_v) / delta_v +
+                g1_chip_vals[3] * ((u - centers_u[ccdnum]) / delta_v) ** 2 +
+                g1_chip_vals[4] * ((v - center_v) / delta_v) ** 2 +
+                g1_chip_vals[5] * (u - centers_u[ccdnum]) / delta_v * (v - center_v) / delta_v
                 for (u, v, ccdnum) in zip(us, vs, ccdnums)]
     g2_chip = [ g2_chip_vals[0] +
                 g2_chip_vals[1] * (u - centers_u[ccdnum]) / delta_v +
-                g2_chip_vals[2] * (v - center_v) / delta_v
+                g2_chip_vals[2] * (v - center_v) / delta_v +
+                g2_chip_vals[3] * ((u - centers_u[ccdnum]) / delta_v) ** 2 +
+                g2_chip_vals[4] * ((v - center_v) / delta_v) ** 2 +
+                g2_chip_vals[5] * (u - centers_u[ccdnum]) / delta_v * (v - center_v) / delta_v
                 for (u, v, ccdnum) in zip(us, vs, ccdnums)]
 
-    for indx in np.random.choice(len(us), 5):
-        print(indx, ccdnums[indx], us[indx], vs[indx], icens[indx], jcens[indx])
-        print(sigma_wide[indx], g1_wide[indx], g2_wide[indx])
-        print(sigma_chip[indx], g1_chip[indx], g2_chip[indx])
+    true_params_all = np.vstack([sigma_wide, g1_wide, g2_wide, sigma_chip, g1_chip, g2_chip]).T
 
     # make star_list
     prof_list = []
@@ -160,7 +176,7 @@ def test_compound():
         'psf' : {
             'type': 'Compound',
 
-            '1': {
+            'psf_0': {
                 'type': 'Simple',
 
                 'model' : { 'type' : 'Gaussian',
@@ -170,13 +186,13 @@ def test_compound():
                             },
             },
 
-            '2': {
+            'psf_1': {
                 'type': 'SingleChip',
 
                 'model' : { 'type' : 'Gaussian',
                             'fastfit' : True},
                 'interp' : { 'type' : 'Polynomial',
-                            'order': 1,
+                            'order': 2,
                             },
             }
 
@@ -205,67 +221,55 @@ def test_compound():
     else:
         logger = piff.config.setup_logger(verbose=0)
 
+    with open('compound.yaml','w') as f:
+        f.write(yaml.dump(config, default_flow_style=False))
+
+    # Test using the piffify executable
+    if os.path.exists(psf_file):
+        os.remove(psf_file)
+    config['verbose'] = 2
+    with open('compound.yaml','w') as f:
+        f.write(yaml.dump(config, default_flow_style=False))
+    piffify_exe = get_script_name('piffify')
+    p = subprocess.Popen( [piffify_exe, 'compound.yaml'] )
+    p.communicate()
+
+    psf = piff.read(psf_file)
+    # make sure that this psf is correct
+    assert len(psf.psfs) == 2
+    assert type(psf.psfs[0]) is piff.SimplePSF
+    assert type(psf.psfs[0].model) is piff.Gaussian
+    assert type(psf.psfs[0].interp) is piff.Polynomial
+    assert type(psf.psfs[1]) is piff.SingleChipPSF
+    assert type(psf.psfs[1].model) is piff.Gaussian
+    assert type(psf.psfs[1].interp) is piff.Polynomial
+
+
+    # check fit
     # do processing
-    import ipdb; ipdb.set_trace()
     orig_stars, wcs, pointing = piff.Input.process(config['input'], logger)
     assert len(orig_stars) == N_stars_per_chip * N_chips
     assert orig_stars[0].image.array.shape == (config['input']['stamp_size'], config['input']['stamp_size'])
 
-    # use CompoundPSF to process the stars and fit
-    psf = piff.CompoundPSF.process(config['psf'], logger)
-
-    psf.fit(orig_stars, wcs, pointing, logger=logger)
-
     # check that fit parameters match
     indx = np.random.choice(len(orig_stars))
     target = orig_stars[indx]
+    true_params = true_params_all[indx]
 
     # test with target star
-    test_star = psf.interp.interpolate(target)
-    np.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=4)
-
-    # Round trip to a file
-    psf.write(psf_file, logger)
-    psf = piff.read(psf_file, logger)
-    assert type(psf.model) is piff.Gaussian
-    assert type(psf.interp) is piff.Mean
-    test_star = psf.interp.interpolate(target)
-    np.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=4)
-
-    # Test using piffify function
-    os.remove(psf_file)
-    piff.piffify(config, logger)
-
-    # check fit
-    psf = piff.read(psf_file)
-    test_star = psf.interp.interpolate(target)
-    np.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=4)
-
-    # Test using the piffify executable
-    os.remove(psf_file)
-    config['verbose'] = 0
-    with open('chipfull.yaml','w') as f:
-        f.write(yaml.dump(config, default_flow_style=False))
-    piffify_exe = get_script_name('piffify')
-    p = subprocess.Popen( [piffify_exe, 'chipfull.yaml'] )
-    p.communicate()
-
-    # check fit
-    psf = piff.read(psf_file)
-    test_star = psf.interp.interpolate(target)
+    test_star = psf.drawStar(target)
     np.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=4)
 
 @timer
 def test_gsobject_convolve():
     from test_gsobject_model import make_data
-    # TODO: test the u0, v0, too
     influx_1 = 1.
     scale_1 = 0.5
-    u0_1, v0_1 = 0, 0
+    u0_1, v0_1 = 0.01, 0.02
     g1_1, g2_1 = 0.03, -0.05
     influx_2 = 1.
     scale_2 = 0.7
-    u0_2, v0_2 = 0, 0
+    u0_2, v0_2 = -0.1, 0.05
     g1_2, g2_2 = 0.07, 0.13
 
     scale_12 = np.sqrt(scale_1 ** 2 + scale_2 ** 2)
@@ -274,86 +278,36 @@ def test_gsobject_convolve():
     influx_12 = influx_1 * influx_2
     u0_12, v0_12 = 0, 0
 
-    force_model_center=False
-    include_pixel=False
-    fastfit=False
     pix_scale=0.27
     nside=32
     sigma=1. / 32 * nside
     pix_scale=pix_scale * 32. / nside
     fiducial = galsim.Gaussian(sigma=sigma)
-    model = piff.Gaussian(include_pixel=include_pixel, fastfit=fastfit, force_model_center=force_model_center)
+    for fastfit in [False, True]:
+        for include_pixel in [False, True]:
+            for force_model_center in [False, True]:
+                model = piff.Gaussian(include_pixel=include_pixel, fastfit=fastfit, force_model_center=force_model_center)
 
-    # create gaussian profile
-    star_1 = make_data(fiducial, scale_1, g1_1, g2_1, u0_1, v0_1, influx_1, pix_scale=pix_scale, include_pixel=include_pixel, nside=nside)
-    star_2 = make_data(fiducial, scale_2, g1_2, g2_2, u0_2, v0_2, influx_2,  pix_scale=pix_scale, include_pixel=include_pixel, nside=nside)
-    star_12 = make_data(fiducial, scale_12, g1_12, g2_12, u0_12, v0_12, influx_12, pix_scale=pix_scale, include_pixel=include_pixel, nside=nside)
-    star_1 = model.fit(model.initialize(star_1))
-    star_2 = model.fit(model.initialize(star_2))
-    star_12 = model.fit(model.initialize(star_12))
-    star_model_12_conv = model.fit(model.draw(star_2, profile=model.getProfile(star_1.fit.params)))
-    star_model_1 = model.fit(model.draw(star_1))
-    star_model_2 = model.fit(model.draw(star_2))
-    star_model_12 = model.fit(model.draw(star_12))
+                # create gaussian profile
+                star_1 = make_data(fiducial, scale_1, g1_1, g2_1, u0_1, v0_1, influx_1, pix_scale=pix_scale, include_pixel=include_pixel, nside=nside)
+                star_2 = make_data(fiducial, scale_2, g1_2, g2_2, u0_2, v0_2, influx_2,  pix_scale=pix_scale, include_pixel=include_pixel, nside=nside)
+                star_12 = make_data(fiducial, scale_12, g1_12, g2_12, u0_12, v0_12, influx_12, pix_scale=pix_scale, include_pixel=include_pixel, nside=nside)
+                star_1 = model.fit(model.initialize(star_1))
+                star_2 = model.fit(model.initialize(star_2))
+                star_12 = model.fit(model.initialize(star_12))
+                star_model_12_conv = model.fit(model.draw(star_2, profile=model.getProfile(star_1.fit.params)))
 
-    import matplotlib.pyplot as plt
-    plt.figure()
-    plt.imshow(star_1.image.array)
-    plt.colorbar()
-    plt.savefig('1.png')
-    plt.figure()
-    plt.imshow(star_2.image.array)
-    plt.colorbar()
-    plt.savefig('2.png')
-    plt.figure()
-    plt.imshow(star_12.image.array)
-    plt.colorbar()
-    plt.savefig('12.png')
-    plt.figure()
-    plt.imshow(star_model_1.image.array)
-    plt.colorbar()
-    plt.savefig('1_model.png')
-    plt.figure()
-    plt.imshow(star_model_2.image.array)
-    plt.colorbar()
-    plt.savefig('2_model.png')
-    plt.figure()
-    plt.imshow(star_model_12.image.array)
-    plt.colorbar()
-    plt.savefig('12_model.png')
-    plt.figure()
-    plt.imshow(star_model_12_conv.image.array)
-    plt.colorbar()
-    plt.savefig('12_conv.png')
-    plt.figure()
-    plt.imshow(star_model_12_conv.image.array - star_12.image.array)
-    plt.colorbar()
-    plt.savefig('12_diff.png')
-    print('analytic params:', star_12.fit.params)
-    print('analytic params measured:', star_model_12.fit.params)
-    print('convolve params:', star_model_12_conv.fit.params)
-    print(star_model_12.image.array / star_model_12_conv.image.array)
-    print(star_12.image.array / star_model_12_conv.image.array)
-    print(star_model_12_conv.image.array.sum())
-    print(star_model_12.image.array.sum())
-
-
-    # make sure fit params make sense between 12 and 12_conv
-    if force_model_center:
-        nstart = 0
-    else:
-        np.testing.assert_allclose(star_12.fit.params[:2], star_model_12_conv.fit.params[:2], atol=1e-4)
-        nstart = 2
-    np.testing.assert_allclose(star_12.fit.params[nstart + 0], star_model_12_conv.fit.params[nstart + 0], atol=1e-2)
-    np.testing.assert_allclose(star_12.fit.params[nstart + 1:], star_model_12_conv.fit.params[nstart + 1:], atol=1e-3)
-    # make sure image makes sense
-    np.testing.assert_allclose(star_model_12_conv.image.array, star_12.image.array, atol=1e-4, rtol=1e-4)
-
-
-@timer
-def test_optical_model_convolve():
-    pass
+                # make sure fit params make sense between 12 and 12_conv
+                if force_model_center:
+                    nstart = 0
+                else:
+                    np.testing.assert_allclose(star_12.fit.params[:2], star_model_12_conv.fit.params[:2], atol=1e-4)
+                    nstart = 2
+                np.testing.assert_allclose(star_12.fit.params[nstart + 0], star_model_12_conv.fit.params[nstart + 0], atol=1e-2)
+                np.testing.assert_allclose(star_12.fit.params[nstart + 1:], star_model_12_conv.fit.params[nstart + 1:], atol=1e-3)
+                # make sure image makes sense
+                np.testing.assert_allclose(star_model_12_conv.image.array, star_12.image.array, atol=1e-4, rtol=1e-4)
 
 if __name__ == '__main__':
-    test_compound()
     test_gsobject_convolve()
+    test_compound()

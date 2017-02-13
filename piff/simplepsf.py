@@ -147,6 +147,8 @@ class SimplePSF(PSF):
         # Begin iterations.  Very simple convergence criterion right now.
         oldchisq = 0.
         for iteration in range(max_iterations):
+            if len(self.stars) == 0:
+                raise Exception('No stars to fit!')
             if logger:
                 logger.warning("Iteration %d: Fitting %d stars", iteration+1, len(self.stars))
 
