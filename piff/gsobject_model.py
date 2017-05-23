@@ -128,12 +128,13 @@ class GSObjectModel(Model):
 
         :returns: `chi` as a flattened numpy array.
         """
+        import galsim
         image, weight, image_pos = star.data.getImage()
         flux, du, dv, scale, g1, g2 = lmparams.valuesdict().values()
         # Fit du and dv regardless of force_model_center.  The difference is whether the fit
         # value is recorded (force_model_center=False) or discarded (force_model_center=True).
         prof = self.gsobj.dilate(scale).shear(g1=g1, g2=g2).shift(du, dv) * flux
-        model_image = image.copy()
+        model_image = galsim.Image(image, dtype=float)
         prof.drawImage(model_image, method=self._method,
                        offset=(image_pos - model_image.trueCenter()))
         return (np.sqrt(weight.array)*(model_image.array - image.array)).ravel()
