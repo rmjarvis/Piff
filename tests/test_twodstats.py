@@ -46,8 +46,8 @@ def test_twodstats():
     stats.compute(psf, stars, logger=logger)
     # check the twodhists
     # get the average value in the bin
-    u_i = 2
-    v_i = 2
+    u_i = 3
+    v_i = 3
     icen = stats.twodhists['u'][v_i, u_i] / 0.263
     jcen = stats.twodhists['v'][v_i, u_i] / 0.263
     print('icen = ',icen)
