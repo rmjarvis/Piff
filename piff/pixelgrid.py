@@ -703,7 +703,7 @@ class PixelInterpolant(object):
 
         :returns: Maximum distance from target to source pixel.
         """
-        raise NotImplemented("Derived classes must define the range function")
+        raise NotImplementedError("Derived classes must define the range function")
 
     def __call__(self, u, v):
         """Calculate interpolation coefficient for vector of target points
@@ -718,7 +718,7 @@ class PixelInterpolant(object):
 
         :returns: coeff, y, x
         """
-        raise NotImplemented("Derived classes must define the __call__ function")
+        raise NotImplementedError("Derived classes must define the __call__ function")
 
     def derivatives(self, u, v):
         """Calculate interpolation coefficient for vector of target points, and
@@ -735,7 +735,7 @@ class PixelInterpolant(object):
 
         :returns: coeff, dcdu, dcdv, y, x
         """
-        raise NotImplemented("Derived classes must define the derivatives function")
+        raise NotImplementedError("Derived classes must define the derivatives function")
 
 
 class Lanczos(PixelInterpolant):

@@ -74,7 +74,7 @@ class Output(object):
         :param psf:         A piff.PSF instance
         :param logger:      A logger object for logging debug info. [default: None]
         """
-        raise NotImplemented("Derived classes must define the write function")
+        raise NotImplementedError("Derived classes must define the write function")
 
     def read(self, logger=None):
         """Read a PSF object that was written to an output file back in.
@@ -83,7 +83,7 @@ class Output(object):
 
         :returns: a piff.PSF instance
         """
-        raise NotImplemented("Derived classes must define the read function")
+        raise NotImplementedError("Derived classes must define the read function")
 
 
 # Note: I'm having a hard time imagining what other kinds of output handlers we'd want

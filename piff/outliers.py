@@ -184,7 +184,7 @@ class MADOutliers(Outliers):
         """
         # I started writing this class, but then realized this isn't what we want to do
         # for the PixelGrid model.  So leave this for now...
-        raise NotImplemented("MAD algorithm not implemented")
+        raise NotImplementedError("MAD algorithm not implemented")
 
 
 class ChisqOutliers(Outliers):

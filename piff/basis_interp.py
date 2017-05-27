@@ -70,8 +70,8 @@ class BasisInterp(Interp):
 
         :returns:      1d numpy array with values of u^i v^j for 0<i+j<=order
         """
-        raise NotImplemented("Cannot call `basis` for abstract base class BasisInterp. "
-                             "You probably want to use BasisPolynomial.")
+        raise NotImplementedError("Cannot call `basis` for abstract base class BasisInterp. "
+                                  "You probably want to use BasisPolynomial.")
 
     def constant(self, value=1.):
         """Return 1d array of coefficients that represent a polynomial with constant value.
@@ -80,8 +80,8 @@ class BasisInterp(Interp):
 
         :returns:      1d numpy array with values of u^i v^j for 0<i+j<=order
         """
-        raise NotImplemented("Cannot call `constant` for abstract base class BasisInterp. "
-                             "You probably want to use BasisPolynomial.")
+        raise NotImplementedError("Cannot call `constant` for abstract base class BasisInterp. "
+                                  "You probably want to use BasisPolynomial.")
 
     def solve(self, stars, logger=None):
         """Solve for the interpolation coefficients given some data.

@@ -97,7 +97,7 @@ class Stats(object):
         :param stars:       A list of Star instances.
         :param logger:      A logger object for logging debug info. [default: None]
         """
-        raise NotImplemented("Derived classes must define the plot function")
+        raise NotImplementedError("Derived classes must define the plot function")
 
     def plot(self, logger=None, **kwargs):
         """Make the plots for this statistic.
@@ -107,7 +107,7 @@ class Stats(object):
 
         :returns: (fig, ax) The matplotlib figure and axis with the plot(s).
         """
-        raise NotImplemented("Derived classes must define the plot function")
+        raise NotImplementedError("Derived classes must define the plot function")
 
     def write(self, file_name=None, logger=None, **kwargs):
         """Write plots to a file.
