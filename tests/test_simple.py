@@ -132,6 +132,11 @@ def test_Mean():
 def test_single_image():
     """Test the simple case of one image and one catalog.
     """
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(verbose=2)
+    else:
+        logger = piff.config.setup_logger(verbose=0)
+
     # Make the image
     image = galsim.Image(2048, 2048, scale=0.26)
 
@@ -235,10 +240,6 @@ def test_single_image():
         },
         'output' : { 'file_name' : psf_file },
     }
-    if __name__ == '__main__':
-        logger = piff.config.setup_logger(verbose=2)
-    else:
-        logger = piff.config.setup_logger(verbose=0)
     orig_stars, wcs, pointing = piff.Input.process(config['input'], logger)
 
     # Use a SimplePSF to process the stars data this time.

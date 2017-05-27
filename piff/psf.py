@@ -203,7 +203,7 @@ class PSF(object):
         Star.write(self.stars, fits, extname=extname + '_stars')
         if logger:
             logger.info("Wrote the PSF stars to extname %s", extname + '_stars')
-        self.writeWCS(fits, extname=extname + '_wcs')
+        self.writeWCS(fits, extname=extname + '_wcs', logger=logger)
         if logger:
             logger.info("Wrote the PSF WCS to extname %s", extname + '_wcs')
         self._finish_write(fits, extname=extname, logger=logger)
@@ -254,7 +254,7 @@ class PSF(object):
         stars = Star.read(fits, extname + '_stars')
         if logger:
             logger.debug("stars = %s",stars)
-        wcs, pointing = cls.readWCS(fits, extname + '_wcs')
+        wcs, pointing = cls.readWCS(fits, extname + '_wcs', logger=logger)
         if logger:
             logger.debug("wcs = %s, pointing = %s",wcs,pointing)
 
@@ -273,7 +273,7 @@ class PSF(object):
 
         return psf
 
-    def _finish_read(self, fits, extname):
+    def _finish_read(self, fits, extname, logger):
         """Finish up the read process
 
         In the base class, this is a no op, but for classes that need to do something else at
@@ -284,15 +284,17 @@ class PSF(object):
 
         :param fits:        An open fitsio.FITS object
         :param extname:     The name of the extension with the psf information.
+        :param logger:      A logger object for logging debug info.
         """
         pass
 
 
-    def writeWCS(self, fits, extname):
+    def writeWCS(self, fits, extname, logger):
         """Write the WCS information to a FITS file.
 
         :param fits:        An open fitsio.FITS object
         :param extname:     The name of the extension to write to
+        :param logger:      A logger object for logging debug info.
         """
         import galsim
         import base64
@@ -331,11 +333,12 @@ class PSF(object):
         fits.write_table(data, extname=extname)
 
     @classmethod
-    def readWCS(cls, fits, extname):
+    def readWCS(cls, fits, extname, logger):
         """Read the WCS information from a FITS file.
 
         :param fits:        An open fitsio.FITS object
         :param extname:     The name of the extension to read from
+        :param logger:      A logger object for logging debug info.
 
         :returns: wcs, pointing where wcs is a dict of galsim.BaseWCS instances and
                                       pointing is a galsim.CelestialCoord instance

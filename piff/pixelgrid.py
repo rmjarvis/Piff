@@ -281,7 +281,7 @@ class PixelGrid(Model):
                         the range of the model.
         :param logger:  A logger object for logging debug info. [default: None]
 
-        :returns:       Star instance with the appropriate initial fit values
+        :returns: a star instance with the appropriate initial fit values
         """
 
         fit = StarFit(self._initial_params, star.fit.flux, star.fit.center)
@@ -307,13 +307,14 @@ class PixelGrid(Model):
         star = self.reflux(star, fit_center=False, logger=logger)
         return star
 
-    def fit(self, star):
+    def fit(self, star, logger=None):
         """Fit the Model to the star's data to yield iterative improvement on
         its PSF parameters, their uncertainties, and flux (and center, if free).
 
-        :param star:   A Star instance
+        :param star:    A Star instance
+        :param logger:  A logger object for logging debug info. [default: None]
 
-        :returns:      New Star instance with updated fit information
+        :returns: a new Star instance with updated fit information
         """
         star1 = self.chisq(star)  # Get chisq Taylor expansion for linearized model
         ### Check for non-pos-def
@@ -369,9 +370,10 @@ class PixelGrid(Model):
         instance has the resultant alpha, beta, chisq, flux, center) attributes,
         but params vector has not have been updated yet (could be degenerate).
 
-        :param star:   A Star instance
-        :param logger: A logger object for logging debug info. [default: None]
-        :returns:      New Star instance with updated StarFit
+        :param star:    A Star instance
+        :param logger:  A logger object for logging debug info. [default: None]
+
+        :returns: a new Star instance with updated StarFit
         """
 
         # Start by getting all interpolation coefficients for all observed points
@@ -557,7 +559,7 @@ class PixelGrid(Model):
         :param fit_center:  If False, disable any motion of center
         :param logger:      A logger object for logging debug info. [default: None]
 
-        :returns:           New Star instance, with updated flux, center, chisq, dof, worst
+        :returns: a new Star instance, with updated flux, center, chisq, dof, worst
         """
         if logger:
             logger.debug("Reflux for star:")
