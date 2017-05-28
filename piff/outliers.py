@@ -265,23 +265,30 @@ class ChisqOutliers(Outliers):
         chisq = np.array([ s.fit.chisq for s in stars ])
         dof = np.array([ s.fit.dof for s in stars ])
 
-        thresh = np.array([ self._get_thresh(d) for d in dof ])
+        # Scale up threshold by global chisq/dof.
+        factor = np.sum(chisq) / np.sum(dof)
+        if factor < 1: factor = 1
+
+        thresh = np.array([ self._get_thresh(d) for d in dof ]) * factor
 
         if logger:
             if np.all(dof == dof[0]):
-                logger.debug("dof = %f, thresh = %f",dof[0],thresh[0])
+                logger.debug("dof = %f, thresh = %f * %f = %f",
+                             dof[0], self._get_thresh(dof[0]), factor, thresh[0])
             else:
                 min_dof = np.min(dof)
                 max_dof = np.max(dof)
-                logger.debug("Minimum dof = %d with thresh = %f",min_dof,self._get_thresh(min_dof))
-                logger.debug("Maximum dof = %d with thresh = %f",max_dof,self._get_thresh(max_dof))
+                min_thresh = self._get_thresh(min_dof)
+                max_thresh = self._get_thresh(max_dof)
+                logger.debug("Minimum dof = %d with thresh = %f * %f = %f",
+                             min_dof, min_thresh, factor, min_thresh*factor)
+                logger.debug("Maximum dof = %d with thresh = %f * %f = %f",
+                             max_dof, max_thresh, factor, max_thresh*factor)
 
         nremoved = np.sum(chisq > thresh)
 
         if logger:
             logger.info("Found %d stars with chisq > thresh", nremoved)
-            logger.debug("chisq = %s",chisq[chisq > thresh])
-            logger.debug("thresh = %s",thresh[chisq > thresh])
 
         if nremoved == 0:
             good_stars = stars
@@ -303,6 +310,11 @@ class ChisqOutliers(Outliers):
             new_thresh = diff[new_thresh_index]
             good = diff < new_thresh
             good_stars = [ s for g, s in zip(good, stars) if g ]
+
+        if logger and nremoved > 0:
+            logger.debug("chisq = %s",chisq[chisq > thresh])
+            logger.debug("thresh = %s",thresh[chisq > thresh])
+            logger.debug("flux = %s",[s.flux for g,s in zip(good,stars) if not g])
 
         assert nremoved == len(stars) - len(good_stars)
         return good_stars, nremoved
