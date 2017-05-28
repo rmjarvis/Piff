@@ -18,6 +18,8 @@
 
 from __future__ import print_function
 
+import galsim
+
 def setup_logger(verbose=1, log_file=None):
     """Build a logger object to use for logging progress
 
@@ -122,6 +124,10 @@ def piffify(config, logger=None):
     for key in ['input', 'output', 'psf']:
         if key not in config:
             raise ValueError("%s field is required in config dict"%key)
+
+    # Import extra modules if requested
+    if 'modules' in config:
+        galsim.config.ImportModules(config)
 
     # read in the input images
     stars, wcs, pointing = piff.Input.process(config['input'], logger=logger)
