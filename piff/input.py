@@ -94,8 +94,8 @@ class Input(object):
     def readImages(self, logger=None):
         """Read in the images from whatever the input source is.
 
-        After this call, self.images will be a list of galsim.Image instances with the full data
-        images, and self.weight will be the corresponding weight images.
+        After this call, self.image_file_name will be a list of galsim.Image instances with the
+        full data images, and self.weight will be the corresponding weight images.
 
         :param logger:      A logger object for logging debug info. [default: None]
         """
@@ -180,7 +180,7 @@ class Input(object):
         stars = []
         if logger:
             if len(self.cats) == 1:
-                logger.debug("Making star list from catalog %s", self.cat_files[0])
+                logger.debug("Making star list from catalog %s", self.cat_file_name[0])
             else:
                 logger.debug("Making star list from %d catalogs", len(self.cats))
         for i in range(len(self.images)):
@@ -188,7 +188,7 @@ class Input(object):
             wt = self.weight[i]
             cat = self.cats[i]
             chipnum = self.chipnums[i]
-            fname = self.cat_files[i]
+            fname = self.cat_file_name[i]
             if logger:
                 logger.info("Processing catalog %s with %d stars",fname,len(cat))
             nstars_in_image = 0
@@ -221,7 +221,7 @@ class Input(object):
                     elif str(self.sky) != self.sky:
                         raise ValueError("Unable to parse input sky: %s"%self.sky)
                     else:
-                        file_name = self.image_files[0]
+                        file_name = self.image_file_name[0]
                         fits = fitsio.FITS(file_name)
                         hdu = 1 if file_name.endswith('.fz') else 0
                         header = fits[hdu].read_header()
@@ -249,8 +249,8 @@ class Input(object):
                         logger.info("Reached limit of %d stars in image %d",self.nstars,i)
                     break
         if logger:
-            logger.warning("Read a total of %d stars from %d image%s",len(stars),len(self.images),
-                           "s" if len(self.images) > 1 else "")
+            logger.warning("Read a total of %d stars from %d image%s", len(stars),
+                           len(self.image_file_name), "s" if len(self.image_file_name) > 1 else "")
 
         return stars
 
@@ -268,14 +268,15 @@ class Input(object):
 class InputFiles(Input):
     """An Input handler than just takes a list of image files and catalog files.
     """
-    def __init__(self, images, cats, chipnums=None,
+    def __init__(self, image_file_name, cat_file_name, chipnums=None,
                  dir=None, image_dir=None, cat_dir=None,
                  x_col='x', y_col='y', sky_col=None, flag_col=None, use_col=None,
                  image_hdu=None, weight_hdu=None, badpix_hdu=None, cat_hdu=1,
                  stamp_size=32, ra=None, dec=None, gain=None, sky=None, noise=None,
                  nstars=None, logger=None):
         """
-        There are a number of ways to specify the input files (parameters `images` and `cats`):
+        There are a number of ways to specify the input files (parameters `image_file_name` and
+        `cat_file_name`):
 
         1. If you only have a single image/catalog, you may just give the file name directly
            as a single string.
@@ -302,19 +303,19 @@ class InputFiles(Input):
         2. A list of numbers or strings.
         3. A string that can be ``eval``ed to yield the appropriate list.  e.g.
            `[ c for c in range(1,63) if c is not 61 ]`
-        4. None, in which case range(len(images)) will be used.  In this case options 3,4 above
-           for the images and cats parameters are not allowed.
+        4. None, in which case range(len(image_file_name)) will be used.  In this case options
+           3,4 above for the image_file_name and cat_file_name parameters are not allowed.
 
-        :param images:      Either a string (e.g. ``some_dir/*.fits.fz``) or a list of strings
+        :param image_file_name: Either a string (e.g. ``some_dir/*.fits.fz``) or a list of strings
                             (e.g. ["file1.fits", "file2.fits"]) listing the image files to read.
                             See above for ways that this parameter may be specified.
-        :param cats:        Either a string (e.g. ``some_dir/*.fits.fz``) or a list of strings
+        :param cat_file_name: Either a string (e.g. ``some_dir/*.fits.fz``) or a list of strings
                             (e.g. ["file1.fits", "file2.fits"]) listing the catalog files to read.
                             See above for ways that this parameter may be specified.
         :param chipnums:    A list of "chip numbers" to use as the names of each image.  These may
                             be integers or strings and don't have to be sequential.
                             See above for ways that this parameter may be specified.
-                            [default: None, which will use range(len(images))]
+                            [default: None, which will use range(len(image_file_name))]
         :param dir:         Optionally specify the directory these files are in. [default: None]
         :param image_dir:   Optionally specify the directory of the image files. [default: dir]
         :param cat_dir:     Optionally specify the directory of the cat files. [default: dir]
@@ -361,14 +362,14 @@ class InputFiles(Input):
                                  "be evaled, there might be a problem later.")
 
         # Not all combinations of errors are properly diagnosed, since we may not know yet whether
-        # a string value of images implies 1 or more images.  But we do our best.
+        # a string value of image_file_name implies 1 or more images.  But we do our best.
         if isinstance(chipnums, str):
-            if isinstance(images, str) or len(images) == 1:
+            if isinstance(image_file_name, str) or len(image_file_name) == 1:
                 self.chipnums = [ chipnums ]
             else:
                 raise ValueError("Invalid chipnums = %s with multiple images",chipnums)
         elif isinstance(chipnums, int):
-            if isinstance(images, str) or len(images) == 1:
+            if isinstance(image_file_name, str) or len(image_file_name) == 1:
                 self.chipnums = [ chipnums ]
             else:
                 raise ValueError("Invalid chipnums = %s with multiple images",chipnums)
@@ -379,28 +380,28 @@ class InputFiles(Input):
         if logger:
             logger.debug("chipnums = %s",self.chipnums)
 
-        # Parse the images and cats parameters.
-        self.image_files = self._get_file_list(images, image_dir, self.chipnums, logger)
+        # Parse the image_file_name and cat_file_name parameters.
+        self.image_file_name = self._get_file_list(image_file_name, image_dir, self.chipnums, logger)
         if logger:
-            logger.debug("image files = %s",self.image_files)
+            logger.debug("image files = %s",self.image_file_name)
 
-        self.cat_files = self._get_file_list(cats, cat_dir, self.chipnums, logger)
+        self.cat_file_name = self._get_file_list(cat_file_name, cat_dir, self.chipnums, logger)
         if logger:
-            logger.debug("cat files = %s",self.cat_files)
+            logger.debug("cat files = %s",self.cat_file_name)
 
         # Finally, if chipnums is None, we can make it the default list.
         if self.chipnums is None:
-            self.chipnums = range(len(self.image_files))
+            self.chipnums = range(len(self.image_file_name))
             if logger:
                 logger.debug("Using default chipnums: %s",self.chipnums)
 
-        # Check that the number of images, cats, chips are equal.
-        if len(self.image_files) != len(self.cat_files):
+        # Check that the number of image_file_name, cat_file_name, chips are equal.
+        if len(self.image_file_name) != len(self.cat_file_name):
             raise ValueError("Number of images (%d) and catalogs (%d) do not match."%(
-                             len(self.image_files), len(self.cat_files)))
-        if len(self.image_files) != len(self.chipnums):
+                             len(self.image_file_name), len(self.cat_file_name)))
+        if len(self.image_file_name) != len(self.chipnums):
             raise ValueError("Number of images (%d) and chipnums (%d) do not match."%(
-                             len(self.image_files), len(self.chipnums)))
+                             len(self.image_file_name), len(self.chipnums)))
 
         # Other parameters are just saved for use later.
         self.x_col = x_col
@@ -506,13 +507,13 @@ class InputFiles(Input):
 
         # Read in the images from the files
         self.images = []
-        for fname in self.image_files:
+        for fname in self.image_file_name:
             if logger:
                 logger.warning("Reading image file %s",fname)
             self.images.append(galsim.fits.read(fname, hdu=self.image_hdu))
 
         # Either read in the weight image, or build a dummy one
-        if len(self.images) == 1:
+        if len(self.image_file_name) == 1:
             plural = ''
         else:
             plural = 's'
@@ -520,7 +521,7 @@ class InputFiles(Input):
             if logger:
                 logger.info("Reading weight image%s from hdu %d.", plural, self.weight_hdu)
             self.weight = [ galsim.fits.read(fname, hdu=self.weight_hdu)
-                            for fname in self.image_files ]
+                            for fname in self.image_file_name ]
             for wt in self.weight:
                 if np.all(wt.array == 0):
                     logger.error("According to the weight mask in %s, all pixels have zero weight!",
@@ -529,7 +530,8 @@ class InputFiles(Input):
             if logger:
                 logger.debug("Making uniform weight image%s based on noise variance = %f", plural,
                              self.noise)
-            self.weight = [ galsim.ImageF(im.bounds, init_value=1./self.noise) for im in self.images ]
+            self.weight = [ galsim.ImageF(im.bounds, init_value=1./self.noise)
+                            for im in self.images ]
         else:
             if logger:
                 logger.debug("Making trivial (wt==1) weight image%s", plural)
@@ -539,7 +541,7 @@ class InputFiles(Input):
         if self.badpix_hdu is not None:
             if logger:
                 logger.info("Reading badpix image%s from hdu %d.", plural, self.badpix_hdu)
-            for fname, wt in zip(self.image_files, self.weight):
+            for fname, wt in zip(self.image_file_name, self.weight):
                 badpix = galsim.fits.read(fname, hdu=self.badpix_hdu)
                 # The badpix image may be offset by 32768 from the true value.
                 # If so, subtract it off.
@@ -574,7 +576,7 @@ class InputFiles(Input):
 
         # Read in the star catalogs from the files
         self.cats = []
-        for fname in self.cat_files:
+        for fname in self.cat_file_name:
             if logger:
                 logger.warning("Reading star catalog %s.",fname)
             self.cats.append(fitsio.read(fname,self.cat_hdu))
@@ -647,9 +649,9 @@ class InputFiles(Input):
                             self.pointing.ra / galsim.hours,
                             self.pointing.dec / galsim.degrees)
         else:
-            file_name = self.image_files[0]
+            file_name = self.image_file_name[0]
             if logger:
-                if len(self.image_files) == 1:
+                if len(self.image_file_name) == 1:
                     logger.info("Setting pointing from keywords %s, %s", ra, dec)
                 else:
                     logger.info("Setting pointing from keywords %s, %s in %s", ra, dec, file_name)
@@ -684,9 +686,9 @@ class InputFiles(Input):
         elif str(self.gain) != self.gain:
             raise ValueError("Unable to parse input gain: %s"%self.gain)
         else:
-            file_name = self.image_files[0]
+            file_name = self.image_file_name[0]
             if logger:
-                if len(self.image_files) == 1:
+                if len(self.image_file_name) == 1:
                     logger.info("Setting gain from keyword %s", self.gain)
                 else:
                     logger.info("Setting gain from keyword %s in %s", self.gain, file_name)

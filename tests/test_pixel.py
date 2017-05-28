@@ -21,8 +21,6 @@ import subprocess
 
 from piff_test_helper import get_script_name, timer
 
-
-@timer
 def make_gaussian_data(sigma, u0, v0, flux, noise=0., du=1., fpu=0., fpv=0., nside=32,
                        nom_u0=0., nom_v0=0., rng=None):
     """Make a Star instance filled with a Gaussian profile
@@ -670,8 +668,8 @@ def test_single_image():
 
     # Use InputFiles to read these back in
     input = piff.InputFiles(image_file, cat_file, stamp_size=32)
-    assert input.image_files == [ image_file ]
-    assert input.cat_files == [ cat_file ]
+    assert input.image_file_name == [ image_file ]
+    assert input.cat_file_name == [ cat_file ]
     assert input.x_col == 'x'
     assert input.y_col == 'y'
 
@@ -749,8 +747,8 @@ def test_single_image():
     # Do the whole thing with the config parser
     config = {
         'input' : {
-            'images' : image_file,
-            'cats' : cat_file,
+            'image_file_name' : image_file,
+            'cat_file_name' : cat_file,
             'x_col' : 'x',
             'y_col' : 'y',
             'stamp_size' : 48  # Bigger than we drew, but should still work.
@@ -821,11 +819,11 @@ def test_des_image():
     start_sigma = 1.0/2.355  # TODO: Need to make this automatic somehow.
     config = {
         'input' : {
-            'images' : image_file,
+            'image_file_name' : image_file,
             'image_hdu' : 1,
             'weight_hdu' : 3,
             'badpix_hdu' : 2,
-            'cats' : cat_file,
+            'cat_file_name' : cat_file,
             'cat_hdu' : 2,
             'x_col' : 'XWIN_IMAGE',
             'y_col' : 'YWIN_IMAGE',

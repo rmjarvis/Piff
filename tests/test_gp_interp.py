@@ -459,7 +459,7 @@ def validate(validate_stars, interp):
 
 
 def check_gp(training_data, validation_data, visualization_data,
-             kernel, npca=0, optimize=False, filename=None, rng=None,
+             kernel, npca=0, optimize=False, file_name=None, rng=None,
              visualize=False, check_config=False):
     """ Solve for global PSF model, test it, and optionally display it.
     """
@@ -487,8 +487,8 @@ def check_gp(training_data, validation_data, visualization_data,
         validate(validate_stars, interp3)
 
     # Check that we can write interp to disk and read back in.
-    if filename is not None:
-        testfile = os.path.join('output', filename)
+    if file_name is not None:
+        testfile = os.path.join('output', file_name)
         with fitsio.FITS(testfile, 'rw', clobber=True) as f:
             interp.write(f, 'interp')
         with fitsio.FITS(testfile, 'r') as f:
@@ -576,7 +576,7 @@ def test_grf_psf():
     for npca in npcas:
         for optimize in optimizes:
             check_gp(training_data, validation_data, visualization_data, kernel,
-                     npca=npca, optimize=optimize, filename="test_gp_grf.fits", rng=rng,
+                     npca=npca, optimize=optimize, file_name="test_gp_grf.fits", rng=rng,
                      check_config=check_config)
 
     # Check ExplicitKernel here too
@@ -589,7 +589,7 @@ def test_grf_psf():
     # No optimize loop, since ExplicitKernel is not optimizable.
     for npca in npcas:
         check_gp(training_data, validation_data, visualization_data, kernel,
-                 npca=npca, filename="test_explicit_grf.fits", rng=rng,
+                 npca=npca, file_name="test_explicit_grf.fits", rng=rng,
                  check_config=check_config)
 
     # Try out an AnisotropicRBF on the isotropic data too.
@@ -599,7 +599,7 @@ def test_grf_psf():
         for optimize in optimizes:
             check_gp(training_data, validation_data, visualization_data, kernel,
                      npca=npca, optimize=optimize,
-                     filename="test_aniso_isotropic_grf.fits", rng=rng,
+                     file_name="test_aniso_isotropic_grf.fits", rng=rng,
                      check_config=check_config)
 
 
@@ -633,7 +633,7 @@ def test_anisotropic_rbf_kernel():
     for npca in npcas:
         for optimize in optimizes:
             check_gp(training_data, validation_data, visualization_data, kernel,
-                     npca=npca, optimize=optimize, filename="test_anisotropic_rbf.fits",
+                     npca=npca, optimize=optimize, file_name="test_anisotropic_rbf.fits",
                      rng=rng, check_config=check_config)
 
 
@@ -644,8 +644,8 @@ def test_yaml():
     psf_file = os.path.join('output','gp_psf.fits')
     config = {
         'input' : {
-            'images' : 'y1_test/DECam_00241238_01.fits.fz',
-            'cats' : 'y1_test/DECam_00241238_01_psfcat_tb_maxmag_17.0_magcut_3.0_findstars.fits',
+            'image_file_name' : 'y1_test/DECam_00241238_01.fits.fz',
+            'cat_file_name' : 'y1_test/DECam_00241238_01_psfcat_tb_maxmag_17.0_magcut_3.0_findstars.fits',
 
             # What hdu is everything in?
             'image_hdu' : 1,

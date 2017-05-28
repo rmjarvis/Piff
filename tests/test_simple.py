@@ -179,13 +179,13 @@ def test_single_image():
 
     # Use InputFiles to read these back in
     input = piff.InputFiles(image_file, cat_file)
-    assert input.image_files == [ image_file ]
-    assert input.cat_files == [ cat_file ]
+    assert input.image_file_name == [ image_file ]
+    assert input.cat_file_name == [ cat_file ]
     assert input.x_col == 'x'
     assert input.y_col == 'y'
 
     # Check image
-    input.readImages()
+    input.readImages(logger=logger)
     assert len(input.images) == 1
     np.testing.assert_equal(input.images[0].array, image.array)
 
@@ -226,8 +226,8 @@ def test_single_image():
     psf_file = os.path.join('output','simple_psf.fits')
     config = {
         'input' : {
-            'images' : image_file,
-            'cats' : cat_file,
+            'image_file_name' : image_file,
+            'cat_file_name' : cat_file,
             'flag_col' : 'flag',
             'use_col' : 'use',
             'stamp_size' : 48
