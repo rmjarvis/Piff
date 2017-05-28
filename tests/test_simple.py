@@ -178,30 +178,31 @@ def test_single_image():
     fitsio.write(cat_file, data, clobber=True)
 
     # Use InputFiles to read these back in
-    input = piff.InputFiles(image_file, cat_file)
+    config = { 'image_file_name' : image_file,
+               'cat_file_name': cat_file }
+    input = piff.InputFiles(config, logger=logger)
     assert input.image_file_name == [ image_file ]
     assert input.cat_file_name == [ cat_file ]
-    assert input.x_col == 'x'
-    assert input.y_col == 'y'
 
     # Check image
-    input.readImages(logger=logger)
     assert len(input.images) == 1
     np.testing.assert_equal(input.images[0].array, image.array)
 
     # Check catalog
-    input.readStarCatalogs()
-    assert len(input.cats) == 1
-    np.testing.assert_equal(input.cats[0]['x'], x_list)
-    np.testing.assert_equal(input.cats[0]['y'], y_list)
+    assert len(input.image_pos) == 1
+    np.testing.assert_equal([pos.x for pos in input.image_pos[0]], x_list)
+    np.testing.assert_equal([pos.y for pos in input.image_pos[0]], y_list)
 
     # Repeat, using flag and use columns this time.
-    input = piff.InputFiles(image_file, cat_file, flag_col='flag', use_col='use', stamp_size=48)
-    assert input.flag_col == 'flag'
-    assert input.use_col == 'use'
-    input.readImages()
-    input.readStarCatalogs()
-    assert len(input.cats[0]) == 7
+    config = { 'image_file_name' : image_file,
+               'cat_file_name': cat_file,
+               'flag_col': 'flag',
+               'use_col': 'use',
+               'stamp_size': 48 }
+    input = piff.InputFiles(config, logger=logger)
+    print('pos = ',input.image_pos)
+    print('pos[0] = ',input.image_pos[0])
+    assert len(input.image_pos[0]) == 7
 
     # Make star data
     orig_stars = input.makeStars()

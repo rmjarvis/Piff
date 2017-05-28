@@ -667,22 +667,22 @@ def test_single_image():
     print('wrote catalog')
 
     # Use InputFiles to read these back in
-    input = piff.InputFiles(image_file, cat_file, stamp_size=32)
-    assert input.image_file_name == [ image_file ]
-    assert input.cat_file_name == [ cat_file ]
-    assert input.x_col == 'x'
-    assert input.y_col == 'y'
+    config = { 'image_file_name': image_file,
+               'cat_file_name': cat_file,
+               'stamp_size': 32 }
+    input = piff.InputFiles(config)
+    assert input.image_file_name == [image_file]
+    assert input.cat_file_name == [cat_file]
 
     # Check image
-    input.readImages()
     assert len(input.images) == 1
     np.testing.assert_equal(input.images[0].array, image.array)
 
     # Check catalog
-    input.readStarCatalogs()
-    assert len(input.cats) == 1
-    np.testing.assert_equal(input.cats[0]['x'], x_list)
-    np.testing.assert_equal(input.cats[0]['y'], y_list)
+    assert len(input.image_pos) == 1
+    assert len(input.image_pos[0]) == len(x_list)
+    np.testing.assert_equal([pos.x for pos in input.image_pos[0]], x_list)
+    np.testing.assert_equal([pos.y for pos in input.image_pos[0]], y_list)
 
     # Make stars
     orig_stars = input.makeStars()
