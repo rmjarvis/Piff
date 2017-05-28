@@ -832,6 +832,12 @@ def test_des_image():
             'ra' : 'TELRA',
             'dec' : 'TELDEC',
             'gain' : 'GAINA',
+            # Test explicitly specifying the wcs (although it is the same here as what is in the
+            # image anyway).
+            'wcs' : {
+                'type': 'Fits',
+                'file_name': image_file
+            }
         },
         'output' : {
             'file_name' : psf_file,

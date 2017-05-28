@@ -241,6 +241,11 @@ class InputFiles(Input):
                             for the Poisson noise from the galaxy flux.
             :nstars:        Stop reading the input file at this many stars. [default: None]
 
+            :wcs:           Normally, the wcs is automatically read in when reading the image.
+                            However, this parameter allows you to optionally provide a different
+                            WCS.  It should be defined using the same style as a wcs object
+                            in GalSim config files. [defulat: None]
+
         The above values are parsed separately for each input image/catalog.  In addition, there
         are a couple other parameters that are just parsed once:
 
@@ -277,7 +282,7 @@ class InputFiles(Input):
                 'noise' : float,
                 'nstars' : int,
               }
-        ignore = [ 'nimages', 'ra', 'dec' ]  # These are parsed separately
+        ignore = [ 'nimages', 'ra', 'dec', 'wcs' ]  # These are parsed separately
 
         # We're going to change the config dict a bit. Make a copy so we don't mess up the
         # user's original dict (in case they care).
@@ -375,6 +380,11 @@ class InputFiles(Input):
 
             image, weight = self.readImage(
                     image_file_name, image_hdu, weight_hdu, badpix_hdu, noise, logger)
+
+            # Update the wcs if necessary
+            if 'wcs' in config:
+                wcs = galsim.config.BuildWCS(config, 'wcs', base, logger)
+                image.wcs = wcs
 
             self.image_file_name.append(image_file_name)
             self.images.append(image)
