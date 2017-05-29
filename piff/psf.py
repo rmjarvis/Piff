@@ -316,10 +316,24 @@ class PSF(object):
             dtypes = [ ('chipnums', bytes, max_len) ]
 
         # GalSim WCS objects can be serialized via pickle
-        wcs_str = [ base64.b64encode(pickle.dumps(w)) for w in self.wcs.values() ]
-        cols.append(wcs_str)
+        wcs_str = [ str(pickle.dumps(w)).encode() for w in self.wcs.values() ]
         max_len = np.max([ len(s) for s in wcs_str ])
-        dtypes.append( ('wcs_str', bytes, max_len) )
+        # Some GalSim WCS serializations are rather long.  In particular, the Pixmappy one
+        # is longer than the maximum length allowed for a column in a fits table (28799).
+        # So split it into chunks of size 2**14 (mildly less than this maximum).
+        chunk_size = 2**14
+        nchunks = max_len // chunk_size + 1
+        cols.append( [nchunks]*len(chipnums) )
+        dtypes.append( ('nchunks', int) )
+        if logger and nchunks > 1:
+            logger.debug('Using %d chunks for the wcs pickle string',nchunks)
+
+        # Update to size of chunk we actually need.
+        chunk_size = (max_len + nchunks - 1) // nchunks
+
+        chunks = [ [ s[i:i+chunk_size] for i in range(0, max_len, chunk_size) ] for s in wcs_str ]
+        cols.extend(zip(*chunks))
+        dtypes.extend( ('wcs_str_%04d'%i, bytes, chunk_size) for i in range(nchunks) )
 
         if self.pointing is not None:
             # Currently, there is only one pointing for all the chips, but write it out
@@ -352,14 +366,20 @@ class PSF(object):
 
         assert extname in fits
         assert 'chipnums' in fits[extname].get_colnames()
-        assert 'wcs_str' in fits[extname].get_colnames()
+        assert 'nchunks' in fits[extname].get_colnames()
 
         data = fits[extname].read()
 
         chipnums = data['chipnums']
-        wcs_str = data['wcs_str']
+        nchunks = data['nchunks']
+        nchunks = nchunks[0]  # These are all equal, so just take first one.
 
-        wcs_list = [ pickle.loads(base64.b64decode(s)) for s in wcs_str ]
+        wcs_keys = [ 'wcs_str_%04d'%i for i in range(nchunks) ]
+        wcs_str = [ data[key] for key in wcs_keys ]      # Get all wcs_str columns
+        wcs_str = [ ''.join(s) for s in zip(*wcs_str) ]  # Rejoint into single string each
+        wcs_str = [ str(s.decode()) for s in wcs_str ]   # Make sure they are str, not bytes
+        wcs_list = [ pickle.loads(s) for s in wcs_str ]  # Convert back into wcs objects
+
         wcs = dict(zip(chipnums, wcs_list))
 
         if 'ra' in fits[extname].get_colnames():
