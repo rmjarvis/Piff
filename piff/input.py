@@ -126,19 +126,56 @@ class Input(object):
                     logger.warning("Skipping this star.")
                     continue
                 pos = galsim.PositionD(x,y)
+                # Check the snr and limit it if appropriate
+                if self.maxsnr is not None:
+                    wt_stamp = self.updateNoise(stamp, wt_stamp, self.maxsnr, logger)
                 data = piff.StarData(stamp, pos, weight=wt_stamp, pointing=self.pointing,
                                      properties=props)
                 star = piff.Star(data, None)
-                if gain is not None:
-                    logger.debug("Adding Poisson noise to weight map according to gain=%f",
-                                 gain[k])
-                    star = star.addPoisson(gain=gain[k])
+                g = gain[k]
+                if g is not None:
+                    logger.debug("Adding Poisson noise to weight map according to gain=%f",g)
+                    star = star.addPoisson(gain=g)
                 stars.append(star)
                 nstars_in_image += 1
         logger.warning("Read a total of %d stars from %d image%s",len(stars),len(self.images),
                        "s" if len(self.images) > 1 else "")
 
         return stars
+
+    def updateNoise(self, image, weight, maxsnr, logger):
+        """Possibly update the weight map to limit the signal-to-noise to the prescribed maximum.
+
+        :param image:       The stamp image for a star
+        :param weight:      The weight image for a star
+        :param maxsnr:      The target maximum S/N value.
+        :param logger:      A logger object for logging debug info. [default: None]
+
+        :returns: the possibly updated weight image to use for this star
+        """
+        # The S/N value that we use will be the weighted total flux:
+        #
+        # F = Sum_i w_i I_i
+        # var(F) = Sum_i w_i^2 var(I_i) = Sum_i w_i
+        #
+        # S/N = F / sqrt(var(F))
+
+        I = image.array
+        w = weight.array
+
+        # First calculate current snr.  If snr < maxsnr, then no need to update weights.
+        flux = (w*I).sum()
+        varf = w.sum()
+        snr = flux / varf**0.5
+
+        # If current snr is low enough, leave weight map alone.
+        if snr <= maxsnr:
+            return weight
+        else:
+            # Otherwise, apply a constant scale factor to the weights.
+            factor = (maxsnr / snr)**2
+            logger.debug("Scaling noise by factor of %f to achieve snr = %f",factor,maxsnr)
+            return weight * factor
 
     def getWCS(self, logger=None):
         """Get the WCS solutions for all the chips in the field of view.
@@ -240,6 +277,11 @@ class InputFiles(Input):
                             None] It is an error for both gain and gain_col to be specified.
                             If both are None, then no additional noise will be added to account
                             for the Poisson noise from the galaxy flux.
+            :maxsnr:        The maximum S/N ratio to allow for any given star.  If an input star
+                            is too bright, it can have too large an influence on the interpolation,
+                            so this parameter limits the effective S/N of any single star.
+                            Basically, it adds noise to bright stars to lower their S/N down to
+                            this value.  [default: 100]
             :nstars:        Stop reading the input file at this many stars. [default: None]
 
             :wcs:           Normally, the wcs is automatically read in when reading the image.
@@ -279,6 +321,7 @@ class InputFiles(Input):
                 'cat_hdu' : int,
                 'stamp_size' : int,
                 'gain' : str,
+                'maxsnr' : float,
                 'sky' : str,
                 'noise' : float,
                 'nstars' : int,
@@ -411,6 +454,8 @@ class InputFiles(Input):
             self.image_pos.append(image_pos)
             self.sky.append(sky)
             self.gain.append(gain)
+
+        self.maxsnr = config.get('maxsnr', 100)
 
         # Finally, set the pointing coordinate.
         ra = config.get('ra',None)
