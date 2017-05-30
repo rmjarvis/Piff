@@ -508,15 +508,13 @@ class Star(object):
         Poisson shot noise from a signal source, e.g. when the weight
         only contains variance from background and read noise.
 
-        :param signal:    The signal (in ADU) from which the Poisson variance is extracted.
-                          If this is a 2d array or Image it is assumed to match the weight image.
-                          If it is a 1d array, it is assumed to match the vectors returned by
-                          getDataVector().  If None, the self.image is used.  All signals are
-                          clipped from below at zero.
-        :param gain:      The gain, in e per ADU, assumed in calculating new weights.  If None
-                          is given, then the 'gain' property is used, else defaults gain=1.
+        :param signal:  The signal (as a Star instance) from which the Poisson variance is
+                        extracted.  If None, the data image is used.  All signals are
+                        clipped from below at zero.
+        :param gain:    The gain, in e per ADU, assumed in calculating new weights.  If None
+                        is given, then the 'gain' property is used, else defaults gain=1.
 
-        :returns:         A new StarData instance with updated weight array.
+        :returns: a new Star instance with updated weight array.
         """
         # The functionality is implemented as a StarData method.
         # So just pass this task on to that and recast the return value as a Star instance.
@@ -590,10 +588,14 @@ class StarData(object):
     :param properties:  A dict containing other properties about the star that might be of
                         interest. [default: None]
     :param values_are_sb: True if pixel data give surface brightness, False if they're flux
-                          [default: False]
+                        [default: False]
+    :param orig_weight: The original weight map prior to any additional Poisson variance being
+                        added.  [default: None, which means use orig_weight=weight]
+    :param logger:      A logger object for logging debug info. [default: None]
     """
     def __init__(self, image, image_pos, weight=None, pointing=None, field_pos=None,
-                 values_are_sb=False, properties=None, logger=None, _xyuv_set=False):
+                 properties=None, values_are_sb=False, orig_weight=None, logger=None,
+                 _xyuv_set=False):
         import galsim
         # Save all of these as attributes.
         self.image = image
@@ -611,6 +613,11 @@ class StarData(object):
             self.weight = galsim.Image(weight, dtype=float, wcs=weight.wcs)
         else:
             self.weight = galsim.Image(weight, dtype=float)
+
+        if orig_weight is None:
+            self.orig_weight = self.weight
+        else:
+            self.orig_weight = orig_weight
 
         if properties is None:
             self.properties = {}
@@ -756,6 +763,7 @@ class StarData(object):
         return StarData(image=newimage,
                         image_pos=self.image_pos,
                         weight=self.weight,
+                        orig_weight=self.orig_weight,
                         pointing=self.pointing,
                         field_pos=self.field_pos,
                         values_are_sb=self.values_are_sb,
@@ -767,49 +775,47 @@ class StarData(object):
         Poisson shot noise from a signal source, e.g. when the weight
         only contains variance from background and read noise.
 
-        :param signal:    The signal (in ADU) from which the Poisson variance is extracted.
-                          If this is a 2d array or Image it is assumed to match the weight image.
-                          If it is a 1d array, it is assumed to match the vectors returned by
-                          getDataVector().  If None, the self.image is used.  All signals are
-                          clipped from below at zero.
-        :param gain:      The gain, in e per ADU, assumed in calculating new weights.  If None
-                          is given, then the 'gain' property is used, else defaults gain=1.
+        :param signal:  The signal (as a Star instance) from which the Poisson variance is
+                        extracted.  If None, the data image is used.  All signals are
+                        clipped from below at zero.
+        :param gain:    The gain, in e per ADU, assumed in calculating new weights.  If None
+                        is given, then the 'gain' property is used, else defaults gain=1.
 
-        :returns:         A new StarData instance with updated weight array.
+        :returns: a new StarData instance with updated weight array.
         """
         import galsim
 
+        # Get the gain.  None both here and in properties, means don't add any variance.
+        if gain is None:
+            gain = self.properties.get('gain',None)
+        if gain is None:
+            return self
+
         # Mark the pixels that are not already worthless
-        use = self.weight.array!=0.
+        use = self.orig_weight.array!=0.
 
         # Get the signal data
         if signal is None:
-            variance = self.image.array[use]
-        elif isinstance(signal, galsim.image.Image):
-            variance = signal.array[use]
-        elif len(signal.shape)==2:
-            variance = signal[use]
-        else:
-            # Insert 1d vector into currently valid pixels
-            variance = signal
-        # clip variance
-        variance = np.where(variance < 0, 0, variance)
+            signal = self
+        variance = signal.image.array
+        if variance.shape != self.orig_weight.array.shape:
+            raise ValueError('In addPoisson, signal has wrong shape: %s != %s'%(
+                    variance.shape, self.orig_weight.array.shape))
 
-        # Scale by gain
-        if gain is None:
-            try:
-                gain = self.properties['gain']
-            except KeyError:
-                gain = 1.
+        # clip variance
+        use &= (variance >= 0)
 
         # Add to weight
-        newweight = self.weight.copy()
-        newweight.array[use] = 1. / (1./self.weight.array[use] + variance / gain)
+        # Note: use the original weight here, not the current weight, since this may have already
+        # had some Poisson noise added to the weight.
+        newweight = self.orig_weight.copy()
+        newweight.array[use] = 1. / (1./self.orig_weight.array[use] + variance[use] / gain)
 
         # Return new object
         return StarData(image=self.image,
                         image_pos=self.image_pos,
                         weight=newweight,
+                        orig_weight=self.orig_weight,
                         pointing=self.pointing,
                         values_are_sb=self.values_are_sb,
                         properties=dict(self.properties, gain=gain),
@@ -839,13 +845,20 @@ class StarData(object):
             m = mask
 
         # Zero appropriate weight pixels in new copy
-        newweight = self.weight.copy()
-        newweight.array[use] = np.where(m, self.weight.array[use], 0.)
+        weight = self.weight.copy()
+        weight.array[use] = np.where(m, self.weight.array[use], 0.)
+
+        if self.orig_weight != self.weight:
+            orig_weight = self.orig_weight.copy()
+            orig_weight.array[use] = np.where(m, self.orig_weight.array[use], 0.)
+        else:
+            orig_weight = weight
 
         # Return new object
         return StarData(image=self.image,
                         image_pos=self.image_pos,
-                        weight=newweight,
+                        weight=weight,
+                        orig_weight=orig_weight,
                         pointing=self.pointing,
                         values_are_sb=self.values_are_sb,
                         properties=self.properties,

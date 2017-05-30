@@ -133,7 +133,6 @@ class kNNInterp(Interp):
 
         :returns: a list of new Star instances with interpolated parameters
         """
-
         locations = np.array([self.getProperties(star) for star in star_list])
         targets = self._predict(locations)
         star_list_fitted = []

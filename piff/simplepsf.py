@@ -178,6 +178,10 @@ class SimplePSF(PSF):
             if hasattr(self.model, 'reflux'):
                 new_stars = []
                 for s in self.stars:
+                    # Update the noise with the new interpolated signal.
+                    signal = self.drawStar(s)
+                    s = s.addPoisson(signal)
+
                     try:
                         new_star = self.model.reflux(self.interp.interpolate(s),logger=logger)
                     except (KeyboardInterrupt, SystemExit):

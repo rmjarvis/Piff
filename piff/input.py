@@ -113,7 +113,8 @@ class Input(object):
                     logger.info("Star at position %f,%f is near the edge of the image."%(x,y))
                     logger.info("Using smaller than the full stamp size: %s"%bounds)
                 stamp = image[bounds]
-                props = { 'chipnum' : chipnum }
+                props = { 'chipnum' : chipnum,
+                          'gain' : gain[k] }
                 if sky is not None:
                     logger.debug("Subtracting off sky = %f", sky[k])
                     stamp = stamp - sky[k]  # Don't change the original!
@@ -572,7 +573,7 @@ class InputFiles(Input):
                 gain = float(header[gain])
             gain = np.array([gain]*len(cat), dtype=float)
         else:
-            gain = None
+            gain = [None] * len(cat)
 
         return image_pos, sky, gain
 
