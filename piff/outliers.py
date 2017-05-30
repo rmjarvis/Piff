@@ -19,6 +19,7 @@
 from __future__ import print_function
 import math
 import numpy as np
+import math
 from scipy.stats import chi2
 
 from .util import write_kwargs, read_kwargs
@@ -212,7 +213,9 @@ class ChisqOutliers(Outliers):
                             would exceed the given galue.
         :param nsigma:      The number of sigma equivalent for the probability that a chisq
                             distribution would exceed the given value.
-        :param max_remove:  The maximum number of outliers to remove on each iteration.
+        :param max_remove:  The maximum number of outliers to remove on each iteration.  If this
+                            is a float < 1.0, then this is interpreted as a maximum fraction of
+                            stars to remove.  e.g. 0.01 will remove at most 1% of the stars.
                             [default: None]
         """
         if all( (thresh is None, ndof is None, prob is None, nsigma is None) ):
@@ -286,13 +289,18 @@ class ChisqOutliers(Outliers):
                              max_dof, max_thresh, factor, max_thresh*factor)
 
         nremoved = np.sum(chisq > thresh)
+        if nremoved == 0:
+            return stars, 0
 
         if logger:
             logger.info("Found %d stars with chisq > thresh", nremoved)
 
-        if nremoved == 0:
-            good_stars = stars
-        elif self.max_remove is None or nremoved <= self.max_remove:
+        # Update max_remove if necessary
+        max_remove = self.max_remove
+        if max_remove is not None and 0 < max_remove < 1:
+            max_remove = int(math.ceil(max_remove * len(stars)))
+
+        if max_remove is None or nremoved <= max_remove:
             good = chisq <= thresh
             good_stars = [ s for g, s in zip(good, stars) if g ]
         else:
@@ -304,7 +312,7 @@ class ChisqOutliers(Outliers):
             # which one should we remove?
             # The first has larger chisq/thresh, and the second has larger chisq - thresh.
             # I semi-arbitrarily remove based on the difference.
-            nremoved  = self.max_remove
+            nremoved  = max_remove
             diff = chisq - thresh
             new_thresh_index = np.argpartition(diff, -nremoved)[-nremoved]
             new_thresh = diff[new_thresh_index]
