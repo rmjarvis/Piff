@@ -498,7 +498,7 @@ def check_gp(training_data, validation_data, visualization_data,
         np.testing.assert_allclose(interp.gp.kernel(X), interp2.gp.kernel(X))
         np.testing.assert_allclose(interp.gp.kernel.theta, interp2.gp.kernel.theta)
         np.testing.assert_allclose(interp.gp.kernel_.theta, interp2.gp.kernel_.theta)
-        np.testing.assert_allclose(interp.gp.alpha_, interp2.gp.alpha_, rtol=1e-6)
+        np.testing.assert_allclose(interp.gp.alpha_, interp2.gp.alpha_, rtol=1e-6, atol=1.e-7)
         np.testing.assert_allclose(interp.gp.X_train_, interp2.gp.X_train_)
         np.testing.assert_allclose(interp.gp.y_train_mean, interp2.gp.y_train_mean)
         validate(validate_stars, interp2)
@@ -731,7 +731,7 @@ def test_guess():
         stars = params_to_stars(training_data, noise=0.3, rng=rng)
         kernel = "1*RBF({0}, (1e-1, 1e1))".format(guess)
         kernel += " + WhiteKernel(1e-5, (1e-7, 1e-1))"
-        interp = piff.GPInterp(kernel=kernel)
+        interp = piff.GPInterp(kernel=kernel, normalize=False)
         stars = [mod.fit(s) for s in stars]
         stars = interp.initialize(stars)
         interp.solve(stars)
