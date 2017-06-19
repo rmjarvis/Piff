@@ -348,7 +348,7 @@ class InputFiles(Input):
             image_list = config['image_file_name']
         elif 'image_file_name' in config and isinstance(config['image_file_name'],basestring):
             try:
-                image_list = glob.glob(config['image_file_name'])
+                image_list = sorted(glob.glob(config['image_file_name']))
             except:
                 pass
         if image_list is not None:
@@ -366,7 +366,7 @@ class InputFiles(Input):
             cat_list = config['cat_file_name']
         elif 'cat_file_name' in config and isinstance(config['cat_file_name'],basestring):
             try:
-                image_list = glob.glob(config['image_file_name'])
+                image_list = sorted(glob.glob(config['image_file_name']))
             except:
                 pass
         if cat_list is not None:
