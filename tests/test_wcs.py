@@ -244,7 +244,98 @@ def test_wrongwcs():
             #print('  fitted s,e1,e2 = ',star.fit.params)
             np.testing.assert_almost_equal(star.fit.params, [s,e1,e2], decimal=6)
 
+@timer
+def test_single():
+    """Same as test_focal, but using the SingleCCD PSF type, which does a separate fit on each CCD.
+    """
+    wcs1 = galsim.TanWCS(
+            galsim.AffineTransform(0.26, 0.05, -0.08, -0.24, galsim.PositionD(1024,1024)),
+            galsim.CelestialCoord(-5 * galsim.arcmin, -25 * galsim.degrees)
+            )
+    wcs2 = galsim.TanWCS(
+            galsim.AffineTransform(0.25, -0.02, 0.01, 0.24, galsim.PositionD(1024,1024)),
+            galsim.CelestialCoord(5 * galsim.arcmin, -25 * galsim.degrees)
+            )
+    field_center = galsim.CelestialCoord(0 * galsim.degrees, -25 * galsim.degrees)
+
+    nstars = 10  # per ccd
+    rng = np.random.RandomState(1234)
+    x = rng.random_sample(nstars) * 2000 + 24
+    y = rng.random_sample(nstars) * 2000 + 24
+    u, v = field_center.project_rad(*wcs1._radec(x.copy(),y.copy()), projection='gnomonic')
+    e1 = 0.02 + 2.e-5 * u - 3.e-9 * u**2 + 2.e-9 * v**2
+    e2 = -0.04 - 3.e-5 * v + 1.e-9 * u*v + 3.e-9 * v**2
+    s = 0.3 + 8.e-9 * (u**2 + v**2) - 1.e-9 * u*v
+
+    data1 = np.array(zip(x,y,e1,e2,s),
+                     dtype=[ ('x',float), ('y',float), ('e1',float), ('e2',float), ('s',float) ])
+    im1 = drawImage(2048, 2048, wcs1, x, y, e1, e2, s)
+    im1.write('output/test_single_im1.fits')
+    fitsio.write('output/test_single_cat1.fits', data1, clobber=True)
+
+    x = rng.random_sample(nstars) * 2000 + 24
+    y = rng.random_sample(nstars) * 2000 + 24
+    u, v = field_center.project_rad(*wcs2._radec(x.copy(),y.copy()), projection='gnomonic')
+    # Same functions of u,v, but using the positions on chip 2
+    e1 = 0.02 + 2.e-5 * u - 3.e-9 * u**2 + 2.e-9 * v**2
+    e2 = -0.04 - 3.e-5 * v + 1.e-9 * u*v + 3.e-9 * v**2
+    s = 0.3 + 8.e-9 * (u**2 + v**2) - 1.e-9 * u*v
+
+    data2 = np.array(zip(x,y,e1,e2,s),
+                     dtype=[ ('x',float), ('y',float), ('e1',float), ('e2',float), ('s',float) ])
+    im2 = drawImage(2048, 2048, wcs2, x, y, e1, e2, s)
+    im2.write('output/test_single_im2.fits')
+    fitsio.write('output/test_single_cat2.fits', data2, clobber=True)
+
+    # Try to fit with the right model (Moffat) and interpolant (2nd order polyomial)
+    # Should work very well, since no noise.
+    config = {
+        'input' : {
+            'image_file_name' : 'output/test_single_im?.fits',
+            'cat_file_name' : 'output/test_single_cat?.fits',
+            'x_col' : 'x',
+            'y_col' : 'y',
+            'ra' : 0.,
+            'dec' : -25.,
+        },
+        'psf' : {
+            'type' : 'SingleChip',
+            'model' : {
+                'type' : 'Moffat',
+                'beta' : 2.5
+            },
+            'interp' : {
+                'type' : 'Polynomial',
+                'order' : 2
+            }
+        },
+        'output' : {
+            'file_name': 'output/test_single.piff'
+        }
+    }
+    piff.piffify(config)
+
+    psf = piff.read('output/test_single.piff')
+
+    for chipnum, data, wcs in [(0,data1,wcs1), (1,data2,wcs2)]:
+        for k in range(nstars):
+            x = data['x'][k]
+            y = data['y'][k]
+            e1 = data['e1'][k]
+            e2 = data['e2'][k]
+            s = data['s'][k]
+            #print('k,x,y = ',k,x,y)
+            #print('  true s,e1,e2 = ',s,e1,e2)
+            image_pos = galsim.PositionD(x,y)
+            star = piff.Star.makeTarget(x=x, y=y, wcs=wcs, stamp_size=48, pointing=field_center,
+                                        chipnum=chipnum)
+            star = psf.drawStar(star)
+            #print('  fitted s,e1,e2 = ',star.fit.params)
+            np.testing.assert_almost_equal(star.fit.params, [s,e1,e2], decimal=6)
+
+
 
 if __name__ == '__main__':
     test_focal()
     test_wrongwcs()
+    test_single()
