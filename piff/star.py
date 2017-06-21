@@ -158,7 +158,7 @@ class Star(object):
 
     @classmethod
     def makeTarget(cls, x=None, y=None, u=None, v=None, properties={}, wcs=None, scale=None,
-                   stamp_size=48, image=None, flux=1.0, **kwargs):
+                   stamp_size=48, image=None, pointing=None, flux=1.0, **kwargs):
         """
         Make a target Star object with the requested properties.
 
@@ -185,6 +185,7 @@ class Star(object):
         :param stamp_size:  The size in each direction of the (blank) image. [default: 48]
         :param image:       An existing image to use instead of making a new one, if desired.
                             [default: None; this overrides stamp_size]
+        :param pointing:    The pointing direction to use. [default: None]
         :param flux:        The flux of the target star. [default: 1]
         :param **kwargs:    Additional properties can also be given as keyword arguments if that
                             is more convenient than populating the properties dict.
@@ -244,7 +245,8 @@ class Star(object):
             image.wcs = wcs
 
         # Build the StarData instance
-        data = StarData(image, image_pos, field_pos=field_pos, properties=properties)
+        data = StarData(image, image_pos, field_pos=field_pos, properties=properties, 
+                        pointing=pointing)
         fit = StarFit(None, flux=flux, center=(0.,0.))
         return cls(data, fit)
 

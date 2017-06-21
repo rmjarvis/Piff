@@ -349,6 +349,8 @@ class InputFiles(Input):
         elif 'image_file_name' in config and isinstance(config['image_file_name'],basestring):
             try:
                 image_list = sorted(glob.glob(config['image_file_name']))
+                if len(image_list) == 0:
+                    raise ValueError("No files found corresponding to "+config['image_file_name'])
             except:
                 pass
         if image_list is not None:
@@ -357,6 +359,8 @@ class InputFiles(Input):
                 raise ValueError("nimages = %s doesn't match length of image_file_name list (%d)"%(
                         config['nimages'], len(image_list)))
             nimages = len(image_list)
+            if nimages == 0:
+                raise ValueError("nimages == 0")
             logger.debug('nimages = %d',nimages)
             config['image_file_name'] = {
                 'type' : 'List',
@@ -366,7 +370,9 @@ class InputFiles(Input):
             cat_list = config['cat_file_name']
         elif 'cat_file_name' in config and isinstance(config['cat_file_name'],basestring):
             try:
-                image_list = sorted(glob.glob(config['image_file_name']))
+                cat_list = sorted(glob.glob(config['cat_file_name']))
+                if len(cat_list) == 0:
+                    raise ValueError("No files found corresponding to "+config['cat_file_name'])
             except:
                 pass
         if cat_list is not None:

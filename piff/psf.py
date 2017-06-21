@@ -164,7 +164,7 @@ class PSF(object):
             wcs = image.wcs
 
         star = Star.makeTarget(x=x, y=y, u=u, v=v, wcs=wcs, properties=properties,
-                               stamp_size=stamp_size, image=image)
+                               stamp_size=stamp_size, image=image, pointing=self.pointing)
         if logger:
             logger.debug("Drawing star at (%s,%s) on chip %s", x, y, chipnum)
 
