@@ -80,7 +80,7 @@ def test_focal():
     e2 = -0.04 - 3.e-5 * v + 1.e-9 * u*v + 3.e-9 * v**2
     s = 0.3 + 8.e-9 * (u**2 + v**2) - 1.e-9 * u*v
 
-    data1 = np.array(zip(x,y,e1,e2,s),
+    data1 = np.array(list(zip(x,y,e1,e2,s)),
                      dtype=[ ('x',float), ('y',float), ('e1',float), ('e2',float), ('s',float) ])
     np.testing.assert_array_equal(data1['x'] , x)
     np.testing.assert_array_equal(data1['y'] , y)
@@ -99,7 +99,7 @@ def test_focal():
     e2 = -0.04 - 3.e-5 * v + 1.e-9 * u*v + 3.e-9 * v**2
     s = 0.3 + 8.e-9 * (u**2 + v**2) - 1.e-9 * u*v
 
-    data2 = np.array(zip(x,y,e1,e2,s),
+    data2 = np.array(list(zip(x,y,e1,e2,s)),
                      dtype=[ ('x',float), ('y',float), ('e1',float), ('e2',float), ('s',float) ])
     im2 = drawImage(2048, 2048, wcs2, x, y, e1, e2, s)
     im2.write('output/test_focal_im2.fits')
@@ -177,7 +177,7 @@ def test_wrongwcs():
     e1 = 0.02 + 2.e-5 * u - 3.e-9 * u**2 + 2.e-9 * v**2
     e2 = -0.04 - 3.e-5 * v + 1.e-9 * u*v + 3.e-9 * v**2
     s = 0.3 + 8.e-9 * (u**2 + v**2) - 1.e-9 * u*v
-    data1 = np.array(zip(x,y,e1,e2,s),
+    data1 = np.array(list(zip(x,y,e1,e2,s)),
                      dtype=[ ('x',float), ('y',float), ('e1',float), ('e2',float), ('s',float) ])
     im1 = drawImage(2048, 2048, wcs1, x, y, e1, e2, s)
 
@@ -188,7 +188,7 @@ def test_wrongwcs():
     e1 = 0.02 + 2.e-5 * u - 3.e-9 * u**2 + 2.e-9 * v**2
     e2 = -0.04 - 3.e-5 * v + 1.e-9 * u*v + 3.e-9 * v**2
     s = 0.3 + 8.e-9 * (u**2 + v**2) - 1.e-9 * u*v
-    data2 = np.array(zip(x,y,e1,e2,s),
+    data2 = np.array(list(zip(x,y,e1,e2,s)),
                      dtype=[ ('x',float), ('y',float), ('e1',float), ('e2',float), ('s',float) ])
     im2 = drawImage(2048, 2048, wcs2, x, y, e1, e2, s)
 
@@ -267,7 +267,7 @@ def test_single():
     e2 = -0.04 - 3.e-5 * v + 1.e-9 * u*v + 3.e-9 * v**2
     s = 0.3 + 8.e-9 * (u**2 + v**2) - 1.e-9 * u*v
 
-    data1 = np.array(zip(x,y,e1,e2,s),
+    data1 = np.array(list(zip(x,y,e1,e2,s)),
                      dtype=[ ('x',float), ('y',float), ('e1',float), ('e2',float), ('s',float) ])
     im1 = drawImage(2048, 2048, wcs1, x, y, e1, e2, s)
     im1.write('output/test_single_im1.fits')
@@ -281,7 +281,7 @@ def test_single():
     e2 = -0.04 - 3.e-5 * v + 1.e-9 * u*v + 3.e-9 * v**2
     s = 0.3 + 8.e-9 * (u**2 + v**2) - 1.e-9 * u*v
 
-    data2 = np.array(zip(x,y,e1,e2,s),
+    data2 = np.array(list(zip(x,y,e1,e2,s)),
                      dtype=[ ('x',float), ('y',float), ('e1',float), ('e2',float), ('s',float) ])
     im2 = drawImage(2048, 2048, wcs2, x, y, e1, e2, s)
     im2.write('output/test_single_im2.fits')

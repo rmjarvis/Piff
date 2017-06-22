@@ -316,7 +316,7 @@ class PSF(object):
             dtypes = [ ('chipnums', bytes, max_len) ]
 
         # GalSim WCS objects can be serialized via pickle
-        wcs_str = [ str(pickle.dumps(w)).encode() for w in self.wcs.values() ]
+        wcs_str = [ base64.b64encode(pickle.dumps(w)) for w in self.wcs.values() ]
         max_len = np.max([ len(s) for s in wcs_str ])
         # Some GalSim WCS serializations are rather long.  In particular, the Pixmappy one
         # is longer than the maximum length allowed for a column in a fits table (28799).
@@ -375,9 +375,9 @@ class PSF(object):
         nchunks = nchunks[0]  # These are all equal, so just take first one.
 
         wcs_keys = [ 'wcs_str_%04d'%i for i in range(nchunks) ]
-        wcs_str = [ data[key] for key in wcs_keys ]      # Get all wcs_str columns
-        wcs_str = [ ''.join(s) for s in zip(*wcs_str) ]  # Rejoint into single string each
-        wcs_str = [ str(s.decode()) for s in wcs_str ]   # Make sure they are str, not bytes
+        wcs_str = [ data[key] for key in wcs_keys ] # Get all wcs_str columns
+        wcs_str = [ b''.join(s) for s in zip(*wcs_str) ]  # Rejoint into single string each
+        wcs_str = [ base64.b64decode(s) for s in wcs_str ] # Convert back from b64 encoding
         wcs_list = [ pickle.loads(s) for s in wcs_str ]  # Convert back into wcs objects
 
         wcs = dict(zip(chipnums, wcs_list))
