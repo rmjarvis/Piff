@@ -91,6 +91,7 @@ script:
     - nosetests --with-coverage --cover-package=piff --with-doctest
 
 after_success:
+    - coverage xml
     - codecov
 
 before_cache:
