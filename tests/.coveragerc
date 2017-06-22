@@ -1,15 +1,6 @@
 [run]
 branch = True
 
-#include = *piff/*
-
-#omit =
-    # We don't have these yet, but for when we do...
-    #*deprecated/*
-
-# Without this, coverage misses anything that is only run in multiprocessing mode.
-#concurrency = multiprocessing
-
 [report]
 # Regexes for lines to exclude from consideration
 exclude_lines =
