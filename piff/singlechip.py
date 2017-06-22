@@ -106,7 +106,7 @@ class SingleChipPSF(PSF):
 
         :returns:           Star instance with its image filled with rendered PSF
         """
-        if 'chipnum' not in star:
+        if 'chipnum' not in star.data.properties:
             raise ValueError("SingleChip drawStar requires the star to have a chipnum property")
         chipnum = star['chipnum']
         return self.psf_by_chip[chipnum].drawStar(star)
