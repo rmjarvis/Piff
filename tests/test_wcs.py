@@ -307,6 +307,8 @@ def test_single():
                 'format' : '%s/test_single_cat%d.fits',
                 'items' : [ 'output', '$image_num+1' ]
             },
+            # Use chipnum = 1,2 rather than the default 0,1.
+            'chipnum' : '$image_num+1',
             'x_col' : 'x',
             'y_col' : 'y',
             'ra' : 0.,
@@ -331,7 +333,7 @@ def test_single():
 
     psf = piff.read('output/test_single.piff')
 
-    for chipnum, data, wcs in [(0,data1,wcs1), (1,data2,wcs2)]:
+    for chipnum, data, wcs in [(1,data1,wcs1), (2,data2,wcs2)]:
         for k in range(nstars):
             x = data['x'][k]
             y = data['y'][k]
