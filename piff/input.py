@@ -104,7 +104,7 @@ class Input(object):
                 half_size = self.stamp_size // 2
                 bounds = galsim.BoundsI(icen+half_size-self.stamp_size+1, icen+half_size,
                                         jcen+half_size-self.stamp_size+1, jcen+half_size)
-                if not image.bounds.includes(bounds):
+                if not image.bounds.includes(bounds):  # pragma: no cover
                     bounds = bounds & image.bounds
                     if not bounds.isDefined():
                         logger.warning("Star at position %f,%f is off the edge of the image."%(x,y))
@@ -122,7 +122,7 @@ class Input(object):
                 wt_stamp = wt[bounds]
 
                 # if a star is totally masked, then don't add it!
-                if np.all(wt_stamp.array == 0):
+                if np.all(wt_stamp.array == 0):  # pragma: no cover
                     logger.warning("Star at position %f,%f is completely masked."%(x,y))
                     logger.warning("Skipping this star.")
                     continue
@@ -347,12 +347,9 @@ class InputFiles(Input):
         if 'image_file_name' in config and isinstance(config['image_file_name'],list):
             image_list = config['image_file_name']
         elif 'image_file_name' in config and isinstance(config['image_file_name'],basestring):
-            try:
-                image_list = sorted(glob.glob(config['image_file_name']))
-                if len(image_list) == 0:
-                    raise ValueError("No files found corresponding to "+config['image_file_name'])
-            except:
-                pass
+            image_list = sorted(glob.glob(config['image_file_name']))
+            if len(image_list) == 0:
+                raise ValueError("No files found corresponding to "+config['image_file_name'])
         if image_list is not None:
             logger.debug('image_list = %s',image_list)
             if 'nimages' in config and config['nimages'] != len(image_list):
@@ -369,12 +366,9 @@ class InputFiles(Input):
         if 'cat_file_name' in config and isinstance(config['cat_file_name'],list):
             cat_list = config['cat_file_name']
         elif 'cat_file_name' in config and isinstance(config['cat_file_name'],basestring):
-            try:
-                cat_list = sorted(glob.glob(config['cat_file_name']))
-                if len(cat_list) == 0:
-                    raise ValueError("No files found corresponding to "+config['cat_file_name'])
-            except:
-                pass
+            cat_list = sorted(glob.glob(config['cat_file_name']))
+            if len(cat_list) == 0:
+                raise ValueError("No files found corresponding to "+config['cat_file_name'])
         if cat_list is not None:
             logger.debug('cat_list = %s',cat_list)
             if 'nimages' in config and config['nimages'] != len(cat_list):
@@ -493,7 +487,7 @@ class InputFiles(Input):
         if weight_hdu is not None:
             logger.info("Reading weight image from hdu %d.", weight_hdu)
             weight = galsim.fits.read(image_file_name, hdu=weight_hdu)
-            if np.all(weight.array == 0):
+            if np.all(weight.array == 0):  # pragma: no cover
                 logger.error("According to the weight mask in %s, all pixels have zero weight!",
                              image_file_name)
         elif noise is not None:
@@ -509,19 +503,19 @@ class InputFiles(Input):
             badpix = galsim.fits.read(image_file_name, hdu=badpix_hdu)
             # The badpix image may be offset by 32768 from the true value.
             # If so, subtract it off.
-            if np.any(badpix.array > 32767):
+            if np.any(badpix.array > 32767):  # pragma: no cover
                 logger.debug('min(badpix) = %s',np.min(badpix.array))
                 logger.debug('max(badpix) = %s',np.max(badpix.array))
                 logger.debug("subtracting 32768 from all values in badpix image")
                 badpix -= 32768
-            if np.any(badpix.array < -32767):
+            if np.any(badpix.array < -32767):  # pragma: no cover
                 logger.debug('min(badpix) = %s',np.min(badpix.array))
                 logger.debug('max(badpix) = %s',np.max(badpix.array))
                 logger.debug("adding 32768 to all values in badpix image")
                 badpix += 32768
             # Also, convert to int16, in case it isn't by default.
             badpix = galsim.ImageS(badpix)
-            if np.all(badpix.array != 0):
+            if np.all(badpix.array != 0):  # pragma: no cover
                 logger.error("According to the bad pixel array in %s, all pixels are masked!",
                              image_file_name)
             weight.array[badpix.array != 0] = 0
