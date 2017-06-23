@@ -131,6 +131,8 @@ def test_focal():
             'file_name': 'output/test_focal.piff'
         }
     }
+    if __name__ != '__main__':
+        config['verbose'] = 0
     piff.piffify(config)
 
     psf = piff.read('output/test_focal.piff')
@@ -228,6 +230,8 @@ def test_wrongwcs():
             'file_name': 'output/test_wrongwcs.piff'
         }
     }
+    if __name__ != '__main__':
+        config['verbose'] = 0
     piff.piffify(config)
 
     psf = piff.read('output/test_wrongwcs.piff')
@@ -327,8 +331,10 @@ def test_single():
         },
         'output' : {
             'file_name': 'output/test_single.piff'
-        }
+        },
     }
+    if __name__ != '__main__':
+        config['verbose'] = 0
     piff.piffify(config)
 
     psf = piff.read('output/test_single.piff')
