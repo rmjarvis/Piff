@@ -652,6 +652,12 @@ def test_single_image():
         moffat.drawImage(image=image[bounds], offset=offset, method='no_pixel')
     print('drew image')
 
+    # Add sky level and noise
+    sky_level = 1000
+    noise_sigma = 0.1  # Not much noise to keep this an easy test.
+    image += sky_level
+    image.addNoise(galsim.GaussianNoise(sigma=noise_sigma))
+
     # Write out the image to a file
     image_file = os.path.join('data','pixel_moffat_image.fits')
     image.write(image_file)
@@ -669,7 +675,9 @@ def test_single_image():
     # Use InputFiles to read these back in
     config = { 'image_file_name': image_file,
                'cat_file_name': cat_file,
-               'stamp_size': 32 }
+               'stamp_size': 32,
+               'sky' : sky_level
+             }
     input = piff.InputFiles(config)
     assert input.image_file_name == [image_file]
     assert input.cat_file_name == [cat_file]
@@ -705,7 +713,7 @@ def test_single_image():
 
     # These tests are slow, and it's really just doing the same thing three times, so
     # only do the first one when running via nosetests.
-    if True:
+    if __name__ == '__main__':
         # Process the star data
         model = piff.PixelGrid(0.2, 16, start_sigma=0.9/2.355)
         interp = piff.BasisPolynomial(order=2)
@@ -751,6 +759,8 @@ def test_single_image():
             'cat_file_name' : cat_file,
             'x_col' : 'x',
             'y_col' : 'y',
+            'noise' : noise_sigma**2,
+            'sky' : sky_level,
             'stamp_size' : 48  # Bigger than we drew, but should still work.
         },
         'output' : {
@@ -769,7 +779,7 @@ def test_single_image():
             },
         },
     }
-    if __name__ == '__main__':
+    if True:
         print("Running piffify function")
         piff.piffify(config)
         psf = piff.read(psf_file)
