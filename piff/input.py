@@ -393,7 +393,7 @@ class InputFiles(Input):
             else:
                 nimages = 1
 
-        self.chipnums = range(nimages)
+        self.chipnums = list(range(nimages))
         self.stamp_size = int(config.get('stamp_size', 32))
         self.images = []
         self.weight = []
