@@ -853,6 +853,11 @@ def test_des_image():
                 'type' : 'BasisPolynomial',
                 'order' : 2,
             },
+            'outliers' : {
+                'type' : 'Chisq',
+                'nsigma' : 4,
+                'max_remove' : 3
+            }
         },
     }
     if __name__ == '__main__': config['verbose'] = 3
