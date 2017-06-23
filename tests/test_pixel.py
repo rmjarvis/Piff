@@ -713,6 +713,7 @@ def test_single_image():
 
     # These tests are slow, and it's really just doing the same thing three times, so
     # only do the first one when running via nosetests.
+    psf_file = os.path.join('output','pixel_psf.fits')
     if __name__ == '__main__':
         # Process the star data
         model = piff.PixelGrid(0.2, 16, start_sigma=0.9/2.355)
@@ -740,7 +741,6 @@ def test_single_image():
         np.testing.assert_almost_equal(image.array, test_im.array, decimal=3)
 
         # Round trip through a file
-        psf_file = os.path.join('output','pixel_psf.fits')
         psf.write(psf_file, logger)
         psf = piff.read(psf_file, logger)
         assert type(psf.model) is piff.PixelGrid
