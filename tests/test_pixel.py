@@ -860,11 +860,13 @@ def test_des_image():
             }
         },
     }
-    if __name__ == '__main__': config['verbose'] = 3
+    if __name__ == '__main__':
+        config['verbose'] = 3
+        config['input']['nstars'] = nstars
 
     # These tests are slow, and it's really just doing the same thing three times, so
     # only do the first one when running via nosetests.
-    if True:
+    if __name__ == '__main__':
         # Start by doing things manually:
         if __name__ == '__main__':
             logger = piff.config.setup_logger(2)
@@ -938,7 +940,7 @@ def test_des_image():
         assert n_bad <= 3
 
     # Use piffify function
-    if __name__ == '__main__':
+    if True:
         print('start piffify')
         piff.piffify(config)
         print('read stars')
