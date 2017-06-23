@@ -201,8 +201,11 @@ def test_wrongwcs():
 
     config = {
         'input' : {
-            'image_file_name' : 'output/test_wrongwcs_im?.fits',
-            'cat_file_name' : 'output/test_wrongwcs_cat?.fits',
+            # Normally more convenient to use a glob string, but an explicit list is also allowed.
+            'image_file_name' : ['output/test_wrongwcs_im1.fits',
+                                 'output/test_wrongwcs_im2.fits'],
+            'cat_file_name' : ['output/test_wrongwcs_cat1.fits',
+                               'output/test_wrongwcs_cat2.fits'],
             'x_col' : 'x',
             'y_col' : 'y',
             'ra' : 0.,
@@ -291,8 +294,19 @@ def test_single():
     # Should work very well, since no noise.
     config = {
         'input' : {
-            'image_file_name' : 'output/test_single_im?.fits',
-            'cat_file_name' : 'output/test_single_cat?.fits',
+            # A third way to input these same file names.  Use GalSim config values and
+            # explicitly specify the number of images to read
+            'nimages' : 2,
+            'image_file_name' : {
+                'type' : 'FormattedStr',
+                'format' : '%s/test_single_im%d.fits',
+                'items' : [ 'output', '$image_num+1' ]
+            },
+            'cat_file_name' : {
+                'type' : 'FormattedStr',
+                'format' : '%s/test_single_cat%d.fits',
+                'items' : [ 'output', '$image_num+1' ]
+            },
             'x_col' : 'x',
             'y_col' : 'y',
             'ra' : 0.,
