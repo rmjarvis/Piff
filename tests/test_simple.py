@@ -274,6 +274,8 @@ def test_single_image():
     #config['verbose'] = 0
     with open('simple.yaml','w') as f:
         f.write(yaml.dump(config, default_flow_style=False))
+    config2 = piff.config.read_config('simple.yaml')
+    assert config == config2
     piffify_exe = get_script_name('piffify')
     p = subprocess.Popen( [piffify_exe, 'simple.yaml'] )
     p.communicate()
