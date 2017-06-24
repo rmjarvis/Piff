@@ -147,21 +147,15 @@ class BasisPolynomial(BasisInterp):
     The maximum order is normally the maximum order of any given key's order, but you may
     specify a larger value.  (e.g. to use 1, x, y, xy, you would specify order=1, maxorder=2.)
 
-    Ranges for each key can be given which are rescaled into the [-1,1] interval that
-    will help keep polynomial arguments at O(1).
-
     :param order:       The order to use for each key.  Can be a single value (applied to all
                         keys) or an array matching number of keys.
     :param keys:        List of keys for properties that will be used as the polynomial arguments.
                         [default: ('u','v')]
-    :param ranges:      Range for each key to be linearly remapped to [-1,1] interval before
-                        calculating polynomials.  Can be a single tuple (which will be used for all
-                        keys) or a list with a tuple for each key. [default: None]
     :param maxorder:    The maximum total order to use for cross terms between keys.
                         [default: None, which uses the maximum value of any individual key's order]
     :param logger:      A logger object for logging debug info. [default: None]
     """
-    def __init__(self, order, keys=('u','v'), ranges=None, maxorder=None, logger=None):
+    def __init__(self, order, keys=('u','v'), maxorder=None, logger=None):
         super(BasisPolynomial, self).__init__()
 
         self._keys = keys
@@ -194,32 +188,6 @@ class BasisPolynomial(BasisInterp):
         sumorder = np.sum(np.ix_(*ord_ranges))
         self._mask = sumorder <= self._maxorder
 
-        # Set up the ranges: save the additive and multiplicative factors
-        if ranges is None:
-            # All dimensions take default
-            rr = ((-1.,1.),) * len(keys)
-        elif type(ranges[0]) is int and type(ranges[1]) is int:
-            # Replicate a single range pair
-            rr = (ranges,) * len(keys)
-        elif not len(ranges)==len(keys):
-             raise ValueError('Number of provided ranges does not match number of keys')
-        else:
-            rr = ranges
-
-        # Copy all ranges, None means -1,1
-        left=[]
-        right=[]
-        for r in rr:
-            if r is None:
-                left.append(-1.)
-                right.append(1.)
-            else:
-                left.append(r[0])
-                right.append(r[1])
-
-        self._center = (np.array(right)+np.array(left))/2.
-        self._scale =  (np.array(right)-np.array(left))/2.
-
     def getProperties(self, star):
         return np.array([star.data[k] for k in self._keys], dtype=float)
 
@@ -232,8 +200,6 @@ class BasisPolynomial(BasisInterp):
         """
         # Get the interpolation key values
         vals = self.getProperties(star)
-        # Rescale to nominal (-1,1) interval
-        vals = self._scale * (vals-self._center)
         # Make 1d arrays of all needed powers of keys
         pows1d = []
         for i,o in enumerate(self._orders):
