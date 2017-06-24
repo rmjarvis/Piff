@@ -202,6 +202,7 @@ def test_wrongwcs():
     fitsio.write('output/test_wrongwcs_cat2.fits', data2, clobber=True)
 
     config = {
+        'modules' : [ 'custom_wcs' ],
         'input' : {
             'dir' : 'output',
             # Normally more convenient to use a glob string, but an explicit list is also allowed.
@@ -211,8 +212,10 @@ def test_wrongwcs():
             'y_col' : 'y',
             'ra' : 0.,
             'dec' : -25.,
-            # But here tell Piff the correct WCS to use.
-            'wcs' : { 'type' : 'List', 'items' : [ wcs1, wcs2 ] }
+            # But here tell Piff the correct WCS to use.  This uses a custom WCS builder,
+            # mostly so we can test the 'modules' option.  In practice, you might use a
+            # galsim_extra Pixmappy WCS class.  Or maybe an LSST DM WCS.
+            'wcs' : { 'type' : 'Custom' }
         },
         'psf' : {
             'type' : 'Simple',
