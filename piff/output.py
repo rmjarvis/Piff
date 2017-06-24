@@ -154,17 +154,3 @@ class OutputFile(Output):
         for stats in self.stats_list:
             stats.compute(psf,psf.stars,logger=logger)
             stats.write(logger=logger)
-
-    def read(self, logger=None):
-        """Read a PSF object that was written to an output file back in.
-
-        :param logger:      A logger object for logging debug info. [default: None]
-
-        :returns: a piff.PSF instance
-        """
-        import piff
-        if logger:
-            logger.info("Reading PSF from %s", self.file_name)
-        piff.PSF.read(self.file_name)
-
-
