@@ -268,7 +268,10 @@ def test_single_image():
 
     # Test using the piffify executable
     os.remove(psf_file)
-    config['verbose'] = 0
+    # This would be simpler as a direct assignment, but this once, test the way you would set
+    # this from the command line, which would call parse_variables.
+    piff.config.parse_variables(config, ['verbose=0'], logger=logger)
+    #config['verbose'] = 0
     with open('simple.yaml','w') as f:
         f.write(yaml.dump(config, default_flow_style=False))
     piffify_exe = get_script_name('piffify')
