@@ -113,7 +113,7 @@ class Outliers(object):
         assert 'type' in fits[extname].get_colnames()
         outliers_type = fits[extname].read()['type']
         assert len(outliers_type) == 1
-        outliers_type = outliers_type[0]
+        outliers_type = str(outliers_type[0].decode())
 
         # Check that outliers_type is a valid Outliers type.
         outliers_classes = piff.util.get_all_subclasses(piff.Outliers)
