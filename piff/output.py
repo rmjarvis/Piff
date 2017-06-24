@@ -53,7 +53,7 @@ class Output(object):
         return output_handler
 
     @classmethod
-    def parseKwargs(cls, config_output, logger=None):
+    def parseKwargs(cls, config_output, logger=None):  # pragma: no cover
         """Parse the output field of a configuration dict and return the kwargs to use for
         initializing an instance of the class.
 
