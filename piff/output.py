@@ -144,8 +144,6 @@ class OutputFile(Output):
         :param psf:         A piff.PSF instance
         :param logger:      A logger object for logging debug info. [default: None]
         """
-        if logger:
-            logger.warning("Writing PSF to %s", self.file_name)
         ensure_dir(self.file_name)
         psf.write(self.file_name, logger=logger)
 
