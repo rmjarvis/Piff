@@ -39,7 +39,8 @@ def setup_logger(verbose=1, log_file=None):
                        2: logging.INFO,
                        3: logging.DEBUG }
     logging_level = logging_levels[verbose]
-                                                                                                        # Setup logging to go to sys.stdout or (if requested) to an output file
+
+    # Setup logging to go to sys.stdout or (if requested) to an output file
     logger = logging.getLogger('piff')
     if len(logger.handlers) == 0:  # only add handler once!
         if log_file is None:

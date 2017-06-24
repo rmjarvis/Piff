@@ -74,7 +74,7 @@ def test_Gaussian():
     if __name__ == '__main__':
         logger = piff.config.setup_logger(verbose=2)
     else:
-        logger = piff.config.setup_logger(verbose=0)
+        logger = piff.config.setup_logger(log_file='output/test_Gaussian.log')
     model = piff.Model.process(config['model'], logger)
     fit = model.fit(star).fit
 
@@ -135,7 +135,7 @@ def test_single_image():
     if __name__ == '__main__':
         logger = piff.config.setup_logger(verbose=2)
     else:
-        logger = piff.config.setup_logger(verbose=0)
+        logger = piff.config.setup_logger(log_file='output/test_single_image.log')
 
     # Make the image
     image = galsim.Image(2048, 2048, scale=0.26)
