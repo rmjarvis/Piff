@@ -143,19 +143,19 @@ class BasisPolynomial(BasisInterp):
     or you may provide a list of separate order values to be used for each key.  (e.g. you
     may want to use 2nd order in the positions, but only 1st order in the color).
 
-    All combinations of powers of keys that have total order <= maxorder are used.
+    All combinations of powers of keys that have total order <= max_order are used.
     The maximum order is normally the maximum order of any given key's order, but you may
-    specify a larger value.  (e.g. to use 1, x, y, xy, you would specify order=1, maxorder=2.)
+    specify a larger value.  (e.g. to use 1, x, y, xy, you would specify order=1, max_order=2.)
 
     :param order:       The order to use for each key.  Can be a single value (applied to all
                         keys) or an array matching number of keys.
     :param keys:        List of keys for properties that will be used as the polynomial arguments.
                         [default: ('u','v')]
-    :param maxorder:    The maximum total order to use for cross terms between keys.
+    :param max_order:   The maximum total order to use for cross terms between keys.
                         [default: None, which uses the maximum value of any individual key's order]
     :param logger:      A logger object for logging debug info. [default: None]
     """
-    def __init__(self, order, keys=('u','v'), maxorder=None, logger=None):
+    def __init__(self, order, keys=('u','v'), max_order=None, logger=None):
         super(BasisPolynomial, self).__init__()
 
         self._keys = keys
@@ -166,12 +166,12 @@ class BasisPolynomial(BasisInterp):
         else:
             self._orders = (order,) * len(keys)
 
-        if maxorder is None:
-            self._maxorder = np.max(self._orders)
+        if max_order is None:
+            self._max_order = np.max(self._orders)
         else:
-            self._maxorder = maxorder
+            self._max_order = max_order
 
-        if self._maxorder<0 or np.any(np.array(self._orders) < 0):
+        if self._max_order<0 or np.any(np.array(self._orders) < 0):
             # Exception if we have any requests for negative orders
             raise ValueError('Negative polynomial order specified')
 
@@ -186,7 +186,7 @@ class BasisPolynomial(BasisInterp):
         ord_ranges = [np.arange(order+1,dtype=int) for order in self._orders]
         # Nifty trick to produce n-dim array holding total order
         sumorder = np.sum(np.ix_(*ord_ranges))
-        self._mask = sumorder <= self._maxorder
+        self._mask = sumorder <= self._max_order
 
     def getProperties(self, star):
         return np.array([star.data[k] for k in self._keys], dtype=float)

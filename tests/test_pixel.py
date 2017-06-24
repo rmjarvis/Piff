@@ -545,7 +545,8 @@ def do_undersamp_drift(fit_centers=False):
     s0 = mod.initialize(s0)
 
     # Interpolator will be linear
-    interp = piff.BasisPolynomial(1)
+    # Normally max order would be 1, but set it to 2 here, just to check that option.
+    interp = piff.BasisPolynomial(order=1, max_order=2)
 
     # Draw stars on a 2d grid of "focal plane" with 0<=u,v<=1
     positions = np.linspace(0.,1.,8)
