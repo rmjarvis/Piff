@@ -203,11 +203,10 @@ def test_wrongwcs():
 
     config = {
         'input' : {
+            'dir' : 'output',
             # Normally more convenient to use a glob string, but an explicit list is also allowed.
-            'image_file_name' : ['output/test_wrongwcs_im1.fits',
-                                 'output/test_wrongwcs_im2.fits'],
-            'cat_file_name' : ['output/test_wrongwcs_cat1.fits',
-                               'output/test_wrongwcs_cat2.fits'],
+            'image_file_name' : ['test_wrongwcs_im1.fits', 'test_wrongwcs_im2.fits'],
+            'cat_file_name' : ['test_wrongwcs_cat1.fits', 'test_wrongwcs_cat2.fits'],
             'x_col' : 'x',
             'y_col' : 'y',
             'ra' : 0.,
@@ -227,7 +226,8 @@ def test_wrongwcs():
             }
         },
         'output' : {
-            'file_name': 'output/test_wrongwcs.piff'
+            'dir' : 'output',
+            'file_name': 'test_wrongwcs.piff'
         }
     }
     if __name__ != '__main__':

@@ -130,10 +130,7 @@ class BasisInterp(Interp):
 
         K = self.basis(star)
         p = np.dot(self.q,K)
-        if star.fit is None:
-            fit = StarFit(p)
-        else:
-            fit = star.fit.newParams(p)
+        fit = star.fit.newParams(p)
         return Star(star.data, fit)
 
 

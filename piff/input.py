@@ -310,7 +310,9 @@ class InputFiles(Input):
         req = { 'image_file_name': str,
                 'cat_file_name': str,
               }
-        opt = { 'chipnum' : int,
+        opt = {
+                'dir' : str,
+                'chipnum' : int,
                 'x_col' : str,
                 'y_col' : str,
                 'sky_col' : str,
@@ -419,6 +421,8 @@ class InputFiles(Input):
 
             # Read the image
             image_file_name = params['image_file_name']
+            if 'dir' in params:
+                image_file_name = os.path.join(params['dir'], image_file_name)
             image_hdu = params.get('image_hdu', None)
             weight_hdu = params.get('weight_hdu', None)
             badpix_hdu = params.get('badpix_hdu', None)
@@ -438,6 +442,8 @@ class InputFiles(Input):
 
             # Read the catalog
             cat_file_name = params['cat_file_name']
+            if 'dir' in params:
+                cat_file_name = os.path.join(params['dir'], cat_file_name)
             cat_hdu = params.get('cat_hdu', None)
             x_col = params.get('x_col', 'x')
             y_col = params.get('y_col', 'y')
