@@ -164,7 +164,7 @@ def test_single_image():
     image.addNoise(galsim.GaussianNoise(rng=galsim.BaseDeviate(1234), sigma=1e-6))
 
     # Write out the image to a file
-    image_file = os.path.join('data','simple_image.fits')
+    image_file = os.path.join('output','simple_image.fits')
     image.write(image_file)
 
     # Write out the catalog to a file
@@ -174,7 +174,7 @@ def test_single_image():
     data['y'] = y_list
     data['flag'] = flag_list
     data['use'] = use_list
-    cat_file = os.path.join('data','simple_cat.fits')
+    cat_file = os.path.join('output','simple_cat.fits')
     fitsio.write(cat_file, data, clobber=True)
 
     # Use InputFiles to read these back in

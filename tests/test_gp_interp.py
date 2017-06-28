@@ -645,13 +645,13 @@ def test_yaml():
     config = {
         'input' : {
             # These can be regular strings
-            'image_file_name' : 'y1_test/DECam_00241238_01.fits.fz',
+            'image_file_name' : 'input/DECam_00241238_01.fits.fz',
             # Or any GalSim str value type.  e.g. FormattedStr
             'cat_file_name' : {
                 'type': 'FormattedStr',
                 'format': '%s/DECam_%08d_%02d_psfcat_tb_maxmag_17.0_magcut_3.0_findstars.fits',
                 'items': [
-                    'y1_test',  # dir
+                    'input',    # dir
                     241238,     # expnum
                     1           # chipnum
                 ]

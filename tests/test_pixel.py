@@ -660,7 +660,7 @@ def test_single_image():
     image.addNoise(galsim.GaussianNoise(sigma=noise_sigma))
 
     # Write out the image to a file
-    image_file = os.path.join('data','pixel_moffat_image.fits')
+    image_file = os.path.join('output','pixel_moffat_image.fits')
     image.write(image_file)
     print('wrote image')
 
@@ -669,7 +669,7 @@ def test_single_image():
     data = np.empty(len(x_list), dtype=dtype)
     data['x'] = x_list
     data['y'] = y_list
-    cat_file = os.path.join('data','pixel_moffat_cat.fits')
+    cat_file = os.path.join('output','pixel_moffat_cat.fits')
     fitsio.write(cat_file, data, clobber=True)
     print('wrote catalog')
 
@@ -810,8 +810,8 @@ def test_des_image():
     import os
     import fitsio
 
-    image_file = 'y1_test/DECam_00241238_01.fits.fz'
-    cat_file = 'y1_test/DECam_00241238_01_psfcat_tb_maxmag_17.0_magcut_3.0_findstars.fits'
+    image_file = 'input/DECam_00241238_01.fits.fz'
+    cat_file = 'input/DECam_00241238_01_psfcat_tb_maxmag_17.0_magcut_3.0_findstars.fits'
     orig_image = galsim.fits.read(image_file)
     psf_file = os.path.join('output','pixel_des_psf.fits')
 
