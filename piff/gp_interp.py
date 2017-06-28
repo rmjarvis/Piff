@@ -16,13 +16,13 @@
 .. module:: sklearn_gp_interp
 """
 
-from .interp import Interp
-from .star import Star, StarFit
-
 import numpy as np
 
 from sklearn.gaussian_process.kernels import StationaryKernelMixin, NormalizedKernelMixin, Kernel
 from sklearn.gaussian_process.kernels import Hyperparameter
+
+from .interp import Interp
+from .star import Star, StarFit
 
 
 class GPInterp(Interp):

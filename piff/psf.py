@@ -20,6 +20,7 @@ from __future__ import print_function
 
 import numpy as np
 import fitsio
+import galsim
 
 from .star import Star, StarData
 from .util import write_kwargs, read_kwargs
@@ -64,25 +65,22 @@ class PSF(object):
         import piff
         import yaml
 
-        if logger:
-            logger.debug("Parsing PSF based on config dict:")
-            logger.debug(yaml.dump(config_psf, default_flow_style=False))
+        logger = galsim.config.LoggerWrapper(logger)
+        logger.debug("Parsing PSF based on config dict:")
+        logger.debug(yaml.dump(config_psf, default_flow_style=False))
 
         # Get the class to use for the PSF
         psf_type = config_psf.pop('type', 'Simple') + 'PSF'
-        if logger:
-            logger.debug("PSF type is %s",psf_type)
+        logger.debug("PSF type is %s",psf_type)
         cls = getattr(piff, psf_type)
 
         # Read any other kwargs in the psf field
         kwargs = cls.parseKwargs(config_psf, logger)
 
         # Build PSF object
-        if logger:
-            logger.info("Building %s",psf_type)
+        logger.info("Building %s",psf_type)
         psf = cls(**kwargs)
-        if logger:
-            logger.debug("Done building PSF")
+        logger.debug("Done building PSF")
 
         return psf
 
@@ -143,6 +141,7 @@ class PSF(object):
         :returns:           A GalSim Image of the PSF
         """
         import galsim
+        logger = galsim.config.LoggerWrapper(logger)
         properties = {'chipnum' : chipnum}
         for key in self.extra_interp_properties:
             if key not in kwargs:
@@ -165,8 +164,7 @@ class PSF(object):
 
         star = Star.makeTarget(x=x, y=y, u=u, v=v, wcs=wcs, properties=properties,
                                stamp_size=stamp_size, image=image, pointing=self.pointing)
-        if logger:
-            logger.debug("Drawing star at (%s,%s) on chip %s", x, y, chipnum)
+        logger.debug("Drawing star at (%s,%s) on chip %s", x, y, chipnum)
 
         # Adjust the flux, center
         center = star.offset_to_center(offset)
@@ -182,8 +180,8 @@ class PSF(object):
         :param file_name:   The name of the file to write to.
         :param logger:      A logger object for logging debug info. [default: None]
         """
-        if logger:
-            logger.warning("Writing PSF to file %s",file_name)
+        logger = galsim.config.LoggerWrapper(logger)
+        logger.warning("Writing PSF to file %s",file_name)
 
         with fitsio.FITS(file_name,'rw',clobber=True) as f:
             self._write(f, 'psf', logger)
@@ -198,14 +196,11 @@ class PSF(object):
         """
         psf_type = self.__class__.__name__
         write_kwargs(fits, extname, dict(self.kwargs, type=psf_type))
-        if logger:
-            logger.info("Wrote the basic PSF information to extname %s", extname)
+        logger.info("Wrote the basic PSF information to extname %s", extname)
         Star.write(self.stars, fits, extname=extname + '_stars')
-        if logger:
-            logger.info("Wrote the PSF stars to extname %s", extname + '_stars')
+        logger.info("Wrote the PSF stars to extname %s", extname + '_stars')
         self.writeWCS(fits, extname=extname + '_wcs', logger=logger)
-        if logger:
-            logger.info("Wrote the PSF WCS to extname %s", extname + '_wcs')
+        logger.info("Wrote the PSF WCS to extname %s", extname + '_wcs')
         self._finish_write(fits, extname=extname, logger=logger)
 
     @classmethod
@@ -217,12 +212,11 @@ class PSF(object):
 
         :returns: a PSF instance
         """
-        if logger:
-            logger.warning("Reading PSF from file %s",file_name)
+        logger = galsim.config.LoggerWrapper(logger)
+        logger.warning("Reading PSF from file %s",file_name)
 
         with fitsio.FITS(file_name,'r') as f:
-            if logger:
-                logger.debug('opened FITS file')
+            logger.debug('opened FITS file')
             return cls._read(f, 'psf', logger)
 
     @classmethod
@@ -252,11 +246,9 @@ class PSF(object):
 
         # Read the stars, wcs, pointing values
         stars = Star.read(fits, extname + '_stars')
-        if logger:
-            logger.debug("stars = %s",stars)
+        logger.debug("stars = %s",stars)
         wcs, pointing = cls.readWCS(fits, extname + '_wcs', logger=logger)
-        if logger:
-            logger.debug("wcs = %s, pointing = %s",wcs,pointing)
+        logger.debug("wcs = %s, pointing = %s",wcs,pointing)
 
         # Get any other kwargs we need for this PSF type
         kwargs = read_kwargs(fits, extname)
@@ -302,6 +294,7 @@ class PSF(object):
             import cPickle as pickle
         except:
             import pickle
+        logger = galsim.config.LoggerWrapper(logger)
 
         # Start with the chipnums, which may be int or str type.
         # Assume they are all the same type at least.
@@ -325,7 +318,7 @@ class PSF(object):
         nchunks = max_len // chunk_size + 1
         cols.append( [nchunks]*len(chipnums) )
         dtypes.append( ('nchunks', int) )
-        if logger and nchunks > 1:
+        if nchunks > 1:
             logger.debug('Using %d chunks for the wcs pickle string',nchunks)
 
         # Update to size of chunk we actually need.

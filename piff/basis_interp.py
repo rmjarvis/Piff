@@ -17,9 +17,12 @@
 """
 
 from __future__ import print_function
+
+import numpy as np
+import galsim
+
 from .interp import Interp
 from .star import Star, StarFit
-import numpy as np
 
 class BasisInterp(Interp):
     """An Interp class that works whenever the interpolating functions are
@@ -92,6 +95,7 @@ class BasisInterp(Interp):
         :param stars:       A list of Star instances to interpolate between
         :param logger:      A logger object for logging debug info. [default: None]
         """
+        logger = galsim.config.LoggerWrapper(logger)
         if self.q is None:
             raise RuntimeError("Attempt to solve() before initialize() of BasisInterp")
 
@@ -110,11 +114,9 @@ class BasisInterp(Interp):
         B = B.flatten()
         nq = B.shape[0]
         A = A.reshape(nq,nq)
-        if logger:
-            logger.debug('Beginning solution of matrix size %d',A.shape[0])
+        logger.debug('Beginning solution of matrix size %d',A.shape[0])
         dq = np.linalg.solve(A,B)
-        if logger:
-            logger.debug('...finished solution')
+        logger.debug('...finished solution')
         self.q += dq.reshape(self.q.shape)
 
     def interpolate(self, star, logger=None):

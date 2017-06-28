@@ -19,6 +19,8 @@
 from __future__ import print_function
 
 import os
+import galsim
+
 from .util import ensure_dir
 
 class Output(object):
@@ -144,11 +146,11 @@ class OutputFile(Output):
         :param psf:         A piff.PSF instance
         :param logger:      A logger object for logging debug info. [default: None]
         """
+        logger = galsim.config.LoggerWrapper(logger)
         ensure_dir(self.file_name)
         psf.write(self.file_name, logger=logger)
 
-        if logger:
-            logger.debug("stats_list = %s",self.stats_list)
+        logger.debug("stats_list = %s",self.stats_list)
         for stats in self.stats_list:
             stats.compute(psf,psf.stars,logger=logger)
             stats.write(logger=logger)

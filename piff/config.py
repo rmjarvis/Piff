@@ -43,14 +43,14 @@ def setup_logger(verbose=1, log_file=None):
 
     # Setup logging to go to sys.stdout or (if requested) to an output file
     logger = logging.getLogger('piff')
-    if len(logger.handlers) == 0:  # only add handler once!
-        if log_file is None:
-            handle = logging.StreamHandler()
-        else:
-            handle = logging.FileHandler(log_file)
-        formatter = logging.Formatter('%(message)s')  # Simple text output
-        handle.setFormatter(formatter)
-        logger.addHandler(handle)
+    logger.handlers = []  # Remove any existing handlers
+    if log_file is None:
+        handle = logging.StreamHandler()
+    else:
+        handle = logging.FileHandler(log_file)
+    formatter = logging.Formatter('%(message)s')  # Simple text output
+    handle.setFormatter(formatter)
+    logger.addHandler(handle)
     logger.setLevel(logging_level)
 
     return logger
@@ -79,8 +79,8 @@ def parse_variables(config, variables, logger):
             # Use YAML parser to evaluate the string in case it is a list for instance.
             value = yaml.load(value)
         except yaml.YAMLError as e:  # pragma: no cover
-            logger.warn('Caught %r',e)
-            logger.warn('Unable to parse %s.  Treating it as a string.',value)
+            logger.warning('Caught %r',e)
+            logger.warning('Unable to parse %s.  Treating it as a string.',value)
         new_params[key] = value
     galsim.config.UpdateConfig(config, new_params)
 

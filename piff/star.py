@@ -19,6 +19,7 @@
 from __future__ import print_function
 import numpy as np
 import copy
+import galsim
 
 class Star(object):
     """Information about a "star", which may be either a real star or an interpolated star
@@ -192,7 +193,6 @@ class Star(object):
 
         :returns:   A Star instance
         """
-        import galsim
         # Check that input parameters are valid
         for param in ['x', 'y', 'u', 'v']:
             if eval(param) is not None and param in properties:
@@ -413,8 +413,8 @@ class Star(object):
         import galsim
         # TODO: This is largely copied from InputHandler.readImages.
         #       This should probably be refactored a bit to avoid the duplicated code.
-        if logger:
-            logger.info("Loading image information from file %s",file_name)
+        logger = galsim.config.LoggerWrapper(logger)
+        logger.info("Loading image information from file %s",file_name)
         image = galsim.fits.read(file_name, hdu=image_hdu)
 
         if sky is not None:
@@ -422,12 +422,10 @@ class Star(object):
 
         # Either read in the weight image, or build a dummy one
         if weight_hdu is None:
-            if logger:
-                logger.debug("Making trivial (wt==1) weight image")
+            logger.debug("Making trivial (wt==1) weight image")
             weight = galsim.ImageI(image.bounds, init_value=1)
         else:
-            if logger:
-                logger.info("Reading weight image from hdu %d.", weight_hdu)
+            logger.info("Reading weight image from hdu %d.", weight_hdu)
             weight = galsim.fits.read(file_name, hdu=weight_hdu)
             if np.all(weight.array == 0):
                 logger.error("According to the weight mask in %s, all pixels have zero weight!",
@@ -435,22 +433,19 @@ class Star(object):
 
         # If requested, set wt=0 for any bad pixels
         if badpix_hdu is not None:
-            if logger:
-                logger.info("Reading badpix image from hdu %d.", badpix_hdu)
+            logger.info("Reading badpix image from hdu %d.", badpix_hdu)
             badpix = galsim.fits.read(file_name, hdu=badpix_hdu)
             # The badpix image may be offset by 32768 from the true value.
             # If so, subtract it off.
             if np.any(badpix.array > 32767):
-                if logger:
-                    logger.debug('min(badpix) = %s',np.min(badpix.array))
-                    logger.debug('max(badpix) = %s',np.max(badpix.array))
-                    logger.debug("subtracting 32768 from all values in badpix image")
+                logger.debug('min(badpix) = %s',np.min(badpix.array))
+                logger.debug('max(badpix) = %s',np.max(badpix.array))
+                logger.debug("subtracting 32768 from all values in badpix image")
                 badpix -= 32768
             if np.any(badpix.array < -32767):
-                if logger:
-                    logger.debug('min(badpix) = %s',np.min(badpix.array))
-                    logger.debug('max(badpix) = %s',np.max(badpix.array))
-                    logger.debug("adding 32768 to all values in badpix image")
+                logger.debug('min(badpix) = %s',np.min(badpix.array))
+                logger.debug('max(badpix) = %s',np.max(badpix.array))
+                logger.debug("adding 32768 to all values in badpix image")
                 badpix += 32768
             # Also, convert to int16, in case it isn't by default.
             badpix = galsim.ImageS(badpix)

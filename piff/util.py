@@ -19,6 +19,7 @@
 from __future__ import print_function
 import numpy as np
 import os
+import galsim
 
 # Courtesy of
 # http://stackoverflow.com/questions/3862310/how-can-i-find-all-subclasses-of-a-given-class-in-python
@@ -164,7 +165,6 @@ def read_kwargs(fits, extname):
 def hsm(star):
     """ Use HSM to measure moments of star image.
     """
-    import galsim
     image, weight, image_pos = star.data.getImage()
     # Note that FindAdaptiveMom only respects the weight function in a binary sense.  I.e., pixels
     # with non-zero weight will be included in the moment measurement, those with weight=0.0 will be

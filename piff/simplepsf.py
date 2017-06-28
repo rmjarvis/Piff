@@ -19,6 +19,7 @@
 from __future__ import print_function
 
 import numpy as np
+import galsim
 
 from .model import Model, ModelFitError
 from .interp import Interp
@@ -104,14 +105,14 @@ class SimplePSF(PSF):
         :param max_iterations:  Maximum number of iterations to try. [default: 30]
         :param logger:          A logger object for logging debug info. [default: None]
         """
+        logger = galsim.config.LoggerWrapper(logger)
         # TODO: Make chisq_thresh and max_iterations configurable paramters and move them
         #       to the initialization.
         self.stars = stars
         self.wcs = wcs
         self.pointing = pointing
 
-        if logger:
-            logger.debug("Initializing models")
+        logger.debug("Initializing models")
         # model.initialize may fail
         nremoved = 0
         new_stars = []
@@ -121,20 +122,17 @@ class SimplePSF(PSF):
             except (KeyboardInterrupt, SystemExit):
                 raise
             except:
-                if logger:
-                    logger.warn("Error initializing star at %s. Excluding it.", s.image_pos)
+                logger.warning("Error initializing star at %s. Excluding it.", s.image_pos)
                 nremoved += 1
             else:
                 new_stars.append(new_star)
-        if logger:
-            if nremoved == 0:
-                logger.debug("No stars removed in initialize step")
-            else:
-                logger.info("Removed %d stars in initialize", nremoved)
+        if nremoved == 0:
+            logger.debug("No stars removed in initialize step")
+        else:
+            logger.info("Removed %d stars in initialize", nremoved)
         self.stars = new_stars
 
-        if logger:
-            logger.debug("Initializing interpolator")
+        logger.debug("Initializing interpolator")
         self.stars = self.interp.initialize(self.stars, logger=logger)
 
         # For basis models, we can compute a quadratic form for chisq, and if we are using
@@ -146,8 +144,7 @@ class SimplePSF(PSF):
         # Begin iterations.  Very simple convergence criterion right now.
         oldchisq = 0.
         for iteration in range(max_iterations):
-            if logger:
-                logger.warning("Iteration %d: Fitting %d stars", iteration+1, len(self.stars))
+            logger.warning("Iteration %d: Fitting %d stars", iteration+1, len(self.stars))
 
             fit_fn = self.model.chisq if quadratic_chisq else self.model.fit
 
@@ -159,21 +156,17 @@ class SimplePSF(PSF):
                 except (KeyboardInterrupt, SystemExit):
                     raise
                 except ModelFitError:
-                    if logger:
-                        logger.warn("Error trying to fit star at %s.  Excluding it.",
-                                    s.image_pos)
+                    logger.warning("Error trying to fit star at %s.  Excluding it.", s.image_pos)
                     nremoved += 1
                 else:
                     new_stars.append(new_star)
             self.stars = new_stars
 
-            if logger:
-                logger.debug("             Calculating the interpolation")
+            logger.debug("             Calculating the interpolation")
             self.interp.solve(self.stars, logger=logger)
 
             # Refit and recenter all stars, collect stats
-            if logger:
-                logger.debug("             Re-fluxing stars")
+            logger.debug("             Re-fluxing stars")
 
             if hasattr(self.model, 'reflux'):
                 new_stars = []
@@ -187,9 +180,8 @@ class SimplePSF(PSF):
                     except (KeyboardInterrupt, SystemExit):
                         raise
                     except:
-                        if logger:
-                            logger.warn("Error trying to reflux star at %s.  Excluding it.",
-                                        s.image_pos)
+                        logger.warning("Error trying to reflux star at %s.  Excluding it.",
+                                       s.image_pos)
                         nremoved += 1
                     else:
                         new_stars.append(new_star)
@@ -197,20 +189,17 @@ class SimplePSF(PSF):
 
             if self.outliers and (iteration > 0 or not self.interp.degenerate_points):
                 # Perform outlier rejection, but not on first iteration for degenerate solvers.
-                if logger:
-                    logger.debug("             Looking for outliers")
+                logger.debug("             Looking for outliers")
                 self.stars, nremoved1 = self.outliers.removeOutliers(self.stars, logger=logger)
-                if logger:
-                    if nremoved1 == 0:
-                        logger.debug("             No outliers found")
-                    else:
-                        logger.info("             Removed %d outliers", nremoved1)
+                if nremoved1 == 0:
+                    logger.debug("             No outliers found")
+                else:
+                    logger.info("             Removed %d outliers", nremoved1)
                 nremoved += nremoved1
 
             chisq = np.sum([s.fit.chisq for s in self.stars])
             dof   = np.sum([s.fit.dof for s in self.stars])
-            if logger:
-                logger.warn("             Total chisq = %.2f / %d dof", chisq, dof)
+            logger.warning("             Total chisq = %.2f / %d dof", chisq, dof)
 
             # Very simple convergence test here:
             # Note, the lack of abs here means if chisq increases, we also stop.
@@ -242,16 +231,14 @@ class SimplePSF(PSF):
         :param extname:     The base name of the extension to write to.
         :param logger:      A logger object for logging debug info.
         """
+        logger = galsim.config.LoggerWrapper(logger)
         self.model.write(fits, extname + '_model')
-        if logger:
-            logger.debug("Wrote the PSF model to extension %s",extname + '_model')
+        logger.debug("Wrote the PSF model to extension %s",extname + '_model')
         self.interp.write(fits, extname + '_interp')
-        if logger:
-            logger.debug("Wrote the PSF interp to extension %s",extname + '_interp')
+        logger.debug("Wrote the PSF interp to extension %s",extname + '_interp')
         if self.outliers:
             self.outliers.write(fits, extname + '_outliers')
-            if logger:
-                logger.debug("Wrote the PSF outliers to extension %s",extname + '_outliers')
+            logger.debug("Wrote the PSF outliers to extension %s",extname + '_outliers')
 
     def _finish_read(self, fits, extname, logger):
         """Finish the reading process with any class-specific steps.

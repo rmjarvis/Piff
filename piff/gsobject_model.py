@@ -17,6 +17,7 @@
 """
 
 import numpy as np
+import galsim
 
 from .model import Model, ModelFitError
 from .star import Star, StarFit, StarData
@@ -187,15 +188,15 @@ class GSObjectModel(Model):
         :returns: lmfit.MinimizerResult instance containing fit results.
         """
         import lmfit
-        if logger:
-            import time
-            t0 = time.time()
-            logger.debug("Start lmfit minimize.")
+        import time
+        logger = galsim.config.LoggerWrapper(logger)
+        t0 = time.time()
+        logger.debug("Start lmfit minimize.")
+
         results = lmfit.minimize(self._lmfit_resid, params, args=(star,))
         flux, du, dv, scale, g1, g2 = results.params.valuesdict().values()
 
-        if logger:
-            logger.debug("End lmfit minimize.  Elapsed time: {0}".format(time.time() - t0))
+        logger.debug("End lmfit minimize.  Elapsed time: {0}".format(time.time() - t0))
         return results
 
     def lmfit(self, star, logger=None):
@@ -207,11 +208,11 @@ class GSObjectModel(Model):
 
         :returns: (flux, dx, dy, scale, g1, g2, flag)
         """
+        import lmfit
+        logger = galsim.config.LoggerWrapper(logger)
         params = self._lmfit_params(star)
         results = self._lmfit_minimize(params, star, logger=logger)
-        if logger:
-            import lmfit
-            logger.debug(lmfit.fit_report(results))
+        logger.debug(lmfit.fit_report(results))
         flux, du, dv, scale, g1, g2 = results.params.valuesdict().values()
         if not results.success:
             raise RuntimeError("Error fitting with lmfit.")
@@ -306,16 +307,16 @@ class GSObjectModel(Model):
 
         :returns:           New Star instance, with updated flux, center, chisq, dof, worst
         """
-        if logger:
-            logger.debug("Reflux for star:")
-            logger.debug("    flux = %s",star.fit.flux)
-            logger.debug("    center = %s",star.fit.center)
-            logger.debug("    props = %s",star.data.properties)
-            logger.debug("    image = %s",star.data.image)
-            #logger.debug("    image = %s",star.data.image.array)
-            #logger.debug("    weight = %s",star.data.weight.array)
-            logger.debug("    image center = %s",star.data.image(star.data.image.center()))
-            logger.debug("    weight center = %s",star.data.weight(star.data.weight.center()))
+        logger = galsim.config.LoggerWrapper(logger)
+        logger.debug("Reflux for star:")
+        logger.debug("    flux = %s",star.fit.flux)
+        logger.debug("    center = %s",star.fit.center)
+        logger.debug("    props = %s",star.data.properties)
+        logger.debug("    image = %s",star.data.image)
+        #logger.debug("    image = %s",star.data.image.array)
+        #logger.debug("    weight = %s",star.data.weight.array)
+        logger.debug("    image center = %s",star.data.image(star.data.image.center()))
+        logger.debug("    weight center = %s",star.data.weight(star.data.weight.center()))
         do_center = fit_center and self._force_model_center
         if do_center:
             params = self._lmfit_params(star, vary_params=False)
