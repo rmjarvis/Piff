@@ -130,13 +130,13 @@ class Input(object):
                 # Check the snr and limit it if appropriate
                 snr = self.calculateSNR(stamp, wt_stamp)
                 logger.debug("SNR = %f",snr)
-                if self.minsnr is not None and snr < self.minsnr:
+                if self.min_snr is not None and snr < self.min_snr:
                     logger.info("Skipping star at position %f,%f with snr=%f."%(x,y,snr))
                     continue
-                if self.maxsnr is not None and snr > self.maxsnr:
-                    factor = (self.maxsnr / snr)**2
+                if self.max_snr is not None and snr > self.max_snr:
+                    factor = (self.max_snr / snr)**2
                     logger.debug("Scaling noise by factor of %f to achieve snr=%f",
-                                 factor, self.maxsnr)
+                                 factor, self.max_snr)
                     wt_stamp = wt_stamp * factor
 
                 pos = galsim.PositionD(x,y)
@@ -276,9 +276,9 @@ class InputFiles(Input):
                             None] It is an error for both gain and gain_col to be specified.
                             If both are None, then no additional noise will be added to account
                             for the Poisson noise from the galaxy flux.
-            :minsnr:        The minimum S/N ratio to use.  If an input star is too faint, it is
+            :min_snr:       The minimum S/N ratio to use.  If an input star is too faint, it is
                             removed from the input list of PSF stars.
-            :maxsnr:        The maximum S/N ratio to allow for any given star.  If an input star
+            :max_snr:       The maximum S/N ratio to allow for any given star.  If an input star
                             is too bright, it can have too large an influence on the interpolation,
                             so this parameter limits the effective S/N of any single star.
                             Basically, it adds noise to bright stars to lower their S/N down to
@@ -324,8 +324,8 @@ class InputFiles(Input):
                 'cat_hdu' : int,
                 'stamp_size' : int,
                 'gain' : str,
-                'minsnr' : float,
-                'maxsnr' : float,
+                'min_snr' : float,
+                'max_snr' : float,
                 'sky' : str,
                 'noise' : float,
                 'nstars' : int,
@@ -463,8 +463,8 @@ class InputFiles(Input):
             self.sky.append(sky)
             self.gain.append(gain)
 
-        self.minsnr = config.get('minsnr', None)
-        self.maxsnr = config.get('maxsnr', 100)
+        self.min_snr = config.get('min_snr', None)
+        self.max_snr = config.get('max_snr', 100)
 
         # Finally, set the pointing coordinate.
         ra = config.get('ra',None)
