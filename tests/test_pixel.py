@@ -782,12 +782,11 @@ def test_single_image():
     }
     if __name__ != '__main__':
         config['verbose'] = 0
-    if True:
-        print("Running piffify function")
-        piff.piffify(config)
-        psf = piff.read(psf_file)
-        test_star = psf.drawStar(target_star)
-        np.testing.assert_almost_equal(test_star.image.array, test_im.array, decimal=3)
+    print("Running piffify function")
+    piff.piffify(config)
+    psf = piff.read(psf_file)
+    test_star = psf.drawStar(target_star)
+    np.testing.assert_almost_equal(test_star.image.array, test_im.array, decimal=3)
 
     # Test using the piffify executable
     with open('pixel_moffat.yaml','w') as f:
@@ -954,21 +953,20 @@ def test_des_image():
         assert n_bad <= 3
 
     # Use piffify function
-    if True:
-        print('start piffify')
-        piff.piffify(config)
-        print('read stars')
-        stars, wcs, pointing = piff.Input.process(config['input'])
-        print('read psf')
-        psf = piff.read(psf_file)
-        stars = [psf.model.initialize(s) for s in stars]
-        flux = stars[0].fit.flux
-        offset = stars[0].center_to_offset(stars[0].fit.center)
-        fit_stamp = psf.draw(x=stars[0]['x'], y=stars[0]['y'], stamp_size=stamp_size,
-                             flux=flux, offset=offset)
-        orig_stamp = orig_image[stars[0].image.bounds] - stars[0]['sky']
-        # The first star happens to be a good one, so go ahead and test the arrays directly.
-        np.testing.assert_almost_equal(fit_stamp.array/flux, orig_stamp.array/flux, decimal=2)
+    print('start piffify')
+    piff.piffify(config)
+    print('read stars')
+    stars, wcs, pointing = piff.Input.process(config['input'])
+    print('read psf')
+    psf = piff.read(psf_file)
+    stars = [psf.model.initialize(s) for s in stars]
+    flux = stars[0].fit.flux
+    offset = stars[0].center_to_offset(stars[0].fit.center)
+    fit_stamp = psf.draw(x=stars[0]['x'], y=stars[0]['y'], stamp_size=stamp_size,
+                         flux=flux, offset=offset)
+    orig_stamp = orig_image[stars[0].image.bounds] - stars[0]['sky']
+    # The first star happens to be a good one, so go ahead and test the arrays directly.
+    np.testing.assert_almost_equal(fit_stamp.array/flux, orig_stamp.array/flux, decimal=2)
 
     # Test using the piffify executable
     with open('pixel_des.yaml','w') as f:
