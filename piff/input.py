@@ -283,7 +283,8 @@ class InputFiles(Input):
                             so this parameter limits the effective S/N of any single star.
                             Basically, it adds noise to bright stars to lower their S/N down to
                             this value.  [default: 100]
-            :nstars:        Stop reading the input file at this many stars. [default: None]
+            :nstars:        Stop reading the input file at this many stars.  (This is applied
+                            separately to each input catalog.)  [default: None]
 
             :wcs:           Normally, the wcs is automatically read in when reading the image.
                             However, this parameter allows you to optionally provide a different
