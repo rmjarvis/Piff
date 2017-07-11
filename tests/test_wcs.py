@@ -16,9 +16,6 @@ from __future__ import print_function
 import galsim
 import numpy as np
 import piff
-import os
-import subprocess
-import yaml
 import fitsio
 
 from piff_test_helper import get_script_name, timer
