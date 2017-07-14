@@ -16,31 +16,36 @@
 .. module:: sklearn_gp_interp
 """
 
-from .interp import Interp
-from .star import Star, StarFit
-
 import numpy as np
 
 from sklearn.gaussian_process.kernels import StationaryKernelMixin, NormalizedKernelMixin, Kernel
 from sklearn.gaussian_process.kernels import Hyperparameter
+
+from .interp import Interp
+from .star import Star, StarFit
 
 
 class GPInterp(Interp):
     """
     An interpolator that uses sklearn.gaussian_process to interpolate a single surface.
 
-    :param  keys: A list of star attributes to interpolate from
-    :param  kernel:      A string that can be `eval`ed to make a
-                         sklearn.gaussian_process.kernels.Kernel object.  The reprs of
-                         sklearn.gaussian_process.kernels will work, as well as the repr of a
-                         custom piff AnisotropicRBF or ExplicitKernel object.  [default: 'RBF()']
-    :param  optimize:    Boolean indicating whether or not to try and optimize the kernel by
-                         maximizing the marginal likelihood.  [default: True]
-    :param  npca:        Number of principal components to keep.  [default: 0, which means don't
-                         decompose PSF parameters into principle components]
-    :param  logger:      A logger object for logging debug info. [default: None]
+    :param keys:        A list of star attributes to interpolate from
+    :param kernel:      A string that can be `eval`ed to make a
+                        sklearn.gaussian_process.kernels.Kernel object.  The reprs of
+                        sklearn.gaussian_process.kernels will work, as well as the repr of a
+                        custom piff AnisotropicRBF or ExplicitKernel object.  [default: 'RBF()']
+    :param optimize:    Boolean indicating whether or not to try and optimize the kernel by
+                        maximizing the marginal likelihood.  [default: True]
+    :param npca:        Number of principal components to keep.  [default: 0, which means don't
+                        decompose PSF parameters into principle components]
+    :param normalize:   Whether to normalize the interpolation parameters to have a mean of 0.
+                        Normally, the parameters being interpolated are not mean 0, so you would
+                        want this to be True, but if your parameters have an a priori mean of 0,
+                        then subtracting off the realized mean would be invalid.  [default: True]
+    :param logger:      A logger object for logging debug info. [default: None]
     """
-    def __init__(self, keys=('u','v'), kernel='RBF()', optimize=True, npca=0, logger=None):
+    def __init__(self, keys=('u','v'), kernel='RBF()', optimize=True, npca=0, normalize=True,
+                 logger=None):
         from sklearn.gaussian_process import GaussianProcessRegressor
 
         self.keys = keys
@@ -55,7 +60,8 @@ class GPInterp(Interp):
             'kernel': kernel
         }
         optimizer = 'fmin_l_bfgs_b' if optimize else None
-        self.gp = GaussianProcessRegressor(self._eval_kernel(self.kernel), optimizer=optimizer)
+        self.gp = GaussianProcessRegressor(self._eval_kernel(self.kernel), optimizer=optimizer,
+                                           normalize_y=normalize)
 
     @staticmethod
     def _eval_kernel(kernel):

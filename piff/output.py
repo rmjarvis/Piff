@@ -19,6 +19,8 @@
 from __future__ import print_function
 
 import os
+import galsim
+
 from .util import ensure_dir
 
 class Output(object):
@@ -53,7 +55,7 @@ class Output(object):
         return output_handler
 
     @classmethod
-    def parseKwargs(cls, config_output, logger=None):
+    def parseKwargs(cls, config_output, logger=None):  # pragma: no cover
         """Parse the output field of a configuration dict and return the kwargs to use for
         initializing an instance of the class.
 
@@ -74,7 +76,7 @@ class Output(object):
         :param psf:         A piff.PSF instance
         :param logger:      A logger object for logging debug info. [default: None]
         """
-        raise NotImplemented("Derived classes must define the write function")
+        raise NotImplementedError("Derived classes must define the write function")
 
     def read(self, logger=None):
         """Read a PSF object that was written to an output file back in.
@@ -83,7 +85,7 @@ class Output(object):
 
         :returns: a piff.PSF instance
         """
-        raise NotImplemented("Derived classes must define the read function")
+        raise NotImplementedError("Derived classes must define the read function")
 
 
 # Note: I'm having a hard time imagining what other kinds of output handlers we'd want
@@ -144,27 +146,11 @@ class OutputFile(Output):
         :param psf:         A piff.PSF instance
         :param logger:      A logger object for logging debug info. [default: None]
         """
-        if logger:
-            logger.warning("Writing PSF to %s", self.file_name)
+        logger = galsim.config.LoggerWrapper(logger)
         ensure_dir(self.file_name)
         psf.write(self.file_name, logger=logger)
 
-        if logger:
-            logger.debug("stats_list = %s",self.stats_list)
+        logger.debug("stats_list = %s",self.stats_list)
         for stats in self.stats_list:
             stats.compute(psf,psf.stars,logger=logger)
             stats.write(logger=logger)
-
-    def read(self, logger=None):
-        """Read a PSF object that was written to an output file back in.
-
-        :param logger:      A logger object for logging debug info. [default: None]
-
-        :returns: a piff.PSF instance
-        """
-        import piff
-        if logger:
-            logger.info("Reading PSF from %s", self.file_name)
-        piff.PSF.read(self.file_name)
-
-

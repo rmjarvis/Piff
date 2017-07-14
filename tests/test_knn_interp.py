@@ -96,8 +96,8 @@ def test_yaml():
     psf_file = os.path.join('output','knn_psf.fits')
     config = {
         'input' : {
-            'images' : 'y1_test/DECam_00241238_01.fits.fz',
-            'cats' : 'y1_test/DECam_00241238_01_psfcat_tb_maxmag_17.0_magcut_3.0_findstars.fits',
+            'image_file_name' : 'input/DECam_00241238_01.fits.fz',
+            'cat_file_name' : 'input/DECam_00241238_01_psfcat_tb_maxmag_17.0_magcut_3.0_findstars.fits',
             # What hdu is everything in?
             'image_hdu': 1,
             'badpix_hdu': 2,
@@ -164,7 +164,7 @@ def test_disk():
 
 @timer
 def test_decam_wavefront():
-    file_name = 'wavefront_test/Science-20121120s1-v20i2.fits'
+    file_name = 'input/Science-20121120s1-v20i2.fits'
     extname = 'Science-20121120s1-v20i2'
 
     if __name__ == '__main__':
@@ -217,7 +217,7 @@ def test_decam_wavefront():
 
 @timer
 def test_decam_disk():
-    file_name = 'wavefront_test/Science-20121120s1-v20i2.fits'
+    file_name = 'input/Science-20121120s1-v20i2.fits'
     extname = 'Science-20121120s1-v20i2'
     knn = piff.des.DECamWavefront(file_name, extname, n_neighbors=30)
 
@@ -257,17 +257,10 @@ def test_decaminfo():
     np.testing.assert_allclose(jcen, jcen_ret)
 
 if __name__ == '__main__':
-    print('test init')
     test_init()
-    print('test interp')
     test_interp()
-    print('test yaml')
     test_yaml()
-    print('test disk')
     test_disk()
-    print('test decam wavefront')
     test_decam_wavefront()
-    print('test decam disk')
     test_decam_disk()
-    print('test decaminfo')
     test_decaminfo()

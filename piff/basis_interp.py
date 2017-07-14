@@ -17,9 +17,12 @@
 """
 
 from __future__ import print_function
+
+import numpy as np
+import galsim
+
 from .interp import Interp
 from .star import Star, StarFit
-import numpy as np
 
 class BasisInterp(Interp):
     """An Interp class that works whenever the interpolating functions are
@@ -70,8 +73,8 @@ class BasisInterp(Interp):
 
         :returns:      1d numpy array with values of u^i v^j for 0<i+j<=order
         """
-        raise NotImplemented("Cannot call `basis` for abstract base class BasisInterp. "
-                             "You probably want to use BasisPolynomial.")
+        raise NotImplementedError("Cannot call `basis` for abstract base class BasisInterp. "
+                                  "You probably want to use BasisPolynomial.")
 
     def constant(self, value=1.):
         """Return 1d array of coefficients that represent a polynomial with constant value.
@@ -80,8 +83,8 @@ class BasisInterp(Interp):
 
         :returns:      1d numpy array with values of u^i v^j for 0<i+j<=order
         """
-        raise NotImplemented("Cannot call `constant` for abstract base class BasisInterp. "
-                             "You probably want to use BasisPolynomial.")
+        raise NotImplementedError("Cannot call `constant` for abstract base class BasisInterp. "
+                                  "You probably want to use BasisPolynomial.")
 
     def solve(self, stars, logger=None):
         """Solve for the interpolation coefficients given some data.
@@ -92,6 +95,7 @@ class BasisInterp(Interp):
         :param stars:       A list of Star instances to interpolate between
         :param logger:      A logger object for logging debug info. [default: None]
         """
+        logger = galsim.config.LoggerWrapper(logger)
         if self.q is None:
             raise RuntimeError("Attempt to solve() before initialize() of BasisInterp")
 
@@ -110,11 +114,9 @@ class BasisInterp(Interp):
         B = B.flatten()
         nq = B.shape[0]
         A = A.reshape(nq,nq)
-        if logger:
-            logger.debug('Beginning solution of matrix size %d',A.shape[0])
+        logger.debug('Beginning solution of matrix size %d',A.shape[0])
         dq = np.linalg.solve(A,B)
-        if logger:
-            logger.debug('...finished solution')
+        logger.debug('...finished solution')
         self.q += dq.reshape(self.q.shape)
 
     def interpolate(self, star, logger=None):
@@ -130,10 +132,7 @@ class BasisInterp(Interp):
 
         K = self.basis(star)
         p = np.dot(self.q,K)
-        if star.fit is None:
-            fit = StarFit(p)
-        else:
-            fit = star.fit.newParams(p)
+        fit = star.fit.newParams(p)
         return Star(star.data, fit)
 
 
@@ -146,25 +145,19 @@ class BasisPolynomial(BasisInterp):
     or you may provide a list of separate order values to be used for each key.  (e.g. you
     may want to use 2nd order in the positions, but only 1st order in the color).
 
-    All combinations of powers of keys that have total order <= maxorder are used.
+    All combinations of powers of keys that have total order <= max_order are used.
     The maximum order is normally the maximum order of any given key's order, but you may
-    specify a larger value.  (e.g. to use 1, x, y, xy, you would specify order=1, maxorder=2.)
-
-    Ranges for each key can be given which are rescaled into the [-1,1] interval that
-    will help keep polynomial arguments at O(1).
+    specify a larger value.  (e.g. to use 1, x, y, xy, you would specify order=1, max_order=2.)
 
     :param order:       The order to use for each key.  Can be a single value (applied to all
                         keys) or an array matching number of keys.
     :param keys:        List of keys for properties that will be used as the polynomial arguments.
                         [default: ('u','v')]
-    :param ranges:      Range for each key to be linearly remapped to [-1,1] interval before
-                        calculating polynomials.  Can be a single tuple (which will be used for all
-                        keys) or a list with a tuple for each key. [default: None]
-    :param maxorder:    The maximum total order to use for cross terms between keys.
+    :param max_order:   The maximum total order to use for cross terms between keys.
                         [default: None, which uses the maximum value of any individual key's order]
     :param logger:      A logger object for logging debug info. [default: None]
     """
-    def __init__(self, order, keys=('u','v'), ranges=None, maxorder=None, logger=None):
+    def __init__(self, order, keys=('u','v'), max_order=None, logger=None):
         super(BasisPolynomial, self).__init__()
 
         self._keys = keys
@@ -175,12 +168,12 @@ class BasisPolynomial(BasisInterp):
         else:
             self._orders = (order,) * len(keys)
 
-        if maxorder is None:
-            self._maxorder = np.max(self._orders)
+        if max_order is None:
+            self._max_order = np.max(self._orders)
         else:
-            self._maxorder = maxorder
+            self._max_order = max_order
 
-        if self._maxorder<0 or np.any(np.array(self._orders) < 0):
+        if self._max_order<0 or np.any(np.array(self._orders) < 0):
             # Exception if we have any requests for negative orders
             raise ValueError('Negative polynomial order specified')
 
@@ -195,33 +188,7 @@ class BasisPolynomial(BasisInterp):
         ord_ranges = [np.arange(order+1,dtype=int) for order in self._orders]
         # Nifty trick to produce n-dim array holding total order
         sumorder = np.sum(np.ix_(*ord_ranges))
-        self._mask = sumorder <= self._maxorder
-
-        # Set up the ranges: save the additive and multiplicative factors
-        if ranges is None:
-            # All dimensions take default
-            rr = ((-1.,1.),) * len(keys)
-        elif type(ranges[0]) is int and type(ranges[1]) is int:
-            # Replicate a single range pair
-            rr = (ranges,) * len(keys)
-        elif not len(ranges)==len(keys):
-             raise ValueError('Number of provided ranges does not match number of keys')
-        else:
-            rr = ranges
-
-        # Copy all ranges, None means -1,1
-        left=[]
-        right=[]
-        for r in rr:
-            if r is None:
-                left.append(-1.)
-                right.append(1.)
-            else:
-                left.append(r[0])
-                right.append(r[1])
-
-        self._center = (np.array(right)+np.array(left))/2.
-        self._scale =  (np.array(right)-np.array(left))/2.
+        self._mask = sumorder <= self._max_order
 
     def getProperties(self, star):
         return np.array([star.data[k] for k in self._keys], dtype=float)
@@ -235,8 +202,6 @@ class BasisPolynomial(BasisInterp):
         """
         # Get the interpolation key values
         vals = self.getProperties(star)
-        # Rescale to nominal (-1,1) interval
-        vals = self._scale * (vals-self._center)
         # Make 1d arrays of all needed powers of keys
         pows1d = []
         for i,o in enumerate(self._orders):

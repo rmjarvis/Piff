@@ -459,7 +459,7 @@ def validate(validate_stars, interp):
 
 
 def check_gp(training_data, validation_data, visualization_data,
-             kernel, npca=0, optimize=False, filename=None, rng=None,
+             kernel, npca=0, optimize=False, file_name=None, rng=None,
              visualize=False, check_config=False):
     """ Solve for global PSF model, test it, and optionally display it.
     """
@@ -487,8 +487,8 @@ def check_gp(training_data, validation_data, visualization_data,
         validate(validate_stars, interp3)
 
     # Check that we can write interp to disk and read back in.
-    if filename is not None:
-        testfile = os.path.join('output', filename)
+    if file_name is not None:
+        testfile = os.path.join('output', file_name)
         with fitsio.FITS(testfile, 'rw', clobber=True) as f:
             interp.write(f, 'interp')
         with fitsio.FITS(testfile, 'r') as f:
@@ -498,7 +498,7 @@ def check_gp(training_data, validation_data, visualization_data,
         np.testing.assert_allclose(interp.gp.kernel(X), interp2.gp.kernel(X))
         np.testing.assert_allclose(interp.gp.kernel.theta, interp2.gp.kernel.theta)
         np.testing.assert_allclose(interp.gp.kernel_.theta, interp2.gp.kernel_.theta)
-        np.testing.assert_allclose(interp.gp.alpha_, interp2.gp.alpha_, rtol=1e-6)
+        np.testing.assert_allclose(interp.gp.alpha_, interp2.gp.alpha_, rtol=1e-6, atol=1.e-7)
         np.testing.assert_allclose(interp.gp.X_train_, interp2.gp.X_train_)
         np.testing.assert_allclose(interp.gp.y_train_mean, interp2.gp.y_train_mean)
         validate(validate_stars, interp2)
@@ -576,7 +576,7 @@ def test_grf_psf():
     for npca in npcas:
         for optimize in optimizes:
             check_gp(training_data, validation_data, visualization_data, kernel,
-                     npca=npca, optimize=optimize, filename="test_gp_grf.fits", rng=rng,
+                     npca=npca, optimize=optimize, file_name="test_gp_grf.fits", rng=rng,
                      check_config=check_config)
 
     # Check ExplicitKernel here too
@@ -589,7 +589,7 @@ def test_grf_psf():
     # No optimize loop, since ExplicitKernel is not optimizable.
     for npca in npcas:
         check_gp(training_data, validation_data, visualization_data, kernel,
-                 npca=npca, filename="test_explicit_grf.fits", rng=rng,
+                 npca=npca, file_name="test_explicit_grf.fits", rng=rng,
                  check_config=check_config)
 
     # Try out an AnisotropicRBF on the isotropic data too.
@@ -599,7 +599,7 @@ def test_grf_psf():
         for optimize in optimizes:
             check_gp(training_data, validation_data, visualization_data, kernel,
                      npca=npca, optimize=optimize,
-                     filename="test_aniso_isotropic_grf.fits", rng=rng,
+                     file_name="test_aniso_isotropic_grf.fits", rng=rng,
                      check_config=check_config)
 
 
@@ -633,7 +633,7 @@ def test_anisotropic_rbf_kernel():
     for npca in npcas:
         for optimize in optimizes:
             check_gp(training_data, validation_data, visualization_data, kernel,
-                     npca=npca, optimize=optimize, filename="test_anisotropic_rbf.fits",
+                     npca=npca, optimize=optimize, file_name="test_anisotropic_rbf.fits",
                      rng=rng, check_config=check_config)
 
 
@@ -644,8 +644,18 @@ def test_yaml():
     psf_file = os.path.join('output','gp_psf.fits')
     config = {
         'input' : {
-            'images' : 'y1_test/DECam_00241238_01.fits.fz',
-            'cats' : 'y1_test/DECam_00241238_01_psfcat_tb_maxmag_17.0_magcut_3.0_findstars.fits',
+            # These can be regular strings
+            'image_file_name' : 'input/DECam_00241238_01.fits.fz',
+            # Or any GalSim str value type.  e.g. FormattedStr
+            'cat_file_name' : {
+                'type': 'FormattedStr',
+                'format': '%s/DECam_%08d_%02d_psfcat_tb_maxmag_17.0_magcut_3.0_findstars.fits',
+                'items': [
+                    'input',    # dir
+                    241238,     # expnum
+                    1           # chipnum
+                ]
+            },
 
             # What hdu is everything in?
             'image_hdu' : 1,
@@ -721,7 +731,7 @@ def test_guess():
         stars = params_to_stars(training_data, noise=0.3, rng=rng)
         kernel = "1*RBF({0}, (1e-1, 1e1))".format(guess)
         kernel += " + WhiteKernel(1e-5, (1e-7, 1e-1))"
-        interp = piff.GPInterp(kernel=kernel)
+        interp = piff.GPInterp(kernel=kernel, normalize=False)
         stars = [mod.fit(s) for s in stars]
         stars = interp.initialize(stars)
         interp.solve(stars)

@@ -93,6 +93,7 @@ class Optical(Model):
 
                 >>> model = piff.OpticalModel(template='des', lam=1000)
         """
+        logger = galsim.config.LoggerWrapper(logger)
         # If pupil_angle and strut angle are provided as strings, eval them.
         for key in ['pupil_angle', 'strut_angle']:
             if key in kwargs and isinstance(kwargs[key],str):
@@ -121,8 +122,7 @@ class Optical(Model):
         if 'pupil_plane_im' in kwargs:
             pupil_plane_im = kwargs.pop('pupil_plane_im')
             if isinstance(pupil_plane_im, str):
-                if logger:
-                    logger.debug('Loading pupil_plane_im from {0}'.format(pupil_plane_im))
+                logger.debug('Loading pupil_plane_im from {0}'.format(pupil_plane_im))
                 pupil_plane_im = galsim.fits.read(pupil_plane_im)
             self.optical_psf_kwargs['pupil_plane_im'] = pupil_plane_im
 

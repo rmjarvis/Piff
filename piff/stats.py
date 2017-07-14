@@ -22,6 +22,7 @@ from __future__ import print_function
 import numpy as np
 import os
 import warnings
+import galsim
 
 class Stats(object):
     """The base class for getting the statistics of a set of stars.
@@ -97,7 +98,7 @@ class Stats(object):
         :param stars:       A list of Star instances.
         :param logger:      A logger object for logging debug info. [default: None]
         """
-        raise NotImplemented("Derived classes must define the plot function")
+        raise NotImplementedError("Derived classes must define the plot function")
 
     def plot(self, logger=None, **kwargs):
         """Make the plots for this statistic.
@@ -107,7 +108,7 @@ class Stats(object):
 
         :returns: (fig, ax) The matplotlib figure and axis with the plot(s).
         """
-        raise NotImplemented("Derived classes must define the plot function")
+        raise NotImplementedError("Derived classes must define the plot function")
 
     def write(self, file_name=None, logger=None, **kwargs):
         """Write plots to a file.
@@ -122,8 +123,8 @@ class Stats(object):
         # cf. http://www.dalkescientific.com/writings/diary/archive/2005/04/23/matplotlib_without_gui.html
         from matplotlib.backends.backend_agg import FigureCanvasAgg
 
-        if logger:
-            logger.info("Creating plot for %s", self.__class__.__name__)
+        logger = galsim.config.LoggerWrapper(logger)
+        logger.info("Creating plot for %s", self.__class__.__name__)
         fig, ax = self.plot(logger=logger, **kwargs)
 
         if file_name is None:
@@ -131,8 +132,7 @@ class Stats(object):
         if file_name is None:
             raise ValueError("No file_name specified for %s"%self.__class__.__name__)
 
-        if logger:
-            logger.warning("Writing %s plot to file %s",self.__class__.__name__,file_name)
+        logger.warning("Writing %s plot to file %s",self.__class__.__name__,file_name)
 
         canvas = FigureCanvasAgg(fig)
         # Do this after we've set the canvas to use Agg to avoid warning.
@@ -150,25 +150,22 @@ class Stats(object):
                             models of stars (sigma, g1, g2)
         """
         import piff
+        logger = galsim.config.LoggerWrapper(logger)
         # measure moments with Gaussian on image
-        if logger:
-            logger.debug("Measuring shapes of real stars")
+        logger.debug("Measuring shapes of real stars")
         shapes_truth = np.array([ piff.util.hsm(star) for star in stars ])
         for star, shape in zip(stars, shapes_truth):
-            if logger:
-                logger.debug("real shape for star at %s is %s",star.image_pos, shape)
+            logger.debug("real shape for star at %s is %s",star.image_pos, shape)
 
         # Pull out the positions to return
         positions = np.array([ (star.data.properties['u'], star.data.properties['v'])
                                for star in stars ])
 
         # generate the model stars and measure moments
-        if logger:
-            logger.debug("Generating and Measuring Model Stars")
+        logger.debug("Generating and Measuring Model Stars")
         shapes_model = np.array([ piff.util.hsm(psf.drawStar(star)) for star in stars ])
         for star, shape in zip(stars, shapes_model):
-            if logger:
-                logger.debug("model shape for star at %s is %s",star.image_pos, shape)
+            logger.debug("model shape for star at %s is %s",star.image_pos, shape)
 
         return positions, shapes_truth, shapes_model
 
@@ -217,9 +214,9 @@ class ShapeHistogramsStats(Stats):
         :param stars:       A list of Star instances.
         :param logger:      A logger object for logging debug info. [default: None]
         """
+        logger = galsim.config.LoggerWrapper(logger)
         # get the shapes
-        if logger:
-            logger.warning("Calculating shape histograms for %d stars",len(stars))
+        logger.warning("Calculating shape histograms for %d stars",len(stars))
         positions, shapes_truth, shapes_model = self.measureShapes(psf, stars, logger=logger)
 
         # Only use stars for which hsm was successful
@@ -357,9 +354,9 @@ class RhoStats(Stats):
         """
         import treecorr
 
+        logger = galsim.config.LoggerWrapper(logger)
         # get the shapes
-        if logger:
-            logger.warning("Calculating rho statistics for %d stars",len(stars))
+        logger.warning("Calculating rho statistics for %d stars",len(stars))
         positions, shapes_truth, shapes_model = self.measureShapes(psf, stars, logger=logger)
 
         # Only use stars for which hsm was successful
@@ -378,8 +375,7 @@ class RhoStats(Stats):
         dg2 = g2 - shapes_model[mask, 5]
 
         # make the treecorr catalogs
-        if logger:
-            logger.info("Creating Treecorr Catalogs")
+        logger.info("Creating Treecorr Catalogs")
 
         cat_g = treecorr.Catalog(x=u, y=v, x_units='arcsec', y_units='arcsec',
                                  g1=g1, g2=g2)
@@ -389,8 +385,7 @@ class RhoStats(Stats):
                                     g1=g1 * dT / T, g2=g2 * dT / T)
 
         # setup and run the correlations
-        if logger:
-            logger.info("Processing rho PSF statistics")
+        logger.info("Processing rho PSF statistics")
 
         # save the rho objects
         self.rho1 = treecorr.GGCorrelation(self.tckwargs)

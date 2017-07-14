@@ -18,6 +18,9 @@
 
 from __future__ import print_function
 
+import yaml
+import galsim
+
 def setup_logger(verbose=1, log_file=None):
     """Build a logger object to use for logging progress
 
@@ -37,16 +40,17 @@ def setup_logger(verbose=1, log_file=None):
                        2: logging.INFO,
                        3: logging.DEBUG }
     logging_level = logging_levels[verbose]
-                                                                                                        # Setup logging to go to sys.stdout or (if requested) to an output file
+
+    # Setup logging to go to sys.stdout or (if requested) to an output file
     logger = logging.getLogger('piff')
-    if len(logger.handlers) == 0:  # only add handler once!
-        if log_file is None:
-            handle = logging.StreamHandler()
-        else:
-            handle = logging.FileHandler(log_file)
-        formatter = logging.Formatter('%(message)s')  # Simple text output
-        handle.setFormatter(formatter)
-        logger.addHandler(handle)
+    logger.handlers = []  # Remove any existing handlers
+    if log_file is None:
+        handle = logging.StreamHandler()
+    else:
+        handle = logging.FileHandler(log_file)
+    formatter = logging.Formatter('%(message)s')  # Simple text output
+    handle.setFormatter(formatter)
+    logger.addHandler(handle)
     logger.setLevel(logging_level)
 
     return logger
@@ -64,7 +68,8 @@ def parse_variables(config, variables, logger):
     :param varaibles:   A list of (typically command line) variables to parse.
     :param logger:      A logger object for logging debug info.
     """
-    import yaml
+    # Note: This is basically a copy of the GalSim function ParseVariables in the galsim.py script.
+    new_params = {}
     for v in variables:
         logger.debug('Parsing additional variable: %s',v)
         if '=' not in v:
@@ -73,31 +78,17 @@ def parse_variables(config, variables, logger):
         try:
             # Use YAML parser to evaluate the string in case it is a list for instance.
             value = yaml.load(value)
-        except:
-            logger.debug('Unable to parse %s.  Treating it as a string.',value)
-        # The key is allowed to be something like input.file_name, so we need to break that
-        # up to turn it into config['input']['file_name']
-        # N.B. This is copied from the GalSim function galsim.config.ParseExtendedKey.
-        try:
-            chain = key.split('.')
-            d = config
-            while len(chain) > 1:
-                k = chain.pop(0)
-                try: k = int(k)  # In case e.g. output.stats.1.file_name
-                except ValueError: pass
-                d = d[k]
-            k = chain[0]
-            d[k] = value
-        except Exception as e:
-            logger.debug('Caught exception: %s',e)
-            raise KeyError("Invalid key: %s"%key)
+        except yaml.YAMLError as e:  # pragma: no cover
+            logger.warning('Caught %r',e)
+            logger.warning('Unable to parse %s.  Treating it as a string.',value)
+        new_params[key] = value
+    galsim.config.UpdateConfig(config, new_params)
 
 def read_config(file_name):
     """Read a configuration dict from a file.
 
     :param file_name:   The file name from which the configuration dict should be read.
     """
-    import yaml
     with open(file_name) as fin:
         config = yaml.load(fin.read())
     return config
@@ -122,6 +113,10 @@ def piffify(config, logger=None):
     for key in ['input', 'output', 'psf']:
         if key not in config:
             raise ValueError("%s field is required in config dict"%key)
+
+    # Import extra modules if requested
+    if 'modules' in config:
+        galsim.config.ImportModules(config)
 
     # read in the input images
     stars, wcs, pointing = piff.Input.process(config['input'], logger=logger)

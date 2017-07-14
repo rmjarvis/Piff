@@ -16,10 +16,11 @@
 .. module:: knn_interp
 """
 
+import numpy as np
+import galsim
+
 from .interp import Interp
 from .star import Star, StarFit
-
-import numpy as np
 
 class kNNInterp(Interp):
     """
@@ -62,13 +63,12 @@ class kNNInterp(Interp):
         :param targets:     The target values. (n_samples, n_targets).
                             (In sklearn parlance, this is 'y'.)
         """
+        logger = galsim.config.LoggerWrapper(logger)
         self.knn.fit(locations, targets)
         self.locations = locations
-        if logger:
-            logger.debug('locations updated to shape: %s', self.locations.shape)
+        logger.debug('locations updated to shape: %s', self.locations.shape)
         self.targets = targets
-        if logger:
-            logger.debug('targets updated to shape: %s', self.targets.shape)
+        logger.debug('targets updated to shape: %s', self.targets.shape)
 
     def _predict(self, locations, logger=None):
         """Predict from knn.
@@ -78,9 +78,9 @@ class kNNInterp(Interp):
 
         :returns:   Regressed parameters y (n_samples, n_targets)
         """
+        logger = galsim.config.LoggerWrapper(logger)
         regression = self.knn.predict(locations)
-        if logger:
-            logger.debug('Regression shape: %s', regression.shape)
+        logger.debug('Regression shape: %s', regression.shape)
         return regression
 
     def getProperties(self, star, logger=None):
@@ -133,7 +133,7 @@ class kNNInterp(Interp):
 
         :returns: a list of new Star instances with interpolated parameters
         """
-
+        logger = galsim.config.LoggerWrapper(logger)
         locations = np.array([self.getProperties(star) for star in star_list])
         targets = self._predict(locations)
         star_list_fitted = []
@@ -144,8 +144,7 @@ class kNNInterp(Interp):
                 try:
                     fit = star.fit.newParams(yi)
                 except TypeError:
-                    if logger:
-                        logger.info('Warning, stars interpolated to wrong number of params! %s', len(fit))
+                    logger.info('Warning, stars interpolated to wrong number of params! %s', len(fit))
                     fit = StarFit(yi)
             star_list_fitted.append(Star(star.data, fit))
         return star_list_fitted
