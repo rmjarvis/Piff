@@ -42,9 +42,9 @@ def test_basic():
 
     # Simple with one image, cat
     config = {
-               'dir' : dir,
-               'image_file_name' : image_file,
-               'cat_file_name': cat_file
+                'dir' : dir,
+                'image_file_name' : image_file,
+                'cat_file_name': cat_file
              }
     input = piff.InputFiles(config, logger=logger)
     assert len(input.image_pos) == 1
@@ -52,8 +52,8 @@ def test_basic():
 
     # Can omit the dir and just inlcude it in the file names
     config = {
-               'image_file_name' : os.path.join(dir,image_file),
-               'cat_file_name': os.path.join(dir,cat_file)
+                'image_file_name' : os.path.join(dir,image_file),
+                'cat_file_name': os.path.join(dir,cat_file)
              }
     input = piff.InputFiles(config, logger=logger)
     assert len(input.image_pos) == 1
@@ -63,9 +63,9 @@ def test_basic():
     image_files = [ 'test_input_image_%02d.fits'%k for k in range(3) ]
     cat_files = [ 'test_input_cat_%02d.fits'%k for k in range(3) ]
     config = {
-               'dir' : dir,
-               'image_file_name' : image_files,
-               'cat_file_name': cat_files
+                'dir' : dir,
+                'image_file_name' : image_files,
+                'cat_file_name': cat_files
              }
     input = piff.InputFiles(config, logger=logger)
     assert len(input.image_pos) == 3
@@ -75,9 +75,9 @@ def test_basic():
     image_files = 'test_input_image_*.fits'
     cat_files = 'test_input_cat_*.fits'
     config = {
-               'dir' : dir,
-               'image_file_name' : image_files,
-               'cat_file_name': cat_files
+                'dir' : dir,
+                'image_file_name' : image_files,
+                'cat_file_name': cat_files
              }
     input = piff.InputFiles(config, logger=logger)
     assert len(input.image_pos) == 3
@@ -117,7 +117,17 @@ def test_invalid():
     # nimages given but wrong
     image_files = 'input/test_input_image_*.fits'
     cat_files = 'input/test_input_cat_*.fits'
+    image_files_1 = { 'type': 'Eval', 'str': '"input/test_input_image_01.fits"' }
+    cat_files_1 = { 'type': 'Eval', 'str': '"input/test_input_cat_01.fits"' }
     config = { 'nimages' : 2, 'image_file_name' : image_files, 'cat_file_name': cat_files }
+    np.testing.assert_raises(ValueError, piff.InputFiles, config)
+    config = { 'nimages' : 2, 'image_file_name' : image_files, 'cat_file_name': cat_files_1 }
+    np.testing.assert_raises(ValueError, piff.InputFiles, config)
+    config = { 'nimages' : 2, 'image_file_name' : image_files_1, 'cat_file_name': cat_files }
+    np.testing.assert_raises(ValueError, piff.InputFiles, config)
+    config = { 'nimages' : 0, 'image_file_name' : image_files, 'cat_file_name': cat_files }
+    np.testing.assert_raises(ValueError, piff.InputFiles, config)
+    config = { 'nimages' : -1, 'image_file_name' : image_files, 'cat_file_name': cat_files }
     np.testing.assert_raises(ValueError, piff.InputFiles, config)
 
     # No images in list
@@ -126,9 +136,51 @@ def test_invalid():
     config = { 'dir' : 'input', 'image_file_name' : image_file, 'cat_file_name' : [] }
     np.testing.assert_raises(ValueError, piff.InputFiles, config)
 
+@timer
+def test_chipnum():
+    """Test the ability to renumber the chipnums
+    """
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(verbose=2)
+    else:
+        logger = piff.config.setup_logger(log_file=os.path.join('output','test_input.log'))
+
+    # First, the default is to just use the index in the image list
+    dir = 'input'
+    image_files = 'test_input_image_*.fits'
+    cat_files = 'test_input_cat_*.fits'
+    config = {
+                'dir' : dir,
+                'image_file_name' : image_files,
+                'cat_file_name': cat_files
+             }
+    input = piff.InputFiles(config, logger=logger)
+    assert input.chipnums == range(3)
+
+    # Now make the chipnums something else
+    config = {
+                'dir' : dir,
+                'image_file_name' : image_files,
+                'cat_file_name': cat_files,
+                'chipnum' : [ 5, 6, 7 ]
+             }
+    input = piff.InputFiles(config, logger=logger)
+    assert input.chipnums == [ i+5 for i in range(3) ]
+
+    # Use the GalSim Eval capability to get the index + 1
+    config = {
+                'dir' : dir,
+                'image_file_name' : image_files,
+                'cat_file_name': cat_files,
+                'chipnum' : '$image_num + 1'
+             }
+    input = piff.InputFiles(config, logger=logger)
+    assert input.chipnums == [ i+1 for i in range(3) ]
+
 
 
 if __name__ == '__main__':
     setup()
     test_basic()
     test_invalid()
+    test_chipnum()

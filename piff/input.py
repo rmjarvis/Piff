@@ -347,8 +347,16 @@ class InputFiles(Input):
         nimages = None
         image_list = None
         cat_list = None
-        glob_dir = ''    # If we need the dir for a glob call, pop it off config, so it doesn't
-                         # get applied twice.
+        dir = None
+
+        if 'nimages' in config:
+            nimages = galsim.config.ParseValue(config, 'nimages', base, int)[0]
+            if nimages < 1:
+                raise ValueError('input.nimages must be >= 1')
+
+        if 'dir' in config:
+            dir = galsim.config.ParseValue(config, 'dir', base, str)[0]
+
         if 'image_file_name' not in config:
             raise AttributeError('Attribute image_file_name is required')
         elif isinstance(config['image_file_name'], list):
@@ -357,9 +365,12 @@ class InputFiles(Input):
                 raise ValueError("image_file_name may not be an empty list")
         elif isinstance(config['image_file_name'], basestring):
             image_file_name = config['image_file_name']
-            glob_dir = config.pop('dir', glob_dir)
-            image_file_name = os.path.join(glob_dir, image_file_name)
+            if dir is not None:
+                image_file_name = os.path.join(dir, image_file_name)
             image_list = sorted(glob.glob(image_file_name))
+            if dir is not None:
+                k = len(dir) + 1
+                image_list = [ f[k:] for f in image_list ]
             if len(image_list) == 0:
                 raise ValueError("No files found corresponding to "+config['image_file_name'])
         elif not isinstance(config['image_file_name'], dict):
@@ -367,7 +378,7 @@ class InputFiles(Input):
 
         if image_list is not None:
             logger.debug('image_list = %s',image_list)
-            if 'nimages' in config and config['nimages'] != len(image_list):
+            if nimages is not None and nimages != len(image_list):
                 raise ValueError("nimages = %s doesn't match length of image_file_name list (%d)"%(
                         config['nimages'], len(image_list)))
             nimages = len(image_list)
@@ -385,9 +396,12 @@ class InputFiles(Input):
                 raise ValueError("cat_file_name may not be an empty list")
         elif isinstance(config['cat_file_name'], basestring):
             cat_file_name = config['cat_file_name']
-            glob_dir = config.pop('dir', glob_dir)
-            cat_file_name = os.path.join(glob_dir, cat_file_name)
+            if dir is not None:
+                cat_file_name = os.path.join(dir, cat_file_name)
             cat_list = sorted(glob.glob(cat_file_name))
+            if dir is not None:
+                k = len(dir) + 1
+                cat_list = [ f[k:] for f in cat_list ]
             if len(cat_list) == 0:
                 raise ValueError("No files found corresponding to "+config['cat_file_name'])
         elif not isinstance(config['cat_file_name'], dict):
@@ -395,12 +409,9 @@ class InputFiles(Input):
 
         if cat_list is not None:
             logger.debug('cat_list = %s',cat_list)
-            if 'nimages' in config and config['nimages'] != len(cat_list):
+            if nimages is not None and nimages != len(cat_list):
                 raise ValueError("nimages = %s doesn't match length of cat_file_name list (%d)"%(
                         config['nimages'], len(cat_list)))
-            if nimages != 0 and len(cat_list) != nimages:
-                raise ValueError("length of image_file_name (%d) and cat_file_name list (%d) are not equal"%(
-                        nimages, len(cat_list)))
             nimages = len(cat_list)
             logger.debug('nimages = %d',nimages)
             config['cat_file_name'] = {
@@ -408,14 +419,9 @@ class InputFiles(Input):
                 'items' : cat_list
             }
 
-        # Get the number of images to parse
         if nimages is None:
-            if 'nimages' not in config:
-                raise ValueError('input.nimages is required if not using a simple string for ' +
-                                 'file names')
-            nimages = galsim.config.ParseValue(config, 'nimages', base, int)[0]
-            if nimages < 1:
-                raise ValueError('input.nimages must be >= 1')
+            raise ValueError('input.nimages is required if not using a list or simple string for ' +
+                             'file names')
 
         self.chipnums = list(range(nimages))
         self.stamp_size = int(config.get('stamp_size', 32))
