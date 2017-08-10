@@ -380,7 +380,7 @@ def test_weight():
     gain = input.gain[0][0]
     scale = input.images[0].scale
     read_noise = 10
-    expected_noise = sky * scale**2 / gain + read_noise**2 / gain**2
+    expected_noise = sky / gain + read_noise**2 / gain**2
     np.testing.assert_almost_equal(input.weight[0].array, expected_noise**-1)
 
     # Can set the noise by hand
@@ -441,6 +441,117 @@ def test_weight():
     np.testing.assert_raises(ValueError, piff.InputFiles, config)
 
 
+@timer
+def test_stars():
+    """Test the input.makeStars function
+    """
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(verbose=2)
+    else:
+        logger = piff.config.setup_logger(log_file=os.path.join('output','test_input.log'))
+
+    dir = 'input'
+    image_file = 'test_input_image_00.fits'
+    cat_file = 'test_input_cat_00.fits'
+
+    # Turn off two defaults for now (max_snr=100 and use_partial=False)
+    config = {
+                'dir' : dir,
+                'image_file_name' : image_file,
+                'cat_file_name' : cat_file,
+                'weight_hdu' : 1,
+                'sky_col' : 'sky',
+                'gain_col' : 'gain',
+                'max_snr' : 0,
+                'use_partial' : True,
+             }
+    input = piff.InputFiles(config, logger=logger)
+    stars = input.makeStars(logger=logger)
+    assert len(stars) == 100
+    chipnum_list = [ star['chipnum'] for star in stars ]
+    gain_list = [ star['gain'] for star in stars ]
+    snr_list = [ star['snr'] for star in stars ]
+    snr_list2 = [ input.calculateSNR(star.data.image, star.data.orig_weight) for star in stars ]
+    print('snr = ', np.min(snr_list), np.max(snr_list))
+    np.testing.assert_array_equal(chipnum_list, 0)
+    np.testing.assert_array_equal(gain_list, gain_list[0])
+    np.testing.assert_almost_equal(snr_list, snr_list2, decimal=5)
+    assert np.min(snr_list) < 4.
+    assert np.max(snr_list) > 200.
+
+    # max_snr increases the noise to achieve a maximum snr
+    config['max_snr'] = 120
+    input = piff.InputFiles(config, logger=logger)
+    stars = input.makeStars(logger=logger)
+    assert len(stars) == 100
+    snr_list = [ star['snr'] for star in stars ]
+    snr_list2 = [ input.calculateSNR(star.data.image, star.data.orig_weight) for star in stars ]
+    print('snr = ', np.min(snr_list), np.max(snr_list))
+    np.testing.assert_almost_equal(snr_list, snr_list2, decimal=5)
+    assert np.min(snr_list) < 4.
+    assert np.max(snr_list) == 120.
+
+    # The default is max_snr == 100
+    del config['max_snr']
+    input = piff.InputFiles(config, logger=logger)
+    stars = input.makeStars(logger=logger)
+    assert len(stars) == 100
+    snr_list = np.array([ star['snr'] for star in stars ])
+    snr_list2 = [ input.calculateSNR(star.data.image, star.data.orig_weight) for star in stars ]
+    print('snr = ', np.min(snr_list), np.max(snr_list))
+    np.testing.assert_almost_equal(snr_list, snr_list2, decimal=5)
+    assert np.min(snr_list) < 4.
+    assert np.max(snr_list) == 100.
+
+    # min_snr removes stars with a snr < min_snr
+    config['min_snr'] = 20
+    input = piff.InputFiles(config, logger=logger)
+    stars = input.makeStars(logger=logger)
+    print('len should be ',len(snr_list[snr_list >= 20]))
+    print('actual len is ',len(stars))
+    assert len(stars) == len(snr_list[snr_list >= 20])
+    assert len(stars) == 91  # hard-coded for this case, just to make sure
+    snr_list = np.array([ star['snr'] for star in stars ])
+    snr_list2 = [ input.calculateSNR(star.data.image, star.data.orig_weight) for star in stars ]
+    print('snr = ', np.min(snr_list), np.max(snr_list))
+    np.testing.assert_almost_equal(snr_list, snr_list2, decimal=5)
+    assert np.min(snr_list) >= 20.
+    assert np.max(snr_list) == 100.
+
+    # use_partial=False will skip any stars that are partially off the edge of the image
+    config['use_partial'] = False
+    input = piff.InputFiles(config, logger=logger)
+    stars = input.makeStars(logger=logger)
+    assert len(stars) == 89  # skipped 2 additional stars
+
+    # use_partial=False is the default
+    del config['use_partial']
+    input = piff.InputFiles(config, logger=logger)
+    stars = input.makeStars(logger=logger)
+    assert len(stars) == 89  # skipped 2 additional stars
+
+    # alt_x and alt_y also include some object completely off the image, which are always skipped.
+    # (Don't do the min_snr anymore, since most of these stamps don't actually have any signal.)
+    config['x_col'] = 'alt_x'
+    config['y_col'] = 'alt_y'
+    del config['min_snr']
+    input = piff.InputFiles(config, logger=logger)
+    stars = input.makeStars(logger=logger)
+    assert len(stars) == 37
+
+    # Also skip objects which are all weight=0
+    config['weight_hdu'] = 3
+    input = piff.InputFiles(config, logger=logger)
+    stars = input.makeStars(logger=logger)
+    assert len(stars) == 0
+
+    # But not ones that are only partially weight=0
+    config['weight_hdu'] = 8
+    input = piff.InputFiles(config, logger=logger)
+    stars = input.makeStars(logger=logger)
+    assert len(stars) == 37
+
+
 if __name__ == '__main__':
     setup()
     test_basic()
@@ -448,3 +559,4 @@ if __name__ == '__main__':
     test_cols()
     test_chipnum()
     test_weight()
+    test_stars()

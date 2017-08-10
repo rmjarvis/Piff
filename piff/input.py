@@ -104,25 +104,31 @@ class Input(object):
                 half_size = self.stamp_size // 2
                 bounds = galsim.BoundsI(icen+half_size-self.stamp_size+1, icen+half_size,
                                         jcen+half_size-self.stamp_size+1, jcen+half_size)
-                if not image.bounds.includes(bounds):  # pragma: no cover
+                if not image.bounds.includes(bounds):
                     bounds = bounds & image.bounds
                     if not bounds.isDefined():
-                        logger.warning("Star at position %f,%f is off the edge of the image."%(x,y))
-                        logger.warning("Skipping this star.")
+                        logger.warning("Star at position %f,%f is off the edge of the image.  "
+                                       "Skipping this star.", x, y)
                         continue
-                    logger.info("Star at position %f,%f is near the edge of the image."%(x,y))
-                    logger.info("Using smaller than the full stamp size: %s"%bounds)
+                    if self.use_partial:
+                        logger.info("Star at position %f,%f overlaps the edge of the image.  "
+                                    "Using smaller than the full stamp size: %s", x, y, bounds)
+                    else:
+                        logger.warning("Star at position %f,%f overlaps the edge of the image.  "
+                                       "Skipping this star.", x, y)
+                        continue
                 stamp = image[bounds]
                 props = { 'chipnum' : chipnum,
                           'gain' : gain[k] }
                 if sky is not None:
                     logger.debug("Subtracting off sky = %f", sky[k])
+                    logger.debug("Median pixel value = %f", np.median(stamp.array))
                     stamp = stamp - sky[k]  # Don't change the original!
                     props['sky'] = sky[k]
                 wt_stamp = wt[bounds]
 
                 # if a star is totally masked, then don't add it!
-                if np.all(wt_stamp.array == 0):  # pragma: no cover
+                if np.all(wt_stamp.array == 0):
                     logger.warning("Star at position %f,%f is completely masked."%(x,y))
                     logger.warning("Skipping this star.")
                     continue
@@ -133,11 +139,13 @@ class Input(object):
                 if self.min_snr is not None and snr < self.min_snr:
                     logger.info("Skipping star at position %f,%f with snr=%f."%(x,y,snr))
                     continue
-                if self.max_snr is not None and snr > self.max_snr:
+                if self.max_snr > 0 and snr > self.max_snr:
                     factor = (self.max_snr / snr)**2
                     logger.debug("Scaling noise by factor of %f to achieve snr=%f",
                                  factor, self.max_snr)
                     wt_stamp = wt_stamp * factor
+                    snr = self.max_snr
+                props['snr'] = snr
 
                 pos = galsim.PositionD(x,y)
                 data = piff.StarData(stamp, pos, weight=wt_stamp, pointing=self.pointing,
@@ -154,7 +162,8 @@ class Input(object):
 
         return stars
 
-    def calculateSNR(self, image, weight):
+    @staticmethod
+    def calculateSNR(image, weight):
         """Calculate the signal-to-noise of a given image.
 
         :param image:       The stamp image for a star
@@ -171,8 +180,8 @@ class Input(object):
         # S/N = F / sqrt(var(F))
         I = image.array
         w = weight.array
-        flux = (w*I).sum()
-        varf = w.sum()
+        flux = (w*I).sum(dtype=float)
+        varf = w.sum(dtype=float)
         snr = flux / varf**0.5
         return snr
 
@@ -283,6 +292,8 @@ class InputFiles(Input):
                             so this parameter limits the effective S/N of any single star.
                             Basically, it adds noise to bright stars to lower their S/N down to
                             this value.  [default: 100]
+            :use_partial:   Whether to use stars whose postage stamps are only partially on the
+                            full image.  [default: False]
             :nstars:        Stop reading the input file at this many stars.  (This is applied
                             separately to each input catalog.)  [default: None]
 
@@ -328,6 +339,7 @@ class InputFiles(Input):
                 'gain' : str,
                 'min_snr' : float,
                 'max_snr' : float,
+                'use_partial' : bool,
                 'sky' : str,
                 'noise' : float,
                 'nstars' : int,
@@ -494,6 +506,7 @@ class InputFiles(Input):
 
         self.min_snr = config.get('min_snr', None)
         self.max_snr = config.get('max_snr', 100)
+        self.use_partial = config.get('use_partial', False)
 
         # Finally, set the pointing coordinate.
         ra = config.get('ra',None)

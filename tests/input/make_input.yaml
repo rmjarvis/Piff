@@ -8,8 +8,8 @@ psf:
     fwhm: 0.9
     flux:
         type: Random
-        min: 10
-        max: 2000
+        min: 1000
+        max: 50000
 
 image:
     type: Scattered
@@ -26,7 +26,7 @@ image:
             max: 4
             index_key: file_num
 
-    sky_level:
+    sky_level_pixel:
         type: Random
         min: 100
         max: 300
@@ -66,7 +66,7 @@ output:
                 # we are expected it to be a float, so it knows how to parse it.
                 type: Eval
                 str: 'sky'
-                fsky: '@image.sky_level'
+                fsky: '@image.sky_level_pixel'
             gain:
                 type: Eval
                 str: 'gain'
@@ -78,12 +78,12 @@ output:
                 str: 'alt_x'
                 falt_x:
                     type: Random
-                    min: -500
-                    max: 1500
+                    min: -300
+                    max: 1300
             alt_y:
                 type: Eval
                 str: 'alt_y'
                 falt_y:
                     type: Random
-                    min: -500
-                    max: 1500
+                    min: -300
+                    max: 1300
