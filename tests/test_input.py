@@ -316,7 +316,7 @@ def test_chipnum():
                 'cat_file_name': cat_files
              }
     input = piff.InputFiles(config, logger=logger)
-    assert input.chipnums == range(3)
+    assert input.chipnums == list(range(3))
 
     # Now make the chipnums something else
     config = {
