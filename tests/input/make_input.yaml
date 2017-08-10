@@ -15,6 +15,7 @@ image:
     type: Scattered
     size: 1024
     nobjects: 100
+    pixel_scale: 0.22
 
     noise:
         type: CCD

@@ -522,9 +522,11 @@ class InputFiles(Input):
         if weight_hdu is not None:
             logger.info("Reading weight image from hdu %d.", weight_hdu)
             weight = galsim.fits.read(image_file_name, hdu=weight_hdu)
-            if np.all(weight.array == 0):  # pragma: no cover
+            if np.all(weight.array == 0):
                 logger.error("According to the weight mask in %s, all pixels have zero weight!",
                              image_file_name)
+            if np.any(weight.array < 0):
+                raise ValueError("Weight map has invalid negative-valued pixels")
         elif noise is not None:
             logger.debug("Making uniform weight image based on noise variance = %f", noise)
             weight = galsim.ImageF(image.bounds, init_value=1./noise)
@@ -548,8 +550,6 @@ class InputFiles(Input):
                 logger.debug('max(badpix) = %s',np.max(badpix.array))
                 logger.debug("adding 32768 to all values in badpix image")
                 badpix += 32768
-            # Also, convert to int16, in case it isn't by default.
-            badpix = galsim.ImageS(badpix)
             if np.all(badpix.array != 0):  # pragma: no cover
                 logger.error("According to the bad pixel array in %s, all pixels are masked!",
                              image_file_name)

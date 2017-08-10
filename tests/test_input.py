@@ -27,11 +27,33 @@ def setup():
     """
     gs_config = galsim.config.ReadConfig(os.path.join('input','make_input.yaml'))[0]
     galsim.config.Process(gs_config)
+
     # Add some header values to the first one.
+    # Also add some alternate weight and badpix maps to enable some edge-case tests
     image_file = os.path.join('input','test_input_image_00.fits')
     with fitsio.FITS(image_file, 'rw') as f:
         f[0].write_key('SKYLEVEL', 200, 'sky level')
         f[0].write_key('GAIN_A', 2.0, 'gain')
+        wt = f[1].read().copy()
+        wt[:,:] = 0
+        f.write(wt) # hdu = 3
+        wt[:,:] = -1.
+        f.write(wt) # hdu = 4
+        bp = f[2].read().copy()
+        bp = bp.astype(np.int32)
+        bp[:,:] = 32768
+        f.write(bp) # hdu = 5
+        bp[:,:] = -32768
+        f.write(bp) # hdu = 6
+        bp[:,:] = 16
+        f.write(bp) # hdu = 7
+        wt[:,:] = 1.
+        wt[::2,:] = 0   # Even cols
+        f.write(wt) # hdu = 8
+        bp[:,:] = 0
+        bp[1::2,:] = 16 # Odd cols
+        f.write(bp) # hdu = 9
+
 
 @timer
 def test_basic():
@@ -314,6 +336,109 @@ def test_chipnum():
     input = piff.InputFiles(config, logger=logger)
     assert input.chipnums == [ i+1 for i in range(3) ]
 
+@timer
+def test_weight():
+    """Test the weight map and bad pixel masks
+    """
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(verbose=2)
+    else:
+        logger = piff.config.setup_logger(log_file=os.path.join('output','test_input.log'))
+
+    # If no weight or badpix is specified, the weights are all equal.
+    config = {
+                'image_file_name' : 'input/test_input_image_00.fits',
+                'cat_file_name' : 'input/test_input_cat_00.fits',
+             }
+    input = piff.InputFiles(config, logger=logger)
+    assert len(input.image_pos) == 1
+    assert len(input.image_pos[0]) == 100
+    assert len(input.images) == 1
+    assert input.images[0].array.shape == (1024, 1024)
+    assert len(input.weight) == 1
+    assert input.weight[0].array.shape == (1024, 1024)
+    np.testing.assert_array_equal(input.weight[0].array, 1.0)
+
+    # The default weight and badpix masks that GalSim makes don't do any masking, so this
+    # is the almost the same as above, but the weight value is 1/sky.
+    config = {
+                'image_file_name' : 'input/test_input_image_00.fits',
+                'cat_file_name' : 'input/test_input_cat_00.fits',
+                'weight_hdu' : 1,
+                'badpix_hdu' : 2,
+                'sky_col' : 'sky',  # Used to determine what the value of weight should be
+                'gain_col' : 'gain',
+             }
+    input = piff.InputFiles(config, logger=logger)
+    assert len(input.image_pos) == 1
+    assert len(input.image_pos[0]) == 100
+    assert len(input.images) == 1
+    assert input.images[0].array.shape == (1024, 1024)
+    assert len(input.weight) == 1
+    assert input.weight[0].array.shape == (1024, 1024)
+    sky = input.sky[0][0]
+    gain = input.gain[0][0]
+    scale = input.images[0].scale
+    read_noise = 10
+    expected_noise = sky * scale**2 / gain + read_noise**2 / gain**2
+    np.testing.assert_almost_equal(input.weight[0].array, expected_noise**-1)
+
+    # Can set the noise by hand
+    config = {
+                'image_file_name' : 'input/test_input_image_00.fits',
+                'cat_file_name' : 'input/test_input_cat_00.fits',
+                'noise' : 32,
+             }
+    input = piff.InputFiles(config, logger=logger)
+    assert len(input.weight) == 1
+    assert input.weight[0].array.shape == (1024, 1024)
+    np.testing.assert_almost_equal(input.weight[0].array, 32.**-1)
+
+    # Some old versions of fitsio had a bug where the badpix mask could be offset by 32768.
+    # We move them back to 0
+    config = {
+                'image_file_name' : 'input/test_input_image_00.fits',
+                'cat_file_name' : 'input/test_input_cat_00.fits',
+                'weight_hdu' : 1,
+                'badpix_hdu' : 5,
+             }
+    input = piff.InputFiles(config, logger=logger)
+    assert len(input.weight) == 1
+    assert input.weight[0].array.shape == (1024, 1024)
+    np.testing.assert_almost_equal(input.weight[0].array, expected_noise**-1)
+
+    config['badpix_hdu'] = 6
+    input = piff.InputFiles(config, logger=logger)
+    assert len(input.weight) == 1
+    assert input.weight[0].array.shape == (1024, 1024)
+    np.testing.assert_almost_equal(input.weight[0].array, expected_noise**-1)
+
+    # Various ways to get all weight values == 0 (which will emit a logger message, but isn't
+    # an error).
+    config['weight_hdu'] = 1
+    config['badpix_hdu'] = 7  # badpix > 0
+    input = piff.InputFiles(config, logger=logger)
+    assert len(input.weight) == 1
+    assert input.weight[0].array.shape == (1024, 1024)
+    np.testing.assert_almost_equal(input.weight[0].array, 0.)
+
+    config['weight_hdu'] = 3  # wt = 0
+    config['badpix_hdu'] = 2
+    input = piff.InputFiles(config, logger=logger)
+    assert len(input.weight) == 1
+    assert input.weight[0].array.shape == (1024, 1024)
+    np.testing.assert_almost_equal(input.weight[0].array, 0.)
+
+    config['weight_hdu'] = 8  # Even cols are = 0
+    config['badpix_hdu'] = 9  # Odd cols are > 0
+    input = piff.InputFiles(config, logger=logger)
+    assert len(input.weight) == 1
+    assert input.weight[0].array.shape == (1024, 1024)
+    np.testing.assert_almost_equal(input.weight[0].array, 0.)
+
+    # Negative valued weights are invalid
+    config['weight_hdu'] = 4
+    np.testing.assert_raises(ValueError, piff.InputFiles, config)
 
 
 if __name__ == '__main__':
@@ -322,3 +447,4 @@ if __name__ == '__main__':
     test_invalid()
     test_cols()
     test_chipnum()
+    test_weight()
