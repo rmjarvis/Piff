@@ -317,6 +317,7 @@ class InputFiles(Input):
                 'x_col' : str,
                 'y_col' : str,
                 'sky_col' : str,
+                'gain_col' : str,
                 'flag_col' : str,
                 'use_col' : str,
                 'image_hdu' : int,
@@ -599,7 +600,7 @@ class InputFiles(Input):
             cat = cat[cat[use_col]!=0]
 
         # Limit to nstars objects
-        if nstars is not None and nstars > len(cat):
+        if nstars is not None and nstars < len(cat):
             logger.info("Limiting to %d stars for %s",nstars,cat_file_name)
             cat = cat[:nstars]
 
@@ -623,11 +624,11 @@ class InputFiles(Input):
             try:
                 sky = float(sky)
             except ValueError:
-                if str(sky) != sky:
-                    raise ValueError("Unable to parse input sky: %s"%sky)
                 fits = fitsio.FITS(image_file_name)
                 hdu = 1 if image_file_name.endswith('.fz') else 0
                 header = fits[hdu].read_header()
+                if sky not in header:
+                    raise KeyError("Key %s not found in FITS header"%sky)
                 sky = float(header[sky])
             sky = np.array([sky]*len(cat), dtype=float)
         else:
@@ -647,11 +648,11 @@ class InputFiles(Input):
             try:
                 gain = float(gain)
             except ValueError:
-                if str(gain) != gain:
-                    raise ValueError("Unable to parse input gain: %s"%gain)
                 fits = fitsio.FITS(image_file_name)
                 hdu = 1 if image_file_name.endswith('.fz') else 0
                 header = fits[hdu].read_header()
+                if gain not in header:
+                    raise KeyError("Key %s not found in FITS header"%gain)
                 gain = float(header[gain])
             gain = np.array([gain]*len(cat), dtype=float)
         else:
