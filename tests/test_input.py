@@ -34,6 +34,8 @@ def setup():
     with fitsio.FITS(image_file, 'rw') as f:
         f[0].write_key('SKYLEVEL', 200, 'sky level')
         f[0].write_key('GAIN_A', 2.0, 'gain')
+        f[0].write_key('RA', '06:00:00', 'telescope ra')
+        f[0].write_key('DEC', '-30:00:00', 'telescope dec')
         wt = f[1].read().copy()
         wt[:,:] = 0
         f.write(wt) # hdu = 3
@@ -552,6 +554,114 @@ def test_stars():
     assert len(stars) == 37
 
 
+@timer
+def test_pointing():
+    """Test the input.setPointing function
+    """
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(verbose=2)
+    else:
+        logger = piff.config.setup_logger(log_file=os.path.join('output','test_input.log'))
+
+    dir = 'input'
+    image_file = 'test_input_image_00.fits'
+    cat_file = 'test_input_cat_00.fits'
+
+    # First, with no ra, dec, pointing is None
+    config = {
+                'dir' : dir,
+                'image_file_name' : image_file,
+                'cat_file_name' : cat_file,
+             }
+    input = piff.InputFiles(config, logger=logger)
+    assert input.pointing is None
+
+    # Explicit ra, dec as floats
+    config['ra'] = 6.0
+    config['dec'] = -30.0
+    input = piff.InputFiles(config, logger=logger)
+    np.testing.assert_almost_equal(input.pointing.ra.rad(), np.pi/2.)
+    np.testing.assert_almost_equal(input.pointing.dec.rad(), -np.pi/6.)
+
+    # Also ok as ints in this case
+    config['ra'] = 6
+    config['dec'] = -30
+    input = piff.InputFiles(config, logger=logger)
+    np.testing.assert_almost_equal(input.pointing.ra.rad(), np.pi/2.)
+    np.testing.assert_almost_equal(input.pointing.dec.rad(), -np.pi/6.)
+
+    # Strings as hh:mm:ss or dd:mm:ss
+    config['ra'] = '06:00:00'
+    config['dec'] = '-30:00:00'
+    input = piff.InputFiles(config, logger=logger)
+    np.testing.assert_almost_equal(input.pointing.ra.rad(), np.pi/2.)
+    np.testing.assert_almost_equal(input.pointing.dec.rad(), -np.pi/6.)
+
+    # Strings as keys into FITS header
+    config['ra'] = 'RA'
+    config['dec'] = 'DEC'
+    input = piff.InputFiles(config, logger=logger)
+    np.testing.assert_almost_equal(input.pointing.ra.rad(), np.pi/2.)
+    np.testing.assert_almost_equal(input.pointing.dec.rad(), -np.pi/6.)
+
+    # If multiple files, use the first one.
+    config['image_file_name'] = 'test_input_image_*.fits'
+    config['cat_file_name'] = 'test_input_cat_*.fits'
+    input = piff.InputFiles(config, logger=logger)
+    np.testing.assert_almost_equal(input.pointing.ra.rad(), np.pi/2.)
+    np.testing.assert_almost_equal(input.pointing.dec.rad(), -np.pi/6.)
+
+    # Check invalid ra,dec values
+    base_config = { 'dir' : dir, 'image_file_name' : image_file, 'cat_file_name' : cat_file }
+    np.testing.assert_raises(ValueError, piff.InputFiles,
+                             dict(ra=0, dec='00:00:00' , **base_config))
+    np.testing.assert_raises(ValueError, piff.InputFiles,
+                             dict(ra='00:00:00', dec=0, **base_config))
+    np.testing.assert_raises(ValueError, piff.InputFiles,
+                             dict(ra=0*galsim.degrees, dec=0*galsim.radians, **base_config))
+    np.testing.assert_raises(KeyError, piff.InputFiles,
+                             dict(ra='bad_ra', dec='bad_dec', **base_config))
+    np.testing.assert_raises(ValueError, piff.InputFiles,
+                             dict(ra=0, **base_config))
+    np.testing.assert_raises(ValueError, piff.InputFiles,
+                             dict(dec=0, **base_config))
+
+    # If image has celestial wcs, and no ra, dec specified then it will compute it for you
+    config = {
+                'dir' : dir,
+                'image_file_name' : 'DECam_00241238_01.fits.fz',
+                'cat_file_name' : 'DECam_00241238_01_cat.fits',
+                'cat_hdu' : 2,
+                'x_col' : 'XWIN_IMAGE',
+                'y_col' : 'YWIN_IMAGE',
+             }
+    input = piff.InputFiles(config, logger=logger)
+    np.testing.assert_almost_equal(input.pointing.ra / galsim.hours, 4.063, decimal=3)
+    np.testing.assert_almost_equal(input.pointing.dec / galsim.degrees, -51.471, decimal=3)
+
+    # Similar, but not quite equal to teh TELRA, TELDEC, which is at center of exposure.
+    config['ra'] = 'TELRA'
+    config['dec'] = 'TELDEC'
+    input = piff.InputFiles(config, logger=logger)
+    np.testing.assert_almost_equal(input.pointing.ra / galsim.hours, 4.097, decimal=3)
+    np.testing.assert_almost_equal(input.pointing.dec / galsim.degrees, -52.375, decimal=3)
+
+    # We only have the one celestial wcs image in the repo, but with multiple ones, it will
+    # average over all images.
+    config = {
+                'dir' : dir,
+                'image_file_name' : ['DECam_00241238_01.fits.fz', 'DECam_00241238_01.fits.fz'],
+                'cat_file_name' : ['DECam_00241238_01_cat.fits', 'DECam_00241238_01_cat.fits'],
+                'cat_hdu' : 2,
+                'x_col' : 'XWIN_IMAGE',
+                'y_col' : 'YWIN_IMAGE',
+             }
+    input = piff.InputFiles(config, logger=logger)
+    np.testing.assert_almost_equal(input.pointing.ra / galsim.hours, 4.063, decimal=3)
+    np.testing.assert_almost_equal(input.pointing.dec / galsim.degrees, -51.471, decimal=3)
+
+
+
 if __name__ == '__main__':
     setup()
     test_basic()
@@ -560,3 +670,4 @@ if __name__ == '__main__':
     test_chipnum()
     test_weight()
     test_stars()
+    test_pointing()
