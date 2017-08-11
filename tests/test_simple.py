@@ -364,6 +364,45 @@ def test_single_image():
     p = subprocess.Popen( [piffify_exe, 'simple.yaml'] )
     p.communicate()
 
+    # repeat using the plotify executables
+    plotify_exe = get_script_name('plotify')
+    config['output']['stats'] = [
+        {
+            'type': 'ShapeHistograms',
+            'file_name': shape_psf_file
+        },
+        {
+            'type': 'Rho',
+            'file_name': rho_psf_file
+        },
+        {
+            'type': 'TwoDHist',
+            'file_name': os.path.join('output', 'simple_psf_twodhiststats.pdf'),
+            'number_bins_u': 3,
+            'number_bins_v': 3,
+        },
+        {
+            'type': 'TwoDHist',
+            'file_name': os.path.join('output', 'simple_psf_twodhiststats_std.pdf'),
+            'reducing_function': 'np.std',
+            'number_bins_u': 3,
+            'number_bins_v': 3,
+        },
+    ]
+
+    os.remove(rho_psf_file)
+    os.remove(shape_psf_file)
+    piff.plotify(config, logger)
+
+    # Test using the plotify executable
+    os.remove(rho_psf_file)
+    os.remove(shape_psf_file)
+    config['verbose'] = 0
+    with open('simple.yaml','w') as f:
+        f.write(yaml.dump(config, default_flow_style=False))
+    p = subprocess.Popen( [plotify_exe, 'simple.yaml'] )
+    p.communicate()
+
 if __name__ == '__main__':
     test_Gaussian()
     test_Mean()
