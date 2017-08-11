@@ -21,8 +21,6 @@ import subprocess
 
 from piff_test_helper import get_script_name, timer
 
-
-@timer
 def make_gaussian_data(sigma, u0, v0, flux, noise=0., du=1., fpu=0., fpv=0., nside=32,
                        nom_u0=0., nom_v0=0., rng=None):
     """Make a Star instance filled with a Gaussian profile
@@ -547,7 +545,8 @@ def do_undersamp_drift(fit_centers=False):
     s0 = mod.initialize(s0)
 
     # Interpolator will be linear
-    interp = piff.BasisPolynomial(1)
+    # Normally max order would be 1, but set it to 2 here, just to check that option.
+    interp = piff.BasisPolynomial(order=1, max_order=2)
 
     # Draw stars on a 2d grid of "focal plane" with 0<=u,v<=1
     positions = np.linspace(0.,1.,8)
@@ -654,8 +653,14 @@ def test_single_image():
         moffat.drawImage(image=image[bounds], offset=offset, method='no_pixel')
     print('drew image')
 
+    # Add sky level and noise
+    sky_level = 1000
+    noise_sigma = 0.1  # Not much noise to keep this an easy test.
+    image += sky_level
+    image.addNoise(galsim.GaussianNoise(sigma=noise_sigma))
+
     # Write out the image to a file
-    image_file = os.path.join('data','pixel_moffat_image.fits')
+    image_file = os.path.join('output','pixel_moffat_image.fits')
     image.write(image_file)
     print('wrote image')
 
@@ -664,27 +669,29 @@ def test_single_image():
     data = np.empty(len(x_list), dtype=dtype)
     data['x'] = x_list
     data['y'] = y_list
-    cat_file = os.path.join('data','pixel_moffat_cat.fits')
+    cat_file = os.path.join('output','pixel_moffat_cat.fits')
     fitsio.write(cat_file, data, clobber=True)
     print('wrote catalog')
 
     # Use InputFiles to read these back in
-    input = piff.InputFiles(image_file, cat_file, stamp_size=32)
-    assert input.image_files == [ image_file ]
-    assert input.cat_files == [ cat_file ]
-    assert input.x_col == 'x'
-    assert input.y_col == 'y'
+    config = { 'image_file_name': image_file,
+               'cat_file_name': cat_file,
+               'stamp_size': 32,
+               'sky' : sky_level
+             }
+    input = piff.InputFiles(config)
+    assert input.image_file_name == [image_file]
+    assert input.cat_file_name == [cat_file]
 
     # Check image
-    input.readImages()
     assert len(input.images) == 1
     np.testing.assert_equal(input.images[0].array, image.array)
 
     # Check catalog
-    input.readStarCatalogs()
-    assert len(input.cats) == 1
-    np.testing.assert_equal(input.cats[0]['x'], x_list)
-    np.testing.assert_equal(input.cats[0]['y'], y_list)
+    assert len(input.image_pos) == 1
+    assert len(input.image_pos[0]) == len(x_list)
+    np.testing.assert_equal([pos.x for pos in input.image_pos[0]], x_list)
+    np.testing.assert_equal([pos.y for pos in input.image_pos[0]], y_list)
 
     # Make stars
     orig_stars = input.makeStars()
@@ -707,7 +714,8 @@ def test_single_image():
 
     # These tests are slow, and it's really just doing the same thing three times, so
     # only do the first one when running via nosetests.
-    if True:
+    psf_file = os.path.join('output','pixel_psf.fits')
+    if __name__ == '__main__':
         # Process the star data
         model = piff.PixelGrid(0.2, 16, start_sigma=0.9/2.355)
         interp = piff.BasisPolynomial(order=2)
@@ -734,7 +742,6 @@ def test_single_image():
         np.testing.assert_almost_equal(image.array, test_im.array, decimal=3)
 
         # Round trip through a file
-        psf_file = os.path.join('output','pixel_psf.fits')
         psf.write(psf_file, logger)
         psf = piff.read(psf_file, logger)
         assert type(psf.model) is piff.PixelGrid
@@ -749,10 +756,12 @@ def test_single_image():
     # Do the whole thing with the config parser
     config = {
         'input' : {
-            'images' : image_file,
-            'cats' : cat_file,
+            'image_file_name' : image_file,
+            'cat_file_name' : cat_file,
             'x_col' : 'x',
             'y_col' : 'y',
+            'noise' : noise_sigma**2,
+            'sky' : sky_level,
             'stamp_size' : 48  # Bigger than we drew, but should still work.
         },
         'output' : {
@@ -771,15 +780,15 @@ def test_single_image():
             },
         },
     }
-    if __name__ == '__main__':
-        print("Running piffify function")
-        piff.piffify(config)
-        psf = piff.read(psf_file)
-        test_star = psf.drawStar(target_star)
-        np.testing.assert_almost_equal(test_star.image.array, test_im.array, decimal=3)
+    if __name__ != '__main__':
+        config['verbose'] = 0
+    print("Running piffify function")
+    piff.piffify(config)
+    psf = piff.read(psf_file)
+    test_star = psf.drawStar(target_star)
+    np.testing.assert_almost_equal(test_star.image.array, test_im.array, decimal=3)
 
     # Test using the piffify executable
-    config['verbose'] = 0
     with open('pixel_moffat.yaml','w') as f:
         f.write(yaml.dump(config, default_flow_style=False))
     if __name__ == '__main__':
@@ -800,8 +809,8 @@ def test_des_image():
     import os
     import fitsio
 
-    image_file = 'y1_test/DECam_00241238_01.fits.fz'
-    cat_file = 'y1_test/DECam_00241238_01_psfcat_tb_maxmag_17.0_magcut_3.0_findstars.fits'
+    image_file = 'input/DECam_00241238_01.fits.fz'
+    cat_file = 'input/DECam_00241238_01_psfcat_tb_maxmag_17.0_magcut_3.0_findstars.fits'
     orig_image = galsim.fits.read(image_file)
     psf_file = os.path.join('output','pixel_des_psf.fits')
 
@@ -821,11 +830,11 @@ def test_des_image():
     start_sigma = 1.0/2.355  # TODO: Need to make this automatic somehow.
     config = {
         'input' : {
-            'images' : image_file,
+            'image_file_name' : image_file,
             'image_hdu' : 1,
             'weight_hdu' : 3,
             'badpix_hdu' : 2,
-            'cats' : cat_file,
+            'cat_file_name' : cat_file,
             'cat_hdu' : 2,
             'x_col' : 'XWIN_IMAGE',
             'y_col' : 'YWIN_IMAGE',
@@ -834,6 +843,12 @@ def test_des_image():
             'ra' : 'TELRA',
             'dec' : 'TELDEC',
             'gain' : 'GAINA',
+            # Test explicitly specifying the wcs (although it is the same here as what is in the
+            # image anyway).
+            'wcs' : {
+                'type': 'Fits',
+                'file_name': image_file
+            }
         },
         'output' : {
             'file_name' : psf_file,
@@ -849,13 +864,22 @@ def test_des_image():
                 'type' : 'BasisPolynomial',
                 'order' : 2,
             },
+            'outliers' : {
+                'type' : 'Chisq',
+                'nsigma' : 4,
+                'max_remove' : 3
+            }
         },
     }
-    if __name__ == '__main__': config['verbose'] = 3
+    if __name__ == '__main__':
+        config['verbose'] = 3
+        config['input']['nstars'] = nstars
+    else:
+        config['verbose'] = 0
 
     # These tests are slow, and it's really just doing the same thing three times, so
     # only do the first one when running via nosetests.
-    if True:
+    if __name__ == '__main__':
         # Start by doing things manually:
         if __name__ == '__main__':
             logger = piff.config.setup_logger(2)
@@ -929,24 +953,22 @@ def test_des_image():
         assert n_bad <= 3
 
     # Use piffify function
-    if __name__ == '__main__':
-        print('start piffify')
-        piff.piffify(config)
-        print('read stars')
-        stars, wcs, pointing = piff.Input.process(config['input'])
-        print('read psf')
-        psf = piff.read(psf_file)
-        stars = [psf.model.initialize(s) for s in stars]
-        flux = stars[0].fit.flux
-        offset = stars[0].center_to_offset(stars[0].fit.center)
-        fit_stamp = psf.draw(x=stars[0]['x'], y=stars[0]['y'], stamp_size=stamp_size,
-                             flux=flux, offset=offset)
-        orig_stamp = orig_image[stars[0].image.bounds] - stars[0]['sky']
-        # The first star happens to be a good one, so go ahead and test the arrays directly.
-        np.testing.assert_almost_equal(fit_stamp.array/flux, orig_stamp.array/flux, decimal=2)
+    print('start piffify')
+    piff.piffify(config)
+    print('read stars')
+    stars, wcs, pointing = piff.Input.process(config['input'])
+    print('read psf')
+    psf = piff.read(psf_file)
+    stars = [psf.model.initialize(s) for s in stars]
+    flux = stars[0].fit.flux
+    offset = stars[0].center_to_offset(stars[0].fit.center)
+    fit_stamp = psf.draw(x=stars[0]['x'], y=stars[0]['y'], stamp_size=stamp_size,
+                         flux=flux, offset=offset)
+    orig_stamp = orig_image[stars[0].image.bounds] - stars[0]['sky']
+    # The first star happens to be a good one, so go ahead and test the arrays directly.
+    np.testing.assert_almost_equal(fit_stamp.array/flux, orig_stamp.array/flux, decimal=2)
 
     # Test using the piffify executable
-    config['verbose'] = 0
     with open('pixel_des.yaml','w') as f:
         f.write(yaml.dump(config, default_flow_style=False))
     if __name__ == '__main__':

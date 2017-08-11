@@ -19,6 +19,8 @@
 from __future__ import print_function
 import math
 import numpy as np
+import math
+import galsim
 from scipy.stats import chi2
 
 from .util import write_kwargs, read_kwargs
@@ -112,7 +114,7 @@ class Outliers(object):
         assert 'type' in fits[extname].get_colnames()
         outliers_type = fits[extname].read()['type']
         assert len(outliers_type) == 1
-        outliers_type = outliers_type[0]
+        outliers_type = str(outliers_type[0].decode())
 
         # Check that outliers_type is a valid Outliers type.
         outliers_classes = piff.util.get_all_subclasses(piff.Outliers)
@@ -184,7 +186,7 @@ class MADOutliers(Outliers):
         """
         # I started writing this class, but then realized this isn't what we want to do
         # for the PixelGrid model.  So leave this for now...
-        raise NotImplemented("MAD algorithm not implemented")
+        raise NotImplementedError("MAD algorithm not implemented")
 
 
 class ChisqOutliers(Outliers):
@@ -212,7 +214,9 @@ class ChisqOutliers(Outliers):
                             would exceed the given galue.
         :param nsigma:      The number of sigma equivalent for the probability that a chisq
                             distribution would exceed the given value.
-        :param max_remove:  The maximum number of outliers to remove on each iteration.
+        :param max_remove:  The maximum number of outliers to remove on each iteration.  If this
+                            is a float < 1.0, then this is interpreted as a maximum fraction of
+                            stars to remove.  e.g. 0.01 will remove at most 1% of the stars.
                             [default: None]
         """
         if all( (thresh is None, ndof is None, prob is None, nsigma is None) ):
@@ -258,34 +262,44 @@ class ChisqOutliers(Outliers):
         :returns: stars, nremoved   A new list of stars without outliers, and how many outliers
                                     were removed.
         """
+        logger = galsim.config.LoggerWrapper(logger)
         nstars = len(stars)
-        if logger:
-            logger.debug("Checking %d stars for outliers", nstars)
+        logger.debug("Checking %d stars for outliers", nstars)
 
         chisq = np.array([ s.fit.chisq for s in stars ])
         dof = np.array([ s.fit.dof for s in stars ])
 
-        thresh = np.array([ self._get_thresh(d) for d in dof ])
+        # Scale up threshold by global chisq/dof.
+        factor = np.sum(chisq) / np.sum(dof)
+        if factor < 1: factor = 1
 
-        if logger:
-            if np.all(dof == dof[0]):
-                logger.debug("dof = %f, thresh = %f",dof[0],thresh[0])
-            else:
-                min_dof = np.min(dof)
-                max_dof = np.max(dof)
-                logger.debug("Minimum dof = %d with thresh = %f",min_dof,self._get_thresh(min_dof))
-                logger.debug("Maximum dof = %d with thresh = %f",max_dof,self._get_thresh(max_dof))
+        thresh = np.array([ self._get_thresh(d) for d in dof ]) * factor
+
+        if np.all(dof == dof[0]):
+            logger.debug("dof = %f, thresh = %f * %f = %f",
+                         dof[0], self._get_thresh(dof[0]), factor, thresh[0])
+        else:
+            min_dof = np.min(dof)
+            max_dof = np.max(dof)
+            min_thresh = self._get_thresh(min_dof)
+            max_thresh = self._get_thresh(max_dof)
+            logger.debug("Minimum dof = %d with thresh = %f * %f = %f",
+                         min_dof, min_thresh, factor, min_thresh*factor)
+            logger.debug("Maximum dof = %d with thresh = %f * %f = %f",
+                         max_dof, max_thresh, factor, max_thresh*factor)
 
         nremoved = np.sum(chisq > thresh)
-
-        if logger:
-            logger.info("Found %d stars with chisq > thresh", nremoved)
-            logger.debug("chisq = %s",chisq[chisq > thresh])
-            logger.debug("thresh = %s",thresh[chisq > thresh])
-
         if nremoved == 0:
-            good_stars = stars
-        elif self.max_remove is None or nremoved <= self.max_remove:
+            return stars, 0
+
+        logger.info("Found %d stars with chisq > thresh", nremoved)
+
+        # Update max_remove if necessary
+        max_remove = self.max_remove
+        if max_remove is not None and 0 < max_remove < 1:
+            max_remove = int(math.ceil(max_remove * len(stars)))
+
+        if max_remove is None or nremoved <= max_remove:
             good = chisq <= thresh
             good_stars = [ s for g, s in zip(good, stars) if g ]
         else:
@@ -297,12 +311,17 @@ class ChisqOutliers(Outliers):
             # which one should we remove?
             # The first has larger chisq/thresh, and the second has larger chisq - thresh.
             # I semi-arbitrarily remove based on the difference.
-            nremoved  = self.max_remove
+            nremoved  = max_remove
             diff = chisq - thresh
             new_thresh_index = np.argpartition(diff, -nremoved)[-nremoved]
             new_thresh = diff[new_thresh_index]
             good = diff < new_thresh
             good_stars = [ s for g, s in zip(good, stars) if g ]
+
+        if nremoved > 0:
+            logger.debug("chisq = %s",chisq[chisq > thresh])
+            logger.debug("thresh = %s",thresh[chisq > thresh])
+            logger.debug("flux = %s",[s.flux for g,s in zip(good,stars) if not g])
 
         assert nremoved == len(stars) - len(good_stars)
         return good_stars, nremoved

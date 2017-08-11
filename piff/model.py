@@ -103,7 +103,7 @@ class Model(object):
 
         :returns:      New Star instance with updated fit information
         """
-        raise NotImplemented("Derived classes must define the fit function")
+        raise NotImplementedError("Derived classes must define the fit function")
 
     def draw(self, star):
         """Create new Star instance that has star.data filled with a rendering
@@ -114,7 +114,7 @@ class Model(object):
 
         :returns:      New Star instance with rendered PSF in StarData
         """
-        raise NotImplemented("Derived classes must define the draw function")
+        raise NotImplementedError("Derived classes must define the draw function")
 
     def write(self, fits, extname):
         """Write a Model to a FITS file.

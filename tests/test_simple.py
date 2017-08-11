@@ -74,7 +74,7 @@ def test_Gaussian():
     if __name__ == '__main__':
         logger = piff.config.setup_logger(verbose=2)
     else:
-        logger = piff.config.setup_logger(verbose=0)
+        logger = piff.config.setup_logger(log_file='output/test_Gaussian.log')
     model = piff.Model.process(config['model'], logger)
     fit = model.fit(star).fit
 
@@ -132,6 +132,11 @@ def test_Mean():
 def test_single_image():
     """Test the simple case of one image and one catalog.
     """
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(verbose=2)
+    else:
+        logger = piff.config.setup_logger(log_file='output/test_single_image.log')
+
     # Make the image
     image = galsim.Image(2048, 2048, scale=0.26)
 
@@ -159,7 +164,7 @@ def test_single_image():
     image.addNoise(galsim.GaussianNoise(rng=galsim.BaseDeviate(1234), sigma=1e-6))
 
     # Write out the image to a file
-    image_file = os.path.join('data','simple_image.fits')
+    image_file = os.path.join('output','simple_image.fits')
     image.write(image_file)
 
     # Write out the catalog to a file
@@ -169,34 +174,35 @@ def test_single_image():
     data['y'] = y_list
     data['flag'] = flag_list
     data['use'] = use_list
-    cat_file = os.path.join('data','simple_cat.fits')
+    cat_file = os.path.join('output','simple_cat.fits')
     fitsio.write(cat_file, data, clobber=True)
 
     # Use InputFiles to read these back in
-    input = piff.InputFiles(image_file, cat_file)
-    assert input.image_files == [ image_file ]
-    assert input.cat_files == [ cat_file ]
-    assert input.x_col == 'x'
-    assert input.y_col == 'y'
+    config = { 'image_file_name' : image_file,
+               'cat_file_name': cat_file }
+    input = piff.InputFiles(config, logger=logger)
+    assert input.image_file_name == [ image_file ]
+    assert input.cat_file_name == [ cat_file ]
 
     # Check image
-    input.readImages()
     assert len(input.images) == 1
     np.testing.assert_equal(input.images[0].array, image.array)
 
     # Check catalog
-    input.readStarCatalogs()
-    assert len(input.cats) == 1
-    np.testing.assert_equal(input.cats[0]['x'], x_list)
-    np.testing.assert_equal(input.cats[0]['y'], y_list)
+    assert len(input.image_pos) == 1
+    np.testing.assert_equal([pos.x for pos in input.image_pos[0]], x_list)
+    np.testing.assert_equal([pos.y for pos in input.image_pos[0]], y_list)
 
     # Repeat, using flag and use columns this time.
-    input = piff.InputFiles(image_file, cat_file, flag_col='flag', use_col='use', stamp_size=48)
-    assert input.flag_col == 'flag'
-    assert input.use_col == 'use'
-    input.readImages()
-    input.readStarCatalogs()
-    assert len(input.cats[0]) == 7
+    config = { 'image_file_name' : image_file,
+               'cat_file_name': cat_file,
+               'flag_col': 'flag',
+               'use_col': 'use',
+               'stamp_size': 48 }
+    input = piff.InputFiles(config, logger=logger)
+    print('pos = ',input.image_pos)
+    print('pos[0] = ',input.image_pos[0])
+    assert len(input.image_pos[0]) == 7
 
     # Make star data
     orig_stars = input.makeStars()
@@ -221,8 +227,8 @@ def test_single_image():
     psf_file = os.path.join('output','simple_psf.fits')
     config = {
         'input' : {
-            'images' : image_file,
-            'cats' : cat_file,
+            'image_file_name' : image_file,
+            'cat_file_name' : cat_file,
             'flag_col' : 'flag',
             'use_col' : 'use',
             'stamp_size' : 48
@@ -235,10 +241,6 @@ def test_single_image():
         },
         'output' : { 'file_name' : psf_file },
     }
-    if __name__ == '__main__':
-        logger = piff.config.setup_logger(verbose=2)
-    else:
-        logger = piff.config.setup_logger(verbose=0)
     orig_stars, wcs, pointing = piff.Input.process(config['input'], logger)
 
     # Use a SimplePSF to process the stars data this time.
@@ -266,9 +268,14 @@ def test_single_image():
 
     # Test using the piffify executable
     os.remove(psf_file)
-    config['verbose'] = 0
+    # This would be simpler as a direct assignment, but this once, test the way you would set
+    # this from the command line, which would call parse_variables.
+    piff.config.parse_variables(config, ['verbose=0'], logger=logger)
+    #config['verbose'] = 0
     with open('simple.yaml','w') as f:
         f.write(yaml.dump(config, default_flow_style=False))
+    config2 = piff.config.read_config('simple.yaml')
+    assert config == config2
     piffify_exe = get_script_name('piffify')
     p = subprocess.Popen( [piffify_exe, 'simple.yaml'] )
     p.communicate()

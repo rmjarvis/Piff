@@ -20,6 +20,7 @@ from __future__ import print_function
 
 import numpy as np
 import copy
+import galsim
 
 from .psf import PSF
 from .util import write_kwargs, read_kwargs, make_dtype, adjust_value
@@ -77,6 +78,7 @@ class SingleChipPSF(PSF):
                                 [Note: pointing should be None if the WCS is not a CelestialWCS]
         :param logger:          A logger object for logging debug info. [default: None]
         """
+        logger = galsim.config.LoggerWrapper(logger)
         self.stars = stars
         self.wcs = wcs
         self.pointing = pointing
@@ -91,9 +93,7 @@ class SingleChipPSF(PSF):
             wcs_chip = { chipnum : wcs[chipnum] }
 
             # Run the psf_chip fit function using this stars and wcs (and the same pointing)
-            if logger:
-                logger.warning("Building solution for chip %s with %d stars",
-                               chipnum, len(stars_chip))
+            logger.warning("Building solution for chip %s with %d stars", chipnum, len(stars_chip))
             psf_chip.fit(stars_chip, wcs_chip, pointing, logger=logger)
         # update stars from psf outlier rejection
         self.stars = [ star for chipnum in wcs for star in self.psf_by_chip[chipnum].stars ]
@@ -106,6 +106,8 @@ class SingleChipPSF(PSF):
 
         :returns:           Star instance with its image filled with rendered PSF
         """
+        if 'chipnum' not in star.data.properties:
+            raise ValueError("SingleChip drawStar requires the star to have a chipnum property")
         chipnum = star['chipnum']
         return self.psf_by_chip[chipnum].drawStar(star)
 
@@ -117,7 +119,7 @@ class SingleChipPSF(PSF):
         :param logger:      A logger object for logging debug info.
         """
         # Write the colnums to an extension.
-        chipnums = self.psf_by_chip.keys()
+        chipnums = list(self.psf_by_chip.keys())
         dt = make_dtype('chipnums', chipnums[0])
         chipnums = [ adjust_value(c,dt) for c in chipnums ]
         cols = [ chipnums ]
@@ -140,4 +142,3 @@ class SingleChipPSF(PSF):
         self.psf_by_chip = {}
         for chipnum in chipnums:
             self.psf_by_chip[chipnum] = PSF._read(fits, extname + '_%s'%chipnum, logger)
-

@@ -18,7 +18,7 @@ before_install:
 
     # List current contents of directories that should be being cached.
     - ls -la $HOME
-    - if test -d $HOME/GalSim-1.4.2; then ls -l $HOME/GalSim-1.4.2; fi
+    - if test -d $HOME/GalSim-1.5.0-alpha; then ls -l $HOME/GalSim-1.5.0-alpha; fi
     - if test -d $HOME/tmv-0.73; then ls -l $HOME/tmv-0.73; fi
     - if test -d $HOME/boost_1_61_0; then ls -l $HOME/boost_1_61_0; fi
 
@@ -51,8 +51,8 @@ before_install:
 
     # Only get GalSim if not cached
     - pushd $HOME
-    - if ! test -d GalSim-1.4.2 || ! test -f GalSim-1.4.2/SConstruct; then wget https://github.com/GalSim-developers/GalSim/archive/v1.4.2.tar.gz && tar -xf v1.4.2.tar.gz ; else echo Using cached GalSim; fi
-    - cd GalSim-1.4.2
+    - if ! test -d GalSim-1.5.0-alpha || ! test -f GalSim-1.5.0-alpha/SConstruct; then wget https://github.com/GalSim-developers/GalSim/archive/v1.5.0-alpha.tar.gz && tar -xf v1.5.0-alpha.tar.gz ; else echo Using cached GalSim; fi
+    - cd GalSim-1.5.0-alpha
     # This lets scons work even on Python 3 builds
     # cf. https://github.com/travis-ci/travis-ci/issues/5961
     - source $HOME/virtualenv/python2.7/bin/activate
@@ -73,7 +73,7 @@ before_install:
 cache:
     pip: true
     directories:
-    - $HOME/GalSim-1.4.2
+    - $HOME/GalSim-1.5.0-alpha
     - $HOME/fitsio
     - $HOME/tmv-0.73
     - $HOME/boost_1_61_0
@@ -91,6 +91,7 @@ script:
     - nosetests --with-coverage --cover-package=piff --with-doctest
 
 after_success:
+    - coverage xml
     - codecov
 
 before_cache:

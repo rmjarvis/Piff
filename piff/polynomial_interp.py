@@ -18,9 +18,7 @@
 
 from __future__ import print_function
 
-from .interp import Interp
-from .star import Star, StarFit
-
+import galsim
 import numpy as np
 import warnings
 from numpy.polynomial.polynomial import polyval2d
@@ -28,6 +26,9 @@ from numpy.polynomial.chebyshev import chebval2d
 from numpy.polynomial.legendre import legval2d
 from numpy.polynomial.laguerre import lagval2d
 from numpy.polynomial.hermite import hermval2d
+
+from .interp import Interp
+from .star import Star, StarFit
 
 polynomial_types = {
     "poly":polyval2d,
@@ -258,6 +259,7 @@ class Polynomial(Interp):
         :param logger:      A logger object for logging debug info. [default: None]
         """
         import scipy.optimize
+        logger = galsim.config.LoggerWrapper(logger)
 
         # We will want to index things later, so useful
         # to convert these to numpy arrays and transpose
@@ -271,10 +273,9 @@ class Polynomial(Interp):
         npos = len(positions)
         self._setup_indices(nparam)
 
-        if logger:
-            logger.info("Fitting %d parameter vectors using "\
-                "polynomial type %s with %d positions",
-                nparam,self.poly_type,npos)
+        logger.info("Fitting %d parameter vectors using "\
+                    "polynomial type %s with %d positions",
+                    nparam,self.poly_type,npos)
 
         coeffs = []
 
@@ -295,9 +296,8 @@ class Polynomial(Interp):
             # a single parameter vector for scipy to fit.
             p0 = self._pack_coefficients(i, self._initialGuess(positions, parameter, i))
 
-            if logger:
-                logger.debug("Fitting parameter %d from initial guess %s "
-                             "with polynomial order %d", i, p0, self._orders[i])
+            logger.debug("Fitting parameter %d from initial guess %s "
+                         "with polynomial order %d", i, p0, self._orders[i])
 
 
             # Black box curve fitter from scipy!

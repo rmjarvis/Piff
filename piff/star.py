@@ -19,6 +19,7 @@
 from __future__ import print_function
 import numpy as np
 import copy
+import galsim
 
 class Star(object):
     """Information about a "star", which may be either a real star or an interpolated star
@@ -158,7 +159,7 @@ class Star(object):
 
     @classmethod
     def makeTarget(cls, x=None, y=None, u=None, v=None, properties={}, wcs=None, scale=None,
-                   stamp_size=48, image=None, flux=1.0, **kwargs):
+                   stamp_size=48, image=None, pointing=None, flux=1.0, **kwargs):
         """
         Make a target Star object with the requested properties.
 
@@ -185,13 +186,13 @@ class Star(object):
         :param stamp_size:  The size in each direction of the (blank) image. [default: 48]
         :param image:       An existing image to use instead of making a new one, if desired.
                             [default: None; this overrides stamp_size]
+        :param pointing:    The pointing direction to use. [default: None]
         :param flux:        The flux of the target star. [default: 1]
         :param **kwargs:    Additional properties can also be given as keyword arguments if that
                             is more convenient than populating the properties dict.
 
         :returns:   A Star instance
         """
-        import galsim
         # Check that input parameters are valid
         for param in ['x', 'y', 'u', 'v']:
             if eval(param) is not None and param in properties:
@@ -244,7 +245,8 @@ class Star(object):
             image.wcs = wcs
 
         # Build the StarData instance
-        data = StarData(image, image_pos, field_pos=field_pos, properties=properties)
+        data = StarData(image, image_pos, field_pos=field_pos, properties=properties, 
+                        pointing=pointing)
         fit = StarFit(None, flux=flux, center=(0.,0.))
         return cls(data, fit)
 
@@ -411,8 +413,8 @@ class Star(object):
         import galsim
         # TODO: This is largely copied from InputHandler.readImages.
         #       This should probably be refactored a bit to avoid the duplicated code.
-        if logger:
-            logger.info("Loading image information from file %s",file_name)
+        logger = galsim.config.LoggerWrapper(logger)
+        logger.info("Loading image information from file %s",file_name)
         image = galsim.fits.read(file_name, hdu=image_hdu)
 
         if sky is not None:
@@ -420,12 +422,10 @@ class Star(object):
 
         # Either read in the weight image, or build a dummy one
         if weight_hdu is None:
-            if logger:
-                logger.debug("Making trivial (wt==1) weight image")
+            logger.debug("Making trivial (wt==1) weight image")
             weight = galsim.ImageI(image.bounds, init_value=1)
         else:
-            if logger:
-                logger.info("Reading weight image from hdu %d.", weight_hdu)
+            logger.info("Reading weight image from hdu %d.", weight_hdu)
             weight = galsim.fits.read(file_name, hdu=weight_hdu)
             if np.all(weight.array == 0):
                 logger.error("According to the weight mask in %s, all pixels have zero weight!",
@@ -433,22 +433,19 @@ class Star(object):
 
         # If requested, set wt=0 for any bad pixels
         if badpix_hdu is not None:
-            if logger:
-                logger.info("Reading badpix image from hdu %d.", badpix_hdu)
+            logger.info("Reading badpix image from hdu %d.", badpix_hdu)
             badpix = galsim.fits.read(file_name, hdu=badpix_hdu)
             # The badpix image may be offset by 32768 from the true value.
             # If so, subtract it off.
             if np.any(badpix.array > 32767):
-                if logger:
-                    logger.debug('min(badpix) = %s',np.min(badpix.array))
-                    logger.debug('max(badpix) = %s',np.max(badpix.array))
-                    logger.debug("subtracting 32768 from all values in badpix image")
+                logger.debug('min(badpix) = %s',np.min(badpix.array))
+                logger.debug('max(badpix) = %s',np.max(badpix.array))
+                logger.debug("subtracting 32768 from all values in badpix image")
                 badpix -= 32768
             if np.any(badpix.array < -32767):
-                if logger:
-                    logger.debug('min(badpix) = %s',np.min(badpix.array))
-                    logger.debug('max(badpix) = %s',np.max(badpix.array))
-                    logger.debug("adding 32768 to all values in badpix image")
+                logger.debug('min(badpix) = %s',np.min(badpix.array))
+                logger.debug('max(badpix) = %s',np.max(badpix.array))
+                logger.debug("adding 32768 to all values in badpix image")
                 badpix += 32768
             # Also, convert to int16, in case it isn't by default.
             badpix = galsim.ImageS(badpix)
@@ -508,15 +505,13 @@ class Star(object):
         Poisson shot noise from a signal source, e.g. when the weight
         only contains variance from background and read noise.
 
-        :param signal:    The signal (in ADU) from which the Poisson variance is extracted.
-                          If this is a 2d array or Image it is assumed to match the weight image.
-                          If it is a 1d array, it is assumed to match the vectors returned by
-                          getDataVector().  If None, the self.image is used.  All signals are
-                          clipped from below at zero.
-        :param gain:      The gain, in e per ADU, assumed in calculating new weights.  If None
-                          is given, then the 'gain' property is used, else defaults gain=1.
+        :param signal:  The signal (as a Star instance) from which the Poisson variance is
+                        extracted.  If None, the data image is used.  All signals are
+                        clipped from below at zero.
+        :param gain:    The gain, in e per ADU, assumed in calculating new weights.  If None
+                        is given, then the 'gain' property is used, else defaults gain=1.
 
-        :returns:         A new StarData instance with updated weight array.
+        :returns: a new Star instance with updated weight array.
         """
         # The functionality is implemented as a StarData method.
         # So just pass this task on to that and recast the return value as a Star instance.
@@ -590,10 +585,14 @@ class StarData(object):
     :param properties:  A dict containing other properties about the star that might be of
                         interest. [default: None]
     :param values_are_sb: True if pixel data give surface brightness, False if they're flux
-                          [default: False]
+                        [default: False]
+    :param orig_weight: The original weight map prior to any additional Poisson variance being
+                        added.  [default: None, which means use orig_weight=weight]
+    :param logger:      A logger object for logging debug info. [default: None]
     """
     def __init__(self, image, image_pos, weight=None, pointing=None, field_pos=None,
-                 values_are_sb=False, properties=None, logger=None, _xyuv_set=False):
+                 properties=None, values_are_sb=False, orig_weight=None, logger=None,
+                 _xyuv_set=False):
         import galsim
         # Save all of these as attributes.
         self.image = image
@@ -611,6 +610,11 @@ class StarData(object):
             self.weight = galsim.Image(weight, dtype=float, wcs=weight.wcs)
         else:
             self.weight = galsim.Image(weight, dtype=float)
+
+        if orig_weight is None:
+            self.orig_weight = self.weight
+        else:
+            self.orig_weight = orig_weight
 
         if properties is None:
             self.properties = {}
@@ -756,6 +760,7 @@ class StarData(object):
         return StarData(image=newimage,
                         image_pos=self.image_pos,
                         weight=self.weight,
+                        orig_weight=self.orig_weight,
                         pointing=self.pointing,
                         field_pos=self.field_pos,
                         values_are_sb=self.values_are_sb,
@@ -767,49 +772,47 @@ class StarData(object):
         Poisson shot noise from a signal source, e.g. when the weight
         only contains variance from background and read noise.
 
-        :param signal:    The signal (in ADU) from which the Poisson variance is extracted.
-                          If this is a 2d array or Image it is assumed to match the weight image.
-                          If it is a 1d array, it is assumed to match the vectors returned by
-                          getDataVector().  If None, the self.image is used.  All signals are
-                          clipped from below at zero.
-        :param gain:      The gain, in e per ADU, assumed in calculating new weights.  If None
-                          is given, then the 'gain' property is used, else defaults gain=1.
+        :param signal:  The signal (as a Star instance) from which the Poisson variance is
+                        extracted.  If None, the data image is used.  All signals are
+                        clipped from below at zero.
+        :param gain:    The gain, in e per ADU, assumed in calculating new weights.  If None
+                        is given, then the 'gain' property is used, else defaults gain=1.
 
-        :returns:         A new StarData instance with updated weight array.
+        :returns: a new StarData instance with updated weight array.
         """
         import galsim
 
+        # Get the gain.  None both here and in properties, means don't add any variance.
+        if gain is None:
+            gain = self.properties.get('gain',None)
+        if gain is None:
+            return self
+
         # Mark the pixels that are not already worthless
-        use = self.weight.array!=0.
+        use = self.orig_weight.array!=0.
 
         # Get the signal data
         if signal is None:
-            variance = self.image.array[use]
-        elif isinstance(signal, galsim.image.Image):
-            variance = signal.array[use]
-        elif len(signal.shape)==2:
-            variance = signal[use]
-        else:
-            # Insert 1d vector into currently valid pixels
-            variance = signal
-        # clip variance
-        variance = np.where(variance < 0, 0, variance)
+            signal = self
+        variance = signal.image.array
+        if variance.shape != self.orig_weight.array.shape:
+            raise ValueError('In addPoisson, signal has wrong shape: %s != %s'%(
+                    variance.shape, self.orig_weight.array.shape))
 
-        # Scale by gain
-        if gain is None:
-            try:
-                gain = self.properties['gain']
-            except KeyError:
-                gain = 1.
+        # clip variance
+        use &= (variance >= 0)
 
         # Add to weight
-        newweight = self.weight.copy()
-        newweight.array[use] = 1. / (1./self.weight.array[use] + variance / gain)
+        # Note: use the original weight here, not the current weight, since this may have already
+        # had some Poisson noise added to the weight.
+        newweight = self.orig_weight.copy()
+        newweight.array[use] = 1. / (1./self.orig_weight.array[use] + variance[use] / gain)
 
         # Return new object
         return StarData(image=self.image,
                         image_pos=self.image_pos,
                         weight=newweight,
+                        orig_weight=self.orig_weight,
                         pointing=self.pointing,
                         values_are_sb=self.values_are_sb,
                         properties=dict(self.properties, gain=gain),
@@ -839,13 +842,20 @@ class StarData(object):
             m = mask
 
         # Zero appropriate weight pixels in new copy
-        newweight = self.weight.copy()
-        newweight.array[use] = np.where(m, self.weight.array[use], 0.)
+        weight = self.weight.copy()
+        weight.array[use] = np.where(m, self.weight.array[use], 0.)
+
+        if self.orig_weight != self.weight:
+            orig_weight = self.orig_weight.copy()
+            orig_weight.array[use] = np.where(m, self.orig_weight.array[use], 0.)
+        else:
+            orig_weight = weight
 
         # Return new object
         return StarData(image=self.image,
                         image_pos=self.image_pos,
-                        weight=newweight,
+                        weight=weight,
+                        orig_weight=orig_weight,
                         pointing=self.pointing,
                         values_are_sb=self.values_are_sb,
                         properties=self.properties,
@@ -904,9 +914,6 @@ class StarFit(object):
         self.dof = dof
         self.worst_chisq = worst_chisq
         return
-
-    def copy(self):
-        return copy.deepcopy(self)
 
     def newParams(self, p):
         """Return new StarFit that has the array p installed as new parameters.
