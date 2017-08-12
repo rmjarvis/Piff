@@ -92,7 +92,6 @@ class StarStats(Stats):
         # axs = fig.subplots(ncols=3, nrows=3)
         axs = []
         for i in range(self.number_plot):
-            # TODO: check that it is number_plot, 3 and not the other way
             axs.append([fig.add_subplot(self.number_plot, 3, i * 3 + 1),
                         fig.add_subplot(self.number_plot, 3, i * 3 + 2),
                         fig.add_subplot(self.number_plot, 3, i * 3 + 3)])
@@ -108,9 +107,10 @@ class StarStats(Stats):
             u = star.data.properties['u']
             v = star.data.properties['v']
             index = self.indices[i]
-            title = 'Star {0} at (u,v) = ({1:+.02e}, {2:+.02e})'.format(index, u, v)
-            # title will go in the middle image
-            axs[i][1].set_title(title)
+
+            axs[i][0].set_title('Star {0}'.format(index))
+            axs[i][1].set_title('PSF at (u,v) = ({0:+.02e}, {1:+.02e})'.format(u, v))
+            axs[i][2].set_title('Star - PSF')
 
             star_image = star.image
             model_image = model.image
