@@ -338,6 +338,20 @@ def test_chipnum():
     input = piff.InputFiles(config, logger=logger)
     assert input.chipnums == [ i+1 for i in range(3) ]
 
+    # Or parse it from the image_file_name
+    config = {
+                'dir' : dir,
+                'image_file_name' : image_files,
+                'cat_file_name': cat_files,
+                'chipnum' : {
+                    'type' : 'Eval',
+                    'str' : "image_file_name.split('_')[-1].split('.')[0]",
+                    'simage_file_name' : '@input.image_file_name'
+                }
+             }
+    input = piff.InputFiles(config, logger=logger)
+    assert input.chipnums == list(range(3))
+
 @timer
 def test_weight():
     """Test the weight map and bad pixel masks
