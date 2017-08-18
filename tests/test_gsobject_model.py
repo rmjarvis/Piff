@@ -25,7 +25,6 @@ fiducial_kolmogorov = galsim.Kolmogorov(half_light_radius=1.0)
 fiducial_gaussian = galsim.Gaussian(half_light_radius=1.0)
 fiducial_moffat = galsim.Moffat(half_light_radius=1.0, beta=3.0)
 
-
 def make_data(gsobject, scale, g1, g2, u0, v0, flux, noise=0., pix_scale=1., fpu=0., fpv=0.,
               nside=32, nom_u0=0., nom_v0=0., rng=None, include_pixel=True):
     """Make a Star instance filled with a Kolmogorov profile

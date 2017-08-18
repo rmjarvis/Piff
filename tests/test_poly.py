@@ -20,7 +20,6 @@ from piff_test_helper import timer
 
 PolynomialsTypes = piff.polynomial_types.keys()
 
-
 @timer
 def test_poly_indexing():
     # Some indexing tests for a polynomial up to order 3

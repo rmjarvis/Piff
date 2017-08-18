@@ -1,0 +1,89 @@
+# This YAML config file is to be used with the galsim executable to generate the test input
+# image and catalog in this directory.
+# It is normally run from the test_input.py setup function.
+
+psf:
+    type: Moffat
+    beta: 2.5
+    fwhm: 0.9
+    flux:
+        type: Random
+        min: 1000
+        max: 50000
+
+image:
+    type: Scattered
+    size: 1024
+    nobjects: 100
+    pixel_scale: 0.22
+
+    noise:
+        type: CCD
+        read_noise: 10
+        gain:
+            type: Random
+            min: 2
+            max: 4
+            index_key: file_num
+
+    sky_level_pixel:
+        type: Random
+        min: 100
+        max: 300
+        index_key: file_num
+
+    random_seed: 12345
+
+output:
+    nfiles: 3
+    type: Fits
+    dir: 'input'  # This is designed to be run from the test directory, not here.
+    file_name:
+        type: FormattedStr
+        format: 'test_input_image_%02d.fits'
+        items:
+            - '$file_num'
+
+    weight:
+        hdu: 1
+    badpix:
+        hdu: 2
+
+    truth:
+        dir: 'input'
+        file_name:
+            type: FormattedStr
+            format: 'test_input_cat_%02d.fits'
+            items:
+                - '$file_num'
+        columns:
+            x: '$image_pos.x'
+            y: '$image_pos.y'
+            flag: '$1 if obj_num % 5 == 0 else 0'
+            use: '$0 if obj_num % 7 == 0 else 1'
+            sky: 
+                # Since sky_level won't have been parsed yet, this is a trick to tell it that
+                # we are expected it to be a float, so it knows how to parse it.
+                type: Eval
+                str: 'sky'
+                fsky: '@image.sky_level_pixel'
+            gain:
+                type: Eval
+                str: 'gain'
+                fgain: '@image.noise.gain'
+            alt_x:
+                # Similarly, we can't just use type: Random here, since we need to let the
+                # output catalog know that it should be parsed as a float.
+                type: Eval
+                str: 'alt_x'
+                falt_x:
+                    type: Random
+                    min: -300
+                    max: 1300
+            alt_y:
+                type: Eval
+                str: 'alt_y'
+                falt_y:
+                    type: Random
+                    min: -300
+                    max: 1300
