@@ -539,7 +539,9 @@ class InputFiles(Input):
                 logger.error("According to the weight mask in %s, all pixels have zero weight!",
                              image_file_name)
             if np.any(weight.array < 0):
-                raise ValueError("Weight map has invalid negative-valued pixels")
+                logger.error("Warning: weight map has invalid negative-valued pixels. "+
+                             "Taking them to be 0.0")
+                weight.array[weight.array < 0] = 0.
         elif noise is not None:
             logger.debug("Making uniform weight image based on noise variance = %f", noise)
             weight = galsim.ImageF(image.bounds, init_value=1./noise)

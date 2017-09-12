@@ -19,7 +19,7 @@ import numpy as np
 import fitsio
 import piff
 
-from piff_test_helper import get_script_name, timer
+from piff_test_helper import get_script_name, timer, CaptureLog
 
 
 def setup():
@@ -454,7 +454,9 @@ def test_weight():
 
     # Negative valued weights are invalid
     config['weight_hdu'] = 4
-    np.testing.assert_raises(ValueError, piff.InputFiles, config)
+    with CaptureLog() as cl:
+        piff.InputFiles(config, logger=cl.logger)
+    assert 'Warning: weight map has invalid negative-valued pixels.' in cl.output
 
 
 @timer
