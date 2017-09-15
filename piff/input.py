@@ -104,25 +104,31 @@ class Input(object):
                 half_size = self.stamp_size // 2
                 bounds = galsim.BoundsI(icen+half_size-self.stamp_size+1, icen+half_size,
                                         jcen+half_size-self.stamp_size+1, jcen+half_size)
-                if not image.bounds.includes(bounds):  # pragma: no cover
+                if not image.bounds.includes(bounds):
                     bounds = bounds & image.bounds
                     if not bounds.isDefined():
-                        logger.warning("Star at position %f,%f is off the edge of the image."%(x,y))
-                        logger.warning("Skipping this star.")
+                        logger.warning("Star at position %f,%f is off the edge of the image.  "
+                                       "Skipping this star.", x, y)
                         continue
-                    logger.info("Star at position %f,%f is near the edge of the image."%(x,y))
-                    logger.info("Using smaller than the full stamp size: %s"%bounds)
+                    if self.use_partial:
+                        logger.info("Star at position %f,%f overlaps the edge of the image.  "
+                                    "Using smaller than the full stamp size: %s", x, y, bounds)
+                    else:
+                        logger.warning("Star at position %f,%f overlaps the edge of the image.  "
+                                       "Skipping this star.", x, y)
+                        continue
                 stamp = image[bounds]
                 props = { 'chipnum' : chipnum,
                           'gain' : gain[k] }
                 if sky is not None:
                     logger.debug("Subtracting off sky = %f", sky[k])
+                    logger.debug("Median pixel value = %f", np.median(stamp.array))
                     stamp = stamp - sky[k]  # Don't change the original!
                     props['sky'] = sky[k]
                 wt_stamp = wt[bounds]
 
                 # if a star is totally masked, then don't add it!
-                if np.all(wt_stamp.array == 0):  # pragma: no cover
+                if np.all(wt_stamp.array == 0):
                     logger.warning("Star at position %f,%f is completely masked."%(x,y))
                     logger.warning("Skipping this star.")
                     continue
@@ -133,11 +139,13 @@ class Input(object):
                 if self.min_snr is not None and snr < self.min_snr:
                     logger.info("Skipping star at position %f,%f with snr=%f."%(x,y,snr))
                     continue
-                if self.max_snr is not None and snr > self.max_snr:
+                if self.max_snr > 0 and snr > self.max_snr:
                     factor = (self.max_snr / snr)**2
                     logger.debug("Scaling noise by factor of %f to achieve snr=%f",
                                  factor, self.max_snr)
                     wt_stamp = wt_stamp * factor
+                    snr = self.max_snr
+                props['snr'] = snr
 
                 pos = galsim.PositionD(x,y)
                 data = piff.StarData(stamp, pos, weight=wt_stamp, pointing=self.pointing,
@@ -154,7 +162,8 @@ class Input(object):
 
         return stars
 
-    def calculateSNR(self, image, weight):
+    @staticmethod
+    def calculateSNR(image, weight):
         """Calculate the signal-to-noise of a given image.
 
         :param image:       The stamp image for a star
@@ -171,8 +180,8 @@ class Input(object):
         # S/N = F / sqrt(var(F))
         I = image.array
         w = weight.array
-        flux = (w*I).sum()
-        varf = w.sum()
+        flux = (w*I).sum(dtype=float)
+        varf = w.sum(dtype=float)
         snr = flux / varf**0.5
         return snr
 
@@ -283,6 +292,8 @@ class InputFiles(Input):
                             so this parameter limits the effective S/N of any single star.
                             Basically, it adds noise to bright stars to lower their S/N down to
                             this value.  [default: 100]
+            :use_partial:   Whether to use stars whose postage stamps are only partially on the
+                            full image.  [default: False]
             :nstars:        Stop reading the input file at this many stars.  (This is applied
                             separately to each input catalog.)  [default: None]
 
@@ -317,6 +328,7 @@ class InputFiles(Input):
                 'x_col' : str,
                 'y_col' : str,
                 'sky_col' : str,
+                'gain_col' : str,
                 'flag_col' : str,
                 'use_col' : str,
                 'image_hdu' : int,
@@ -327,6 +339,7 @@ class InputFiles(Input):
                 'gain' : str,
                 'min_snr' : float,
                 'max_snr' : float,
+                'use_partial' : bool,
                 'sky' : str,
                 'noise' : float,
                 'nstars' : int,
@@ -344,42 +357,74 @@ class InputFiles(Input):
                }
 
         # Convert options 2 and 3 above into option 4.  (1 is also parseable by GalSim's config.)
-        nimages = 0
+        nimages = None
         image_list = None
         cat_list = None
-        if 'image_file_name' in config and isinstance(config['image_file_name'],list):
+        dir = None
+
+        if 'nimages' in config:
+            nimages = galsim.config.ParseValue(config, 'nimages', base, int)[0]
+            if nimages < 1:
+                raise ValueError('input.nimages must be >= 1')
+
+        if 'dir' in config:
+            dir = galsim.config.ParseValue(config, 'dir', base, str)[0]
+
+        if 'image_file_name' not in config:
+            raise AttributeError('Attribute image_file_name is required')
+        elif isinstance(config['image_file_name'], list):
             image_list = config['image_file_name']
-        elif 'image_file_name' in config and isinstance(config['image_file_name'],basestring):
-            image_list = sorted(glob.glob(config['image_file_name']))
+            if len(image_list) == 0:
+                raise ValueError("image_file_name may not be an empty list")
+        elif isinstance(config['image_file_name'], basestring):
+            image_file_name = config['image_file_name']
+            if dir is not None:
+                image_file_name = os.path.join(dir, image_file_name)
+            image_list = sorted(glob.glob(image_file_name))
+            if dir is not None:
+                k = len(dir) + 1
+                image_list = [ f[k:] for f in image_list ]
             if len(image_list) == 0:
                 raise ValueError("No files found corresponding to "+config['image_file_name'])
+        elif not isinstance(config['image_file_name'], dict):
+            raise ValueError("image_file_name should be either a dict or a string")
+
         if image_list is not None:
             logger.debug('image_list = %s',image_list)
-            if 'nimages' in config and config['nimages'] != len(image_list):
+            if nimages is not None and nimages != len(image_list):
                 raise ValueError("nimages = %s doesn't match length of image_file_name list (%d)"%(
                         config['nimages'], len(image_list)))
             nimages = len(image_list)
-            if nimages == 0:
-                raise ValueError("nimages == 0")
             logger.debug('nimages = %d',nimages)
             config['image_file_name'] = {
                 'type' : 'List',
                 'items' : image_list
             }
-        if 'cat_file_name' in config and isinstance(config['cat_file_name'],list):
+
+        if 'cat_file_name' not in config:
+            raise AttributeError('Attribute cat_file_name is required')
+        elif isinstance(config['cat_file_name'], list):
             cat_list = config['cat_file_name']
-        elif 'cat_file_name' in config and isinstance(config['cat_file_name'],basestring):
-            cat_list = sorted(glob.glob(config['cat_file_name']))
+            if len(cat_list) == 0:
+                raise ValueError("cat_file_name may not be an empty list")
+        elif isinstance(config['cat_file_name'], basestring):
+            cat_file_name = config['cat_file_name']
+            if dir is not None:
+                cat_file_name = os.path.join(dir, cat_file_name)
+            cat_list = sorted(glob.glob(cat_file_name))
+            if dir is not None:
+                k = len(dir) + 1
+                cat_list = [ f[k:] for f in cat_list ]
             if len(cat_list) == 0:
                 raise ValueError("No files found corresponding to "+config['cat_file_name'])
+        elif not isinstance(config['cat_file_name'], dict):
+            raise ValueError("cat_file_name should be either a dict or a string")
+
         if cat_list is not None:
             logger.debug('cat_list = %s',cat_list)
-            if 'nimages' in config and config['nimages'] != len(cat_list):
+            if nimages is not None and nimages != len(cat_list):
                 raise ValueError("nimages = %s doesn't match length of cat_file_name list (%d)"%(
                         config['nimages'], len(cat_list)))
-            if nimages != 0 and len(cat_list) != nimages:
-                raise ValueError("length of image_file_name (%d) and cat_file_name list (%d) are not equal"%(
-                        nimages, len(cat_list)))
             nimages = len(cat_list)
             logger.debug('nimages = %d',nimages)
             config['cat_file_name'] = {
@@ -387,14 +432,9 @@ class InputFiles(Input):
                 'items' : cat_list
             }
 
-        # Get the number of images to parse
-        if nimages == 0:
-            if 'nimages' in config:
-                nimages = galsim.config.ParseValue(config, 'nimages', base, int)[0]
-                if nimages < 1:
-                    raise ValueError('input.nimages must be >= 1')
-            else:
-                nimages = 1
+        if nimages is None:
+            raise ValueError('input.nimages is required if not using a list or simple string for ' +
+                             'file names')
 
         self.chipnums = list(range(nimages))
         self.stamp_size = int(config.get('stamp_size', 32))
@@ -466,6 +506,7 @@ class InputFiles(Input):
 
         self.min_snr = config.get('min_snr', None)
         self.max_snr = config.get('max_snr', 100)
+        self.use_partial = config.get('use_partial', False)
 
         # Finally, set the pointing coordinate.
         ra = config.get('ra',None)
@@ -494,9 +535,13 @@ class InputFiles(Input):
         if weight_hdu is not None:
             logger.info("Reading weight image from hdu %d.", weight_hdu)
             weight = galsim.fits.read(image_file_name, hdu=weight_hdu)
-            if np.all(weight.array == 0):  # pragma: no cover
+            if np.all(weight.array == 0):
                 logger.error("According to the weight mask in %s, all pixels have zero weight!",
                              image_file_name)
+            if np.any(weight.array < 0):
+                logger.error("Warning: weight map has invalid negative-valued pixels. "+
+                             "Taking them to be 0.0")
+                weight.array[weight.array < 0] = 0.
         elif noise is not None:
             logger.debug("Making uniform weight image based on noise variance = %f", noise)
             weight = galsim.ImageF(image.bounds, init_value=1./noise)
@@ -520,8 +565,6 @@ class InputFiles(Input):
                 logger.debug('max(badpix) = %s',np.max(badpix.array))
                 logger.debug("adding 32768 to all values in badpix image")
                 badpix += 32768
-            # Also, convert to int16, in case it isn't by default.
-            badpix = galsim.ImageS(badpix)
             if np.all(badpix.array != 0):  # pragma: no cover
                 logger.error("According to the bad pixel array in %s, all pixels are masked!",
                              image_file_name)
@@ -572,7 +615,7 @@ class InputFiles(Input):
             cat = cat[cat[use_col]!=0]
 
         # Limit to nstars objects
-        if nstars is not None and nstars > len(cat):
+        if nstars is not None and nstars < len(cat):
             logger.info("Limiting to %d stars for %s",nstars,cat_file_name)
             cat = cat[:nstars]
 
@@ -596,11 +639,11 @@ class InputFiles(Input):
             try:
                 sky = float(sky)
             except ValueError:
-                if str(sky) != sky:
-                    raise ValueError("Unable to parse input sky: %s"%sky)
                 fits = fitsio.FITS(image_file_name)
                 hdu = 1 if image_file_name.endswith('.fz') else 0
                 header = fits[hdu].read_header()
+                if sky not in header:
+                    raise KeyError("Key %s not found in FITS header"%sky)
                 sky = float(header[sky])
             sky = np.array([sky]*len(cat), dtype=float)
         else:
@@ -620,11 +663,11 @@ class InputFiles(Input):
             try:
                 gain = float(gain)
             except ValueError:
-                if str(gain) != gain:
-                    raise ValueError("Unable to parse input gain: %s"%gain)
                 fits = fitsio.FITS(image_file_name)
                 hdu = 1 if image_file_name.endswith('.fz') else 0
                 header = fits[hdu].read_header()
+                if gain not in header:
+                    raise KeyError("Key %s not found in FITS header"%gain)
                 gain = float(header[gain])
             gain = np.array([gain]*len(cat), dtype=float)
         else:
@@ -695,11 +738,10 @@ class InputFiles(Input):
                         self.pointing.dec / galsim.degrees)
         else:
             file_name = self.image_file_name[0]
-            if logger:
-                if len(self.chipnums) == 1:
-                    logger.info("Setting pointing from keywords %s, %s", ra, dec)
-                else:
-                    logger.info("Setting pointing from keywords %s, %s in %s", ra, dec, file_name)
+            if len(self.chipnums) == 1:
+                logger.info("Setting pointing from keywords %s, %s", ra, dec)
+            else:
+                logger.info("Setting pointing from keywords %s, %s in %s", ra, dec, file_name)
             fits = fitsio.FITS(file_name)
             hdu = 1 if file_name.endswith('.fz') else 0
             header = fits[hdu].read_header()
