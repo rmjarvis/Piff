@@ -76,6 +76,60 @@ def test_twodstats():
     twodstats_file = os.path.join('output','whiskerstats.pdf')
     stats.write(twodstats_file)
 
+@timer
+def test_shift_cmap():
+    from matplotlib import cm
+
+    # test vmax and vmin center issues
+    vmin = -1
+    vmax = 8
+    center = 2
+
+    # color map vmin > center
+    cmap = piff.TwoDHistStats._shift_cmap(vmin, vmax, vmin - 1)
+    assert cmap == cm.Reds
+
+    # color map vmax < center
+    cmap = piff.TwoDHistStats._shift_cmap(vmin, vmax, vmax + 1)
+    assert cmap == cm.Blues_r
+
+    # test without center
+    cmap = piff.TwoDHistStats._shift_cmap(vmin, vmax)
+    midpoint = (0 - vmin) * 1. / (vmax - vmin)
+    unshifted_cmap = cm.RdBu_r
+    # check segment data
+    # NOTE: that because of interpolation cmap(midpont) does not have to equal
+    # unshifted_cmap(0.5)
+    for val, color in zip(unshifted_cmap(0.5), ['red', 'green', 'blue', 'alpha']):
+        assert midpoint == cmap._segmentdata[color][128][0]
+        assert val == cmap._segmentdata[color][128][1]
+        assert val == cmap._segmentdata[color][128][2]
+    # but edge values are the same
+    assert cmap(0.) == unshifted_cmap(0.)
+    assert cmap(1.) == unshifted_cmap(1.)
+
+    # test with center
+    cmap = piff.TwoDHistStats._shift_cmap(vmin, vmax, center)
+    midpoint = (center - vmin) * 1. / (vmax - vmin)
+    unshifted_cmap = cm.RdBu_r
+    for val, color in zip(unshifted_cmap(0.5), ['red', 'green', 'blue', 'alpha']):
+        assert midpoint == cmap._segmentdata[color][128][0]
+        assert val == cmap._segmentdata[color][128][1]
+        assert val == cmap._segmentdata[color][128][2]
+    assert cmap(0.) == unshifted_cmap(0.)
+    assert cmap(1.) == unshifted_cmap(1.)
+
+    # what if vmax < vmin?
+    cmap = piff.TwoDHistStats._shift_cmap(vmax, vmin, center)
+    midpoint = 1. - (center - vmax) * 1. / (vmin - vmax)
+    unshifted_cmap = cm.RdBu_r
+    for val, color in zip(unshifted_cmap(0.5), ['red', 'green', 'blue', 'alpha']):
+        assert midpoint == cmap._segmentdata[color][128][0]
+        assert val == cmap._segmentdata[color][128][1]
+        assert val == cmap._segmentdata[color][128][2]
+    assert cmap(0.) == unshifted_cmap(1.)
+    assert cmap(1.) == unshifted_cmap(0.)
+
 def make_star(icen=500, jcen=700, ccdnum=28,
               sigma=1, g1=0, g2=0,
               pixel_to_focal=False,
@@ -136,3 +190,4 @@ def generate_starlist(n_samples=500):
 if __name__ == '__main__':
     test_twodstats()
     # yaml test is in test_simple
+    test_shift_cmap()

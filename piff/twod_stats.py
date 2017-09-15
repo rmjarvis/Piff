@@ -286,19 +286,25 @@ class TwoDHistStats(Stats):
 
         return C
 
+    @classmethod
     def _shift_cmap(self, vmin, vmax, center=0):
         from matplotlib import cm
-        midpoint = (center - vmin) / (vmax - vmin)
+        # want midpoint to be a float!
+        midpoint = (center - vmin) * 1. / (vmax - vmin)
 
         # if b <= 0, then we want Blues_r
-        if vmax <= center:
+        if vmax <= center and vmin <= center:
             return cm.Blues_r
         # if a >= 0, then we want Reds
-        elif vmin >= center:
+        elif vmin >= center and vmax >= center:
             return cm.Reds
+        # catch inverse
+        elif vmin >= center and vmax <= center:
+            return self._shiftedColorMap(cm.RdBu_r, start=1.0, midpoint=1 - midpoint, stop=0.0)
         else:
             return self._shiftedColorMap(cm.RdBu_r, midpoint=midpoint)
 
+    @classmethod
     def _shiftedColorMap(self, cmap, start=0, midpoint=0.5, stop=1.0,
                          name='shiftedcmap'):
         '''

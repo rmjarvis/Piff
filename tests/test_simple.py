@@ -403,6 +403,12 @@ def test_single_image():
     p = subprocess.Popen( [plotify_exe, 'simple.yaml'] )
     p.communicate()
 
+    # test running plotify with dir in config and with no logger
+    config['output']['dir'] = '.'
+    os.remove(rho_psf_file)
+    os.remove(shape_psf_file)
+    piff.plotify(config)
+
 if __name__ == '__main__':
     test_Gaussian()
     test_Mean()
