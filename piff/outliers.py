@@ -288,7 +288,7 @@ class ChisqOutliers(Outliers):
             logger.debug("Maximum dof = %d with thresh = %f * %f = %f",
                          max_dof, max_thresh, factor, max_thresh*factor)
 
-        nremoved = np.sum(chisq > thresh)
+        nremoved = np.sum(~(chisq <= thresh))  # Write it as not chisq <= thresh in case of nans.
         if nremoved == 0:
             return stars, 0
 
@@ -319,8 +319,8 @@ class ChisqOutliers(Outliers):
             good_stars = [ s for g, s in zip(good, stars) if g ]
 
         if nremoved > 0:
-            logger.debug("chisq = %s",chisq[chisq > thresh])
-            logger.debug("thresh = %s",thresh[chisq > thresh])
+            logger.debug("chisq = %s",chisq[~(chisq <= thresh)])
+            logger.debug("thresh = %s",thresh[~(chisq <= thresh)])
             logger.debug("flux = %s",[s.flux for g,s in zip(good,stars) if not g])
 
         assert nremoved == len(stars) - len(good_stars)
