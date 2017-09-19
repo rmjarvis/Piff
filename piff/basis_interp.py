@@ -115,7 +115,17 @@ class BasisInterp(Interp):
         nq = B.shape[0]
         A = A.reshape(nq,nq)
         logger.debug('Beginning solution of matrix size %d',A.shape[0])
-        dq = np.linalg.solve(A,B)
+        try:
+            dq = np.linalg.solve(A,B)
+        except numpy.linalg.LinAlgError as e:  # pragma: no cover
+            logger.warning('Caught %s',str(e))
+            logger.warning('Switching to svd solution')
+            U,Sd,V = np.linalg.svd(A, full_matrices=False)
+            nsvd = np.sum(Sd > 1.e-10 * Sd[0])
+            Sd[:nsvd+1] = 1./Sd[:nsvd+1]
+            S = np.diag(Sd)
+            dq = U.T.dot(S.dot(V.T.dot(B)))
+
         logger.debug('...finished solution')
         self.q += dq.reshape(self.q.shape)
 
