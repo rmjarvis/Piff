@@ -677,7 +677,8 @@ def test_single_image():
     config = { 'image_file_name': image_file,
                'cat_file_name': cat_file,
                'stamp_size': 32,
-               'sky' : sky_level
+               'noise' : noise_sigma**2,
+               'sky' : sky_level,
              }
     input = piff.InputFiles(config)
     assert input.image_file_name == [image_file]
@@ -751,7 +752,7 @@ def test_single_image():
 
         # Check the convenience function that an end user would typically use
         image = psf.draw(x=x0, y=y0)
-        np.testing.assert_almost_equal(image.array, test_im.array, decimal=3)
+        np.testing.assert_almost_equal(image.array/2., test_im.array/2., decimal=3)
 
     # Do the whole thing with the config parser
     config = {
@@ -786,7 +787,8 @@ def test_single_image():
     piff.piffify(config)
     psf = piff.read(psf_file)
     test_star = psf.drawStar(target_star)
-    np.testing.assert_almost_equal(test_star.image.array, test_im.array, decimal=3)
+    print("Max abs diff = ",np.max(np.abs(test_star.image.array - test_im.array)))
+    np.testing.assert_almost_equal(test_star.image.array/2., test_im.array/2., decimal=3)
 
     # Test using the piffify executable
     with open('pixel_moffat.yaml','w') as f:
@@ -800,7 +802,7 @@ def test_single_image():
         p.communicate()
         psf = piff.read(psf_file)
         test_star = psf.drawStar(target_star)
-        np.testing.assert_almost_equal(test_star.image.array, test_im.array, decimal=3)
+        np.testing.assert_almost_equal(test_star.image.array/2., test_im.array/2., decimal=3)
 
 @timer
 def test_des_image():
