@@ -172,17 +172,20 @@ class Input(object):
 
         :returns: the SNR value.
         """
-        # The S/N value that we use will be the weighted total flux:
+        # The S/N value that we use will be the weighted total flux where the weight function
+        # is the star's profile itself.  This is the maximum S/N value that any flux measurement
+        # can possibly produce, which will be closer to an in-practice S/N than using all the
+        # pixels equally.
         #
-        # F = Sum_i w_i I_i
-        # var(F) = Sum_i w_i^2 var(I_i) = Sum_i w_i
+        # F = Sum_i w_i I_i^2
+        # var(F) = Sum_i w_i^2 I_i^2 var(I_i)
+        #        = Sum_i w_i I_i^2             <--- Assumes var(I_i) = 1/w_i
         #
         # S/N = F / sqrt(var(F))
         I = image.array
         w = weight.array
-        flux = (w*I).sum(dtype=float)
-        varf = w.sum(dtype=float)
-        snr = flux / varf**0.5
+        flux = (w*I*I).sum(dtype=float)
+        snr = flux**0.5
         return snr
 
     def getWCS(self, logger=None):
