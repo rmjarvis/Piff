@@ -17,8 +17,11 @@
 """
 
 import numpy as np
+import treecorr
+import copy
 
-from sklearn.gaussian_process.kernels import StationaryKernelMixin, NormalizedKernelMixin, Kernel
+from sklearn.gaussian_process.kernels import Kernel
+import scipy.optimize as op 
 
 from .interp import Interp
 from .star import Star, StarFit
@@ -44,25 +47,34 @@ class GPInterp2pcf(Interp):
     :param logger:      A logger object for logging debug info. [default: None]
     """
     def __init__(self, keys=('u','v'), kernel='RBF()', optimize=True, npca=0, normalize=True,
-                 logger=None, white_noise = 0):
+                 logger=None):
 
         self.keys = keys
         self.npca = npca
         self.degenerate_points = False
         self.normalize = normalize
         self.optimize = optimize
-        self.white_noise = white_noise
 
         self.kwargs = {
             'keys': keys,
             'optimize': optimize,
             'npca': npca,
             'kernel': kernel,
-            'normalize':normalize,
-            'white_noise':white_noise
+            'normalize':normalize
         }
 
-        self.kernel = self._eval_kernel(kernel) 
+        if type(kernel) is str:
+            self.kernel_template = [self._eval_kernel(self.kernel)]
+        else:
+            if type(kernel) is not list:
+                raise TypeError("kernel should be a string or a list of string")
+            else:
+                self.kernel_template = [self._eval_kernel(ker) for ker in self.kernel]
+
+        self._2pcf = []
+        self._2pcf_dist = []
+        self._2pcf_fit = []
+
 
     @staticmethod
     def _eval_kernel(kernel):
@@ -89,32 +101,99 @@ class GPInterp2pcf(Interp):
             raise RuntimeError("Failed to evaluate kernel string {0!r}".format(kernel))
         return k
 
-    def _fit(self, X, y, logger=None):
-        """Update the GaussianProcessRegressor with data
+    def _fit(self, kernel, X, y, y_err=None, logger=None):
+        """Update the Kernel with data
+        :param kernel: sklearn.gaussian_process kernel.
         :param X:  The independent covariates.  (n_samples, n_features)
         :param y:  The dependent responses.  (n_samples, n_targets)
+        :param logger:  A logger object for logging debug info. [default: None]
         """
-        # Save these for potential read/write.
-        self._X = X
-        self._y = y
-        if self.npca > 0:
-            from sklearn.decomposition import PCA
-            self._pca = PCA(n_components=self.npca, whiten=True)
-            self._pca.fit(y)
-            y = self._pca.transform(y)
-        #self.gp.fit(X, y)
-        ## do 2pcf fitting here 
+        if logger:
+            logger.debug('Start kernel: %s', kernel.set_params())
+            logger.debug('gp.fit with mean y = %s',np.mean(y))
+                                    
+        # Save these for potential read/write.                
+        if y_err is None:
+            y_err = np.zeros_like(y)
+            
+        if self.optimizer:
+            kernel = self._optimizer_2pcf(kernel,X,y,y_err)
+            
+        if logger:
+            logger.debug('After fit: kernel = %s',kernel.set_params())
+
+        return kernel
+
+    
+    def _optimizer_2pcf(self,kernel,X,y,y_err):
+        
+        size_x = np.max(X[:,0]) - np.min(X[:,0])
+        size_y = np.max(X[:,1]) - np.min(X[:,1])
+        rho = float(len(X[:,0])) / (size_x * size_y)
+        MIN = np.sqrt(1./rho)
+        MAX = np.sqrt(size_x**2 + size_y**2)/2.
+    
+        if y_err is None or np.sum(y_err) == 0 :
+            cat = treecorr.Catalog(x=X[:,0], y=X[:,1], k=(y-np.mean(y)))
+        else:
+            cat = treecorr.Catalog(x=X[:,0], y=X[:,1], k=(y-np.mean(y)), w=1./y_err**2)
+        kk = treecorr.KKCorrelation(min_sep=MIN, max_sep=MAX, nbins=20)
+        kk.process(cat)
+
+        distance = np.exp(kk.logr)
+        Coord = np.array([distance,np.zeros_like(distance)]).T
+        print len(distance)
+        
+        def PCF(param):
+            kernel =  kernel.clone_with_theta(param)
+            pcf = kernel.__call__(Coord,Y=np.zeros_like(Coord))[:,0]
+            return pcf
+
+        def chi2(param):
+            residual = kk.xi - PCF(param)
+            return np.sum(residual**2)
+
+        print "start minimization"
+        p0 = kernel.theta
+        results = op.fmin(chi2, p0, disp=False)
+        print "I am done"
+
+        self._2pcf.append(kk.xi)
+        self._2pcf_dist.append(distance)
+        kernel =  kernel.clone_with_theta(results)
+        self._2pcf_fit.append(PCF(kernel.theta)))
+
+        return kernel
 
     def _predict(self, Xstar):
         """ Predict responses given covariates.
         :param X:  The independent covariates at which to interpolate.  (n_samples, n_features).
         :returns:  Regressed parameters  (n_samples, n_targets)
         """
-        ##ystar = self.gp.predict(Xstar)
-        # do computation of interp and error if needed 
+        if n_pca>0:
+            y_init = self._y_pca
+            y_err = self._y_pca_err
+        else:
+            y_init = self._y
+            y_err = self._y_pca_err
+
+        ystar = np.array([self.return_gp_predict(y_init[:,i]-self._mean[i], self._X, Xstar, ker, y_err=y_err) for i,ker in enumerate(self.kernels)]).T
+        
+        for i in range(self.nparams):
+            ystar[:,i] += self._mean[i]
         if self.npca > 0:
             ystar = self._pca.inverse_transform(ystar)
         return ystar
+
+    def return_gp_predict(y, X1, X2, kernel, y_err=y_err):
+
+        if y_err is None:
+            y_err = np.zeros_like(y)
+        HT = kernel.__call__(X1,Y=X2)
+        K = kernel.__call__(X1) + np.eye(len(y))*y_err
+        factor = (cholesky(K, overwrite_a=True, lower=False), False)
+        alpha = cho_solve(factor, y, overwrite_b=in_place)
+        return np.dot(HT,alpha)
 
     def getProperties(self, star, logger=None):
         """Extract the appropriate properties to use as the independent variables for the
@@ -135,6 +214,16 @@ class GPInterp2pcf(Interp):
         :param stars:   A list of Star instances to interpolate between
         :param logger:  A logger object for logging debug info. [default: None]
         """
+        self.nparams = len(stars[0].fit.params)
+        if len(self.kernel_template)==1:
+            self.kernels = [copy.deepcopy(self.kernel_template[0]) for i in range(self.nparams)]
+        else:
+            if len(self.kernel_template)!= self.nparams or (len(self.kernel_template)!= self.npca & self.npca!=0):
+                raise ValueError("numbers of kernel provided should be 1 (same for all parameters) or " \
+                                 "equal to the number of params (%i), number kernel provided: %i"%((self.nparams,len(self.kernel_template))))
+            else:
+                self.kernels = [copy.deepcopy(ker) for ker in self.kernel_template]
+                                        
         return stars
 
     def solve(self, stars=None, logger=None):
@@ -145,7 +234,36 @@ class GPInterp2pcf(Interp):
         """
         X = np.array([self.getProperties(star) for star in stars])
         y = np.array([star.fit.params for star in stars])
-        self._fit(X, y, logger=logger)
+        y_err = np.zeros_like(y)#TO DO 
+        
+        self._X = X
+        self._y = y
+        self._y_err = y_err
+
+        if self.npca > 0:
+            from sklearn.decomposition import PCA
+            self._pca = PCA(n_components=self.npca, whiten=True)
+            self._pca.fit(y)
+            y = self._pca.transform(y)
+            if y_err is not None:
+                y_err = self._pca.transform(y_err)
+            self._y_pca, self._y_pca_err = y, y_err
+            self.nparams = self.npca
+
+        if self.normalize:
+            self._mean = np.mean(y,axis=0)
+        else:
+            self._mean = np.zeros(self.nparams)
+        self._init_theta = []
+        for i in range(self.nparams):
+            kernel = self.kernels[i]
+            self._init_theta.append(kernel.theta)
+            self.kernels[i] = self._fit(self.kernels[i],
+                                        X, y[:,i]-self._mean[i],
+                                        y_err=y_err[:,i], logger=logger)
+            if logger:
+                logger.info('param %d: %s',i,kernel.set_params())
+
 
     def interpolate(self, star, logger=None):
         """Perform the interpolation to find the interpolated parameter vector at some position.
