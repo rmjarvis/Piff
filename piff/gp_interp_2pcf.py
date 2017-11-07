@@ -19,15 +19,14 @@
 import numpy as np
 
 from sklearn.gaussian_process.kernels import StationaryKernelMixin, NormalizedKernelMixin, Kernel
-from sklearn.gaussian_process.kernels import Hyperparameter
 
 from .interp import Interp
 from .star import Star, StarFit
 
 
-class GPInterp(Interp):
+class GPInterp2pcf(Interp):
     """
-    An interpolator that uses sklearn.gaussian_process to interpolate a single surface.
+    An interpolator that uses two-point correlation function and gaussian process to interpolate a single surface.
 
     :param keys:        A list of star attributes to interpolate from
     :param kernel:      A string that can be `eval`ed to make a
@@ -35,7 +34,7 @@ class GPInterp(Interp):
                         sklearn.gaussian_process.kernels will work, as well as the repr of a
                         custom piff AnisotropicRBF or ExplicitKernel object.  [default: 'RBF()']
     :param optimize:    Boolean indicating whether or not to try and optimize the kernel by
-                        maximizing the marginal likelihood.  [default: True]
+                        computing the two-point correlation function.  [default: True]
     :param npca:        Number of principal components to keep.  [default: 0, which means don't
                         decompose PSF parameters into principle components]
     :param normalize:   Whether to normalize the interpolation parameters to have a mean of 0.
@@ -45,23 +44,25 @@ class GPInterp(Interp):
     :param logger:      A logger object for logging debug info. [default: None]
     """
     def __init__(self, keys=('u','v'), kernel='RBF()', optimize=True, npca=0, normalize=True,
-                 logger=None):
-        from sklearn.gaussian_process import GaussianProcessRegressor
+                 logger=None, white_noise = 0):
 
         self.keys = keys
-        self.kernel = kernel
         self.npca = npca
         self.degenerate_points = False
+        self.normalize = normalize
+        self.optimize = optimize
+        self.white_noise = white_noise
 
         self.kwargs = {
             'keys': keys,
             'optimize': optimize,
             'npca': npca,
-            'kernel': kernel
+            'kernel': kernel,
+            'normalize':normalize,
+            'white_noise':white_noise
         }
-        optimizer = 'fmin_l_bfgs_b' if optimize else None
-        self.gp = GaussianProcessRegressor(self._eval_kernel(self.kernel), optimizer=optimizer,
-                                           normalize_y=normalize)
+
+        self.kernel = self._eval_kernel(kernel) 
 
     @staticmethod
     def _eval_kernel(kernel):
@@ -101,14 +102,16 @@ class GPInterp(Interp):
             self._pca = PCA(n_components=self.npca, whiten=True)
             self._pca.fit(y)
             y = self._pca.transform(y)
-        self.gp.fit(X, y)
+        #self.gp.fit(X, y)
+        ## do 2pcf fitting here 
 
     def _predict(self, Xstar):
         """ Predict responses given covariates.
         :param X:  The independent covariates at which to interpolate.  (n_samples, n_features).
         :returns:  Regressed parameters  (n_samples, n_targets)
         """
-        ystar = self.gp.predict(Xstar)
+        ##ystar = self.gp.predict(Xstar)
+        # do computation of interp and error if needed 
         if self.npca > 0:
             ystar = self._pca.inverse_transform(ystar)
         return ystar
