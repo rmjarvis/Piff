@@ -163,7 +163,6 @@ class GPInterp2pcf(Interp):
         self._2pcf_dist.append(distance)
         kernel =  kernel.clone_with_theta(results)
         self._2pcf_fit.append(PCF(kernel.theta))
-        print results
         return kernel
 
     def _predict(self, Xstar):
@@ -216,6 +215,8 @@ class GPInterp2pcf(Interp):
         :param logger:  A logger object for logging debug info. [default: None]
         """
         self.nparams = len(stars[0].fit.params)
+        if self.npca>0:
+            self.nparams = self.npca
         if len(self.kernel_template)==1:
             self.kernels = [copy.deepcopy(self.kernel_template[0]) for i in range(self.nparams)]
         else:

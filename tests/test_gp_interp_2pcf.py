@@ -292,6 +292,7 @@ def iterate(stars, interp):
     print("chisq: {0}    dof: {1}".format(chisq, dof))
     print("chisq/dof: {0}".format(chisq/dof))
 
+    interp.initialize(stars)
     oldchisq = 0.
     print()
     for iteration in range(10):
@@ -789,36 +790,8 @@ if __name__ == '__main__':
     # pr = cProfile.Profile()
     # pr.enable()
 
-    #test_constant_psf()
+    test_constant_psf() # --> DONE
     
-    rng = galsim.BaseDeviate(572958179)
-    ntrain, nvalidate, nvisualize = 200, 1, 21
-    training_data, validation_data, visualization_data = make_constant_psf_params(ntrain, nvalidate, nvisualize)
-
-    kernel = "1*RBF(1.0, (1e-1, 1e3))"
-    
-    stars = params_to_stars(training_data, noise=0.03, rng=rng)
-    validate_stars = params_to_stars(validation_data, noise=0.0, rng=rng)
-    interp = piff.GPInterp2pcf(kernel=kernel, optimize=True, npca=0, white_noise=1e-5)
-    interp.initialize(stars)
-    iterate(stars, interp)
-    
-    config = {
-        'interp' : {
-            'type' : 'GPInterp2pcf',
-            'kernel' : kernel,
-            'npca' : 0,
-            'optimize' : True,
-            'white_noise': 1e-5
-        }
-    }
-    print(config)
-    logger = piff.config.setup_logger()
-    interp3 = piff.Interp.process(config['interp'], logger)
-    iterate(stars, interp3)
-    validate(validate_stars, interp3)
-    
-
     #test_polynomial_psf()
     #test_grf_psf()
     #test_anisotropic_rbf_kernel()
