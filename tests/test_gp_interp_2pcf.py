@@ -313,7 +313,6 @@ def iterate(stars, interp):
             break
         else:
             oldchisq = chisq
-    print(interp.gp.kernel_)
 
 
 def display_old(training_data, vis_data, interp):
@@ -482,6 +481,7 @@ def check_gp(training_data, validation_data, visualization_data,
                 'white_noise': 1e-5
             }
         }
+        print(config)
         logger = piff.config.setup_logger()
         interp3 = piff.Interp.process(config['interp'], logger)
         iterate(stars, interp3)
@@ -513,8 +513,6 @@ def test_constant_psf():
         make_constant_psf_params(ntrain, nvalidate, nvisualize)
 
     kernel = "1*RBF(1.0, (1e-1, 1e3))"
-    # We probably aren't measuring fwhm, g1, g2, etc. to better than 1e-5...
-    #kernel += " + WhiteKernel(1e-5, (1e-7, 1e-1))"
 
     if __name__ == '__main__':
         npcas = [0, 2]
@@ -536,9 +534,6 @@ def test_polynomial_psf():
     training_data, validation_data, visualization_data = \
         make_polynomial_psf_params(ntrain, nvalidate, nvisualize)
     kernel = "1*RBF(0.3, (1e-1, 1e3))"
-    # We probably aren't measuring fwhm, g1, g2, etc. to better than 1e-5, so add that amount of
-    # white noise
-    #kernel += " + WhiteKernel(1e-5, (1e-7, 1e-1))"
 
     if __name__ == '__main__':
         npcas = [0, 2]
@@ -561,9 +556,6 @@ def test_grf_psf():
         make_grf_psf_params(ntrain, nvalidate, nvisualize)
 
     kernel = "1*RBF(0.3, (1e-1, 1e1))"
-    # We probably aren't measuring fwhm, g1, g2, etc. to better than 1e-5, so add that amount of
-    # white noise
-    #kernel += " + WhiteKernel(1e-5, (1e-7, 1e-1))"
 
     if __name__ == '__main__':
         npcas = [0, 5]
@@ -586,7 +578,7 @@ def test_grf_psf():
     # For simplicity, though, just assert a Gaussian == SquaredExponential with scale-length
     # of 0.3.
     kernel = "ExplicitKernel('np.exp(-0.5*(du**2+dv**2)/0.3**2)')"
-    #kernel += " + WhiteKernel(1e-5)"
+
     # No optimize loop, since ExplicitKernel is not optimizable.
     for npca in npcas:
         check_gp(training_data, validation_data, visualization_data, kernel,
@@ -595,7 +587,7 @@ def test_grf_psf():
 
     # Try out an AnisotropicRBF on the isotropic data too.
     kernel = "1*AnisotropicRBF(scale_length=[0.3, 0.3])"
-    #kernel += " + WhiteKernel(1e-5)"
+
     for npca in npcas:
         for optimize in optimizes:
             check_gp(training_data, validation_data, visualization_data, kernel,
@@ -618,7 +610,6 @@ def test_anisotropic_rbf_kernel():
     invLam = np.linalg.inv(cov)
 
     kernel = "0.1*AnisotropicRBF(invLam={0!r})".format(invLam)
-    #kernel += "+ WhiteKernel(1e-5, (1e-7, 1e-2))"
 
     print(kernel)
 
@@ -731,7 +722,6 @@ def test_guess():
         # noise of 0.3 turns out to be pretty significant here.
         stars = params_to_stars(training_data, noise=0.3, rng=rng)
         kernel = "1*RBF({0}, (1e-1, 1e1))".format(guess)
-        #kernel += " + WhiteKernel(1e-5, (1e-7, 1e-1))"
         interp = piff.GPInterp2pcf(kernel=kernel, normalize=False, white_noise=1e-5)
         stars = [mod.fit(s) for s in stars]
         stars = interp.initialize(stars)
@@ -771,7 +761,6 @@ def test_anisotropic_guess():
         # noise of 0.3 turns out to be pretty significant here.
         stars = params_to_stars(training_data, noise=0.03, rng=rng)
         kernel = "1*AnisotropicRBF(scale_length={0!r})".format([guess, guess])
-        #kernel += " + WhiteKernel(1e-5, (1e-7, 1e-1))"
         interp = piff.GPInterp2pcf(kernel=kernel, white_noise=1e-5)
         stars = [mod.fit(s) for s in stars]
         stars = interp.initialize(stars)
@@ -800,7 +789,35 @@ if __name__ == '__main__':
     # pr = cProfile.Profile()
     # pr.enable()
 
-    test_constant_psf()
+    #test_constant_psf()
+    
+    rng = galsim.BaseDeviate(572958179)
+    ntrain, nvalidate, nvisualize = 200, 1, 21
+    training_data, validation_data, visualization_data = make_constant_psf_params(ntrain, nvalidate, nvisualize)
+
+    kernel = "1*RBF(1.0, (1e-1, 1e3))"
+    
+    stars = params_to_stars(training_data, noise=0.03, rng=rng)
+    validate_stars = params_to_stars(validation_data, noise=0.0, rng=rng)
+    interp = piff.GPInterp2pcf(kernel=kernel, optimize=True, npca=0, white_noise=1e-5)
+    interp.initialize(stars)
+    iterate(stars, interp)
+    
+    config = {
+        'interp' : {
+            'type' : 'GPInterp2pcf',
+            'kernel' : kernel,
+            'npca' : 0,
+            'optimize' : True,
+            'white_noise': 1e-5
+        }
+    }
+    print(config)
+    logger = piff.config.setup_logger()
+    interp3 = piff.Interp.process(config['interp'], logger)
+    iterate(stars, interp3)
+    validate(validate_stars, interp3)
+    
 
     #test_polynomial_psf()
     #test_grf_psf()

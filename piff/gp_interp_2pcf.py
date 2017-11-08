@@ -13,7 +13,7 @@
 #    and/or other materials provided with the distribution.
 
 """
-.. module:: sklearn_gp_interp
+.. module:: gp_interp_2pcf
 """
 
 import numpy as np
@@ -55,7 +55,7 @@ class GPInterp2pcf(Interp):
         self.degenerate_points = False
         self.normalize = normalize
         self.optimize = optimize
-        self.white_noise = 0 
+        self.white_noise = white_noise
 
         self.kwargs = {
             'keys': keys,
@@ -144,8 +144,6 @@ class GPInterp2pcf(Interp):
 
         distance = np.exp(kk.logr)
         Coord = np.array([distance,np.zeros_like(distance)]).T
-        print len(distance)
-        print 'YOOOOOOO: ', kernel.set_params()
 
         def PCF(param,k=kernel):
             kernel =  k.clone_with_theta(param)
@@ -192,12 +190,11 @@ class GPInterp2pcf(Interp):
 
         if y_err is None:
             y_err = np.zeros_like(y)
-        HT = kernel.__call__(X1,Y=X2)
+        HT = kernel.__call__(X2,Y=X1)
         K = kernel.__call__(X1) + np.eye(len(y))*y_err**2
-        print 'KERNEL ', K
         factor = (cholesky(K, overwrite_a=True, lower=False), False)
         alpha = cho_solve(factor, y, overwrite_b=False)
-        return np.dot(HT,alpha)
+        return np.dot(HT,alpha.reshape((len(alpha),1))).T[0]
 
     def getProperties(self, star, logger=None):
         """Extract the appropriate properties to use as the independent variables for the
@@ -303,28 +300,50 @@ class GPInterp2pcf(Interp):
         # Note, we're only storing the training data and hyperparameters here, which means the
         # Cholesky decomposition will have to be re-computed when this object is read back from
         # disk.
-        init_theta = self.gp.kernel.theta
-        fit_theta = self.gp.kernel_.theta
+
+        init_theta = np.array([self._init_theta[i] for i in range(self.nparams)])
+        fit_theta = np.array([ker.theta for ker in self.kernels])
+
         dtypes = [('INIT_THETA', init_theta.dtype, init_theta.shape),
                   ('FIT_THETA', fit_theta.dtype, fit_theta.shape),
                   ('X', self._X.dtype, self._X.shape),
-                  ('Y', self._y.dtype, self._y.shape)]
+                  ('Y', self._y.dtype, self._y.shape),
+                  ('Y_ERR', self._y_err.dtype, self._y_err.shape)]
 
         data = np.empty(1, dtype=dtypes)
         data['INIT_THETA'] = init_theta
         data['FIT_THETA'] = fit_theta
         data['X'] = self._X
         data['Y'] = self._y
-
+        data['Y_ERR'] = self._y_err
         fits.write_table(data, extname=extname+'_kernel')
 
     def _finish_read(self, fits, extname):
         data = fits[extname+'_kernel'].read()
         # Run fit to set up GP, but don't actually do any hyperparameter optimization.  Just
         # set the GP up using the current hyperparameters.
-        self.gp.kernel.theta = np.atleast_1d(data['FIT_THETA'][0])
-        old_optimizer, self.gp.optimizer = self.gp.optimizer, None
-        self._fit(data['X'][0], data['Y'][0])
-        self.gp.optimizer = old_optimizer
-        # Now that gp is setup, we can restore it's initial kernel.
-        self.gp.kernel.theta = np.atleast_1d(data['INIT_THETA'][0])
+        init_theta = np.atleast_1d(data['INIT_THETA'][0])
+        fit_theta = np.atleast_1d(data['FIT_THETA'][0])
+
+        self._X = np.atleast_1d(data['X'][0])
+        self._y = np.atleast_1d(data['Y'][0])
+        self._y_err = np.atleast_1d(data['Y_ERR'][0])
+        self._init_theta = init_theta
+        self.nparams = len(init_theta)
+        if self.normalize:
+            self._mean = np.mean(self._y,axis=0)
+        else:
+            self._mean = np.zeros(self.nparams)
+        if len(self.kernel_template)==1:
+            self.kernels = [copy.deepcopy(self.kernel_template[0]) for i in range(self.nparams)]
+        else:
+            if len(self.kernel_template)!= self.nparams:
+                raise ValueError("numbers of kernel provided should be 1 (same for all parameters) or " \
+                "equal to the number of params (%i), number kernel provided: %i"%((self.nparams,len(self.kernel_template))))
+            else:
+                self.kernels = [copy.deepcopy(ker) for ker in self.kernel_template]
+
+        for i in range(self.nparams):
+            self.kernels[i] = self.kernels[i].clone_with_theta(fit_theta[i])
+            self.optimizer = self._optimizer_init 
+
