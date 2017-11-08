@@ -465,7 +465,7 @@ def check_gp(training_data, validation_data, visualization_data,
     """
     stars = params_to_stars(training_data, noise=0.03, rng=rng)
     validate_stars = params_to_stars(validation_data, noise=0.0, rng=rng)
-    interp = piff.GPInterp2pcf(kernel=kernel, optimize=optimize, npca=npca)
+    interp = piff.GPInterp2pcf(kernel=kernel, optimize=optimize, npca=npca, white_noise=1e-5)
     interp.initialize(stars)
     iterate(stars, interp)
     if visualize:
@@ -478,7 +478,8 @@ def check_gp(training_data, validation_data, visualization_data,
                 'type' : 'GPInterp2pcf',
                 'kernel' : kernel,
                 'npca' : npca,
-                'optimize' : optimize
+                'optimize' : optimize,
+                'white_noise': 1e-5
             }
         }
         logger = piff.config.setup_logger()
@@ -513,7 +514,7 @@ def test_constant_psf():
 
     kernel = "1*RBF(1.0, (1e-1, 1e3))"
     # We probably aren't measuring fwhm, g1, g2, etc. to better than 1e-5...
-    kernel += " + WhiteKernel(1e-5, (1e-7, 1e-1))"
+    #kernel += " + WhiteKernel(1e-5, (1e-7, 1e-1))"
 
     if __name__ == '__main__':
         npcas = [0, 2]
@@ -537,7 +538,7 @@ def test_polynomial_psf():
     kernel = "1*RBF(0.3, (1e-1, 1e3))"
     # We probably aren't measuring fwhm, g1, g2, etc. to better than 1e-5, so add that amount of
     # white noise
-    kernel += " + WhiteKernel(1e-5, (1e-7, 1e-1))"
+    #kernel += " + WhiteKernel(1e-5, (1e-7, 1e-1))"
 
     if __name__ == '__main__':
         npcas = [0, 2]
@@ -562,7 +563,7 @@ def test_grf_psf():
     kernel = "1*RBF(0.3, (1e-1, 1e1))"
     # We probably aren't measuring fwhm, g1, g2, etc. to better than 1e-5, so add that amount of
     # white noise
-    kernel += " + WhiteKernel(1e-5, (1e-7, 1e-1))"
+    #kernel += " + WhiteKernel(1e-5, (1e-7, 1e-1))"
 
     if __name__ == '__main__':
         npcas = [0, 5]
@@ -585,7 +586,7 @@ def test_grf_psf():
     # For simplicity, though, just assert a Gaussian == SquaredExponential with scale-length
     # of 0.3.
     kernel = "ExplicitKernel('np.exp(-0.5*(du**2+dv**2)/0.3**2)')"
-    kernel += " + WhiteKernel(1e-5)"
+    #kernel += " + WhiteKernel(1e-5)"
     # No optimize loop, since ExplicitKernel is not optimizable.
     for npca in npcas:
         check_gp(training_data, validation_data, visualization_data, kernel,
@@ -594,7 +595,7 @@ def test_grf_psf():
 
     # Try out an AnisotropicRBF on the isotropic data too.
     kernel = "1*AnisotropicRBF(scale_length=[0.3, 0.3])"
-    kernel += " + WhiteKernel(1e-5)"
+    #kernel += " + WhiteKernel(1e-5)"
     for npca in npcas:
         for optimize in optimizes:
             check_gp(training_data, validation_data, visualization_data, kernel,
@@ -617,7 +618,7 @@ def test_anisotropic_rbf_kernel():
     invLam = np.linalg.inv(cov)
 
     kernel = "0.1*AnisotropicRBF(invLam={0!r})".format(invLam)
-    kernel += "+ WhiteKernel(1e-5, (1e-7, 1e-2))"
+    #kernel += "+ WhiteKernel(1e-5, (1e-7, 1e-2))"
 
     print(kernel)
 
@@ -705,8 +706,8 @@ def test_anisotropic_limit():
     kernel1 = "RBF(0.45)"
     kernel2 = "AnisotropicRBF(scale_length=[0.45, 0.45])"
 
-    gp1 = piff.GPInterp2pcf(kernel=kernel1)
-    gp2 = piff.GPInterp2pcf(kernel=kernel2)
+    gp1 = piff.GPInterp2pcf(kernel=kernel1,white_noise=1e-5)
+    gp2 = piff.GPInterp2pcf(kernel=kernel2,white_noise=1e-5)
 
     X = np.random.rand(1000, 2)
     np.testing.assert_allclose(gp1.gp.kernel(X), gp2.gp.kernel(X))
@@ -730,8 +731,8 @@ def test_guess():
         # noise of 0.3 turns out to be pretty significant here.
         stars = params_to_stars(training_data, noise=0.3, rng=rng)
         kernel = "1*RBF({0}, (1e-1, 1e1))".format(guess)
-        kernel += " + WhiteKernel(1e-5, (1e-7, 1e-1))"
-        interp = piff.GPInterp2pcf(kernel=kernel, normalize=False)
+        #kernel += " + WhiteKernel(1e-5, (1e-7, 1e-1))"
+        interp = piff.GPInterp2pcf(kernel=kernel, normalize=False, white_noise=1e-5)
         stars = [mod.fit(s) for s in stars]
         stars = interp.initialize(stars)
         interp.solve(stars)
@@ -770,8 +771,8 @@ def test_anisotropic_guess():
         # noise of 0.3 turns out to be pretty significant here.
         stars = params_to_stars(training_data, noise=0.03, rng=rng)
         kernel = "1*AnisotropicRBF(scale_length={0!r})".format([guess, guess])
-        kernel += " + WhiteKernel(1e-5, (1e-7, 1e-1))"
-        interp = piff.GPInterp2pcf(kernel=kernel)
+        #kernel += " + WhiteKernel(1e-5, (1e-7, 1e-1))"
+        interp = piff.GPInterp2pcf(kernel=kernel, white_noise=1e-5)
         stars = [mod.fit(s) for s in stars]
         stars = interp.initialize(stars)
         interp.solve(stars)
@@ -798,14 +799,17 @@ if __name__ == '__main__':
     # import cProfile, pstats
     # pr = cProfile.Profile()
     # pr.enable()
+
     test_constant_psf()
-    test_polynomial_psf()
-    test_grf_psf()
-    test_anisotropic_rbf_kernel()
-    test_yaml()
-    test_anisotropic_limit()
-    test_guess()
-    test_anisotropic_guess()
+
+    #test_polynomial_psf()
+    #test_grf_psf()
+    #test_anisotropic_rbf_kernel()
+    #test_yaml()
+    #test_anisotropic_limit()
+    #test_guess()
+    #test_anisotropic_guess()
+
     # pr.disable()
     # ps = pstats.Stats(pr).sort_stats('tottime')
     # ps.print_stats(25)

@@ -21,7 +21,8 @@ import treecorr
 import copy
 
 from sklearn.gaussian_process.kernels import Kernel
-import scipy.optimize as op 
+import scipy.optimize as op
+from scipy.linalg import cholesky, cho_solve
 
 from .interp import Interp
 from .star import Star, StarFit
@@ -47,13 +48,14 @@ class GPInterp2pcf(Interp):
     :param logger:      A logger object for logging debug info. [default: None]
     """
     def __init__(self, keys=('u','v'), kernel='RBF()', optimize=True, npca=0, normalize=True,
-                 logger=None):
+                 logger=None, white_noise=0):
 
         self.keys = keys
         self.npca = npca
         self.degenerate_points = False
         self.normalize = normalize
         self.optimize = optimize
+        self.white_noise = 0 
 
         self.kwargs = {
             'keys': keys,
@@ -64,12 +66,12 @@ class GPInterp2pcf(Interp):
         }
 
         if type(kernel) is str:
-            self.kernel_template = [self._eval_kernel(self.kernel)]
+            self.kernel_template = [self._eval_kernel(kernel)]
         else:
             if type(kernel) is not list:
                 raise TypeError("kernel should be a string or a list of string")
             else:
-                self.kernel_template = [self._eval_kernel(ker) for ker in self.kernel]
+                self.kernel_template = [self._eval_kernel(ker) for ker in kernel]
 
         self._2pcf = []
         self._2pcf_dist = []
@@ -116,7 +118,7 @@ class GPInterp2pcf(Interp):
         if y_err is None:
             y_err = np.zeros_like(y)
             
-        if self.optimizer:
+        if self.optimize:
             kernel = self._optimizer_2pcf(kernel,X,y,y_err)
             
         if logger:
@@ -143,9 +145,10 @@ class GPInterp2pcf(Interp):
         distance = np.exp(kk.logr)
         Coord = np.array([distance,np.zeros_like(distance)]).T
         print len(distance)
-        
-        def PCF(param):
-            kernel =  kernel.clone_with_theta(param)
+        print 'YOOOOOOO: ', kernel.set_params()
+
+        def PCF(param,k=kernel):
+            kernel =  k.clone_with_theta(param)
             pcf = kernel.__call__(Coord,Y=np.zeros_like(Coord))[:,0]
             return pcf
 
@@ -161,8 +164,8 @@ class GPInterp2pcf(Interp):
         self._2pcf.append(kk.xi)
         self._2pcf_dist.append(distance)
         kernel =  kernel.clone_with_theta(results)
-        self._2pcf_fit.append(PCF(kernel.theta)))
-
+        self._2pcf_fit.append(PCF(kernel.theta))
+        print results
         return kernel
 
     def _predict(self, Xstar):
@@ -170,14 +173,14 @@ class GPInterp2pcf(Interp):
         :param X:  The independent covariates at which to interpolate.  (n_samples, n_features).
         :returns:  Regressed parameters  (n_samples, n_targets)
         """
-        if n_pca>0:
+        if self.npca>0:
             y_init = self._y_pca
             y_err = self._y_pca_err
         else:
             y_init = self._y
-            y_err = self._y_pca_err
+            y_err = self._y_err
 
-        ystar = np.array([self.return_gp_predict(y_init[:,i]-self._mean[i], self._X, Xstar, ker, y_err=y_err) for i,ker in enumerate(self.kernels)]).T
+        ystar = np.array([self.return_gp_predict(y_init[:,i]-self._mean[i], self._X, Xstar, ker, y_err=y_err[:,i]) for i,ker in enumerate(self.kernels)]).T
         
         for i in range(self.nparams):
             ystar[:,i] += self._mean[i]
@@ -185,14 +188,15 @@ class GPInterp2pcf(Interp):
             ystar = self._pca.inverse_transform(ystar)
         return ystar
 
-    def return_gp_predict(y, X1, X2, kernel, y_err=y_err):
+    def return_gp_predict(self,y, X1, X2, kernel, y_err=None):
 
         if y_err is None:
             y_err = np.zeros_like(y)
         HT = kernel.__call__(X1,Y=X2)
-        K = kernel.__call__(X1) + np.eye(len(y))*y_err
+        K = kernel.__call__(X1) + np.eye(len(y))*y_err**2
+        print 'KERNEL ', K
         factor = (cholesky(K, overwrite_a=True, lower=False), False)
-        alpha = cho_solve(factor, y, overwrite_b=in_place)
+        alpha = cho_solve(factor, y, overwrite_b=False)
         return np.dot(HT,alpha)
 
     def getProperties(self, star, logger=None):
@@ -238,7 +242,7 @@ class GPInterp2pcf(Interp):
         
         self._X = X
         self._y = y
-        self._y_err = y_err
+        self._y_err = np.sqrt(y_err**2 + self.white_noise**2)
 
         if self.npca > 0:
             from sklearn.decomposition import PCA
