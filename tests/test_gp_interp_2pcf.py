@@ -164,7 +164,7 @@ def make_polynomial_psf_params(ntrain, nvalidate, nvisualize):
     return training_data, validate_data, vis_data.reshape((nvisualize, nvisualize))
 
 
-def make_grf_psf_params(ntrain, nvalidate, nvisualize):
+def make_grf_psf_params(ntrain, nvalidate, nvisualize, scale_length=0.3):
     """ Make training/testing data for PSF with params drawn from isotropic Gaussian random field.
     """
     bd = galsim.BaseDeviate(5772156649+2718281828)
@@ -190,7 +190,7 @@ def make_grf_psf_params(ntrain, nvalidate, nvisualize):
     # Next, generate input data by drawing from a single Gaussian Random Field.
     from scipy.spatial.distance import pdist, squareform
     dists = squareform(pdist(np.array([us, vs]).T))
-    cov = np.exp(-0.5*dists**2/0.3**2)  # Use 0.3 as arbitrary scale length.
+    cov = np.exp(-0.5*dists**2/scale_length**2)  # Use 0.3 as arbitrary scale length.
 
     params['u'] = us
     params['v'] = vs
@@ -203,61 +203,6 @@ def make_grf_psf_params(ntrain, nvalidate, nvisualize):
         params['g2'] = np.random.multivariate_normal([0]*ntotal, cov)*0.05
         params['u0'] = np.random.multivariate_normal([0]*ntotal, cov)*0.3
         params['v0'] = np.random.multivariate_normal([0]*ntotal, cov)*0.3
-    params['flux'] = fluxes
-
-    training_data = params[:ntrain]
-    validate_data = params[ntrain:ntrain+nvalidate]
-    vis_data = params[ntrain+nvalidate:].reshape((nvisualize, nvisualize))
-
-    return training_data, validate_data, vis_data
-
-
-def make_anisotropic_grf_psf_params(ntrain, nvalidate, nvisualize):
-    """ Make training/testing data for PSF with params drawn from anisotropic Gaussian random field.
-    """
-    bd = galsim.BaseDeviate(314159+2718281828)
-    ud = galsim.UniformDeviate(bd)
-
-    ntotal = ntrain + nvalidate + nvisualize**2
-    params = np.recarray((ntotal,), dtype=star_type)
-
-    # Training
-    us = [ud() for i in range(ntrain)]
-    vs = [ud() for i in range(ntrain)]
-    fluxes = [ud()*50+100 for i in range(ntrain)]
-    # Validate
-    us += [ud()*0.5+0.25 for i in range(nvalidate)]
-    vs += [ud()*0.5+0.25 for i in range(nvalidate)]
-    fluxes += [1.0] * nvalidate
-    # Visualize
-    umesh, vmesh = np.meshgrid(np.linspace(0, 1, nvisualize), np.linspace(0, 1, nvisualize))
-    us += list(umesh.ravel())
-    vs += list(vmesh.ravel())
-    fluxes += [1.0] * nvisualize**2
-
-    # Next, generate input data by drawing from a single Gaussian Random Field.
-    from scipy.spatial.distance import pdist, squareform
-    # Use an anisotropic covariance.
-    var1 = 0.1**2
-    var2 = 0.2**2
-    corr = 0.7
-    cov = np.array([[var1, np.sqrt(var1*var2)*corr],
-                    [np.sqrt(var1*var2)*corr, var2]])
-
-    dists = squareform(pdist(np.array([us, vs]).T, metric='mahalanobis', VI=np.linalg.inv(cov)))
-    bigcov = np.exp(-0.5*dists**2)
-
-    params['u'] = us
-    params['v'] = vs
-    # independently draw hlr, g1, g2, u0, v0
-    np.random.seed(1234567890)
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        params['hlr'] = np.random.multivariate_normal([0]*ntotal, bigcov)*0.05+0.5
-        params['g1'] = np.random.multivariate_normal([0]*ntotal, bigcov)*0.05
-        params['g2'] = np.random.multivariate_normal([0]*ntotal, bigcov)*0.05
-        params['u0'] = np.random.multivariate_normal([0]*ntotal, bigcov)*0.1
-        params['v0'] = np.random.multivariate_normal([0]*ntotal, bigcov)*0.1
     params['flux'] = fluxes
 
     training_data = params[:ntrain]
@@ -446,8 +391,12 @@ def validate(validate_stars, interp):
         print('max image abs diff = ',np.max(np.abs(s1.image.array-s0.image.array)))
         print('max image abs value = ',np.max(np.abs(s0.image.array)))
         print('min rtol = ', np.max(np.abs(s1.image.array - s0.image.array)/s0.image.array.max()))
+        if interp.npca>0:
+            cst_close = 0.05
+        else:
+            cst_close = 0.01
         np.testing.assert_allclose(s1.image.array, s0.image.array,
-                                   rtol=0, atol=s0.image.array.max()*0.01)
+                                   rtol=0, atol=s0.image.array.max()*cst_close)
 
         if False:
             import matplotlib.pyplot as plt
@@ -497,19 +446,19 @@ def check_gp(training_data, validation_data, visualization_data,
             interp2 = piff.GPInterp2pcf.read(f, 'interp')
         print("Revalidating after i/o.")
         X = np.vstack([training_data['u'], training_data['v']]).T
-        np.testing.assert_allclose(interp.gp.kernel(X), interp2.gp.kernel(X))
-        np.testing.assert_allclose(interp.gp.kernel.theta, interp2.gp.kernel.theta)
-        np.testing.assert_allclose(interp.gp.kernel_.theta, interp2.gp.kernel_.theta)
-        np.testing.assert_allclose(interp.gp.alpha_, interp2.gp.alpha_, rtol=1e-6, atol=1.e-7)
-        np.testing.assert_allclose(interp.gp.X_train_, interp2.gp.X_train_)
-        np.testing.assert_allclose(interp.gp.y_train_mean, interp2.gp.y_train_mean)
+        for i in range(interp.nparams):
+            np.testing.assert_allclose(interp.kernels[i].__call__(X), interp2.kernels[i].__call__(X))
+            np.testing.assert_allclose(interp._init_theta[i], interp2._init_theta[i])
+            np.testing.assert_allclose(interp.kernels[i].theta, interp2.kernels[i].theta)
+            np.testing.assert_allclose(interp._X, interp2._X)
+            np.testing.assert_allclose(interp._mean[i], interp2._mean[i],atol=1e-12)
         validate(validate_stars, interp2)
 
 
 @timer
 def test_constant_psf():
     rng = galsim.BaseDeviate(572958179)
-    ntrain, nvalidate, nvisualize = 100, 1, 21
+    ntrain, nvalidate, nvisualize = 200, 1, 21
     training_data, validation_data, visualization_data = \
         make_constant_psf_params(ntrain, nvalidate, nvisualize)
 
@@ -531,7 +480,7 @@ def test_constant_psf():
 @timer
 def test_polynomial_psf():
     rng = galsim.BaseDeviate(1203985)
-    ntrain, nvalidate, nvisualize = 200, 1, 21
+    ntrain, nvalidate, nvisualize = 100, 1, 21
     training_data, validation_data, visualization_data = \
         make_polynomial_psf_params(ntrain, nvalidate, nvisualize)
     kernel = "1*RBF(0.3, (1e-1, 1e3))"
@@ -552,14 +501,14 @@ def test_polynomial_psf():
 @timer
 def test_grf_psf():
     rng = galsim.BaseDeviate(987654334587656)
-    ntrain, nvalidate, nvisualize = 100, 1, 21
+    ntrain, nvalidate, nvisualize = 200, 1, 21
     training_data, validation_data, visualization_data = \
         make_grf_psf_params(ntrain, nvalidate, nvisualize)
 
     kernel = "1*RBF(0.3, (1e-1, 1e1))"
 
     if __name__ == '__main__':
-        npcas = [0, 5]
+        npcas = [0]
         optimizes = [True, False]
         check_config = True
     else:
@@ -572,62 +521,6 @@ def test_grf_psf():
             check_gp(training_data, validation_data, visualization_data, kernel,
                      npca=npca, optimize=optimize, file_name="test_gp_grf.fits", rng=rng,
                      check_config=check_config)
-
-    # Check ExplicitKernel here too
-    #
-    # We could in principal use any function of dx, dy here, for instance a galsim.LookupTable2D.
-    # For simplicity, though, just assert a Gaussian == SquaredExponential with scale-length
-    # of 0.3.
-    kernel = "ExplicitKernel('np.exp(-0.5*(du**2+dv**2)/0.3**2)')"
-
-    # No optimize loop, since ExplicitKernel is not optimizable.
-    for npca in npcas:
-        check_gp(training_data, validation_data, visualization_data, kernel,
-                 npca=npca, file_name="test_explicit_grf.fits", rng=rng,
-                 check_config=check_config)
-
-    # Try out an AnisotropicRBF on the isotropic data too.
-    kernel = "1*AnisotropicRBF(scale_length=[0.3, 0.3])"
-
-    for npca in npcas:
-        for optimize in optimizes:
-            check_gp(training_data, validation_data, visualization_data, kernel,
-                     npca=npca, optimize=optimize,
-                     file_name="test_aniso_isotropic_grf.fits", rng=rng,
-                     check_config=check_config)
-
-
-@timer
-def test_anisotropic_rbf_kernel():
-    rng = galsim.BaseDeviate(5867943)
-    ntrain, nvalidate, nvisualize = 250, 1, 21
-    training_data, validation_data, visualization_data = \
-        make_anisotropic_grf_psf_params(ntrain, nvalidate, nvisualize)
-    var1 = 0.1**2
-    var2 = 0.2**2
-    corr = 0.7
-    cov = np.array([[var1, np.sqrt(var1*var2)*corr],
-                    [np.sqrt(var1*var2)*corr, var2]])
-    invLam = np.linalg.inv(cov)
-
-    kernel = "0.1*AnisotropicRBF(invLam={0!r})".format(invLam)
-
-    print(kernel)
-
-    if __name__ == '__main__':
-        npcas = [0, 5]
-        optimizes = [True, False]
-        check_config = True
-    else:
-        npcas = [0]
-        optimizes = [False]
-        check_config = False
-
-    for npca in npcas:
-        for optimize in optimizes:
-            check_gp(training_data, validation_data, visualization_data, kernel,
-                     npca=npca, optimize=optimize, file_name="test_anisotropic_rbf.fits",
-                     rng=rng, check_config=check_config)
 
 
 @timer
@@ -691,37 +584,24 @@ def test_yaml():
     # Doesn't actually check results, just checks that everything runs.
 
 
-@timer
-def test_anisotropic_limit():
-    """Test that AnisotropicRBF with isotropic covariance equals RBF"""
-
-    kernel1 = "RBF(0.45)"
-    kernel2 = "AnisotropicRBF(scale_length=[0.45, 0.45])"
-
-    gp1 = piff.GPInterp2pcf(kernel=kernel1,white_noise=1e-5)
-    gp2 = piff.GPInterp2pcf(kernel=kernel2,white_noise=1e-5)
-
-    X = np.random.rand(1000, 2)
-    np.testing.assert_allclose(gp1.gp.kernel(X), gp2.gp.kernel(X))
-
 
 @timer
 def test_guess():
     rng = galsim.BaseDeviate(8675309)
-    ntrain, nvalidate, nvisualize = 100, 1, 21
+    ntrain, nvalidate, nvisualize = 1000, 1, 21
     training_data, validation_data, visualization_data = \
-        make_grf_psf_params(ntrain, nvalidate, nvisualize)
+        make_grf_psf_params(ntrain, nvalidate, nvisualize,scale_length=0.1)
 
     inferred_scale_length = []
     if __name__ == '__main__':
         guesses =  [0.03, 0.1, 0.3, 1.0, 3.0]
-        rtol = 0.02
+        rtol = 0.2
     else:
         guesses = [0.03, 0.3, 3.0]
         rtol = 0.03
     for guess in guesses:
         # noise of 0.3 turns out to be pretty significant here.
-        stars = params_to_stars(training_data, noise=0.3, rng=rng)
+        stars = params_to_stars(training_data, noise=0.1, rng=rng)
         kernel = "1*RBF({0}, (1e-1, 1e1))".format(guess)
         interp = piff.GPInterp2pcf(kernel=kernel, normalize=False, white_noise=1e-5)
         stars = [mod.fit(s) for s in stars]
@@ -729,60 +609,14 @@ def test_guess():
         interp.solve(stars)
 
         # A bit complicated, but this extracts the scale-length
-        inferred_scale_length.append(np.exp(interp.gp.kernel_.theta[1]))
+        for i in range(interp.nparams):
+            inferred_scale_length.append(np.exp(interp.kernels[i].theta[1]))
 
-    # Check that the inferred scale length is close to the input value of 0.3
-    np.testing.assert_allclose(inferred_scale_length, 0.3, rtol=0.15)
+    # Check that the inferred scale length is close to the input value of 0.1
+    np.testing.assert_allclose(inferred_scale_length, 0.1, atol=0.05)
     # More interesting however, is how independent is the optimization wrt the initial value.
     # So check that the standard deviation of the results is much smaller than the value.
-    np.testing.assert_array_less(np.std(inferred_scale_length), 0.3*rtol)
-
-
-@timer
-def test_anisotropic_guess():
-    rng = galsim.BaseDeviate(8675309)
-    # ntrain, nvalidate, nvisualize = 100, 1, 1
-    # training_data, validation_data, visualization_data = \
-    #     make_grf_psf_params(ntrain, nvalidate, nvisualize)
-    ntrain, nvalidate, nvisualize = 100, 1, 1
-    training_data, validation_data, visualization_data = \
-        make_anisotropic_grf_psf_params(ntrain, nvalidate, nvisualize)
-
-    var1s = []
-    var2s = []
-    corrs = []
-
-    if __name__ == '__main__':
-        guesses =  [0.03, 0.1, 0.3, 1.0, 3.0]
-        rtol = 0.05
-    else:
-        guesses = [0.03, 0.3, 3.0]
-        rtol = 0.10
-    for guess in guesses:
-        # noise of 0.3 turns out to be pretty significant here.
-        stars = params_to_stars(training_data, noise=0.03, rng=rng)
-        kernel = "1*AnisotropicRBF(scale_length={0!r})".format([guess, guess])
-        interp = piff.GPInterp2pcf(kernel=kernel, white_noise=1e-5)
-        stars = [mod.fit(s) for s in stars]
-        stars = interp.initialize(stars)
-        interp.solve(stars)
-
-        invLam = interp.gp.kernel_.get_params()['k1__k2__invLam']
-        Lam = np.linalg.inv(invLam)
-        var1s.append(Lam[0, 0])
-        var2s.append(Lam[1, 1])
-        corrs.append(Lam[0, 1] / np.sqrt(Lam[0, 0]*Lam[1, 1]))
-        print(var1s[-1], var2s[-1], corrs[-1])
-    # Check that the inferred correlation is close to the input correlation with params:
-    # var1 = 0.1**2, var2 = 0.2**2, corr = 0.7
-    np.testing.assert_allclose(var1s, 0.1**2, rtol=1.0)  # Only get right order-of-magnitude or so
-    np.testing.assert_allclose(var2s, 0.2**2, rtol=1.0)  # Only get right order-of-magnitude or so
-    np.testing.assert_allclose(corrs, 0.7, rtol=0.1)  # This one works much better
-    # More interesting however, is how independent is the optimization wrt the initial value.
-    # So check that the standard deviation of the results is small.
-    np.testing.assert_array_less(np.std(var1s), 0.1**2*rtol)
-    np.testing.assert_array_less(np.std(var2s), 0.2**2*rtol)
-    np.testing.assert_array_less(np.std(corrs), 0.7*rtol)
+    np.testing.assert_array_less(np.std(inferred_scale_length), 0.02)
 
 
 if __name__ == '__main__':
@@ -791,14 +625,10 @@ if __name__ == '__main__':
     # pr.enable()
 
     test_constant_psf() # --> DONE
-    
-    #test_polynomial_psf()
-    #test_grf_psf()
-    #test_anisotropic_rbf_kernel()
-    #test_yaml()
-    #test_anisotropic_limit()
-    #test_guess()
-    #test_anisotropic_guess()
+    test_polynomial_psf() # --> DONE
+    test_grf_psf() # --> DONE
+    test_yaml() # --> DONE
+    test_guess() # --> DONE
 
     # pr.disable()
     # ps = pstats.Stats(pr).sort_stats('tottime')

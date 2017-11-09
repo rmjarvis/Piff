@@ -77,6 +77,8 @@ class GPInterp2pcf(Interp):
         self._2pcf_dist = []
         self._2pcf_fit = []
 
+        self.count = 0
+        self._optimizer_init = copy.deepcopy(optimize)
 
     @staticmethod
     def _eval_kernel(kernel):
@@ -150,13 +152,36 @@ class GPInterp2pcf(Interp):
             pcf = kernel.__call__(Coord,Y=np.zeros_like(Coord))[:,0]
             return pcf
 
-        def chi2(param):
+        def chi2(param,disp=0):
             residual = kk.xi - PCF(param)
-            return np.sum(residual**2)
+            var = kk.varxi + disp**2
+            return np.sum(residual**2/var)
 
         print "start minimization"
         p0 = kernel.theta
         results = op.fmin(chi2, p0, disp=False)
+
+        # START TO DO SOMETHING LIKE FOR SNIA AND INTRINSIC SCATTER (EQUIVALENT TO ADD WHITE NOISE)
+
+        dof = len(kk.xi)-len(p0)
+            
+        def disp_function(d,res=results):
+            return abs((chi2(res,disp=d)/dof)-1.)
+
+        calls = 0
+        disp = 0
+        chi2_final = chi2(results)
+        results_save = copy.deepcopy(results)
+        if (chi2_final/dof)>1.:
+            while abs((chi2_final/(dof))-1.)>0.01:
+                if calls<100:
+                    disp = op.fmin(disp_function,disp,args=(results,),disp=0)[0]
+                    results = op.fmin(chi2, results, args=(disp,),disp=False)
+                    chi2_final = chi2(results,disp=disp)
+                else:
+                    results = copy.deepcopy(results_save)
+                    break
+                calls += 1
         print "I am done"
 
         self._2pcf.append(kk.xi)
@@ -317,6 +342,7 @@ class GPInterp2pcf(Interp):
         data['X'] = self._X
         data['Y'] = self._y
         data['Y_ERR'] = self._y_err
+
         fits.write_table(data, extname=extname+'_kernel')
 
     def _finish_read(self, fits, extname):
