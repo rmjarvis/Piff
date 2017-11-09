@@ -619,17 +619,67 @@ def test_guess():
     np.testing.assert_array_less(np.std(inferred_scale_length), 0.02)
 
 
+@timer
+def test_vonkarman_kernel():
+    import scipy.interpolate as inter
+    import scipy.special as ssp
+                    
+    corr_lenght = [1.,10.,100.,1000.]
+    kernel_amp = [1e-4,1e-3,1e-2,1.]
+    dist = np.linspace(0,10,100)
+    coord = np.array([dist,dist]).T
+
+    dist = np.linspace(0.01,10,100)
+    coord_corr = np.array([dist,np.zeros_like(dist)]).T
+    
+    def _vonkarman_kernel(param,x):
+        A = (x[:,0]-x[:,0][:,None])
+        B = (x[:,1]-x[:,1][:,None])
+        distance = np.sqrt(A*A + B*B)
+        K = param[0]**2 * (distance**(5./6.)) * ssp.kv(-5./6.,2*np.pi*distance/param[1])
+        Filtre = np.isfinite(K)
+        dist = np.linspace(1e-4,1.,100)
+        spline = inter.InterpolatedUnivariateSpline(dist,
+                                                    param[0]**2 * (dist**(5./6.)) * ssp.kv(-5./6.,2*np.pi*dist/param[1]))
+        K[~Filtre] = spline(0)
+        return K
+        
+    def _vonkarman_corr_function(param, distance):
+        return param[0]**2 * (distance**(5./6.)) * ssp.kv(-5./6.,2*np.pi*distance/param[1])
+    
+    for corr in corr_lenght:
+        for amp in kernel_amp:
+        
+            kernel = "%.10f * VonKarman(length_scale=%f)"%((amp**2,corr))
+
+            interp = piff.GPInterp2pcf(kernel=kernel,
+                                       normalize=False,
+                                       white_noise=0.)
+            ker = interp.kernel_template[0]
+
+            ker_piff = ker.__call__(coord)
+            corr_piff = ker.__call__(coord_corr,Y=np.zeros_like(coord_corr))[:,0]
+
+            ker_test = _vonkarman_kernel([amp,corr],coord)
+            corr_test = _vonkarman_corr_function([amp,corr], dist) 
+
+            np.testing.assert_allclose(ker_piff, ker_test, atol=1e-12)
+            np.testing.assert_allclose(corr_piff, corr_test, atol=1e-12)
+
 if __name__ == '__main__':
     # import cProfile, pstats
     # pr = cProfile.Profile()
     # pr.enable()
 
-    test_constant_psf() # --> DONE
-    test_polynomial_psf() # --> DONE
-    test_grf_psf() # --> DONE
-    test_yaml() # --> DONE
-    test_guess() # --> DONE
+    test_constant_psf()
+    test_polynomial_psf()
+    test_grf_psf()
+    #test_vonkarman_psf() #--> TO DO 2
+    test_vonkarman_kernel() #--> TO DO 1
+    test_yaml()
+    test_guess()
 
     # pr.disable()
     # ps = pstats.Stats(pr).sort_stats('tottime')
     # ps.print_stats(25)
+
