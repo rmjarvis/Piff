@@ -21,6 +21,7 @@ import os
 import subprocess
 import yaml
 import fitsio
+import copy
 
 from piff_test_helper import get_script_name, timer
 
@@ -212,6 +213,56 @@ def make_grf_psf_params(ntrain, nvalidate, nvisualize, scale_length=0.3):
     return training_data, validate_data, vis_data
 
 
+def make_vonkarman_psf_params(ntrain, nvalidate, nvisualize, scale_length=0.3):
+    """ Make training/testing data for PSF with params drawn from isotropic Von Karman gaussian random field.
+    """
+    bd = galsim.BaseDeviate(5772156649+2718281828)
+    ud = galsim.UniformDeviate(bd)
+
+    ntotal = ntrain + nvalidate + nvisualize**2
+    params = np.recarray((ntotal,), dtype=star_type)
+
+    # Training
+    us = [ud() for i in range(ntrain)]
+    vs = [ud() for i in range(ntrain)]
+    fluxes = [ud()*50+100 for i in range(ntrain)]
+    # Validate
+    us += [ud()*0.5+0.25 for i in range(nvalidate)]
+    vs += [ud()*0.5+0.25 for i in range(nvalidate)]
+    fluxes += [1.0] * nvalidate
+    # Visualize
+    umesh, vmesh = np.meshgrid(np.linspace(0, 1, nvisualize), np.linspace(0, 1, nvisualize))
+    us += list(umesh.ravel())
+    vs += list(vmesh.ravel())
+    fluxes += [1.0] * nvisualize**2
+
+    # Next, generate input data by drawing from a single Gaussian Random Field.
+    kernel = 0.05**2 * piff.VonKarman(length_scale = scale_length)
+    kernel_pos = 0.1**2 * piff.VonKarman(length_scale = scale_length)
+    cov = kernel.__call__(np.array([us, vs]).T)
+    cov_pos = kernel_pos.__call__(np.array([us, vs]).T)
+    
+
+    params['u'] = us
+    params['v'] = vs
+    # independently draw hlr, g1, g2, u0, v0
+    np.random.seed(612622169)#1234567890)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        params['hlr'] = np.random.multivariate_normal([0]*ntotal, cov)+0.6
+        params['g1'] = np.random.multivariate_normal([0]*ntotal, cov)
+        params['g2'] = np.random.multivariate_normal([0]*ntotal, cov)
+        params['u0'] = np.random.multivariate_normal([0]*ntotal, cov_pos)
+        params['v0'] = np.random.multivariate_normal([0]*ntotal, cov_pos)
+    params['flux'] = fluxes
+
+    training_data = params[:ntrain]
+    validate_data = params[ntrain:ntrain+nvalidate]
+    vis_data = params[ntrain+nvalidate:].reshape((nvisualize, nvisualize))
+
+    return training_data, validate_data, vis_data
+
+
 def params_to_stars(params, noise=0.0, rng=None):
     stars = []
     for param in params.ravel():
@@ -358,7 +409,7 @@ def display(training_data, vis_data, interp):
         ax4.set_xlim((-0.2,1.2))
         ax4.set_ylim((-0.2,1.2))
         ax4.scatter(vis_data['u'], vis_data['v'], c=(cinterp-ctruth),
-                            vmin=vmin/10, vmax=vmax/10)
+                            vmin=vmin, vmax=vmax)
 
     for ax in axarr.ravel():
         ax.xaxis.set_ticks([])
@@ -409,7 +460,7 @@ def validate(validate_stars, interp):
 
 def check_gp(training_data, validation_data, visualization_data,
              kernel, npca=0, optimize=False, file_name=None, rng=None,
-             visualize=False, check_config=False):
+             visualize=True, check_config=False):
     """ Solve for global PSF model, test it, and optionally display it.
     """
     stars = params_to_stars(training_data, noise=0.03, rng=rng)
@@ -522,6 +573,31 @@ def test_grf_psf():
                      npca=npca, optimize=optimize, file_name="test_gp_grf.fits", rng=rng,
                      check_config=check_config)
 
+@timer
+def test_vonkarman_psf():
+    rng = galsim.BaseDeviate(987654334587656)
+    ntrain, nvalidate, nvisualize = 300, 1, 21
+    training_data, validation_data, visualization_data = \
+        make_vonkarman_psf_params(ntrain, nvalidate, nvisualize)
+
+    kernel = "0.5*VonKarman(0.3, (1e-1, 1e1))"
+
+    if __name__ == '__main__':
+        npcas = [0]
+        optimizes = [True, False]
+        check_config = True
+    else:
+        npcas = [0]
+        optimizes = [False]
+        check_config = False
+
+    for npca in npcas:
+        for optimize in optimizes:
+            print('FOR PF: ',npca,optimize)
+            check_gp(training_data, validation_data, visualization_data, kernel,
+                     npca=npca, optimize=optimize, file_name="test_gp_vonkarman.fits", rng=rng,
+                     check_config=check_config)
+            
 
 @timer
 def test_yaml():
@@ -619,6 +695,7 @@ def test_guess():
     np.testing.assert_array_less(np.std(inferred_scale_length), 0.02)
 
 
+
 @timer
 def test_vonkarman_kernel():
     import scipy.interpolate as inter
@@ -671,15 +748,30 @@ if __name__ == '__main__':
     # pr = cProfile.Profile()
     # pr.enable()
 
-    test_constant_psf()
-    test_polynomial_psf()
-    test_grf_psf()
-    #test_vonkarman_psf() #--> TO DO 2
-    test_vonkarman_kernel() #--> TO DO 1
-    test_yaml()
-    test_guess()
+    #test_constant_psf()
+    #test_polynomial_psf()
+    #test_grf_psf()
+
+    #test_vonkarman_psf()
+
+    rng = galsim.BaseDeviate(987654334587656)
+    ntrain, nvalidate, nvisualize = 1000, 1, 21
+    training_data, validation_data, visualization_data = \
+                                                         make_vonkarman_psf_params(ntrain, nvalidate, nvisualize)
+    kernel = "1*VonKarman(0.1, (1e-1, 1e1))"
+    stars = params_to_stars(training_data, noise=0.03, rng=rng)
+    validate_stars = params_to_stars(validation_data, noise=0.0, rng=rng)
+    interp = piff.GPInterp2pcf(kernel=kernel, optimize=True, npca=0, white_noise=1e-5)
+    interp.initialize(stars)
+    iterate(stars, interp)
+    
+    #display(training_data, visualization_data, interp)
+                            
+
+    #test_vonkarman_kernel()
+    #test_yaml()
+    #test_guess()
 
     # pr.disable()
     # ps = pstats.Stats(pr).sort_stats('tottime')
     # ps.print_stats(25)
-

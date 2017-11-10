@@ -272,7 +272,7 @@ class VonKarman(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
                 dd = np.linspace(1e-4,1,100)
                 spline = inter.InterpolatedUnivariateSpline(dd,
                                                             (dd**(5./6.)) * ssp.kv(-5./6.,2*np.pi*dd_w))
-                K[Filter] = spline(0)
+                K[~Filter] = spline(0)
 
         if eval_gradient:
             if self.hyperparameter_length_scale.fixed:
