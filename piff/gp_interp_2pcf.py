@@ -261,7 +261,7 @@ class GPInterp2pcf(Interp):
         """
         X = np.array([self.getProperties(star) for star in stars])
         y = np.array([star.fit.params for star in stars])
-        y_err = np.zeros_like(y)#TO DO 
+        y_err = np.array([np.sqrt(np.diag(star.fit.params_cov)) for star in stars])
         
         self._X = X
         self._y = y

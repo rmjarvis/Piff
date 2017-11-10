@@ -214,10 +214,11 @@ class GSObjectModel(Model):
         results = self._lmfit_minimize(params, star, logger=logger)
         logger.debug(lmfit.fit_report(results))
         flux, du, dv, scale, g1, g2 = results.params.valuesdict().values()
+        params_cov = results.covar
         if not results.success:
             raise RuntimeError("Error fitting with lmfit.")
 
-        return flux, du, dv, scale, g1, g2
+        return flux, du, dv, scale, g1, g2, params_cov
 
     @staticmethod
     def with_hsm(star):
@@ -254,15 +255,18 @@ class GSObjectModel(Model):
 
         if fastfit:
             flux, du, dv, scale, g1, g2 = self.moment_fit(star, logger=logger)
+            cov = np.zeros((6,6))
         else:
-            flux, du, dv, scale, g1, g2 = self.lmfit(star, logger=logger)
+            flux, du, dv, scale, g1, g2, cov = self.lmfit(star, logger=logger)
         # Make a StarFit object with these parameters
         if self._force_model_center:
             params = np.array([ scale, g1, g2 ])
             center = (du, dv)
+            params_cov = cov[3:,3:]
         else:
             params = np.array([ du, dv, scale, g1, g2 ])
             center = (0.0, 0.0)
+            params_cov = cov[1:,1:]
 
         # Also need to compute chisq
         prof = self.getProfile(params) * flux
@@ -271,7 +275,7 @@ class GSObjectModel(Model):
                                      offset=(star.image_pos - model_image.trueCenter()))
         chisq = np.sum(star.weight.array * (star.image.array - model_image.array)**2)
         dof = np.count_nonzero(star.weight.array) - self._nparams
-        fit = StarFit(params, flux=flux, center=center, chisq=chisq, dof=dof)
+        fit = StarFit(params, params_cov=params_cov, flux=flux, center=center, chisq=chisq, dof=dof)
         return Star(star.data, fit)
 
     def initialize(self, star, mask=True, logger=None):
