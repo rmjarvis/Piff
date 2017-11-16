@@ -36,7 +36,7 @@ class GPInterp2pcf(Interp):
     :param kernel:      A string that can be `eval`ed to make a
                         sklearn.gaussian_process.kernels.Kernel object.  The reprs of
                         sklearn.gaussian_process.kernels will work, as well as the repr of a
-                        custom piff AnisotropicRBF or ExplicitKernel object.  [default: 'RBF()']
+                        custom piff VonKarman object.  [default: 'RBF()']
     :param optimize:    Boolean indicating whether or not to try and optimize the kernel by
                         computing the two-point correlation function.  [default: True]
     :param npca:        Number of principal components to keep.  [default: 0, which means don't
@@ -45,10 +45,12 @@ class GPInterp2pcf(Interp):
                         Normally, the parameters being interpolated are not mean 0, so you would
                         want this to be True, but if your parameters have an a priori mean of 0,
                         then subtracting off the realized mean would be invalid.  [default: True]
+    :param white_noise: A float value that indicate the ammount of white noise that you want to 
+                        use during the gp interpolation. [default: 0.]
     :param logger:      A logger object for logging debug info. [default: None]
     """
     def __init__(self, keys=('u','v'), kernel='RBF()', optimize=True, npca=0, normalize=True,
-                 logger=None, white_noise=0):
+                 logger=None, white_noise=0.):
 
         self.keys = keys
         self.npca = npca
@@ -106,10 +108,12 @@ class GPInterp2pcf(Interp):
         return k
 
     def _fit(self, kernel, X, y, y_err=None, logger=None):
-        """Update the Kernel with data
+        """Update the Kernel with data.
+
         :param kernel: sklearn.gaussian_process kernel.
         :param X:  The independent covariates.  (n_samples, n_features)
         :param y:  The dependent responses.  (n_samples, n_targets)
+        :param y_err: Error of y. (n_samples, n_targets) [default: None]
         :param logger:  A logger object for logging debug info. [default: None]
         """
         if logger:
@@ -130,7 +134,13 @@ class GPInterp2pcf(Interp):
 
     
     def _optimizer_2pcf(self,kernel,X,y,y_err):
-        
+        """Fit hyperparameter using two-point correlation function.
+
+        :param kernel: sklearn.gaussian_process kernel.
+        :param X:  The independent covariates.  (n_samples, n_features)
+        :param y:  The dependent responses.  (n_samples, n_targets)
+        :param y_err: Error of y. (n_samples, n_targets)
+        """
         size_x = np.max(X[:,0]) - np.min(X[:,0])
         size_y = np.max(X[:,1]) - np.min(X[:,1])
         rho = float(len(X[:,0])) / (size_x * size_y)
@@ -152,37 +162,18 @@ class GPInterp2pcf(Interp):
             pcf = kernel.__call__(Coord,Y=np.zeros_like(Coord))[:,0]
             return pcf
 
-        def chi2(param,disp=0):
+        def chi2(param,disp=np.std(y)):
             residual = kk.xi - PCF(param)
-            var = kk.varxi + disp**2
+            var = disp**2
             return np.sum(residual**2/var)
 
-        print "start minimization"
         p0 = kernel.theta
-        results = op.fmin(chi2, p0, disp=False)
-
-        # START TO DO SOMETHING LIKE FOR SNIA AND INTRINSIC SCATTER (EQUIVALENT TO ADD WHITE NOISE)
-
-        dof = len(kk.xi)-len(p0)
-            
-        def disp_function(d,res=results):
-            return abs((chi2(res,disp=d)/dof)-1.)
-
-        calls = 0
-        disp = 0
-        chi2_final = chi2(results)
-        results_save = copy.deepcopy(results)
-        if (chi2_final/dof)>1.:
-            while abs((chi2_final/(dof))-1.)>0.01:
-                if calls<100:
-                    disp = op.fmin(disp_function,disp,args=(results,),disp=0)[0]
-                    results = op.fmin(chi2, results, args=(disp,),disp=False)
-                    chi2_final = chi2(results,disp=disp)
-                else:
-                    results = copy.deepcopy(results_save)
-                    break
-                calls += 1
-        print "I am done"
+        results_fmin = op.fmin(chi2,p0,disp=False)
+        results_bfgs = op.minimize(chi2,p0,method="L-BFGS-B")
+        results = [results_fmin, results_bfgs['x']]
+        chi2_min = [chi2(results[0]), chi2(results[1])]
+        ind_min = chi2_min.index(min(chi2_min))
+        results = results[ind_min]
 
         self._2pcf.append(kk.xi)
         self._2pcf_dist.append(distance)
@@ -192,7 +183,7 @@ class GPInterp2pcf(Interp):
 
     def _predict(self, Xstar):
         """ Predict responses given covariates.
-        :param X:  The independent covariates at which to interpolate.  (n_samples, n_features).
+        :param Xstar:  The independent covariates at which to interpolate.  (n_samples, n_features).
         :returns:  Regressed parameters  (n_samples, n_targets)
         """
         if self.npca>0:
@@ -211,6 +202,14 @@ class GPInterp2pcf(Interp):
         return ystar
 
     def return_gp_predict(self,y, X1, X2, kernel, y_err=None):
+        """Compute interpolation with gaussian process for a given kernel.
+
+        :param y:  The dependent responses.  (n_samples, n_targets)
+        :param X1:  The independent covariates.  (n_samples, n_features)
+        :param X2:  The independent covariates at which to interpolate.  (n_samples, n_features)
+        :param kernel: sklearn.gaussian_process kernel.
+        :param y_err: Error of y. (n_samples, n_targets)
+        """
 
         if y_err is None:
             y_err = np.zeros_like(y)

@@ -688,8 +688,8 @@ def test_guess():
     for guess in guesses:
         # noise of 0.3 turns out to be pretty significant here.
         stars = params_to_stars(training_data, noise=0.1, rng=rng)
-        kernel = "1*RBF({0}, (1e-1, 1e1))".format(guess)
-        interp = piff.GPInterp2pcf(kernel=kernel, normalize=False, white_noise=1e-5)
+        kernel = "1*RBF({0}, (1e-6, 1e1))".format(guess)
+        interp = piff.GPInterp2pcf(kernel=kernel, normalize=True, white_noise=0.)
         stars = [mod.fit(s) for s in stars]
         stars = interp.initialize(stars)
         interp.solve(stars)
@@ -757,7 +757,6 @@ if __name__ == '__main__':
     # import cProfile, pstats
     # pr = cProfile.Profile()
     # pr.enable()
-
     test_constant_psf()
     test_polynomial_psf()
     test_grf_psf()
@@ -765,7 +764,6 @@ if __name__ == '__main__':
     test_vonkarman_kernel()
     test_yaml()
     test_guess()
-
     # pr.disable()
     # ps = pstats.Stats(pr).sort_stats('tottime')
     # ps.print_stats(25)
