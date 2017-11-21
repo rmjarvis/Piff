@@ -218,6 +218,9 @@ class GSObjectModel(Model):
         if not results.success:
             raise RuntimeError("Error fitting with lmfit.")
 
+        if params_cov is None:
+            params_cov = np.zeros((5,5))
+        
         return flux, du, dv, scale, g1, g2, params_cov
 
     @staticmethod
