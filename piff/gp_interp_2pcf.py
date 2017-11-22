@@ -77,8 +77,8 @@ class GPInterp2pcf(Interp):
         if type(kernel) is str:
             self.kernel_template = [self._eval_kernel(kernel)]
         else:
-            if type(kernel) is not list:
-                raise TypeError("kernel should be a string or a list of string")
+            if type(kernel) is not list and type(kernel) is not np.ndarray:
+                raise TypeError("kernel should be a string a list or a numpy.ndarray of string")
             else:
                 self.kernel_template = [self._eval_kernel(ker) for ker in kernel]
 

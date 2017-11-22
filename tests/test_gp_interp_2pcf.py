@@ -268,6 +268,62 @@ def make_vonkarman_psf_params(ntrain, nvalidate, nvisualize, scale_length=0.7):
 
     return training_data, validate_data, vis_data
 
+def make_vonkarman_and_rbf_psf_params(ntrain, nvalidate, nvisualize, scale_length=0.7):
+    """ Make training/testing data for PSF with params drawn from isotropic Von Karman and rbf gaussian random field.
+    """
+    bd = galsim.BaseDeviate(5772156649+2718281828)
+    ud = galsim.UniformDeviate(bd)
+
+    ntotal = ntrain + nvalidate + nvisualize**2
+    params = np.recarray((ntotal,), dtype=star_type)
+
+    np.random.seed(612622169)
+    
+    # Training
+    #us = [ud() for i in range(ntrain)]
+    #vs = [ud() for i in range(ntrain)]
+    us = [np.random.uniform(0,2) for i in range(ntrain)]
+    vs = [np.random.uniform(0,2) for i in range(ntrain)]
+    fluxes = [ud()*50+100 for i in range(ntrain)]
+    # Validate
+    #us += [ud()*0.5+0.25 for i in range(nvalidate)]
+    #vs += [ud()*0.5+0.25 for i in range(nvalidate)]
+    us += [np.random.uniform(0,2) for i in range(nvalidate)]
+    vs += [np.random.uniform(0,2) for i in range(nvalidate)]
+    fluxes += [1.0] * nvalidate
+    # Visualize
+    umesh, vmesh = np.meshgrid(np.linspace(0, 2, nvisualize), np.linspace(0, 2, nvisualize))
+    us += list(umesh.ravel())
+    vs += list(vmesh.ravel())
+    fluxes += [1.0] * nvisualize**2
+
+    from scipy.spatial.distance import pdist, squareform
+    dists = squareform(pdist(np.array([us, vs]).T))
+    cov_pos = 0.1**2 * np.exp(-0.5*dists**2/scale_length**2)
+
+    # Next, generate input data by drawing from a single Gaussian Random Field.
+    kernel = 0.05**2 * piff.VonKarman(length_scale = scale_length)
+    cov = kernel.__call__(np.array([us, vs]).T)    
+
+    params['u'] = us
+    params['v'] = vs
+    # independently draw hlr, g1, g2, u0, v0
+    np.random.seed(612622169)#1234567890)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        params['hlr'] = np.random.multivariate_normal([0]*ntotal, cov)+0.6
+        params['g1'] = np.random.multivariate_normal([0]*ntotal, cov)
+        params['g2'] = np.random.multivariate_normal([0]*ntotal, cov)
+        params['u0'] = np.random.multivariate_normal([0]*ntotal, cov_pos)
+        params['v0'] = np.random.multivariate_normal([0]*ntotal, cov_pos)
+    params['flux'] = fluxes
+
+    training_data = params[:ntrain]
+    validate_data = params[ntrain:ntrain+nvalidate]
+    vis_data = params[ntrain+nvalidate:].reshape((nvisualize, nvisualize))
+
+    return training_data, validate_data, vis_data
+
 
 def params_to_stars(params, noise=0.0, rng=None):
     stars = []
@@ -603,7 +659,35 @@ def test_vonkarman_psf():
 
     for npca in npcas:
         for optimize in optimizes:
-            print('FOR PF: ',npca,optimize)
+            check_gp(training_data, validation_data, visualization_data, kernel,
+                     npca=npca, optimize=optimize, file_name="test_gp_vonkarman.fits", rng=rng,
+                     check_config=check_config)
+
+@timer
+def test_gp_with_kernels():
+
+    rng = galsim.BaseDeviate(987654334587656)
+    ntrain, nvalidate, nvisualize = 1000, 1, 20
+    training_data, validation_data, visualization_data = \
+                                                         make_vonkarman_and_rbf_psf_params(ntrain, nvalidate, nvisualize)
+    
+    kernel = ["1*RBF(0.3, (1e-1, 1e1))",
+              "1*RBF(0.3, (1e-1, 1e1))",
+              "0.5*VonKarman(0.3, (1e-1, 1e1))",
+              "0.5*VonKarman(0.3, (1e-1, 1e1))",
+              "0.5*VonKarman(0.3, (1e-1, 1e1))"]
+    
+    if __name__ == '__main__':
+        npcas = [0]
+        optimizes = [True, False]
+        check_config = True
+    else:
+        npcas = [0]
+        optimizes = [False]
+        check_config = False
+    
+    for npca in npcas:
+        for optimize in optimizes:
             check_gp(training_data, validation_data, visualization_data, kernel,
                      npca=npca, optimize=optimize, file_name="test_gp_vonkarman.fits", rng=rng,
                      check_config=check_config)
@@ -704,8 +788,6 @@ def test_guess():
     # So check that the standard deviation of the results is much smaller than the value.
     np.testing.assert_array_less(np.std(inferred_scale_length), 0.02)
 
-
-
 @timer
 def test_vonkarman_kernel():
     import scipy.interpolate as inter
@@ -762,6 +844,7 @@ if __name__ == '__main__':
     test_grf_psf()
     test_vonkarman_psf()
     test_vonkarman_kernel()
+    test_gp_with_kernels()
     test_yaml()
     test_guess()
     # pr.disable()
