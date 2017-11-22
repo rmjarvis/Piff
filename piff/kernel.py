@@ -56,10 +56,8 @@ class ExplicitKernel(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
         if Y is None:
             Y = X
 
-        # Only writen for 2D covariance at the moment
-        xshift = np.subtract.outer(X[:,0], Y[:,0])
-        yshift = np.subtract.outer(X[:,1], Y[:,1])
-        return self._fn(xshift, yshift)
+        shift = [np.subtract.outer(X[:,i], Y[:,i]) for i in range(X.shape[1])]
+        return self._fn(*shift)
 
 
 class AnisotropicRBF(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
