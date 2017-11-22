@@ -32,24 +32,28 @@ class GPInterp2pcf(Interp):
     """
     An interpolator that uses two-point correlation function and gaussian process to interpolate a single surface.
 
-    :param keys:        A list of star attributes to interpolate from
+    :param keys:        A list of star attributes to interpolate from. Must be 2 attributes
+                        using two-point correlation function to estimate hyperparameter(s)
     :param kernel:      A string that can be `eval`ed to make a
                         sklearn.gaussian_process.kernels.Kernel object.  The reprs of
                         sklearn.gaussian_process.kernels will work, as well as the repr of a
-                        custom piff VonKarman object.  [default: 'RBF()']
+                        custom piff VonKarman object.  [default: 'RBF(1)']
     :param optimize:    Boolean indicating whether or not to try and optimize the kernel by
                         computing the two-point correlation function.  [default: True]
-    :param npca:        Number of principal components to keep.  [default: 0, which means don't
-                        decompose PSF parameters into principle components]
+    :param npca:        Number of principal components to keep. If !=0 pca is done on 
+                        PSF parameters before any interpolation, and it will be the PC that will 
+                        be interpolate and then retransform in PSF parameters. [default: 0, which 
+                        means don't decompose PSF parameters into principle components.]
     :param normalize:   Whether to normalize the interpolation parameters to have a mean of 0.
                         Normally, the parameters being interpolated are not mean 0, so you would
                         want this to be True, but if your parameters have an a priori mean of 0,
                         then subtracting off the realized mean would be invalid.  [default: True]
     :param white_noise: A float value that indicate the ammount of white noise that you want to 
-                        use during the gp interpolation. [default: 0.]
+                        use during the gp interpolation. This is an additional uncorrelated noise 
+                        added to the error of the PSF parameters. [default: 0.]
     :param logger:      A logger object for logging debug info. [default: None]
     """
-    def __init__(self, keys=('u','v'), kernel='RBF()', optimize=True, npca=0, normalize=True,
+    def __init__(self, keys=('u','v'), kernel='RBF(1)', optimize=True, npca=0, normalize=True,
                  logger=None, white_noise=0.):
 
         self.keys = keys
@@ -67,6 +71,9 @@ class GPInterp2pcf(Interp):
             'normalize':normalize
         }
 
+        if len(keys)!=2:
+            raise ValueError('the total size of keys can not be something else than 2 using two-point correlation function. Here len(keys) = %i'%(len(keys)))
+
         if type(kernel) is str:
             self.kernel_template = [self._eval_kernel(kernel)]
         else:
@@ -78,9 +85,6 @@ class GPInterp2pcf(Interp):
         self._2pcf = []
         self._2pcf_dist = []
         self._2pcf_fit = []
-
-        self.count = 0
-        self._optimizer_init = copy.deepcopy(optimize)
 
     @staticmethod
     def _eval_kernel(kernel):
@@ -99,19 +103,21 @@ class GPInterp2pcf(Interp):
             execstr = "{0} = module.{0}".format(cls.__name__)
             exec(execstr, globals(), locals())
 
-        from numpy import array
-
         try:
             k = eval(kernel)
         except:
             raise RuntimeError("Failed to evaluate kernel string {0!r}".format(kernel))
+        
+        if type(k.theta) is property:
+            raise TypeError("String provided was not initialized properly")
+        
         return k
 
     def _fit(self, kernel, X, y, y_err=None, logger=None):
         """Update the Kernel with data.
 
         :param kernel: sklearn.gaussian_process kernel.
-        :param X:  The independent covariates.  (n_samples, n_features)
+        :param X:  The independent covariates.  (n_samples, 2)
         :param y:  The dependent responses.  (n_samples, n_targets)
         :param y_err: Error of y. (n_samples, n_targets) [default: None]
         :param logger:  A logger object for logging debug info. [default: None]
@@ -127,8 +133,8 @@ class GPInterp2pcf(Interp):
         if self.optimize:
             kernel = self._optimizer_2pcf(kernel,X,y,y_err)
             
-        if logger:
-            logger.debug('After fit: kernel = %s',kernel.set_params())
+            if logger:
+                logger.debug('After fit: kernel = %s',kernel.set_params())
 
         return kernel
 
@@ -137,7 +143,7 @@ class GPInterp2pcf(Interp):
         """Fit hyperparameter using two-point correlation function.
 
         :param kernel: sklearn.gaussian_process kernel.
-        :param X:  The independent covariates.  (n_samples, n_features)
+        :param X:  The independent covariates.  (n_samples, 2)
         :param y:  The dependent responses.  (n_samples, n_targets)
         :param y_err: Error of y. (n_samples, n_targets)
         """
@@ -183,7 +189,7 @@ class GPInterp2pcf(Interp):
 
     def _predict(self, Xstar):
         """ Predict responses given covariates.
-        :param Xstar:  The independent covariates at which to interpolate.  (n_samples, n_features).
+        :param Xstar:  The independent covariates at which to interpolate.  (n_samples, 2).
         :returns:  Regressed parameters  (n_samples, n_targets)
         """
         if self.npca>0:
@@ -205,8 +211,8 @@ class GPInterp2pcf(Interp):
         """Compute interpolation with gaussian process for a given kernel.
 
         :param y:  The dependent responses.  (n_samples, n_targets)
-        :param X1:  The independent covariates.  (n_samples, n_features)
-        :param X2:  The independent covariates at which to interpolate.  (n_samples, n_features)
+        :param X1:  The independent covariates.  (n_samples, 2)
+        :param X2:  The independent covariates at which to interpolate.  (n_samples, 2)
         :param kernel: sklearn.gaussian_process kernel.
         :param y_err: Error of y. (n_samples, n_targets)
         """
@@ -371,5 +377,4 @@ class GPInterp2pcf(Interp):
 
         for i in range(self.nparams):
             self.kernels[i] = self.kernels[i].clone_with_theta(fit_theta[i])
-            self.optimizer = self._optimizer_init 
 
