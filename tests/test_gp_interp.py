@@ -512,7 +512,7 @@ def validate(validate_stars, interp):
 
 def check_gp(training_data, validation_data, visualization_data,
              kernel, npca=0, optimize=False, file_name=None, rng=None,
-             visualize=True, check_config=False):
+             visualize=False, check_config=False):
     """ Solve for global PSF model, test it, and optionally display it.
     """
     stars = params_to_stars(training_data, noise=0.03, rng=rng)
@@ -877,15 +877,15 @@ if __name__ == '__main__':
     # import cProfile, pstats
     # pr = cProfile.Profile()
     # pr.enable()
-    ##test_constant_psf()
-    ##test_polynomial_psf()
-    ##test_grf_psf()
+    test_constant_psf()
+    test_polynomial_psf()
+    test_grf_psf()
     test_vonkarman_psf()
-    ##test_anisotropic_rbf_kernel()
-    ##test_yaml()
-    ##test_anisotropic_limit()
-    ##test_guess()
-    ##test_anisotropic_guess()
+    test_anisotropic_rbf_kernel()
+    test_yaml()
+    test_anisotropic_limit()
+    test_guess()
+    test_anisotropic_guess()
     # pr.disable()
     # ps = pstats.Stats(pr).sort_stats('tottime')
     # ps.print_stats(25)
