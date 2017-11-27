@@ -182,7 +182,6 @@ class AnisotropicRBF(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
         return self._bounds
 
 
-
 class VonKarman(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
     """VonKarman kernel.
 
@@ -195,12 +194,10 @@ class VonKarman(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
 
     length_scale_bounds : pair of floats >= 0, default: (1e-5, 1e5)
         The lower and upper bound on length_scale
-
     """
     def __init__(self, length_scale=1.0, length_scale_bounds=(1e-5, 1e5)):
         self.length_scale = length_scale
         self.length_scale_bounds = length_scale_bounds
-        
 
     @property
     def anisotropic(self):
@@ -251,7 +248,7 @@ class VonKarman(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
             dists = pdist(X, metric='euclidean')
             K = (dists**(5./6.)) * ssp.kv(-5./6.,2*np.pi*dists/length_scale)
             K = squareform(K)
-            
+
             dd_w = np.linspace(1e-4,1,100) / length_scale
             dd = np.linspace(1e-4,1,100)
             spline = inter.InterpolatedUnivariateSpline(dd,
@@ -261,7 +258,7 @@ class VonKarman(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
             if eval_gradient:
                 raise ValueError(
                     "Gradient can only be evaluated when Y is None.")
-            
+
             dists = cdist(X, Y, metric='euclidean')
             K = (dists**(5./6.)) * ssp.kv(-5./6.,2*np.pi*dists/length_scale)
             Filter = np.isfinite(K)
@@ -281,11 +278,8 @@ class VonKarman(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
                     (K * squareform(dists))[:, :, np.newaxis]
                 return K, K_gradient
             elif self.anisotropic:
-                # We need to recompute the pairwise dimension-wise distances
-                K_gradient = (X[:, np.newaxis, :] - X[np.newaxis, :, :]) ** 2 \
-                    / (length_scale ** 2)
-                K_gradient *= K[..., np.newaxis]
-                return K, K_gradient
+                raise ValueError(
+                    "Gradient can only be evaluated with isotropic VonKarman kernel for the moment.")
         else:
             return K
 

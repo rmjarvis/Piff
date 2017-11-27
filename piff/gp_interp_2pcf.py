@@ -40,16 +40,16 @@ class GPInterp2pcf(Interp):
                         custom piff VonKarman object.  [default: 'RBF(1)']
     :param optimize:    Boolean indicating whether or not to try and optimize the kernel by
                         computing the two-point correlation function.  [default: True]
-    :param npca:        Number of principal components to keep. If !=0 pca is done on 
-                        PSF parameters before any interpolation, and it will be the PC that will 
-                        be interpolate and then retransform in PSF parameters. [default: 0, which 
+    :param npca:        Number of principal components to keep. If !=0 pca is done on
+                        PSF parameters before any interpolation, and it will be the PC that will
+                        be interpolate and then retransform in PSF parameters. [default: 0, which
                         means don't decompose PSF parameters into principle components.]
     :param normalize:   Whether to normalize the interpolation parameters to have a mean of 0.
                         Normally, the parameters being interpolated are not mean 0, so you would
                         want this to be True, but if your parameters have an a priori mean of 0,
                         then subtracting off the realized mean would be invalid.  [default: True]
-    :param white_noise: A float value that indicate the ammount of white noise that you want to 
-                        use during the gp interpolation. This is an additional uncorrelated noise 
+    :param white_noise: A float value that indicate the ammount of white noise that you want to
+                        use during the gp interpolation. This is an additional uncorrelated noise
                         added to the error of the PSF parameters. [default: 0.]
     :param logger:      A logger object for logging debug info. [default: None]
     """
@@ -110,7 +110,6 @@ class GPInterp2pcf(Interp):
         
         if type(k.theta) is property:
             raise TypeError("String provided was not initialized properly")
-        
         return k
 
     def _fit(self, kernel, X, y, y_err=None, logger=None):
@@ -125,19 +124,14 @@ class GPInterp2pcf(Interp):
         if logger:
             logger.debug('Start kernel: %s', kernel.set_params())
             logger.debug('gp.fit with mean y = %s',np.mean(y))
-                                    
         # Save these for potential read/write.                
         if y_err is None:
             y_err = np.zeros_like(y)
-            
         if self.optimize:
             kernel = self._optimizer_2pcf(kernel,X,y,y_err)
-            
             if logger:
                 logger.debug('After fit: kernel = %s',kernel.set_params())
-
         return kernel
-
     
     def _optimizer_2pcf(self,kernel,X,y,y_err):
         """Fit hyperparameter using two-point correlation function.
@@ -152,7 +146,7 @@ class GPInterp2pcf(Interp):
         rho = float(len(X[:,0])) / (size_x * size_y)
         MIN = np.sqrt(1./rho)
         MAX = np.sqrt(size_x**2 + size_y**2)/2.
-    
+
         if y_err is None or np.sum(y_err) == 0 :
             cat = treecorr.Catalog(x=X[:,0], y=X[:,1], k=(y-np.mean(y)))
         else:
@@ -200,7 +194,7 @@ class GPInterp2pcf(Interp):
             y_err = self._y_err
 
         ystar = np.array([self.return_gp_predict(y_init[:,i]-self._mean[i], self._X, Xstar, ker, y_err=y_err[:,i]) for i,ker in enumerate(self.kernels)]).T
-        
+
         for i in range(self.nparams):
             ystar[:,i] += self._mean[i]
         if self.npca > 0:
@@ -216,7 +210,6 @@ class GPInterp2pcf(Interp):
         :param kernel: sklearn.gaussian_process kernel.
         :param y_err: Error of y. (n_samples, n_targets)
         """
-
         if y_err is None:
             y_err = np.zeros_like(y)
         HT = kernel.__call__(X2,Y=X1)
@@ -254,8 +247,7 @@ class GPInterp2pcf(Interp):
                 raise ValueError("numbers of kernel provided should be 1 (same for all parameters) or " \
                                  "equal to the number of params (%i), number kernel provided: %i"%((self.nparams,len(self.kernel_template))))
             else:
-                self.kernels = [copy.deepcopy(ker) for ker in self.kernel_template]
-                                        
+                self.kernels = [copy.deepcopy(ker) for ker in self.kernel_template]                                        
         return stars
 
     def solve(self, stars=None, logger=None):
@@ -267,7 +259,7 @@ class GPInterp2pcf(Interp):
         X = np.array([self.getProperties(star) for star in stars])
         y = np.array([star.fit.params for star in stars])
         y_err = np.array([np.sqrt(np.diag(star.fit.params_cov)) for star in stars])
-        
+
         self._X = X
         self._y = y
         self._y_err = np.sqrt(y_err**2 + self.white_noise**2)
@@ -352,7 +344,7 @@ class GPInterp2pcf(Interp):
 
     def _finish_read(self, fits, extname):
         data = fits[extname+'_kernel'].read()
-        # Run fit to set up GP, but don't actually do any hyperparameter optimization.  Just
+        # Run fit to set up GP, but don't actually do any hyperparameter optimization. Just
         # set the GP up using the current hyperparameters.
         init_theta = np.atleast_1d(data['INIT_THETA'][0])
         fit_theta = np.atleast_1d(data['FIT_THETA'][0])
