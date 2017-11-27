@@ -595,8 +595,8 @@ def test_polynomial_psf():
         npcas = [0, 2]
         optimizes = [True, False]
     else:
-        npcas = [0]
-        optimizes = [True]
+        npcas = [0, 2]
+        optimizes = [True, False]
 
     for npca in npcas:
         for optimize in optimizes:
@@ -672,7 +672,7 @@ def test_vonkarman_psf():
         check_config = True
     else:
         npcas = [0]
-        optimizes = [False]
+        optimizes = [True, False]
         check_config = False
 
     for npca in npcas:
