@@ -585,8 +585,8 @@ def test_constant_psf():
         npcas = [0, 2]
         optimizes = [True, False]
     else:
-        npcas = [0]
-        optimizes = [False]
+        npcas = [0, 2]
+        optimizes = [True,False]
 
     for npca in npcas:
         for optimize in optimizes:
@@ -606,8 +606,8 @@ def test_polynomial_psf():
         npcas = [0, 2]
         optimizes = [True, False]
     else:
-        npcas = [0]
-        optimizes = [True]
+        npcas = [0, 2]
+        optimizes = [True, False]
 
     for npca in npcas:
         for optimize in optimizes:
