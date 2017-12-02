@@ -44,7 +44,7 @@ def test_Gaussian():
     psf.drawImage(image, method='no_pixel')
 
     # Make a StarData instance for this image
-    stardata = piff.StarData(image, image.trueCenter())
+    stardata = piff.StarData(image, image.true_center)
     star = piff.Star(stardata, None)
 
     # Fit the model from the image

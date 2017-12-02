@@ -49,7 +49,7 @@ class GSObjectModel(Model):
                        'include_pixel':include_pixel}
 
         # Center and normalize the fiducial model.
-        self.gsobj = gsobj.withFlux(1.0).shift(-gsobj.centroid())
+        self.gsobj = gsobj.withFlux(1.0).shift(-gsobj.centroid)
         self._fastfit = fastfit
         self._force_model_center = force_model_center
         self._method = 'auto' if include_pixel else 'no_pixel'
@@ -116,7 +116,7 @@ class GSObjectModel(Model):
         """
         prof = self.getProfile(star.fit.params).shift(star.fit.center) * star.fit.flux
         image = star.image.copy()
-        prof.drawImage(image, method=self._method, offset=(star.image_pos-image.trueCenter()))
+        prof.drawImage(image, method=self._method, offset=(star.image_pos-image.true_center))
         data = StarData(image, star.image_pos, star.weight, star.data.pointing)
         return Star(data, star.fit)
 
@@ -137,7 +137,7 @@ class GSObjectModel(Model):
         prof = self.gsobj.dilate(scale).shear(g1=g1, g2=g2).shift(du, dv) * flux
         model_image = galsim.Image(image, dtype=float)
         prof.drawImage(model_image, method=self._method,
-                       offset=(image_pos - model_image.trueCenter()))
+                       offset=(image_pos - model_image.true_center))
         return (np.sqrt(weight.array)*(model_image.array - image.array)).ravel()
 
     def _lmfit_params(self, star, vary_params=True, vary_flux=True, vary_center=True):
@@ -268,7 +268,7 @@ class GSObjectModel(Model):
         prof = self.getProfile(params) * flux
         model_image = star.image.copy()
         prof.shift(center).drawImage(model_image, method=self._method,
-                                     offset=(star.image_pos - model_image.trueCenter()))
+                                     offset=(star.image_pos - model_image.true_center))
         chisq = np.sum(star.weight.array * (star.image.array - model_image.array)**2)
         dof = np.count_nonzero(star.weight.array) - self._nparams
         fit = StarFit(params, flux=flux, center=center, chisq=chisq, dof=dof)
@@ -315,8 +315,8 @@ class GSObjectModel(Model):
         logger.debug("    image = %s",star.data.image)
         #logger.debug("    image = %s",star.data.image.array)
         #logger.debug("    weight = %s",star.data.weight.array)
-        logger.debug("    image center = %s",star.data.image(star.data.image.center()))
-        logger.debug("    weight center = %s",star.data.weight(star.data.weight.center()))
+        logger.debug("    image center = %s",star.data.image(star.data.image.center))
+        logger.debug("    weight center = %s",star.data.weight(star.data.weight.center))
         do_center = fit_center and self._force_model_center
         if do_center:
             params = self._lmfit_params(star, vary_params=False)

@@ -225,7 +225,7 @@ class Optical(Model):
         import galsim
         prof = self.getProfile(star.fit.params)
         center = galsim.PositionD(*star.fit.center)
-        offset = star.data.image_pos + center - star.data.image.trueCenter()
+        offset = star.data.image_pos + center - star.data.image.true_center
         image = prof.drawImage(star.data.image.copy(), method='no_pixel', offset=offset)
         data = StarData(image, star.data.image_pos, star.data.weight)
         return Star(data, star.fit)
