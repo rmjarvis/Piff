@@ -17,6 +17,7 @@
 """
 
 from __future__ import print_function
+from past.builtins import basestring
 import numpy as np
 import galsim
 
@@ -79,6 +80,7 @@ class PixelGrid(Model):
         self.du = scale
         self.pixel_area = self.du*self.du
         if interp is None: interp = Lanczos(3)
+        elif isinstance(interp, basestring): interp = eval(interp)
         self.interp = interp
         self._force_model_center = force_model_center
         self._degenerate = degenerate

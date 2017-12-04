@@ -101,7 +101,7 @@ def test_oversample():
     s = make_gaussian_data(2.0, 0.5, -0.25, influx, du=du, nside=nside)
 
     # Pixelized model with Lanczos 3 interp, coarser pix scale
-    interp = piff.Lanczos(3)
+    interp = 'Lanczos(3)'  # eval the string
     mod = piff.PixelGrid(2*du, nside//2, interp, start_sigma=1.5, force_model_center=False)
     star = mod.initialize(s).withFlux(flux=np.sum(s.image.array))
 
@@ -132,7 +132,7 @@ def test_center():
 
     # Pixelized model with Lanczos 3 interp, coarser pix scale, smaller
     # than the data
-    interp = piff.Lanczos(3)
+    interp = None  # Default is Lanczos(3)
     # Want an odd-sized model when center=True
     mod = piff.PixelGrid(0.5, 29, interp, force_model_center=True, start_sigma=1.5)
     star = mod.initialize(s)
@@ -857,6 +857,7 @@ def test_des_image():
                 'type' : 'PixelGrid',
                 'scale' : scale,
                 'size' : size,
+                'interp' : 'Lanczos(5)',
                 'start_sigma' : start_sigma,
             },
             'interp' : {
