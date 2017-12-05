@@ -114,7 +114,7 @@ class GPInterp2pcf(Interp):
             raise TypeError("String provided was not initialized properly")
         return k
 
-    def _fit(self, kernel, X, y, y_err=None, logger=None):
+    def _fit(self, kernel, X, y, y_err, logger=None):
         """Update the Kernel with data.
 
         :param kernel: sklearn.gaussian_process kernel.
@@ -127,8 +127,6 @@ class GPInterp2pcf(Interp):
             logger.debug('Start kernel: %s', kernel.set_params())
             logger.debug('gp.fit with mean y = %s',np.mean(y))
         # Save these for potential read/write.                
-        if y_err is None:
-            y_err = np.zeros_like(y)
         if self.optimize:
             kernel = self._optimizer_2pcf(kernel,X,y,y_err)
             if logger:
@@ -262,7 +260,7 @@ class GPInterp2pcf(Interp):
         """
         X = np.array([self.getProperties(star) for star in stars])
         y = np.array([star.fit.params for star in stars])
-        y_err = np.array([np.sqrt(np.diag(star.fit.params_cov)) for star in stars])
+        y_err = np.sqrt(np.array([star.fit.params_var for star in stars]))
 
         self._X = X
         self._y = y
@@ -288,7 +286,7 @@ class GPInterp2pcf(Interp):
             self._init_theta.append(kernel.theta)
             self.kernels[i] = self._fit(self.kernels[i],
                                         X, y[:,i]-self._mean[i],
-                                        y_err=y_err[:,i], logger=logger)
+                                        y_err[:,i], logger=logger)
             if logger:
                 logger.info('param %d: %s',i,kernel.set_params())
 
