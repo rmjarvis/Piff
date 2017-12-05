@@ -239,20 +239,19 @@ class VonKarman(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
             is True.
         """
         from scipy.spatial.distance import pdist, cdist, squareform
-        import scipy.interpolate as inter
-        import scipy.special as ssp
+        from scipy import interpolate, special
 
         X = np.atleast_2d(X)
         length_scale = _check_length_scale(X, self.length_scale)
         if Y is None:
             dists = pdist(X, metric='euclidean')
-            K = (dists**(5./6.)) * ssp.kv(-5./6.,2*np.pi*dists/length_scale)
+            K = (dists**(5./6.)) * special.kv(5./6.,2*np.pi*dists/length_scale)
             K = squareform(K)
 
             dd_w = np.linspace(1e-4,1,100) / length_scale
             dd = np.linspace(1e-4,1,100)
-            spline = inter.InterpolatedUnivariateSpline(dd,
-                                                        (dd**(5./6.)) * ssp.kv(-5./6.,2*np.pi*dd_w))
+            spline = interpolate.InterpolatedUnivariateSpline(dd,
+                                                              (dd**(5./6.)) * special.kv(5./6.,2*np.pi*dd_w))
             np.fill_diagonal(K, spline(0))
         else:
             if eval_gradient:
@@ -260,13 +259,13 @@ class VonKarman(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
                     "Gradient can only be evaluated when Y is None.")
 
             dists = cdist(X, Y, metric='euclidean')
-            K = (dists**(5./6.)) * ssp.kv(-5./6.,2*np.pi*dists/length_scale)
+            K = (dists**(5./6.)) * special.kv(5./6.,2*np.pi*dists/length_scale)
             Filter = np.isfinite(K)
             if np.sum(Filter) != len(K[0])*len(K[:,0]):
                 dd_w = np.linspace(1e-4,1,100) / length_scale
                 dd = np.linspace(1e-4,1,100)
-                spline = inter.InterpolatedUnivariateSpline(dd,
-                                                            (dd**(5./6.)) * ssp.kv(-5./6.,2*np.pi*dd_w))
+                spline = interpolate.InterpolatedUnivariateSpline(dd,
+                                                                  (dd**(5./6.)) * special.kv(5./6.,2*np.pi*dd_w))
                 K[~Filter] = spline(0)
 
         if eval_gradient:

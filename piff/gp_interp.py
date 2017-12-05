@@ -84,8 +84,10 @@ class GPInterp(Interp):
 
         try:
             k = eval(kernel)
-        except:
-            raise RuntimeError("Failed to evaluate kernel string {0!r}".format(kernel))
+        except (KeyboardInterrupt, SystemExit):
+            raise
+        except Exception as e:
+            raise RuntimeError("Failed to evaluate kernel string {0!r}.  Original exception: {1}".format(kernel, e))
         return k
 
     def _fit(self, X, y, logger=None):
@@ -98,7 +100,7 @@ class GPInterp(Interp):
         self._y = y
         if self.npca > 0:
             from sklearn.decomposition import PCA
-            self._pca = PCA(n_components=self.npca, whiten=True)
+            self._pca = PCA(n_components=self.npca)
             self._pca.fit(y)
             y = self._pca.transform(y)
         self.gp.fit(X, y)

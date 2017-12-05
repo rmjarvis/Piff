@@ -21,7 +21,7 @@ import treecorr
 import copy
 
 from sklearn.gaussian_process.kernels import Kernel
-import scipy.optimize as op
+from scipy import optimize
 from scipy.linalg import cholesky, cho_solve
 
 from .interp import Interp
@@ -105,9 +105,11 @@ class GPInterp2pcf(Interp):
 
         try:
             k = eval(kernel)
-        except:
-            raise RuntimeError("Failed to evaluate kernel string {0!r}".format(kernel))
-        
+        except (KeyboardInterrupt, SystemExit):
+            raise
+        except Exception as e:
+            raise RuntimeError("Failed to evaluate kernel string {0!r}.  Original exception: {1}".format(kernel, e))
+
         if type(k.theta) is property:
             raise TypeError("String provided was not initialized properly")
         return k
@@ -133,7 +135,7 @@ class GPInterp2pcf(Interp):
                 logger.debug('After fit: kernel = %s',kernel.set_params())
         return kernel
     
-    def _optimizer_2pcf(self,kernel,X,y,y_err):
+    def _optimizer_2pcf(self, kernel, X, y, y_err):
         """Fit hyperparameter using two-point correlation function.
 
         :param kernel: sklearn.gaussian_process kernel.
@@ -154,22 +156,22 @@ class GPInterp2pcf(Interp):
         kk = treecorr.KKCorrelation(min_sep=MIN, max_sep=MAX, nbins=20)
         kk.process(cat)
 
-        distance = np.exp(kk.logr)
+        distance = kk.meanr #np.exp(kk.logr)
         Coord = np.array([distance,np.zeros_like(distance)]).T
 
-        def PCF(param,k=kernel):
+        def PCF(param, k=kernel):
             kernel =  k.clone_with_theta(param)
             pcf = kernel.__call__(Coord,Y=np.zeros_like(Coord))[:,0]
             return pcf
 
-        def chi2(param,disp=np.std(y)):
+        def chi2(param, disp=np.std(y)):
             residual = kk.xi - PCF(param)
             var = disp**2
             return np.sum(residual**2/var)
 
         p0 = kernel.theta
-        results_fmin = op.fmin(chi2,p0,disp=False)
-        results_bfgs = op.minimize(chi2,p0,method="L-BFGS-B")
+        results_fmin = optimize.fmin(chi2,p0,disp=False)
+        results_bfgs = optimize.minimize(chi2,p0,method="L-BFGS-B")
         results = [results_fmin, results_bfgs['x']]
         chi2_min = [chi2(results[0]), chi2(results[1])]
         ind_min = chi2_min.index(min(chi2_min))
@@ -177,7 +179,7 @@ class GPInterp2pcf(Interp):
 
         self._2pcf.append(kk.xi)
         self._2pcf_dist.append(distance)
-        kernel =  kernel.clone_with_theta(results)
+        kernel = kernel.clone_with_theta(results)
         self._2pcf_fit.append(PCF(kernel.theta))
         return kernel
 
@@ -193,7 +195,8 @@ class GPInterp2pcf(Interp):
             y_init = self._y
             y_err = self._y_err
 
-        ystar = np.array([self.return_gp_predict(y_init[:,i]-self._mean[i], self._X, Xstar, ker, y_err=y_err[:,i]) for i,ker in enumerate(self.kernels)]).T
+        ystar = np.array([self.return_gp_predict(y_init[:,i]-self._mean[i], self._X, Xstar, ker, y_err=y_err[:,i]) \
+                          for i, ker in enumerate(self.kernels)]).T
 
         for i in range(self.nparams):
             ystar[:,i] += self._mean[i]
@@ -245,7 +248,8 @@ class GPInterp2pcf(Interp):
         else:
             if len(self.kernel_template)!= self.nparams or (len(self.kernel_template)!= self.npca & self.npca!=0):
                 raise ValueError("numbers of kernel provided should be 1 (same for all parameters) or " \
-                                 "equal to the number of params (%i), number kernel provided: %i"%((self.nparams,len(self.kernel_template))))
+                                 "equal to the number of params (%i), number kernel provided: %i" \
+                                 %((self.nparams,len(self.kernel_template))))
             else:
                 self.kernels = [copy.deepcopy(ker) for ker in self.kernel_template]                                        
         return stars
@@ -266,7 +270,7 @@ class GPInterp2pcf(Interp):
 
         if self.npca > 0:
             from sklearn.decomposition import PCA
-            self._pca = PCA(n_components=self.npca, whiten=True)
+            self._pca = PCA(n_components=self.npca)
             self._pca.fit(y)
             y = self._pca.transform(y)
             if y_err is not None:
