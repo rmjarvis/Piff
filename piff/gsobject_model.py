@@ -214,13 +214,14 @@ class GSObjectModel(Model):
         results = self._lmfit_minimize(params, star, logger=logger)
         logger.debug(lmfit.fit_report(results))
         flux, du, dv, scale, g1, g2 = results.params.valuesdict().values()
-        params_var = np.diag(results.covar)
         if not results.success:
             raise RuntimeError("Error fitting with lmfit.")
 
         if results.covar is None:
             params_var = np.zeros(6)
-        
+        else:
+            params_var = np.diag(results.covar)
+
         return flux, du, dv, scale, g1, g2, params_var
 
     @staticmethod

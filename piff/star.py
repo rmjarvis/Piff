@@ -873,7 +873,7 @@ class StarFit(object):
     results), but interpolators will be looking for some subset of these properties:
 
     :params:      numpy vector of parameters of the PSF that apply to this star
-    :params_cov:  numpy ndarray of covariance error parameters of the PSF
+    :params_var:  numpy array of variance error parameters of the PSF
     :flux:        flux of the star
     :center:      (u,v) tuple giving position of stellar center (relative
                   to data.image_pos)
