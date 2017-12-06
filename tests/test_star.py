@@ -27,7 +27,7 @@ def test_init():
     """Test the basic initialization of a StarData object.
     """
 
-    # Use an odd-sized image, so image.trueCenter() and image.center() are the same thing.
+    # Use an odd-sized image, so image.true_center and image.center are the same thing.
     # Otherwise, u,v below will be half-integer values.
     size = 63
 
@@ -38,7 +38,7 @@ def test_init():
 
     # Use pixel scale = 1, so image_pos and focal pos are the same thing.
     image = galsim.Image(size,size, scale=1)
-    field_pos = image.center()
+    field_pos = image.center
 
     # Update the bounds so the image is centered at icen, jcen.
     # Note: this also updates the wcs, so u,v at the center is still field_pos
@@ -51,7 +51,7 @@ def test_init():
     # To make below tests of weight pixel values useful, add the image to weight, so pixel
     # values are not all identical.
 
-    image_pos = image.center()
+    image_pos = image.center
 
     properties = {
         'ra' : 34.1234,
@@ -117,8 +117,8 @@ def test_euclidean():
     # Start with a larger image from which we will cut out the postage stamp
     full_image = galsim.Image(2048,2048, wcs=wcs)
     full_weight = galsim.ImageS(2048,2048, wcs=wcs, init_value=1)
-    print('origin of full image is at u,v = ',full_image.wcs.toWorld(full_image.origin()))
-    print('center of full image is at u,v = ',full_image.wcs.toWorld(full_image.center()))
+    print('origin of full image is at u,v = ',full_image.wcs.toWorld(full_image.origin))
+    print('center of full image is at u,v = ',full_image.wcs.toWorld(full_image.center))
 
     # Make a postage stamp cutout
     size = 64   # This time, use an even size.
@@ -133,8 +133,8 @@ def test_euclidean():
 
     print('image_pos = ',image_pos)
     print('field pos (u,v) = ',field_pos)
-    print('origin of ps image is at u,v = ',image.wcs.toWorld(image.origin()))
-    print('center of ps image is at u,v = ',image.wcs.toWorld(image.center()))
+    print('origin of ps image is at u,v = ',image.wcs.toWorld(image.origin))
+    print('center of ps image is at u,v = ',image.wcs.toWorld(image.center))
 
     # Just draw something so it has non-trivial pixel values.
     galsim.Gaussian(sigma=5).drawImage(image)

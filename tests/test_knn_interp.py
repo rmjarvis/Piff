@@ -38,7 +38,7 @@ def generate_data(n_samples=100):
         wcs = galsim.JacobianWCS(0.26, 0.05, -0.08, -0.29)
         image = galsim.Image(64,64, wcs=wcs)
         properties = {k:v for k,v in zip(keys, Xi)}
-        stardata = piff.StarData(image, image.trueCenter(), properties=properties)
+        stardata = piff.StarData(image, image.true_center, properties=properties)
 
         # params = np.array([yi[ith] for ith in attr_target])
         params = yi
@@ -187,7 +187,7 @@ def test_decam_wavefront():
         icen = np_rng.randint(100, 2048)
         jcen = np_rng.randint(100, 4096)
         image.setCenter(icen, jcen)
-        image_pos = image.center()
+        image_pos = image.center
 
         stardata = piff.StarData(image, image_pos, properties={'ccdnum': ccdnum})
 

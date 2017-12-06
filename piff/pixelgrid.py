@@ -17,6 +17,7 @@
 """
 
 from __future__ import print_function
+from past.builtins import basestring
 import numpy as np
 import galsim
 
@@ -79,6 +80,7 @@ class PixelGrid(Model):
         self.du = scale
         self.pixel_area = self.du*self.du
         if interp is None: interp = Lanczos(3)
+        elif isinstance(interp, basestring): interp = eval(interp)
         self.interp = interp
         self._force_model_center = force_model_center
         self._degenerate = degenerate
@@ -569,13 +571,13 @@ class PixelGrid(Model):
         logger.debug("    image = %s",star.data.image)
         #logger.debug("    image = %s",star.data.image.array)
         #logger.debug("    weight = %s",star.data.weight.array)
-        logger.debug("    image center = %s",star.data.image(star.data.image.center()))
-        logger.debug("    weight center = %s",star.data.weight(star.data.weight.center()))
+        logger.debug("    image center = %s",star.data.image(star.data.image.center))
+        logger.debug("    weight center = %s",star.data.weight(star.data.weight.center))
 
         # This will be an iterative process if the centroid is free.
         max_iterations = 100    # Max iteration count
 
-        chisq_thresh = 0.01     # Quit when reduced chisq changes less than this
+        chisq_thresh = 1.e-3     # Quit when chisq changes less than this (fractionally)
         do_center = fit_center and self._force_model_center
         flux = star.fit.flux
         center = star.fit.center
@@ -653,16 +655,14 @@ class PixelGrid(Model):
             logger.debug("initial flux = %s",flux)
             flux += df[0]
             logger.debug("flux += %s => %s",df[0],flux)
-            ###print(iteration,'chisq',chisq,flux,center,df) ###
             logger.debug("center = %s",center)
             if do_center:
                 center = (center[0]+df[1],
                           center[1]+df[2])
                 logger.debug("center += (%s,%s) => %s",df[1],df[2],center)
             dof = np.count_nonzero(weight) - self._constraints
-            logger.debug("dchi, chisq_thresh, dof, do_center = %s, %s, %s, %s",
-                         dchi,chisq_thresh,dof,do_center)
-            if (dchi < chisq_thresh * dof) or not do_center:
+            logger.debug("dchi, dof, do_center = %s, %s, %s", dchi, dof, do_center)
+            if dchi < chisq_thresh * chisq or not do_center:
                 # Done with iterations.  Return new Star with updated information
                 return Star(star.data, StarFit(star.fit.params,
                                                flux = flux,

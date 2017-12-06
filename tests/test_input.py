@@ -602,36 +602,36 @@ def test_pointing():
     config['ra'] = 6.0
     config['dec'] = -30.0
     input = piff.InputFiles(config, logger=logger)
-    np.testing.assert_almost_equal(input.pointing.ra.rad(), np.pi/2.)
-    np.testing.assert_almost_equal(input.pointing.dec.rad(), -np.pi/6.)
+    np.testing.assert_almost_equal(input.pointing.ra.rad, np.pi/2.)
+    np.testing.assert_almost_equal(input.pointing.dec.rad, -np.pi/6.)
 
     # Also ok as ints in this case
     config['ra'] = 6
     config['dec'] = -30
     input = piff.InputFiles(config, logger=logger)
-    np.testing.assert_almost_equal(input.pointing.ra.rad(), np.pi/2.)
-    np.testing.assert_almost_equal(input.pointing.dec.rad(), -np.pi/6.)
+    np.testing.assert_almost_equal(input.pointing.ra.rad, np.pi/2.)
+    np.testing.assert_almost_equal(input.pointing.dec.rad, -np.pi/6.)
 
     # Strings as hh:mm:ss or dd:mm:ss
     config['ra'] = '06:00:00'
     config['dec'] = '-30:00:00'
     input = piff.InputFiles(config, logger=logger)
-    np.testing.assert_almost_equal(input.pointing.ra.rad(), np.pi/2.)
-    np.testing.assert_almost_equal(input.pointing.dec.rad(), -np.pi/6.)
+    np.testing.assert_almost_equal(input.pointing.ra.rad, np.pi/2.)
+    np.testing.assert_almost_equal(input.pointing.dec.rad, -np.pi/6.)
 
     # Strings as keys into FITS header
     config['ra'] = 'RA'
     config['dec'] = 'DEC'
     input = piff.InputFiles(config, logger=logger)
-    np.testing.assert_almost_equal(input.pointing.ra.rad(), np.pi/2.)
-    np.testing.assert_almost_equal(input.pointing.dec.rad(), -np.pi/6.)
+    np.testing.assert_almost_equal(input.pointing.ra.rad, np.pi/2.)
+    np.testing.assert_almost_equal(input.pointing.dec.rad, -np.pi/6.)
 
     # If multiple files, use the first one.
     config['image_file_name'] = 'test_input_image_*.fits'
     config['cat_file_name'] = 'test_input_cat_*.fits'
     input = piff.InputFiles(config, logger=logger)
-    np.testing.assert_almost_equal(input.pointing.ra.rad(), np.pi/2.)
-    np.testing.assert_almost_equal(input.pointing.dec.rad(), -np.pi/6.)
+    np.testing.assert_almost_equal(input.pointing.ra.rad, np.pi/2.)
+    np.testing.assert_almost_equal(input.pointing.dec.rad, -np.pi/6.)
 
     # Check invalid ra,dec values
     base_config = { 'dir' : dir, 'image_file_name' : image_file, 'cat_file_name' : cat_file }
