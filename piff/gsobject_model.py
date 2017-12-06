@@ -23,7 +23,7 @@ from .model import Model, ModelFitError
 from .star import Star, StarFit, StarData
 from .util import hsm
 
-
+# TODO: consistency in unnormalized basis for lmfit
 class GSObjectModel(Model):
     """ Model that takes a fiducial GalSim.GSObject and dilates, shifts, and shears it to get a
     good match to stars.
@@ -35,9 +35,10 @@ class GSObjectModel(Model):
                         position is fixed at input value and the fitted PSF may be off-center.
                         [default: True]
     :param include_pixel:   Include integration over pixel?  [default: True]
+    :param unnormalized_basis:  Do parameter fit for size and ellipticity in unnormalized second moment space? [default: False]
     :param logger:   A logger object for logging debug info. [default: None]
     """
-    def __init__(self, gsobj, fastfit=False, force_model_center=True, include_pixel=True,
+    def __init__(self, gsobj, fastfit=False, force_model_center=True, include_pixel=True, unnormalized_basis=False,
                  logger=None):
         if isinstance(gsobj, str):
             import galsim
@@ -46,12 +47,14 @@ class GSObjectModel(Model):
         self.kwargs = {'gsobj':repr(gsobj),
                        'fastfit':fastfit,
                        'force_model_center':force_model_center,
-                       'include_pixel':include_pixel}
+                       'include_pixel':include_pixel,
+                       'unnormalized_basis':unnormalized_basis}
 
         # Center and normalize the fiducial model.
         self.gsobj = gsobj.withFlux(1.0).shift(-gsobj.centroid())
         self._fastfit = fastfit
         self._force_model_center = force_model_center
+        self._unnormalized_basis = unnormalized_basis
         self._method = 'auto' if include_pixel else 'no_pixel'
         # Params are [du, dv], scale, g1, g2, i.e., transformation parameters that bring the
         # fiducial gsobject towards the data.
@@ -59,6 +62,28 @@ class GSObjectModel(Model):
             self._nparams = 3
         else:
             self._nparams = 5
+
+    @staticmethod
+    def convert_to_unnormalized_basis(scale, g1, g2):
+        absgsq = g1**2 + g2**2
+        g2e = 2. / (1.+absgsq)
+        e1norm = g1 * g2e
+        e2norm = g2 * g2e
+        e0 = np.sqrt(4 * scale ** 4 / (1 - e1norm ** 2 - e2norm ** 2))
+        e1 = e1norm * e0
+        e2 = e2norm * e0
+        return e0, e1, e2
+
+    @staticmethod
+    def convert_from_unnormalized_basis(e0, e1, e2):
+        e1norm = e1 / e0
+        e2norm = e2 / e0
+        absesq = e1 ** 2 + e2 ** 2
+        e2g = 1. / (1. + np.sqrt(1. - absesq))
+        g1 = e1norm * e2g
+        g2 = e2norm * e2g
+        scale = np.sqrt(np.sqrt((e0 ** 2 - e1 ** 2 - e2 ** 2)) * 0.5)
+        return scale, g1, g2
 
     def moment_fit(self, star, logger=None):
         """Estimate transformations needed to bring self.gsobj towards given star."""
@@ -87,6 +112,10 @@ class GSObjectModel(Model):
         param_g1 = param_shear.g1
         param_g2 = param_shear.g2
 
+        # report results in unnormalized basis if that is what we wanted
+        if self._unnormalized_basis:
+            # convert scale, g1, g2 to unnormalized basis
+            param_scale, param_g1, param_g2 = self.convert_to_unnormalized_basis(param_scale, param_g1, param_g2)
         return param_flux, param_du, param_dv, param_scale, param_g1, param_g2
 
     def getProfile(self, params):
@@ -104,6 +133,11 @@ class GSObjectModel(Model):
             du, dv = (0.0, 0.0)
         else:
             du, dv, scale, g1, g2 = params
+
+        if self._unnormalized_basis:
+            # params are actually e0, e1, e2, so convert from that to create galsim profile
+            scale, g1, g2 = self.convert_from_unnormalized_basis(scale, g1, g2)
+
         return self.gsobj.dilate(scale).shear(g1=g1, g2=g2).shift(du, dv)
 
     def draw(self, star):
@@ -131,7 +165,12 @@ class GSObjectModel(Model):
         """
         import galsim
         image, weight, image_pos = star.data.getImage()
-        flux, du, dv, scale, g1, g2 = lmparams.valuesdict().values()
+        if self._unnormalized_basis:
+            # scale, g1, g2 actually unnormalized second moments
+            flux, du, dv, e0, e1, e2 = lmparams.valuesdict().values()
+            scale, g1, g2 = self.convert_from_unnormalized_basis(e0, e1, e2)
+        else:
+            flux, du, dv, scale, g1, g2 = lmparams.valuesdict().values()
         # Fit du and dv regardless of force_model_center.  The difference is whether the fit
         # value is recorded (force_model_center=False) or discarded (force_model_center=True).
         prof = self.gsobj.dilate(scale).shear(g1=g1, g2=g2).shift(du, dv) * flux
@@ -159,6 +198,7 @@ class GSObjectModel(Model):
             if flag != 0:
                 raise RuntimeError("Error initializing star fit values using hsm.")
         else:
+            # NOTE: assumes that the fit params are in the correct basis
             flux = star.fit.flux
             if self._force_model_center:
                 du, dv = star.fit.center
@@ -171,11 +211,11 @@ class GSObjectModel(Model):
         params.add('flux', value=flux, vary=vary_flux, min=0.0)
         params.add('du', value=du, vary=vary_center)
         params.add('dv', value=dv, vary=vary_center)
-        params.add('scale', value=scale, vary=vary_params, min=0.0)
+        params.add(['scale', 'e0'][self._unnormalized_basis], value=scale, vary=vary_params, min=0.0)
         # Limits of +/- 0.7 is definitely a hack to avoid |g| > 1, but if the PSF is ever actually
         # this elliptical then we have more serious problems to worry about than hacky code!
-        params.add('g1', value=g1, vary=vary_params, min=-0.7, max=0.7)
-        params.add('g2', value=g2, vary=vary_params, min=-0.7, max=0.7)
+        params.add(['g1', 'e1'][self._unnormalized_basis], value=g1, vary=vary_params, min=-0.7, max=0.7)
+        params.add(['g2', 'e2'][self._unnormalized_basis], value=g2, vary=vary_params, min=-0.7, max=0.7)
         return params
 
     def _lmfit_minimize(self, params, star, logger=None):
@@ -194,7 +234,6 @@ class GSObjectModel(Model):
         logger.debug("Start lmfit minimize.")
 
         results = lmfit.minimize(self._lmfit_resid, params, args=(star,))
-        flux, du, dv, scale, g1, g2 = results.params.valuesdict().values()
 
         logger.debug("End lmfit minimize.  Elapsed time: {0}".format(time.time() - t0))
         return results
@@ -210,7 +249,7 @@ class GSObjectModel(Model):
         """
         import lmfit
         logger = galsim.config.LoggerWrapper(logger)
-        params = self._lmfit_params(star)
+        params = self._lmfit_params(star,)
         results = self._lmfit_minimize(params, star, logger=logger)
         logger.debug(lmfit.fit_report(results))
         flux, du, dv, scale, g1, g2 = results.params.valuesdict().values()
@@ -250,7 +289,7 @@ class GSObjectModel(Model):
             fastfit = self._fastfit
 
         if not hasattr(star.data.properties, 'hsm'):
-            star = self.initialize(star)
+            star = self.initialize(star, logger=logger)
 
         if fastfit:
             flux, du, dv, scale, g1, g2 = self.moment_fit(star, logger=logger)
@@ -265,7 +304,7 @@ class GSObjectModel(Model):
             center = (0.0, 0.0)
 
         # Also need to compute chisq
-        prof = self.getProfile(params) * flux
+        prof = self.getProfile(params,) * flux
         model_image = star.image.copy()
         prof.shift(center).drawImage(model_image, method=self._method,
                                      offset=(star.image_pos - model_image.trueCenter()))
@@ -291,6 +330,12 @@ class GSObjectModel(Model):
             fit = StarFit(params, flux=1.0, center=(0.0, 0.0))
             star = Star(star.data, fit)
             star = self.fit(star, fastfit=True)
+        elif self._unnormalized_basis:
+            # convert hsm parameters to unnormalized basis
+            if self._force_model_center:
+                star.fit.params = self.convert_to_unnormalized_basis(star.fit.params)
+            else:
+                star.fit.params[2:] = self.convert_to_unnormalized_basis(star.fit.params[2:])
         star = self.reflux(star, fit_center=False)
         return star
 
@@ -353,12 +398,13 @@ class Gaussian(GSObjectModel):
                         position is fixed at input value and the fitted PSF may be off-center.
                         [default: True]
     :param include_pixel:   Include integration over pixel?  [default: True]
+    :param unnormalized_basis:  Do parameter fit for size and ellipticity in unnormalized second moment space? [default: False]
     :param logger:   A logger object for logging debug info. [default: None]
     """
-    def __init__(self, fastfit=False, force_model_center=True, include_pixel=True, logger=None):
+    def __init__(self, fastfit=False, force_model_center=True, include_pixel=True, unnormalized_basis=False, logger=None):
         import galsim
         gsobj = galsim.Gaussian(sigma=1.0)
-        GSObjectModel.__init__(self, gsobj, fastfit, force_model_center, include_pixel, logger)
+        GSObjectModel.__init__(self, gsobj, fastfit, force_model_center, include_pixel, unnormalized_basis, logger)
         # We'd need self.kwargs['gsobj'] if we were reconstituting via the GSObjectModel
         # constructor, but since config['type'] for this will be Gaussian, it gets reconstituted
         # here, where there is no `gsobj` argument.  So remove `gsobj` from kwargs.
@@ -374,12 +420,13 @@ class Kolmogorov(GSObjectModel):
                         position is fixed at input value and the fitted PSF may be off-center.
                         [default: True]
     :param include_pixel:   Include integration over pixel?  [default: True]
+    :param unnormalized_basis:  Do parameter fit for size and ellipticity in unnormalized second moment space? [default: False]
     :param logger:   A logger object for logging debug info. [default: None]
     """
-    def __init__(self, fastfit=False, force_model_center=True, include_pixel=True, logger=None):
+    def __init__(self, fastfit=False, force_model_center=True, include_pixel=True, unnormalized_basis=False, logger=None):
         import galsim
         gsobj = galsim.Kolmogorov(half_light_radius=1.0)
-        GSObjectModel.__init__(self, gsobj, fastfit, force_model_center, include_pixel, logger)
+        GSObjectModel.__init__(self, gsobj, fastfit, force_model_center, include_pixel, unnormalized_basis, logger)
         # We'd need self.kwargs['gsobj'] if we were reconstituting via the GSObjectModel
         # constructor, but since config['type'] for this will be Kolmogorov, it gets reconstituted
         # here, where there is no `gsobj` argument.  So remove `gsobj` from kwargs.
@@ -398,13 +445,14 @@ class Moffat(GSObjectModel):
                         position is fixed at input value and the fitted PSF may be off-center.
                         [default: True]
     :param include_pixel:   Include integration over pixel?  [default: True]
+    :param unnormalized_basis:  Do parameter fit for size and ellipticity in unnormalized second moment space? [default: False]
     :param logger:   A logger object for logging debug info. [default: None]
     """
-    def __init__(self, beta, trunc=0., fastfit=False, force_model_center=True, include_pixel=True,
+    def __init__(self, beta, trunc=0., fastfit=False, force_model_center=True, include_pixel=True, unnormalized_basis=False,
                  logger=None):
         import galsim
         gsobj = galsim.Moffat(half_light_radius=1.0, beta=beta, trunc=trunc)
-        GSObjectModel.__init__(self, gsobj, fastfit, force_model_center, include_pixel, logger)
+        GSObjectModel.__init__(self, gsobj, fastfit, force_model_center, include_pixel, unnormalized_basis, logger)
         # We'd need self.kwargs['gsobj'] if we were reconstituting via the GSObjectModel
         # constructor, but since config['type'] for this will be Moffat, it gets reconstituted
         # here, where there is no `gsobj` argument.  So remove `gsobj` from kwargs.

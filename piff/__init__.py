@@ -107,6 +107,11 @@ from .twod_stats import TwoDHistStats, WhiskerStats
 # Optics
 from .optical_model import Optical, optical_templates
 
+from .phase_psf import PhasePSF
+
 # Leave these in their own namespaces
 from . import util
 from . import des
+
+# above didn't work, so try this
+from .des import DECamWavefront

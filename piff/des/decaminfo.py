@@ -262,30 +262,32 @@ class DECamInfo(object):
     def pixel_to_focal_stardata(self, stardata):
         """Take stardata and add focal plane position to properties
 
-        :param stardata:    The stardata with property 'ccdnum'
+        :param stardata:    The stardata with property 'chipnum'
 
         :returns stardata:  New stardata with updated properties
         """
-        # stardata needs to have ccdnum as a property!
+        # stardata needs to have chipnum as a property!
         focal_x, focal_y = self.getPosition_chipnum(
-            np.array([stardata['ccdnum']]), np.array([stardata['x']]), np.array([stardata['y']]))
+            stardata['chipnum'], stardata['x'], stardata['y'])
         properties = stardata.properties.copy()
-        properties['focal_x'] = focal_x[0]
-        properties['focal_y'] = focal_y[0]
+        properties['focal_x'] = focal_x
+        properties['focal_y'] = focal_y
         for key in ['x', 'y', 'u', 'v']:
             # Get rid of keys that constructor doesn't want to see:
             properties.pop(key,None)
+        # TODO: need to set other values, too?
         return StarData(image=stardata.image,
                         image_pos=stardata.image_pos,
                         weight=stardata.weight,
                         pointing=stardata.pointing,
+                        field_pos=stardata.field_pos,
                         values_are_sb=stardata.values_are_sb,
                         properties=properties)
 
     def pixel_to_focal(self, star):
         """Take star and add focal plane position to properties
 
-        :param star:    The star with property 'ccdnum'
+        :param star:    The star with property 'chipnum'
 
         :returns star:  New star with updated properties
         """
@@ -294,8 +296,31 @@ class DECamInfo(object):
     def pixel_to_focalList(self, stars):
         """Take stars and add focal plane position to properties
 
-        :param stars:     Starlist with property 'ccdnum'
+        :param stars:     Starlist with property 'chipnum'
 
         :returns starsl:  New stars with updated properties
         """
         return [Star(self.pixel_to_focal_stardata(star.data), star.fit) for star in stars]
+
+    def get_nominal_wcs(self, chipnum):
+        """Given a chip, return a galsim wcs object with reasonable values. Useful for generating fake stars.
+
+        :param chipnum:     Chip we are looking at
+
+        :returns wcs:       Galsim wcs object
+
+        Note! This is NOT a 100 percent real wcs! All I have done here is create a galsim wcs object whose center (u,v) = (0,0) corresponds to the focal plane (focal_x, focal_y) = (0, 0) and who has a reasonable jacobian transformation about the center. For simplicity, set dudx, dvdy = 0, and dudy, dvdx = -0.26. This is pretty close to what the y1 test images look like...
+        """
+        import galsim
+
+        # get center and convert to pixels.
+        xpix, ypix = self.getPixel_chipnum(chipnum, 0, 0)
+        # now we know that dudx etc, so convert xpix and ypix to uarcsec varcsec
+        arcsec_over_pixel = 0.26
+        # also a minus sign because the axes also flip
+        uarcsec = ypix * -arcsec_over_pixel
+        varcsec = xpix * -arcsec_over_pixel
+        world_origin = galsim.PositionD(uarcsec, varcsec)
+        wcs = galsim.AffineTransform(0, -arcsec_over_pixel, -arcsec_over_pixel, 0, world_origin=-world_origin)
+
+        return wcs
