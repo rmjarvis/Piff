@@ -655,6 +655,59 @@ def test_direct():
             roundtrip_model = piff.GSObjectModel.read(f, 'psf_model')
         assert model.__dict__ == roundtrip_model.__dict__
 
+def test_gsobject_bases():
+    # set up logger
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(verbose=3)
+    else:
+        logger = piff.config.setup_logger(verbose=1)
+    logger.info('test_gsobject_bases: Started')
+    for fastfit in [False]:  # I only expect lmfit to do this well
+        for force_model_center in [False, True]:
+            for include_pixel in [False, True]:
+                for model_name, model in zip(['Kolmogorov', 'Gaussian'], [piff.Kolmogorov, piff.Gaussian]):
+                    logger.debug('test_gsobject_bases: fastfit {0}, force_model_center {1}, include_pixel {2}, model_name {3}'.format(fastfit, force_model_center, include_pixel, model_name))
+                    model_normalized = model(fastfit=fastfit, force_model_center=force_model_center, include_pixel=include_pixel, unnormalized_basis=False)
+                    model_unnormalized = model(fastfit=fastfit, force_model_center=force_model_center, include_pixel=include_pixel, unnormalized_basis=True)
+
+                    star = piff.Star.makeTarget(x=0, y=0, scale=0.263, stamp_size=32)
+
+                    # put in fit params
+                    params_norm = np.array([0.2, -0.3, 1.2, -0.05, 0.07])
+                    params_unnorm = params_norm.copy()
+                    params_unnorm[2:] = model.convert_to_unnormalized_basis(*params_norm[2:])
+                    if force_model_center:
+                        params_norm = params_norm[2:]
+                        params_unnorm = params_unnorm[2:]
+
+                    # print(params, params_to, params_from)
+                    shapes = []  # normalized -> unnormalized; unnorm -> norm
+                    for label, model_draw, model_fit, params in [['fit from unnormalized', model_unnormalized, model_normalized, params_unnorm], ['fit from normalized', model_normalized, model_unnormalized, params_norm]]:
+                        logger.debug('test_gsobject_basis: {0}'.format(label))
+                        star = piff.Star(star.data, piff.StarFit(params))
+                        # draw the star with one
+                        star_drawn = piff.Star(model_draw.draw(star).data, None)
+                        # fit with opposite model
+                        star_fit = model_fit.fit(star_drawn)
+                        shapes.append(star_fit.fit.params)
+                    shapes = np.array(shapes)
+                    # compare params
+                    if not force_model_center:
+                        # first check the du, dv terms
+                        logger.debug('test_gsobject_basis: Compare du,dv')
+                        for shapei in shapes:
+                            np.testing.assert_allclose(params_norm[:2], shapei[:2], rtol=0, atol=1e-6)
+
+                        # get rid of du,dv
+                        shapes = shapes[:, 2:]
+                        params_norm = params_norm[2:]
+                        params_unnorm = params_unnorm[2:]
+
+                    # import ipdb; ipdb.set_trace()
+                    logger.debug('test_gsobject_basis: Compare shapes')
+                    # compare
+                    np.testing.assert_allclose(params_unnorm, shapes[1], rtol=0, atol=1e-6)
+                    np.testing.assert_allclose(params_norm, shapes[0], rtol=0, atol=1e-6)
 
 if __name__ == '__main__':
     test_simple()
@@ -664,3 +717,4 @@ if __name__ == '__main__':
     test_gradient()
     test_gradient_center()
     test_direct()
+    test_gsobject_bases()

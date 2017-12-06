@@ -34,89 +34,90 @@ class DECamInfo(object):
 
             # store a dictionary for each CCD, keyed by the CCD name
             # AJR 9/14/2012 fixed these to agree with the DS9 coordinate system
-            DECamInfo._infoDict["S1"] =  {"xCenter":  -16.908,"yCenter":-191.670, "FAflag":False, "CCDNUM":25}
-            DECamInfo._infoDict["S2"]  = {"xCenter":  -16.908,"yCenter":-127.780, "FAflag":False, "CCDNUM":26}
-            DECamInfo._infoDict["S3"]  = {"xCenter":  -16.908,"yCenter": -63.890, "FAflag":False, "CCDNUM":27}
-            DECamInfo._infoDict["S4"]  = {"xCenter":  -16.908,"yCenter":   0.000, "FAflag":False, "CCDNUM":28}
-            DECamInfo._infoDict["S5"]  = {"xCenter":  -16.908,"yCenter":  63.890, "FAflag":False, "CCDNUM":29}
-            DECamInfo._infoDict["S6"]  = {"xCenter":  -16.908,"yCenter": 127.780, "FAflag":False, "CCDNUM":30}
-            DECamInfo._infoDict["S7"]  = {"xCenter":  -16.908,"yCenter": 191.670, "FAflag":False, "CCDNUM":31}
-            DECamInfo._infoDict["S8"]  = {"xCenter":  -50.724,"yCenter":-159.725, "FAflag":False, "CCDNUM":19}
-            DECamInfo._infoDict["S9"]  = {"xCenter":  -50.724,"yCenter": -95.835, "FAflag":False, "CCDNUM":20}
-            DECamInfo._infoDict["S10"] = {"xCenter":  -50.724,"yCenter": -31.945, "FAflag":False, "CCDNUM":21}
-            DECamInfo._infoDict["S11"] = {"xCenter":  -50.724,"yCenter":  31.945, "FAflag":False, "CCDNUM":22}
-            DECamInfo._infoDict["S12"] = {"xCenter":  -50.724,"yCenter":  95.835, "FAflag":False, "CCDNUM":23}
-            DECamInfo._infoDict["S13"] = {"xCenter":  -50.724,"yCenter": 159.725, "FAflag":False, "CCDNUM":24}
-            DECamInfo._infoDict["S14"] = {"xCenter":  -84.540,"yCenter":-159.725, "FAflag":False, "CCDNUM":13}
-            DECamInfo._infoDict["S15"] = {"xCenter":  -84.540,"yCenter": -95.835, "FAflag":False, "CCDNUM":14}
-            DECamInfo._infoDict["S16"] = {"xCenter":  -84.540,"yCenter": -31.945, "FAflag":False, "CCDNUM":15}
-            DECamInfo._infoDict["S17"] = {"xCenter":  -84.540,"yCenter":  31.945, "FAflag":False, "CCDNUM":16}
-            DECamInfo._infoDict["S18"] = {"xCenter":  -84.540,"yCenter":  95.835, "FAflag":False, "CCDNUM":17}
-            DECamInfo._infoDict["S19"] = {"xCenter":  -84.540,"yCenter": 159.725, "FAflag":False, "CCDNUM":18}
-            DECamInfo._infoDict["S20"] = {"xCenter": -118.356,"yCenter":-127.780, "FAflag":False, "CCDNUM":8 }
-            DECamInfo._infoDict["S21"] = {"xCenter": -118.356,"yCenter": -63.890, "FAflag":False, "CCDNUM":9 }
-            DECamInfo._infoDict["S22"] = {"xCenter": -118.356,"yCenter":   0.000, "FAflag":False, "CCDNUM":10}
-            DECamInfo._infoDict["S23"] = {"xCenter": -118.356,"yCenter":  63.890, "FAflag":False, "CCDNUM":11}
-            DECamInfo._infoDict["S24"] = {"xCenter": -118.356,"yCenter": 127.780, "FAflag":False, "CCDNUM":12}
-            DECamInfo._infoDict["S25"] = {"xCenter": -152.172,"yCenter": -95.835, "FAflag":False, "CCDNUM":4 }
-            DECamInfo._infoDict["S26"] = {"xCenter": -152.172,"yCenter": -31.945, "FAflag":False, "CCDNUM":5 }
-            DECamInfo._infoDict["S27"] = {"xCenter": -152.172,"yCenter":  31.945, "FAflag":False, "CCDNUM":6 }
-            DECamInfo._infoDict["S28"] = {"xCenter": -152.172,"yCenter":  95.835, "FAflag":False, "CCDNUM":7 }
-            DECamInfo._infoDict["S29"] = {"xCenter": -185.988,"yCenter": -63.890, "FAflag":False, "CCDNUM":1 }
-            DECamInfo._infoDict["S30"] = {"xCenter": -185.988,"yCenter":   0.000, "FAflag":False, "CCDNUM":2 }
-            DECamInfo._infoDict["S31"] = {"xCenter": -185.988,"yCenter":  63.890, "FAflag":False, "CCDNUM":3 }
-            DECamInfo._infoDict["N1"]  = {"xCenter": 16.908,  "yCenter":-191.670, "FAflag":False, "CCDNUM":32}
-            DECamInfo._infoDict["N2"]  = {"xCenter": 16.908,  "yCenter":-127.780, "FAflag":False, "CCDNUM":33}
-            DECamInfo._infoDict["N3"]  = {"xCenter": 16.908,  "yCenter": -63.890, "FAflag":False, "CCDNUM":34}
-            DECamInfo._infoDict["N4"]  = {"xCenter": 16.908,  "yCenter":   0.000, "FAflag":False, "CCDNUM":35}
-            DECamInfo._infoDict["N5"]  = {"xCenter": 16.908,  "yCenter":  63.890, "FAflag":False, "CCDNUM":36}
-            DECamInfo._infoDict["N6"]  = {"xCenter": 16.908,  "yCenter": 127.780, "FAflag":False, "CCDNUM":37}
-            DECamInfo._infoDict["N7"]  = {"xCenter": 16.908,  "yCenter": 191.670, "FAflag":False, "CCDNUM":38}
-            DECamInfo._infoDict["N8"]  = {"xCenter": 50.724,  "yCenter":-159.725, "FAflag":False, "CCDNUM":39}
-            DECamInfo._infoDict["N9"]  = {"xCenter": 50.724,  "yCenter": -95.835, "FAflag":False, "CCDNUM":40}
-            DECamInfo._infoDict["N10"] = {"xCenter": 50.724,  "yCenter": -31.945, "FAflag":False, "CCDNUM":41}
-            DECamInfo._infoDict["N11"] = {"xCenter": 50.724,  "yCenter":  31.945, "FAflag":False, "CCDNUM":42}
-            DECamInfo._infoDict["N12"] = {"xCenter": 50.724,  "yCenter":  95.835, "FAflag":False, "CCDNUM":43}
-            DECamInfo._infoDict["N13"] = {"xCenter": 50.724,  "yCenter": 159.725, "FAflag":False, "CCDNUM":44}
-            DECamInfo._infoDict["N14"] = {"xCenter": 84.540,  "yCenter":-159.725, "FAflag":False, "CCDNUM":45}
-            DECamInfo._infoDict["N15"] = {"xCenter": 84.540,  "yCenter": -95.835, "FAflag":False, "CCDNUM":46}
-            DECamInfo._infoDict["N16"] = {"xCenter": 84.540,  "yCenter": -31.945, "FAflag":False, "CCDNUM":47}
-            DECamInfo._infoDict["N17"] = {"xCenter": 84.540,  "yCenter":  31.945, "FAflag":False, "CCDNUM":48}
-            DECamInfo._infoDict["N18"] = {"xCenter": 84.540,  "yCenter":  95.835, "FAflag":False, "CCDNUM":49}
-            DECamInfo._infoDict["N19"] = {"xCenter": 84.540,  "yCenter": 159.725, "FAflag":False, "CCDNUM":50}
-            DECamInfo._infoDict["N20"] = {"xCenter": 118.356, "yCenter":-127.780, "FAflag":False, "CCDNUM":51}
-            DECamInfo._infoDict["N21"] = {"xCenter": 118.356, "yCenter": -63.890, "FAflag":False, "CCDNUM":52}
-            DECamInfo._infoDict["N22"] = {"xCenter": 118.356, "yCenter":   0.000, "FAflag":False, "CCDNUM":53}
-            DECamInfo._infoDict["N23"] = {"xCenter": 118.356, "yCenter":  63.890, "FAflag":False, "CCDNUM":54}
-            DECamInfo._infoDict["N24"] = {"xCenter": 118.356, "yCenter": 127.780, "FAflag":False, "CCDNUM":55}
-            DECamInfo._infoDict["N25"] = {"xCenter": 152.172, "yCenter": -95.835, "FAflag":False, "CCDNUM":56}
-            DECamInfo._infoDict["N26"] = {"xCenter": 152.172, "yCenter": -31.945, "FAflag":False, "CCDNUM":57}
-            DECamInfo._infoDict["N27"] = {"xCenter": 152.172, "yCenter":  31.945, "FAflag":False, "CCDNUM":58}
-            DECamInfo._infoDict["N28"] = {"xCenter": 152.172, "yCenter":  95.835, "FAflag":False, "CCDNUM":59}
-            DECamInfo._infoDict["N29"] = {"xCenter": 185.988, "yCenter": -63.890, "FAflag":False, "CCDNUM":60}
-            DECamInfo._infoDict["N30"] = {"xCenter": 185.988, "yCenter":   0.000, "FAflag":False, "CCDNUM":61}
-            DECamInfo._infoDict["N31"] = {"xCenter": 185.988, "yCenter":  63.890, "FAflag":False, "CCDNUM":62}
-            DECamInfo._infoDict["FS1"] = {"xCenter": -152.172,"yCenter": 143.7525,"FAflag":True , "CCDNUM":66}
-            DECamInfo._infoDict["FS2"] = {"xCenter": -185.988,"yCenter": 111.8075,"FAflag":True , "CCDNUM":65}
-            DECamInfo._infoDict["FS3"] = {"xCenter": -219.804,"yCenter":  15.9725,"FAflag":True , "CCDNUM":63}
-            DECamInfo._infoDict["FS4"] = {"xCenter": -219.804,"yCenter": -15.9725,"FAflag":True , "CCDNUM":64}
-            DECamInfo._infoDict["FN1"] = {"xCenter": 152.172, "yCenter": 143.7525,"FAflag":True , "CCDNUM":67}
-            DECamInfo._infoDict["FN2"] = {"xCenter": 185.988, "yCenter": 111.8075,"FAflag":True , "CCDNUM":68}
-            DECamInfo._infoDict["FN3"] = {"xCenter": 219.804, "yCenter":  15.9725,"FAflag":True , "CCDNUM":69}
-            DECamInfo._infoDict["FN4"] = {"xCenter": 219.804, "yCenter": -15.9725,"FAflag":True , "CCDNUM":70}
+            DECamInfo._infoDict["S1"] =  {"xCenter":  -16.908,"yCenter":-191.670, "FAflag":False, "chipnum":25}
+            DECamInfo._infoDict["S2"]  = {"xCenter":  -16.908,"yCenter":-127.780, "FAflag":False, "chipnum":26}
+            DECamInfo._infoDict["S3"]  = {"xCenter":  -16.908,"yCenter": -63.890, "FAflag":False, "chipnum":27}
+            DECamInfo._infoDict["S4"]  = {"xCenter":  -16.908,"yCenter":   0.000, "FAflag":False, "chipnum":28}
+            DECamInfo._infoDict["S5"]  = {"xCenter":  -16.908,"yCenter":  63.890, "FAflag":False, "chipnum":29}
+            DECamInfo._infoDict["S6"]  = {"xCenter":  -16.908,"yCenter": 127.780, "FAflag":False, "chipnum":30}
+            DECamInfo._infoDict["S7"]  = {"xCenter":  -16.908,"yCenter": 191.670, "FAflag":False, "chipnum":31}
+            DECamInfo._infoDict["S8"]  = {"xCenter":  -50.724,"yCenter":-159.725, "FAflag":False, "chipnum":19}
+            DECamInfo._infoDict["S9"]  = {"xCenter":  -50.724,"yCenter": -95.835, "FAflag":False, "chipnum":20}
+            DECamInfo._infoDict["S10"] = {"xCenter":  -50.724,"yCenter": -31.945, "FAflag":False, "chipnum":21}
+            DECamInfo._infoDict["S11"] = {"xCenter":  -50.724,"yCenter":  31.945, "FAflag":False, "chipnum":22}
+            DECamInfo._infoDict["S12"] = {"xCenter":  -50.724,"yCenter":  95.835, "FAflag":False, "chipnum":23}
+            DECamInfo._infoDict["S13"] = {"xCenter":  -50.724,"yCenter": 159.725, "FAflag":False, "chipnum":24}
+            DECamInfo._infoDict["S14"] = {"xCenter":  -84.540,"yCenter":-159.725, "FAflag":False, "chipnum":13}
+            DECamInfo._infoDict["S15"] = {"xCenter":  -84.540,"yCenter": -95.835, "FAflag":False, "chipnum":14}
+            DECamInfo._infoDict["S16"] = {"xCenter":  -84.540,"yCenter": -31.945, "FAflag":False, "chipnum":15}
+            DECamInfo._infoDict["S17"] = {"xCenter":  -84.540,"yCenter":  31.945, "FAflag":False, "chipnum":16}
+            DECamInfo._infoDict["S18"] = {"xCenter":  -84.540,"yCenter":  95.835, "FAflag":False, "chipnum":17}
+            DECamInfo._infoDict["S19"] = {"xCenter":  -84.540,"yCenter": 159.725, "FAflag":False, "chipnum":18}
+            DECamInfo._infoDict["S20"] = {"xCenter": -118.356,"yCenter":-127.780, "FAflag":False, "chipnum":8 }
+            DECamInfo._infoDict["S21"] = {"xCenter": -118.356,"yCenter": -63.890, "FAflag":False, "chipnum":9 }
+            DECamInfo._infoDict["S22"] = {"xCenter": -118.356,"yCenter":   0.000, "FAflag":False, "chipnum":10}
+            DECamInfo._infoDict["S23"] = {"xCenter": -118.356,"yCenter":  63.890, "FAflag":False, "chipnum":11}
+            DECamInfo._infoDict["S24"] = {"xCenter": -118.356,"yCenter": 127.780, "FAflag":False, "chipnum":12}
+            DECamInfo._infoDict["S25"] = {"xCenter": -152.172,"yCenter": -95.835, "FAflag":False, "chipnum":4 }
+            DECamInfo._infoDict["S26"] = {"xCenter": -152.172,"yCenter": -31.945, "FAflag":False, "chipnum":5 }
+            DECamInfo._infoDict["S27"] = {"xCenter": -152.172,"yCenter":  31.945, "FAflag":False, "chipnum":6 }
+            DECamInfo._infoDict["S28"] = {"xCenter": -152.172,"yCenter":  95.835, "FAflag":False, "chipnum":7 }
+            DECamInfo._infoDict["S29"] = {"xCenter": -185.988,"yCenter": -63.890, "FAflag":False, "chipnum":1 }
+            DECamInfo._infoDict["S30"] = {"xCenter": -185.988,"yCenter":   0.000, "FAflag":False, "chipnum":2 }
+            DECamInfo._infoDict["S31"] = {"xCenter": -185.988,"yCenter":  63.890, "FAflag":False, "chipnum":3 }
+            DECamInfo._infoDict["N1"]  = {"xCenter": 16.908,  "yCenter":-191.670, "FAflag":False, "chipnum":32}
+            DECamInfo._infoDict["N2"]  = {"xCenter": 16.908,  "yCenter":-127.780, "FAflag":False, "chipnum":33}
+            DECamInfo._infoDict["N3"]  = {"xCenter": 16.908,  "yCenter": -63.890, "FAflag":False, "chipnum":34}
+            DECamInfo._infoDict["N4"]  = {"xCenter": 16.908,  "yCenter":   0.000, "FAflag":False, "chipnum":35}
+            DECamInfo._infoDict["N5"]  = {"xCenter": 16.908,  "yCenter":  63.890, "FAflag":False, "chipnum":36}
+            DECamInfo._infoDict["N6"]  = {"xCenter": 16.908,  "yCenter": 127.780, "FAflag":False, "chipnum":37}
+            DECamInfo._infoDict["N7"]  = {"xCenter": 16.908,  "yCenter": 191.670, "FAflag":False, "chipnum":38}
+            DECamInfo._infoDict["N8"]  = {"xCenter": 50.724,  "yCenter":-159.725, "FAflag":False, "chipnum":39}
+            DECamInfo._infoDict["N9"]  = {"xCenter": 50.724,  "yCenter": -95.835, "FAflag":False, "chipnum":40}
+            DECamInfo._infoDict["N10"] = {"xCenter": 50.724,  "yCenter": -31.945, "FAflag":False, "chipnum":41}
+            DECamInfo._infoDict["N11"] = {"xCenter": 50.724,  "yCenter":  31.945, "FAflag":False, "chipnum":42}
+            DECamInfo._infoDict["N12"] = {"xCenter": 50.724,  "yCenter":  95.835, "FAflag":False, "chipnum":43}
+            DECamInfo._infoDict["N13"] = {"xCenter": 50.724,  "yCenter": 159.725, "FAflag":False, "chipnum":44}
+            DECamInfo._infoDict["N14"] = {"xCenter": 84.540,  "yCenter":-159.725, "FAflag":False, "chipnum":45}
+            DECamInfo._infoDict["N15"] = {"xCenter": 84.540,  "yCenter": -95.835, "FAflag":False, "chipnum":46}
+            DECamInfo._infoDict["N16"] = {"xCenter": 84.540,  "yCenter": -31.945, "FAflag":False, "chipnum":47}
+            DECamInfo._infoDict["N17"] = {"xCenter": 84.540,  "yCenter":  31.945, "FAflag":False, "chipnum":48}
+            DECamInfo._infoDict["N18"] = {"xCenter": 84.540,  "yCenter":  95.835, "FAflag":False, "chipnum":49}
+            DECamInfo._infoDict["N19"] = {"xCenter": 84.540,  "yCenter": 159.725, "FAflag":False, "chipnum":50}
+            DECamInfo._infoDict["N20"] = {"xCenter": 118.356, "yCenter":-127.780, "FAflag":False, "chipnum":51}
+            DECamInfo._infoDict["N21"] = {"xCenter": 118.356, "yCenter": -63.890, "FAflag":False, "chipnum":52}
+            DECamInfo._infoDict["N22"] = {"xCenter": 118.356, "yCenter":   0.000, "FAflag":False, "chipnum":53}
+            DECamInfo._infoDict["N23"] = {"xCenter": 118.356, "yCenter":  63.890, "FAflag":False, "chipnum":54}
+            DECamInfo._infoDict["N24"] = {"xCenter": 118.356, "yCenter": 127.780, "FAflag":False, "chipnum":55}
+            DECamInfo._infoDict["N25"] = {"xCenter": 152.172, "yCenter": -95.835, "FAflag":False, "chipnum":56}
+            DECamInfo._infoDict["N26"] = {"xCenter": 152.172, "yCenter": -31.945, "FAflag":False, "chipnum":57}
+            DECamInfo._infoDict["N27"] = {"xCenter": 152.172, "yCenter":  31.945, "FAflag":False, "chipnum":58}
+            DECamInfo._infoDict["N28"] = {"xCenter": 152.172, "yCenter":  95.835, "FAflag":False, "chipnum":59}
+            DECamInfo._infoDict["N29"] = {"xCenter": 185.988, "yCenter": -63.890, "FAflag":False, "chipnum":60}
+            DECamInfo._infoDict["N30"] = {"xCenter": 185.988, "yCenter":   0.000, "FAflag":False, "chipnum":61}
+            DECamInfo._infoDict["N31"] = {"xCenter": 185.988, "yCenter":  63.890, "FAflag":False, "chipnum":62}
+            DECamInfo._infoDict["FS1"] = {"xCenter": -152.172,"yCenter": 143.7525,"FAflag":True , "chipnum":66}
+            DECamInfo._infoDict["FS2"] = {"xCenter": -185.988,"yCenter": 111.8075,"FAflag":True , "chipnum":65}
+            DECamInfo._infoDict["FS3"] = {"xCenter": -219.804,"yCenter":  15.9725,"FAflag":True , "chipnum":63}
+            DECamInfo._infoDict["FS4"] = {"xCenter": -219.804,"yCenter": -15.9725,"FAflag":True , "chipnum":64}
+            DECamInfo._infoDict["FN1"] = {"xCenter": 152.172, "yCenter": 143.7525,"FAflag":True , "chipnum":67}
+            DECamInfo._infoDict["FN2"] = {"xCenter": 185.988, "yCenter": 111.8075,"FAflag":True , "chipnum":68}
+            DECamInfo._infoDict["FN3"] = {"xCenter": 219.804, "yCenter":  15.9725,"FAflag":True , "chipnum":69}
+            DECamInfo._infoDict["FN4"] = {"xCenter": 219.804, "yCenter": -15.9725,"FAflag":True , "chipnum":70}
 
         return DECamInfo._infoDict
 
     def _getinfoArray(self):
-        vals = np.zeros((71, 2))
+        vals = np.zeros((len(self.infoDict) + 1, 2)) - np.array([[-500, -500]])
         for key in self.infoDict:
             infoDict = self.infoDict[key]
-            vals[infoDict['CCDNUM']][0] = infoDict['xCenter']
-            vals[infoDict['CCDNUM']][1] = infoDict['yCenter']
+            chipnum = infoDict['chipnum']
+            vals[chipnum][0] = infoDict['xCenter']
+            vals[chipnum][1] = infoDict['yCenter']
         return vals
 
 
-    def __init__(self,**inputDict):
+    def __init__(self, **inputDict):
 
         self.infoDict
         self.mmperpixel = 0.015
@@ -126,7 +127,7 @@ class DECamInfo(object):
         self.ccddict = {}
         for keyi in self.infoDict.keys():
             self.ccddict.update(
-                {self.infoDict[keyi]['CCDNUM']: keyi}
+                {self.infoDict[keyi]['chipnum']: keyi}
                 )
         self.infoArr = self._getinfoArray()
         # get edges.
@@ -145,11 +146,21 @@ class DECamInfo(object):
         :returns xPos, yPos:    Arrays of x and y coordinates in mm on the focal plane.
         """
         # do getPosition but with chipnum instead
-        xpixHalfSize = 1024. * np.ones(len(chipnums))
-        ypixHalfSize = 1024. * np.ones(len(chipnums))
-        ypixHalfSize = np.where(np.array(chipnums) > 62, 1024., 2048.)
-        xCenter = self.infoArr[chipnums][:, 0]
-        yCenter = self.infoArr[chipnums][:, 1]
+        try:
+            xpixHalfSize = 1024. * np.ones(len(chipnums))
+            ypixHalfSize = 1024. * np.ones(len(chipnums))
+            ypixHalfSize = np.where(chipnums > 62, 1024., 2048.)
+            xCenter = self.infoArr[chipnums][:, 0]
+            yCenter = self.infoArr[chipnums][:, 1]
+        except TypeError:
+            # chipnum is probably an int
+            xpixHalfSize = 1024.
+            if chipnums > 62:
+                ypixHalfSize = 1024
+            else:
+                ypixHalfSize = 2048
+            xCenter = self.infoArr[chipnums][0]
+            yCenter = self.infoArr[chipnums][1]
 
         xPos = xCenter + (ix - xpixHalfSize + 0.5) * self.mmperpixel
         yPos = yCenter + (iy - ypixHalfSize + 0.5) * self.mmperpixel
@@ -164,12 +175,21 @@ class DECamInfo(object):
 
         :returns ix, iy:    Arrays of x and y coordinates in pixels
         """
-        # do getPixel but with chipnum instead
-        xpixHalfSize = 1024. * np.ones(len(chipnums))
-        ypixHalfSize = 1024. * np.ones(len(chipnums))
-        ypixHalfSize = np.where(np.array(chipnums) > 62, 1024., 2048.)
-        xCenter = self.infoArr[chipnums][:, 0]
-        yCenter = self.infoArr[chipnums][:, 1]
+        try:
+            xpixHalfSize = 1024. * np.ones(len(chipnums))
+            ypixHalfSize = 1024. * np.ones(len(chipnums))
+            ypixHalfSize = np.where(chipnums > 62, 1024., 2048.)
+            xCenter = self.infoArr[chipnums][:, 0]
+            yCenter = self.infoArr[chipnums][:, 1]
+        except TypeError:
+            # chipnum is probably an int
+            xpixHalfSize = 1024.
+            if chipnums > 62:
+                ypixHalfSize = 1024
+            else:
+                ypixHalfSize = 2048
+            xCenter = self.infoArr[chipnums][0]
+            yCenter = self.infoArr[chipnums][1]
 
         ix = (xPos - xCenter) / self.mmperpixel + xpixHalfSize - 0.5
         iy = (yPos - yCenter) / self.mmperpixel + ypixHalfSize - 0.5
