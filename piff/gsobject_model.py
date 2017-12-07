@@ -23,7 +23,6 @@ from .model import Model, ModelFitError
 from .star import Star, StarFit, StarData
 from .util import hsm
 
-# TODO: consistency in unnormalized basis for lmfit
 class GSObjectModel(Model):
     """ Model that takes a fiducial GalSim.GSObject and dilates, shifts, and shears it to get a
     good match to stars.

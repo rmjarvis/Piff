@@ -59,11 +59,11 @@ def main(nsample, out):
                 'jmax_focal': 11,
                 'min_optfit_snr': 0,
                 'optfit_optimize': 'analytic',
-                'phase_psf_kwargs':
+                'optatmo_psf_kwargs':
                     {
                     },
              }
-    psf = piff.PhasePSF.parseKwargs(config, logger=logger)
+    psf = piff.OptAtmoPSF.parseKwargs(config, logger=logger)
 
     # make star image
     decaminfo = piff.des.DECamInfo()
@@ -134,7 +134,7 @@ def main(nsample, out):
 if __name__ == '__main__':
     # parse args
     import argparse
-    description = "Build PhasePSF Analytic relation"
+    description = "Build OptAtmoPSF Analytic relation"
     parser = argparse.ArgumentParser(description=description, add_help=True)
     parser.add_argument('-N', '--nsample', type=int, action='store', default=1000)
     parser.add_argument('-o', '--out', type=str, action='store', default='./optical.npy')

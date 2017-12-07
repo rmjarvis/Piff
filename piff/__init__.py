@@ -107,7 +107,7 @@ from .twod_stats import TwoDHistStats, WhiskerStats
 # Optics
 from .optical_model import Optical, optical_templates
 
-from .phase_psf import PhasePSF
+from .optatmo_psf import OptAtmoPSF
 
 # Leave these in their own namespaces
 from . import util
