@@ -239,7 +239,7 @@ class VonKarman(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
             is True.
         """
         from scipy.spatial.distance import pdist, cdist, squareform
-        from scipy import interpolate, special
+        from scipy import special
 
         X = np.atleast_2d(X)
         length_scale = _check_length_scale(X, self.length_scale)
@@ -250,9 +250,8 @@ class VonKarman(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
 
             dd_w = np.linspace(1e-4,1,100) / length_scale
             dd = np.linspace(1e-4,1,100)
-            spline = interpolate.InterpolatedUnivariateSpline(dd,
-                                                              (dd**(5./6.)) * special.kv(5./6.,2*np.pi*dd_w))
-            np.fill_diagonal(K, spline(0))
+            lim0 = special.gamma(5./6.) /(2 * ((np.pi / length_scale)**(5./6.)) )
+            np.fill_diagonal(K, lim0)
         else:
             if eval_gradient:
                 raise ValueError(
@@ -264,9 +263,8 @@ class VonKarman(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
             if np.sum(Filter) != len(K[0])*len(K[:,0]):
                 dd_w = np.linspace(1e-4,1,100) / length_scale
                 dd = np.linspace(1e-4,1,100)
-                spline = interpolate.InterpolatedUnivariateSpline(dd,
-                                                                  (dd**(5./6.)) * special.kv(5./6.,2*np.pi*dd_w))
-                K[~Filter] = spline(0)
+                lim0 = special.gamma(5./6.) /(2 * ((np.pi / length_scale)**(5./6.)) )
+                K[~Filter] = lim0
 
         if eval_gradient:
             if self.hyperparameter_length_scale.fixed:

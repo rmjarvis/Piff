@@ -588,7 +588,7 @@ def validate(validate_stars, interp):
         print('max image abs value = ',np.max(np.abs(s0.image.array)))
         print('min rtol = ', np.max(np.abs(s1.image.array - s0.image.array)/s0.image.array.max()))
         np.testing.assert_allclose(s1.image.array, s0.image.array,
-                                   rtol=0, atol=s0.image.array.max()*0.03)
+                                   rtol=0, atol=s0.image.array.max()*0.04)
 
         if False:
             import matplotlib.pyplot as plt
@@ -891,7 +891,6 @@ def test_anisotropic_rbf_kernel():
 
 @timer
 def test_vonkarman_kernel():
-    from scipy import interpolate
     from scipy import special
                     
     corr_lenght = [1.,10.,100.,1000.]
@@ -909,9 +908,8 @@ def test_vonkarman_kernel():
         K = param[0]**2 * (distance**(5./6.)) * special.kv(-5./6.,2*np.pi*distance/param[1])
         Filtre = np.isfinite(K)
         dist = np.linspace(1e-4,1.,100)
-        spline = interpolate.InterpolatedUnivariateSpline(dist,
-                                                          param[0]**2 * (dist**(5./6.)) * special.kv(-5./6.,2*np.pi*dist/param[1]))
-        K[~Filtre] = spline(0)
+        div = 5./6. 
+        K[~Filtre] = param[0]**2 * special.gamma(div) /(2 * ((np.pi / param[1])**div) )
         return K
         
     def _vonkarman_corr_function(param, distance):
@@ -993,9 +991,13 @@ def test_yaml():
         piffify_exe = get_script_name('piffify')
         p = subprocess.Popen( [piffify_exe, 'gp.yaml'] )
         p.communicate()
-        piff.read(psf_file)
 
-        # Doesn't actually check results, just checks that everything runs.
+        psf = piff.read(psf_file)
+        assert type(psf.model) is piff.GSObjectModel
+        assert type(psf.interp) is piff.GPInterp or type(psf.interp) is piff.GPInterp2pcf
+        target = psf.stars[42]
+        test_star = psf.interp.interpolate(target)
+        np.testing.assert_almost_equal(test_star.fit.params, target.fit.params, decimal=3)
 
 @timer
 def test_anisotropic_limit():
