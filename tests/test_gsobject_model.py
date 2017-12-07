@@ -655,6 +655,7 @@ def test_direct():
             roundtrip_model = piff.GSObjectModel.read(f, 'psf_model')
         assert model.__dict__ == roundtrip_model.__dict__
 
+@timer
 def test_gsobject_bases():
     # set up logger
     if __name__ == '__main__':
@@ -703,11 +704,57 @@ def test_gsobject_bases():
                         params_norm = params_norm[2:]
                         params_unnorm = params_unnorm[2:]
 
-                    # import ipdb; ipdb.set_trace()
                     logger.debug('test_gsobject_basis: Compare shapes')
                     # compare
                     np.testing.assert_allclose(params_unnorm, shapes[1], rtol=0, atol=1e-6)
                     np.testing.assert_allclose(params_norm, shapes[0], rtol=0, atol=1e-6)
+
+@timer
+def test_lmfit_errors():
+    import lmfit
+    Nsamples = 300
+    for force_model_center in [True]:
+        for include_pixel in [True]:
+            for unnormalized_basis in [False, True]:
+                for model_name, model_init in zip(['Kolmogorov', 'Gaussian'], [piff.Kolmogorov, piff.Gaussian]):
+                    for noise in [1e-4, 1e-3]:
+                        model = model_init(fastfit=False, force_model_center=force_model_center, include_pixel=include_pixel, unnormalized_basis=unnormalized_basis)
+
+                        params = np.array([0.2, -0.3, 1.2, -0.05, 0.07])
+                        if unnormalized_basis:
+                            params[2:] = model.convert_to_unnormalized_basis(*params[2:])
+                        if force_model_center:
+                            params = params[2:]
+
+                        params_out = []
+                        errors_out = []
+                        for i in range(Nsamples):
+                            star = piff.Star(model.draw(piff.Star(piff.Star.makeTarget(x=0, y=0, scale=0.263, stamp_size=32).data, piff.StarFit(params))).data, None)
+                            # add noise
+                            star.weight.fill(1. / noise ** 2)
+                            gn = galsim.GaussianNoise(sigma=noise, rng=None)
+                            star.image.addNoise(gn)
+
+                            # fit
+                            star = model.initialize(star)
+                            # TODO: with PFL's PR, the errors will be a property of the fit
+                            lmparams = model._lmfit_params(star)
+                            results = model._lmfit_minimize(lmparams, star)
+                            flux, du, dv, scale, g1, g2 = results.params.valuesdict().values()
+                            # only care about the shape terms, really
+                            params_out.append(np.array([scale, g1, g2]))
+                            error = np.sqrt(np.diag(results.covar)[3:])
+                            errors_out.append(error)
+                        params_out = np.array(params_out)
+                        errors_out = np.array(errors_out)
+                        # rough estimate of whether errors are working as designed
+                        pull = ((params_out - params) / errors_out)
+                        pull_mean = np.mean(pull, axis=0)
+                        pull_std = np.std(pull, axis=0)
+
+                        # rather roughly speaking, we expect pull to be gaussian about 0 with std of 1
+                        np.testing.assert_allclose(pull_mean, np.zeros(3), atol=0.2)
+                        np.testing.assert_allclose(pull_std, np.ones(3), atol=0.2)
 
 if __name__ == '__main__':
     test_simple()
@@ -718,3 +765,4 @@ if __name__ == '__main__':
     test_gradient_center()
     test_direct()
     test_gsobject_bases()
+    test_lmfit_errors()
