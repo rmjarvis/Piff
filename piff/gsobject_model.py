@@ -152,9 +152,9 @@ class GSObjectModel(Model):
 
         if self._unnormalized_basis:
             # params are actually e0, e1, e2, so convert from that to create galsim profile
-            if logger: logger.debug('Unnormalized fit params: {0:.2e}, {1:+.2e}, {2:+.2e}'.format(scale, g1, g2))
+            # if logger: logger.debug('Unnormalized fit params: {0:.2e}, {1:+.2e}, {2:+.2e}'.format(scale, g1, g2))
             scale, g1, g2 = self.convert_from_unnormalized_basis(scale, g1, g2)
-            if logger: logger.debug('Normalized fit params: {0:.2e}, {1:+.2e}, {2:+.2e}'.format(scale, g1, g2))
+            # if logger: logger.debug('Normalized fit params: {0:.2e}, {1:+.2e}, {2:+.2e}'.format(scale, g1, g2))
 
         return self.gsobj.dilate(scale).shear(g1=g1, g2=g2).shift(du, dv)
 
@@ -186,9 +186,9 @@ class GSObjectModel(Model):
         if self._unnormalized_basis:
             # scale, g1, g2 actually unnormalized second moments
             flux, du, dv, e0, e1, e2 = lmparams.valuesdict().values()
-            if logger: logger.debug('Unnormalized fit params: {0:.2e}, {1:+.2e}, {2:+.2e}'.format(e0, e1, e2))
+            # if logger: logger.debug('Unnormalized fit params: {0:.2e}, {1:+.2e}, {2:+.2e}'.format(e0, e1, e2))
             scale, g1, g2 = self.convert_from_unnormalized_basis(e0, e1, e2)
-            if logger: logger.debug('Normalized fit params: {0:.2e}, {1:+.2e}, {2:+.2e}'.format(scale, g1, g2))
+            # if logger: logger.debug('Normalized fit params: {0:.2e}, {1:+.2e}, {2:+.2e}'.format(scale, g1, g2))
         else:
             flux, du, dv, scale, g1, g2 = lmparams.valuesdict().values()
         # Fit du and dv regardless of force_model_center.  The difference is whether the fit
