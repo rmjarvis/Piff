@@ -152,8 +152,84 @@ def test_weights():
 
 @timer
 def test_measure_shapes():
-    # shape measurer, and errors. unnormalized_basis too
+    # set up logger
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(verbose=3)
+    else:
+        logger = piff.config.setup_logger(verbose=1)
     pass
+    # shape measurer, and errors. unnormalized_basis too. Fairly similar to the gsobject lmfit_errors, 
+
+@timer
+def test_atmo_interp_fit():
+    # set up logger
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(verbose=3)
+    else:
+        logger = piff.config.setup_logger(verbose=1)
+
+    jmax_pupil = 5
+    config = return_config()
+    config['jmax_focal'] = 1
+    config['jmax_pupil'] = jmax_pupil
+
+    psf = piff.PSF.process(config, logger=logger)
+    optatmo_psf_kwargs = {'size': 1.3, 'g1': 0.02, 'g2': -0.03,
+                        'zUV004_zXY001': -1.0,
+                        }
+    psf._update_optatmopsf(optatmo_psf_kwargs, logger=logger)
+    # make star
+    nstars = 10
+    chipnums = np.random.choice(range(1,63), nstars)
+    icens = np.random.randint(100, 1024, nstars)
+    jcens = np.random.randint(100, 1024, nstars)
+    stars_blank = [make_star(i, j, chip) for i, j, chip in zip(icens, jcens, chipnums)]
+    wcs = {}
+    for i in np.unique(chipnums):
+        wcs[i] = decaminfo.get_nominal_wcs(i)
+
+    # get params
+    params = psf.getParamsList(stars_blank)
+    # add additional scale, g1, g2 to profile
+    atmo_size = -0.2
+    atmo_g1 = 0.04
+    atmo_g2 = -0.03
+    params[:, 0] += atmo_size
+    params[:, 1] += atmo_g1
+    params[:, 2] += atmo_g2
+    # draw the stars
+    stars_to_fit = []
+    stars = []
+    for star, param in zip(stars_blank, params):
+        prof = psf._profile(param)
+        # draw the star
+        star = psf._drawProfile(star, prof, param)
+        stars.append(star)
+        star_to_fit = piff.Star(star.data, None)
+        stars_to_fit.append(star_to_fit)
+
+    # fit model with atmo_interp
+    psf.fit_atmosphere(stars_to_fit, logger=logger)
+
+    # compare inputs work
+    np.testing.assert_allclose(atmo_size, psf.atmo_interp.coeffs[0][0,0])
+    np.testing.assert_allclose(atmo_g1, psf.atmo_interp.coeffs[1][0,0])
+    np.testing.assert_allclose(atmo_g2, psf.atmo_interp.coeffs[2][0,0])
+
+    # check that the others are 0
+    np.testing.assert_allclose(0, psf.atmo_interp.coeffs[0].flatten()[1:], atol=1e-16)
+    np.testing.assert_allclose(0, psf.atmo_interp.coeffs[1].flatten()[1:], atol=1e-16)
+    np.testing.assert_allclose(0, psf.atmo_interp.coeffs[2].flatten()[1:], atol=1e-16)
+
+    # enable atmosphere
+    psf._enable_atmosphere = True
+
+    # test with drawStar
+    star_index = 3
+    star = stars_to_fit[star_index]
+    star_fit = psf.drawStar(star)
+    np.testing.assert_allclose(star_fit.fit.params, params[star_index])
+    np.testing.assert_allclose(star_fit.image.array, star.image.array)
 
 @timer
 def test_fit():
@@ -206,7 +282,7 @@ def test_fit():
         prof = psf._profile(param)
         # draw the star
         star = psf._drawProfile(star, prof, param)
-        # stars definitely need some noise to help the fitting
+        # stars definitely need some noise to help the fitting??
         noise = 0.0001
         star.data.weight = star.image.copy()
         star.weight.fill(1./noise/noise)
@@ -215,29 +291,6 @@ def test_fit():
         stars.append(star)
         star_to_fit = piff.Star(star.data, None)
         stars_to_fit.append(star_to_fit)
-
-    # # fit model with atmo_interp
-    # psf.fit_atmosphere(stars_to_fit, logger=logger)
-
-    # # compare inputs work
-    # np.testing.assert_allclose(atmo_size, psf.atmo_interp.coeffs[0][0,0])
-    # np.testing.assert_allclose(atmo_g1, psf.atmo_interp.coeffs[1][0,0])
-    # np.testing.assert_allclose(atmo_g2, psf.atmo_interp.coeffs[2][0,0])
-
-    # # check that the others are 0
-    # np.testing.assert_allclose(0, psf.atmo_interp.coeffs[0].flatten()[1:], atol=1e-16)
-    # np.testing.assert_allclose(0, psf.atmo_interp.coeffs[1].flatten()[1:], atol=1e-16)
-    # np.testing.assert_allclose(0, psf.atmo_interp.coeffs[2].flatten()[1:], atol=1e-16)
-
-    # # enable atmosphere
-    # psf._enable_atmosphere = True
-
-    # # test with drawStar
-    # star_index = 3
-    # star = stars_to_fit[star_index]
-    # star_fit = psf.drawStar(star)
-    # np.testing.assert_allclose(star_fit.fit.params, params[star_index])
-    # np.testing.assert_allclose(star_fit.image.array, star.image.array)
 
     # fit the above stuff for different optical models
     for optfit_optimize in ['pixel', 'moments', 'analytic']:
@@ -255,8 +308,8 @@ def test_fit():
 
         # check that the fixing actually fixed
         assert psf_clean.aberrations_field[jmax_pupil - 1, 0] == 0
-        assert psf_clean.optatmo_psf_kwargs['fix_zUV011_zXY001']
-        assert psf_clean.optatmo_psf_kwargs['zUV011_zXY001'] == 0
+        assert psf_clean.optatmo_psf_kwargs['fix_zUV{0:03d}_zXY001'.format(jmax_pupil)]
+        assert psf_clean.optatmo_psf_kwargs['zUV{0:03d}_zXY001'.format(jmax_pupil)] == 0
 
         # check that n_optfit_stars restricted appropriately
         assert len(psf_clean._opt_stars) <= config['n_optfit_stars']
@@ -271,6 +324,10 @@ def test_fit():
         np.testing.assert_allclose(psf.aberrations_field[0,0] + psf.atmo_interp.coeffs[0][0,0], psf_clean.aberrations_field[0,0], atol=1e-6)
         np.testing.assert_allclose(psf.aberrations_field[1,0] + psf.atmo_interp.coeffs[1][0,0], psf_clean.aberrations_field[1,0], atol=1e-6)
         np.testing.assert_allclose(psf.aberrations_field[2,0] + psf.atmo_interp.coeffs[2][0,0], psf_clean.aberrations_field[2,0], atol=1e-6)
+
+        if optfit_optimize in ['moments', 'analytic']:
+            # check that changing the weights changes the chi2 of a given iteration
+            pass
 
 @timer
 def test_atmo_model_fit():
@@ -467,3 +524,4 @@ if __name__ == '__main__':
         # test_reference_wavefront()
         # test_jmaxs()
         # test_atmo_model_fit()
+        # test_atmo_interp_fit()
