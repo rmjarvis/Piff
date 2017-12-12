@@ -251,12 +251,13 @@ class Star(object):
         return cls(data, fit)
 
     @classmethod
-    def write(self, stars, fits, extname):
+    def write(self, stars, fits, extname, logger=None):
         """Write a list of stars to a FITS file.
 
         :param stars:       A list of stars to write
         :param fits:        An open fitsio.FITS object
         :param extname:     The name of the extension to write to
+        :param logger:      A logger object for logging debug info.
         """
         import galsim
         # TODO This doesn't write everything out.  Probably want image as an optional I/O.
@@ -282,10 +283,15 @@ class Star(object):
 
         # Add the local WCS values
         dtypes.extend( [('dudx', float), ('dudy', float), ('dvdx', float), ('dvdy', float) ] )
-        cols.append( [s.data.local_wcs.jacobian().dudx for s in stars] )
-        cols.append( [s.data.local_wcs.jacobian().dudy for s in stars] )
-        cols.append( [s.data.local_wcs.jacobian().dvdx for s in stars] )
-        cols.append( [s.data.local_wcs.jacobian().dvdy for s in stars] )
+        cols.append( [s.data.affine_wcs.jacobian().dudx for s in stars] )
+        cols.append( [s.data.affine_wcs.jacobian().dudy for s in stars] )
+        cols.append( [s.data.affine_wcs.jacobian().dvdx for s in stars] )
+        cols.append( [s.data.affine_wcs.jacobian().dvdy for s in stars] )
+        dtypes.extend( [('origin_x', float), ('origin_y', float), ('world_origin_x', float), ('world_origin_y', float) ] )
+        cols.append( [s.data.affine_wcs.origin.x for s in stars] )
+        cols.append( [s.data.affine_wcs.origin.y for s in stars] )
+        cols.append( [s.data.affine_wcs.world_origin.x for s in stars] )
+        cols.append( [s.data.affine_wcs.world_origin.y for s in stars] )
 
         # Add the bounds
         dtypes.extend( [('xmin', int), ('xmax', int), ('ymin', int), ('ymax', int) ] )
@@ -315,11 +321,12 @@ class Star(object):
         fits.write_table(data, extname=extname)
 
     @classmethod
-    def read(cls, fits, extname):
+    def read(cls, fits, extname, logger=None):
         """Read stars from a FITS file.
 
         :param fits:        An open fitsio.FITS object
         :param extname:     The name of the extension to read from
+        :param logger:      A logger object for logging debug info.
 
         :returns: a list of Star instances
         """
@@ -330,7 +337,9 @@ class Star(object):
         for key in ['x', 'y', 'u', 'v',
                     'dudx', 'dudy', 'dvdx', 'dvdy',
                     'xmin', 'xmax', 'ymin', 'ymax',
-                    'flux', 'center', 'chisq']:
+                    'flux', 'center', 'chisq',
+                    'origin_x', 'origin_y',
+                    'world_origin_x', 'world_origin_y']:
             assert key in colnames
             colnames.remove(key)
 
@@ -343,6 +352,10 @@ class Star(object):
         dudy = data['dudy']
         dvdx = data['dvdx']
         dvdy = data['dvdy']
+        origin_x = data['origin_x']
+        origin_y = data['origin_y']
+        world_origin_x = data['world_origin_x']
+        world_origin_y = data['world_origin_y']
         xmin = data['xmin']
         xmax = data['xmax']
         ymin = data['ymin']
@@ -375,10 +388,14 @@ class Star(object):
         wcs_list = [ galsim.JacobianWCS(*jac) for jac in zip(dudx,dudy,dvdx,dvdy) ]
         pos_list = [ galsim.PositionD(*pos) for pos in zip(x_list,y_list) ]
         wpos_list = [ galsim.PositionD(*pos) for pos in zip(u_list,v_list) ]
-        wcs_list = [ w.withOrigin(p, wp) for w,p,wp in zip(wcs_list, pos_list, wpos_list) ]
+        origin_list = [ galsim.PositionD(*pos) for pos in zip(origin_x, origin_y) ]
+        world_origin_list = [ galsim.PositionD(*pos) for pos in zip(world_origin_x, world_origin_y) ]
+        # wcs_list = [ w.withOrigin(p, wp) for w,p,wp in zip(wcs_list, pos_list, wpos_list) ]
+        wcs_list = [ w.withOrigin(p, wp) for w,p,wp in zip(wcs_list, origin_list, world_origin_list) ]
         bounds_list = [ galsim.BoundsI(*b) for b in zip(xmin,xmax,ymin,ymax) ]
         image_list = [ galsim.Image(bounds=b, wcs=w) for b,w in zip(bounds_list, wcs_list) ]
-        weight_list = [ galsim.Image(bounds=b, wcs=w) for b,w in zip(bounds_list, wcs_list) ]
+        # weights should have constant weight instead of zero weight
+        weight_list = [ 1 + galsim.Image(bounds=b, wcs=w) for b,w in zip(bounds_list, wcs_list) ]
         data_list = [ StarData(im, pos, weight=w, properties=prop, pointing=point)
                       for im,pos,w,prop,point in zip(image_list, pos_list, weight_list,
                                                      prop_list, pointing_list) ]
@@ -517,6 +534,12 @@ class Star(object):
         # So just pass this task on to that and recast the return value as a Star instance.
         return Star(self.data.addPoisson(signal=signal, gain=gain), self.fit)
 
+    def copy(self):
+        return Star(self.data.copy(), self.fit.copy())
+
+    def clean(self):
+        # return star without its fit
+        return Star(self.data.copy(), None)
 
 class StarData(object):
     """A class that encapsulates all the relevant information about an observed star.
@@ -599,7 +622,11 @@ class StarData(object):
         self.image_pos = image_pos
         self.values_are_sb = values_are_sb
         # Make sure we have a local wcs in case the provided image is more complex.
-        self.local_wcs = image.wcs.local(image_pos)
+        try:
+            self.affine_wcs = image.wcs.jacobian(image_pos).withOrigin(image.wcs.origin, image.wcs.world_origin)
+        except AttributeError:
+            # no origin, which is fine
+            self.affine_wcs = image.wcs.jacobian(image_pos)
 
         if weight is None:
             self.weight = galsim.Image(image.bounds, init_value=1, wcs=image.wcs, dtype=float)
@@ -616,6 +643,10 @@ class StarData(object):
         else:
             self.orig_weight = orig_weight
 
+        # need to assert that weight and image and all have the same shape
+        if self.weight.array.shape != self.image.array.shape:
+            raise ValueError('Weight and image array shapes not the same!')
+
         if properties is None:
             self.properties = {}
         else:
@@ -626,7 +657,7 @@ class StarData(object):
             self.field_pos = self.calculateFieldPos(image_pos, image.wcs, pointing, self.properties)
         else:
             self.field_pos = field_pos
-        self.pixel_area = self.local_wcs.pixelArea()
+        self.pixel_area = self.affine_wcs.pixelArea()
 
         # Make sure the user didn't provide their own x,y,u,v in properties.
         for key in ['x', 'y', 'u', 'v']:
@@ -719,8 +750,14 @@ class StarData(object):
         y -= self.image_pos.y
 
         # Convert to u,v coords
-        u = self.local_wcs._u(x,y)
-        v = self.local_wcs._v(x,y)
+        # TODO: This will almost certainly be changed in galsim, so let's just stick this in for now
+        try:
+            u = self.affine_wcs._u(x,y)
+            v = self.affine_wcs._v(x,y)
+        except:
+            # newer version of galsim has a color command that needs to be specified?
+            u = self.affine_wcs._u(x,y, color=None)
+            v = self.affine_wcs._v(x,y, color=None)
 
         # Get flat versions of everything
         u = u.flatten()

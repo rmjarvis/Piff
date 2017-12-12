@@ -18,6 +18,7 @@
 
 from __future__ import print_function
 
+import os
 import piff
 import galsim
 import numpy as np
@@ -28,42 +29,46 @@ def param_to_shape(params, star, psf):
     prof = psf._profile(params)
 
     # draw onto image
-    star = psf._drawProfile(star, prof, params)
+    star = psf.drawProfileStar(star, prof, params)
 
-    # measure shape
-    shape, error = psf.measure_shape(star, psf.shape_modeller)
+    # measure shape 3 different ways
+    shapes = []
+    for measure_shape, shape_unnormalized, return_error in zip([psf.measure_shape_hsm, psf.measure_shape_hsm, psf.measure_shape_lmfit], [False, True, False], [False, True, False]):
+        val = measure_shape(star, shape_unnormalized=shape_unnormalized, return_error=return_error)
+        if return_error:
+            shapes.append(val[0])
+        else:
+            shapes.append(val)
 
-    return shape
+    return shapes
 
-# TODO: repeat for unnormalized_basis = True, False. Gaussian and kolmogorov
-def main(nsample, out):
-    # set up logger
-    if __name__ == '__main__':
-        logger = piff.config.setup_logger(verbose=3)
-    else:
-        logger = piff.config.setup_logger(verbose=1)
+def make_sample(nsample, logger):
 
     # make PSF object
     config = {  'optical_psf_kwargs':
-                    {
-                        'template': 'des',
-                    },
-                'reference_wavefront_kwargs':
-                    {
-                    },
-                'analytic_coefs': None,
-                'atmo_interp': None,
-                'weights_moment_fit': [0.5, 1, 1],
-                'fov_radius': 1.,  # TODO: figure this out!!
-                'jmax_pupil': 11,
-                'jmax_focal': 11,
-                'min_optfit_snr': 0,
-                'optfit_optimize': 'analytic',
-                'optatmo_psf_kwargs':
-                    {
-                    },
-             }
-    psf = piff.OptAtmoPSF.parseKwargs(config, logger=logger)
+                {
+                    'template': 'des',
+                },
+            'shape_weights': [0.5, 1, 1],
+            'fov_radius': 1. * 60 * 60,  # TODO: figure this out!!
+            'jmax_pupil': 11,
+            'jmax_focal': 1,
+            'n_optfit_stars': 0,
+            'min_optfit_snr': 0,
+            'optfit_optimize': 'analytic',
+            'optatmo_psf_kwargs':
+                {
+                },
+            'analytic_coefs': None,
+            'atmo_interp':
+                {
+                    'type': 'Polynomial',
+                    'order': 2,
+                },
+
+            'type': 'OptAtmo',
+         }
+    psf = piff.PSF.process(config, logger=logger)
 
     # make star image
     decaminfo = piff.des.DECamInfo()
@@ -76,35 +81,46 @@ def main(nsample, out):
     shapes = []
     params = []
     for i in range(nsample):
-        # draw r0
-        r0 = np.random.random_sample() * (0.35 - 0.05) + 0.05
-        g1 = np.random.random_sample() * (0.05 + 0.05) - 0.05
-        g2 = np.random.random_sample() * (0.05 + 0.05) - 0.05
+        # draw g0
+        g0 = np.random.random_sample() * (2.0 - 0.4) + 0.4
+        g1 = np.random.random_sample() * (0.1 + 0.1) - 0.1
+        g2 = np.random.random_sample() * (0.1 + 0.1) - 0.1
         z = np.random.random_sample(size=(8)) * 2 - 1
-        param = np.hstack((r0, g1, g2, z))
+        param = np.hstack((g0, g1, g2, z))
         params.append(param)
         shape = param_to_shape(param, star, psf)
         shapes.append(shape)
-        if i % 1000 == 0:
-            logger.info('Measured shape of star {0} / {1}'.format(i, nsample))
-            logger.info('***{:+.2f}'.format(*param))
-            logger.info('***{:+.2f}'.format(*shape))
+        if i % 100000 == 0:
+            cmd = logger.warn
+        elif i % 1000 == 0:
+            cmd = logger.info
+        else:
+            cmd = logger.debug
+        cmd('Measured shape of star {0} / {1}'.format(i, nsample))
+        param_str = '***Params: '
+        for parami in param:
+            param_str += '{0:+.2f}, '.format(parami)
+        cmd(param_str)
+        for j, shapei in enumerate(shape):
+            shape_str = '***Shape {0}: '.format(j)
+            for shapej in shapei:
+                shape_str += '{0:+.2f}, '.format(shapej)
+            cmd(shape_str)
     params = np.array(params)
     shapes = np.array(shapes)
 
-    # save params and shapes for now
-    np.save('shapes.npy', shapes)
-    np.save('params.npy', params)
+    return params, shapes
 
-    # convert params to up to cube of r0 and square of rest
+def evaluate_sample(shapes, params, logger):
+    # convert params to up to cube of g0 and square of rest
     # to do that, first put up front a set of ones
     params_onehot = np.vstack((np.ones(len(params)).T, params.T)).T
     ndim = params_onehot.shape[1]
     ppoly_full = (params_onehot[:, :, None, None] * params_onehot[:, None, :, None] * params_onehot[:, :2][:, None, None, :])
-    ppoly = ppoly_full.reshape(nsample, 2 * ndim * ndim)
+    ppoly = ppoly_full.reshape(len(shapes), 2 * ndim * ndim)
 
     # create pindx using python lists
-    params_indx = ['1', 'r0', 'g1', 'g2'] + ['z{0:02d}'.format(i) for i in range(8)]
+    params_indx = ['1', 'g0', 'g1', 'g2'] + ['z{0:02d}'.format(i) for i in range(4, 12)]
     pindx = []
     for param in params_indx:
         for param_2 in params_indx:
@@ -129,14 +145,28 @@ def main(nsample, out):
                 logger.info('{2} {0}:\t{1:+.02e}'.format(pindx[ith], model.coef_[ith], ith))
         logger.info('"""\n')
     models = np.array(models)
-    np.save(out, models)
+
+    return models
 
 if __name__ == '__main__':
     # parse args
     import argparse
     description = "Build OptAtmoPSF Analytic relation"
     parser = argparse.ArgumentParser(description=description, add_help=True)
-    parser.add_argument('-N', '--nsample', type=int, action='store', default=1000)
-    parser.add_argument('-o', '--out', type=str, action='store', default='./optical.npy')
-    kwargs = vars(parser.parse_args())
-    main(**kwargs)
+    parser.add_argument('-N', '--nsample', type=int, action='store', default=100)
+    parser.add_argument('-v', '--verbose', type=int, action='store', default=1)
+    parser.add_argument('-o', '--out', type=str, action='store', default='./optical')
+    args = parser.parse_args()
+    logger = piff.config.setup_logger(verbose=args.verbose)
+    if os.path.exists('shapes.npy'):
+        shapes = np.load('shapes.npy')
+        params = np.load('params.npy')
+    else:
+        params, shapes = make_sample(args.nsample, logger=logger)
+        # save params and shapes for now
+        np.save('shapes.npy', shapes)
+        np.save('params.npy', params)
+    for i in range(3):
+        shape = shapes[:, i, 3:]
+        models = evaluate_sample(shape, params, logger=logger)
+        np.save(args.out + '_' + str(i) + '.npy', models)

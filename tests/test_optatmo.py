@@ -28,8 +28,18 @@ def make_star(x, y, chipnum, properties={}, **kwargs):
     wcs = decaminfo.get_nominal_wcs(chipnum)
     properties_in = {'chipnum': chipnum}
     properties_in.update(properties)
-    star = piff.Star.makeTarget(x=x, y=y, wcs=wcs, stamp_size=32, properties=properties_in, **kwargs)
+    star = piff.Star.makeTarget(x=x, y=y, wcs=wcs, stamp_size=24, properties=properties_in, **kwargs)
     return star
+
+def plot_star(star, filename='test_optatmo.png', **kwargs):
+    import matplotlib.pyplot as plt
+    plt.figure()
+    plt.imshow(star.image.array, **kwargs)
+    plt.colorbar()
+    plt.savefig(filename)
+    plt.close('all')
+    plt.close('All')
+    plt.close()
 
 # default config
 def return_config():
@@ -39,7 +49,7 @@ def return_config():
                 },
             'reference_wavefront':
                 {
-                    'file_name': '/nfs/slac/g/ki/ki18/cpd/Projects/DES/Piff/tests/input/Science-20121120s1-v20i2.fits',
+                    'file_name': './input/Science-20121120s1-v20i2.fits',
                     'extname': 1,
                     'n_neighbors': 40,
                     'weights': 'distance',
@@ -47,8 +57,8 @@ def return_config():
                     'p': 2,
                     'type': 'DECamWavefront',
                 },
-            'weights_moment_fit': [0.5, 1, 1],
-            'fov_radius': 1.,  # TODO: figure this out!!
+            'shape_weights': [0.5, 1, 1],
+            'fov_radius': 1. * 60 * 60,  # TODO: figure this out!!
             'jmax_pupil': 11,
             'jmax_focal': 15,
             'n_optfit_stars': 0,
@@ -80,6 +90,29 @@ def test_init():
     psf = piff.PSF.process(config, logger=logger)
     logger.info('test_init: Passed!')
     return psf
+
+@timer
+def test_aberrations():
+    # set up logger
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(verbose=3)
+    else:
+        logger = piff.config.setup_logger(verbose=1)
+    logger.info('test_init: Started')
+    config = return_config()
+    psf = piff.PSF.process(config, logger=logger)
+    star = make_star(100, 100, 1)
+    for j in range(4, config['jmax_pupil']):
+        params = np.zeros(config['jmax_pupil'])
+        params[0] = 1
+        params[4 - 1] = 1.
+        params[j - 1] = 1.
+        prof = psf._profile(params)
+        new_star = psf.drawProfileStar(star, prof, params)
+        # check the new_star fit params
+        np.testing.assert_array_equal(params, new_star.fit.params)
+        # make sure the image arrays changed
+        np.testing.assert_raises(AssertionError, np.testing.assert_array_equal, star.image.array, new_star.image.array)
 
 @timer
 def test_reference_wavefront():
@@ -142,25 +175,6 @@ def test_reference_wavefront():
             assert True
 
 @timer
-def test_weights():
-    # set up logger
-    if __name__ == '__main__':
-        logger = piff.config.setup_logger(verbose=3)
-    else:
-        logger = piff.config.setup_logger(verbose=1)
-    pass
-
-@timer
-def test_measure_shapes():
-    # set up logger
-    if __name__ == '__main__':
-        logger = piff.config.setup_logger(verbose=3)
-    else:
-        logger = piff.config.setup_logger(verbose=1)
-    pass
-    # shape measurer, and errors. unnormalized_basis too. Fairly similar to the gsobject lmfit_errors, 
-
-@timer
 def test_atmo_interp_fit():
     # set up logger
     if __name__ == '__main__':
@@ -203,7 +217,7 @@ def test_atmo_interp_fit():
     for star, param in zip(stars_blank, params):
         prof = psf._profile(param)
         # draw the star
-        star = psf._drawProfile(star, prof, param)
+        star = psf.drawProfileStar(star, prof, param)
         stars.append(star)
         star_to_fit = piff.Star(star.data, None)
         stars_to_fit.append(star_to_fit)
@@ -239,7 +253,7 @@ def test_fit():
     else:
         logger = piff.config.setup_logger(verbose=1)
 
-    jmax_pupil = 11
+    jmax_pupil = 8
     config = return_config()
     config['jmax_focal'] = 1
     config['jmax_pupil'] = jmax_pupil
@@ -247,12 +261,10 @@ def test_fit():
     psf = piff.PSF.process(config, logger=logger)
     optatmo_psf_kwargs = {'size': 1.3, 'g1': 0.02, 'g2': -0.03,
                         'zUV004_zXY001': -1.0,
-                        'zUV005_zXY001': 0.5,
-                        'zUV006_zXY001': -0.25,
-                        'zUV007_zXY001': 0.5,
-                        'zUV008_zXY001': -0.25,
-                        'zUV009_zXY001': 0.5,
-                        'zUV010_zXY001': -0.25,
+                        'zUV005_zXY001': -1.0,
+                        'zUV006_zXY001': -1.0,
+                        'zUV007_zXY001': -1.0,
+                        'zUV008_zXY001': -1.0,
                         }
     psf._update_optatmopsf(optatmo_psf_kwargs, logger=logger)
     # make star
@@ -269,6 +281,9 @@ def test_fit():
     # get params
     params = psf.getParamsList(stars_blank)
     # add additional scale, g1, g2 to profile
+    atmo_flux = 1e1
+    atmo_du = 0.3
+    atmo_dv = -0.3
     atmo_size = -0.2
     atmo_g1 = 0.04
     atmo_g2 = -0.03
@@ -279,15 +294,15 @@ def test_fit():
     stars_to_fit = []
     stars = []
     for star, param in zip(stars_blank, params):
-        prof = psf._profile(param)
+        prof = psf._profile(param).shift(atmo_du, atmo_dv) * atmo_flux
         # draw the star
-        star = psf._drawProfile(star, prof, param)
-        # stars definitely need some noise to help the fitting??
-        noise = 0.0001
-        star.data.weight = star.image.copy()
-        star.weight.fill(1./noise/noise)
-        gn = galsim.GaussianNoise(sigma=noise)
-        star.image.addNoise(gn)
+        star = psf.drawProfileStar(star, prof, param)
+        # # stars definitely need some noise to help the fitting??
+        # noise = 0.005
+        # star.data.weight = star.image.copy()
+        # star.weight.fill(1./noise/noise)
+        # gn = galsim.GaussianNoise(sigma=noise)
+        # star.image.addNoise(gn)
         stars.append(star)
         star_to_fit = piff.Star(star.data, None)
         stars_to_fit.append(star_to_fit)
@@ -300,16 +315,10 @@ def test_fit():
         config['jmax_focal'] = 1
         config['jmax_pupil'] = jmax_pupil
 
-        config['n_optfit_stars'] = int(0.3 * nstars)
-        config['optatmo_psf_kwargs']['fix_zUV{0:03d}_zXY001'.format(jmax_pupil)] = True
+        config['n_optfit_stars'] = int(0.9 * nstars)
         psf_clean = piff.PSF.process(config, logger=logger)
         psf_clean.fit(stars_to_fit, wcs, pointing, logger=logger)
         import ipdb; ipdb.set_trace()
-
-        # check that the fixing actually fixed
-        assert psf_clean.aberrations_field[jmax_pupil - 1, 0] == 0
-        assert psf_clean.optatmo_psf_kwargs['fix_zUV{0:03d}_zXY001'.format(jmax_pupil)]
-        assert psf_clean.optatmo_psf_kwargs['zUV{0:03d}_zXY001'.format(jmax_pupil)] == 0
 
         # check that n_optfit_stars restricted appropriately
         assert len(psf_clean._opt_stars) <= config['n_optfit_stars']
@@ -321,9 +330,9 @@ def test_fit():
         assert psf_clean.optatmo_psf_kwargs['g2'] == psf_clean.aberrations_field[2, 0]
         assert psf_clean.optatmo_psf_kwargs['zUV004_zXY001'] == psf_clean.aberrations_field[3, 0]
         # note that when comparing the aberrations, because we put in a constant atmosphere, we actually expect the atmosphere interpolation to be zero, and the aberration field terms to be the sum of those pieces
-        np.testing.assert_allclose(psf.aberrations_field[0,0] + psf.atmo_interp.coeffs[0][0,0], psf_clean.aberrations_field[0,0], atol=1e-6)
-        np.testing.assert_allclose(psf.aberrations_field[1,0] + psf.atmo_interp.coeffs[1][0,0], psf_clean.aberrations_field[1,0], atol=1e-6)
-        np.testing.assert_allclose(psf.aberrations_field[2,0] + psf.atmo_interp.coeffs[2][0,0], psf_clean.aberrations_field[2,0], atol=1e-6)
+        np.testing.assert_allclose(psf_clean.aberrations_field[0,0] + psf_clean.atmo_interp.coeffs[0][0,0], psf.aberrations_field[0,0], atol=1e-6)
+        np.testing.assert_allclose(psf_clean.aberrations_field[1,0] + psf_clean.atmo_interp.coeffs[1][0,0], psf.aberrations_field[1,0], atol=1e-6)
+        np.testing.assert_allclose(psf_clean.aberrations_field[2,0] + psf_clean.atmo_interp.coeffs[2][0,0], psf.aberrations_field[2,0], atol=1e-6)
 
         if optfit_optimize in ['moments', 'analytic']:
             # check that changing the weights changes the chi2 of a given iteration
@@ -352,7 +361,7 @@ def test_atmo_model_fit():
     params = psf.getParams(star)
 
     # add additional flux, du, dv, scale, g1, g2 to profile
-    atmo_flux = 1e2
+    atmo_flux = 1e1
     atmo_du = 0.3
     atmo_dv = -0.3
     atmo_size = -0.2
@@ -365,11 +374,12 @@ def test_atmo_model_fit():
     prof = psf._profile(params).shift(atmo_du, atmo_dv) * atmo_flux
 
     # draw the star
-    star = psf._drawProfile(star, prof, params)
+    star = psf.drawProfileStar(star, prof, params)
     star_to_fit = piff.Star(star.data, None)
 
     # fit star
-    star_fit = psf._fit_atmosphere_model(star_to_fit, logger)
+    params_in = psf.getParams(star)
+    star_fit = psf._fit_model(star_to_fit, opt_params=params_in, vary_shape=True, logger=logger)
 
     # check fitted params, centers, flux
     fit_flux = star_fit.flux
@@ -377,7 +387,6 @@ def test_atmo_model_fit():
     fit_dv = star_fit.center[1]
     arr_atmo = np.array([atmo_flux, atmo_du, atmo_dv, atmo_size, atmo_g1, atmo_g2])
     arr_fit = np.array([fit_flux, fit_du, fit_dv, star_fit.fit.params[0], star_fit.fit.params[1], star_fit.fit.params[2]])
-
     np.testing.assert_allclose(arr_atmo, arr_fit, rtol=1e-5)
 
     # also compare the shapes of the drawn fitted star and the original star
@@ -388,7 +397,7 @@ def test_atmo_model_fit():
     params_fit[1] += arr_fit[4]
     params_fit[2] += arr_fit[5]
     prof_fit = psf._profile(params_fit).shift(arr_fit[1], arr_fit[2]) * arr_fit[0]
-    star_fit_drawn = psf._drawProfile(star_fit, prof_fit, params_fit)
+    star_fit_drawn = psf.drawProfileStar(star_fit, prof_fit, params_fit)
     shape_drawn, error_drawn = psf.measure_shape(star_fit_drawn, logger=logger)
     np.testing.assert_allclose(shape, shape_drawn, rtol=1e-5)
     np.testing.assert_allclose(error, error_drawn, rtol=1e-5)
@@ -465,15 +474,6 @@ def test_jmaxs():
     logger.info('test_jmaxs: Passed!')
 
 @timer
-def test_atmosphere():
-    # set up logger
-    if __name__ == '__main__':
-        logger = piff.config.setup_logger(verbose=3)
-    else:
-        logger = piff.config.setup_logger(verbose=1)
-    pass
-
-@timer
 def test_analytic_coefs():
     # set up logger
     if __name__ == '__main__':
@@ -482,32 +482,110 @@ def test_analytic_coefs():
         logger = piff.config.setup_logger(verbose=1)
     pass
 
-@timer
-def test_drawstars():
-    # set up logger
-    if __name__ == '__main__':
-        logger = piff.config.setup_logger(verbose=3)
-    else:
-        logger = piff.config.setup_logger(verbose=1)
-    pass
 
 @timer
-def test_shape_modeller_and_snr():
+def test_snr_and_shapes():
     # set up logger
     if __name__ == '__main__':
         logger = piff.config.setup_logger(verbose=3)
     else:
         logger = piff.config.setup_logger(verbose=1)
-    pass
+    config = return_config()
+    config.pop('reference_wavefront')
+    psf = piff.PSF.process(config, logger=logger)
+    optatmo_psf_kwargs = {'size': 1.2, 'g1': 0.05, 'g2': -0.05}
+    psf._update_optatmopsf(optatmo_psf_kwargs, logger=logger)
+    star = make_star(500, 500, 25)
+
+    # draw stars, add noise, check shapes and errors
+    Nsamples = 100
+    snr = 40
+    flux = snr ** 2
+    shapes = [[[], []], [[], []]]
+    errors = [[[], []], [[], []]]
+    snrs = []
+
+    star_model = psf.drawStar(star)
+    star_model.fit.flux = flux
+    image = star_model.image.array * flux
+    weight = 1. / image
+    star.image.array[:] = image
+    star.weight.array[:] = weight
+    for i in range(Nsamples):
+        if i % 10 == 0:
+            print(i)
+        noise = np.random.normal(size=image.shape, scale=np.sqrt(image))
+        image_obs = image + noise
+        star_model.image.array[:] = image_obs
+        # any stars with -ve image are considered masked
+        # star_model.weight.array[:] = np.where(image_obs < 0, 0, weight)
+        star_model.weight.array[:] = weight
+
+        # measure shape for various types
+        for j, measure_shape in enumerate([psf.measure_shape_hsm, psf.measure_shape_lmfit]):
+            for k, shape_unnormalized in enumerate([False, True]):
+                shape, error = measure_shape(star_model, shape_unnormalized=shape_unnormalized, return_error=True)
+                shapes[j][k].append(shape)
+                errors[j][k].append(error)
+        if i == 0:
+            import ipdb; ipdb.set_trace()
+        snrs.append(psf.measure_snr(star_model))
+    snrs = np.array(snrs)
+    print(np.sqrt(np.sum(weight * image * image)))
+    print(snrs)
+    # not particularly concerned with flux, du, dv
+    shapes = np.array(shapes)
+    errors = np.array(errors)
+    std_shapes = np.array([[shapei.std(axis=0) for shapei in shape] for shape in shapes])
+    mean_errors = np.array([[errori.std(axis=0) for errori in error] for error in errors])
+    for j, measure_shape in enumerate([psf.measure_shape_hsm, psf.measure_shape_lmfit]):
+        for k, shape_unnormalized in enumerate([False, True]):
+            print(j, k)
+            print(std_shapes[j, k])
+            print(mean_errors[j, k])
+            print(std_shapes[j, k] / mean_errors[j, k])
+    import ipdb; ipdb.set_trace()
+    # TODO: what SNR do I actually expect for a given noise? 0.01 gives an snr of 30...
+    np.testing.assert_allclose(std_shapes, mean_errors, atol=0.01)
 
 @timer
-def test_getProfile():
+def test_profile():
     # set up logger
     if __name__ == '__main__':
         logger = piff.config.setup_logger(verbose=3)
     else:
         logger = piff.config.setup_logger(verbose=1)
-    pass
+    config = return_config()
+    psf = piff.PSF.process(config, logger=logger)
+    star = make_star(500, 500, 25)
+    # get getProfile vs _profile(params)
+    prof = psf.getProfile(star)
+    params = psf.getParams(star)
+    prof2 = psf._profile(params)
+    assert prof == prof2
+    params_list_0 = psf.getParamsList([star])[0]
+    prof_list = psf._profile(params_list_0)
+    assert prof == prof_list
+
+    image = psf.drawProfile(star, prof)
+    star_drawstar = psf.drawStar(star)
+    image_drawstar = star_drawstar.image
+    assert image == image_drawstar
+
+    star_drawprofilestar = psf.drawProfileStar(star, prof, params)
+    image_drawprofilestar = star_drawprofilestar.image
+    assert image == image_drawprofilestar
+
+    star_drawstarlist = psf.drawStarList([star])[0]
+    image_drawstarlist = star_drawstarlist.image
+    assert image == image_drawstarlist
+
+    # also make sure that if the aberrations are all 0, then doesn't even bother convolving opticalpsf
+    params_zeroed = params.copy()
+    params_zeroed[3:] = 0
+    prof_zero = psf._profile(params_zeroed)
+    prof = psf.atmo_model.dilate(params_zeroed[0]).shear(g1=params_zeroed[1], g2=params_zeroed[2])
+    assert prof == prof_zero
 
 @timer
 def test_roundtrip():
@@ -516,12 +594,58 @@ def test_roundtrip():
         logger = piff.config.setup_logger(verbose=3)
     else:
         logger = piff.config.setup_logger(verbose=1)
-    pass
+    # fit the test ccd
+    image_file = 'input/DECam_00241238_01.fits.fz'
+    cat_file = 'input/DECam_00241238_01_psfcat_tb_maxmag_17.0_magcut_3.0_findstars.fits'
+    orig_image = galsim.fits.read(image_file)
+    psf_file = os.path.join('output','pixel_des_psf.fits')
+    config_psf = return_config()
+    config = {
+        'input': {
+            'image_file_name' : image_file,
+            'image_hdu' : 1,
+            'weight_hdu' : 3,
+            'badpix_hdu' : 2,
+            'cat_file_name' : cat_file,
+            'cat_hdu' : 2,
+            'x_col' : 'XWIN_IMAGE',
+            'y_col' : 'YWIN_IMAGE',
+            'sky_col' : 'BACKGROUND',
+            'stamp_size' : 24,
+            'ra' : 'TELRA',
+            'dec' : 'TELDEC',
+            'gain' : 'GAINA',
+            'nstars': 100,  # for now
+            },
+        'output': {'file_name': psf_file,},
+        'psf': config_psf,
+        }
+
+    # modify config_psf properties here
+
+
+    # run using piffify
+    if os.path.exists(psf_file):
+        os.remove(psf_file)
+    logger.info('Running piffify')
+    piff.piffify(config, logger=logger)
+
+
+    # load results and compare with initial params
+    psf_original = piff.PSF.process(config_psf, logger=logger)
+    psf = piff.read(psf_file, logger=logger)
 
 if __name__ == '__main__':
-        # test_init()
-        test_fit()
-        # test_reference_wavefront()
-        # test_jmaxs()
-        # test_atmo_model_fit()
-        # test_atmo_interp_fit()
+        test_init()
+        test_aberrations()
+        test_reference_wavefront()
+        test_jmaxs()
+        test_atmo_model_fit()
+        test_atmo_interp_fit()
+        test_profile()
+
+        # TODO: ones that are still tbd
+        # test_snr_and_shapes()
+        # test_fit()
+        # test_roundtrip()
+        # test_analytic_coefs()
