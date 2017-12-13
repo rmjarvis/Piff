@@ -471,23 +471,21 @@ class OptAtmoPSF(PSF):
         # optics
         aberrations = np.zeros(4 + len(params[3:]))
         aberrations[4:] = params[3:]
-        profs = []
-        if np.any(aberrations != 0):
+        do_opt = np.any(aberrations != 0)
+        if do_opt:
             opt = galsim.OpticalPSF(aberrations=aberrations, gsparams=self.gsparams, **self.optical_psf_kwargs)
-            profs.append(opt)
 
         # atmosphere
         size = params[0]
         g1 = params[1]
         g2 = params[2]
         atmo = self.atmo_model.dilate(size).shear(g1=g1, g2=g2)
-        profs.append(atmo)
 
         # convolve together!
-        if len(profs) > 1:
-            prof = galsim.Convolve(profs, gsparams=self.gsparams)
+        if do_opt:
+            prof = galsim.Convolve([opt, atmo], gsparams=self.gsparams)
         else:
-            prof = profs[0]
+            prof = atmo
 
         return prof
 
@@ -615,18 +613,19 @@ class OptAtmoPSF(PSF):
     @staticmethod
     def shape_convert_errors_to_normalized(sigma_e0, sigma_e1, sigma_e2, e0, e1, e2):
         alpha = np.sqrt(1 - (e1 / e0) ** 2 - (e2 / e0) ** 2)
+        beta = e0 ** 2 - e1 ** 2 - e2 ** 2
 
-        dg1de0 = -e1 * e0 ** -2 * 1 / (1 + alpha) * (1 + (1 - alpha ** 2) / alpha)
-        dg1de1 = 1. / (e0 * (1 + alpha)) * (1 + e1 ** 2 / (e0 ** 2 * alpha))
-        dg1de2 = e1 * e2 * e0 ** -3. / (alpha * (1 + alpha) ** 2.)
+        dsigmade0 = np.sqrt(2) * e0 / (4 * beta ** (3. / 4.))
+        dsigmade1 = -np.sqrt(2) * e1 / (4 * beta ** (3. / 4.))
+        dsigmade2 = -np.sqrt(2) * e2 / (4 * beta ** (3. / 4.))
 
-        dg2de0 = -e2 * e0 ** -2 * 1 / (1 + alpha) * (1 + (1 - alpha ** 2) / alpha)
-        dg2de1 = e1 * e2 * e0 ** -3. / (alpha * (1 + alpha) ** 2.)
-        dg2de2 = 1. / (e0 * (1 + alpha)) * (1 + e2 ** 2 / (e0 ** 2 * alpha))
+        dg1de0 = -e1 * e0 ** -2 / (alpha * (alpha + 1))
+        dg1de1 = (e0 * e0 * alpha + e0 * e0 - e2 * e2) / (e0 ** 3 * alpha * (alpha + 1) ** 2)
+        dg1de2 = e1 * e2 / (e0 ** 3 * (alpha + 1) ** 2 * alpha)
 
-        dsigmade0 = np.sqrt(2) / (4 * np.sqrt(e0) * alpha ** (3. / 2.))
-        dsigmade1 = -np.sqrt(2) / (4 * np.sqrt(e0) * alpha ** (3. / 2.))
-        dsigmade2 = -np.sqrt(2) / (4 * np.sqrt(e0) * alpha ** (3. / 2.))
+        dg2de0 = -e2 * e0 ** -2 / (alpha * (alpha + 1))
+        dg2de1 = e1 * e2 / (e0 ** 3 * (alpha + 1) ** 2 * alpha)
+        dg2de2 = (e0 * e0 * alpha + e0 * e0 - e1 * e1) / (e0 ** 3 * alpha * (alpha + 1) ** 2)
 
         sigma_sigma = np.sqrt(dsigmade0 ** 2 * sigma_e0 ** 2 + dsigmade1 ** 2 * sigma_e1 ** 2 + dsigmade2 ** 2 * sigma_e2 ** 2)
         sigma_g1 = np.sqrt(dg1de0 ** 2 * sigma_e0 ** 2 + dg1de1 ** 2 * sigma_e1 ** 2 + dg1de2 ** 2 * sigma_e2 ** 2)
@@ -729,7 +728,7 @@ class OptAtmoPSF(PSF):
     def measure_shape_hsm(self, star, shape_unnormalized=True, return_error=True, logger=None):
         if return_error:
             # do in unnormalized basis by default
-            flux, u0, v0, e0, e1, e2, sigma_flux, sigma_u0, sigma_v0, sigma_e0, sigma_e1, sigma_e2 = hsm_error(star, return_debug=False)
+            flux, u0, v0, e0, e1, e2, sigma_flux, sigma_u0, sigma_v0, sigma_e0, sigma_e1, sigma_e2 = hsm_error(star, return_debug=False, logger=logger)
             if shape_unnormalized:
                 shape = np.array([flux, u0, v0, e0, e1, e2])
                 error = np.array([sigma_flux, sigma_u0, sigma_v0, sigma_e0, sigma_e1, sigma_e2])
@@ -792,6 +791,9 @@ class OptAtmoPSF(PSF):
             shape = np.array([flux, du, dv, e0, e1, e2])
             sigma_size, sigma_g1, sigma_g2 = error[3:6]
             sigma_e0, sigma_e1, sigma_e2 = self.shape_convert_errors_to_unnormalized(sigma_size, sigma_g1, sigma_g2, size, g1, g2)
+            error[3] = sigma_e0
+            error[4] = sigma_e1
+            error[5] = sigma_e2
 
         else:
             shape = np.array([flux, du, dv, size, g1, g2])
@@ -1081,12 +1083,12 @@ class OptAtmoPSF(PSF):
         if vary_shape:
             # we must also cut the min and max based on opt_params to avoid things
             # like large ellipticities or small sizes
-            min_size = 0.2
+            min_size = 0.4
             max_g = 0.4
             opt_size = opt_params[0]
             opt_g1 = opt_params[1]
             opt_g2 = opt_params[2]
-            params.add('size', value=0, vary=True, min=min_size - opt_size)
+            params.add('size', value=max([min_size - opt_size, 0]), vary=True, min=min_size - opt_size)
             params.add('g1', value=0, vary=True, min=-max_g - opt_g1, max=max_g - opt_g1)
             params.add('g2', value=0, vary=True, min=-max_g - opt_g2, max=max_g - opt_g2)
 
@@ -1118,7 +1120,7 @@ class OptAtmoPSF(PSF):
         else:
             flux, du, dv = lmparams.valuesdict().values()
 
-        if logger: logger.debug('Making Profile with shape terms {0} {1} {2} {3} {4} {5}'.format(flux, du, dv, params[0], params[1], params[2]))
+        # if logger: logger.debug('Making Profile with shape terms {0} {1} {2} {3} {4} {5}'.format(flux, du, dv, params[0], params[1], params[2]))
         prof = self._profile(params).shift(du, dv) * flux
 
         # calculate chi2

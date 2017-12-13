@@ -88,7 +88,6 @@ def test_init():
     logger.info('test_init: Started')
     config = return_config()
     psf = piff.PSF.process(config, logger=logger)
-    logger.info('test_init: Passed!')
     return psf
 
 @timer
@@ -100,7 +99,7 @@ def test_aberrations():
         logger = piff.config.setup_logger(verbose=1)
     logger.info('test_init: Started')
     config = return_config()
-    psf = piff.PSF.process(config, logger=logger)
+    psf = piff.PSF.process(config)
     star = make_star(100, 100, 1)
     for j in range(4, config['jmax_pupil']):
         params = np.zeros(config['jmax_pupil'])
@@ -116,13 +115,12 @@ def test_aberrations():
 
 @timer
 def test_reference_wavefront():
-    # test that aberrations from wavefront appear in getParams
-
     # set up logger
     if __name__ == '__main__':
         logger = piff.config.setup_logger(verbose=3)
     else:
         logger = piff.config.setup_logger(verbose=1)
+    logger.info('Entering test_reference_wavefront')
 
     star = make_star(0, 0, 1)
 
@@ -132,7 +130,7 @@ def test_reference_wavefront():
     for jmax_pupil in jmaxs:
         config = return_config()
         config['jmax_pupil'] = jmax_pupil
-        psf = piff.PSF.process(config, logger=logger)
+        psf = piff.PSF.process(config)
         params_psfs.append(psf.getParams(star))
     np.testing.assert_equal(params_psfs[0], params_psfs[1][:jmaxs[0]])
     np.testing.assert_equal(params_psfs[1], params_psfs[2][:jmaxs[1]])
@@ -145,7 +143,7 @@ def test_reference_wavefront():
     try:
         config = return_config()
         config['jmax_pupil'] = 3
-        psf = piff.PSF.process(config, logger=logger)
+        psf = piff.PSF.process(config)
         assert False
     except ValueError:
         assert True
@@ -153,7 +151,7 @@ def test_reference_wavefront():
     try:
         config = return_config()
         config['jmax_focal'] = 0
-        psf = piff.PSF.process(config, logger=logger)
+        psf = piff.PSF.process(config)
         assert False
     except ValueError:
         assert True
@@ -162,14 +160,14 @@ def test_reference_wavefront():
     uvs = [3, 900]
     for uv in uvs:
         try:
-            psf._update_optatmopsf({'zUV{0:03d}_zXY001'.format(uv): 1}, logger=logger)
+            psf._update_optatmopsf({'zUV{0:03d}_zXY001'.format(uv): 1})
             assert False
         except ValueError:
             assert True
     xys = [0, 900]
     for xy in xys:
         try:
-            psf._update_optatmopsf({'zUV005_zXY{0:03d}'.format(xy): 1}, logger=logger)
+            psf._update_optatmopsf({'zUV005_zXY{0:03d}'.format(xy): 1})
             assert False
         except ValueError:
             assert True
@@ -181,13 +179,14 @@ def test_atmo_interp_fit():
         logger = piff.config.setup_logger(verbose=3)
     else:
         logger = piff.config.setup_logger(verbose=1)
+    logger.info('Entering test_atmo_interp_fit')
 
     jmax_pupil = 5
     config = return_config()
     config['jmax_focal'] = 1
     config['jmax_pupil'] = jmax_pupil
 
-    psf = piff.PSF.process(config, logger=logger)
+    psf = piff.PSF.process(config)
     optatmo_psf_kwargs = {'size': 1.3, 'g1': 0.02, 'g2': -0.03,
                         'zUV004_zXY001': -1.0,
                         }
@@ -252,13 +251,14 @@ def test_fit():
         logger = piff.config.setup_logger(verbose=3)
     else:
         logger = piff.config.setup_logger(verbose=1)
+    logger.debug('Enterint test_fit')
 
     jmax_pupil = 8
     config = return_config()
     config['jmax_focal'] = 1
     config['jmax_pupil'] = jmax_pupil
 
-    psf = piff.PSF.process(config, logger=logger)
+    psf = piff.PSF.process(config)
     optatmo_psf_kwargs = {'size': 1.3, 'g1': 0.02, 'g2': -0.03,
                         'zUV004_zXY001': -1.0,
                         'zUV005_zXY001': -1.0,
@@ -345,8 +345,9 @@ def test_atmo_model_fit():
         logger = piff.config.setup_logger(verbose=3)
     else:
         logger = piff.config.setup_logger(verbose=1)
+    logger.info('Entering test_atmo_model_fit')
     config = return_config()
-    psf = piff.PSF.process(config, logger=logger)
+    psf = piff.PSF.process(config)
     optatmo_psf_kwargs = {'size': 0.8, 'g1': 0.01, 'g2': -0.01,
                         'zUV004_zXY001': -1.0,
                         'zUV005_zXY001': 1.0,
@@ -414,7 +415,7 @@ def test_jmaxs():
     config = return_config()
     config['jmax_pupil'] = 21
     config['jmax_focal'] = 45
-    psf = piff.PSF.process(config, logger=logger)
+    psf = piff.PSF.process(config)
     stars = [make_star(100, 100, 1), make_star(100, 100, 60), make_star(100, 100, 3)]  # 0 and 1 share u, 0 and 2 share v
     aberrations_pupil = psf._getParamsList_aberrations_field(stars)
 
@@ -471,8 +472,6 @@ def test_jmaxs():
     assert psf.aberrations_field[21-1, 45-1] == optatmo_psf_kwargs['zUV021_zXY045']
     assert psf.aberrations_field[4-1, 1-1] == optatmo_psf_kwargs['zUV004_zXY001']
 
-    logger.info('test_jmaxs: Passed!')
-
 @timer
 def test_analytic_coefs():
     # set up logger
@@ -490,63 +489,78 @@ def test_snr_and_shapes():
         logger = piff.config.setup_logger(verbose=3)
     else:
         logger = piff.config.setup_logger(verbose=1)
+    logger.info('Entering test_snr_and_shapes')
     config = return_config()
     config.pop('reference_wavefront')
-    psf = piff.PSF.process(config, logger=logger)
+    psf = piff.PSF.process(config)
     optatmo_psf_kwargs = {'size': 1.2, 'g1': 0.05, 'g2': -0.05}
     psf._update_optatmopsf(optatmo_psf_kwargs, logger=logger)
     star = make_star(500, 500, 25)
 
     # draw stars, add noise, check shapes and errors
-    Nsamples = 100
-    snr = 40
-    flux = snr ** 2
-    shapes = [[[], []], [[], []]]
-    errors = [[[], []], [[], []]]
-    snrs = []
+    Nsamples = 300
+    # test for two levels of SNR
+    for snr in [60]:
+        flux = snr ** 2
+        shapes = [[[], []], [[], []]]
+        errors = [[[], []], [[], []]]
+        snrs = []
 
-    star_model = psf.drawStar(star)
-    star_model.fit.flux = flux
-    image = star_model.image.array * flux
-    weight = 1. / image
-    star.image.array[:] = image
-    star.weight.array[:] = weight
-    for i in range(Nsamples):
-        if i % 10 == 0:
-            print(i)
-        noise = np.random.normal(size=image.shape, scale=np.sqrt(image))
-        image_obs = image + noise
-        star_model.image.array[:] = image_obs
-        # any stars with -ve image are considered masked
-        # star_model.weight.array[:] = np.where(image_obs < 0, 0, weight)
-        star_model.weight.array[:] = weight
+        star_model = psf.drawStar(star)
+        star_model.fit.flux = flux
+        image = star_model.image.array * flux
+        weight = 1. / image
+        star.image.array[:] = image
+        star.weight.array[:] = weight
+        for i in range(Nsamples):
+            noise = np.random.normal(size=image.shape, scale=np.sqrt(image))
+            image_obs = image + noise
+            star_model.image.array[:] = image_obs
+            # any stars with -ve image are considered masked
+            # star_model.weight.array[:] = np.where(image_obs < 0, 0, weight)
+            star_model.weight.array[:] = weight
 
-        # measure shape for various types
-        for j, measure_shape in enumerate([psf.measure_shape_hsm, psf.measure_shape_lmfit]):
-            for k, shape_unnormalized in enumerate([False, True]):
-                shape, error = measure_shape(star_model, shape_unnormalized=shape_unnormalized, return_error=True)
-                shapes[j][k].append(shape)
-                errors[j][k].append(error)
-        if i == 0:
-            import ipdb; ipdb.set_trace()
-        snrs.append(psf.measure_snr(star_model))
-    snrs = np.array(snrs)
-    print(np.sqrt(np.sum(weight * image * image)))
-    print(snrs)
-    # not particularly concerned with flux, du, dv
-    shapes = np.array(shapes)
-    errors = np.array(errors)
-    std_shapes = np.array([[shapei.std(axis=0) for shapei in shape] for shape in shapes])
-    mean_errors = np.array([[errori.std(axis=0) for errori in error] for error in errors])
-    for j, measure_shape in enumerate([psf.measure_shape_hsm, psf.measure_shape_lmfit]):
-        for k, shape_unnormalized in enumerate([False, True]):
-            print(j, k)
-            print(std_shapes[j, k])
-            print(mean_errors[j, k])
-            print(std_shapes[j, k] / mean_errors[j, k])
-    import ipdb; ipdb.set_trace()
-    # TODO: what SNR do I actually expect for a given noise? 0.01 gives an snr of 30...
-    np.testing.assert_allclose(std_shapes, mean_errors, atol=0.01)
+            # measure shape for various types
+            for j, measure_shape in enumerate([psf.measure_shape_hsm, psf.measure_shape_lmfit]):
+                for k, shape_unnormalized in enumerate([False, True]):
+                    if j == 0 and k == 1:
+                        logger_in = logger
+                    else:
+                        logger_in = None
+                    logger_in = None
+                    shape, error = measure_shape(star_model, shape_unnormalized=shape_unnormalized, return_error=True, logger=logger_in)
+                    shapes[j][k].append(shape)
+                    errors[j][k].append(error)
+            snrs.append(psf.measure_snr(star_model))
+
+        # not particularly concerned with flux, du, dv
+        shapes = np.array(shapes)
+        errors = np.array(errors)
+        std_shapes = np.array([[shapei.std(axis=0) for shapei in shape] for shape in shapes])
+        mean_errors = np.array([[errori.mean(axis=0) for errori in error] for error in errors])
+        snrs = np.array(snrs)
+        # let's get the SNR back to within 10
+        np.testing.assert_allclose(snrs, snr, atol=10)
+        # let our errors be say within 20 percent
+        np.testing.assert_allclose(std_shapes, mean_errors, rtol=0.2)
+
+    # note that we do not expect hsm and lmfit shapes to agree, because they are using different underlying shape models
+
+    # make sure we can convert back and forth for the errors from lmfit
+    x0 = shapes[1][0][0, 3:]
+    x1 = shapes[1][1][0, 3:]
+    std0 = errors[1][0][0, 3:]
+    std1 = errors[1][1][0, 3:]
+
+    std01 = np.array(psf.shape_convert_errors_to_unnormalized(std0[0], std0[1], std0[2], x0[0], x0[1], x0[1]))
+    x01 = np.array(psf.shape_convert_to_unnormalized(x0[0], x0[1], x0[2]))
+    x010 = np.array(psf.shape_convert_to_normalized(x01[0], x01[1], x01[2]))
+    std010 = np.array(psf.shape_convert_errors_to_normalized(std01[0], std01[1], std01[2], x01[0], x01[1], x01[2]))
+    np.testing.assert_allclose(x0, x010, atol=1e-5)
+    np.testing.assert_allclose(std0, std010, atol=1e-3)
+    np.testing.assert_allclose(x01, x1, atol=1e-5)
+    np.testing.assert_allclose(std01, std1, atol=1e-3)
+
 
 @timer
 def test_profile():
@@ -643,9 +657,9 @@ if __name__ == '__main__':
         test_atmo_model_fit()
         test_atmo_interp_fit()
         test_profile()
+        test_snr_and_shapes()
 
         # TODO: ones that are still tbd
-        # test_snr_and_shapes()
         # test_fit()
         # test_roundtrip()
         # test_analytic_coefs()

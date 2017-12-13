@@ -210,7 +210,7 @@ def hsm_error(star, logger=None, return_debug=False):
 
 
     TODO: might be a factor of 2 missing still?
-    TODO: what do the _v subscripts indicate? can I cut that and keep clarity?
+    TODO: what do the _i subscripts indicate? can I cut that and keep clarity?
     """
     from .gsobject_model import Gaussian
     from .star import Star
@@ -225,80 +225,59 @@ def hsm_error(star, logger=None, return_debug=False):
     # get the model image (ie. the kernel)
     star_model = hsm_model.draw(star_fit)
 
-
-    # get parameters
-    u0, v0, sigma, g1, g2 = star_fit.fit.params
-
-    absgsq = g1 ** 2 + g2 ** 2
-    e1norm = g1 * 2. / (1. + absgsq)
-    e2norm = g2 * 2. / (1. + absgsq)
-    e0 = np.sqrt(4 * sigma ** 4 / (1. - e1norm ** 2 - e2norm ** 2))
-    e1 = e0 * e1norm
-    e2 = e0 * e2norm
-
     # get vectors for data, weight and u, v
-    data_v, weight_v, u_v, v_v = star.data.getDataVector(include_zero_weight=False)
+    data_i, weight_i, u_i, v_i = star.data.getDataVector(include_zero_weight=False)
     # also get the values for the HSM kernel, which is just the fitted hsm model
-    kernel_v, wk_v, uk_v, vk_v = star_model.data.getDataVector(include_zero_weight=False)
+    kernel_i, wk_i, uk_i, vk_i = star_model.data.getDataVector(include_zero_weight=False)
 
-    # if weight=0 don't use pixel, otherwise set this = 1.
-    wuse_v = np.where(weight_v>0.0,1.0,0.0)
+    # with HSM as our starting guess, and kernel, let's use the weights for a final step. This makes everything a lot simpler, conceptually
 
     # normalization for the various sums over pixels
-    normalization = np.sum(data_v * wuse_v * kernel_v)
-    flux_calc = 2 * normalization
+    flux_calc = np.sum(weight_i * data_i * kernel_i)
+    normalization = flux_calc
     normalization2 = normalization * normalization
 
-    # use flux and calculate its error from star_model - noise-free Gaussian matched to the data
-    flux = star_model.flux
-
-    # star_model_wgt = star_model.weight.array
-    # star_model_sdata2 = np.where(star_model_wgt == 0, 0, 1. / star_model_wgt)
-    # sigma_flux = np.sqrt(np.sum(star_model_sdata2))
-    sdata_v = np.where(weight_v > 0, np.sqrt(1.0 / weight_v), 0)
-    sigma2_normalization = np.sum(np.power(wuse_v * sdata_v * kernel_v, 2))
+    sigma2_data_i = 1. / weight_i
+    sigma2_normalization = np.sum(np.power(weight_i ** 2 * kernel_i ** 2, 2) * sigma2_data_i)
     sigma_normalization = np.sqrt(sigma2_normalization)
-    # flux is 2x normalization in hsm.cpp
+    # flux is 2x normalization in hsm.cpp, so probably a factor of 2 here
     sigma_flux = 2 * sigma_normalization
 
     # flux fudge factors?
-    flux_fudge_factor = 1
+    flux_fudge_factor = 1.
     flux_calc = flux_calc * flux_fudge_factor
     sigma_flux = sigma_flux * np.sqrt(flux_fudge_factor)
     sigma_normalization = 1. * sigma_normalization
-
-    # calculate number of effective pixels
-    # npixeff_calc = np.power(np.sum(wuse_v * kernel_v), 2) / np.sum(np.power(wuse_v * kernel_v, 2))
 
     #####
     # u0, v0
     #####
 
-    u0_calc = np.sum(data_v * wuse_v * kernel_v * u_v) / normalization
-    v0_calc = np.sum(data_v * wuse_v * kernel_v * v_v) / normalization
+    u0_calc = np.sum(data_i * weight_i * kernel_i * u_i) / normalization
+    v0_calc = np.sum(data_i * weight_i * kernel_i * v_i) / normalization
 
-    sigma2_u0_data = np.sum(np.power(sdata_v * wuse_v * kernel_v * u_v, 2)) / normalization2
-    sigma2_v0_data = np.sum(np.power(sdata_v * wuse_v * kernel_v * v_v, 2)) / normalization2
+    sigma2_u0_data = np.sum(np.power(weight_i * kernel_i * u_i / normalization, 2) * sigma2_data_i)
+    sigma2_v0_data = np.sum(np.power(weight_i * kernel_i * v_i / normalization, 2) * sigma2_data_i)
 
     # add sigma_normalization
     sigma2_u0_flux = np.power(u0_calc * sigma_normalization / normalization, 2)
     sigma2_v0_flux = np.power(v0_calc * sigma_normalization / normalization, 2)
 
-    sigma_u0 = np.sqrt(sigma2_u0_data)# + sigma2_u0_flux)
-    sigma_v0 = np.sqrt(sigma2_v0_data)# + sigma2_v0_flux)
+    # technically we also need the contribution to the kernel!
+
+    sigma_u0 = np.sqrt(sigma2_u0_data + sigma2_u0_flux)
+    sigma_v0 = np.sqrt(sigma2_v0_data + sigma2_v0_flux)
 
     # u0, v0 fudge factors
-    sigma_u0 = sigma_u0 * 2.0
-    sigma_v0 = sigma_v0 * 2.0
-
+    sigma_u0 = sigma_u0 * 2.1
+    sigma_v0 = sigma_v0 * 2.1
 
     # calculate moments
-    # TODO: should I use u0_calc etc here?
-    du_v = u_v - u0_calc
-    dv_v = v_v - v0_calc
-    Muu = 2 * np.sum(data_v * wuse_v * kernel_v * du_v * du_v) / normalization
-    Mvv = 2 * np.sum(data_v * wuse_v * kernel_v * dv_v * dv_v) / normalization
-    Muv = 2 * np.sum(data_v * wuse_v * kernel_v * du_v * dv_v) / normalization
+    du_i = u_i - u0_calc
+    dv_i = v_i - v0_calc
+    Muu = 2 * np.sum(data_i * weight_i * kernel_i * du_i * du_i) / normalization
+    Mvv = 2 * np.sum(data_i * weight_i * kernel_i * dv_i * dv_i) / normalization
+    Muv = 2 * np.sum(data_i * weight_i * kernel_i * du_i * dv_i) / normalization
 
     """
 
@@ -311,7 +290,7 @@ def hsm_error(star, logger=None, return_debug=False):
 
     Q: if kernel above is actually K^2, not K, how does above change?
     """
-    # now e0,e1,e2 (these are very close but not the same as the HSM values?)
+    # now e0,e1,e2
     # also note that this defintion for e1 and e2 is /2 compared to previous definitions
     e0_calc = Muu + Mvv
     e1_calc = Muu - Mvv
@@ -319,31 +298,27 @@ def hsm_error(star, logger=None, return_debug=False):
 
     # now calculate errors: ie. shot and read noise per pixel
 
+    # three terms: those proportional to: sdata_i, sigma_u0 and sigma_v0, and sigma_normalization
+    sigma2_e0_data = np.sum(np.power(2 * weight_i * kernel_i * (du_i * du_i + dv_i * dv_i) / normalization, 2) * sigma2_data_i)
+    sigma2_e1_data = np.sum(np.power(2 * weight_i * kernel_i * (du_i * du_i - dv_i * dv_i) / normalization, 2) * sigma2_data_i)
+    sigma2_e2_data = np.sum(np.power(2 * weight_i * kernel_i * 2 * du_i * dv_i / normalization, 2) * sigma2_data_i)
 
-    # TODO: what is the scale of these different errors?
-
-    # three terms: those proportional to: sdata_v, sigma_u0 and sigma_v0, and sigma_normalization
-    sigma2_e0_data = np.sum(np.power(2 * sdata_v * wuse_v * kernel_v * (du_v * du_v + dv_v * dv_v), 2)) / normalization2
-    sigma2_e1_data = np.sum(np.power(2 * sdata_v * wuse_v * kernel_v * (du_v * du_v - dv_v * dv_v), 2)) / normalization2
-    sigma2_e2_data = np.sum(np.power(2 * sdata_v * wuse_v * kernel_v * 2 * (du_v * dv_v), 2)) / normalization2
-
-    # add sigma_u0, sigma_v0
-    sigma2_e0_u0 = np.sum(np.power(2 * 2. * du_v * data_v * wuse_v * kernel_v * sigma_u0, 2)) / normalization2
-    sigma2_e0_v0 = np.sum(np.power(2 * 2. * dv_v * data_v * wuse_v * kernel_v * sigma_v0, 2)) / normalization2
-    sigma2_e1_u0 = np.sum(np.power(2 * 2. * du_v * data_v * wuse_v * kernel_v * sigma_u0, 2)) / normalization2
-    sigma2_e1_v0 = np.sum(np.power(2 * 2. * dv_v * data_v * wuse_v * kernel_v * sigma_v0, 2)) / normalization2
-    sigma2_e2_u0 = np.sum(np.power(2 * 2. * dv_v * data_v * wuse_v * kernel_v * sigma_u0, 2)) / normalization2
-    sigma2_e2_v0 = np.sum(np.power(2 * 2. * du_v * data_v * wuse_v * kernel_v * sigma_v0, 2)) / normalization2
+    # add sigma_u0, sigma_v0. This is ignoring the kernel!
+    sigma2_e0_u0 = np.sum(np.power(2 * 2 * du_i * weight_i * kernel_i * data_i / normalization * sigma_u0, 2))
+    sigma2_e0_v0 = np.sum(np.power(2 * 2 * dv_i * weight_i * kernel_i * data_i / normalization * sigma_v0, 2))
+    sigma2_e1_u0 = sigma2_e0_u0
+    sigma2_e1_v0 = sigma2_e0_v0
+    sigma2_e2_u0 = np.sum(np.power(2 * 2 * dv_i * weight_i * kernel_i * data_i / normalization * sigma_u0, 2))
+    sigma2_e2_v0 = np.sum(np.power(2 * 2 * du_i * weight_i * kernel_i * data_i / normalization * sigma_v0, 2))
 
     # add sigma_normalization
     sigma2_e0_flux = np.power(e0_calc * sigma_normalization / normalization, 2)
     sigma2_e1_flux = np.power(e1_calc * sigma_normalization / normalization, 2)
     sigma2_e2_flux = np.power(e2_calc * sigma_normalization / normalization, 2)
 
-    # TODO: sigma flux is not well behaved, so we have removed it until we figure that out
     sigma_e0 = np.sqrt(sigma2_e0_data + sigma2_e0_u0 + sigma2_e0_v0)# + sigma2_e0_flux)
-    sigma_e1 = np.sqrt(sigma2_e1_data + sigma2_e1_u0 + sigma2_e1_v0)# + sigma2_e1_flux)
-    sigma_e2 = np.sqrt(sigma2_e2_data + sigma2_e2_u0 + sigma2_e2_v0)# + sigma2_e2_flux)
+    sigma_e1 = np.sqrt(sigma2_e1_data + sigma2_e1_u0 + sigma2_e1_v0 + sigma2_e1_flux)
+    sigma_e2 = np.sqrt(sigma2_e2_data + sigma2_e2_u0 + sigma2_e2_v0 + sigma2_e2_flux)
 
     #####
     # FUDGE VALUES
@@ -352,15 +327,15 @@ def hsm_error(star, logger=None, return_debug=False):
     # TODO: I do not understand the flux errors still. :(
     #####
 
-    sigma_e0 = sigma_e0 * 1.5
-    sigma_e1 = sigma_e1 * 2.0
-    sigma_e2 = sigma_e2 * 2.0
+    sigma_e0 = sigma_e0 * 1.8
+    sigma_e1 = sigma_e1 * 2.3
+    sigma_e2 = sigma_e2 * 2.3
 
     if logger:
         logger.debug('Star hsm_error. Value of flux, u0, v0, e0, e1, e2 are:')
         logger.debug('{0:.2e} {1:.2e} {2:.2e} {3:.2e} {4:.2e} {5:.2e}'.format(flux_calc, u0_calc, v0_calc, e0_calc, e1_calc, e2_calc))
-        logger.debug('Star hsm_error. Value of Gaussian model flux, u0, v0, e0, e1, e2 are:')
-        logger.debug('{0:.2e} {1:.2e} {2:.2e} {3:.2e} {4:.2e} {5:.2e}'.format(flux, u0, v0, e0, e1, e2))
+        # logger.debug('Star hsm_error. Value of Gaussian model flux, u0, v0, e0, e1, e2 are:')
+        # logger.debug('{0:.2e} {1:.2e} {2:.2e} {3:.2e} {4:.2e} {5:.2e}'.format(flux, u0, v0, e0, e1, e2))
         logger.debug('Star hsm_error. Value of errors for flux, u0, v0, e0, e1, e2 are:')
         logger.debug('{0:.2e} {1:.2e} {2:.2e} {3:.2e} {4:.2e} {5:.2e}'.format(sigma_flux, sigma_u0, sigma_v0, sigma_e0, sigma_e1, sigma_e2))
         logger.debug('Star hsm_error. Relative un-fudged contributions for u0 from data and flux are (in sigma2):')
