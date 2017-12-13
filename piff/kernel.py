@@ -248,8 +248,6 @@ class VonKarman(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
             K = (dists**(5./6.)) * special.kv(5./6.,2*np.pi*dists/length_scale)
             K = squareform(K)
 
-            dd_w = np.linspace(1e-4,1,100) / length_scale
-            dd = np.linspace(1e-4,1,100)
             lim0 = special.gamma(5./6.) /(2 * ((np.pi / length_scale)**(5./6.)) )
             np.fill_diagonal(K, lim0)
         else:
@@ -261,8 +259,6 @@ class VonKarman(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
             K = (dists**(5./6.)) * special.kv(5./6.,2*np.pi*dists/length_scale)
             Filter = np.isfinite(K)
             if np.sum(Filter) != len(K[0])*len(K[:,0]):
-                dd_w = np.linspace(1e-4,1,100) / length_scale
-                dd = np.linspace(1e-4,1,100)
                 lim0 = special.gamma(5./6.) /(2 * ((np.pi / length_scale)**(5./6.)) )
                 K[~Filter] = lim0
 
