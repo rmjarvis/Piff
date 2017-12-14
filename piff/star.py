@@ -873,6 +873,7 @@ class StarFit(object):
     results), but interpolators will be looking for some subset of these properties:
 
     :params:      numpy vector of parameters of the PSF that apply to this star
+    :params_var:  numpy array of variance error parameters of the PSF
     :flux:        flux of the star
     :center:      (u,v) tuple giving position of stellar center (relative
                   to data.image_pos)
@@ -886,11 +887,12 @@ class StarFit(object):
     The params and alpha,beta,chisq are assumed to be marginalized over flux (and over center,
     if it is free to vary).
     """
-    def __init__(self, params, flux=1., center=(0.,0.), alpha=None, beta=None, chisq=None, dof=None,
-                 worst_chisq=None):
+    def __init__(self, params, flux=1., center=(0.,0.), params_var=None, alpha=None, beta=None,
+                 chisq=None, dof=None, worst_chisq=None):
         """Constructor for base version of StarFit
 
         :param params: A 1d numpy array holding estimated PSF parameters
+        :param params_var: A 1d numpy array holding estimates PSF variance error parameters
         :param flux:   Estimated flux for this star
         :param center: Estimated or fixed center position (u,v) of this star relative to
                        the StarData.image_pos reference point.
@@ -906,6 +908,7 @@ class StarFit(object):
             pass
 
         self.params = params
+        self.params_var = params_var
         self.flux = flux
         self.center = center
         self.alpha = alpha

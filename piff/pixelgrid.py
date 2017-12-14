@@ -285,8 +285,8 @@ class PixelGrid(Model):
 
         :returns: a star instance with the appropriate initial fit values
         """
-
-        fit = StarFit(self._initial_params, star.fit.flux, star.fit.center)
+        var = np.zeros(len(self._initial_params))
+        fit = StarFit(self._initial_params, star.fit.flux, star.fit.center, params_var=var)
         if mask:
             # Null weight at pixels where interpolation coefficients
             # come up short of specified fraction of the total kernel
@@ -355,7 +355,9 @@ class PixelGrid(Model):
             # ??? dparam = scipy.linalg.solve(alpha, beta, sym_pos=True) would be faster
         # Create new StarFit, update the chisq value.  Note no beta is returned as
         # the quadratic Taylor expansion was about the old parameters, not these.
+        var = np.zeros(len(star1.fit.params + dparam))
         starfit2 = StarFit(star1.fit.params + dparam,
+                           params_var = var,
                            flux = star1.fit.flux,
                            center = star1.fit.center,
                            alpha = star1.fit.alpha,  # Inverse covariance matrix
@@ -508,7 +510,9 @@ class PixelGrid(Model):
         outbeta = beta[s0] - np.dot(beta[s1].T,tmp)
         outalpha = alpha[s0,s0] - np.dot(alpha[s0,s1],tmp)
 
+        var = np.zeros(len(star.fit.params))
         outfit = StarFit(star.fit.params,
+                         params_var = var,
                          flux = outflux,
                          center = outcenter,
                          chisq = outchisq,
@@ -664,7 +668,9 @@ class PixelGrid(Model):
             logger.debug("dchi, dof, do_center = %s, %s, %s", dchi, dof, do_center)
             if dchi < chisq_thresh * chisq or not do_center:
                 # Done with iterations.  Return new Star with updated information
+                var = np.zeros(len(star.fit.params))
                 return Star(star.data, StarFit(star.fit.params,
+                                               params_var = var,
                                                flux = flux,
                                                center = center,
                                                chisq = chisq,
