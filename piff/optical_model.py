@@ -174,7 +174,9 @@ class Optical(Model):
         chisq = np.std(image.array - model_image.array)
         dof = np.count_nonzero(weight.array) - 6
 
-        fit = StarFit(star.fit.params, flux=star.fit.flux, center=star.fit.center, chisq=chisq, dof=dof)
+        var = np.zeros(len(star.fit.params)) 
+        fit = StarFit(star.fit.params, params_var=var, flux=star.fit.flux,
+                      center=star.fit.center, chisq=chisq, dof=dof)
         return Star(star.data, fit)
 
     def getProfile(self, params):
@@ -225,7 +227,7 @@ class Optical(Model):
         import galsim
         prof = self.getProfile(star.fit.params)
         center = galsim.PositionD(*star.fit.center)
-        offset = star.data.image_pos + center - star.data.image.trueCenter()
+        offset = star.data.image_pos + center - star.data.image.true_center
         image = prof.drawImage(star.data.image.copy(), method='no_pixel', offset=offset)
         data = StarData(image, star.data.image_pos, star.data.weight)
         return Star(data, star.fit)

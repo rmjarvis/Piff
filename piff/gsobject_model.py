@@ -49,7 +49,7 @@ class GSObjectModel(Model):
                        'include_pixel':include_pixel}
 
         # Center and normalize the fiducial model.
-        self.gsobj = gsobj.withFlux(1.0).shift(-gsobj.centroid())
+        self.gsobj = gsobj.withFlux(1.0).shift(-gsobj.centroid)
         self._fastfit = fastfit
         self._force_model_center = force_model_center
         self._method = 'auto' if include_pixel else 'no_pixel'
@@ -116,7 +116,7 @@ class GSObjectModel(Model):
         """
         prof = self.getProfile(star.fit.params).shift(star.fit.center) * star.fit.flux
         image = star.image.copy()
-        prof.drawImage(image, method=self._method, offset=(star.image_pos-image.trueCenter()))
+        prof.drawImage(image, method=self._method, offset=(star.image_pos-image.true_center))
         data = StarData(image, star.image_pos, star.weight, star.data.pointing)
         return Star(data, star.fit)
 
@@ -137,7 +137,7 @@ class GSObjectModel(Model):
         prof = self.gsobj.dilate(scale).shear(g1=g1, g2=g2).shift(du, dv) * flux
         model_image = galsim.Image(image, dtype=float)
         prof.drawImage(model_image, method=self._method,
-                       offset=(image_pos - model_image.trueCenter()))
+                       offset=(image_pos - model_image.true_center))
         return (np.sqrt(weight.array)*(model_image.array - image.array)).ravel()
 
     def _lmfit_params(self, star, vary_params=True, vary_flux=True, vary_center=True):
@@ -217,7 +217,12 @@ class GSObjectModel(Model):
         if not results.success:
             raise RuntimeError("Error fitting with lmfit.")
 
-        return flux, du, dv, scale, g1, g2
+        if results.covar is None:
+            params_var = np.zeros(6)
+        else:
+            params_var = np.diag(results.covar)
+
+        return flux, du, dv, scale, g1, g2, params_var
 
     @staticmethod
     def with_hsm(star):
@@ -254,24 +259,27 @@ class GSObjectModel(Model):
 
         if fastfit:
             flux, du, dv, scale, g1, g2 = self.moment_fit(star, logger=logger)
+            var = np.zeros(6)
         else:
-            flux, du, dv, scale, g1, g2 = self.lmfit(star, logger=logger)
+            flux, du, dv, scale, g1, g2, var = self.lmfit(star, logger=logger)
         # Make a StarFit object with these parameters
         if self._force_model_center:
             params = np.array([ scale, g1, g2 ])
             center = (du, dv)
+            params_var = var[3:]
         else:
             params = np.array([ du, dv, scale, g1, g2 ])
             center = (0.0, 0.0)
+            params_var = var[1:]
 
         # Also need to compute chisq
         prof = self.getProfile(params) * flux
         model_image = star.image.copy()
         prof.shift(center).drawImage(model_image, method=self._method,
-                                     offset=(star.image_pos - model_image.trueCenter()))
+                                     offset=(star.image_pos - model_image.true_center))
         chisq = np.sum(star.weight.array * (star.image.array - model_image.array)**2)
         dof = np.count_nonzero(star.weight.array) - self._nparams
-        fit = StarFit(params, flux=flux, center=center, chisq=chisq, dof=dof)
+        fit = StarFit(params, params_var=params_var, flux=flux, center=center, chisq=chisq, dof=dof)
         return Star(star.data, fit)
 
     def initialize(self, star, mask=True, logger=None):
@@ -315,8 +323,8 @@ class GSObjectModel(Model):
         logger.debug("    image = %s",star.data.image)
         #logger.debug("    image = %s",star.data.image.array)
         #logger.debug("    weight = %s",star.data.weight.array)
-        logger.debug("    image center = %s",star.data.image(star.data.image.center()))
-        logger.debug("    weight center = %s",star.data.weight(star.data.weight.center()))
+        logger.debug("    image center = %s",star.data.image(star.data.image.center))
+        logger.debug("    weight center = %s",star.data.weight(star.data.weight.center))
         do_center = fit_center and self._force_model_center
         if do_center:
             params = self._lmfit_params(star, vary_params=False)

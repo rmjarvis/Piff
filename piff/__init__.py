@@ -83,7 +83,9 @@ from .mean_interp import Mean
 from .polynomial_interp import Polynomial, polynomial_types
 from .basis_interp import BasisInterp, BasisPolynomial
 from .knn_interp import kNNInterp
-from .gp_interp import GPInterp, ExplicitKernel, AnisotropicRBF
+from .gp_interp import GPInterp
+from .gp_interp_2pcf import GPInterp2pcf
+from .kernel import ExplicitKernel, AnisotropicRBF, VonKarman
 
 # Outlier handlers are named BlahOutliers where Blah is what they are called in teh config file
 from .outliers import Outliers, ChisqOutliers
@@ -103,6 +105,7 @@ from .singlechip import SingleChipPSF
 # Stats classes are named BlahStats where Blah is what they are called in the config file
 from .stats import Stats, RhoStats, ShapeHistogramsStats
 from .twod_stats import TwoDHistStats, WhiskerStats
+from .star_stats import StarStats
 
 # Optics
 from .optical_model import Optical, optical_templates
