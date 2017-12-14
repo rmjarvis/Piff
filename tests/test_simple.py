@@ -324,7 +324,43 @@ def test_single_image():
     shape_psf_file = os.path.join('output','simple_psf_shapestats.pdf')
     shapeStats.write(shape_psf_file)
 
-    # Test that we can use the config parser for both RhoStats and ShapeHistogramsStats
+    # test plotstars
+
+    star_psf_file = os.path.join('output', 'simple_psf_starstats.pdf')
+    # check default number_plot
+    starStats = piff.StarStats()
+    starStats.compute(psf, orig_stars)
+    assert starStats.number_plot == len(starStats.stars)
+    assert starStats.number_plot == len(starStats.models)
+    assert starStats.number_plot == len(starStats.indices)
+    np.testing.assert_array_equal(starStats.stars[2].image.array, orig_stars[starStats.indices[2]].image.array)
+
+    # check number_plot = 6
+    starStats = piff.StarStats(number_plot=6)
+    starStats.compute(psf, orig_stars)
+    assert len(starStats.stars) == 6
+
+    # check number_plot >> len(stars)
+    starStats = piff.StarStats(number_plot=1000000)
+    starStats.compute(psf, orig_stars)
+    assert len(starStats.stars) == len(orig_stars)
+    # if use all stars, no randomness
+    np.testing.assert_array_equal(starStats.stars[3].image.array, orig_stars[3].image.array)
+    np.testing.assert_array_equal(starStats.indices, np.arange(len(orig_stars)))
+
+    # check number_plot = 0
+    starStats = piff.StarStats(number_plot=0)
+    starStats.compute(psf, orig_stars)
+    assert len(starStats.stars) == len(orig_stars)
+    # if use all stars, no randomness
+    np.testing.assert_array_equal(starStats.stars[3].image.array, orig_stars[3].image.array)
+    np.testing.assert_array_equal(starStats.indices, np.arange(len(orig_stars)))
+
+    starStats.write(star_psf_file)
+
+
+
+    # Test that we can use the config parser for Stats modules
     config['output']['stats'] = [
         {
             'type': 'ShapeHistograms',
@@ -347,17 +383,24 @@ def test_single_image():
             'number_bins_u': 3,
             'number_bins_v': 3,
         },
+        {
+            'type': 'Star',
+            'file_name': star_psf_file,
+            'number_plot': 5
+        }
     ]
 
     os.remove(psf_file)
     os.remove(rho_psf_file)
     os.remove(shape_psf_file)
+    os.remove(star_psf_file)
     piff.piffify(config, logger)
 
     # Test using the piffify executable
     os.remove(psf_file)
     os.remove(rho_psf_file)
     os.remove(shape_psf_file)
+    os.remove(star_psf_file)
     config['verbose'] = 0
     with open('simple.yaml','w') as f:
         f.write(yaml.dump(config, default_flow_style=False))
