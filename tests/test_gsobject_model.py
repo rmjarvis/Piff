@@ -86,7 +86,7 @@ def test_simple():
         psf.drawImage(image, method='no_pixel')
 
         # Make a StarData instance for this image
-        stardata = piff.StarData(image, image.trueCenter())
+        stardata = piff.StarData(image, image.true_center)
         fiducial_star = piff.Star(stardata, None)
 
         # First try fastfit.
@@ -166,7 +166,7 @@ def test_simple():
         psf.drawImage(image, method='auto')
 
         # Make a StarData instance for this image
-        stardata = piff.StarData(image, image.trueCenter())
+        stardata = piff.StarData(image, image.true_center)
         fiducial_star = piff.Star(stardata, None)
 
 
@@ -573,7 +573,7 @@ def test_direct():
         psf.drawImage(image, method='no_pixel')
 
         # Make a StarData instance for this image
-        stardata = piff.StarData(image, image.trueCenter())
+        stardata = piff.StarData(image, image.true_center)
         star = piff.Star(stardata, None)
         star = model.initialize(star)
 
@@ -626,7 +626,7 @@ def test_direct():
         psf.drawImage(image, method='no_pixel')
 
         # Make a StarData instance for this image
-        stardata = piff.StarData(image, image.trueCenter())
+        stardata = piff.StarData(image, image.true_center)
         star = piff.Star(stardata, None)
         star = model.initialize(star)
 

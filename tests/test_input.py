@@ -494,8 +494,10 @@ def test_stars():
     np.testing.assert_array_equal(chipnum_list, 0)
     np.testing.assert_array_equal(gain_list, gain_list[0])
     np.testing.assert_almost_equal(snr_list, snr_list2, decimal=5)
-    assert np.min(snr_list) < 4.
-    assert np.max(snr_list) > 200.
+    print('min_snr = ',np.min(snr_list))
+    print('max_snr = ',np.max(snr_list))
+    assert np.min(snr_list) < 40.
+    assert np.max(snr_list) > 600.
 
     # max_snr increases the noise to achieve a maximum snr
     config['max_snr'] = 120
@@ -506,7 +508,7 @@ def test_stars():
     snr_list2 = [ input.calculateSNR(star.data.image, star.data.orig_weight) for star in stars ]
     print('snr = ', np.min(snr_list), np.max(snr_list))
     np.testing.assert_almost_equal(snr_list, snr_list2, decimal=5)
-    assert np.min(snr_list) < 4.
+    assert np.min(snr_list) < 40.
     assert np.max(snr_list) == 120.
 
     # The default is max_snr == 100
@@ -518,35 +520,36 @@ def test_stars():
     snr_list2 = [ input.calculateSNR(star.data.image, star.data.orig_weight) for star in stars ]
     print('snr = ', np.min(snr_list), np.max(snr_list))
     np.testing.assert_almost_equal(snr_list, snr_list2, decimal=5)
-    assert np.min(snr_list) < 4.
+    assert np.min(snr_list) < 40.
     assert np.max(snr_list) == 100.
 
     # min_snr removes stars with a snr < min_snr
-    config['min_snr'] = 20
+    config['min_snr'] = 50
     input = piff.InputFiles(config, logger=logger)
     stars = input.makeStars(logger=logger)
-    print('len should be ',len(snr_list[snr_list >= 20]))
+    print('len should be ',len(snr_list[snr_list >= 50]))
     print('actual len is ',len(stars))
-    assert len(stars) == len(snr_list[snr_list >= 20])
-    assert len(stars) == 91  # hard-coded for this case, just to make sure
+    assert len(stars) == len(snr_list[snr_list >= 50])
+    assert len(stars) == 96  # hard-coded for this case, just to make sure
     snr_list = np.array([ star['snr'] for star in stars ])
     snr_list2 = [ input.calculateSNR(star.data.image, star.data.orig_weight) for star in stars ]
     print('snr = ', np.min(snr_list), np.max(snr_list))
     np.testing.assert_almost_equal(snr_list, snr_list2, decimal=5)
-    assert np.min(snr_list) >= 20.
+    assert np.min(snr_list) >= 50.
     assert np.max(snr_list) == 100.
 
     # use_partial=False will skip any stars that are partially off the edge of the image
     config['use_partial'] = False
     input = piff.InputFiles(config, logger=logger)
     stars = input.makeStars(logger=logger)
-    assert len(stars) == 89  # skipped 2 additional stars
+    print('new len is ',len(stars))
+    assert len(stars) == 94  # skipped 2 additional stars
 
     # use_partial=False is the default
     del config['use_partial']
     input = piff.InputFiles(config, logger=logger)
     stars = input.makeStars(logger=logger)
-    assert len(stars) == 89  # skipped 2 additional stars
+    assert len(stars) == 94  # skipped 2 additional stars
 
     # alt_x and alt_y also include some object completely off the image, which are always skipped.
     # (Don't do the min_snr anymore, since most of these stamps don't actually have any signal.)
@@ -555,18 +558,21 @@ def test_stars():
     del config['min_snr']
     input = piff.InputFiles(config, logger=logger)
     stars = input.makeStars(logger=logger)
+    print('new len is ',len(stars))
     assert len(stars) == 37
 
     # Also skip objects which are all weight=0
     config['weight_hdu'] = 3
     input = piff.InputFiles(config, logger=logger)
     stars = input.makeStars(logger=logger)
+    print('new len is ',len(stars))
     assert len(stars) == 0
 
     # But not ones that are only partially weight=0
     config['weight_hdu'] = 8
     input = piff.InputFiles(config, logger=logger)
     stars = input.makeStars(logger=logger)
+    print('new len is ',len(stars))
     assert len(stars) == 37
 
 
@@ -596,36 +602,36 @@ def test_pointing():
     config['ra'] = 6.0
     config['dec'] = -30.0
     input = piff.InputFiles(config, logger=logger)
-    np.testing.assert_almost_equal(input.pointing.ra.rad(), np.pi/2.)
-    np.testing.assert_almost_equal(input.pointing.dec.rad(), -np.pi/6.)
+    np.testing.assert_almost_equal(input.pointing.ra.rad, np.pi/2.)
+    np.testing.assert_almost_equal(input.pointing.dec.rad, -np.pi/6.)
 
     # Also ok as ints in this case
     config['ra'] = 6
     config['dec'] = -30
     input = piff.InputFiles(config, logger=logger)
-    np.testing.assert_almost_equal(input.pointing.ra.rad(), np.pi/2.)
-    np.testing.assert_almost_equal(input.pointing.dec.rad(), -np.pi/6.)
+    np.testing.assert_almost_equal(input.pointing.ra.rad, np.pi/2.)
+    np.testing.assert_almost_equal(input.pointing.dec.rad, -np.pi/6.)
 
     # Strings as hh:mm:ss or dd:mm:ss
     config['ra'] = '06:00:00'
     config['dec'] = '-30:00:00'
     input = piff.InputFiles(config, logger=logger)
-    np.testing.assert_almost_equal(input.pointing.ra.rad(), np.pi/2.)
-    np.testing.assert_almost_equal(input.pointing.dec.rad(), -np.pi/6.)
+    np.testing.assert_almost_equal(input.pointing.ra.rad, np.pi/2.)
+    np.testing.assert_almost_equal(input.pointing.dec.rad, -np.pi/6.)
 
     # Strings as keys into FITS header
     config['ra'] = 'RA'
     config['dec'] = 'DEC'
     input = piff.InputFiles(config, logger=logger)
-    np.testing.assert_almost_equal(input.pointing.ra.rad(), np.pi/2.)
-    np.testing.assert_almost_equal(input.pointing.dec.rad(), -np.pi/6.)
+    np.testing.assert_almost_equal(input.pointing.ra.rad, np.pi/2.)
+    np.testing.assert_almost_equal(input.pointing.dec.rad, -np.pi/6.)
 
     # If multiple files, use the first one.
     config['image_file_name'] = 'test_input_image_*.fits'
     config['cat_file_name'] = 'test_input_cat_*.fits'
     input = piff.InputFiles(config, logger=logger)
-    np.testing.assert_almost_equal(input.pointing.ra.rad(), np.pi/2.)
-    np.testing.assert_almost_equal(input.pointing.dec.rad(), -np.pi/6.)
+    np.testing.assert_almost_equal(input.pointing.ra.rad, np.pi/2.)
+    np.testing.assert_almost_equal(input.pointing.dec.rad, -np.pi/6.)
 
     # Check invalid ra,dec values
     base_config = { 'dir' : dir, 'image_file_name' : image_file, 'cat_file_name' : cat_file }
