@@ -19,6 +19,7 @@
 from __future__ import print_function
 
 import yaml
+import os
 import galsim
 
 def setup_logger(verbose=1, log_file=None):
@@ -128,3 +129,46 @@ def piffify(config, logger=None):
     output = piff.Output.process(config['output'], logger=logger)
     output.write(psf, logger=logger)
 
+def plotify(config, logger=None):
+    """Take a Piff model, load in images, and execute output.
+
+    :param config:      The configuration file that defines how to build the model
+    :param logger:      A logger object for logging progress. [default: None]
+    """
+    import piff
+    import copy
+
+    # Make a copy to make sure we don't change the original.
+    config = copy.deepcopy(config)
+
+    if logger is None:
+        verbose = config.get('verbose', 1)
+        logger = piff.setup_logger(verbose=verbose)
+
+    for key in ['input', 'output']:
+        if key not in config:
+            raise ValueError("%s field is required in config dict"%key)
+    for key in ['file_name']:
+        if key not in config['output']:
+            raise ValueError("%s field is required in config dict output"%key)
+
+    # Import extra modules if requested
+    if 'modules' in config:
+        galsim.config.ImportModules(config)
+
+    # read in the input images
+    stars, wcs, pointing = piff.Input.process(config['input'], logger=logger)
+
+    # load psf by looking at output file
+    file_name = config['output']['file_name']
+    if 'dir' in config['output']:
+        file_name = os.path.join(config['output']['dir'], file_name)
+    logger.info("Looking for PSF at %s", file_name)
+    psf = piff.PSF.read(file_name, logger=logger)
+
+    # we don't want to rewrite the PSF to disk, so jump straight to the stats_list
+    output = piff.Output.process(config['output'], logger=logger)
+    logger.debug("stats_list = %s",output.stats_list)
+    for stats in output.stats_list:
+        stats.compute(psf,stars,logger=logger)
+        stats.write(logger=logger)

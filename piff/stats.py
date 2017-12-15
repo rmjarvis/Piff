@@ -53,7 +53,7 @@ class Stats(object):
         # If it's not a list, make it one.
         try:
             config_stats[0]
-        except:
+        except KeyError:
             config_stats = [config_stats]
 
         stats = []
