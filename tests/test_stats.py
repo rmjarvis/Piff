@@ -43,8 +43,11 @@ def test_twodstats():
     # check the coeffs of sigma and g2, which are actually linear fits
     # skip g1 since it is actually a 2d parabola
     # factor of 0.263 is to account for going from pixel xy to wcs uv
-    np.testing.assert_almost_equal(psf.interp.coeffs[0].flatten(), np.array([0.4, 0, 1. / (0.263 * 2048), 0]), decimal=4)
-    np.testing.assert_almost_equal(psf.interp.coeffs[2].flatten(), np.array([-0.1 * 1000 / 2048, 0, 0.1 / (0.263 * 2048), 0]), decimal=4)
+    np.testing.assert_almost_equal(psf.interp.coeffs[0].flatten(),
+                                   np.array([0.4, 0, 1. / (0.263 * 2048), 0]), decimal=4)
+    np.testing.assert_almost_equal(psf.interp.coeffs[2].flatten(),
+                                   np.array([-0.1 * 1000 / 2048, 0, 0.1 / (0.263 * 2048), 0]),
+                                   decimal=4)
 
     stats = piff.TwoDHistStats(number_bins_u=5, number_bins_v=5, reducing_function='np.mean')
     stats.compute(psf, stars, logger=logger)
@@ -311,12 +314,10 @@ def test_rhostats_config():
         },
         'output' : {
             'file_name' : psf_file,
-            'stats' : [
-                {
-                    'type': 'Rho',
-                    'file_name': rho_file
-                }
-            ],
+            'stats' : {  # Note: stats doesn't have to be a list.
+                'type': 'Rho',
+                'file_name': rho_file
+            }
         },
     }
     piff.piffify(config, logger)
