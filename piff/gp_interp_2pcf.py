@@ -121,7 +121,7 @@ class GPInterp2pcf(Interp):
         :param kernel: sklearn.gaussian_process kernel.
         :param X:  The independent covariates.  (n_samples, 2)
         :param y:  The dependent responses.  (n_samples, n_targets)
-        :param y_err: Error of y. (n_samples, n_targets) [default: None]
+        :param y_err: Error of y. (n_samples, n_targets)
         :param logger:  A logger object for logging debug info. [default: None]
         """
         if logger:
@@ -148,10 +148,11 @@ class GPInterp2pcf(Interp):
         MIN = np.sqrt(1./rho)
         MAX = np.sqrt(size_x**2 + size_y**2)/2.
 
-        if y_err is None or np.sum(y_err) == 0 :
-            cat = treecorr.Catalog(x=X[:,0], y=X[:,1], k=(y-np.mean(y)))
+        if np.sum(y_err) == 0:
+            w = None
         else:
-            cat = treecorr.Catalog(x=X[:,0], y=X[:,1], k=(y-np.mean(y)), w=1./y_err**2)
+            w = 1./y_err**2
+        cat = treecorr.Catalog(x=X[:,0], y=X[:,1], k=(y-np.mean(y)), w=w)
         kk = treecorr.KKCorrelation(min_sep=MIN, max_sep=MAX, nbins=20)
         kk.process(cat)
 
@@ -194,7 +195,8 @@ class GPInterp2pcf(Interp):
             y_init = self._y
             y_err = self._y_err
 
-        ystar = np.array([self.return_gp_predict(y_init[:,i]-self._mean[i], self._X, Xstar, ker, y_err=y_err[:,i]) \
+        ystar = np.array([self.return_gp_predict(y_init[:,i]-self._mean[i], self._X, Xstar, ker,
+                                                 y_err=y_err[:,i])
                           for i, ker in enumerate(self.kernels)]).T
 
         for i in range(self.nparams):
@@ -203,7 +205,7 @@ class GPInterp2pcf(Interp):
             ystar = self._pca.inverse_transform(ystar)
         return ystar
 
-    def return_gp_predict(self,y, X1, X2, kernel, y_err=None):
+    def return_gp_predict(self,y, X1, X2, kernel, y_err):
         """Compute interpolation with gaussian process for a given kernel.
 
         :param y:  The dependent responses.  (n_samples, n_targets)
@@ -212,8 +214,6 @@ class GPInterp2pcf(Interp):
         :param kernel: sklearn.gaussian_process kernel.
         :param y_err: Error of y. (n_samples, n_targets)
         """
-        if y_err is None:
-            y_err = np.zeros_like(y)
         HT = kernel.__call__(X2,Y=X1)
         K = kernel.__call__(X1) + np.eye(len(y))*y_err**2
         factor = (cholesky(K, overwrite_a=True, lower=False), False)
@@ -272,8 +272,7 @@ class GPInterp2pcf(Interp):
             self._pca = PCA(n_components=self.npca)
             self._pca.fit(y)
             y = self._pca.transform(y)
-            if y_err is not None:
-                y_err = self._pca.transform(y_err)
+            y_err = self._pca.transform(y_err)
             self._y_pca, self._y_pca_err = y, y_err
             self.nparams = self.npca
 
@@ -315,10 +314,7 @@ class GPInterp2pcf(Interp):
         y = self._predict(Xstar)
         fitted_stars = []
         for y0, star in zip(y, stars):
-            if star.fit is None:
-                fit = StarFit(y)
-            else:
-                fit = star.fit.newParams(y0)
+            fit = star.fit.newParams(y0)
             fitted_stars.append(Star(star.data, fit))
         return fitted_stars
 

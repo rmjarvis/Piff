@@ -706,7 +706,7 @@ def test_constant_psf():
         optimizes = [True, False]
     else:
         npcas = [2]
-        optimizes = [False]
+        optimizes = [True]
     ntrain, nvalidate, nvisualize = 100, 1, 21
     rng = galsim.BaseDeviate(572958179)
 
@@ -820,7 +820,7 @@ def test_vonkarman_psf():
     else:
         ntrain = 100
         npcas = [0]
-        optimizes = [False]
+        optimizes = [True]
         check_config = False
         rtol = 0.05
     nvalidate, nvisualize = 1, 20
@@ -957,6 +957,12 @@ def test_vonkarman_kernel():
 
 @timer
 def test_yaml():
+
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(verbose=2)
+    else:
+        logger = piff.config.setup_logger(log_file='output/test_gp.log')
+
     # Take DES test image, and test doing a psf run with GP interpolator
     # Use config parser:
     for gp_piff in ['GPInterp', 'GPInterp2pcf']:
@@ -1005,19 +1011,10 @@ def test_yaml():
             'output' : { 'file_name' : psf_file },
         }
 
-        if __name__ == '__main__':
-            config['verbose'] = 2
-        else:
-            config['verbose'] = 0
+        if __name__ != '__main__':
             config['input']['nstars'] = 25
-    
-        # using piffify executable
-        with open('gp.yaml','w') as f:
-            f.write(yaml.dump(config, default_flow_style=False))
-        piffify_exe = get_script_name('piffify')
-        p = subprocess.Popen( [piffify_exe, 'gp.yaml'] )
-        p.communicate()
 
+        piff.piffify(config, logger)
         psf = piff.read(psf_file)
         assert type(psf.model) is piff.GSObjectModel
         assert type(psf.interp) is piff.GPInterp or type(psf.interp) is piff.GPInterp2pcf
@@ -1025,6 +1022,11 @@ def test_yaml():
         target = psf.stars[17]
         test_star = psf.interp.interpolate(target)
         np.testing.assert_almost_equal(test_star.fit.params, target.fit.params, decimal=3)
+        # This should also work if the target doesn't have a fit yet.
+        print('interpolate ',piff.Star(target.data,None))
+        test_star = psf.interp.interpolate(piff.Star(target.data,None))
+        np.testing.assert_almost_equal(test_star.fit.params, target.fit.params, decimal=3)
+
 
 @timer
 def test_anisotropic_limit():
@@ -1082,7 +1084,7 @@ def test_guess_2pcf():
         rtol = 0.1
     else:
         ntrain = 100
-        guesses = [0.1]
+        guesses = [0.1, 0.3]
         rtol = 0.25
     nvalidate, nvisualize = 1, 21
     rng = galsim.BaseDeviate(8675309)
@@ -1096,7 +1098,8 @@ def test_guess_2pcf():
         # noise of 0.3 turns out to be pretty significant here.
         stars = params_to_stars(training_data, noise=0.1, rng=rng)
         kernel = "1*RBF({0}, (1e-6, 1e1))".format(guess)
-        interp = piff.GPInterp2pcf(kernel=kernel, normalize=True, white_noise=0.)
+        norm = guess < 0.2  # Arbitrary.  Just check both True and False.
+        interp = piff.GPInterp2pcf(kernel=kernel, normalize=norm, white_noise=0.)
         stars = [mod.fit(s) for s in stars]
         stars = interp.initialize(stars)
         interp.solve(stars)
