@@ -121,7 +121,8 @@ class SimplePSF(PSF):
                 new_star = self.model.initialize(s, mask=True, logger=logger)
             except (KeyboardInterrupt, SystemExit):
                 raise
-            except:
+            except Exception as e:
+                logger.warning("Caught exception: %s",e)
                 logger.warning("Failed initializing star at %s. Excluding it.", s.image_pos)
                 nremoved += 1
             else:
@@ -179,7 +180,8 @@ class SimplePSF(PSF):
                         new_star = self.model.reflux(self.interp.interpolate(s),logger=logger)
                     except (KeyboardInterrupt, SystemExit):
                         raise
-                    except:
+                    except Exception as e:
+                        logger.warnign("Caught exception: e")
                         logger.warning("Failed trying to reflux star at %s.  Excluding it.",
                                        s.image_pos)
                         nremoved += 1
