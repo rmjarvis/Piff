@@ -267,8 +267,7 @@ class VonKarman(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
                 # Hyperparameter l kept fixed
                 return K, np.empty((X.shape[0], X.shape[0], 0))
             elif not self.anisotropic or length_scale.shape[0] == 1:
-                K_gradient = \
-                    (K * squareform(dists))[:, :, np.newaxis]
+                K_gradient = (K * squareform(dists))[:, :, np.newaxis]
                 return K, K_gradient
             elif self.anisotropic:
                 raise ValueError(

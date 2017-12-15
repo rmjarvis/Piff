@@ -178,7 +178,8 @@ class TwoDHistStats(Stats):
         # T and T_model share colorbar
         vmin__T = np.min([self.twodhists['T'], self.twodhists['T_model']])
         vmax__T = np.max([self.twodhists['T'], self.twodhists['T_model']])
-        cmap__T = self._shift_cmap(vmin__T, vmax__T)
+        vcent__T = np.median([self.twodhists['T'], self.twodhists['T_model']])
+        cmap__T = self._shift_cmap(vmin__T, vmax__T, center=vcent__T)
         # g1, g2, g1_model, g2_model share colorbar
         vmin__g = np.min([self.twodhists['g1'], self.twodhists['g1_model'],
                           self.twodhists['g2'], self.twodhists['g2_model']])
@@ -285,19 +286,25 @@ class TwoDHistStats(Stats):
 
         return C
 
-    def _shift_cmap(self, vmin, vmax):
+    @classmethod
+    def _shift_cmap(self, vmin, vmax, center=0):
         from matplotlib import cm
-        midpoint = (0 - vmin) / (vmax - vmin)
+        # want midpoint to be a float!
+        midpoint = (center - vmin) * 1. / (vmax - vmin)
 
         # if b <= 0, then we want Blues_r
-        if vmax <= 0:
+        if vmax <= center and vmin <= center:
             return cm.Blues_r
         # if a >= 0, then we want Reds
-        elif vmin >= 0:
+        elif vmin >= center and vmax >= center:
             return cm.Reds
+        # catch inverse
+        elif vmin >= center and vmax <= center:
+            return self._shiftedColorMap(cm.RdBu_r, start=1.0, midpoint=1 - midpoint, stop=0.0)
         else:
             return self._shiftedColorMap(cm.RdBu_r, midpoint=midpoint)
 
+    @classmethod
     def _shiftedColorMap(self, cmap, start=0, midpoint=0.5, stop=1.0,
                          name='shiftedcmap'):
         '''

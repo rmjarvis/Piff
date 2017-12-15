@@ -604,7 +604,8 @@ def do_undersamp_drift(fit_centers=False):
 @timer
 def test_undersamp_drift():
     do_undersamp_drift(True)
-    do_undersamp_drift(False)
+    if __name__ == '__main__':
+        do_undersamp_drift(False)
 
 
 @timer
@@ -713,17 +714,20 @@ def test_single_image():
     moffat.drawImage(image=test_im, method='no_pixel', use_true_center=False)
     print('made test star')
 
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(2)
+        order = 2
+    else:
+        logger = None
+        order = 1
+
     # These tests are slow, and it's really just doing the same thing three times, so
     # only do the first one when running via nosetests.
     psf_file = os.path.join('output','pixel_psf.fits')
     if __name__ == '__main__':
         # Process the star data
         model = piff.PixelGrid(0.2, 16, start_sigma=0.9/2.355)
-        interp = piff.BasisPolynomial(order=2)
-        if __name__ == '__main__':
-            logger = piff.config.setup_logger(2)
-        else:
-            logger = None
+        interp = piff.BasisPolynomial(order=order)
         pointing = None     # wcs is not Celestial here, so pointing needs to be None.
         psf = piff.SimplePSF(model, interp)
         psf.fit(orig_stars, {0:input.images[0].wcs}, pointing, logger=logger)
@@ -774,12 +778,15 @@ def test_single_image():
             },
             'interp' : {
                 'type' : 'BasisPolynomial',
-                'order' : 2
+                'order' : order
             },
         },
     }
-    if __name__ != '__main__':
+    if __name__ == '__main__':
+        config['verbose'] = 2
+    else:
         config['verbose'] = 0
+
     print("Running piffify function")
     piff.piffify(config)
     psf = piff.read(psf_file)
@@ -818,17 +825,22 @@ def test_des_image():
         nstars = None
         scale = 0.15
         size = 31
+        order = 2
+        nsigma = 4
     else:
         # These are faster and good enough for the unit tests.
         nstars = 25
-        scale = 0.2
-        size = 21
-    stamp_size = 51
+        scale = 0.26
+        size = 15
+        order = 1
+        nsigma = 1.  # This needs to be low to make sure we do test outlier rejection here.
+    stamp_size = 25
 
     # The configuration dict with the right input fields for the file we're using.
     start_sigma = 1.0/2.355  # TODO: Need to make this automatic somehow.
     config = {
         'input' : {
+            'nstars': nstars,
             'image_file_name' : image_file,
             'image_hdu' : 1,
             'weight_hdu' : 3,
@@ -862,18 +874,17 @@ def test_des_image():
             },
             'interp' : {
                 'type' : 'BasisPolynomial',
-                'order' : 2,
+                'order' : order,
             },
             'outliers' : {
                 'type' : 'Chisq',
-                'nsigma' : 4,
+                'nsigma' : nsigma,
                 'max_remove' : 3
             }
         },
     }
     if __name__ == '__main__':
-        config['verbose'] = 3
-        config['input']['nstars'] = nstars
+        config['verbose'] = 2
     else:
         config['verbose'] = 0
 
@@ -899,7 +910,7 @@ def test_des_image():
 
         # Interpolator will be zero-order polynomial.
         # Find u, v ranges
-        interp = piff.BasisPolynomial(order=2, logger=logger)
+        interp = piff.BasisPolynomial(order=order, logger=logger)
 
         # Make a psf
         psf = piff.SimplePSF(model, interp)
