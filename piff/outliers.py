@@ -141,7 +141,7 @@ class Outliers(object):
         """
         pass
 
-class MADOutliers(Outliers):
+class MADOutliers(Outliers):  # pragma: no cover  (This isn't functional yet.)
     """An Outliers handler using mean absolute deviation (MAD) for defining outliers.
 
         MAD = < |x - median] >
