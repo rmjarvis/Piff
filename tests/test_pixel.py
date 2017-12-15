@@ -826,12 +826,14 @@ def test_des_image():
         scale = 0.15
         size = 31
         order = 2
+        nsigma = 4
     else:
         # These are faster and good enough for the unit tests.
         nstars = 25
         scale = 0.26
         size = 15
         order = 1
+        nsigma = 1.  # This needs to be low to make sure we do test outlier rejection here.
     stamp_size = 25
 
     # The configuration dict with the right input fields for the file we're using.
@@ -876,7 +878,7 @@ def test_des_image():
             },
             'outliers' : {
                 'type' : 'Chisq',
-                'nsigma' : 4,
+                'nsigma' : nsigma,
                 'max_remove' : 3
             }
         },
