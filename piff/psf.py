@@ -292,7 +292,7 @@ class PSF(object):
         import base64
         try:
             import cPickle as pickle
-        except:
+        except ImportError:
             import pickle
         logger = galsim.config.LoggerWrapper(logger)
 
@@ -354,7 +354,7 @@ class PSF(object):
         import base64
         try:
             import cPickle as pickle
-        except:
+        except ImportError:
             import pickle
 
         assert extname in fits
