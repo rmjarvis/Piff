@@ -162,6 +162,30 @@ def read_kwargs(fits, extname):
                 pass
     return kwargs
 
+def measure_snr(star):
+    """Calculate the signal-to-noise of a given star.
+
+    :param star:    Input star, with stamp, weight
+
+    :returns:       the SNR value.
+    """
+    # The S/N value that we use will be the weighted total flux where the
+    # weight function is the star's profile itself.  This is the maximum
+    # S/N value that any flux measurement can possibly produce, which will
+    # be closer to an in-practice S/N than using all the pixels equally.
+    #
+    # F = Sum_i w_i I_i^2
+    # var(F) = Sum_i w_i^2 I_i^2 var(I_i)
+    #        = Sum_i w_i I_i^2             <--- Assumes var(I_i) = 1/w_i
+    #
+    # S/N = F / sqrt(var(F))
+    image, weight, image_pos = star.data.getImage()
+    I = image.array
+    w = weight.array
+    flux = (w*I*I).sum(dtype=float)
+    snr = flux**0.5
+    return snr
+
 def hsm(star):
     """ Use HSM to measure moments of star image.
     """
@@ -316,6 +340,7 @@ def hsm_error(star, logger=None, return_debug=False):
     sigma2_e1_flux = np.power(e1_calc * sigma_normalization / normalization, 2)
     sigma2_e2_flux = np.power(e2_calc * sigma_normalization / normalization, 2)
 
+    # taking out the flux - e0 errors for now. lmfit finds that these two variables are highly correlated, so I'm probably missing a negative covariance term from the kernel that would bring this back in line. As it is, including sigma2_e0_flux leads to overestimated errors
     sigma_e0 = np.sqrt(sigma2_e0_data + sigma2_e0_u0 + sigma2_e0_v0)# + sigma2_e0_flux)
     sigma_e1 = np.sqrt(sigma2_e1_data + sigma2_e1_u0 + sigma2_e1_v0 + sigma2_e1_flux)
     sigma_e2 = np.sqrt(sigma2_e2_data + sigma2_e2_u0 + sigma2_e2_v0 + sigma2_e2_flux)
@@ -324,7 +349,6 @@ def hsm_error(star, logger=None, return_debug=False):
     # FUDGE VALUES
     # in my experience (based on creating these for fixed noise level and measuring variance)
     # the errors need these fudge factors.
-    # TODO: I do not understand the flux errors still. :(
     #####
 
     sigma_e0 = sigma_e0 * 1.8

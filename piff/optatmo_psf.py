@@ -20,49 +20,38 @@ from __future__ import print_function
 
 import galsim
 import numpy as np
+import copy
 
 from .psf import PSF
 from .optical_model import Optical
 from .interp import Interp
-from .gsobject_model import GSObjectModel, Kolmogorov, Gaussian
+from .model import ModelFitError
+# from .gsobject_model import GSObjectModel, Kolmogorov, Gaussian
 from .star import Star, StarFit, StarData
-from .util import hsm, hsm_error
+from .util import hsm, hsm_error, measure_snr
+
+import pyximport
+pyximport.install(setup_args={"include_dirs":np.get_include()},
+                  reload_support=True)
+from .cypoly import cypoly
 
 class OptAtmoPSF(PSF):
     """Combine Optical and Atmospheric PSFs together
     """
 
-    def __init__(self, atmo_interp=None, analytic_coefs=None, optatmo_psf_kwargs={}, optical_psf_kwargs={}, kolmogorov_kwargs={}, reference_wavefront=None, n_optfit_stars=0, shape_weights=[0.5, 1, 1],  shape_unnormalized=True, shape_method='hsm', fov_radius=1., jmax_pupil=11, jmax_focal=10,  min_optfit_snr=0, optfit_optimize='analytic', logger=None):
+    def __init__(self, atmo_interp=None, analytic_coefs=None, optatmo_psf_kwargs={}, optical_psf_kwargs={}, kolmogorov_kwargs={}, reference_wavefront=None, n_optfit_stars=0, shape_weights=[0.5, 1, 1],  shape_unnormalized=True, shape_method='hsm', fov_radius=3600., jmax_pupil=11, jmax_focal=10,  min_optfit_snr=0, optfit_optimize='analytic', logger=None):
         """
-        Instead of arbitrarily putting different models in and dealing with
-        convolutions of models, put into single piece here.
-
-        Fitting is done with lmfit, which also lets us specificy which params
-        are fixed as we desire. This is akin to the gsobject, but we can
-        explicitly fit parameters.
-
-        Further, the interpolation and model are integrated together.
-
-        Things I am thinking about right now that we will need and I am likely
-        to forget:
-            - A function to strip star parameters for the atmosphere
-              interpolant to fit
-            - A function to go from u,v position to zernike polynomials. Could
-              one day be replaced by galsim implementation
-            - make sure when we fit the constant piece (which includes size, g1,
-              g2) that the atmosphere piece does NOT go beyond constant
-              component
-
-        In the end, this will completely replace the Optical Model
-
         Fit Combined Atmosphere and Optical PSF in two stage process
 
         :param atmo_interp:             Piff Interpolant object that represents
                                         the atmospheric interpolation
         :param analytic_coefs:          Terms in analytic breakdown of zernike
                                         to shape transformation. Only used in
-                                        when optfit_optimize = analytic
-        :param optatmo_psf_kwargs:        Terms that set the state of the PSF,
+                                        when optfit_optimize = analytic. It is
+                                        formatted as [coefs, indices], with
+                                        each of those being 3 deep (one for
+                                        each of the three second moment shapes)
+        :param optatmo_psf_kwargs:      Terms that set the state of the PSF,
                                         excepting the atmospheric interpolant
         :param optical_psf_kwargs:      Arguments to pass into galsim
                                         opticalpsf object
@@ -101,6 +90,11 @@ class OptAtmoPSF(PSF):
         """
         logger = galsim.config.LoggerWrapper(logger)
 
+        # If pupil_angle and strut angle are provided as strings, eval them.
+        for key in ['pupil_angle', 'strut_angle']:
+            if key in optical_psf_kwargs and isinstance(optical_psf_kwargs[key],str):
+                optical_psf_kwargs[key] = eval(optical_psf_kwargs[key])
+
         # atmo_interp is a parsed class
         self.atmo_interp = atmo_interp
         self.analytic_coefs = analytic_coefs
@@ -131,9 +125,9 @@ class OptAtmoPSF(PSF):
 
         init_error = 10000
         self.optatmo_psf_kwargs = {
-            'size': 1.0,  'fix_size': False,  'error_size': init_error,
-            'g1':   0,    'fix_g1':   False,  'error_g1':   init_error,
-            'g2':   0,    'fix_g2':   False,  'error_g2':   init_error,
+                'size': 1.0,  'fix_size': False,  'error_size': init_error, 'min_size': 0.4,
+                'g1':   0,    'fix_g1':   False,  'error_g1':   init_error, 'min_g1': -0.4, 'max_g1': 0.4,
+                'g2':   0,    'fix_g2':   False,  'error_g2':   init_error, 'min_g2': -0.4, 'max_g2': 0.4,
             }
         self.keys = [ 'size', 'g1', 'g2', ]
         # throw in default zernike parameters
@@ -149,8 +143,6 @@ class OptAtmoPSF(PSF):
                     self.optatmo_psf_kwargs['fix_' + zkey] = True
                 else:
                     self.optatmo_psf_kwargs['fix_' + zkey] = False
-                # # we shall not specify in advance a zernike limit
-                # self.optatmo_psf_kwargs['limit_' + zkey] = (-2, 2)
                 # initial placeholder for error in parameter
                 self.optatmo_psf_kwargs['error_' + zkey] = init_error
         try:
@@ -180,14 +172,18 @@ class OptAtmoPSF(PSF):
             # xvalue_accuracy=1e-5,  # 1e-5
             # table_spacing=1.,  # 1
             )
-        # if not specified in advance, decrease pad_factor and oversampling for speedup in optical modeling
+        # if not specified in advance, decrease pad_factor and oversampling for
+        # speedup in optical modeling
         if 'pad_factor' not in self.optical_psf_kwargs:
             self.optical_psf_kwargs['pad_factor'] = 0.5
         if 'oversampling' not in self.optical_psf_kwargs:
             self.optical_psf_kwargs['oversampling'] = 0.5
+
+
         # set up gsobject model to measure shapes
         logger.info("Loading Kolmogorov GSObject for modeling shapes")
-        # if we wanted, this could become an argument for some other model
+        # if we wanted, this could become an argument for some other model, ala
+        # gsobject. For now, we fix to Kolmogorov
         self.atmo_model = galsim.Kolmogorov(gsparams=self.gsparams, **self.kolmogorov_kwargs)
 
         # deal with shape piece
@@ -203,20 +199,25 @@ class OptAtmoPSF(PSF):
         self.kwargs = {'fov_radius': self.fov_radius,
                        'jmax_pupil': self.jmax_pupil,
                        'jmax_focal': self.jmax_focal,
-                       'analytic_coefs': self.analytic_coefs,
-                       'optical_psf_kwargs': self.optical_psf_kwargs,
-                       'kolmogorov_kwargs': self.kolmogorov_kwargs,
                        'min_optfit_snr': self.min_optfit_snr,
                        'n_optfit_stars': self.n_optfit_stars,
                        'optfit_optimize': self.optfit_optimize,
                        'shape_unnormalized': self.shape_unnormalized,
                        'shape_method': self.shape_method,
                        # junk entries to be overwritten in _finish_read function
+                       'analytic_coefs': 0,
                        'optatmo_psf_kwargs': 0,
                        'atmo_interp': 0,
                        'reference_wavefront': 0,
                        'shape_weights': 0,
+                       # TODO: save these to disk separately as part of the finish_write and finish_read!
+                       'optical_psf_kwargs': self.optical_psf_kwargs,
+                       'kolmogorov_kwargs': self.kolmogorov_kwargs,
                        }
+        # pupil_angle and strut_angle won't serialize properly, so repr them now in self.kwargs['optical_psf_kwargs'].
+        for key in ['pupil_angle', 'strut_angle']:
+            if key in self.kwargs['optical_psf_kwargs']:
+                self.kwargs['optical_psf_kwargs'][key] = repr(self.kwargs['optical_psf_kwargs'][key])
 
     @classmethod
     def parseKwargs(cls, config_psf, logger):
@@ -294,6 +295,21 @@ class OptAtmoPSF(PSF):
         if self.atmo_interp:
             self.atmo_interp.write(fits, extname + '_atmo_interp', logger)
 
+        if np.all(self.analytic_coefs):
+            dtype = [('coefs', 'f4'), ('indices', 'i4'), ('shape', 'i4')]
+            coefs = self.analytic_coefs[0]
+            indices = self.analytic_coefs[1]
+            shape = np.array([[i] * len(indices[i]) for i in range(len(indices))]).flatten()
+            coefs = np.array([coef for coef in coefs]).flatten()
+            indices = np.array([index for index in indices]).flatten()
+            data = np.zeros(len(shape), dtype=dtype)
+            data['coefs'] = coefs
+            data['indices'] = indices
+            data['shape'] = shape
+            fits.write_table(data, extname=extname + '_analytic')
+            # and afterburner
+            fits.write_table(self.analytic_coefs[2], extname=extname + '_analytic_afterburner')
+
         # write reference wavefront if it exists
         if self.reference_wavefront:
             self.reference_wavefront.write(fits, extname + '_reference_wavefront', logger)
@@ -328,6 +344,22 @@ class OptAtmoPSF(PSF):
             self.atmo_interp = None
             self._enable_atmosphere = False
 
+        if extname + '_analytic' in fits:
+            data = fits[extname + '_analytic'].read()
+            coefs_flat = data['coefs']
+            indices_flat = data['indices']
+            shape = data['shape']
+            after_burner = fits[extname + '_analytic_afterburner'].read()
+            possible_shapes = np.sort(np.unique(shape))
+            analytic_coefs = [[], []]
+            for i in possible_shapes:
+                analytic_coefs[0].append(coefs_flat[shape == i])
+                analytic_coefs[1].append(indices_flat[shape == i])
+            analytic_coefs.append(after_burner)
+            self.analytic_coefs = np.array(analytic_coefs)
+        else:
+            self.analytic_coefs = None
+
         # read reference wavefront
         if extname + '_reference_wavefront' in fits:
             self.reference_wavefront = Interp.read(fits, extname + '_reference_wavefront', logger)
@@ -359,12 +391,16 @@ class OptAtmoPSF(PSF):
 
         # do first pass of flux and centers for the stars
         self.stars = []
-        for star in stars:
-            shape, error = self.measure_shape(star, return_error=True, logger=logger)
-            star = Star(star.data, StarFit(None, flux=shape[0], center=(shape[1], shape[2])))
-            star.data.properties['shape'] = shape
-            star.data.properties['shape_error'] = error
-            self.stars.append(star)
+        for star_i, star in enumerate(stars):
+            try:
+                shape, error = self.measure_shape(star, return_error=True, logger=logger)
+                star = Star(star.data, StarFit(None, flux=shape[0], center=(shape[1], shape[2])))
+                star.data.properties['shape'] = shape
+                star.data.properties['shape_error'] = error
+                self.stars.append(star)
+            except ModelFitError:
+                # something went wrong with this star
+                logger.warn('Star {0} failed shape estimation. Skipping'.format(star_i))
 
         self.wcs = wcs
         self.pointing = pointing
@@ -414,7 +450,6 @@ class OptAtmoPSF(PSF):
         params += aberrations_pupil
 
         if self.reference_wavefront:
-            # TODO: this could be remade to just be for u, v coordinates centered about the center instead of pixel_to_focal stuff
             stars = [Star(star.data, None) for star in stars]
             stars = self.reference_wavefront.interpolateList(stars)
             aberrations_reference_wavefront = np.array([star_interpolated.fit.params for star_interpolated in stars])
@@ -471,7 +506,8 @@ class OptAtmoPSF(PSF):
         # optics
         aberrations = np.zeros(4 + len(params[3:]))
         aberrations[4:] = params[3:]
-        do_opt = np.any(aberrations != 0)
+        # do_opt = np.any(aberrations != 0)
+        do_opt = True  # for now, force it; not doing the opt actually does change the shape slightly!
         if do_opt:
             opt = galsim.OpticalPSF(aberrations=aberrations, gsparams=self.gsparams, **self.optical_psf_kwargs)
 
@@ -552,6 +588,20 @@ class OptAtmoPSF(PSF):
 
     @staticmethod
     def shape_convert_to_unnormalized(scale, g1, g2):
+        """Given reduced shear and size, convert to unnormalized second moment
+        shape parameterization
+
+        :param scale:   size of object
+        :param g1,2:    reduced shear of object
+        :returns:       e0, e1, e2 = (Mxx + Myy, Mxx - Myy, 2 Mxy) unnormalized
+                        second moments
+
+        Note: This is what the galsim shear code is doing under the hood
+        # absgsq = g1**2 + g2**2
+        # g2e = 2. / (1.+absgsq)
+        # e1norm = g1 * g2e
+        # e2norm = g2 * g2e
+        """
         shear = galsim.Shear(g1=g1, g2=g2)
         e1norm = shear.e1
         e2norm = shear.e2
@@ -566,27 +616,39 @@ class OptAtmoPSF(PSF):
 
     @staticmethod
     def shape_convert_to_normalized(e0, e1, e2):
-        e1norm = e1 / e0
-        e2norm = e2 / e0
-        # e_max = 0.5
-        # if np.abs(e1norm) > e_max:
-        #     print('Warning! e1norm = {0:.2e} / {1:.2e} = {2:.2e} > {3:.2e}! Setting to max'.format(e1, e0, e1norm, e_max))
-        #     e1norm = e_max * np.sign(e1norm)
-        # if np.abs(e2norm) > e_max:
-        #     print('Warning! e2norm = {0:.2e} / {1:.2e} = {2:.2e} > {3:.2e}! Setting to max'.format(e2, e0, e2norm, e_max))
-        #     e2norm = e_max * np.sign(e2norm)
-        shear = galsim.Shear(e1=e1norm, e2=e2norm)
-        g1 = shear.g1
-        g2 = shear.g2
+        """Given second moment shapes, return reduced shear.
+
+        :param e0:      Mxx + Myy; unnormalized second moment size
+        :param e1:      Mxx - Myy; corresponds to ellipticity 1
+        :param e2:      2 Mxy; corresponds to ellipticity 1
+
+        :returns:       Size and reduced shears
+
+        Note: This is what the galsim shear code is doing under the hood
         # absesq = e1norm ** 2 + e2norm ** 2
         # e2g = 1. / (1. + np.sqrt(1. - absesq))
         # g1 = e1norm * e2g
         # g2 = e2norm * e2g
+        """
+        e1norm = e1 / e0
+        e2norm = e2 / e0
+        shear = galsim.Shear(e1=e1norm, e2=e2norm)
+        g1 = shear.g1
+        g2 = shear.g2
         scale = np.sqrt(np.sqrt((e0 ** 2 - e1 ** 2 - e2 ** 2)) * 0.5)
         return scale, g1, g2
 
     @staticmethod
     def shape_convert_errors_to_unnormalized(sigma_scale, sigma_g1, sigma_g2, scale, g1, g2):
+        """Turn errors on size and reduced shear into errors on second moments,
+        assuming no covariance between shape parameters, via propogation of
+        errors.
+
+        :params sigma...:       Errors on size and reduced shear
+        :params scale, g1,2:    Size and reduced shear
+
+        :returns sigma e0,1,2:  Errors on second moment shapes
+        """
 
         # power of sympy
         beta = np.sqrt(scale ** 4 * (g1 ** 2 + g2 ** 2 + 1) ** 2 / (g1 ** 4 + 2 * g1 ** 2 * g2 ** 2 - 2 * g1 ** 2 + g2 ** 4 - 2 * g2 ** 2 + 1))
@@ -612,6 +674,15 @@ class OptAtmoPSF(PSF):
 
     @staticmethod
     def shape_convert_errors_to_normalized(sigma_e0, sigma_e1, sigma_e2, e0, e1, e2):
+        """Turn errors on second moment shapes into errors on size and reduced
+        shear, assuming no covariance between shape parameters, via propogation
+        of errors.
+
+        :params sigma...:           Errors on second moment shapes
+        :params e0,1,2:             Second moment shapes
+
+        :returns sigma sigma,g1,2:  Errors on size and reduced shears
+        """
         alpha = np.sqrt(1 - (e1 / e0) ** 2 - (e2 / e0) ** 2)
         beta = e0 ** 2 - e1 ** 2 - e2 ** 2
 
@@ -675,11 +746,13 @@ class OptAtmoPSF(PSF):
         aberrations_changed = False
         for key in keys:
             # some checks
-            if 'limit_' in key:
-                continue
-            elif 'error_' in key:
+            if 'error_' in key:
                 continue
             elif 'fix_' in key:
+                continue
+            elif 'min_' in key:
+                continue
+            elif 'max_' in key:
                 continue
 
             # size, g1, g2 mean constant terms
@@ -720,15 +793,47 @@ class OptAtmoPSF(PSF):
                                                 for a in self.aberrations_field])
 
     def measure_shape(self, star, return_error=True, logger=None):
+        """Measure the shape of a star
+
+        :param star:            Star we want to measure
+        :param return_error:    Bool. Also measure the error? [default: True]
+        :param logger:          A logger object for logging debug info
+
+        :returns:               An array of [flux, u0, v0, size, ellipticity 1,
+                                ellipticity2], where the size and ellipticity
+                                bases depend on whether the OptAtmoPSF object
+                                has self.shape_unnormalized = 'hsm' or 'lmfit'.
+                                Will also return the 1d errors if
+                                return_error=True
+        """
         if self.shape_method == 'lmfit':
             return self.measure_shape_lmfit(star, shape_unnormalized=self.shape_unnormalized, return_error=return_error, logger=logger)
         elif self.shape_method == 'hsm':
             return self.measure_shape_hsm(star, shape_unnormalized=self.shape_unnormalized, return_error=return_error, logger=logger)
 
     def measure_shape_hsm(self, star, shape_unnormalized=True, return_error=True, logger=None):
+        """Measure the shape of a star using the HSM algorithm
+
+        :param star:                Star we want to measure
+        :param shape_unnormalized:  Bool. If True, return shape measurement
+                                    (and error if return_error) in unnormalized
+                                    basis. Note: HSM by default measures in the
+                                    unnormalized basis, and then converts to
+                                    normalized.  The piff hsm algorithm does
+                                    that conversion for us, while the hsm_error
+                                    does not.
+        :param return_error:        Bool. If True, also measure the error
+                                    [default: True]
+        :param logger:              A logger object for logging debug info
+
+        :returns:                   Shape (and error if return_error) in
+                                    specified basis
+        """
         if return_error:
             # do in unnormalized basis by default
             flux, u0, v0, e0, e1, e2, sigma_flux, sigma_u0, sigma_v0, sigma_e0, sigma_e1, sigma_e2 = hsm_error(star, return_debug=False, logger=logger)
+            # flux is underestimated empirically
+            flux = flux / 0.92
             if shape_unnormalized:
                 shape = np.array([flux, u0, v0, e0, e1, e2])
                 error = np.array([sigma_flux, sigma_u0, sigma_v0, sigma_e0, sigma_e1, sigma_e2])
@@ -744,6 +849,8 @@ class OptAtmoPSF(PSF):
         else:
             # do in normalized basis by default
             flux, u0, v0, sigma, g1, g2, flag = hsm(star)
+            # flux is underestimated empirically
+            flux = flux / 0.92
             if shape_unnormalized:
                 e0, e1, e2 = self.shape_convert_to_unnormalized(sigma, g1, g2)
                 shape = np.array([flux, u0, v0, e0, e1, e2])
@@ -751,7 +858,21 @@ class OptAtmoPSF(PSF):
                 shape = np.array([flux, u0, v0, sigma, g1, g2])
             return shape
 
-    def measure_shape_lmfit(self, star, shape_unnormalized=True, return_error=True, logger=None):
+    def measure_shape_lmfit(self, star, shape_unnormalized=False, return_error=True, logger=None):
+        """Measure the shape of a star using lmfit.
+
+        :param star:                Star we want to measure
+        :param shape_unnormalized:  Bool. If True, return shape measurement
+                                    (and error if return_error) in unnormalized
+                                    basis. lmfit by default fits in normalized
+                                    basis
+        :param return_error:        Bool. If True, also return the error
+                                    [default: True]
+        :param logger:              A logger object for logging debug info
+
+        :returns:                   Shape (and error if return_error) in
+                                    specified basis
+        """
         import lmfit
         # we also fit flux, du, dv but those are less important
 
@@ -903,10 +1024,14 @@ class OptAtmoPSF(PSF):
         for key in self.keys:
             value = self.optatmo_psf_kwargs[key]
             vary = not self.optatmo_psf_kwargs['fix_' + key]
-            if 'limit_' + key in self.optatmo_psf_kwargs:
-                min, max = self.optatmo_psf_kwargs['limit_' + key]
+            if 'min_' + key in self.optatmo_psf_kwargs:
+                min = self.optatmo_psf_kwargs['min_' + key]
             else:
-                min, max = (None, None)
+                min = None
+            if 'max_' + key in self.optatmo_psf_kwargs:
+                max = self.optatmo_psf_kwargs['max_' + key]
+            else:
+                max = None
             params.add(key, value=value, vary=vary, min=min, max=max)
 
         # do fit
@@ -933,32 +1058,18 @@ class OptAtmoPSF(PSF):
 
     @staticmethod
     def measure_snr(star):
-        """Calculate the signal-to-noise of a given star. Copied from input.py
+        """Calculate the signal-to-noise of a given star. Calls util
+        measure_snr function
 
-        :param star:        Input star, with stamp, weight
+        :param star:    Input star, with stamp, weight
 
-        :returns: the SNR value.
+        :returns:       the SNR value.
         """
-        # The S/N value that we use will be the weighted total flux where the
-        # weight function is the star's profile itself.  This is the maximum
-        # S/N value that any flux measurement can possibly produce, which will
-        # be closer to an in-practice S/N than using all the pixels equally.
-        #
-        # F = Sum_i w_i I_i^2
-        # var(F) = Sum_i w_i^2 I_i^2 var(I_i)
-        #        = Sum_i w_i I_i^2             <--- Assumes var(I_i) = 1/w_i
-        #
-        # S/N = F / sqrt(var(F))
-        image, weight, image_pos = star.data.getImage()
-        I = image.array
-        w = weight.array
-        flux = (w*I*I).sum(dtype=float)
-        snr = flux**0.5
-        return snr
+        return measure_snr(star)
 
     def _fit_optics_residual_pixel(self, lmparams, logger=None):
         stars = self._opt_stars
-        shapes = self._opt_shapes
+        # shapes = self._opt_shapes
 
         # convert lmparams instance
         params = lmparams.valuesdict()
@@ -973,16 +1084,23 @@ class OptAtmoPSF(PSF):
         chi = np.array([])
         for i, star in enumerate(stars):
             opt_params = stars_params[i]
-            # use fits from measure_shapes (which didn't include optical
-            # component) for flux, du, dv. This is not technically correct,
-            # because shifting coma and trefoil shifts the mean positions
-            # about, but modifying that entails a factor of ~60 slowdown from
-            # having to take about that many steps to fit the flux, du, dv for
-            # given set of optical parameters
-            flux, du, dv = shapes[i][:3]
 
             # get profile; modify based on flux and shifts
-            profile = self._profile(opt_params).shift(du, dv) * flux
+            profile = self._profile(opt_params)
+
+            # # use fits from measure_shapes (which didn't include optical
+            # # component) for flux, du, dv. This is not technically correct,
+            # # because shifting coma and trefoil shifts the mean positions
+            # # about, but modifying that entails a factor of ~60 slowdown from
+            # # having to take about that many steps to fit the flux, du, dv for
+            # # given set of optical parameters
+            # flux, du, dv = shapes[i][:3]
+            # measure flux, du, dv with hsm
+            shape = self.measure_shape_hsm(self.drawProfileStar(star, profile, opt_params), return_error=False)
+            flux, du, dv = shape[:3]
+
+            # modify profile
+            profile = profile.shift(du, dv) * flux
 
             # draw star
             image_model = self.drawProfile(star, profile)
@@ -1029,10 +1147,10 @@ class OptAtmoPSF(PSF):
         self._update_optatmopsf(params, logger)
 
         # get star params
-        zernikes = self.getParamsList(self._opt_stars)
+        params = self.getParamsList(self._opt_stars)
 
         # generate analytic star moments
-        shapes_model = self.analytic_zernike_shapes(zernikes, self.analytic_coefs)
+        shapes_model = self.analytic_shapes(params, self.analytic_coefs)
 
         # calculate chi
         chi = (self.shape_weights[None] * (shapes_model - self._opt_shapes[:, 3:]) / self._opt_shape_errors[:, 3:]).flatten()
@@ -1083,7 +1201,7 @@ class OptAtmoPSF(PSF):
         if vary_shape:
             # we must also cut the min and max based on opt_params to avoid things
             # like large ellipticities or small sizes
-            min_size = 0.4
+            min_size = 0.43
             max_g = 0.4
             opt_size = opt_params[0]
             opt_g1 = opt_params[1]
@@ -1092,7 +1210,7 @@ class OptAtmoPSF(PSF):
             params.add('g1', value=0, vary=True, min=-max_g - opt_g1, max=max_g - opt_g1)
             params.add('g2', value=0, vary=True, min=-max_g - opt_g2, max=max_g - opt_g2)
 
-        if logger: logger.debug('Initial parameters: {0}'.format(str(params)))
+        if logger: logger.debug('Initial parameters: {0}'.format(str(params.valuesdict())))
 
         # do fit
         results = lmfit.minimize(self._fit_model_residual, params,
@@ -1130,14 +1248,17 @@ class OptAtmoPSF(PSF):
         return chi
 
     @staticmethod
-    def analytic_zernike_shapes(zernikes, coefs):
-        # transform into full index
-        params_onehot = np.vstack((np.ones(len(zernikes)).T, zernikes.T)).T
-        nsample, ndim = params_onehot.shape
-        # all params can be up to square * size
-        ppoly_full = (params_onehot[:, :, None, None] * params_onehot[:, None, :, None] * params_onehot[:, :2][:, None, None, :])
-        ppoly = ppoly_full.reshape(nsample, 2 * ndim * ndim)
+    def analytic_shapes(params, analytic_coefs):
+        # TODO: docs
+        coefs = analytic_coefs[0]
+        indices = analytic_coefs[1]
+        after_burners = analytic_coefs[2]
 
+        # transform into full index
+        params_onehot = np.vstack((np.ones(len(params)).T, np.ones(len(params)).T, params.T)).T.astype(np.float64) # extra set of ones which we turn into 1/size
+        params_onehot[:, 1] = 1. / params_onehot[:, 2]
         # apply model
-        shapes = np.array([np.dot(ppoly, coef) for coef in coefs]).T
+        shapes = np.array([cypoly(params_onehot, coef.astype(np.float64), index.astype(np.int64)) * afb[1] + afb[0]
+                           for coef, index, afb in zip(coefs, indices, after_burners)]).T
+
         return shapes
