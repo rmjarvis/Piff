@@ -20,6 +20,7 @@ import os
 import fitsio
 import copy
 import unittest
+import itertools
 
 from piff_test_helper import timer
 
@@ -255,26 +256,28 @@ def test_fit():
         logger = piff.config.setup_logger(verbose=1)
     logger.debug('Entering test_fit')
 
-    jmax_pupil = 8
+    jmax_pupil = 10
     config = return_config()
     config['jmax_focal'] = 1
     config['jmax_pupil'] = jmax_pupil
-    config.pop('reference_wavefront')
 
     psf = piff.PSF.process(copy.deepcopy(config))
-    optatmo_psf_kwargs = {'size': 1.3, 'g1': 0.02, 'g2': -0.03,
-                        'zUV004_zXY001': -1.0,
-                        'zUV005_zXY001': -1.0,
-                        'zUV006_zXY001': -1.0,
-                        'zUV007_zXY001': -1.0,
-                        'zUV008_zXY001': -1.0,
+    optatmo_psf_kwargs = {'size': 1., 'g1': 0, 'g2': 0,
+                          'fix_size': True, 'fix_g1': True, 'fix_g2': True,
+                          'zUV004_zXY001': 1.5,
+                          'zUV005_zXY001': 0, 'fix_zUV005_zXY001': True,
+                          'zUV006_zXY001': 0, 'fix_zUV006_zXY001': True,
+                          'zUV007_zXY001': 0, 'fix_zUV007_zXY001': True,
+                          'zUV008_zXY001': 0, 'fix_zUV008_zXY001': True,
+                          'zUV009_zXY001': -1,
+                          'zUV010_zXY001': 1,
                         }
     psf._update_optatmopsf(optatmo_psf_kwargs, logger=logger)
     # make star
-    nstars = 300
+    nstars = 60
     chipnums = np.random.choice(range(1,63), nstars)
-    icens = np.random.randint(100, 1024, nstars)
-    jcens = np.random.randint(100, 1024, nstars)
+    icens = np.random.randint(0, 1024, nstars)
+    jcens = np.random.randint(0, 2048, nstars)
     stars_blank = [make_star(i, j, chip) for i, j, chip in zip(icens, jcens, chipnums)]
     wcs = {}
     for i in np.unique(chipnums):
@@ -282,51 +285,123 @@ def test_fit():
     pointing = None
 
     # get params
+    true_optatmo_psf_kwargs = copy.deepcopy(optatmo_psf_kwargs)
     params = psf.getParamsList(stars_blank)
     # add additional scale, g1, g2 to profile
-    atmo_flux = 1e1
-    atmo_du = 0.3
-    atmo_dv = -0.3
-    atmo_size = -0.1
-    atmo_g1 = 0.04
-    atmo_g2 = -0.03
-    params[:, 0] += atmo_size
-    params[:, 1] += atmo_g1
-    params[:, 2] += atmo_g2
+    snr = 100
+    atmo_flux = snr ** 2
+    atmo_du = -0.1
+    atmo_dv = 0.2
     # draw the stars
+    logger.debug('Drawing test stars')
     stars_to_fit = []
     stars = []
     for star, param in zip(stars_blank, params):
         prof = psf._profile(param).shift(atmo_du, atmo_dv) * atmo_flux
         # draw the star
         star = psf.drawProfileStar(star, prof, param)
+        # add noise
+        image = star.image.array
+        weight = 1. / image
+        noise = np.random.normal(size=image.shape, scale=np.sqrt(image))
+        star.image.array[:] = image + noise
+        star.weight.array[:] = weight
+
         stars.append(star)
         star_to_fit = piff.Star(star.data, None)
         stars_to_fit.append(star_to_fit)
 
-    # fit the above stuff for different optical models
-    for optfit_optimize in ['analytic', 'moments', 'pixel']:
-    # for optfit_optimize in ['moments']:
+    if __name__ == '__main__':
+        optfit_optimizers = ['moments', 'pixel', 'analytic']
+        shape_methods = ['hsm', 'lmfit']
+        shapes_unnormalized = [False, True]
+    else:
+        optfit_optimizers = ['moments']
+        shape_methods = ['hsm']
+        shapes_unnormalized = [True]
+
+    for optfit_optimize, shape_method, shape_unnormalized in itertools.product(optfit_optimizers, shape_methods, shapes_unnormalized):
+        logger.debug('test_fit: Fitting method {0}, shape method {1}, shape unnormalized {2}'.format(optfit_optimize, shape_method, shape_unnormalized))
         config['optfit_optimize'] = optfit_optimize
+        config['shape_unnormalized'] = shape_unnormalized
+        config['shape_method'] = shape_method
+        if shape_method == 'lmfit' and optfit_optimize == 'analytic':
+            # skip the lmfit analytic because we didn't copy those coefs over. The principal of the matter is tested with hsm analytic coefs
+            continue
+        elif optfit_optimize == 'analytic' and shape_method != 'hsm' and shape_unnormalized:
+            continue
+        if shape_unnormalized:
+            config['analytic_coefs'] = './input/analytic_coefs_hsm.npy'
+        else:
+            config['analytic_coefs'] = './input/analytic_coefs_normalized_hsm.npy'
 
         config['n_optfit_stars'] = int(0.9 * nstars)
         psf_clean = piff.PSF.process(copy.deepcopy(config), logger=logger)
+
+        # fix appropriate params
+        for key in optatmo_psf_kwargs.keys():
+            if 'fix_' in key:
+                psf_clean.optatmo_psf_kwargs[key] = optatmo_psf_kwargs[key]
+
         psf_clean.fit(stars_to_fit, wcs, pointing, logger=logger)
-        import ipdb; ipdb.set_trace()
+
+        # plot star and true star
+        for i, star in enumerate(psf_clean._model_fitted_stars[:5]):
+            plot_star(star, 'test_star_{0}_truth.png'.format(i), vmin=0, vmax=150)
+            star_model = psf_clean.drawStar(star, correct_flux_center=True)
+            plot_star(star_model, 'test_star_{0}_drawn.png'.format(i), vmin=0, vmax=150)
+            star_model.image.array[:] = star.image.array - star_model.image.array
+            plot_star(star_model, 'test_star_{0}_zresidual.png'.format(i))
+
+
+
+        g0_fit = psf_clean.aberrations_field[0,0] + psf_clean.atmo_interp.coeffs[0][0,0]
+        g0_in = psf.aberrations_field[0,0]
+        g1_fit = psf_clean.aberrations_field[1,0] + psf_clean.atmo_interp.coeffs[1][0,0]
+        g1_in = psf.aberrations_field[1,0]
+        g2_fit = psf_clean.aberrations_field[2,0] + psf_clean.atmo_interp.coeffs[2][0,0]
+        g2_in = psf.aberrations_field[2,0]
+        true_params = psf_clean._fit_optics_params(true_optatmo_psf_kwargs)
+        true_chi_pixel = psf_clean._fit_optics_residual_pixel(true_params)
+        true_chi_moments = psf_clean._fit_optics_residual_moments(true_params)
+        true_chi_analytic = psf_clean._fit_optics_residual_analytic(true_params)
+        fit_params = psf_clean._fit_optics_params(psf_clean.optatmo_psf_kwargs)
+        fit_chi_pixel = psf_clean._fit_optics_residual_pixel(fit_params)
+        fit_chi_moments = psf_clean._fit_optics_residual_moments(fit_params)
+        fit_chi_analytic = psf_clean._fit_optics_residual_analytic(fit_params)
+        chi2_ratio_pixel = np.sum(np.square(true_chi_pixel)) / np.sum(np.square(fit_chi_pixel))
+        chi2_ratio_moments = np.sum(np.square(true_chi_moments)) / np.sum(np.square(fit_chi_moments))
+        chi2_ratio_analytic = np.sum(np.square(true_chi_analytic)) / np.sum(np.square(fit_chi_analytic))
+
+        # print(g0_fit, g0_in)
+        # print(g1_fit, g1_in)
+        # print(g2_fit, g2_in)
+        # print(psf_clean.aberrations_field)
+        # print(psf.aberrations_field)
+        # print(chi2_ratio_pixel)
+        # print(chi2_ratio_moments)
+        # print(chi2_ratio_analytic)
+
+        # import ipdb; ipdb.set_trace()
+
+        # because of errors these may be slightly bigger than 1, but let's say no more than by 10%
+        assert chi2_ratio_pixel < 1.1
+        assert chi2_ratio_moments < 1.1
+        # assert chi2_ratio_analytic < 1.1
 
         # check that n_optfit_stars restricted appropriately
         assert len(psf_clean._opt_stars) <= config['n_optfit_stars']
 
         # evaluate zernike terms
-        np.testing.assert_allclose(psf.aberrations_field[3:,0], psf_clean.aberrations_field[3:,0], atol=1e-6)
+        np.testing.assert_allclose(psf.aberrations_field[3:,0], psf_clean.aberrations_field[3:,0], atol=1e-1)
         # spot check optatmo_psf_kwargs
         assert psf_clean.optatmo_psf_kwargs['size'] == psf_clean.aberrations_field[0, 0]
         assert psf_clean.optatmo_psf_kwargs['g2'] == psf_clean.aberrations_field[2, 0]
         assert psf_clean.optatmo_psf_kwargs['zUV004_zXY001'] == psf_clean.aberrations_field[3, 0]
         # note that when comparing the aberrations, because we put in a constant atmosphere, we actually expect the atmosphere interpolation to be zero, and the aberration field terms to be the sum of those pieces
-        np.testing.assert_allclose(psf_clean.aberrations_field[0,0] + psf_clean.atmo_interp.coeffs[0][0,0], psf.aberrations_field[0,0], atol=1e-6)
-        np.testing.assert_allclose(psf_clean.aberrations_field[1,0] + psf_clean.atmo_interp.coeffs[1][0,0], psf.aberrations_field[1,0], atol=1e-6)
-        np.testing.assert_allclose(psf_clean.aberrations_field[2,0] + psf_clean.atmo_interp.coeffs[2][0,0], psf.aberrations_field[2,0], atol=1e-6)
+        np.testing.assert_allclose(g0_fit, g0_in, atol=3e-2)
+        np.testing.assert_allclose(g1_fit, g1_in, atol=3e-2)
+        np.testing.assert_allclose(g2_fit, g2_in, atol=3e-2)
 
         if optfit_optimize in ['moments', 'analytic']:
             # check that changing the weights changes the chi2 of a given iteration
@@ -547,6 +622,9 @@ def test_snr_and_shapes():
                         logger_in = None
                     logger_in = None
                     shape, error = measure_shape(star_model, shape_unnormalized=shape_unnormalized, return_error=True, logger=logger_in)
+                    # make sure shape without error is close to the same value
+                    shape_no_error = measure_shape(star_model, shape_unnormalized=shape_unnormalized, return_error=False, logger=logger_in)
+                    np.testing.assert_equal(shape, shape_no_error)
                     shapes[j][k].append(shape)
                     errors[j][k].append(error)
             snrs.append(psf.measure_snr(star_model))
@@ -659,31 +737,105 @@ def test_roundtrip():
         'psf': config_psf,
         }
 
+    if __name__ == '__main__':
+        fit_testers = ['pixel', 'moments', 'analytic']
+    else:
+        fit_testers = ['analytic']
+    for fit_tester in fit_testers:
+        logger.info('Testing roundtrip for fit method {0}'.format(fit_tester))
+        config_psf['optfit_optimize'] = fit_tester
+        # iirc this should also modify in config, but make sure
+        config['psf']['optfit_optimize'] = fit_tester
 
-    # run using piffify
+        # run using piffify
+        if os.path.exists(psf_file):
+            os.remove(psf_file)
+        logger.info('Running piffify')
+        piff.piffify(copy.deepcopy(config), logger=logger)
+
+        # load results and compare with initial params
+        psf_original = piff.PSF.process(copy.deepcopy(config_psf), logger=logger)
+        psf = piff.read(psf_file, logger=logger)
+
+        # go through kwargs and check those
+        for key in psf_original.kwargs:
+            assert psf_original.kwargs[key] == psf.kwargs[key]
+
+        # check the other named attributes
+        np.testing.assert_allclose(psf_original.shape_weights, psf.shape_weights)
+        assert psf_original.gsparams == psf.gsparams
+        assert psf.kolmogorov_kwargs == psf_original.kolmogorov_kwargs
+        assert psf.optical_psf_kwargs == psf_original.optical_psf_kwargs
+
+        # check analytic coefs
+        for ac1, ac2 in zip(psf.analytic_coefs, psf_original.analytic_coefs):
+            for c1, c2 in zip(ac1, ac2):
+                print(ac1)
+                print(ac2)
+                print(c1)
+                print(c2)
+                np.testing.assert_allclose(c1, c2)
+
+    # copy these over to facilitate later writing for these tests
+    stars = psf.stars
+    wcs = psf.wcs
+    pointing = psf.pointing
+    atmo_interp = psf.atmo_interp
+
+    # test saving when there is no atmo_interp
     if os.path.exists(psf_file):
         os.remove(psf_file)
-    logger.info('Running piffify')
-    piff.piffify(config, logger=logger)
-
-
-    # load results and compare with initial params
-    psf_original = piff.PSF.process(config_psf, logger=logger)
+    psf_original = piff.PSF.process(copy.deepcopy(config_psf), logger=logger)
+    psf_original.stars = stars
+    psf_original.wcs = wcs
+    psf_original.pointing = pointing
+    psf_original.atmo_interp = atmo_interp
+    psf_original.write(psf_file, logger=logger)
     psf = piff.read(psf_file, logger=logger)
+    for key in psf_original.kwargs:
+        assert psf_original.kwargs[key] == psf.kwargs[key]
 
-    import ipdb; ipdb.set_trace()
+    # test saving when analytic_coefs is None
+    if os.path.exists(psf_file):
+        os.remove(psf_file)
+    config_psf.pop('analytic_coefs')
+    psf_original = piff.PSF.process(copy.deepcopy(config_psf), logger=logger)
+    psf_original.stars = stars
+    psf_original.wcs = wcs
+    psf_original.pointing = pointing
+    psf_original.atmo_interp = atmo_interp
+    psf_original.write(psf_file, logger=logger)
+    psf = piff.read(psf_file, logger=logger)
+    for key in psf_original.kwargs:
+        assert psf_original.kwargs[key] == psf.kwargs[key]
+    assert psf_original.analytic_coefs == None
+    assert psf.analytic_coefs == psf_original.analytic_coefs
+
+    # test saving with no reference_wavefront
+    config_psf.pop('reference_wavefront')
+    psf_original = piff.PSF.process(copy.deepcopy(config_psf), logger=logger)
+    psf_original.stars = stars
+    psf_original.wcs = wcs
+    psf_original.pointing = pointing
+    psf_original.atmo_interp = atmo_interp
+    psf_original.write(psf_file, logger=logger)
+    psf = piff.read(psf_file, logger=logger)
+    for key in psf_original.kwargs:
+        assert psf_original.kwargs[key] == psf.kwargs[key]
+    assert psf_original.reference_wavefront == None
+    assert psf.reference_wavefront == psf_original.reference_wavefront
 
 if __name__ == '__main__':
-        # test_init()
-        # test_aberrations()
-        # test_reference_wavefront()
-        # test_jmaxs()
-        # test_atmo_model_fit()
-        # test_atmo_interp_fit()
-        # test_profile()
-        # test_snr_and_shapes()
-        # test_analytic_coefs()
+        test_init()
+        test_aberrations()
+        test_reference_wavefront()
+        test_jmaxs()
+        test_atmo_model_fit()
+        test_atmo_interp_fit()
+        test_profile()
+        test_snr_and_shapes()
+        test_analytic_coefs()
+        test_roundtrip()
 
         # TODO: ones that are still tbd
-        # test_fit()
-        test_roundtrip()
+        test_fit()

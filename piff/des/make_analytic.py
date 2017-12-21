@@ -146,12 +146,13 @@ def make_sample(nsample=5000, snr=0, stamp_size=24, jmax=21,
     params = np.array(params_all)
     return shapes_hsm, shape_errors_hsm, shapes_lmfit, shape_errors_lmfit, params
 
-def evaluate_sample(shapes, params, Nsample=400000, logger=None):
-    if Nsample < len(params):
-        # let's simplify this a bit by choosing a subsample
-        choice = np.random.choice(len(params), Nsample, replace=False)
-        params = params[choice]
-        shapes = shapes[choice]
+# def evaluate_sample(shapes, params, Nsample=400000, logger=None):
+#     if Nsample < len(params):
+#         # let's simplify this a bit by choosing a subsample
+#         choice = np.random.choice(len(params), Nsample, replace=False)
+#         params = params[choice]
+#         shapes = shapes[choice]
+def evaluate_sample(shapes, params, logger=None):
 
     params_onehot = np.vstack((np.ones(len(params)).T, np.ones(len(params)).T, params.T)).T # extra set of ones which we turn into 1/size
     params_onehot[:, 1] = 1. / params_onehot[:, 2]

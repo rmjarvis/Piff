@@ -218,7 +218,7 @@ def hsm(star):
 
     return flux, center.x, center.y, sigma, shape.g1, shape.g2, flag
 
-def hsm_error(star, logger=None, return_debug=False):
+def hsm_error(star, logger=None, return_debug=False, return_error=True):
     """ Use python implementation of HSM to measure higher order moments of star image to get errors.
 
     Slow since it's python, not C, but we should only have to do this once per star.
@@ -254,48 +254,12 @@ def hsm_error(star, logger=None, return_debug=False):
     # also get the values for the HSM kernel, which is just the fitted hsm model
     kernel_i, wk_i, uk_i, vk_i = star_model.data.getDataVector(include_zero_weight=False)
 
-    # with HSM as our starting guess, and kernel, let's use the weights for a final step. This makes everything a lot simpler, conceptually
-
-    # normalization for the various sums over pixels
+    # with HSM as our starting guess, and kernel, let's use the weights for a final step. This makes everything a lot simpler, conceptually. We place all these results here, and then work through the errors later
     flux_calc = np.sum(weight_i * data_i * kernel_i)
     normalization = flux_calc
-    normalization2 = normalization * normalization
-
-    sigma2_data_i = 1. / weight_i
-    sigma2_normalization = np.sum(np.power(weight_i ** 2 * kernel_i ** 2, 2) * sigma2_data_i)
-    sigma_normalization = np.sqrt(sigma2_normalization)
-    # flux is 2x normalization in hsm.cpp, so probably a factor of 2 here
-    sigma_flux = 2 * sigma_normalization
-
-    # flux fudge factors?
-    flux_fudge_factor = 1.
-    flux_calc = flux_calc * flux_fudge_factor
-    sigma_flux = sigma_flux * np.sqrt(flux_fudge_factor)
-    sigma_normalization = 1. * sigma_normalization
-
-    #####
-    # u0, v0
-    #####
 
     u0_calc = np.sum(data_i * weight_i * kernel_i * u_i) / normalization
     v0_calc = np.sum(data_i * weight_i * kernel_i * v_i) / normalization
-
-    sigma2_u0_data = np.sum(np.power(weight_i * kernel_i * u_i / normalization, 2) * sigma2_data_i)
-    sigma2_v0_data = np.sum(np.power(weight_i * kernel_i * v_i / normalization, 2) * sigma2_data_i)
-
-    # add sigma_normalization
-    sigma2_u0_flux = np.power(u0_calc * sigma_normalization / normalization, 2)
-    sigma2_v0_flux = np.power(v0_calc * sigma_normalization / normalization, 2)
-
-    # technically we also need the contribution to the kernel!
-
-    sigma_u0 = np.sqrt(sigma2_u0_data + sigma2_u0_flux)
-    sigma_v0 = np.sqrt(sigma2_v0_data + sigma2_v0_flux)
-
-    # u0, v0 fudge factors
-    sigma_u0 = sigma_u0 * 2.1
-    sigma_v0 = sigma_v0 * 2.1
-
     # calculate moments
     du_i = u_i - u0_calc
     dv_i = v_i - v0_calc
@@ -319,6 +283,42 @@ def hsm_error(star, logger=None, return_debug=False):
     e0_calc = Muu + Mvv
     e1_calc = Muu - Mvv
     e2_calc = 2 * Muv
+    if not return_error:
+        return flux_calc, u0_calc, v0_calc, e0_calc, e1_calc, e2_calc
+
+    # normalization for the various sums over pixels
+    normalization2 = normalization * normalization
+
+    sigma2_data_i = 1. / weight_i
+    sigma2_normalization = np.sum(np.power(weight_i ** 2 * kernel_i ** 2, 2) * sigma2_data_i)
+    sigma_normalization = np.sqrt(sigma2_normalization)
+    # flux is 2x normalization in hsm.cpp, so probably a factor of 2 here
+    sigma_flux = 2 * sigma_normalization
+
+    # flux fudge factors?
+    flux_fudge_factor = 1.
+    sigma_flux = sigma_flux * np.sqrt(flux_fudge_factor)
+    sigma_normalization = 1. * sigma_normalization
+
+    #####
+    # u0, v0
+    #####
+
+    sigma2_u0_data = np.sum(np.power(weight_i * kernel_i * u_i / normalization, 2) * sigma2_data_i)
+    sigma2_v0_data = np.sum(np.power(weight_i * kernel_i * v_i / normalization, 2) * sigma2_data_i)
+
+    # add sigma_normalization
+    sigma2_u0_flux = np.power(u0_calc * sigma_normalization / normalization, 2)
+    sigma2_v0_flux = np.power(v0_calc * sigma_normalization / normalization, 2)
+
+    # technically we also need the contribution to the kernel!
+
+    sigma_u0 = np.sqrt(sigma2_u0_data + sigma2_u0_flux)
+    sigma_v0 = np.sqrt(sigma2_v0_data + sigma2_v0_flux)
+
+    # u0, v0 fudge factors
+    sigma_u0 = sigma_u0 * 2.1
+    sigma_v0 = sigma_v0 * 2.1
 
     # now calculate errors: ie. shot and read noise per pixel
 
@@ -355,25 +355,24 @@ def hsm_error(star, logger=None, return_debug=False):
     sigma_e1 = sigma_e1 * 2.3
     sigma_e2 = sigma_e2 * 2.3
 
-    if logger:
-        logger.debug('Star hsm_error. Value of flux, u0, v0, e0, e1, e2 are:')
-        logger.debug('{0:.2e} {1:.2e} {2:.2e} {3:.2e} {4:.2e} {5:.2e}'.format(flux_calc, u0_calc, v0_calc, e0_calc, e1_calc, e2_calc))
-        # logger.debug('Star hsm_error. Value of Gaussian model flux, u0, v0, e0, e1, e2 are:')
-        # logger.debug('{0:.2e} {1:.2e} {2:.2e} {3:.2e} {4:.2e} {5:.2e}'.format(flux, u0, v0, e0, e1, e2))
-        logger.debug('Star hsm_error. Value of errors for flux, u0, v0, e0, e1, e2 are:')
-        logger.debug('{0:.2e} {1:.2e} {2:.2e} {3:.2e} {4:.2e} {5:.2e}'.format(sigma_flux, sigma_u0, sigma_v0, sigma_e0, sigma_e1, sigma_e2))
-        logger.debug('Star hsm_error. Relative un-fudged contributions for u0 from data and flux are (in sigma2):')
-        logger.debug('{0:.2e} {1:.2e}'.format(sigma2_u0_data, sigma2_u0_flux))
-        logger.debug('Star hsm_error. Relative un-fudged contributions for v0 from data and flux are (in sigma2):')
-        logger.debug('{0:.2e} {1:.2e}'.format(sigma2_v0_data, sigma2_v0_flux))
-        logger.debug('Star hsm_error. Relative un-fudged contributions for e0 from data, flux, u0, and v0 are (in sigma2):')
-        logger.debug('{0:.2e} {1:.2e} {2:.2e} {3:.2e}'.format(sigma2_e0_data, sigma2_e0_flux, sigma2_e0_u0, sigma2_e0_v0))
-        logger.debug('Star hsm_error. Relative un-fudged contributions for e1 from data, flux, u0, and v0 are (in sigma2):')
-        logger.debug('{0:.2e} {1:.2e} {2:.2e} {3:.2e}'.format(sigma2_e1_data, sigma2_e1_flux, sigma2_e1_u0, sigma2_e1_v0))
-        logger.debug('Star hsm_error. Relative un-fudged contributions for e2 from data, flux, u0, and v0 are (in sigma2):')
-        logger.debug('{0:.2e} {1:.2e} {2:.2e} {3:.2e}'.format(sigma2_e2_data, sigma2_e2_flux, sigma2_e2_u0, sigma2_e2_v0))
-
     if return_debug:
+        if logger:
+            logger.debug('Star hsm_error. Value of flux, u0, v0, e0, e1, e2 are:')
+            logger.debug('{0:.2e} {1:.2e} {2:.2e} {3:.2e} {4:.2e} {5:.2e}'.format(flux_calc, u0_calc, v0_calc, e0_calc, e1_calc, e2_calc))
+            # logger.debug('Star hsm_error. Value of Gaussian model flux, u0, v0, e0, e1, e2 are:')
+            # logger.debug('{0:.2e} {1:.2e} {2:.2e} {3:.2e} {4:.2e} {5:.2e}'.format(flux, u0, v0, e0, e1, e2))
+            logger.debug('Star hsm_error. Value of errors for flux, u0, v0, e0, e1, e2 are:')
+            logger.debug('{0:.2e} {1:.2e} {2:.2e} {3:.2e} {4:.2e} {5:.2e}'.format(sigma_flux, sigma_u0, sigma_v0, sigma_e0, sigma_e1, sigma_e2))
+            logger.debug('Star hsm_error. Relative un-fudged contributions for u0 from data and flux are (in sigma2):')
+            logger.debug('{0:.2e} {1:.2e}'.format(sigma2_u0_data, sigma2_u0_flux))
+            logger.debug('Star hsm_error. Relative un-fudged contributions for v0 from data and flux are (in sigma2):')
+            logger.debug('{0:.2e} {1:.2e}'.format(sigma2_v0_data, sigma2_v0_flux))
+            logger.debug('Star hsm_error. Relative un-fudged contributions for e0 from data, flux, u0, and v0 are (in sigma2):')
+            logger.debug('{0:.2e} {1:.2e} {2:.2e} {3:.2e}'.format(sigma2_e0_data, sigma2_e0_flux, sigma2_e0_u0, sigma2_e0_v0))
+            logger.debug('Star hsm_error. Relative un-fudged contributions for e1 from data, flux, u0, and v0 are (in sigma2):')
+            logger.debug('{0:.2e} {1:.2e} {2:.2e} {3:.2e}'.format(sigma2_e1_data, sigma2_e1_flux, sigma2_e1_u0, sigma2_e1_v0))
+            logger.debug('Star hsm_error. Relative un-fudged contributions for e2 from data, flux, u0, and v0 are (in sigma2):')
+            logger.debug('{0:.2e} {1:.2e} {2:.2e} {3:.2e}'.format(sigma2_e2_data, sigma2_e2_flux, sigma2_e2_u0, sigma2_e2_v0))
         return sigma_flux, sigma_u0, sigma_v0, sigma_e0, sigma_e1, sigma_e2, \
                flux_calc, u0_calc, v0_calc, e0_calc, e1_calc, e2_calc, \
                sigma2_e0_data, sigma2_e0_u0, sigma2_e0_v0, sigma2_e0_flux, \
