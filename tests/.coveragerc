@@ -31,7 +31,7 @@ exclude_lines =
     if __name__ == .__main__.:
 
     # Don't complain about exceptional circumstances not under control of the test suite
-    except KeyboardInterrupt
+    except .*KeyboardInterrupt
     except IOError
     except OSError
 
