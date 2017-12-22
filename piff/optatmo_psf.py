@@ -447,7 +447,7 @@ class OptAtmoPSF(PSF):
                 self.stars.append(star)
             except ModelFitError:
                 # something went wrong with this star
-                logger.warn('Star {0} failed shape estimation. Skipping'.format(star_i))
+                if logger: logger.warn('Star {0} failed shape estimation. Skipping'.format(star_i))
 
         self.wcs = wcs
         self.pointing = pointing
@@ -455,15 +455,15 @@ class OptAtmoPSF(PSF):
         # fit optical interpolant piece including constant atmosphere to
         # either: analytic moments, actual moments, pixels. Mode is decided in
         # __init__ of PSF
-        logger.info('Fitting optics')
+        if logger: logger.info('Fitting optics')
         self.fit_optics(self.stars, logger=logger, **kwargs)
 
         # fit atmosphere
-        logger.info('Fitting atmosphere')
+        if logger: logger.info('Fitting atmosphere')
         self.fit_atmosphere(self.stars, logger=logger, **kwargs)
 
         # enable atmosphere interpolation now that we have solved the interp
-        logger.info('Enabling Atmosphere')
+        if logger: logger.info('Enabling Atmosphere')
         self._enable_atmosphere = True
 
     def _getParamsList_aberrations_field(self, stars):
@@ -1027,18 +1027,15 @@ class OptAtmoPSF(PSF):
 
         for indx in indices:
             if len(self._opt_stars) + 1 > max_stars:
-                if logger:
-                    logger.info("Finishing opt_star measurements at {0} stars".format(len(self._opt_stars)))
+                if logger: logger.info("Finishing opt_star measurements at {0} stars".format(len(self._opt_stars)))
                 break
 
-            if logger:
-                logger.debug("Measuring shape of star {0}".format(indx))
+            if logger: logger.debug("Measuring shape of star {0}".format(indx))
             star = stars[indx]
             snr = self.measure_snr(star)
             if self.min_optfit_snr > 0:
                 if snr < self.min_optfit_snr:
-                    if logger:
-                        logger.debug("Skipping star {0} because SNR {1} < {2}".format(indx, snr, self.min_optfit_snr))
+                    if logger: logger.debug("Skipping star {0} because SNR {1} < {2}".format(indx, snr, self.min_optfit_snr))
                     continue
 
             # idea here is that even for pixels, if we can't fit a shape, the
@@ -1065,8 +1062,7 @@ class OptAtmoPSF(PSF):
         self._opt_indices = np.array(self._opt_indices)
 
         if len(self._opt_stars) < max_stars:
-            if logger:
-                logger.info("Using {0} stars instead of desired {1} out of {2}".format(len(self._opt_stars), max_stars, len(stars)))
+            if logger: logger.info("Using {0} stars instead of desired {1} out of {2}".format(len(self._opt_stars), max_stars, len(stars)))
 
         params = self._fit_optics_params(self.optatmo_psf_kwargs)
 
@@ -1089,7 +1085,7 @@ class OptAtmoPSF(PSF):
                     self.optatmo_psf_kwargs['error_' + key] = err
                 except TypeError:
                     # covar is None for Reasons.
-                    logger.warning('No Error calculated for parameter {0}!'.format(key))
+                    if logger: logger.warning('No Error calculated for parameter {0}!'.format(key))
                 key_i += 1
         self._update_optatmopsf(logger=logger)
 
@@ -1134,12 +1130,12 @@ class OptAtmoPSF(PSF):
         """
         return measure_snr(star)
 
-    def _correct_profile_hsm(self, profile, star, shape, logger=None):
+    def _correct_profile(self, profile, star, shape, logger=None):
         # given profile, correct flux, du, dv with hsm. Probably could do this with lmfit in _fit_model as well if we wanted.
 
         # draw uncorrected star
         star_model = self.drawProfileStar(star, profile, None)
-        shape_model = self.measure_shape_hsm(star_model, shape_unnormalized=self.shape_unnormalized, return_error=False)
+        shape_model = self.measure_shape(star_model, return_error=False, logger=logger)
 
         flux_model, u_model, v_model = shape_model[:3]
         flux_star, u_star, v_star = shape[:3]
@@ -1151,7 +1147,7 @@ class OptAtmoPSF(PSF):
         flux = flux_star
 
         profile = profile.shift(du, dv) * flux
-        # if logger: logger.debug('Corrected star by .shift({0}, {1}) * {2}'.format(du, dv, flux))
+        if logger: logger.debug('Corrected star by .shift({0}, {1}) * {2}'.format(du, dv, flux))
 
         return profile
 
@@ -1178,7 +1174,7 @@ class OptAtmoPSF(PSF):
             profile_uncorrected = self._profile(opt_params)
 
             # correct profile with hsm
-            profile = self._correct_profile_hsm(profile_uncorrected, star, shape)
+            profile = self._correct_profile(profile_uncorrected, star, shape)
 
             # draw star
             image_model = self.drawProfile(star, profile)
@@ -1215,9 +1211,8 @@ class OptAtmoPSF(PSF):
             # get profile; modify based on flux and shifts
             profile_uncorrected = self._profile(opt_params)
 
-
             # correct profile with hsm
-            profile = self._correct_profile_hsm(profile_uncorrected, star, shape, logger=logger)
+            profile = self._correct_profile(profile_uncorrected, star, shape)
 
             # measure final shape
             star_model = self.drawProfileStar(star, profile, opt_params)
@@ -1292,7 +1287,7 @@ class OptAtmoPSF(PSF):
         # fit models
         logger.info("Fitting atmo model")
         opt_params_stars = self.getParamsList(stars)
-        model_fitted_stars = [self._fit_model(star, opt_params=opt_params, vary_shape=True, logger=logger)
+        model_fitted_stars = [self._fit_model(star, opt_params=opt_params, vary_shape=True)
                               for star, opt_params in zip(stars, opt_params_stars)]
 
         # fit interpolant
