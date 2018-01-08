@@ -140,7 +140,12 @@ class SimplePSF(PSF):
         # a basis interpolator, then we can use it.  It's kind of ugly to query this, but
         # the double dispatch makes it tricky to implement this with class heirarchy, so for
         # now we just check if we have all the required parts to use the quadratic form
-        quadratic_chisq = hasattr(self.model, 'chisq') and self.interp.degenerate_points
+        if hasattr(self.interp, 'degenerate_points'):
+            quadratic_chisq = hasattr(self.model, 'chisq') and self.interp.degenerate_points
+            degenerate_points = self.interp.degenerate_points
+        else:
+            quadratic_chisq = False
+            degenerate_points = False
 
         # Begin iterations.  Very simple convergence criterion right now.
         oldchisq = 0.
@@ -181,7 +186,7 @@ class SimplePSF(PSF):
                     except (KeyboardInterrupt, SystemExit):
                         raise
                     except Exception as e:  # pragma: no cover
-                        logger.warnign("Caught exception: e")
+                        logger.warning("Caught exception: e")
                         logger.warning("Failed trying to reflux star at %s.  Excluding it.",
                                        s.image_pos)
                         nremoved += 1
@@ -189,7 +194,7 @@ class SimplePSF(PSF):
                         new_stars.append(new_star)
                 self.stars = new_stars
 
-            if self.outliers and (iteration > 0 or not self.interp.degenerate_points):
+            if self.outliers and (iteration > 0 or not degenerate_points):
                 # Perform outlier rejection, but not on first iteration for degenerate solvers.
                 logger.debug("             Looking for outliers")
                 self.stars, nremoved1 = self.outliers.removeOutliers(self.stars, logger=logger)

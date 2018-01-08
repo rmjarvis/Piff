@@ -42,6 +42,11 @@ def setup_logger(verbose=1, log_file=None):
                        3: logging.DEBUG }
     logging_level = logging_levels[verbose]
 
+    # formatter = logging.Formatter('%(message)s')  # Simple text output
+    # make formatter print time
+    formatter = logging.Formatter(fmt='%(asctime)s.%(msecs)03d %(levelname)-8s %(message)s',
+                                  datefmt='%Y-%m-%d %H:%M:%S')
+
     # Setup logging to go to sys.stdout or (if requested) to an output file
     logger = logging.getLogger('piff')
     logger.handlers = []  # Remove any existing handlers
@@ -49,7 +54,6 @@ def setup_logger(verbose=1, log_file=None):
         handle = logging.StreamHandler()
     else:
         handle = logging.FileHandler(log_file)
-    formatter = logging.Formatter('%(message)s')  # Simple text output
     handle.setFormatter(formatter)
     logger.addHandler(handle)
     logger.setLevel(logging_level)

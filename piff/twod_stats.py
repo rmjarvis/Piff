@@ -94,8 +94,10 @@ class TwoDHistStats(Stats):
         logger.info("Computing TwoDHist indices")
 
         # fudge the bins by multiplying 1.01 so that the max entries are in the bins
-        self.bins_u = np.linspace(np.min(u), np.max(u) * 1.01, num=self.number_bins_u + 1)
-        self.bins_v = np.linspace(np.min(v), np.max(v) * 1.01, num=self.number_bins_v + 1)
+        # self.bins_u = np.linspace(np.min(u), np.max(u) * 1.01, num=self.number_bins_u + 1)
+        # self.bins_v = np.linspace(np.min(v), np.max(v) * 1.01, num=self.number_bins_v + 1)
+        self.bins_u = np.linspace(np.min(u), np.max(u) * 1.01, num=self.number_bins_u)
+        self.bins_v = np.linspace(np.min(v), np.max(v) * 1.01, num=self.number_bins_v)
 
         # digitize u and v. No such thing as entries below their min, so -1 to index
         indx_u = np.digitize(u, self.bins_u) - 1
@@ -121,7 +123,7 @@ class TwoDHistStats(Stats):
         self.twodhists['g2'] = self._array_to_2dhist(g2, indx_u, indx_v, unique_indx)
 
         # T_model
-        self.twodhists['T_model'] = self._array_to_2dhist(T, indx_u, indx_v, unique_indx)
+        self.twodhists['T_model'] = self._array_to_2dhist(T_model, indx_u, indx_v, unique_indx)
 
         # g1_model
         self.twodhists['g1_model'] = self._array_to_2dhist(g1_model, indx_u, indx_v, unique_indx)
@@ -176,15 +178,17 @@ class TwoDHistStats(Stats):
         # make the colormaps
         logger.info("Creating TwoDHist colormaps")
         # T and T_model share colorbar
-        vmin__T = np.min([self.twodhists['T'], self.twodhists['T_model']])
-        vmax__T = np.max([self.twodhists['T'], self.twodhists['T_model']])
-        vcent__T = np.median([self.twodhists['T'], self.twodhists['T_model']])
+        T_compare = np.array([self.twodhists['T'], self.twodhists['T_model']])
+        T_compare = T_compare[T_compare != 0]
+        vmin__T = np.percentile(T_compare, 2)
+        vmax__T = np.percentile(T_compare, 98)
+        vcent__T = np.median(T_compare)
         cmap__T = self._shift_cmap(vmin__T, vmax__T, center=vcent__T)
         # g1, g2, g1_model, g2_model share colorbar
-        vmin__g = np.min([self.twodhists['g1'], self.twodhists['g1_model'],
+        g_compare = np.array([self.twodhists['g1'], self.twodhists['g1_model'],
                           self.twodhists['g2'], self.twodhists['g2_model']])
-        vmax__g = np.max([self.twodhists['g1'], self.twodhists['g1_model'],
-                          self.twodhists['g2'], self.twodhists['g2_model']])
+        vmin__g = np.percentile(g_compare, 2)
+        vmax__g = np.percentile(g_compare, 98)
         cmap__g = self._shift_cmap(vmin__g, vmax__g)
         # dT gets own colorbar
         vmin__dT = np.min(self.twodhists['dT'])
@@ -272,7 +276,7 @@ class TwoDHistStats(Stats):
         return fig, axs
 
     def _array_to_2dhist(self, z, indx_u, indx_v, unique_indx):
-        C = np.ma.zeros((self.number_bins_v, self.number_bins_u))
+        C = np.ma.zeros( (self.number_bins_v, self.number_bins_u))
         C.mask = np.ones((self.number_bins_v, self.number_bins_u))
 
         for unique in unique_indx:
@@ -372,7 +376,7 @@ class TwoDHistStats(Stats):
 
         return newcmap
 
-class WhiskerStats(Stats):
+class WhiskerStats(TwoDHistStats):
     """Statistics class that can make whiskerplots.
 
     By default this will make a whisker plot based on u and v coordinates of
@@ -464,8 +468,10 @@ class WhiskerStats(Stats):
         logger.info("Computing TwoDHist indices")
 
         # fudge the bins by multiplying 1.01 so that the max entries are in the bins
-        self.bins_u = np.linspace(np.min(u), np.max(u) * 1.01, num=self.number_bins_u + 1)
-        self.bins_v = np.linspace(np.min(v), np.max(v) * 1.01, num=self.number_bins_v + 1)
+        # self.bins_u = np.linspace(np.min(u), np.max(u) * 1.01, num=self.number_bins_u + 1)
+        # self.bins_v = np.linspace(np.min(v), np.max(v) * 1.01, num=self.number_bins_v + 1)
+        self.bins_u = np.linspace(np.min(u), np.max(u) * 1.01, num=self.number_bins_u)
+        self.bins_v = np.linspace(np.min(v), np.max(v) * 1.01, num=self.number_bins_v)
 
         # digitize u and v. No such thing as entries below their min, so -1 to index
         indx_u = np.digitize(u, self.bins_u) - 1
@@ -569,18 +575,3 @@ class WhiskerStats(Stats):
                      labelcolor='darkred', labelpos='S')
 
         return fig, axs
-
-    def _array_to_2dhist(self, z, indx_u, indx_v, unique_indx):
-        C = np.ma.zeros((self.number_bins_v, self.number_bins_u))
-        C.mask = np.ones((self.number_bins_v, self.number_bins_u))
-
-        for unique in unique_indx:
-            ui, vi = unique
-
-            sample = z[(indx_u == ui) & (indx_v == vi)]
-            if len(sample) > 0:
-                value = self.reducing_function(sample)
-                C[vi, ui] = value
-                C.mask[vi, ui] = 0
-
-        return C
