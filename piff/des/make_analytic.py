@@ -34,10 +34,11 @@ def linear_resid(lmparams, x, y):
     chi = m * x + b - y
     return chi
 
-def make_opt_star(params, psf, decaminfo, du=0, dv=0, snr=0, stamp_size=24):
-    chipnum = 1
+decaminfo = piff.des.DECamInfo()
+chipnum = 1
+wcs = decaminfo.get_nominal_wcs(chipnum)
+def make_opt_star(params, psf, du=0, dv=0, snr=0, stamp_size=25):
     x, y = (0, 0)
-    wcs = decaminfo.get_nominal_wcs(chipnum)
     star = piff.Star.makeTarget(x=x, y=y, wcs=wcs, stamp_size=stamp_size,
                                 properties={'chipnum': chipnum})
 
@@ -61,7 +62,7 @@ def make_opt_star(params, psf, decaminfo, du=0, dv=0, snr=0, stamp_size=24):
 
     return star
 
-def make_sample(nsample=5000, snr=0, stamp_size=24, jmax=21,
+def make_sample(nsample=10000, snr=0, stamp_size=25, jmax=11, shape_method='hsm',
                 logger=None, **kwargs):
 
     # make PSF object
@@ -70,7 +71,8 @@ def make_sample(nsample=5000, snr=0, stamp_size=24, jmax=21,
                     'template': 'des',
                 },
             'shape_weights': [0.5, 1, 1],
-            'fov_radius': 1. * 60 * 60,  # TODO: figure this out!!
+            'shape_method': shape_method,
+            'fov_radius': 4500.,
             'jmax_pupil': jmax,
             'jmax_focal': 1,
             'n_optfit_stars': 0,
@@ -89,62 +91,56 @@ def make_sample(nsample=5000, snr=0, stamp_size=24, jmax=21,
             'type': 'OptAtmo',
          }
     psf = piff.PSF.process(config, logger=logger)
+    if logger: logger.info('PSF made')
 
     # make star image
-    decaminfo = piff.des.DECamInfo()
 
-    shapes_hsm = []
-    shapes_lmfit = []
-    shape_errors_hsm = []
-    shape_errors_lmfit = []
+    shapes = []
+    shape_errors = []
     params_all = []
 
     for i in range(nsample):
         # draw g0
-        g0 = np.random.random_sample() * (1.5 - 0.5) + 0.5
-        g1 = np.random.random_sample() * (0.1 + 0.1) - 0.1
-        g2 = np.random.random_sample() * (0.1 + 0.1) - 0.1
-        z = np.random.random_sample(size=(jmax-3)) * (1 + 1) - 1
+        g0 = np.random.random_sample() * (2.0 - 0.35) + 0.35
+        g1 = np.random.random_sample() * (0.2 + 0.2) - 0.2
+        g2 = np.random.random_sample() * (0.2 + 0.2) - 0.2
+        z = np.random.random_sample(size=(jmax-3)) * (2 + 2) - 2
         params = np.hstack((g0, g1, g2, z))
 
         # make star
-        star = make_opt_star(params, psf, decaminfo, du=0, dv=0, snr=snr, stamp_size=stamp_size)
+        star = make_opt_star(params, psf, du=0, dv=0, snr=snr, stamp_size=stamp_size)
         # measure shapes
         try:
-            shape_hsm, error_hsm = psf.measure_shape_hsm(star, shape_unnormalized=True, return_error=True)
-            shape_lmfit, error_lmfit = psf.measure_shape_lmfit(star, shape_unnormalized=True, return_error=True)
+            shape, error = psf.measure_shape(star, return_error=True)
         except:
             continue
 
-        shapes_hsm.append(shape_hsm)
-        shape_errors_hsm.append(error_hsm)
-        shapes_lmfit.append(shape_lmfit)
-        shape_errors_lmfit.append(error_lmfit)
+        shapes.append(shape)
+        shape_errors.append(error)
         params_all.append(params)
 
         # logger debug
-        if i % 1000 == 0:
-            cmd = logger.warn
-        elif i % 100 == 0:
-            cmd = logger.info
-        else:
-            cmd = logger.debug
-        cmd('Measured shape of star {0} / {1}'.format(i, nsample))
-        param_str = '***Params: '
-        for parami in params:
-            param_str += '{0:+.2f}, '.format(parami)
-        cmd(param_str)
-        shape_str = '***Shape: '
-        for shapej in shape_lmfit:
-            shape_str += '{0:+.2f}, '.format(shapej)
-        cmd(shape_str)
+        if logger:
+            if i % 1000 == 0:
+                cmd = logger.warn
+            elif i % 100 == 0:
+                cmd = logger.info
+            else:
+                cmd = logger.debug
+            cmd('Measured shape of star {0} / {1}'.format(i, nsample))
+            param_str = '***Params: '
+            for parami in params:
+                param_str += '{0:+.2f}, '.format(parami)
+            cmd(param_str)
+            shape_str = '***Shape: '
+            for shapej in shape:
+                shape_str += '{0:+.2f}, '.format(shapej)
+            cmd(shape_str)
 
-    shapes_hsm = np.array(shapes_hsm)
-    shape_errors_hsm = np.array(shape_errors_hsm)
-    shapes_lmfit = np.array(shapes_lmfit)
-    shape_errors_lmfit = np.array(shape_errors_lmfit)
+    shapes = np.array(shapes)
+    shape_errors = np.array(shape_errors)
     params = np.array(params_all)
-    return shapes_hsm, shape_errors_hsm, shapes_lmfit, shape_errors_lmfit, params
+    return shapes, shape_errors, params
 
 # def evaluate_sample(shapes, params, Nsample=400000, logger=None):
 #     if Nsample < len(params):
@@ -154,8 +150,19 @@ def make_sample(nsample=5000, snr=0, stamp_size=24, jmax=21,
 #         shapes = shapes[choice]
 def evaluate_sample(shapes, params, logger=None):
 
-    params_onehot = np.vstack((np.ones(len(params)).T, np.ones(len(params)).T, params.T)).T # extra set of ones which we turn into 1/size
+    params_onehot = np.vstack((np.ones(len(params)).T, np.ones(len(params)).T, params.T)).T.astype(np.float64) # extra set of ones which we turn into 1/size
     params_onehot[:, 1] = 1. / params_onehot[:, 2]
+
+    # set aside 20% for the afterburner
+    nstar = len(params)
+    nsave = int(0.2 * nstar)
+    choice = np.random.choice(nstar, nstar, replace=False)
+    shapes = shapes[choice]
+    params_onehot = params_onehot[choice]
+    shapes_save = shapes[:nsave]
+    params_onehot_save = params_onehot[:nsave]
+    shapes = shapes[nsave:]
+    params_onehot = params_onehot[nsave:]
 
     # create list of polynomials, including names
     nvar = params_onehot.shape[1]
@@ -219,9 +226,9 @@ def evaluate_sample(shapes, params, logger=None):
         stdbest = 1e100
         best_i = 0
         for alpha_i, alpha in enumerate(alphas):
-            model = ElasticNet(alpha=alpha, fit_intercept=False, selection='random', max_iter=100000, copy_X=True)
-            # model = LinearRegression(fit_intercept=False, copy_X=True)
-            # model.n_iter_ = 1
+            # model = ElasticNet(alpha=alpha, fit_intercept=False, selection='random', max_iter=100000, copy_X=True)
+            model = LinearRegression(fit_intercept=False, copy_X=True)
+            model.n_iter_ = 1
             model.fit(Xpoly, y)
             model_objs[-1].append(model)
             conds = np.abs(model.coef_) > 0
@@ -264,11 +271,11 @@ def evaluate_sample(shapes, params, logger=None):
     coefs = np.array(coefs)
 
     # fit a final overall correction to these based just on a linear model
-    shapes_pred = np.array([cypoly(params_onehot, coef, index)
+    shapes_pred = np.array([cypoly(params_onehot_save, coef, index)
                            for coef, index in zip(coefs, indices_final)]).T
     after_burners = []
     for i in range(3):
-        y = shapes[:, i + 3]
+        y = shapes_save[:, i + 3]
         ypred = shapes_pred[:, i]
         ysk = model_objs[i][0].predict(Xpoly)
         lmparams = lmfit.Parameters()
@@ -279,10 +286,11 @@ def evaluate_sample(shapes, params, logger=None):
         m, b = results.params.valuesdict().values()
         after_burners.append([b, m])
         logger.info(lmfit.fit_report(results))
-
+    after_burners = np.array(after_burners)
     logger.info('Final RMSs: {0}'.format(str(rmss)))
 
-    return coefs, indices_final, after_burners
+    analytic_coefs = {'coefs': coefs, 'indices': indices, 'after_burners': after_burners}
+    return analytic_coefs
 
 if __name__ == '__main__':
     # parse args
@@ -290,8 +298,8 @@ if __name__ == '__main__':
     description = 'Build analytic relation between OptAtmoPSF coefs and shapes'
     parser = argparse.ArgumentParser(description=description, add_help=True)
     parser.add_argument('--normalized', action='store_true')
-    parser.add_argument('--stamp_size', type=int, default=24)
-    parser.add_argument('--jmax', type=int, default=21)
+    parser.add_argument('--stamp_size', type=int, default=25)
+    parser.add_argument('--jmax', type=int, default=11)
     parser.add_argument('--nsample', type=int, default=10000)
     parser.add_argument('--snr', type=int, default=0)
     parser.add_argument('--make_shapes', action='store_true')
@@ -299,6 +307,7 @@ if __name__ == '__main__':
     parser.add_argument('--fit_shapes', action='store_true')
     parser.add_argument('--max_indices', type=int, default=1000, help='Number of different shapes to collate for the combine step.')
     parser.add_argument('--arr_indx', type=int, default=0)
+    parser.add_argument('--shape_method', default='hsm')
     parser.add_argument('--out', default='.')
     parser.add_argument('-v', '--verbose', type=int, action='store', default=2)
     args = parser.parse_args()
@@ -309,13 +318,11 @@ if __name__ == '__main__':
 
     if kwargs['make_shapes'] > 0:
         # make samples
-        shapes_hsm, shape_errors_hsm, shapes_lmfit, shape_errors_lmfit, params = make_sample(logger=logger, **kwargs)
+        shapes, shape_errors, params = make_sample(logger=logger, **kwargs)
         # save samples
-        np.save(base_name + '__shapes_hsm.npy', shapes_hsm)
-        np.save(base_name + '__shape_errors_hsm.npy', shape_errors_hsm)
-        np.save(base_name + '__shapes_lmfit.npy', shapes_lmfit)
-        np.save(base_name + '__shape_errors_lmfit.npy', shape_errors_lmfit)
-        np.save(base_name + '__params.npy', params)
+        np.save(base_name + '__shapes_{0}.npy'.format(kwargs['shape_method']), shapes)
+        np.save(base_name + '__shape_errors_{0}.npy'.format(kwargs['shape_method']), shape_errors)
+        np.save(base_name + '__params_{0}.npy'.format(kwargs['shape_method']), params)
 
     # combine shapes if arr_indx == 0
     if kwargs['combine_shapes']:
@@ -323,66 +330,47 @@ if __name__ == '__main__':
         first_done = False
         imax = kwargs['max_indices']
         idone = 0
-        shapes_hsm = []
-        shape_errors_hsm = []
-        shapes_lmfit = []
-        shape_errors_lmfit = []
+        shapes = []
+        shape_errors = []
         params = []
         for i in range(1, imax + 1):
             base_name_i = kwargs['out'] + '/analytic_monte_carlo__i_{0:03d}__snr_{1:03d}__nsample_{2:03d}__jmax_{3:02d}__stamp_size_{4:02d}'.format(i, kwargs['snr'], kwargs['nsample'], kwargs['jmax'], kwargs['stamp_size'])
             try:
-                i_shapes_hsm = np.load(base_name_i + '__shapes_hsm.npy')
-                i_shape_errors_hsm = np.load(base_name_i + '__shape_errors_hsm.npy')
-                i_shapes_lmfit = np.load(base_name_i + '__shapes_lmfit.npy')
-                i_shape_errors_lmfit = np.load(base_name_i + '__shape_errors_lmfit.npy')
-                i_params = np.load(base_name_i + '__params.npy')
+                i_shapes = np.load(base_name_i + '__shapes_{0}.npy'.format(kwargs['shape_method']))
+                i_shape_errors = np.load(base_name_i + '__shape_errors_{0}.npy'.format(kwargs['shape_method']))
+                i_params = np.load(base_name_i + '__params_{0}.npy'.format(kwargs['shape_method']))
                 idone += 1
             except IOError:
                 continue
 
-            shapes_hsm.append(i_shapes_hsm)
-            shape_errors_hsm.append(i_shape_errors_hsm)
-            shapes_lmfit.append(i_shapes_lmfit)
-            shape_errors_lmfit.append(i_shape_errors_lmfit)
+            shapes.append(i_shapes)
+            shape_errors.append(i_shape_errors)
             params.append(i_params)
 
-        shapes_hsm = np.vstack(shapes_hsm)
-        shape_errors_hsm = np.vstack(shape_errors_hsm)
-        shapes_lmfit = np.vstack(shapes_lmfit)
-        shape_errors_lmfit = np.vstack(shape_errors_lmfit)
+        shapes = np.vstack(shapes)
+        shape_errors = np.vstack(shape_errors)
         params = np.vstack(params)
 
         logger.warn('Saving {0} out of {1} files. {2} shapes sampled'.format(idone, imax, len(params)))
         # save samples
-        np.save(base_name + '__shapes_hsm.npy', shapes_hsm)
-        np.save(base_name + '__shape_errors_hsm.npy', shape_errors_hsm)
-        np.save(base_name + '__shapes_lmfit.npy', shapes_lmfit)
-        np.save(base_name + '__shape_errors_lmfit.npy', shape_errors_lmfit)
-        np.save(base_name + '__params.npy', params)
+        np.save(base_name + '__shapes_{0}.npy'.format(kwargs['shape_method']), shapes)
+        np.save(base_name + '__shape_errors_{0}.npy'.format(kwargs['shape_method']), shape_errors)
+        np.save(base_name + '__params_{0}.npy'.format(kwargs['shape_method']), params)
 
     # evaluate model if arr_indx == -1
     if kwargs['fit_shapes']:
-        shapes_hsm = np.load(base_name + '__shapes_hsm.npy')
-        shape_errors_hsm = np.load(base_name + '__shape_errors_hsm.npy')
-        shapes_lmfit = np.load(base_name + '__shapes_lmfit.npy')
-        shape_errors_lmfit = np.load(base_name + '__shape_errors_lmfit.npy')
-        params = np.load(base_name + '__params.npy')
+        shapes = np.load(base_name + '__shapes_{0}.npy'.format(kwargs['shape_method']))
+        shape_errors = np.load(base_name + '__shape_errors_{0}.npy'.format(kwargs['shape_method']))
+        params = np.load(base_name + '__params_{0}.npy'.format(kwargs['shape_method']))
 
         if kwargs['normalized']:
             base_name += '__normalized'
-            shapesnew = shapes_hsm.copy()
+            shapesnew = shapes.copy()
             for i, yj in enumerate(shapesnew):
                 new_shape = np.array(piff.OptAtmoPSF.shape_convert_to_normalized(*yj[3:]))
                 shapesnew[i, 3:] = new_shape
-            shapes_hsm = shapesnew
-            shapesnew = shapes_lmfit.copy()
-            for i, yj in enumerate(shapesnew):
-                new_shape = np.array(piff.OptAtmoPSF.shape_convert_to_normalized(*yj[3:]))
-                shapesnew[i, 3:] = new_shape
-            shapes_lmfit = shapesnew
+            shapes = shapesnew
 
-        coefs_hsm, indices_hsm, after_burners_hsm = evaluate_sample(shapes_hsm, params, logger=logger)
-        np.save(base_name + '__coefs_hsm.npy', [coefs_hsm, indices_hsm, after_burners_hsm])
-        coefs_lmfit, indices_lmfit, after_burners_lmfit = evaluate_sample(shapes_lmfit, params, logger=logger)
-        np.save(base_name + '__coefs_lmfit.npy', [coefs_lmfit, indices_lmfit, after_burners_lmfit])
+        analytic_coefs = evaluate_sample(shapes, params, logger=logger)
+        np.save(base_name + '__coefs_{0}.npy'.format(kwargs['shape_method']), analytic_coefs)
 

@@ -240,19 +240,24 @@ def hsm_error(star, logger=None, return_debug=False, return_error=True):
     from .star import Star
 
     star = star.copy()
-    hsm_model = Gaussian(fastfit=True, force_model_center=False, include_pixel=True)
-
-    # need to calculate moments w/ HSM first
-    star = Star(star.data, None)  # need to clear fit params for the HSM algorithm
-    star_fit = hsm_model.fit(star)  # fit to this star
-
-    # get the model image (ie. the kernel)
-    star_model = hsm_model.draw(star_fit)
 
     # get vectors for data, weight and u, v
-    data_i, weight_i, u_i, v_i = star.data.getDataVector(include_zero_weight=False)
+    data_i, weight_i, u_i, v_i = star.data.getDataVector(include_zero_weight=True)
     # also get the values for the HSM kernel, which is just the fitted hsm model
-    kernel_i, wk_i, uk_i, vk_i = star_model.data.getDataVector(include_zero_weight=False)
+    flux, cenu, cenv, size, g1, g2, flag = hsm(star)
+    profile = galsim.Gaussian(sigma=1.0).dilate(size).shear(g1=g1, g2=g2).shift(cenu, cenv) * flux
+    image = star.image.copy()
+    profile.drawImage(image, method='no_pixel', offset=(star.image_pos-image.true_center))
+    # convert image into kernel
+    kernel_i = image.array.flatten()
+
+    # now apply mask
+    mask = weight_i != 0.
+    data_i = data_i[mask]
+    weight_i = weight_i[mask]
+    kernel_i = kernel_i[mask]
+    u_i = u_i[mask]
+    v_i = v_i[mask]
 
     # with HSM as our starting guess, and kernel, let's use the weights for a final step. This makes everything a lot simpler, conceptually. We place all these results here, and then work through the errors later
     flux_calc = np.sum(weight_i * data_i * kernel_i)
