@@ -265,7 +265,9 @@ class GPInterp2pcf(Interp):
 
         self._X = X
         self._y = y
-        self._y_err = np.sqrt(y_err**2 + self.white_noise**2)
+        if self.white_noise > 0:
+            y_err = np.sqrt(y_err**2 + self.white_noise**2)
+        self._y_err = y_err
 
         if self.npca > 0:
             from sklearn.decomposition import PCA
