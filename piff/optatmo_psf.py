@@ -27,6 +27,7 @@ import numba
 from .psf import PSF
 from .optical_model import Optical
 from .interp import Interp
+from .outliers import Outliers
 from .model import ModelFitError
 # from .gsobject_model import GSObjectModel, Kolmogorov, Gaussian
 from .star import Star, StarFit, StarData
@@ -38,12 +39,15 @@ class OptAtmoPSF(PSF):
     """Combine Optical and Atmospheric PSFs together
     """
 
-    def __init__(self, atmo_interp=None, analytic_coefs=None, optatmo_psf_kwargs={}, optical_psf_kwargs={}, kolmogorov_kwargs={}, reference_wavefront=None, n_optfit_stars=0, shape_weights=[0.5, 1, 1],  shape_unnormalized=True, shape_method='hsm', fov_radius=4500., jmax_pupil=11, jmax_focal=10,  min_optfit_snr=0, optfit_optimize='analytic', logger=None):
+    def __init__(self, atmo_interp=None, outliers=None, analytic_coefs=None, optatmo_psf_kwargs={}, optical_psf_kwargs={}, kolmogorov_kwargs={}, reference_wavefront=None, n_optfit_stars=0, shape_weights=[0.5, 1, 1],  shape_unnormalized=True, shape_method='hsm', fov_radius=4500., jmax_pupil=11, jmax_focal=10,  min_optfit_snr=0, optfit_optimize='analytic', logger=None):
         """
         Fit Combined Atmosphere and Optical PSF in two stage process
 
         :param atmo_interp:             Piff Interpolant object that represents
                                         the atmospheric interpolation
+        :param outliers:                Optionally, an Outliers instance used
+                                        to remove outliers during atmosphere
+                                        fit.  [default: None]
         :param analytic_coefs:          Terms in analytic breakdown of zernike
                                         to shape transformation. Only used in
                                         when optfit_optimize = analytic. It is
@@ -100,6 +104,7 @@ class OptAtmoPSF(PSF):
             optical_psf_kwargs = {}
             if logger: logger.warning('Warning! Invalid optical psf kwargs. Putting in empty dictionary')
 
+        self.outliers = outliers
         # atmo_interp is a parsed class
         self.atmo_interp = atmo_interp
         self.analytic_coefs = analytic_coefs
@@ -241,6 +246,7 @@ class OptAtmoPSF(PSF):
                        'shape_weights': 0,
                        'optical_psf_kwargs': 0,
                        'kolmogorov_kwargs': 0,
+                       'outliers': 0,
                        }
 
     @classmethod
@@ -352,6 +358,10 @@ class OptAtmoPSF(PSF):
             analytic_coefs = None
         kwargs['analytic_coefs'] = analytic_coefs
 
+        if 'outliers' in kwargs:
+            outliers = Outliers.process(kwargs.pop('outliers'), logger=logger)
+            kwargs['outliers'] = outliers
+
         return kwargs
 
     def _finish_write(self, fits, extname, logger):
@@ -365,6 +375,9 @@ class OptAtmoPSF(PSF):
         # write the atmo interp if it exists
         if self.atmo_interp:
             self.atmo_interp.write(fits, extname + '_atmo_interp')
+        if self.outliers:
+            self.outliers.write(fits, extname + '_outliers')
+            logger.debug("Wrote the PSF outliers to extension %s",extname + '_outliers')
 
         if not self.analytic_coefs == None:
             shape_index = len(self.analytic_coefs[1][0][0])
@@ -480,8 +493,13 @@ class OptAtmoPSF(PSF):
                 self.optatmo_psf_kwargs[key] = data[key][0]
         logger.info('Reloading optatmopsf state')
         self._update_optatmopsf(self.optatmo_psf_kwargs, logger)
+        if extname + '_outliers' in fits:
+            self.outliers = Outliers.read(fits, extname + '_outliers')
+        else:
+            self.outliers = None
 
-    def fit(self, stars, wcs, pointing, logger=None, **kwargs):
+    def fit(self, stars, wcs, pointing,
+            chisq_threshold=0.1, max_iterations=30, logger=None, **kwargs):
         """Fit interpolated PSF model to star data using standard sequence of operations.
 
         :param stars:           A list of Star instances.
@@ -490,6 +508,10 @@ class OptAtmoPSF(PSF):
                                 telescope pointing.
                                 [Note: pointing should be None if the WCS is
                                 not a CelestialWCS]
+        :param chisq_threshold: Change in reduced chisq at which iteration will
+                                terminate during atmosphere fit.  [default: 0.1]
+        :param max_iterations:  Maximum number of iterations to try during
+                                atmosphere fit. [default: 30]
         :param logger:          A logger object for logging debug info.
                                 [default: None]
         """
@@ -512,7 +534,7 @@ class OptAtmoPSF(PSF):
                 # with the mask
                 param = params[star_i]
                 profile = self._profile(param)
-                _ = self._correct_profile(profile, star, shape)
+                self._correct_profile(profile, star, shape)  # returns star that we ignore
 
                 if self.shape_method != 'hsm':
                     # remeasure shape
@@ -544,6 +566,7 @@ class OptAtmoPSF(PSF):
                 self.star_snrs.append(snr)
             except (ModelFitError, RuntimeError) as e:
                 # something went wrong with this star
+                if logger: logger.warn(str(e))
                 if logger: logger.warn('Star {0} failed shape estimation. Skipping'.format(star_i))
         self.star_hsm_unnorm_shapes = np.array(self.star_hsm_unnorm_shapes)
         self.star_hsm_unnorm_errors = np.array(self.star_hsm_unnorm_errors)
@@ -576,7 +599,8 @@ class OptAtmoPSF(PSF):
         else:
             # fit atmosphere
             if logger: logger.info('Fitting atmosphere')
-            self.fit_atmosphere(self.stars, logger=logger, **kwargs)
+            stars_fit_atmosphere = self.fit_atmosphere(self.stars, chisq_threshold=chisq_threshold, max_iterations=max_iterations, logger=logger, **kwargs)
+            self.stars = stars_fit_atmosphere
 
             # enable atmosphere interpolation now that we have solved the interp
             if logger: logger.info('Enabling Atmosphere')
@@ -1492,11 +1516,18 @@ class OptAtmoPSF(PSF):
         else:
             return chi
 
-    def fit_atmosphere(self, stars, logger=None):
+    def fit_atmosphere(self, stars,
+                       chisq_threshold=0.1, max_iterations=30, logger=None):
         """Fit interpolated PSF model to star data using standard sequence of
         operations.
 
         :param stars:           A list of Star instances.
+        :param chisq_threshold: Change in reduced chisq at which iteration will
+                                terminate. If no outliers is provided, this is
+                                ignored. [default: 0.1]
+        :param max_iterations:  Maximum number of iterations to try. If no
+                                outliers is provided, this is ignored.
+                                [default: 30]
         :param logger:          A logger object for logging debug info.
                                 [default: None]
         """
@@ -1507,32 +1538,113 @@ class OptAtmoPSF(PSF):
             logger.info("Setting _enable_atmosphere == False. Was {0}".format(self._enable_atmosphere))
             self._enable_atmosphere = False
 
-        # TODO: chisquare cutting?
-
         # fit models
-        logger.info("Fitting atmo model")
-        opt_params_stars = self.getParamsList(stars)
-        model_fitted_stars = []
-        for star_i, star, opt_params in zip(range(len(stars)), stars, opt_params_stars):
+        logger.info("Initial Fitting atmo model")
+        new_stars = []
+        for star_i, star in zip(range(len(stars)), stars):
             try:
-                model_fitted_star = self._fit_model(star, opt_params=opt_params, vary_shape=True, logger=logger)
-                model_fitted_stars.append(model_fitted_star)
+                model_fitted_star = self._fit_model(star, vary_shape=True, logger=logger)
+                new_stars.append(model_fitted_star)
+            except (KeyboardInterrupt, SystemExit):
+                raise
             except Exception as e:
                 # TODO: not tested
                 logger.warn('{0}'.format(str(e)))
                 logger.warn('Warning! Failed to fit atmosphere model for star {0}. Ignoring star in atmosphere fit'.format(star_i))
+        stars = new_stars
 
         # fit interpolant
         logger.info("Initializing atmo interpolator")
-        initialized_stars = self.atmo_interp.initialize(model_fitted_stars, logger=logger)
+        stars = self.atmo_interp.initialize(stars, logger=logger)
 
         logger.info("Fitting atmo interpolant")
-        self.atmo_interp.solve(initialized_stars, logger=logger)
+        # Begin iterations.  Very simple convergence criterion right now.
+        if self.outliers is None:
+            # with no outliers, no need to do the below cycle
+            self.atmo_interp.solve(stars, logger=logger)
+        else:
+            oldchisq = 0.
+            for iteration in range(max_iterations):
+                nremoved = 0
+                logger.warning("Iteration %d: Fitting %d stars", iteration+1, len(stars))
 
-        self._model_fitted_stars = model_fitted_stars
+                new_stars = []
+                for star_i, star in zip(range(len(stars)), stars):
+                    try:
+                        model_fitted_star = self._fit_model(star, vary_shape=True, logger=logger)
+                        new_stars.append(model_fitted_star)
+                    except (KeyboardInterrupt, SystemExit):
+                        raise
+                    except Exception as e:
+                        # TODO: not tested
+                        logger.warn('{0}'.format(str(e)))
+                        logger.warn('Warning! Failed to fit atmosphere model for star {0}. Ignoring star in atmosphere fit'.format(star_i))
+                stars = new_stars
+
+
+                logger.debug("             Calculating the interpolation")
+                self.atmo_interp.solve(stars, logger=logger)
+
+                # Refit and recenter all stars, collect stats
+                logger.debug("             Re-fluxing stars")
+                new_stars = []
+                for s in stars:
+                    try:
+                        s_interp = self.atmo_interp.interpolate(s)  # fit params come from interpolation
+                        new_star = self.reflux(s_interp,logger=logger)  # fit params come from model fit of just flux, du, dv while other params come from interpolation
+                    except (KeyboardInterrupt, SystemExit):
+                        raise
+                    except Exception as e:  # pragma: no cover
+                        if logger:
+                            logger.warning("Caught exception:")
+                            logger.warning("Failed trying to reflux star at %s.  Excluding it.",
+                                           s.image_pos)
+                        nremoved += 1
+                    else:
+                        new_stars.append(new_star)
+                stars = new_stars
+
+                if self.outliers:
+                    # Perform outlier rejection
+                    logger.debug("             Looking for outliers")
+                    stars, nremoved1 = self.outliers.removeOutliers(stars, logger=logger)
+                    if nremoved1 == 0:
+                        logger.debug("             No outliers found")
+                    else:
+                        logger.info("             Removed %d outliers", nremoved1)
+                    nremoved += nremoved1
+
+                chisq = np.sum([s.fit.chisq for s in stars])
+                dof   = np.sum([s.fit.dof for s in stars])
+                logger.warning("             Total chisq = %.2f / %d dof", chisq, dof)
+
+                # Very simple convergence test here:
+                # Note, the lack of abs here means if chisq increases, we also stop.
+                # Also, don't quit if we removed any outliers.
+                if (nremoved == 0) and (oldchisq > 0) and (oldchisq-chisq < chisq_threshold*dof):
+                    break
+                oldchisq = chisq
+
+            else:
+                logger.warning("PSF fit did not converge.  Max iterations = %d reached.", max_iterations)
+
+        return stars
+
+    def reflux(self, star, logger=None):
+        """Fit the Model to the star's data, varying only the flux and center. This puts one of the options for _fit_model into the regular Piff syntax.
+
+        :param star:        A Star instance
+        :param logger:      A logger object for logging debug info. [default: None]
+
+        :returns:           New Star instance, with updated flux, center, chisq, dof
+        """
+        refluxed_star = self._fit_model(star, vary_shape=False, logger=logger)
+        return refluxed_star
 
     # TODO: vary_shape = False not tested
-    def _fit_model(self, star, opt_params, vary_shape=True, return_results=False, logger=None):
+    # TODO: not putting in opt_params not tested
+    # TODO: variation with _enable_atmosphere not tested
+    def _fit_model(self, star, opt_params=None, vary_shape=True, return_results=False, logger=None):
         import lmfit
         # create lmparameters
         # put in initial guesses for flux, du, dv if they exist
@@ -1544,18 +1656,37 @@ class OptAtmoPSF(PSF):
         params.add('du', value=du, vary=True, min=-1, max=1)
         params.add('dv', value=dv, vary=True, min=-1, max=1)
 
-        if vary_shape:
-            # we must also cut the min and max based on opt_params to avoid things
-            # like large ellipticities or small sizes
-            min_size = self.optatmo_psf_kwargs['min_size']
-            max_size = self.optatmo_psf_kwargs['max_size']
-            max_g = self.optatmo_psf_kwargs['max_g1']
-            opt_size = opt_params[0]
-            opt_g1 = opt_params[1]
-            opt_g2 = opt_params[2]
-            params.add('size', value=0, vary=True, min=min_size - opt_size, max=max_size - opt_size)
-            params.add('g1', value=0, vary=True, min=-max_g - opt_g1, max=max_g - opt_g1)
-            params.add('g2', value=0, vary=True, min=-max_g - opt_g2, max=max_g - opt_g2)
+        # we must also cut the min and max based on opt_params to avoid things
+        # like large ellipticities or small sizes
+        min_size = self.optatmo_psf_kwargs['min_size']
+        max_size = self.optatmo_psf_kwargs['max_size']
+        max_g = self.optatmo_psf_kwargs['max_g1']
+        if opt_params == None:
+            opt_params = self.getParams(star)
+            if self._enable_atmosphere:
+                # getParams puts in atmosphere terms
+                fit_size = 0
+                fit_g1 = 0
+                fit_g2 = 0
+            else:
+                try:
+                    fit_size, fit_g1, fit_g2 = star.fit.params
+                except AttributeError as e:
+                    # no fit params exist in the star as yet
+                    if logger: logger.debug('Found no fit parameter values. Just putting in default optical parameters')
+                    fit_size = 0
+                    fit_g1 = 0
+                    fit_g2 = 0
+                except ValueError as e:
+                    # fit params don't match up
+                    if logger: logger.warning('Length of fit parameters does not match up. Expected 3, found {0}'.format(len(star.fit.params)))
+                    raise e
+        opt_size = opt_params[0]
+        opt_g1 = opt_params[1]
+        opt_g2 = opt_params[2]
+        params.add('size', value=fit_size, vary=vary_shape, min=min_size - opt_size, max=max_size - opt_size)
+        params.add('g1', value=fit_g1,   vary=vary_shape, min=-max_g - opt_g1, max=max_g - opt_g1)
+        params.add('g2', value=fit_g2,   vary=vary_shape, min=-max_g - opt_g2, max=max_g - opt_g2)
 
         # do fit
         results = lmfit.minimize(self._fit_model_residual, params,
@@ -1563,19 +1694,29 @@ class OptAtmoPSF(PSF):
                                  method='leastsq', epsfcn=1e-8,
                                  maxfev=200)
         if logger: logger.debug(lmfit.fit_report(results))
+        flux = results.params['flux'].value
+        du = results.params['du'].value
+        dv = results.params['dv'].value
         if vary_shape:
-            flux, du, dv, size, g1, g2 = results.params.valuesdict().values()
-            params = np.array([ size, g1, g2 ])
+            params = np.array([results.params['size'].values, results.params['g1'].values, results.params['g2'].values])
             if results.errorbars:
                 params_var = np.diag(results.covar)[3:]
             else:
                 params_var = np.zeros(len(params))
         else:
-            flux, du, dv = results.params.valuesdict().values()
-            params = None
-            params_var = None
+            try:
+                params = star.fit.params
+            except AttributeError:
+                params = None
+            try:
+                params_var = star.fit.params_var
+            except AttributeError:
+                params_var = None
         center = (du, dv)
-        fit = StarFit(params, params_var=params_var, flux=flux, center=center)
+        chisq = results.chisqr
+        dof = results.nfree
+        fit = StarFit(params, params_var=params_var, flux=flux, center=center,
+                      chisq=chisq, dof=dof)
         star_fit = Star(star.data, fit)
         if return_results:
             return star_fit, results
