@@ -261,11 +261,18 @@ class GPInterp2pcf(Interp):
         """
         X = np.array([self.getProperties(star) for star in stars])
         y = np.array([star.fit.params for star in stars])
-        y_err = np.sqrt(np.array([star.fit.params_var for star in stars]))
+        try:
+            y_err = np.sqrt(np.array([star.fit.params_var for star in stars]))
+        except AttributeError:
+            logger.warn('No params_var values found! Setting to zero')
+            y_err = np.zeros_like(y)
 
         self._X = X
         self._y = y
-        self._y_err = np.sqrt(y_err**2 + self.white_noise**2)
+        # update y_err with the white_noise
+        if self.white_noise > 0:
+            y_err = np.sqrt(y_err**2 + self.white_noise**2)
+        self._y_err = y_err
 
         if self.npca > 0:
             from sklearn.decomposition import PCA
