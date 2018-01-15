@@ -145,11 +145,6 @@ class OptAtmoPSF(PSF):
             for dxy in range(1, self.jmax_focal + 1):
                 zkey = 'zUV{0:03d}_zXY{1:03d}'.format(zi, dxy)
                 self.keys.append(zkey)
-                # initial value. If there is no reference wavefront it helps the fitter to pass along nonzero values
-                if self.reference_wavefront:
-                    self.optatmo_psf_kwargs[zkey] = 0
-                else:
-                    self.optatmo_psf_kwargs[zkey] = np.random.random() * (0.1 - -0.1) + -0.1
 
                 # default to unfixing all possible combinations
                 self.optatmo_psf_kwargs['fix_' + zkey] = False
@@ -159,13 +154,21 @@ class OptAtmoPSF(PSF):
                 if fix_keyUV in optatmo_psf_kwargs:
                     self.optatmo_psf_kwargs['fix_' + zkey] += optatmo_psf_kwargs[fix_keyUV]
                 # TODO: not tested
-                fix_keyXY = 'fix_zXY{0:03d}'.format(zi)
+                fix_keyXY = 'fix_zXY{0:03d}'.format(dxy)
                 if fix_keyXY in optatmo_psf_kwargs:
                     self.optatmo_psf_kwargs['fix_' + zkey] += optatmo_psf_kwargs[fix_keyXY]
 
                 zmax = 1.
                 self.optatmo_psf_kwargs['min_' + zkey] = -zmax
                 self.optatmo_psf_kwargs['max_' + zkey] = zmax
+
+                # initial value. If there is no reference wavefront it helps
+                # the fitter to pass along nonzero values to non-fixed
+                # parameters
+                if self.reference_wavefront or self.optatmo_psf_kwargs['fix_' + zkey]:
+                    self.optatmo_psf_kwargs[zkey] = 0
+                else:
+                    self.optatmo_psf_kwargs[zkey] = np.random.random() * (0.1 - -0.1) + -0.1
         try:
             self.optatmo_psf_kwargs.update(optatmo_psf_kwargs)
         # TODO: not tested
@@ -557,7 +560,7 @@ class OptAtmoPSF(PSF):
 
                 # if hsm_unnorm_shape is larger than max shape, exclude!
                 if np.any(np.abs(hsm_unnorm_shape[3:]) >= self._max_shapes):
-                    if logger: logger.warn('Star {0} has unreasonably large unnormalized hsm shape: ({1:0.2f}, {2:+0.2f}, {3:+0.2f}). Skipping.'.format(star_i, hsm_unnorm_shape[3], hsm_unnorm_shape[4], hsm_unnorm_shape[5]))
+                    if logger: logger.warning('Star {0} has unreasonably large unnormalized hsm shape: ({1:0.2f}, {2:+0.2f}, {3:+0.2f}). Skipping.'.format(star_i, hsm_unnorm_shape[3], hsm_unnorm_shape[4], hsm_unnorm_shape[5]))
                     continue
 
                 self.stars.append(star)
@@ -566,8 +569,8 @@ class OptAtmoPSF(PSF):
                 self.star_snrs.append(snr)
             except (ModelFitError, RuntimeError) as e:
                 # something went wrong with this star
-                if logger: logger.warn(str(e))
-                if logger: logger.warn('Star {0} failed shape estimation. Skipping'.format(star_i))
+                if logger: logger.warning(str(e))
+                if logger: logger.warning('Star {0} failed shape estimation. Skipping'.format(star_i))
         self.star_hsm_unnorm_shapes = np.array(self.star_hsm_unnorm_shapes)
         self.star_hsm_unnorm_errors = np.array(self.star_hsm_unnorm_errors)
         self.star_snrs = np.array(self.star_snrs)
@@ -1202,6 +1205,23 @@ class OptAtmoPSF(PSF):
         if logger:
             logger.info('Analytic Optical fit from lmfit parameters:')
             logger.info(lmfit.fit_report(results))
+            try:
+                logger.info('Success: {0}'.format(str(results.success)))
+            except AttributeError:
+                pass
+            try:
+                logger.info('Status: {0}'.format(str(results.status)))
+            except AttributeError:
+                pass
+            try:
+                logger.info('Message: {0}'.format(str(results.message)))
+            except AttributeError:
+                pass
+            try:
+                logger.info('lmdif_message: {0}'.format(str(results.lmdif_message)))
+            except AttributeError:
+                pass
+
 
         # save this for debugging purposes
         self._analytic_opt_results = results
@@ -1310,6 +1330,22 @@ class OptAtmoPSF(PSF):
         if logger:
             logger.info('Optical fit from lmfit parameters:')
             logger.info(lmfit.fit_report(results))
+            try:
+                logger.info('Success: {0}'.format(str(results.success)))
+            except AttributeError:
+                pass
+            try:
+                logger.info('Status: {0}'.format(str(results.status)))
+            except AttributeError:
+                pass
+            try:
+                logger.info('Message: {0}'.format(str(results.message)))
+            except AttributeError:
+                pass
+            try:
+                logger.info('lmdif_message: {0}'.format(str(results.lmdif_message)))
+            except AttributeError:
+                pass
 
         # save this for debugging purposes
         self._opt_results = results
@@ -1399,17 +1435,17 @@ class OptAtmoPSF(PSF):
                 indices = np.ones_like(image_model.array, dtype=bool)
             except (ModelFitError, RuntimeError) as e:
                 if logger:
-                    logger.warn(str(e))
-                    logger.warn('Star {0}\'s model failed to be drawn.'.format(i))
-                    logger.warn('Parameters are {0}'.format(str(opt_params)))
-                    logger.warn('Input parameters are {0}'.format(str(params)))
-                    logger.warn('Pretending we didn\'t measure this star.')
+                    logger.warning(str(e))
+                    logger.warning('Star {0}\'s model failed to be drawn.'.format(i))
+                    logger.warning('Parameters are {0}'.format(str(opt_params)))
+                    logger.warning('Input parameters are {0}'.format(str(params)))
+                    logger.warning('Pretending we didn\'t measure this star.')
                 if return_indices:
-                    if logger: logger.warn('Filling with infinite chi')
+                    if logger: logger.warning('Filling with infinite chi')
                     image_model = star.data.getImage()[0] * np.inf
                     indices = np.zeros_like(image_model, dtype=bool)
                 else:
-                    if logger: logger.warn('Pretending we didn\'t measure this star.')
+                    if logger: logger.warning('Pretending we didn\'t measure this star.')
                     continue
 
             # compute chi2
@@ -1455,22 +1491,22 @@ class OptAtmoPSF(PSF):
                 star_model.data.weight.array[:] = np.where(weight, 1., 0)
                 shape_model = self.measure_shape(star_model, return_error=False)#, logger=logger)
                 if np.any(shape_model != shape_model):
-                    if logger: logger.warn('Star {0} returned nan shape'.format(i))
+                    if logger: logger.warning('Star {0} returned nan shape'.format(i))
                     indices = np.zeros_like(shape_model, dtype=bool)
                 else:
                     indices = np.ones_like(shape_model, dtype=bool)
             except (ModelFitError, RuntimeError) as e:
                 if logger:
-                    logger.warn(str(e))
-                    logger.warn('Star {0}\'s model failed to be drawn.'.format(i))
-                    logger.warn('Parameters are {0}'.format(str(opt_params)))
-                    logger.warn('Input parameters are {0}'.format(str(params)))
+                    logger.warning(str(e))
+                    logger.warning('Star {0}\'s model failed to be drawn.'.format(i))
+                    logger.warning('Parameters are {0}'.format(str(opt_params)))
+                    logger.warning('Input parameters are {0}'.format(str(params)))
                 if return_indices:
-                    if logger: logger.warn('Filling with infinite chi')
+                    if logger: logger.warning('Filling with infinite chi')
                     shape_model = shape * np.inf
                     indices = np.zeros_like(shape_model, dtype=bool)
                 else:
-                    if logger: logger.warn('Pretending we didn\'t measure this star.')
+                    if logger: logger.warning('Pretending we didn\'t measure this star.')
                     continue
 
             # don't care about flux, du, dv here
@@ -1541,16 +1577,17 @@ class OptAtmoPSF(PSF):
         # fit models
         logger.info("Initial Fitting atmo model")
         new_stars = []
+        opt_params = self.getParamsList(stars)
         for star_i, star in zip(range(len(stars)), stars):
             try:
-                model_fitted_star = self._fit_model(star, vary_shape=True, logger=logger)
+                model_fitted_star = self._fit_model(star, opt_params=opt_params[star_i], vary_shape=True, logger=logger)
                 new_stars.append(model_fitted_star)
             except (KeyboardInterrupt, SystemExit):
                 raise
             except Exception as e:
                 # TODO: not tested
-                logger.warn('{0}'.format(str(e)))
-                logger.warn('Warning! Failed to fit atmosphere model for star {0}. Ignoring star in atmosphere fit'.format(star_i))
+                logger.warning('{0}'.format(str(e)))
+                logger.warning('Warning! Failed to fit atmosphere model for star {0}. Ignoring star in atmosphere fit'.format(star_i))
         stars = new_stars
 
         # fit interpolant
@@ -1569,16 +1606,17 @@ class OptAtmoPSF(PSF):
                 logger.warning("Iteration %d: Fitting %d stars", iteration+1, len(stars))
 
                 new_stars = []
+                opt_params = self.getParamsList(stars)
                 for star_i, star in zip(range(len(stars)), stars):
                     try:
-                        model_fitted_star = self._fit_model(star, vary_shape=True, logger=logger)
+                        model_fitted_star = self._fit_model(star, opt_params=opt_params[star_i], vary_shape=True, logger=logger)
                         new_stars.append(model_fitted_star)
                     except (KeyboardInterrupt, SystemExit):
                         raise
                     except Exception as e:
                         # TODO: not tested
-                        logger.warn('{0}'.format(str(e)))
-                        logger.warn('Warning! Failed to fit atmosphere model for star {0}. Ignoring star in atmosphere fit'.format(star_i))
+                        logger.warning('{0}'.format(str(e)))
+                        logger.warning('Warning! Failed to fit atmosphere model for star {0}. Ignoring star in atmosphere fit'.format(star_i))
                 stars = new_stars
 
 
@@ -1638,13 +1676,13 @@ class OptAtmoPSF(PSF):
 
         :returns:           New Star instance, with updated flux, center, chisq, dof
         """
-        refluxed_star = self._fit_model(star, vary_shape=False, logger=logger)
+        refluxed_star = self._fit_model(star, opt_params=self.getParams(star), vary_shape=False, logger=logger)
         return refluxed_star
 
     # TODO: vary_shape = False not tested
     # TODO: not putting in opt_params not tested
     # TODO: variation with _enable_atmosphere not tested
-    def _fit_model(self, star, opt_params=None, vary_shape=True, return_results=False, logger=None):
+    def _fit_model(self, star, opt_params, vary_shape=True, return_results=False, logger=None):
         import lmfit
         # create lmparameters
         # put in initial guesses for flux, du, dv if they exist
@@ -1661,26 +1699,24 @@ class OptAtmoPSF(PSF):
         min_size = self.optatmo_psf_kwargs['min_size']
         max_size = self.optatmo_psf_kwargs['max_size']
         max_g = self.optatmo_psf_kwargs['max_g1']
-        if opt_params == None:
-            opt_params = self.getParams(star)
-            if self._enable_atmosphere:
-                # getParams puts in atmosphere terms
+        if self._enable_atmosphere:
+            # getParams puts in atmosphere terms
+            fit_size = 0
+            fit_g1 = 0
+            fit_g2 = 0
+        else:
+            try:
+                fit_size, fit_g1, fit_g2 = star.fit.params
+            except (AttributeError,TypeError) as e:
+                # star either has no fit [AttributeError] or None as fit.params [TypeError]
+                if logger: logger.debug('Found no fit parameter values. Just putting in default optical parameters')
                 fit_size = 0
                 fit_g1 = 0
                 fit_g2 = 0
-            else:
-                try:
-                    fit_size, fit_g1, fit_g2 = star.fit.params
-                except AttributeError as e:
-                    # no fit params exist in the star as yet
-                    if logger: logger.debug('Found no fit parameter values. Just putting in default optical parameters')
-                    fit_size = 0
-                    fit_g1 = 0
-                    fit_g2 = 0
-                except ValueError as e:
-                    # fit params don't match up
-                    if logger: logger.warning('Length of fit parameters does not match up. Expected 3, found {0}'.format(len(star.fit.params)))
-                    raise e
+            except ValueError as e:
+                # fit params don't match up
+                if logger: logger.warning('Length of fit parameters does not match up. Expected 3, found {0}'.format(len(star.fit.params)))
+                raise e
         opt_size = opt_params[0]
         opt_g1 = opt_params[1]
         opt_g2 = opt_params[2]
@@ -1698,7 +1734,7 @@ class OptAtmoPSF(PSF):
         du = results.params['du'].value
         dv = results.params['dv'].value
         if vary_shape:
-            params = np.array([results.params['size'].values, results.params['g1'].values, results.params['g2'].values])
+            params = np.array([results.params['size'].value, results.params['g1'].value, results.params['g2'].value])
             if results.errorbars:
                 params_var = np.diag(results.covar)[3:]
             else:
