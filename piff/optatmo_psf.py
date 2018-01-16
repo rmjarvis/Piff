@@ -16,7 +16,9 @@
 .. module:: optatmo_psf
 """
 
-# TODO: lmfit has issues
+# TODO: remove lmfit, pixel fit of optics
+# TODO: remove normalized shape measurement for analytic
+# TODO: add after-burner that is a brute force in size alone to the analytic fit
 
 from __future__ import print_function
 
@@ -39,7 +41,7 @@ class OptAtmoPSF(PSF):
     """Combine Optical and Atmospheric PSFs together
     """
 
-    def __init__(self, atmo_interp=None, outliers=None, analytic_coefs=None, optatmo_psf_kwargs={}, optical_psf_kwargs={}, kolmogorov_kwargs={}, reference_wavefront=None, n_optfit_stars=0, shape_weights=[0.5, 1, 1],  shape_unnormalized=True, shape_method='hsm', fov_radius=4500., jmax_pupil=11, jmax_focal=10,  min_optfit_snr=0, optfit_optimize='analytic', logger=None):
+    def __init__(self, atmo_interp=None, outliers=None, analytic_coefs=None, optatmo_psf_kwargs={}, optical_psf_kwargs={}, kolmogorov_kwargs={}, reference_wavefront=None, n_optfit_stars=0, shape_weights=[0.5, 1, 1],  shape_unnormalized=True, shape_method='hsm', fov_radius=4500., jmax_pupil=11, jmax_focal=10,  min_optfit_snr=0, optfit_optimize='moments', logger=None):
         """
         Fit Combined Atmosphere and Optical PSF in two stage process
 
@@ -103,6 +105,13 @@ class OptAtmoPSF(PSF):
             # we can end up saving optical_psf_kwargs as 0, so fix that
             optical_psf_kwargs = {}
             if logger: logger.warning('Warning! Invalid optical psf kwargs. Putting in empty dictionary')
+        # we can end up saving optatmo_psf_kwargs as 0, so for now we pass it
+        # as empty. This will be overwritten later in _finish_read
+        if optatmo_psf_kwargs == 0:
+            optatmo_psf_kwargs = {}
+        # same with kolmogorov kwargs
+        if kolmogorov_kwargs == 0:
+            kolmogorov_kwargs = {}
 
         self.outliers = outliers
         # atmo_interp is a parsed class
@@ -948,6 +957,9 @@ class OptAtmoPSF(PSF):
                     raise ValueError('Not allowed to fit pupil zernike {0}, greater than {2}, key {1}!'.format(uv, key, self.jmax_pupil))
                 elif xy > self.jmax_focal:
                     raise ValueError('Not allowed to fit focal zernike {0} greater than {2} !, key {1}!'.format(xy, key, self.jmax_focal))
+            if 'fix_' + key in optatmo_psf_kwargs:
+                if optatmo_psf_kwargs['fix_' + key]:
+                    if logger: logger.warning('Warning! Changing key {0} which is designated as fixed!'.format(key))
 
             old_value = self.aberrations_field[uv - 1, xy - 1]
             new_value = optatmo_psf_kwargs[key]
@@ -1107,7 +1119,7 @@ class OptAtmoPSF(PSF):
             gradients = []
 
             # ONLY do the quick stencil if we are using hsm and with moments.
-            if self.shape_method == 'hsm' and self.optfit_optimize == 'moments':
+            if self.shape_method == 'hsm' and 'moments' in self.optfit_optimize:
                 # need the values of the zernke polynomials as a function of XY
                 # position. Shape is (focal zernikes, stars)
                 u = np.array([star.data['u'] for star in stars])
@@ -1120,7 +1132,7 @@ class OptAtmoPSF(PSF):
             for i in range(len(keys)):
                 key = keys[i]
 
-                if self.shape_method == 'hsm' and self.optfit_optimize == 'moments':
+                if self.shape_method == 'hsm' and 'moments' in self.optfit_optimize:
                     # IF we are doing zernikes. then zUVi_zXYj is proportional to zUVi_zXY1
                     if 'zXY' in key:
                         key_split = key.split('_')
@@ -1183,7 +1195,8 @@ class OptAtmoPSF(PSF):
 
         params = self._fit_optics_params(self.optatmo_psf_kwargs)
         return_indices = False  # in the normal residual function if a star fails, get rid of it
-        results = lmfit.minimize(self._fit_optics_residual_analytic, params, args=(stars, shapes, errors, return_indices, logger,))
+        shape_weights = self.shape_weights
+        results = lmfit.minimize(self._fit_optics_residual_analytic, params, args=(stars, shapes, errors, shape_weights, return_indices, logger,))
         key_i = 0
         for key in self.keys:
             if not self.optatmo_psf_kwargs['fix_' + key]:
@@ -1236,63 +1249,74 @@ class OptAtmoPSF(PSF):
         """
         import lmfit
         if logger:
-            logger.info("Start fitting Optical fit using {0} and {1}".format(self.shape_method, self.optfit_optimize))
+            logger.info("Start fitting Optical fit using {0} and {1}. Afterburner mode {2}".format(self.shape_method, self.optfit_optimize, after_burner))
 
-        # measure shapes until we have enough stars
-        self._opt_stars = []
-        self._opt_snrs = []
-        self._opt_shapes = []
-        self._opt_shape_errors = []
-        self._opt_indices = []  # which stars made it
+        if 'after_burner' in self.optfit_optimize:
+            # go through all optatmo_psf_kwargs and if they are not size, g1, g2, fix them
+            for key in self.keys:
+                if key not in ['size']:
+                    self.optatmo_psf_kwargs['fix_' + key] = True
+            shape_weights = np.array([1., 0, 0])
 
-        indices = np.arange(len(stars))
-        if self.n_optfit_stars and self.n_optfit_stars < len(stars):
-            np.random.shuffle(indices)
-            max_stars = self.n_optfit_stars
         else:
-            max_stars = len(stars)
+            # measure shapes until we have enough stars
+            self._opt_stars = []
+            self._opt_snrs = []
+            self._opt_shapes = []
+            self._opt_shape_errors = []
+            self._opt_indices = []  # which stars made it
 
-        for indx in indices:
-            if len(self._opt_stars) + 1 > max_stars:
-                if logger: logger.info("Finishing opt_star measurements at {0} stars".format(len(self._opt_stars)))
-                break
+            indices = np.arange(len(stars))
+            if self.n_optfit_stars and self.n_optfit_stars < len(stars):
+                np.random.shuffle(indices)
+                max_stars = self.n_optfit_stars
+            else:
+                max_stars = len(stars)
 
-            star = stars[indx]
-            snr = self.measure_snr(star)
-            if self.min_optfit_snr > 0:
-                if snr < self.min_optfit_snr:
-                    if logger: logger.info("Skipping star {0} because SNR {1} < {2}".format(indx, snr, self.min_optfit_snr))
-                    continue
+            for indx in indices:
+                if len(self._opt_stars) + 1 > max_stars:
+                    if logger: logger.info("Finishing opt_star measurements at {0} stars".format(len(self._opt_stars)))
+                    break
 
-            # idea here is that even for pixels, if we can't fit a shape, the
-            # star is probably borked and should be skipped
-            shape, error = self.measure_shape(star, return_error=True, logger=logger)
-            # put the properties into the starfit
-            star = Star(star.data, StarFit(None, flux=shape[0], center=(shape[1], shape[2])))
+                star = stars[indx]
+                snr = self.measure_snr(star)
+                if self.min_optfit_snr > 0:
+                    if snr < self.min_optfit_snr:
+                        if logger: logger.info("Skipping star {0} because SNR {1} < {2}".format(indx, snr, self.min_optfit_snr))
+                        continue
 
-            self._opt_stars.append(star)
-            self._opt_snrs.append(snr)
-            self._opt_shapes.append(shape)
-            self._opt_shape_errors.append(error)
-            self._opt_indices.append(indx)
+                # idea here is that even for pixels, if we can't fit a shape, the
+                # star is probably borked and should be skipped
+                shape, error = self.measure_shape(star, return_error=True, logger=logger)
+                # put the properties into the starfit
+                star = Star(star.data, StarFit(None, flux=shape[0], center=(shape[1], shape[2])))
 
-        # arrayify
-        self._opt_snrs = np.array(self._opt_snrs)
-        self._opt_shapes = np.array(self._opt_shapes)
-        self._opt_shape_errors = np.array(self._opt_shape_errors)
-        self._opt_indices = np.array(self._opt_indices)
+                self._opt_stars.append(star)
+                self._opt_snrs.append(snr)
+                self._opt_shapes.append(shape)
+                self._opt_shape_errors.append(error)
+                self._opt_indices.append(indx)
 
-        if len(self._opt_stars) < max_stars:
-            if logger: logger.info("Using {0} stars instead of desired {1} out of {2}".format(len(self._opt_stars), max_stars, len(stars)))
+            # arrayify
+            self._opt_snrs = np.array(self._opt_snrs)
+            self._opt_shapes = np.array(self._opt_shapes)
+            self._opt_shape_errors = np.array(self._opt_shape_errors)
+            self._opt_indices = np.array(self._opt_indices)
+
+            if len(self._opt_stars) < max_stars:
+                if logger: logger.info("Using {0} stars instead of desired {1} out of {2}".format(len(self._opt_stars), max_stars, len(stars)))
+
+
+            shape_weights = self.shape_weights
 
         params = self._fit_optics_params(self.optatmo_psf_kwargs)
 
         # decide optimization function
-        if self.optfit_optimize == 'pixel':
+        if 'pixel' in self.optfit_optimize:
             resid = self._fit_optics_residual_pixel
             Dfun = self._fit_optics_make_Dfun(resid, params, eps=1e-4)
             col_deriv = 1
-        elif self.optfit_optimize == 'moments':
+        elif 'moments' in self.optfit_optimize:
             resid = self._fit_optics_residual_moments
             Dfun = self._fit_optics_make_Dfun(resid, params, eps=1e-3)
             col_deriv = 1
@@ -1301,7 +1325,7 @@ class OptAtmoPSF(PSF):
         return_indices = False  # in the normal residual function if a star fails, get rid of it
         # do fit
         # TODO: temporary check for when things fail...
-        results = lmfit.minimize(resid, params, args=(self._opt_stars, self._opt_shapes, self._opt_shape_errors, return_indices, logger,), method='leastsq', Dfun=Dfun, col_deriv=col_deriv)
+        results = lmfit.minimize(resid, params, args=(self._opt_stars, self._opt_shapes, self._opt_shape_errors, shape_weights, return_indices, logger,), method='leastsq', Dfun=Dfun, col_deriv=col_deriv)
         # try:
         #     results = lmfit.minimize(resid, params, args=(self._opt_stars, self._opt_shapes, self._opt_shape_errors, return_indices, logger,), method='leastsq', Dfun=Dfun)
         # except ValueError as e:
@@ -1406,7 +1430,7 @@ class OptAtmoPSF(PSF):
 
         return profile
 
-    def _fit_optics_residual_pixel(self, lmparams, stars, shapes, shape_errors, return_indices=False, logger=None):
+    def _fit_optics_residual_pixel(self, lmparams, stars, shapes, shape_errors, shape_weights, return_indices=False, logger=None):
         # convert lmparams instance
         params = lmparams.valuesdict()
 
@@ -1526,7 +1550,6 @@ class OptAtmoPSF(PSF):
         else:
             return chi
 
-    # TODO: OK wtf SOMETIMES the VERY LAST ROW fails.
     def _fit_optics_residual_analytic(self, lmparams, stars, shapes, shape_errors, return_indices=False, logger=None):
         # convert lmparams instance
         lmparam = lmparams.valuesdict()
