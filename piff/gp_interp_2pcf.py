@@ -295,7 +295,7 @@ class GPInterp2pcf(Interp):
                                         X, y[:,i]-self._mean[i],
                                         y_err[:,i], logger=logger)
             if logger:
-                logger.info('param %d: %s',i,kernel.set_params())
+                logger.info('param %d: %s',i,self.kernels[i].set_params())
 
 
     def interpolate(self, star, logger=None):
