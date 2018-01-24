@@ -250,6 +250,12 @@ def test_single_image():
     test_star = psf.interp.interpolate(target)
     np.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=4)
 
+    # test that drawStar and drawStarList work
+    test_star = psf.drawStar(target)
+    test_star_list = psf.drawStarList([target])[0]
+    np.testing.assert_equal(test_star.fit.params, test_star_list.fit.params)
+    np.testing.assert_equal(test_star.image.array, test_star_list.image.array)
+
     # Round trip to a file
     psf.write(psf_file, logger)
     psf = piff.read(psf_file, logger)

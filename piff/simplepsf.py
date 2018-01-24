@@ -183,6 +183,9 @@ class SimplePSF(PSF):
                 interpolated_stars = self.interp.interpolateList(signaled_stars)
                 logger.debug("                 Doing reflux")
                 new_stars = []
+                signals = self.drawStarList(self.stars)
+                signalized_stars = [s.addPoisson(signal) for s, signal in zip(self.stars, signals)]
+                interpolated_stars = self.interp.interpolateList(signalized_stars)
                 for s in interpolated_stars:
                     try:
                         new_star = self.model.reflux(s, logger=logger)
