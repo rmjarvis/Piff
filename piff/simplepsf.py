@@ -171,11 +171,10 @@ class SimplePSF(PSF):
 
             if hasattr(self.model, 'reflux'):
                 new_stars = []
-                for s in self.stars:
-                    # Update the noise with the new interpolated signal.
-                    signal = self.drawStar(s)
-                    s = s.addPoisson(signal)
-
+                signals = self.drawStarList(self.stars)
+                signalized_stars = [s.addPoisson(signal) for s, signal in zip(self.stars, signals)]
+                interpolated_stars = self.interp.interpolateList(signalized_stars)
+                for s in interpolated_stars:
                     try:
                         new_star = self.model.reflux(self.interp.interpolate(s),logger=logger)
                     except (KeyboardInterrupt, SystemExit):
@@ -212,6 +211,20 @@ class SimplePSF(PSF):
 
         logger.warning("PSF fit did not converge.  Max iterations = %d reached.",max_iterations)
 
+    def drawStarList(self, stars):
+        """Generate PSF images for given stars. Takes advantage of
+        interpolateList for significant speedup with some interpolators.
+
+        :param stars:       List of Star instances holding information needed
+                            for interpolation as well as an image/WCS into
+                            which PSF will be rendered.
+
+        :returns:           List of Star instances with its image filled with
+                            rendered PSF
+        """
+        stars_interpolated = self.interp.interpolateList(stars)
+        stars_drawn = [self.model.draw(star) for star in stars_interpolated]
+        return stars_drawn
 
     def drawStar(self, star):
         """Generate PSF image for a given star.
