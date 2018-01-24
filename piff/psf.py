@@ -174,6 +174,18 @@ class PSF(object):
         star = self.drawStar(star)
         return star.data.image
 
+    def drawStarList(self, stars):
+        """Generate PSF images for given stars.
+
+        :param stars:       List of Star instances holding information needed
+                            for interpolation as well as an image/WCS into
+                            which PSF will be rendered.
+
+        :returns:           List of Star instances with its image filled with
+                            rendered PSF
+        """
+        return [self.drawStar(star) for star in stars]
+
     def write(self, file_name, logger=None):
         """Write a PSF object to a file.
 
