@@ -68,11 +68,10 @@ class StarStats(Stats):
 
         logger.info("Making {0} Model Stars".format(len(self.indices)))
         self.stars = []
-        self.models = []
         for index in self.indices:
             star = stars[index]
             self.stars.append(star)
-            self.models.append(psf.drawStar(star))
+        self.models = psf.drawStarList(self.stars)
 
     def plot(self, logger=None, **kwargs):
         """Make the plots.
