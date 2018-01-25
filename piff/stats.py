@@ -163,7 +163,7 @@ class Stats(object):
 
         # generate the model stars and measure moments
         logger.debug("Generating and Measuring Model Stars")
-        shapes_model = np.array([ piff.util.hsm(psf.drawStar(star)) for star in stars ])
+        shapes_model = np.array([ piff.util.hsm(star) for star in psf.drawStarList(stars)])
         for star, shape in zip(stars, shapes_model):
             logger.debug("model shape for star at %s is %s",star.image_pos, shape)
 
