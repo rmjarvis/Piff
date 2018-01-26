@@ -57,18 +57,21 @@ class GPInterp2pcf(Interp):
                  logger=None, white_noise=0.):
 
         self.keys = keys
+        self.optimize = optimize
         self.npca = npca
+        self.kernel = kernel
         self.degenerate_points = False
         self.normalize = normalize
-        self.optimize = optimize
         self.white_noise = white_noise
 
         self.kwargs = {
-            'keys': keys,
-            'optimize': optimize,
-            'npca': npca,
-            'kernel': kernel,
-            'normalize':normalize
+            'keys': self.keys,
+            'optimize': self.optimize,
+            'npca': self.npca,
+            'kernel': self.kernel,
+            'degenerate_points': self.degenerate_points,
+            'normalize': self.normalize,
+            'white_noise': self.white_noise,
         }
 
         if len(keys)!=2:
@@ -129,18 +132,19 @@ class GPInterp2pcf(Interp):
             logger.debug('gp.fit with mean y = %s',np.mean(y))
         # Save these for potential read/write.                
         if self.optimize:
-            kernel = self._optimizer_2pcf(kernel,X,y,y_err)
+            kernel = self._optimizer_2pcf(kernel,X,y,y_err,logger=logger)
             if logger:
                 logger.debug('After fit: kernel = %s',kernel.set_params())
         return kernel
     
-    def _optimizer_2pcf(self, kernel, X, y, y_err):
+    def _optimizer_2pcf(self, kernel, X, y, y_err, logger=None):
         """Fit hyperparameter using two-point correlation function.
 
         :param kernel: sklearn.gaussian_process kernel.
         :param X:  The independent covariates.  (n_samples, 2)
         :param y:  The dependent responses.  (n_samples, n_targets)
         :param y_err: Error of y. (n_samples, n_targets)
+        :param logger:  A logger object for logging debug info. [default: None]
         """
         size_x = np.max(X[:,0]) - np.min(X[:,0])
         size_y = np.max(X[:,1]) - np.min(X[:,1])
@@ -153,7 +157,7 @@ class GPInterp2pcf(Interp):
         else:
             w = 1./y_err**2
         cat = treecorr.Catalog(x=X[:,0], y=X[:,1], k=(y-np.mean(y)), w=w)
-        kk = treecorr.KKCorrelation(min_sep=MIN, max_sep=MAX, nbins=20)
+        kk = treecorr.KKCorrelation(min_sep=MIN, max_sep=MAX, nbins=20)  # TODO: should nbins be customizable?
         kk.process(cat)
 
         distance = kk.meanr #np.exp(kk.logr)
@@ -181,6 +185,17 @@ class GPInterp2pcf(Interp):
         self._2pcf_dist.append(distance)
         kernel = kernel.clone_with_theta(results)
         self._2pcf_fit.append(PCF(kernel.theta))
+
+        if logger:
+            logger.info('chi2s: ' + str(chi2_min))
+            logger.info('results: ' + str(results))
+            logger.debug('fmin: ' + str(results_fmin))
+            logger.debug('bfgs:\n' + str(results_bfgs))
+            logger.debug('xi: ' + str(kk.xi))
+            logger.debug('fitted 2pcf: ' + str(PCF(results, k=kernel)))
+            logger.debug('coords: ' + str(Coord))
+            logger.debug('disp: ' + str(np.std(y)))
+
         return kernel
 
     def _predict(self, Xstar):
@@ -264,7 +279,7 @@ class GPInterp2pcf(Interp):
         try:
             y_err = np.sqrt(np.array([star.fit.params_var for star in stars]))
         except AttributeError:
-            logger.warn('No params_var values found! Setting to zero')
+            logger.warn('No params_var values found! Setting y_err to zero')
             y_err = np.zeros_like(y)
 
         self._X = X
