@@ -42,26 +42,37 @@ class GPInterp(Interp):
                         Normally, the parameters being interpolated are not mean 0, so you would
                         want this to be True, but if your parameters have an a priori mean of 0,
                         then subtracting off the realized mean would be invalid.  [default: True]
+    :param white_noise: A float value that indicate the ammount of white noise that you want to
+                        use during the gp interpolation. This is an additional uncorrelated noise
+                        added to the error of the PSF parameters. This is passed into the GPR as
+                        part of the alpha term (y_err / y) ** 2 [default: 1e-10~0.]
     :param logger:      A logger object for logging debug info. [default: None]
     """
-    def __init__(self, keys=('u','v'), kernel='RBF()', optimize=True, npca=0, normalize=True,
+    def __init__(self, keys=('u','v'), kernel='RBF()', optimize=True, npca=0, normalize=True, white_noise=1e-10,
                  logger=None):
         from sklearn.gaussian_process import GaussianProcessRegressor
 
         self.keys = keys
-        self.kernel = kernel
+        self.optimize = optimize
         self.npca = npca
+        self.kernel = kernel
         self.degenerate_points = False
+        self.normalize = normalize
+        self.white_noise = white_noise
+        self.optimizer = 'fmin_l_bfgs_b' if optimize else None
 
         self.kwargs = {
-            'keys': keys,
-            'optimize': optimize,
-            'npca': npca,
-            'kernel': kernel
+            'keys': self.keys,
+            'optimize': self.optimize,
+            'npca': self.npca,
+            'kernel': self.kernel,
+            'degenerate_points': self.degenerate_points,
+            'normalize': self.normalize,
+            'white_noise': self.white_noise,
+            'optimizer': self.optimizer,
         }
-        optimizer = 'fmin_l_bfgs_b' if optimize else None
-        self.gp = GaussianProcessRegressor(self._eval_kernel(self.kernel), optimizer=optimizer,
-                                           normalize_y=normalize)
+        self.gp = GaussianProcessRegressor(self._eval_kernel(self.kernel), optimizer=self.optimizer,
+                                           normalize_y=self.normalize)
 
     @staticmethod
     def _eval_kernel(kernel):
@@ -91,19 +102,39 @@ class GPInterp(Interp):
                                "Original exception: {1}".format(kernel, e))
         return k
 
-    def _fit(self, X, y, logger=None):
+    def _fit(self, X, y, y_err, logger=None):
         """Update the GaussianProcessRegressor with data
-        :param X:  The independent covariates.  (n_samples, n_features)
-        :param y:  The dependent responses.  (n_samples, n_targets)
+        :param X:       The independent covariates.  (n_samples, n_features)
+        :param y:       The dependent responses.  (n_samples, n_targets)
+        :param y_err:   Diagonal error of dependent responses. (n_samples, n_targets)
         """
+        from sklearn.gaussian_process import GaussianProcessRegressor
         # Save these for potential read/write.
         self._X = X
         self._y = y
+        self._y_err = y_err
+
+        # apply white noise
+        y_err = np.sqrt(y_err ** 2 + self.white_noise ** 2)
         if self.npca > 0:
             from sklearn.decomposition import PCA
             self._pca = PCA(n_components=self.npca)
             self._pca.fit(y)
             y = self._pca.transform(y)
+            y_err = self._pca.transform(y_err)
+
+        # use self._y_err to check, but update y_err!
+        if np.all(self._y_err == 0):
+            # treat white_noise as Tikhonov regularization
+            alpha = self.white_noise
+        else:
+            alpha = (y_err / y) ** 2
+        self._alpha = alpha
+
+        # reinit the GPR to include y_err
+        self.gp = GaussianProcessRegressor(self._eval_kernel(self.kernel), optimizer=self.optimizer,
+                                           alpha=alpha,
+                                           normalize_y=self.normalize)
         self.gp.fit(X, y)
 
     def _predict(self, Xstar):
@@ -145,7 +176,12 @@ class GPInterp(Interp):
         """
         X = np.array([self.getProperties(star) for star in stars])
         y = np.array([star.fit.params for star in stars])
-        self._fit(X, y, logger=logger)
+        try:
+            y_err = np.sqrt(np.array([star.fit.params_var for star in stars]))
+        except AttributeError:
+            logger.warn('No params_var values found! Setting to 0')
+            y_err = np.zeros_like(y)
+        self._fit(X, y, y_err, logger=logger)
 
     def interpolate(self, star, logger=None):
         """Perform the interpolation to find the interpolated parameter vector at some position.
