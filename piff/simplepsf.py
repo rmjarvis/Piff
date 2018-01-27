@@ -73,6 +73,7 @@ class SimplePSF(PSF):
 
         kwargs = {}
         kwargs.update(config_psf)
+        kwargs.pop('type',None)
 
         for key in ['model', 'interp']:
             if key not in kwargs:

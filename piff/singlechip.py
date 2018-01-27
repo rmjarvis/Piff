@@ -59,6 +59,7 @@ class SingleChipPSF(PSF):
         import piff
 
         config_psf = config_psf.copy()  # Don't alter the original dict.
+        config_psf.pop('type', None)
 
         # If there is a "single_type" specified, call that the type for now.
         if 'single_type' in config_psf:

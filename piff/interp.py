@@ -56,7 +56,7 @@ class Interp(object):
 
         # Get the class to use for the interpolator
         # Not sure if this is what we'll always want, but it would be simple if we can make it work.
-        interp_class = getattr(piff, config_interp.pop('type'))
+        interp_class = getattr(piff, config_interp['type'])
 
         # Read any other kwargs in the interp field
         kwargs = interp_class.parseKwargs(config_interp, logger)
@@ -81,6 +81,7 @@ class Interp(object):
         """
         kwargs = {}
         kwargs.update(config_interp)
+        kwargs.pop('type',None)
         return kwargs
 
     def getProperties(self, star):
@@ -202,7 +203,7 @@ class Interp(object):
         interp_cls = valid_interp_types[interp_type]
 
         kwargs = read_kwargs(fits, extname)
-        kwargs.pop('type')
+        kwargs.pop('type',None)
         interp = interp_cls(**kwargs)
         interp._finish_read(fits, extname)
         return interp
