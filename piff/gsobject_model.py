@@ -134,11 +134,27 @@ class GSObjectModel(Model):
         flux, du, dv, scale, g1, g2 = lmparams.valuesdict().values()
         # Fit du and dv regardless of force_model_center.  The difference is whether the fit
         # value is recorded (force_model_center=False) or discarded (force_model_center=True).
-        prof = self.gsobj.dilate(scale).shear(g1=g1, g2=g2).shift(du, dv) * flux
-        model_image = galsim.Image(image, dtype=float)
+
+        # We shear/dilate/shift the profile as follows.
+        #    prof = self.gsobj.dilate(scale).shear(g1=g1, g2=g2).shift(du, dv) * flux
+        # However, it is a bit faster to do all these operations at once to avoid some superfluous
+        # calculations that GalSim does for each of these steps when done separately.
+        jac = galsim._Shear(g1 + 1j*g2).getMatrix()
+        jac[:,:] *= scale
+        flux /= scale**2
+        prof = galsim._Transform(self.gsobj, *jac.ravel(), offset=galsim.PositionD(du,dv),
+                                 flux_ratio=flux)
+
+        # Equivalent to galsim.Image(image, dtype=float), but without the sanity checks.
+        model_image = galsim._Image(np.empty_like(image.array, dtype=float),
+                                    image.bounds, image.wcs)
         prof.drawImage(model_image, method=self._method,
                        offset=(image_pos - model_image.true_center))
-        return (np.sqrt(weight.array)*(model_image.array - image.array)).ravel()
+
+        # Caculate sqrt(weight) * (model_image - image) in place for efficiency.
+        model_image.array[:,:] -= image.array
+        model_image.array[:,:] *= np.sqrt(weight.array)
+        return model_image.array.ravel()
 
     def _lmfit_params(self, star, vary_params=True, vary_flux=True, vary_center=True):
         """Generate an lmfit.Parameters() instance from arguments.
