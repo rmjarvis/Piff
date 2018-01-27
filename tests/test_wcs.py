@@ -68,7 +68,10 @@ def test_focal():
             )
     field_center = galsim.CelestialCoord(0 * galsim.degrees, -25 * galsim.degrees)
 
-    nstars = 10  # per ccd
+    if __name__ == '__main__':
+        nstars = 20  # per ccd
+    else:
+        nstars = 3  # per ccd
     rng = np.random.RandomState(1234)
     x = rng.random_sample(nstars) * 2000 + 24
     y = rng.random_sample(nstars) * 2000 + 24
@@ -123,16 +126,11 @@ def test_focal():
                 'type' : 'Polynomial',
                 'order' : 2
             }
-        },
-        'output' : {
-            'file_name': 'output/test_focal.piff'
         }
     }
     if __name__ != '__main__':
         config['verbose'] = 0
-    piff.piffify(config)
-
-    psf = piff.read('output/test_focal.piff')
+    psf = piff.process(config)
 
     for data, wcs in [(data1,wcs1), (data2,wcs2)]:
         for k in range(nstars):
@@ -168,7 +166,10 @@ def test_wrongwcs():
             )
     field_center = galsim.CelestialCoord(0 * galsim.degrees, -25 * galsim.degrees)
 
-    nstars = 10  # per ccd
+    if __name__ == '__main__':
+        nstars = 20  # per ccd
+    else:
+        nstars = 3  # per ccd
     rng = np.random.RandomState(1234)
     x = rng.random_sample(nstars) * 2000 + 24
     y = rng.random_sample(nstars) * 2000 + 24
@@ -225,16 +226,10 @@ def test_wrongwcs():
                 'order' : 2
             }
         },
-        'output' : {
-            'dir' : 'output',
-            'file_name': 'test_wrongwcs.piff'
-        }
     }
     if __name__ != '__main__':
         config['verbose'] = 0
-    piff.piffify(config)
-
-    psf = piff.read('output/test_wrongwcs.piff')
+    psf = piff.process(config)
 
     for data, wcs in [(data1,wcs1), (data2,wcs2)]:
         for k in range(nstars):
@@ -265,7 +260,10 @@ def test_single():
             )
     field_center = galsim.CelestialCoord(0 * galsim.degrees, -25 * galsim.degrees)
 
-    nstars = 10  # per ccd
+    if __name__ == '__main__':
+        nstars = 20  # per ccd
+    else:
+        nstars = 6  # per ccd
     rng = np.random.RandomState(1234)
     x = rng.random_sample(nstars) * 2000 + 24
     y = rng.random_sample(nstars) * 2000 + 24
@@ -329,15 +327,10 @@ def test_single():
                 'order' : 2
             }
         },
-        'output' : {
-            'file_name': 'output/test_single.piff'
-        },
     }
     if __name__ != '__main__':
         config['verbose'] = 0
-    piff.piffify(config)
-
-    psf = piff.read('output/test_single.piff')
+    psf = piff.process(config)
 
     for chipnum, data, wcs in [(1,data1,wcs1), (2,data2,wcs2)]:
         for k in range(nstars):

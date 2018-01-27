@@ -21,7 +21,7 @@ import piff
 
 from piff_test_helper import get_script_name, timer, CaptureLog
 
-
+@timer
 def setup():
     """Make sure the images and catalogs that we'll use throughout this module are done first.
     """
