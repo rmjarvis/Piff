@@ -289,12 +289,14 @@ ext=Extension("piff._piff",
 dependencies = ['numpy', 'scipy', 'pyyaml', 'treecorr', 'fitsio', 'scikit-learn>=0.18', 'lmfit', 'matplotlib>=1.5.0']
 
 try:
+    print('Checking that GalSim can be imported')
     import galsim
 except ImportError:
     print('Piff requires that GalSim be installed on your system.')
     print('Please install GalSim before proceeding:')
     print('    https://github.com/GalSim-developers/GalSim')
     raise
+print('GalSim is version ',galsim.__version__)
 
 with open('README.rst') as file:
     long_description = file.read()
