@@ -647,7 +647,10 @@ def check_gp(training_data, validation_data, visualization_data,
         np.testing.assert_allclose(interp.gp.kernel_.theta, interp2.gp.kernel_.theta)
         np.testing.assert_allclose(interp.gp.alpha_, interp2.gp.alpha_, rtol=1e-6, atol=1.e-7)
         np.testing.assert_allclose(interp.gp.X_train_, interp2.gp.X_train_)
-        np.testing.assert_allclose(interp.gp.y_train_mean, interp2.gp.y_train_mean)
+        if hasattr(interp.gp, '_y_train_mean'):
+            np.testing.assert_allclose(interp.gp._y_train_mean, interp2.gp._y_train_mean)
+        else:
+            np.testing.assert_allclose(interp.gp.y_train_mean, interp2.gp.y_train_mean)
         validate(validate_stars, interp2, rtol=rtol)
 
 
