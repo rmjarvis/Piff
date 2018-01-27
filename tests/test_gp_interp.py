@@ -87,13 +87,13 @@ def make_constant_psf_params(ntrain, nvalidate, nvisualize):
         u = ud()
         v = ud()
         flux = ud()*50+100
-        training_data[i] = np.array([u, v, hlr, g1, g2, u0, v0, flux])
+        training_data[i] = (u, v, hlr, g1, g2, u0, v0, flux)
 
     for i in range(nvalidate):
         u = ud()*0.5 + 0.25
         v = ud()*0.5 + 0.25
         flux = 1.0
-        validate_data[i] = np.array([u, v, hlr, g1, g2, u0, v0, flux])
+        validate_data[i] = (u, v, hlr, g1, g2, u0, v0, flux)
 
     vis_data = np.recarray((nvisualize, nvisualize), dtype=star_type)
     u = v = np.linspace(0, 1, nvisualize)
@@ -135,7 +135,7 @@ def make_polynomial_psf_params(ntrain, nvalidate, nvisualize):
         g2 = vals[2] * 0.1
         u0 = vals[3]
         v0 = vals[4]
-        training_data[i] = np.array([u, v, hlr, g1, g2, u0, v0, flux])
+        training_data[i] = (u, v, hlr, g1, g2, u0, v0, flux)
 
     for i in range(nvalidate):
         u = ud()*0.5 + 0.25
@@ -147,7 +147,7 @@ def make_polynomial_psf_params(ntrain, nvalidate, nvisualize):
         g2 = vals[2] * 0.1
         u0 = vals[3]
         v0 = vals[4]
-        validate_data[i] = np.array([u, v, hlr, g1, g2, u0, v0, flux])
+        validate_data[i] = (u, v, hlr, g1, g2, u0, v0, flux)
 
     vis_data = np.recarray((nvisualize*nvisualize), dtype=star_type)
     u = v = np.linspace(0, 1, nvisualize)
@@ -159,7 +159,7 @@ def make_polynomial_psf_params(ntrain, nvalidate, nvisualize):
         g2 = vals[2] * 0.1
         u0 = vals[3]
         v0 = vals[4]
-        vis_data[i] = np.array([u1, v1, hlr, g1, g2, u0, v0, 1.0])
+        vis_data[i] = (u1, v1, hlr, g1, g2, u0, v0, 1.0)
 
     return training_data, validate_data, vis_data.reshape((nvisualize, nvisualize))
 
