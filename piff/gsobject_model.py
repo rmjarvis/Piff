@@ -209,10 +209,10 @@ class GSObjectModel(Model):
         :returns: (flux, dx, dy, scale, g1, g2, flag)
         """
         import lmfit
-        logger = galsim.config.LoggerWrapper(logger)
         params = self._lmfit_params(star)
         results = self._lmfit_minimize(params, star, logger=logger)
-        logger.debug(lmfit.fit_report(results))
+        if logger:
+            logger.debug(lmfit.fit_report(results))
         flux, du, dv, scale, g1, g2 = results.params.valuesdict().values()
         if not results.success:
             raise RuntimeError("Error fitting with lmfit.")

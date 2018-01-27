@@ -36,7 +36,6 @@ def test_optical(model=None):
     params[0] = 0.5
     star = make_empty_star(params=params)
     if not model:
-        print('test optical')
         model = piff.Optical(template='des')
     # given zernikes, make sure we can:
     star = model.draw(star)
