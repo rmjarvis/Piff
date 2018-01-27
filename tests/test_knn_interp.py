@@ -18,10 +18,9 @@ import numpy as np
 import piff
 import os
 import subprocess
-import yaml
 import fitsio
 
-from piff_test_helper import get_script_name, timer
+from piff_test_helper import timer
 
 keys = ['focal_x', 'focal_y']
 ntarget = 5
@@ -90,7 +89,7 @@ def test_interp():
 
 
 @timer
-def test_yaml():
+def test_config():
     # Take DES test image, and test doing a psf run with kNN interpolator
     # Now test running it via the config parser
     psf_file = os.path.join('output','knn_psf.fits')
@@ -125,24 +124,24 @@ def test_yaml():
         },
         'output' : { 'file_name' : psf_file },
     }
+    if __name__ != '__main__':
+        config['verbose'] = 0
+        config['input']['nstars'] = 20
+        config['psf']['interp']['n_neighbors'] = 19
+        test_factor = 0.04
+    else:
+        test_factor = 0.01
 
-    # using piffify executable
-    config['verbose'] = 0
-    with open('knn.yaml','w') as f:
-        f.write(yaml.dump(config, default_flow_style=False))
-    piffify_exe = get_script_name('piffify')
-    p = subprocess.Popen( [piffify_exe, 'knn.yaml'] )
-    p.communicate()
-    psf = piff.read(psf_file)
+    psf = piff.process(config)
 
     # by using n_neighbors = 115, when there are only 117 stars in the catalog, we should expect
     # that the standard deviation of the interpolated parameters should be small, since almost the
     # same set of stars are being averaged in every case.
+    nstars = len(psf.stars)
     np.testing.assert_array_less(
             np.std([s.fit.params for s in psf.stars], axis=0),
-            0.01*np.mean([s.fit.params for s in psf.stars], axis=0),
+            test_factor*np.mean([s.fit.params for s in psf.stars], axis=0),
             err_msg="Interpolated parameters show too much variation.")
-
 
 @timer
 def test_disk():
@@ -259,7 +258,7 @@ def test_decaminfo():
 if __name__ == '__main__':
     test_init()
     test_interp()
-    test_yaml()
+    test_config()
     test_disk()
     test_decam_wavefront()
     test_decam_disk()
