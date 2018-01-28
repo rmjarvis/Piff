@@ -126,7 +126,9 @@ class BasisInterp(Interp):
             logger.warning('Caught %s',str(e))
             logger.warning('Switching to svd solution')
             Sd,U = scipy.linalg.eigh(A)
-            nsvd = np.sum(Sd > 1.e-15 * Sd[0])
+            nsvd = np.sum(np.abs(Sd) > 1.e-15 * np.abs(Sd[-1]))
+            logger.info('2-condition is %e',np.abs(Sd[-1]/Sd[0]))
+            logger.info('nsvd = %d of %d',nsvd,len(Sd))
             # Note: unlike scipy.linalg.svd, the Sd here is in *ascending* order, not descending.
             Sd[-nsvd:] = 1./Sd[-nsvd:]
             Sd[:-nsvd] = 0.
