@@ -19,7 +19,9 @@
 from __future__ import print_function
 
 import numpy as np
+import scipy.linalg
 import galsim
+import warnings
 
 from .interp import Interp
 from .star import Star, StarFit
@@ -116,15 +118,20 @@ class BasisInterp(Interp):
         A = A.reshape(nq,nq)
         logger.debug('Beginning solution of matrix size %d',A.shape[0])
         try:
-            dq = np.linalg.solve(A,B)
-        except np.linalg.LinAlgError as e:  # pragma: no cover
+            # cf. comments in pixelgrid.py about this function in scipy 1.0.0
+            with warnings.catch_warnings():
+                warnings.simplefilter("error")
+                dq = scipy.linalg.solve(A, B, assume_a='pos', check_finite=False)
+        except (RuntimeWarning, np.linalg.LinAlgError) as e:
             logger.warning('Caught %s',str(e))
             logger.warning('Switching to svd solution')
-            U,Sd,V = np.linalg.svd(A, full_matrices=False)
-            nsvd = np.sum(Sd > 1.e-10 * Sd[0])
-            Sd[:nsvd+1] = 1./Sd[:nsvd+1]
+            Sd,U = scipy.linalg.eigh(A)
+            nsvd = np.sum(Sd > 1.e-15 * Sd[0])
+            # Note: unlike scipy.linalg.svd, the Sd here is in *ascending* order, not descending.
+            Sd[-nsvd:] = 1./Sd[-nsvd:]
+            Sd[:-nsvd] = 0.
             S = np.diag(Sd)
-            dq = U.T.dot(S.dot(V.T.dot(B)))
+            dq = U.dot(S.dot(U.T.dot(B)))
 
         logger.debug('...finished solution')
         self.q += dq.reshape(self.q.shape)

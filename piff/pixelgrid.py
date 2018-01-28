@@ -20,6 +20,8 @@ from __future__ import print_function
 from past.builtins import basestring
 import numpy as np
 import galsim
+import scipy.linalg
+import warnings
 
 from .model import Model
 from .star import Star, StarFit
@@ -351,8 +353,23 @@ class PixelGrid(Model):
             dparam = np.dot(U, invs * np.dot(U.T,star1.fit.beta))
         else:
             # If it is known there are no degeneracies, we can skip SVD
-            dparam = np.linalg.solve(star1.fit.alpha, star1.fit.beta)
-            # ??? dparam = scipy.linalg.solve(alpha, beta, sym_pos=True) would be faster
+            # Note: starting with scipy 1.0, the generic version of this got extremely slow.
+            # Like 10x slower than scipy 0.19.1.  cf. https://github.com/scipy/scipy/issues/7847
+            # So the assume_a='pos' bit is really important until they fix that.
+            # Unfortunately, our matrices aren't necessarily always positive definite.  If not,
+            # we switch to the svd method, which might be overkill, but is cleaner than switching
+            # to LU for non-posdef, but then SV for fully singular.
+            try:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("error")
+                    dparam = scipy.linalg.solve(star1.fit.alpha, star1.fit.beta, assume_a='pos',
+                                                check_finite=False)
+            except (RuntimeWarning, np.linalg.LinAlgError) as e:  # pragma: no cover
+                if logger:
+                    logger.warning('Caught %s',str(e))
+                    logger.warning('Switching to non-posdef method')
+                dparam = scipy.linalg.solve(star1.fit.alpha, star1.fit.beta)
+
         # Create new StarFit, update the chisq value.  Note no beta is returned as
         # the quadratic Taylor expansion was about the old parameters, not these.
         var = np.zeros(len(star1.fit.params + dparam))
@@ -634,8 +651,8 @@ class PixelGrid(Model):
             rw = resid * weight
             chisq = np.sum(resid * rw)
             logger.debug("initial chisq = %s",chisq)
-            beta = np.dot( derivs.T,rw)
-            alpha = np.dot( derivs.T*weight, derivs)
+            beta = np.dot(derivs.T,rw)
+            alpha = np.dot(derivs.T*weight, derivs)
             try:
                 df = np.linalg.solve(alpha, beta)
             except (KeyboardInterrupt, SystemExit):
