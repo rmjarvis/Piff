@@ -17,6 +17,7 @@
 """
 
 import numpy as np
+import warnings
 
 from sklearn.gaussian_process.kernels import StationaryKernelMixin, NormalizedKernelMixin, Kernel
 from sklearn.gaussian_process.kernels import Hyperparameter
@@ -104,7 +105,14 @@ class GPInterp(Interp):
             self._pca = PCA(n_components=self.npca)
             self._pca.fit(y)
             y = self._pca.transform(y)
-        self.gp.fit(X, y)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            # Sometimes the next line emits a warning along the lines of:
+            # UserWarning: fmin_l_bfgs_b terminated abnormally with the  state:
+            # {'grad': array([-0.29692092, -4.153523  ,  2.9923153 ]),
+            # 'task': b'ABNORMAL_TERMINATION_IN_LNSRCH', 'funcalls': 70, 'nit': 2, 'warnflag': 2}
+            # As far as I can tell, it's not actually harmful, so just ignore it.
+            self.gp.fit(X, y)
 
     def _predict(self, Xstar):
         """ Predict responses given covariates.
