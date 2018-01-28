@@ -1017,5 +1017,5 @@ if __name__ == '__main__':
     test_single_image()
     test_des_image()
     #pr.disable()
-    #ps = pstats.Stats(pr).sort_stats('tottime').reverse_order()
-    #ps.print_stats()
+    #ps = pstats.Stats(pr).sort_stats('tottime')
+    #ps.print_stats(20)
