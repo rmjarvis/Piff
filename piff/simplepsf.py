@@ -181,7 +181,7 @@ class SimplePSF(PSF):
                     except (KeyboardInterrupt, SystemExit):
                         raise
                     except Exception as e:  # pragma: no cover
-                        logger.warnign("Caught exception: e")
+                        logger.warning("Caught exception: e")
                         logger.warning("Failed trying to reflux star at %s.  Excluding it.",
                                        s.image_pos)
                         nremoved += 1
