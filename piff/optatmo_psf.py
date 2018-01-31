@@ -21,7 +21,6 @@ from __future__ import print_function
 import galsim
 import numpy as np
 import numba
-import copy
 
 from .psf import PSF
 from .optical_model import Optical
@@ -235,6 +234,10 @@ class OptAtmoPSF(PSF):
                        'kolmogorov_kwargs': 0,
                        'outliers': 0,
                        }
+
+        # cache parameters to cut down on lookup
+        self._cache = False
+        self._aberrations_reference_wavefront = None
 
     @classmethod
     def parseKwargs(cls, config_psf, logger):
@@ -614,9 +617,13 @@ class OptAtmoPSF(PSF):
         params += aberrations_pupil
 
         if self.reference_wavefront:
-            stars = [Star(star.data, None) for star in stars]
-            stars = self.reference_wavefront.interpolateList(stars)
-            aberrations_reference_wavefront = np.array([star_interpolated.fit.params for star_interpolated in stars])
+            if self._cache:
+                # use precomputed cache. WARNING! assumes stars are the same as in cache!
+                aberrations_reference_wavefront = self._aberrations_reference_wavefront
+            else:
+                stars = [Star(star.data, None) for star in stars]
+                stars = self.reference_wavefront.interpolateList(stars)
+                aberrations_reference_wavefront = np.array([star_interpolated.fit.params for star_interpolated in stars])
             # put aberrations_reference_wavefront
             # reference wavefront starts at z4 but may not span full range of aberrations used
             n_reference_aberrations = aberrations_reference_wavefront.shape[1]
@@ -892,12 +899,14 @@ class OptAtmoPSF(PSF):
 
         :param shapes:      A list of Star shapes
         :param errors:      A list of Star shape errors
-        :param logger:          A logger object for logging debug info.
-                                [default: None]
+        :param logger:      A logger object for logging debug info.
+                            [default: None]
         """
         logger = LoggerWrapper(logger)
         import lmfit
         logger.info("Start fitting analytic Optical")
+
+        if self.reference_wavefront: self._create_cache(stars, logger=logger)
 
         lmparams = self._fit_optics_lmparams(self.optatmo_psf_kwargs, self.keys)
         return_indices = False  # in the normal residual function if a star fails, get rid of it
@@ -942,6 +951,8 @@ class OptAtmoPSF(PSF):
         # save this for debugging purposes
         self._fit_analytic_results = results
 
+        if self.reference_wavefront: self._delete_cache(logger=logger)
+
     # TODO: update docs
     def fit_size(self, stars, shapes, shape_errors, logger=None, **kwargs):
         """Fit interpolated PSF model to star data using standard sequence of
@@ -954,6 +965,8 @@ class OptAtmoPSF(PSF):
         logger = LoggerWrapper(logger)
         import lmfit
         logger.info("Start fitting Optical fit of size alone")
+
+        if self.reference_wavefront: self._create_cache(stars, logger=logger)
 
         # make kwargs with only size
         dparam = 0.1
@@ -987,6 +1000,8 @@ class OptAtmoPSF(PSF):
         # save this for debugging purposes
         self._fit_size_results = results
 
+        if self.reference_wavefront: self._delete_cache(logger=logger)
+
     # TODO: update kwargs
     def fit_optics(self, stars, shapes, shape_errors, logger=None, **kwargs):
         """Fit interpolated PSF model to star data using standard sequence of
@@ -999,6 +1014,8 @@ class OptAtmoPSF(PSF):
         logger = LoggerWrapper(logger)
         import lmfit
         logger.info("Start fitting Optical fit for {0} stars and {1} shapes".format(len(stars), len(shapes)))
+
+        if self.reference_wavefront: self._create_cache(stars, logger=logger)
 
         lmparams = self._fit_optics_lmparams(self.optatmo_psf_kwargs, self.keys)
 
@@ -1036,6 +1053,8 @@ class OptAtmoPSF(PSF):
 
         # save this for debugging purposes
         self._fit_optics_results = results
+
+        if self.reference_wavefront: self._delete_cache(logger=logger)
 
     def fit_atmosphere(self, stars,
                        chisq_threshold=0.1, max_iterations=30, logger=None):
@@ -1461,6 +1480,37 @@ class OptAtmoPSF(PSF):
             return gradients
 
         return Dfun
+
+    # TODO: untested
+    def _create_cache(self, stars, logger=None):
+        """When using the same stars in fit, create cache to clear out the reference wavefront searches
+
+        :param stars:   A list of stars
+        :param logger:  A logger object for logging debug info [default: None]
+        """
+        if self.reference_wavefront:
+            logger.debug('Caching reference aberrations')
+            self._cache = True
+            clean_stars = [Star(star.data, None) for star in stars]
+            interp_stars = self.reference_wavefront.interpolateList(clean_stars)
+            aberrations_reference_wavefront = np.array([star_interpolated.fit.params for star_interpolated in interp_stars])
+            self._aberrations_reference_wavefront = aberrations_reference_wavefront
+        else:
+            logger.debug('Cache called, but no reference wavefront. Skipping')
+            self._cache = False
+            self._aberrations_reference_wavefront = None
+
+    # TODO: untested
+    def _delete_cache(self, logger=None):
+        """Delete reference wavefront cache.
+        :param logger:  A logger object for logging debug info [default: None]
+        """
+        if self.reference_wavefront:
+            logger.debug('Clearing cache of reference aberrations')
+        else:
+            logger.debug('Delete cache called, but no reference wavefront. Skipping')
+        self._cache = False
+        self._aberrations_reference_wavefront = None
 
     # TODO: vary_shape = False not tested
     def _fit_model_residual(self, lmparams, star, params, vary_shape=True, logger=None):
