@@ -1264,6 +1264,22 @@ class OptAtmoPSF(PSF):
         else:
             return star_fit
 
+    # TODO: docs, not tested
+    def adjustStar(self, star, logger=None):
+        # idea: given a star, find the optimal flux, offset PSF for comparison
+        param = self.getParams(star)
+        star_adjusted = self.fit_model(star, param, vary_shape=False, logger=logger)
+        return star_adjusted
+
+    # TODO: docs, not tested
+    def adjustStarList(self, stars, logger=None):
+        params = self.getParamsList(stars)
+        stars_adjusted = []
+        for star, param in zip(stars, params):
+            star_adjusted = self.fit_model(star, param, vary_shape=False, logger=logger)
+            stars_adjusted.append(star_adjusted)
+        return stars_adjusted
+
     @staticmethod
     def analytic_shapes(params, analytic_coefs, logger=None):
         logger = LoggerWrapper(logger)
