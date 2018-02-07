@@ -108,7 +108,7 @@ class PixelGrid(Model):
 
         self.ny, self.nx = self._mask.shape
         self._nparams = np.count_nonzero(self._mask)
-        self._nparams -=1  # The flux constraint will remove 1 degree of freedom
+        self._nparams -= 1  # The flux constraint will remove 1 degree of freedom
         self._constraints = 1
         if self._force_model_center:
             self._nparams -= 2 # Centroid constraint will remove 2 more degrees of freedom
@@ -441,6 +441,7 @@ class PixelGrid(Model):
         # chisq vs linearized model.
         rw = resid * weight
         chisq = np.sum(resid * rw)
+        dof = np.count_nonzero(weight) - self._constraints
 
         # To begin with, we build alpha and beta over all PSF points
         # within mask, *and* the flux (and center) shifts.  Then
@@ -523,6 +524,8 @@ class PixelGrid(Model):
 
         # Now get the final alpha, beta, chisq for the remaining PSF params
         outchisq = chisq - np.dot(beta[s1].T,np.dot(a11inv, beta[s1]))
+        if logger:
+            logger.info('chisq = %f -> %f  dof = %f'%(chisq,outchisq,dof))
         tmp = np.dot(a11inv, alpha[s1,s0])
         outbeta = beta[s0] - np.dot(beta[s1].T,tmp)
         outalpha = alpha[s0,s0] - np.dot(alpha[s0,s1],tmp)
@@ -533,7 +536,7 @@ class PixelGrid(Model):
                          flux = outflux,
                          center = outcenter,
                          chisq = outchisq,
-                         dof = np.count_nonzero(weight) - self._nparams,
+                         dof = dof,
                          alpha = outalpha,
                          beta = outbeta)
 
