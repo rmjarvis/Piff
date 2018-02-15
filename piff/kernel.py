@@ -245,22 +245,24 @@ class VonKarman(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
         length_scale = _check_length_scale(X, self.length_scale)
         if Y is None:
             dists = pdist(X, metric='euclidean')
-            K = (dists**(5./6.)) * special.kv(5./6.,2*np.pi*dists/length_scale)
+            K = ((dists/length_scale)**(5./6.)) * special.kv(5./6.,2*np.pi*dists/length_scale)
             K = squareform(K)
 
-            lim0 = special.gamma(5./6.) /(2 * ((np.pi / length_scale)**(5./6.)) )
+            lim0 = special.gamma(5./6.) / (2 * (np.pi**(5./6.)))
             np.fill_diagonal(K, lim0)
+            K /= lim0 
         else:
             if eval_gradient:
                 raise ValueError(
                     "Gradient can only be evaluated when Y is None.")
 
             dists = cdist(X, Y, metric='euclidean')
-            K = (dists**(5./6.)) * special.kv(5./6.,2*np.pi*dists/length_scale)
+            K = ((dists/length_scale)**(5./6.)) * special.kv(5./6.,2*np.pi*dists/length_scale)
             Filter = np.isfinite(K)
+            lim0 = special.gamma(5./6.) / (2 * (np.pi**(5./6.)))
             if np.sum(Filter) != len(K[0])*len(K[:,0]):
-                lim0 = special.gamma(5./6.) /(2 * ((np.pi / length_scale)**(5./6.)) )
                 K[~Filter] = lim0
+            K /= lim0
 
         if eval_gradient:
             if self.hyperparameter_length_scale.fixed:
