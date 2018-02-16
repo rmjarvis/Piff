@@ -294,7 +294,7 @@ def make_vonkarman_and_rbf_psf_params(ntrain, nvalidate, nvisualize, scale_lengt
     cov_pos = 0.1**2 * np.exp(-0.5*dists**2/scale_length**2)
 
     # Next, generate input data by drawing from a single Gaussian Random Field.
-    kernel = 0.05**2 * piff.VonKarman(length_scale = scale_length)
+    kernel = 0.1**2 * piff.VonKarman(length_scale = scale_length)
     cov = kernel.__call__(np.array([us, vs]).T)    
 
     params['u'] = us
@@ -854,7 +854,7 @@ def test_gp_with_kernels():
         check_config = True
         rtol = 0.02
     else:
-        ntrain = 100
+        ntrain = 500
         npcas = [0]
         optimizes = [False]
         check_config = False
@@ -865,11 +865,11 @@ def test_gp_with_kernels():
     training_data, validation_data, visualization_data = make_vonkarman_and_rbf_psf_params(
             ntrain, nvalidate, nvisualize)
     
-    kernel = ["1*RBF(0.3, (1e-1, 1e1))",
-              "1*RBF(0.3, (1e-1, 1e1))",
-              "0.5*VonKarman(0.3, (1e-1, 1e1))",
-              "0.5*VonKarman(0.3, (1e-1, 1e1))",
-              "0.5*VonKarman(0.3, (1e-1, 1e1))"]
+    kernel = ["0.01*RBF(0.7, (1e-1, 1e1))",
+              "0.01*RBF(0.7, (1e-1, 1e1))",
+              "0.01*VonKarman(0.7, (1e-1, 1e1))",
+              "0.01*VonKarman(0.7, (1e-1, 1e1))",
+              "0.01*VonKarman(0.7, (1e-1, 1e1))"]
 
     for npca in npcas:
         for optimize in optimizes:
