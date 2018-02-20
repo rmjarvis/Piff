@@ -258,7 +258,7 @@ class VonKarman(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
 
             dists = cdist(X, Y, metric='euclidean')
             K = ((dists/length_scale)**(5./6.)) * special.kv(5./6.,2*np.pi*dists/length_scale)
-            Filter = np.isfinite(K)
+            Filter = (dists != 0.)
             lim0 = special.gamma(5./6.) / (2 * (np.pi**(5./6.)))
             if np.sum(Filter) != len(K[0])*len(K[:,0]):
                 K[~Filter] = lim0
