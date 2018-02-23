@@ -39,7 +39,7 @@ class OptAtmoPSF(PSF):
 
     def __init__(self, atmo_interp=None, outliers=None, analytic_coefs=None, do_fit_size=True, do_fit_optics=True, optatmo_psf_kwargs={}, optical_psf_kwargs={}, kolmogorov_kwargs={}, reference_wavefront=None, n_optfit_stars=0, fov_radius=4500., jmax_pupil=11, jmax_focal=10, min_optfit_snr=0, logger=None):
         """
-        Fit Combined Atmosphere and Optical PSF in two stage process
+        Fit Combined Atmosphere and Optical PSF in two stage process.
 
         :param atmo_interp:             Piff Interpolant object that represents
                                         the atmospheric interpolation
@@ -66,14 +66,82 @@ class OptAtmoPSF(PSF):
         :param fov_radius:              [Default: 1.] Radius of telescope in
                                         u,v coordinates
         :param jmax_pupil:              Number of pupil-basis zernikes in
-                                        Optical model [default: 11]
-        :param jmax_focal:              Number of field-basis zernikes in
-                                        Optical model [default: 11]
+                                        Optical model. Inclusive and in Noll
+                                        convention. [default: 11]
+        :param jmax_focal:              Number of focal-basis zernikes in
+                                        Optical model. Inclusive and in Noll
+                                        convention. [default: 11]
         :param min_optfit_snr:          minimum snr from star property required
                                         for optical portion of fit. If 0,
                                         ignored. [default: 0]
         :param logger:                  A logger object for logging debug info.
                                         [default: None]
+
+        Notes
+        -----
+        Our model of the PSF is the convolution of an elliptical Kolmogorov
+        with an optics model:
+
+            PSF = convolve(Kolmogorov(size, g1, g2), Optics(defocus, etc))
+
+        Call [size, g1, g2, defocus, astigmatism-y, astigmatism-x, ...] a_k,
+        with k starting at 1 so that the Zernike terms like defocus can keep
+        the noll convention. Thus, we call the size a_1, g1 (confusingly) a_2,
+        and so on. The goal of this PSF model is to return a_k given focal
+        plane coordinates u, v. So, for the i-th star:
+
+        a_{ik} (u_i, v_i) = \sum^{jmax_focal}_{\ell=1} b_{k \ell} Z_{\ell} (u_i, v_i)
+                            + a^{reference}_{k} (u_i, v_i) [if k >= 4]
+                            + atmo_interp(u_i, v_i) [if k < 4]
+
+        We note that b_{k \ell} = 0 if k in [1, 2, 3] and \ell > 1, which is to
+        say that we fit a constant atmosphere and let the atmo_interp deal with
+        differences from constant. b_{k \ell} is called a Double Zernike
+        Decomposition. The fitting process can be broken down into two major
+        steps:
+
+        1. Fit b_{k \ell} by looking at the field pattern of the shapes e_{ij}
+            -   First, we use an analytic relation for e_{ij}:
+
+                    e_{ij} = f(a_{ik}; analytic_coefs)
+
+                This relation is very fast. We pass in b_{k \ell} to a least
+                squares minimization and generally fit these terms on the order
+                of a few minutes.
+
+                These analytic_coefs are specific to the instrument and should
+                be recalculated for different telescopes.  I fitted the
+                analytic coefs to up to fourth in combinations of up to three
+                terms, e.g. z_i z_j z_k z_\ell with \ell = at least one of i,
+                j, k.
+
+            -   The analytic relation is not perfect, and will overestimate the
+                size. I believe this is comes from noise in the pixels and from
+                the effects of masking, neither of which are taken into account
+                in the analytic relation. It is a simple fix, however: simply
+                take a few stars, grid search b_{1 1} (ie constant size), and
+                adjust accordingly.
+
+            -   Finally we fit the full optical model to the shapes by actually
+                drawing and measuring the shapes of the stars, such that:
+
+                e_{ij} = HSM(drawStar(a_{ik})) and a_{ik} come from above
+
+                This step is slow, however, the analytic relations usually get
+                us very close to the right answer, so you don't usually have to
+                run this step to get good results.
+
+        2. Fit atmo_interp.
+            -   a_{ik} = a^{optics}_{ik} + a^{atmosphere}_{ik} for k < 4, where
+                a^{optics}_{ik} = \sum_{\ell} b_{k \ell} Z_{\ell} (u_i, v_i).
+                We directly find a^{atmosphere}_{ik} for each star by
+                minimizing the chi2 of the pixels of the observed star and the
+                model as drawn here.
+
+            -   After finding a^{atmosphere}_{ik}, we fit the atmo_interp to
+                interpolate those parameters as a function of focal plane
+                position (u_i, v_i).
+
         """
         logger = LoggerWrapper(logger)
 
@@ -136,20 +204,20 @@ class OptAtmoPSF(PSF):
         # only fit zernikes starting at 4 / defocus
         for zi in range(4, self.jmax_pupil + 1):
             for dxy in range(1, self.jmax_focal + 1):
-                zkey = 'zUV{0:03d}_zXY{1:03d}'.format(zi, dxy)
+                zkey = 'zPupil{0:03d}_zFocal{1:03d}'.format(zi, dxy)
                 self.keys.append(zkey)
 
                 # default to unfixing all possible combinations
                 self.optatmo_psf_kwargs['fix_' + zkey] = False
-                # can optionally fix an entire UV or XY aberrations if we want
+                # can optionally fix an entire Pupil or Focal aberrations if we want
                 # TODO: not tested
-                fix_keyUV = 'fix_zUV{0:03d}'.format(zi)
-                if fix_keyUV in optatmo_psf_kwargs:
-                    self.optatmo_psf_kwargs['fix_' + zkey] += optatmo_psf_kwargs[fix_keyUV]
+                fix_keyPupil = 'fix_zPupil{0:03d}'.format(zi)
+                if fix_keyPupil in optatmo_psf_kwargs:
+                    self.optatmo_psf_kwargs['fix_' + zkey] += optatmo_psf_kwargs[fix_keyPupil]
                 # TODO: not tested
-                fix_keyXY = 'fix_zXY{0:03d}'.format(dxy)
-                if fix_keyXY in optatmo_psf_kwargs:
-                    self.optatmo_psf_kwargs['fix_' + zkey] += optatmo_psf_kwargs[fix_keyXY]
+                fix_keyFocal = 'fix_zFocal{0:03d}'.format(dxy)
+                if fix_keyFocal in optatmo_psf_kwargs:
+                    self.optatmo_psf_kwargs['fix_' + zkey] += optatmo_psf_kwargs[fix_keyFocal]
 
                 zmax = 1.
                 self.optatmo_psf_kwargs['min_' + zkey] = -zmax
@@ -213,8 +281,9 @@ class OptAtmoPSF(PSF):
             self.kolmogorov_kwargs = {'fwhm': 1}
             self.atmo_model = galsim.Kolmogorov(gsparams=self.gsparams, **self.kolmogorov_kwargs)
 
-        # same maxs are pretty reasonable
+        # max size of shapes allowed in fit_analytic, fit_size, fit_optics
         self._max_shapes = np.array([1.5, 0.15, 0.15])
+        # weighting of shapes in fit_analytic, fit_size, fit_optics
         self._shape_weights = np.array([0.2, 0.4, 0.4])
 
         # kwargs
@@ -501,8 +570,6 @@ class OptAtmoPSF(PSF):
         self.star_shapes = []
         self.star_errors = []
         self.star_snrs = []
-        # temporary params for ensuring correctProfile works
-        params = self.getParamsList(stars)
         for star_i, star in enumerate(stars):
             logger.debug('Measuring shape of star {0}'.format(star_i))
             try:
@@ -510,12 +577,6 @@ class OptAtmoPSF(PSF):
                 star = Star(star.data, StarFit(None, flux=shape[0], center=(shape[1], shape[2])))
                 star.data.properties['shape'] = shape
                 star.data.properties['shape_error'] = error
-                # stars sometimes fail at correctProfile even though shape
-                # measurement of the usual star is fine. I think it has to do
-                # with the mask
-                param = params[star_i]
-                profile = self.getProfile(param)
-                self.correctProfile(profile, star, shape)  # returns star that we ignore; purpose is to make sure we can actually run this fit
                 snr = self.measure_snr(star)
 
                 self.stars.append(star)
@@ -559,8 +620,11 @@ class OptAtmoPSF(PSF):
         else:
             conds = conds_snr * conds_shape
             logger.info('Fitting analytic for {0} stars'.format(conds.sum()))
-            stars_fit_analytic = [s for s, star_snr in zip(self.stars, self.star_snrs) if star_snr >= self.min_optfit_snr]
-            self.fit_analytic(stars_fit_analytic, self.star_shapes[conds], self.star_errors[conds], logger=logger, **kwargs)
+            self.fit_analytic_stars = [s for s, star_snr in zip(self.stars, self.star_snrs) if star_snr >= self.min_optfit_snr]
+            self.fit_analytic_stars = [s for s, c in zip(self.stars, conds) if c]
+            self.fit_analytic_star_shapes = self.star_shapes[conds]
+            self.fit_analytic_star_errors = self.star_errors[conds]
+            self.fit_analytic(self.fit_analytic_stars, self.fit_analytic_star_shapes, self.fit_analytic_star_errors, logger=logger, **kwargs)
 
         if self.do_fit_size:
             # first just fit the size. This gets us a lot of the way there
@@ -596,6 +660,22 @@ class OptAtmoPSF(PSF):
             self._enable_atmosphere = True
 
     def _getParamsList_aberrations_field(self, stars):
+        """Get params for a list of stars from the aberrations
+
+        :param stars:       List of Star instances holding information needed
+                            for interpolation as well as an image/WCS into
+                            which PSF will be rendered.
+
+        :returns:           Params  [size, g1, g2, z4, z5...] for each star
+
+        Notes
+        -----
+        We have a set of coefficients b_{k \ell} that describe the Zernike
+        decomposition. Then, for the i-th star at position (u_i, v_i), we get
+        param a_{ik} as:
+
+            a_{ik} = \sum_{\ell} b_{k \ell} Z_{\ell} (u_i, v_i)
+        """
         # get zernike parameters and mean of kolmogorov from optical model
         # get field dependent aberrations_pupil (including atmosphere)
         # collect u and v from stars
@@ -619,6 +699,17 @@ class OptAtmoPSF(PSF):
                             which PSF will be rendered.
 
         :returns:           Params  [size, g1, g2, z4, z5...] for each star
+
+        Notes
+        -----
+        For the i-th star, we have param a_{ik} = a_{ik}^{optics} +
+        a_{ik}^{reference} + a_{ik}^{atmo_interp}.  We note that for k < 4,
+        a_{ik}^{reference} = 0, k >= 4 a_{ik}^{atmo_interp} = 0. If no
+        reference is provided to the PSF, then that piece is zero, and
+        similarly with the atmo_interp.  When we initially produce the PSF, the
+        atmo_interp is not fitted, and so calls to this function will skip the
+        atmosphere. _enable_atmosphere is set to True when atmo_interp is
+        finally fitted.
         """
         logger = LoggerWrapper(logger)
         params = np.zeros((len(stars), self.jmax_pupil), dtype=np.float64)
@@ -702,8 +793,8 @@ class OptAtmoPSF(PSF):
                             PSF will be rendered.
         :param profile:     A galsim profile
         :param params:      Params associated with profile to put in the star.
-        :param use_fit:     Bool [default: True] shift the hprofile by a star's
-                            fitted center and flux
+        :param use_fit:     Bool [default: True] shift the profile by a star's
+                            fitted center and multiply by its fitted flux
 
         :returns:           Star instance with its image filled with rendered
                             PSF
@@ -805,28 +896,28 @@ class OptAtmoPSF(PSF):
 
             # size, g1, g2 mean constant terms
             if key == 'size':
-                uv = 1
-                xy = 1
+                pupil_index = 1
+                focal_index = 1
             elif key == 'g1':
-                uv = 2
-                xy = 1
+                pupil_index = 2
+                focal_index = 1
             elif key == 'g2':
-                uv = 3
-                xy = 1
+                pupil_index = 3
+                focal_index = 1
             else:
-                # zUV012_zXY034; kludgey as hell
-                uv = int(key[3:6])
-                xy = int(key[10:13])
-                if uv < 4:
-                    raise ValueError('Not allowed to fit pupil zernike {0} less than {2}, key {1}!'.format(uv, key, 4))
-                elif xy < 1:
-                    raise ValueError('Not allowed to fit focal zernike {0} less than {2} !, key {1}!'.format(xy, key, 1))
-                elif uv > self.jmax_pupil:
-                    raise ValueError('Not allowed to fit pupil zernike {0}, greater than {2}, key {1}!'.format(uv, key, self.jmax_pupil))
-                elif xy > self.jmax_focal:
-                    raise ValueError('Not allowed to fit focal zernike {0} greater than {2} !, key {1}!'.format(xy, key, self.jmax_focal))
+                # zPupil012_zFocal034; kludgey as hell
+                pupil_index = int(key.split('zPupil')[-1].split('_')[0])
+                focal_index = int(key.split('zFocal')[-1])
+                if pupil_index < 4:
+                    raise ValueError('Not allowed to fit pupil zernike {0} less than {2}, key {1}!'.format(pupil_index, key, 4))
+                elif focal_index < 1:
+                    raise ValueError('Not allowed to fit focal zernike {0} less than {2} !, key {1}!'.format(focal_index, key, 1))
+                elif pupil_index > self.jmax_pupil:
+                    raise ValueError('Not allowed to fit pupil zernike {0}, greater than {2}, key {1}!'.format(pupil_index, key, self.jmax_pupil))
+                elif focal_index > self.jmax_focal:
+                    raise ValueError('Not allowed to fit focal zernike {0} greater than {2} !, key {1}!'.format(focal_index, key, self.jmax_focal))
 
-            old_value = self.aberrations_field[uv - 1, xy - 1]
+            old_value = self.aberrations_field[pupil_index - 1, focal_index - 1]
             new_value = optatmo_psf_kwargs[key]
 
             if old_value != new_value:
@@ -834,7 +925,7 @@ class OptAtmoPSF(PSF):
                     if optatmo_psf_kwargs['fix_' + key]:
                         logger.warning('Warning! Changing key {0} which is designated as fixed from {1} to {2}!'.format(key, old_value, new_value))
                 logger.debug('Updating Zernike parameter {0} from {1:+.4e} + {3:+.4e} = {2:+.4e}'.format(key, old_value, new_value, new_value - old_value))
-                self.aberrations_field[uv - 1, xy - 1] = new_value
+                self.aberrations_field[pupil_index - 1, focal_index - 1] = new_value
                 aberrations_changed = True
 
         if aberrations_changed:
@@ -890,28 +981,6 @@ class OptAtmoPSF(PSF):
         """
         return measure_snr(star)
 
-    # TODO: not even sure I need this??
-    # TODO: not tested
-    def correctProfile(self, profile, star, shape, logger=None):
-        logger = LoggerWrapper(logger)
-        # draw uncorrected star
-        star_model = self.drawProfile(star, profile, None)
-        # model star's weight array should only be 0's and 1's
-        weight = star_model.data.weight.array
-        star_model.data.weight.array[:] = np.where(weight, 1., 0)
-        shape_model = self.measure_shape(star_model, return_error=False, logger=logger)
-        flux_model, u_model, v_model = shape_model[:3]
-        flux_star, u_star, v_star = shape[:3]
-        du = u_star - star.fit.center[0] - u_model
-        dv = v_star - star.fit.center[1] - v_model
-        # not sure why this seems to work better than HSM flux measurements
-        flux_star = (star.image.array * star.image.array * star.weight.array).sum()
-
-        profile = profile.shift(du, dv) * flux_star
-        logger.debug('Corrected star by .shift({0}, {1}) * {2}'.format(du, dv, flux_star))
-
-        return profile
-
     def fit_analytic(self, stars, shapes, errors, logger=None, **kwargs):
         """Fit interpolated PSF model to star shapes.
 
@@ -919,11 +988,27 @@ class OptAtmoPSF(PSF):
         :param errors:      A list of Star shape errors
         :param logger:      A logger object for logging debug info.
                             [default: None]
+
+        Notes
+        -----
+        This model leverages the fact that the j-th measured HSM shape of the
+        i-th star, e_{ij}, is pretty well approximated by a polynomial in the
+        input params [size, g1, g2, defocus, ...], which we call a_{ik}. So,
+        I have an analytic function I defined in advance that takes f(a_{ik})
+        and returns e_{ij}. The optical model is specified at given focal
+        plane coordinates [u, v] by a sum over Zernike polynomials:
+
+        a_{ik} (u_i, v_i) = \sum_{\ell} b_{k \ell} Z_{\ell} (u_i, v_i) 
+                            + a^{reference}_{k}(u_i, v_i)
+
+        Having measured the shapes of stars, e_{ij} with errors \sigma_{ij}, we
+        then find the optimal b_{k \ell}
         """
         logger = LoggerWrapper(logger)
         import lmfit
         logger.info("Start fitting analytic Optical")
 
+        # save reference wavefront values so we don't keep calling it during fit
         if self.reference_wavefront: self._create_cache(stars, logger=logger)
 
         lmparams = self._fit_optics_lmparams(self.optatmo_psf_kwargs, self.keys)
@@ -984,6 +1069,7 @@ class OptAtmoPSF(PSF):
         import lmfit
         logger.info("Start fitting Optical fit of size alone")
 
+        # save reference wavefront values so we don't keep calling it during fit
         if self.reference_wavefront: self._create_cache(stars, logger=logger)
 
         # make kwargs with only size
@@ -1033,6 +1119,7 @@ class OptAtmoPSF(PSF):
         import lmfit
         logger.info("Start fitting Optical fit for {0} stars and {1} shapes".format(len(stars), len(shapes)))
 
+        # save reference wavefront values so we don't keep calling it during fit
         if self.reference_wavefront: self._create_cache(stars, logger=logger)
 
         lmparams = self._fit_optics_lmparams(self.optatmo_psf_kwargs, self.keys)
@@ -1443,7 +1530,7 @@ class OptAtmoPSF(PSF):
             gradients = []
 
             # make stencil calculations
-            # need the values of the zernke polynomials as a function of XY
+            # need the values of the zernke polynomials as a function of Focal
             # position. Shape is (focal zernikes, stars)
             u = np.array([star.data['u'] for star in stars])
             v = np.array([star.data['v'] for star in stars])
@@ -1456,15 +1543,15 @@ class OptAtmoPSF(PSF):
             for i in range(len(keys)):
                 key = keys[i]
 
-                # IF we are doing zernikes. then zUVi_zXYj is proportional to zUVi_zXY1
-                if 'zXY' in key:
+                # IF we are doing zernikes. then zPupili_zFocalj is proportional to zPupili_zFocal1
+                if 'zFocal' in key:
                     key_split = key.split('_')
-                    key_check = key_split[0] + '_zXY001'
-                    # note we assume that the fitter always does zXY001 first. I think this is reasonable
+                    key_check = key_split[0] + '_zFocal001'
+                    # note we assume that the fitter always does zFocal001 first. I think this is reasonable
                     if key_check in keys and key_check != key:
                         # find index
                         grad_old = gradients[keys.index(key_check)]
-                        j = int(key.split('zXY')[-1])
+                        j = int(key.split('zFocal')[-1])
                         zernike_i = zernikes[j - 1]
                         # need to repeat zernikes 
                         reps = len(grad_old) // len(zernike_i)
@@ -1505,7 +1592,10 @@ class OptAtmoPSF(PSF):
 
     # TODO: untested
     def _create_cache(self, stars, logger=None):
-        """When using the same stars in fit, create cache to clear out the reference wavefront searches
+        """Save aberrations from reference wavefront. This is useful if we want
+        to keep calling getParams but we aren't changing the positions of the
+        stars. The reference_wavefront.interpolateList call is relatively
+        expensive, so we save the results from that step and skip it if we can.
 
         :param stars:   A list of stars
         :param logger:  A logger object for logging debug info [default: None]
