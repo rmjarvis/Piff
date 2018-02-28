@@ -19,6 +19,7 @@
 import numpy as np
 import treecorr
 import copy
+import dill
 
 from sklearn.gaussian_process.kernels import Kernel
 from scipy import optimize
@@ -54,7 +55,7 @@ class GPInterp2pcf(Interp):
     :param logger:      A logger object for logging debug info. [default: None]
     """
     def __init__(self, keys=('u','v'), kernel='RBF(1)', optimize=True, npca=0, normalize=True,
-                 logger=None, white_noise=0.):
+                 logger=None, white_noise=0., average_dill=None):
 
         self.keys = keys
         self.npca = npca
@@ -62,6 +63,10 @@ class GPInterp2pcf(Interp):
         self.normalize = normalize
         self.optimize = optimize
         self.white_noise = white_noise
+        if average_dill is not None:
+            self.average_function = dill.load(open(average_dill, mode="rb"))
+        else:
+            self.average_function = None
 
         self.kwargs = {
             'keys': keys,
@@ -203,6 +208,10 @@ class GPInterp2pcf(Interp):
             ystar[:,i] += self._mean[i]
         if self.npca > 0:
             ystar = self._pca.inverse_transform(ystar)
+        if self.average_function:
+            spatial_average = self.average_function(Xstar)
+            ystar += spatial_average
+            self._y += self._spatial_average
         return ystar
 
     def return_gp_predict(self,y, X1, X2, kernel, y_err):
@@ -263,6 +272,12 @@ class GPInterp2pcf(Interp):
         y = np.array([star.fit.params for star in stars])
         y_err = np.sqrt(np.array([star.fit.params_var for star in stars]))
 
+        if self.average_function is not None:
+            self._spatial_average = self.average_function(X)
+            y -= self._spatial_average
+        else:
+            self._spatial_average = 0
+
         self._X = X
         self._y = y
         if self.white_noise > 0:
@@ -282,6 +297,7 @@ class GPInterp2pcf(Interp):
             self._mean = np.mean(y,axis=0)
         else:
             self._mean = np.zeros(self.nparams)
+
         self._init_theta = []
         for i in range(self.nparams):
             kernel = self.kernels[i]
