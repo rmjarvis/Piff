@@ -569,8 +569,8 @@ class PixelGrid(Model):
         logger.debug("    image = %s",star.data.image)
         #logger.debug("    image = %s",star.data.image.array)
         #logger.debug("    weight = %s",star.data.weight.array)
-        logger.debug("    image center = %s",star.data.image(star.data.image.center()))
-        logger.debug("    weight center = %s",star.data.weight(star.data.weight.center()))
+        logger.debug("    image center = %s",star.data.image(star.data.image.center))
+        logger.debug("    weight center = %s",star.data.weight(star.data.weight.center))
 
         # This will be an iterative process if the centroid is free.
         max_iterations = 100    # Max iteration count
