@@ -194,7 +194,7 @@ def generate_starlist(n_samples=500):
 
     return star_list, model
 
-
+@timer
 def setup():
     """Build an input image and catalog used by a few tests below.
     """

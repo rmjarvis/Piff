@@ -20,6 +20,8 @@ from __future__ import print_function
 from past.builtins import basestring
 import numpy as np
 import galsim
+import scipy.linalg
+import warnings
 
 from .model import Model
 from .star import Star, StarFit
@@ -106,7 +108,7 @@ class PixelGrid(Model):
 
         self.ny, self.nx = self._mask.shape
         self._nparams = np.count_nonzero(self._mask)
-        self._nparams -=1  # The flux constraint will remove 1 degree of freedom
+        self._nparams -= 1  # The flux constraint will remove 1 degree of freedom
         self._constraints = 1
         if self._force_model_center:
             self._nparams -= 2 # Centroid constraint will remove 2 more degrees of freedom
@@ -351,8 +353,23 @@ class PixelGrid(Model):
             dparam = np.dot(U, invs * np.dot(U.T,star1.fit.beta))
         else:
             # If it is known there are no degeneracies, we can skip SVD
-            dparam = np.linalg.solve(star1.fit.alpha, star1.fit.beta)
-            # ??? dparam = scipy.linalg.solve(alpha, beta, sym_pos=True) would be faster
+            # Note: starting with scipy 1.0, the generic version of this got extremely slow.
+            # Like 10x slower than scipy 0.19.1.  cf. https://github.com/scipy/scipy/issues/7847
+            # So the assume_a='pos' bit is really important until they fix that.
+            # Unfortunately, our matrices aren't necessarily always positive definite.  If not,
+            # we switch to the svd method, which might be overkill, but is cleaner than switching
+            # to LU for non-posdef, but then SV for fully singular.
+            try:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("error")
+                    dparam = scipy.linalg.solve(star1.fit.alpha, star1.fit.beta, assume_a='pos',
+                                                check_finite=False)
+            except (RuntimeWarning, np.linalg.LinAlgError) as e:  # pragma: no cover
+                if logger:
+                    logger.warning('Caught %s',str(e))
+                    logger.warning('Switching to non-posdef method')
+                dparam = scipy.linalg.solve(star1.fit.alpha, star1.fit.beta)
+
         # Create new StarFit, update the chisq value.  Note no beta is returned as
         # the quadratic Taylor expansion was about the old parameters, not these.
         var = np.zeros(len(star1.fit.params + dparam))
@@ -424,6 +441,7 @@ class PixelGrid(Model):
         # chisq vs linearized model.
         rw = resid * weight
         chisq = np.sum(resid * rw)
+        dof = np.count_nonzero(weight) - self._constraints
 
         # To begin with, we build alpha and beta over all PSF points
         # within mask, *and* the flux (and center) shifts.  Then
@@ -506,6 +524,8 @@ class PixelGrid(Model):
 
         # Now get the final alpha, beta, chisq for the remaining PSF params
         outchisq = chisq - np.dot(beta[s1].T,np.dot(a11inv, beta[s1]))
+        if logger:
+            logger.info('chisq = %f -> %f  dof = %d'%(chisq,outchisq,dof))
         tmp = np.dot(a11inv, alpha[s1,s0])
         outbeta = beta[s0] - np.dot(beta[s1].T,tmp)
         outalpha = alpha[s0,s0] - np.dot(alpha[s0,s1],tmp)
@@ -516,7 +536,7 @@ class PixelGrid(Model):
                          flux = outflux,
                          center = outcenter,
                          chisq = outchisq,
-                         dof = np.count_nonzero(weight) - self._nparams,
+                         dof = dof,
                          alpha = outalpha,
                          beta = outbeta)
 
@@ -634,8 +654,8 @@ class PixelGrid(Model):
             rw = resid * weight
             chisq = np.sum(resid * rw)
             logger.debug("initial chisq = %s",chisq)
-            beta = np.dot( derivs.T,rw)
-            alpha = np.dot( derivs.T*weight, derivs)
+            beta = np.dot(derivs.T,rw)
+            alpha = np.dot(derivs.T*weight, derivs)
             try:
                 df = np.linalg.solve(alpha, beta)
             except (KeyboardInterrupt, SystemExit):

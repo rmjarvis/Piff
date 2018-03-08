@@ -63,7 +63,7 @@ class Stats(object):
                 raise ValueError("config['stats'] has no type field")
 
             # Get the class to use for the stats
-            stats_class = getattr(piff, cfg.pop('type') + 'Stats')
+            stats_class = getattr(piff, cfg['type'] + 'Stats')
 
             # Read any other kwargs in the stats field
             kwargs = stats_class.parseKwargs(cfg, logger)
@@ -87,6 +87,7 @@ class Stats(object):
         """
         kwargs = {}
         kwargs.update(config_stats)
+        kwargs.pop('type',None)
         return kwargs
 
     def compute(self, psf, stars, logger=None):

@@ -20,6 +20,7 @@
 from __future__ import print_function
 
 import galsim
+import coord
 import fitsio
 import numpy as np
 

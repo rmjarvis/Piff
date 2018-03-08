@@ -49,7 +49,7 @@ class Model(object):
 
         # Get the class to use for the model
         # Not sure if this is what we'll always want, but it would be simple if we can make it work.
-        model_class = getattr(piff, config_model.pop('type'))
+        model_class = getattr(piff, config_model['type'])
 
         # Read any other kwargs in the model field
         kwargs = model_class.parseKwargs(config_model, logger)
@@ -74,6 +74,7 @@ class Model(object):
         """
         kwargs = {}
         kwargs.update(config_model)
+        kwargs.pop('type', None)
         return kwargs
 
     def initialize(self, star, mask=True, logger=None):
@@ -174,7 +175,7 @@ class Model(object):
         model_cls = valid_model_types[model_type]
 
         kwargs = read_kwargs(fits, extname)
-        kwargs.pop('type')
+        kwargs.pop('type',None)
         model = model_cls(**kwargs)
         model._finish_read(fits, extname)
         return model

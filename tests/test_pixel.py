@@ -162,16 +162,23 @@ def test_interp():
     versions of the same PSF, interpolate them with constant interp
     to get an average PSF
     """
+    if __name__ == '__main__':
+        npos = 10
+        size = 25
+    else:
+        npos = 5
+        size = 15
+
     # Pixelized model with Lanczos 3 interpolation, slightly smaller than data
     # than the data
     pixinterp = piff.Lanczos(3)
-    mod = piff.PixelGrid(0.5, 25, pixinterp, start_sigma=1.5, degenerate=False)
+    mod = piff.PixelGrid(0.5, size, pixinterp, start_sigma=1.5, degenerate=False)
 
     # Interpolator will be simple mean
     interp = piff.Polynomial(order=0)
 
     # Draw stars on a 2d grid of "focal plane" with 0<=u,v<=1
-    positions = np.linspace(0.,1.,10.)
+    positions = np.linspace(0.,1.,npos)
     influx = 150.
     stars = []
     rng = galsim.BaseDeviate(1234)
@@ -225,10 +232,20 @@ def test_interp():
 def test_missing():
     """Next: fit mean PSF to multiple images, with missing pixels.
     """
+    if __name__ == '__main__':
+        bad_frac = 0.1
+        size = 25
+        interps = [piff.Polynomial(order=0), piff.BasisPolynomial(order=0)]
+    else:
+        bad_frac = 0.05
+        size = 15
+        # The Polynomial interpolator works, but it's slow.  For the nosetests runs, skip it.
+        interps = [piff.BasisPolynomial(order=0)]
+
     # Pixelized model with Lanczos 3 interpolation, slightly smaller than data
     # than the data
     pixinterp = piff.Lanczos(3)
-    mod = piff.PixelGrid(0.5, 25, pixinterp, start_sigma=1.5, force_model_center=False)
+    mod = piff.PixelGrid(0.5, size, pixinterp, start_sigma=1.5, force_model_center=False)
 
     # Draw stars on a 2d grid of "focal plane" with 0<=u,v<=1
     positions = np.linspace(0.,1.,4)
@@ -242,7 +259,7 @@ def test_missing():
             s = make_gaussian_data(1.0, 0., 0., influx, noise=0.1, du=0.5, fpu=u, fpv=v, rng=rng)
             s = mod.initialize(s)
             # Kill 10% of each star's pixels
-            bad = np_rng.rand(*s.image.array.shape) < 0.1
+            bad = np_rng.rand(*s.image.array.shape) < bad_frac
             s.weight.array[bad] = 0.
             s.image.array[bad] = -999.
             s = mod.reflux(s, fit_center=False) # Start with a sensible flux
@@ -251,12 +268,6 @@ def test_missing():
     # Also store away a noiseless copy of the PSF, origin of focal plane
     s0 = make_gaussian_data(1.0, 0., 0., influx, du=0.5)
     s0 = mod.initialize(s0)
-
-    if __name__ == "__main__":
-        interps = [piff.Polynomial(order=0), piff.BasisPolynomial(order=0)]
-    else:
-        # The Polynomial interpolator works, but it's slow.  For the nosetests runs, skip it.
-        interps = [piff.BasisPolynomial(order=0)]
 
     for interp in interps:
         # Interpolator will be simple mean
@@ -306,11 +317,16 @@ def test_missing():
 def test_gradient():
     """Next: fit spatially-varying PSF to multiple images.
     """
+    if __name__ == '__main__':
+        size = 25
+    else:
+        size = 15
+
     # Pixelized model with Lanczos 3 interpolation, slightly smaller than data
     # than the data
     pixinterp = piff.Lanczos(3)
-    mod = piff.PixelGrid(0.5, 25, pixinterp, start_sigma=1.5,
-                          degenerate=False, force_model_center=False)
+    mod = piff.PixelGrid(0.5, size, pixinterp, start_sigma=1.5,
+                         degenerate=False, force_model_center=False)
 
     # Interpolator will be linear
     interp = piff.Polynomial(order=1)
@@ -380,11 +396,16 @@ def test_undersamp():
     """Next: fit PSF to undersampled, dithered data with fixed centroids
     ***Doesn't work well! Need to work on the SV pruning***
     """
+    if __name__ == '__main__':
+        size = 25
+    else:
+        size = 15
+
     # Pixelized model with Lanczos 3 interpolation, slightly smaller than data
     # than the data
     pixinterp = piff.Lanczos(3)
     du = 0.5
-    mod = piff.PixelGrid(0.25, 25, pixinterp, start_sigma=1.01)
+    mod = piff.PixelGrid(0.25, size, pixinterp, start_sigma=1.01)
     ##,force_model_center=True)
 
     # Interpolator will be constant
@@ -458,12 +479,17 @@ def test_undersamp_shift():
     """Next: fit PSF to undersampled, dithered data with variable centroids,
     this time using chisq() and summing alpha,beta instead of fit() per star
     """
+    if __name__ == '__main__':
+        size = 25
+    else:
+        size = 15
+
     # Pixelized model with Lanczos 3 interpolation, slightly smaller than data
     # than the data
     pixinterp = piff.Lanczos(3)
     influx = 150.
     du = 0.5
-    mod = piff.PixelGrid(0.3, 25, pixinterp, start_sigma=1.3, force_model_center=True)
+    mod = piff.PixelGrid(0.3, size, pixinterp, start_sigma=1.3, force_model_center=True)
 
     # Make a sample star just so we can pass the initial PSF into interpolator
     # Also store away a noiseless copy of the PSF, origin of focal plane
@@ -532,12 +558,17 @@ def do_undersamp_drift(fit_centers=False):
     Argument fit_centers decides whether we are letting the PSF model
     center drift, or whether we re-fit the center positions of the stars.
     """
+    if __name__ == '__main__':
+        size = 25
+    else:
+        size = 15
+
     # Pixelized model with Lanczos 3 interpolation, slightly smaller than data
     # than the data
     pixinterp = piff.Lanczos(3)
     influx = 150.
     du = 0.5
-    mod = piff.PixelGrid(0.3, 25, pixinterp, start_sigma=1.3, force_model_center=fit_centers)
+    mod = piff.PixelGrid(0.3, size, pixinterp, start_sigma=1.3, force_model_center=fit_centers)
 
     # Make a sample star just so we can pass the initial PSF into interpolator
     # Also store away a noiseless copy of the PSF, origin of focal plane
@@ -892,10 +923,7 @@ def test_des_image():
     # only do the first one when running via nosetests.
     if __name__ == '__main__':
         # Start by doing things manually:
-        if __name__ == '__main__':
-            logger = piff.config.setup_logger(2)
-        else:
-            logger = None
+        logger = piff.config.setup_logger(2)
 
         # Largely copied from Gary's fit_des.py, but using the Piff input_handler to
         # read the input files.
@@ -1017,5 +1045,5 @@ if __name__ == '__main__':
     test_single_image()
     test_des_image()
     #pr.disable()
-    #ps = pstats.Stats(pr).sort_stats('tottime').reverse_order()
-    #ps.print_stats()
+    #ps = pstats.Stats(pr).sort_stats('tottime')
+    #ps.print_stats(20)

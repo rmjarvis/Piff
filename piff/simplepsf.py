@@ -73,6 +73,7 @@ class SimplePSF(PSF):
 
         kwargs = {}
         kwargs.update(config_psf)
+        kwargs.pop('type',None)
 
         for key in ['model', 'interp']:
             if key not in kwargs:
@@ -122,8 +123,8 @@ class SimplePSF(PSF):
             except (KeyboardInterrupt, SystemExit):
                 raise
             except Exception as e:  # pragma: no cover
-                logger.warning("Caught exception: %s",e)
                 logger.warning("Failed initializing star at %s. Excluding it.", s.image_pos)
+                logger.warning("  -- Caught exception: %s",e)
                 nremoved += 1
             else:
                 new_stars.append(new_star)
@@ -161,8 +162,9 @@ class SimplePSF(PSF):
                     new_star = fit_fn(s, logger=logger)
                 except (KeyboardInterrupt, SystemExit):
                     raise
-                except ModelFitError:
+                except ModelFitError as e:
                     logger.warning("Failed fitting star at %s.  Excluding it.", s.image_pos)
+                    logger.warning("  -- Caught exceptiond %s", e)
                     nremoved += 1
                 else:
                     new_stars.append(new_star)
@@ -175,13 +177,6 @@ class SimplePSF(PSF):
             logger.debug("             Re-fluxing stars")
 
             if hasattr(self.model, 'reflux'):
-                logger.debug("                 Drawing Signal")
-                signals = self.drawStarList(self.stars)
-                logger.debug("                 Adding Poisson")
-                signaled_stars = [s.addPoisson(signal) for s, signal in zip(self.stars, signals)]
-                logger.debug("                 Interpolating")
-                interpolated_stars = self.interp.interpolateList(signaled_stars)
-                logger.debug("                 Doing reflux")
                 new_stars = []
                 signals = self.drawStarList(self.stars)
                 signalized_stars = [s.addPoisson(signal) for s, signal in zip(self.stars, signals)]
@@ -192,9 +187,9 @@ class SimplePSF(PSF):
                     except (KeyboardInterrupt, SystemExit):
                         raise
                     except Exception as e:  # pragma: no cover
-                        logger.warning("Caught exception: e")
                         logger.warning("Failed trying to reflux star at %s.  Excluding it.",
                                        s.image_pos)
+                        logger.warning("  -- Caught exceptiond %s", e)
                         nremoved += 1
                     else:
                         new_stars.append(new_star)

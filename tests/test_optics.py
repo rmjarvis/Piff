@@ -36,7 +36,6 @@ def test_optical(model=None):
     params[0] = 0.5
     star = make_empty_star(params=params)
     if not model:
-        print('test optical')
         model = piff.Optical(template='des')
     # given zernikes, make sure we can:
     star = model.draw(star)
@@ -48,14 +47,23 @@ def test_optical(model=None):
 
 
 @timer
-def test_pupil_im(pupil_plane_im='input/DECam_pupil_128.fits'):
+def test_pupil_im(pupil_plane_file='input/DECam_pupil_128.fits'):
     import galsim
-    print('test pupil im: ', pupil_plane_im)
+    print('test pupil im: ', pupil_plane_file)
     # make sure we can load up a pupil image
-    model = piff.Optical(diam=4.274419, lam=500., r0=0.1, pupil_plane_im=pupil_plane_im)
+    model = piff.Optical(diam=4.274419, lam=500., r0=0.1, pupil_plane_im=pupil_plane_file)
     test_optical(model)
     # make sure we really loaded it
-    pupil_plane_im = galsim.Image(fitsio.read(pupil_plane_im))
+    pupil_plane_im = galsim.fits.read(pupil_plane_file)
+    # Check the scale (and fix if necessary)
+    print('pupil_plane_im.scale = ',pupil_plane_im.scale)
+    ref_psf = galsim.OpticalPSF(lam=500., diam=4.274419)
+    print('scale should be ',ref_psf._psf.aper.pupil_plane_scale)
+    if pupil_plane_im.scale != ref_psf._psf.aper.pupil_plane_scale:
+        print('fixing scale')
+        pupil_plane_im.scale = ref_psf._psf.aper.pupil_plane_scale
+        pupil_plane_im.write(pupil_plane_file)
+
     model_pupil_plane_im = model.optical_psf_kwargs['pupil_plane_im']
     np.testing.assert_array_equal(pupil_plane_im.array, model_pupil_plane_im.array)
 
@@ -193,8 +201,8 @@ def make_empty_star(icen=500, jcen=700, ccdnum=28, params=None,
 if __name__ == '__main__':
     test_init()
     test_optical()
-    test_pupil_im(pupil_plane_im='input/DECam_pupil_128.fits')
-    test_pupil_im(pupil_plane_im='input/DECam_pupil_512.fits')
+    test_pupil_im(pupil_plane_file='input/DECam_pupil_128.fits')
+    test_pupil_im(pupil_plane_file='input/DECam_pupil_512.fits')
     test_kolmogorov()
     test_shearing()
     test_gaussian()
