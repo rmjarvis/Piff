@@ -22,6 +22,7 @@ import copy
 import dill
 
 from sklearn.gaussian_process.kernels import Kernel
+from sklearn.neighbors import KNeighborsRegressor
 from scipy import optimize
 from scipy.linalg import cholesky, cho_solve
 
@@ -55,7 +56,7 @@ class GPInterp2pcf(Interp):
     :param logger:      A logger object for logging debug info. [default: None]
     """
     def __init__(self, keys=('u','v'), kernel='RBF(1)', optimize=True, npca=0, normalize=True,
-                 logger=None, white_noise=0., average_dill=None):
+                 logger=None, white_noise=0.):
 
         self.keys = keys
         self.npca = npca
@@ -63,10 +64,6 @@ class GPInterp2pcf(Interp):
         self.normalize = normalize
         self.optimize = optimize
         self.white_noise = white_noise
-        if average_dill is not None:
-            self.average_function = dill.load(open(average_dill, mode="rb"))
-        else:
-            self.average_function = None
 
         self.kwargs = {
             'keys': keys,
@@ -200,18 +197,18 @@ class GPInterp2pcf(Interp):
             y_init = self._y
             y_err = self._y_err
 
-        ystar = np.array([self.return_gp_predict(y_init[:,i]-self._mean[i], self._X, Xstar, ker,
-                                                 y_err=y_err[:,i])
+        ystar = np.array([self.return_gp_predict(y_init[:,i]-self._mean[i]-self._spatial_average[:,i],
+                                                 self._X, Xstar, ker, y_err=y_err[:,i])
                           for i, ker in enumerate(self.kernels)]).T
 
+        spatial_average = self._build_average(Xstar)
+        ##if self.npca>0:
+        ##    # need to check if it is ok 
+        ##    spatial_average = self._pca.transform(spatial_average)
         for i in range(self.nparams):
-            ystar[:,i] += self._mean[i]
+            ystar[:,i] += self._mean[i] + spatial_average[:,i]
         if self.npca > 0:
             ystar = self._pca.inverse_transform(ystar)
-        if self.average_function:
-            spatial_average = self.average_function(Xstar)
-            ystar += spatial_average
-            self._y += self._spatial_average
         return ystar
 
     def return_gp_predict(self,y, X1, X2, kernel, y_err):
@@ -262,7 +259,16 @@ class GPInterp2pcf(Interp):
                 self.kernels = [copy.deepcopy(ker) for ker in self.kernel_template]                                        
         return stars
 
-    def solve(self, stars=None, logger=None):
+    def _build_average(self,X):
+        if np.sum(np.equal(self._X0,0)) != len(self._X0[:,0])*len(self._X0[0]):
+            neigh = KNeighborsRegressor(n_neighbors=2)
+            neigh.fit(self._X0, self._y0)
+            average = neigh.predict(X)
+            return average
+        else:
+            return np.zeros((len(X[:,0]), self.nparams))
+
+    def solve(self, stars=None, stars0=None, logger=None):
         """Set up this GPInterp object.
 
         :param stars:    A list of Star instances to interpolate between
@@ -272,14 +278,19 @@ class GPInterp2pcf(Interp):
         y = np.array([star.fit.params for star in stars])
         y_err = np.sqrt(np.array([star.fit.params_var for star in stars]))
 
-        if self.average_function is not None:
-            self._spatial_average = self.average_function(X)
-            y -= self._spatial_average
-        else:
-            self._spatial_average = 0
-
         self._X = X
         self._y = y
+
+        if stars0 is not None:
+            X0 = np.array([self.getProperties(star) for star in stars0])
+            y0 = np.array([star.fit.params for star in stars0])
+        else:
+            X0 = np.zeros_like(self._X)
+            y0 = np.zeros_like(self._y)
+        self._X0 = X0
+        self._y0 = y0
+        self._spatial_average = self._build_average(X)
+
         if self.white_noise > 0:
             y_err = np.sqrt(y_err**2 + self.white_noise**2)
         self._y_err = y_err
@@ -292,6 +303,8 @@ class GPInterp2pcf(Interp):
             y_err = self._pca.transform(y_err)
             self._y_pca, self._y_pca_err = y, y_err
             self.nparams = self.npca
+            # need to check if it is ok with math
+            #self._spatial_average = self._pca.transform(self._spatial_average)
 
         if self.normalize:
             self._mean = np.mean(y,axis=0)
@@ -303,7 +316,7 @@ class GPInterp2pcf(Interp):
             kernel = self.kernels[i]
             self._init_theta.append(kernel.theta)
             self.kernels[i] = self._fit(self.kernels[i],
-                                        X, y[:,i]-self._mean[i],
+                                        X, y[:,i]-self._mean[i]-self._spatial_average[:,i],
                                         y_err[:,i], logger=logger)
             if logger:
                 logger.info('param %d: %s',i,kernel.set_params())
@@ -348,7 +361,9 @@ class GPInterp2pcf(Interp):
                   ('FIT_THETA', fit_theta.dtype, fit_theta.shape),
                   ('X', self._X.dtype, self._X.shape),
                   ('Y', self._y.dtype, self._y.shape),
-                  ('Y_ERR', self._y_err.dtype, self._y_err.shape)]
+                  ('Y_ERR', self._y_err.dtype, self._y_err.shape),
+                  ('X0', self._X0.dtype, self._X0.shape),
+                  ('Y0', self._y0.dtype, self._y0.shape)]
 
         data = np.empty(1, dtype=dtypes)
         data['INIT_THETA'] = init_theta
@@ -356,6 +371,8 @@ class GPInterp2pcf(Interp):
         data['X'] = self._X
         data['Y'] = self._y
         data['Y_ERR'] = self._y_err
+        data['X0'] = self._X0
+        data['Y0'] = self._y0
 
         fits.write_table(data, extname=extname+'_kernel')
 
@@ -369,8 +386,14 @@ class GPInterp2pcf(Interp):
         self._X = np.atleast_1d(data['X'][0])
         self._y = np.atleast_1d(data['Y'][0])
         self._y_err = np.atleast_1d(data['Y_ERR'][0])
+
         self._init_theta = init_theta
         self.nparams = len(init_theta)
+
+        self._X0 = np.atleast_1d(data['X0'][0])
+        self._y0 = np.atleast_1d(data['Y0'][0])
+        self._spatial_average = self._build_average(self._X)
+
         if self.normalize:
             self._mean = np.mean(self._y,axis=0)
         else:
