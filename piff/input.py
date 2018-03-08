@@ -748,7 +748,11 @@ class InputFiles(Input):
             fits = fitsio.FITS(file_name)
             hdu = 1 if file_name.endswith('.fz') else 0
             header = fits[hdu].read_header()
+            if ra not in header:
+                raise KeyError("Key %s not found in FITS header"%ra)
             ra = header[ra]
+            if dec not in header:
+                raise KeyError("Key %s not found in FITS header"%dec)
             dec = header[dec]
             # Recurse to do further parsing.
             self.setPointing(ra, dec, logger)

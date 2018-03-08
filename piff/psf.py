@@ -70,7 +70,7 @@ class PSF(object):
         logger.debug(yaml.dump(config_psf, default_flow_style=False))
 
         # Get the class to use for the PSF
-        psf_type = config_psf.pop('type', 'Simple') + 'PSF'
+        psf_type = config_psf.get('type', 'Simple') + 'PSF'
         logger.debug("PSF type is %s",psf_type)
         cls = getattr(piff, psf_type)
 
@@ -99,6 +99,7 @@ class PSF(object):
         """
         kwargs = {}
         kwargs.update(config_psf)
+        kwargs.pop('type',None)
         return kwargs
 
     def draw(self, x, y, chipnum=0, flux=1.0, offset=(0,0), stamp_size=48, image=None,
@@ -264,7 +265,7 @@ class PSF(object):
 
         # Get any other kwargs we need for this PSF type
         kwargs = read_kwargs(fits, extname)
-        kwargs.pop('type')
+        kwargs.pop('type',None)
 
         # Make the PSF instance
         psf = psf_cls(**kwargs)

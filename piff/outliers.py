@@ -47,7 +47,7 @@ class Outliers(object):
 
         # Get the class to use for the outliers
         # Not sure if this is what we'll always want, but it would be simple if we can make it work.
-        outliers_class = getattr(piff, config_outliers.pop('type') + 'Outliers')
+        outliers_class = getattr(piff, config_outliers['type'] + 'Outliers')
 
         # Read any other kwargs in the outliers field
         kwargs = outliers_class.parseKwargs(config_outliers, logger)
@@ -72,6 +72,7 @@ class Outliers(object):
         """
         kwargs = {}
         kwargs.update(config_outliers)
+        kwargs.pop('type',None)
         return kwargs
 
     def write(self, fits, extname):
@@ -124,7 +125,7 @@ class Outliers(object):
         outliers_cls = valid_outliers_types[outliers_type]
 
         kwargs = read_kwargs(fits, extname)
-        kwargs.pop('type')
+        kwargs.pop('type',None)
         outliers = outliers_cls(**kwargs)
         outliers._finish_read(fits, extname)
         return outliers

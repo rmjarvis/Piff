@@ -102,23 +102,25 @@ def read_config(file_name):
     return config
 
 
-def piffify(config, logger=None):
+def process(config, logger=None):
     """Build a Piff model according to the specifications in a config dict.
+
+    Note: This is almost the same as the piffify function/executable.  The difference is
+          that it returns the resulting psf, rather than writing it to a file.
 
     :param config:      The configuration file that defines how to build the model
     :param logger:      A logger object for logging progress. [default: None]
-    """
-    import piff
-    import copy
 
-    # Make a copy to make sure we don't change the original.
-    config = copy.deepcopy(config)
+    :returns: the psf model
+    """
+    from .input import Input
+    from .psf import PSF
 
     if logger is None:
         verbose = config.get('verbose', 1)
-        logger = piff.setup_logger(verbose=verbose)
+        logger = setup_logger(verbose=verbose)
 
-    for key in ['input', 'output', 'psf']:
+    for key in ['input', 'psf']:
         if key not in config:
             raise ValueError("%s field is required in config dict"%key)
 
@@ -127,13 +129,32 @@ def piffify(config, logger=None):
         galsim.config.ImportModules(config)
 
     # read in the input images
-    stars, wcs, pointing = piff.Input.process(config['input'], logger=logger)
+    stars, wcs, pointing = Input.process(config['input'], logger=logger)
 
-    psf = piff.PSF.process(config['psf'], logger=logger)
+    psf = PSF.process(config['psf'], logger=logger)
     psf.fit(stars, wcs, pointing, logger=logger)
 
+    return psf
+
+def piffify(config, logger=None):
+    """Build a Piff model according to the specifications in a config dict.
+
+    This includes writing the model to disk according to the output field.
+    If you would rather get the psf object in return, see the process function.
+
+    :param config:      The configuration file that defines how to build the model
+    :param logger:      A logger object for logging progress. [default: None]
+    """
+    from .output import Output
+
+    for key in ['input', 'output', 'psf']:
+        if key not in config:
+            raise ValueError("%s field is required in config dict"%key)
+
+    psf = process(config, logger)
+
     # write it out to a file
-    output = piff.Output.process(config['output'], logger=logger)
+    output = Output.process(config['output'], logger=logger)
     output.write(psf, logger=logger)
 
 def plotify(config, logger=None):
@@ -142,15 +163,13 @@ def plotify(config, logger=None):
     :param config:      The configuration file that defines how to build the model
     :param logger:      A logger object for logging progress. [default: None]
     """
-    import piff
-    import copy
-
-    # Make a copy to make sure we don't change the original.
-    config = copy.deepcopy(config)
+    from .input import Input
+    from .psf import PSF
+    from .output import Output
 
     if logger is None:
         verbose = config.get('verbose', 1)
-        logger = piff.setup_logger(verbose=verbose)
+        logger = setup_logger(verbose=verbose)
 
     for key in ['input', 'output']:
         if key not in config:
@@ -164,17 +183,17 @@ def plotify(config, logger=None):
         galsim.config.ImportModules(config)
 
     # read in the input images
-    stars, wcs, pointing = piff.Input.process(config['input'], logger=logger)
+    stars, wcs, pointing = Input.process(config['input'], logger=logger)
 
     # load psf by looking at output file
     file_name = config['output']['file_name']
     if 'dir' in config['output']:
         file_name = os.path.join(config['output']['dir'], file_name)
     logger.info("Looking for PSF at %s", file_name)
-    psf = piff.PSF.read(file_name, logger=logger)
+    psf = PSF.read(file_name, logger=logger)
 
     # we don't want to rewrite the PSF to disk, so jump straight to the stats_list
-    output = piff.Output.process(config['output'], logger=logger)
+    output = Output.process(config['output'], logger=logger)
     logger.debug("stats_list = %s",output.stats_list)
     for stats in output.stats_list:
         stats.compute(psf,stars,logger=logger)
