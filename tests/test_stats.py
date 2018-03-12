@@ -210,10 +210,13 @@ def setup():
     sigma = 1.3
     g1 = 0.23
     g2 = -0.17
-    psf = galsim.Gaussian(sigma=sigma).shear(g1=g1, g2=g2)
+    dx = 0.31  # in pixels
+    dy = -0.32
+    flux = 123.45
+    psf = galsim.Gaussian(sigma=sigma).shear(g1=g1, g2=g2) * flux
     for x, y in zip(x_list, y_list):
         bounds = galsim.BoundsI(int(x-31), int(x+32), int(y-31), int(y+32))
-        offset = galsim.PositionD( x-int(x)-0.5 , y-int(y)-0.5 )
+        offset = galsim.PositionD( x-int(x)-0.5 + dx, y-int(y)-0.5 + dy)
         psf.drawImage(image=image[bounds], method='no_pixel', offset=offset)
     image.addNoise(galsim.GaussianNoise(rng=galsim.BaseDeviate(1234), sigma=1e-6))
 
@@ -452,6 +455,7 @@ def test_starstats_config():
     cat_file = os.path.join('output','test_stats_cat.fits')
     psf_file = os.path.join('output','test_starstats.fits')
     star_file = os.path.join('output', 'test_starstats.pdf')
+    star_noadjust_file = os.path.join('output', 'test_starstats_noadjust.pdf')
     config = {
         'input' : {
             'image_file_name' : image_file,
@@ -470,7 +474,8 @@ def test_starstats_config():
                 {
                     'type': 'Star',
                     'file_name': star_file,
-                    'number_plot': 5
+                    'number_plot': 5,
+                    'adjust_stars': True,
                 }
             ]
         }
@@ -515,6 +520,39 @@ def test_starstats_config():
     np.testing.assert_array_equal(starStats.stars[3].image.array, orig_stars[3].image.array)
     np.testing.assert_array_equal(starStats.indices, np.arange(len(orig_stars)))
 
+    # rerun with adjust stars and see if it did the right thing
+    # first with starstats == False
+    starStats = piff.StarStats(number_plot=0, adjust_stars=False)
+    starStats.compute(psf, orig_stars, logger=logger)
+    fluxs_noadjust = np.array([s.fit.flux for s in starStats.stars])
+    ds_noadjust = np.array([s.fit.center for s in starStats.stars])
+    # check that fluxes 1
+    np.testing.assert_array_equal(fluxs_noadjust, 1)
+    # check that ds are 0
+    np.testing.assert_array_equal(ds_noadjust, 0)
+
+    # now with starstats == True
+    starStats = piff.StarStats(number_plot=0, adjust_stars=True)
+    starStats.compute(psf, orig_stars, logger=logger)
+    fluxs_adjust = np.array([s.fit.flux for s in starStats.stars])
+    ds_adjust = np.array([s.fit.center for s in starStats.stars])
+    # copy the right values from setup()
+    dx = 0.31
+    dy = -0.32
+    flux = 123.45
+    # compare fluxes
+    np.testing.assert_allclose(fluxs_adjust, flux, rtol=1e-4)
+    # compare dx and dy, keeping in mind that ds_adjust is dx/y * 0.26 (scale)
+    dx_adjust = ds_adjust[:, 0] / 0.26
+    dy_adjust = ds_adjust[:, 1] / 0.26
+    np.testing.assert_allclose(dx_adjust, dx, rtol=1e-4)
+    np.testing.assert_allclose(dy_adjust, dy, rtol=1e-4)
+
+    # do once with adjust_stars = False to graphically demonstrate
+    config['output']['stats'][0]['file_name'] = star_noadjust_file
+    config['output']['stats'][0]['adjust_stars'] = False
+    piff.plotify(config, logger)
+    assert os.path.isfile(star_noadjust_file)
 
 if __name__ == '__main__':
     setup()
