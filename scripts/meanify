@@ -1,0 +1,85 @@
+#!/usr/bin/env python
+# Copyright (c) 2016 by Mike Jarvis and the other collaborators on GitHub at
+# https://github.com/rmjarvis/Piff  All rights reserved.
+#
+# Piff is free software: Redistribution and use in source and binary forms
+# with or without modification, are permitted provided that the following
+# conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice, this
+#    list of conditions and the disclaimer given in the accompanying LICENSE
+#    file.
+# 2. Redistributions in binary form must reproduce the above copyright notice,
+#    this list of conditions and the disclaimer given in the documentation
+#    and/or other materials provided with the distribution.
+
+from __future__ import print_function
+import sys
+import piff
+
+def parse_args():
+    """Handle the command line arguments to plotify executable.
+
+    Returns the args as an argparse.Namespace object.
+
+    It will have the following fields:
+
+    args.config_file
+    args.verbose
+    args.log_file
+    args.version
+    """
+    import argparse
+
+    version_str = "Piff version %s"%piff.version
+    description = "Build a Piff average PSF model from a list of Piff outputs files.\n"
+    description += "See https://github.com/rmjarvis/Piff for documenation."
+
+    parser = argparse.ArgumentParser(description=description, add_help=True, epilog=version_str)
+    parser.add_argument(
+            'config_file', type=str, nargs='?',
+            help='the configuration file')
+    parser.add_argument(
+            '-v', '--verbose', type=int, action='store', default=None, choices=(0, 1, 2, 3),
+            help='integer verbosity level: min=0, max=3 '
+            '[default=1; overrides config verbose value]')
+    parser.add_argument(
+            '-l', '--log_file', type=str, action='store', default=None,
+            help='filename for storing logging output [default is to stream to stdout]')
+    parser.add_argument(
+            '--version', action='store_const', default=False, const=True,
+            help='show the version of Piff')
+
+    args = parser.parse_args()
+
+    if args.config_file == None:
+        if args.version:
+            print(version_str)
+        else:
+            parser.print_help()
+        sys.exit()
+    elif args.version:
+        print(version_str)
+
+    return args
+
+def main():
+    args = parse_args()
+
+    # Read the config file
+    config = piff.config.read_config(args.config_file)
+
+    # Create a logger with the given verbosity and log_file
+    if args.verbose is None:
+        verbose = config.get('verbose', 1)
+    else:
+        verbose = args.verbose
+    logger = piff.config.setup_logger(verbose, args.log_file)
+
+    logger.warn('Using config file %s'%args.config_file)
+
+    # Run the plotify function
+    piff.meanify(config, logger)
+
+if __name__ == '__main__':
+    main()
