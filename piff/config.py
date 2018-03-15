@@ -191,3 +191,83 @@ def plotify(config, logger=None):
     for stats in output.stats_list:
         stats.compute(psf,stars,logger=logger)
         stats.write(logger=logger)
+
+def meanify(config, logger=None):
+    """Take Piff model(s), build an average of the FoV, and execute output.
+
+    :param config:      The configuration file that defines how to build the model
+    :param logger:      A logger object for logging progress. [default: None]
+    """
+    from .input import Input
+    from .psf import PSF
+    from .output import Output
+    import numpy as np
+    import fitsio
+
+    if logger is None:
+        verbose = config.get('verbose', 1)
+        logger = setup_logger(verbose=verbose)
+
+    for key in ['input', 'output']:
+        if key not in config:
+            raise ValueError("%s field is required in config dict"%key)
+    for key in ['file_name']:
+        if key not in config['input']:
+            raise ValueError("%s field is required in config dict output"%key)
+
+    for key in ['file_name']:
+        if key not in config['output']:
+            raise ValueError("%s field is required in config dict output"%key)
+
+    # load psf by looking at input file
+    file_name_in = config['input']['file_name']
+    if 'dir' in config['input']:
+        file_name_in = os.path.join(config['input']['dir'], file_name)
+
+    logger.info("Looking for PSF at %s", file_name_in)
+
+    # load psf by looking at input file
+    file_name_out = config['output']['file_name']
+    if 'dir' in config['output']:
+        file_name_out = os.path.join(config['output']['dir'], file_name)
+
+    psf = PSF.read(file_name_in, logger=logger)
+
+    def _getcoord(star):
+        return np.array([star.data[key] for key in ['u', 'v']])
+
+    coord = np.array([_getcoord(s) for s in psf.stars])
+    params = np.array([s.fit.params for s in psf.stars])
+
+    lu_min, lu_max = np.min(coord[:,0]), np.max(coord[:,0])
+    lv_min, lv_max = np.min(coord[:,1]), np.max(coord[:,1])
+
+    binning = [np.linspace(lu_min, lu_max,50),np.linspace(lv_min, lv_max,50)]
+    counts, u0, v0 = np.histogram2d(coord[:,0], coord[:,1], bins=binning)
+    counts = counts.reshape(-1)
+
+    params0 = np.zeros((len(counts),len(params[0])))
+
+    for i in range(len(params[0])):
+        average = np.histogram2d(coord[:,0], coord[:,1], bins=binning, weights=params[:,i])[0]
+        average = average.reshape(-1)
+        average[average!=0] /= counts[average!=0]
+        params0[:,i] = average
+
+    # get center of each bin 
+    u0 = u0[:-1] + (u0[1] - u0[0])/2.
+    v0 = v0[:-1] + (v0[1] - v0[0])/2.
+
+    coords0 = np.array([u0.reshape(-1), v0.reshape(-1)])
+
+    dtypes = [('COORDS0', coords0.dtype, coords0.shape),
+              ('PARAMS0', params0.dtype, params0.shape),
+          ]
+    data = np.empty(1, dtype=dtypes)
+
+    data['COORDS0'] = coords0
+    data['PARAMS0'] = params0
+    
+    with fitsio.FITS(file_name_out,'rw',clobber=True) as f:
+        f.write_table(data, extname='average_solution')
+
