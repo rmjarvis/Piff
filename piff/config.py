@@ -201,6 +201,7 @@ def meanify(config, logger=None):
     from .input import Input
     from .psf import PSF
     from .output import Output
+    import glob
     import numpy as np
     import fitsio
 
@@ -219,37 +220,66 @@ def meanify(config, logger=None):
         if key not in config['output']:
             raise ValueError("%s field is required in config dict output"%key)
 
-    # load psf by looking at input file
-    file_name_in = config['input']['file_name']
     if 'dir' in config['input']:
-        file_name_in = os.path.join(config['input']['dir'], file_name)
+        dir = config['input']['dir']
+    else:
+        dir = None
 
+    if isinstance(config['input']['file_name'], list):
+        psf_list = config['input']['file_name']
+        if len(psf_list) == 0:
+            raise ValueError("file_name may not be an empty list")
+    elif isinstance(config['input']['file_name'], basestring):
+        file_name = config['input']['file_name']
+        if dir is not None:
+            file_name = os.path.join(dir, file_name)
+        psf_list = sorted(glob.glob(file_name))
+        if dir is not None:
+            k = len(dir) + 1
+            psf_list = [ f[k:] for f in psf_list ]
+        if len(psf_list) == 0:
+            raise ValueError("No files found corresponding to "+config['file_name'])
+    elif not isinstance(config['file_name'], dict):
+        raise ValueError("file_name should be either a dict or a string")
+
+    if psf_list is not None:
+        logger.debug('psf_list = %s',psf_list)
+        npsfs = len(psf_list)
+        logger.debug('npsfs = %d',npsfs)
+        config['input']['file_name'] = psf_list
+
+    file_name_in = config['input']['file_name']
+    
     logger.info("Looking for PSF at %s", file_name_in)
-
-    # load psf by looking at input file
-    file_name_out = config['output']['file_name']
     if 'dir' in config['output']:
         file_name_out = os.path.join(config['output']['dir'], file_name)
+    file_name_out = config['output']['file_name']
 
-    psf = PSF.read(file_name_in, logger=logger)
+    psfs = [PSF.read(f, logger=logger) for f in file_name_in]
 
     def _getcoord(star):
         return np.array([star.data[key] for key in ['u', 'v']])
 
-    coord = np.array([_getcoord(s) for s in psf.stars])
-    params = np.array([s.fit.params for s in psf.stars])
+    coords = []
+    params = []
+    for psf in psfs:
+        for s in psf.stars:
+            coords.append(_getcoord(s))
+            params.append(s.fit.params)
+    coords = np.array(coords)
+    params = np.array(params)
 
-    lu_min, lu_max = np.min(coord[:,0]), np.max(coord[:,0])
-    lv_min, lv_max = np.min(coord[:,1]), np.max(coord[:,1])
+    lu_min, lu_max = np.min(coords[:,0]), np.max(coords[:,0])
+    lv_min, lv_max = np.min(coords[:,1]), np.max(coords[:,1])
 
     binning = [np.linspace(lu_min, lu_max,50),np.linspace(lv_min, lv_max,50)]
-    counts, u0, v0 = np.histogram2d(coord[:,0], coord[:,1], bins=binning)
+    counts, u0, v0 = np.histogram2d(coords[:,0], coords[:,1], bins=binning)
     counts = counts.reshape(-1)
 
     params0 = np.zeros((len(counts),len(params[0])))
 
     for i in range(len(params[0])):
-        average = np.histogram2d(coord[:,0], coord[:,1], bins=binning, weights=params[:,i])[0]
+        average = np.histogram2d(coords[:,0], coords[:,1], bins=binning, weights=params[:,i])[0]
         average = average.reshape(-1)
         average[average!=0] /= counts[average!=0]
         params0[:,i] = average
