@@ -273,13 +273,20 @@ def meanify(config, logger=None):
     lv_min, lv_max = np.min(coords[:,1]), np.max(coords[:,1])
 
     binning = [np.linspace(lu_min, lu_max,50),np.linspace(lv_min, lv_max,50)]
+    import pylab as plt
+    plt.figure()
+    plt.scatter(coords[:,0], coords[:,1],s=10,lw=0)
     counts, u0, v0 = np.histogram2d(coords[:,0], coords[:,1], bins=binning)
+    counts = counts.T
+    plt.figure()
+    plt.pcolor(u0, v0, counts)
+    plt.show()
     counts = counts.reshape(-1)
 
     params0 = np.zeros((len(counts),len(params[0])))
 
     for i in range(len(params[0])):
-        average = np.histogram2d(coords[:,0], coords[:,1], bins=binning, weights=params[:,i])[0]
+        average = np.histogram2d(coords[:,0], coords[:,1], bins=binning, weights=params[:,i])[0].T
         average = average.reshape(-1)
         average[average!=0] /= counts[average!=0]
         params0[:,i] = average
@@ -287,8 +294,15 @@ def meanify(config, logger=None):
     # get center of each bin 
     u0 = u0[:-1] + (u0[1] - u0[0])/2.
     v0 = v0[:-1] + (v0[1] - v0[0])/2.
+    u0, v0 = np.meshgrid(u0, v0)
 
-    coords0 = np.array([u0.reshape(-1), v0.reshape(-1)])
+    coords0 = np.array([u0.reshape(-1), v0.reshape(-1)]).T
+    print(np.shape(coords0))
+    print(np.shape(params0))
+    print(np.shape(coords0[0]))
+    print(np.shape(params0[0]))
+    print(np.shape(u0))
+    print(np.shape(u0))
 
     dtypes = [('COORDS0', coords0.dtype, coords0.shape),
               ('PARAMS0', params0.dtype, params0.shape),
