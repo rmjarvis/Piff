@@ -225,6 +225,14 @@ def meanify(config, logger=None):
     else:
         dir = None
 
+    if 'binning' in config['input']:
+        if type(config['input']['binning']) is not int:
+            ValueError("type of binning should be integer (%s now)"%type(config['input']['binning']))
+        else:
+            binning = config['input']['binning']
+    else:
+        binning = 50
+
     if isinstance(config['input']['file_name'], list):
         psf_list = config['input']['file_name']
         if len(psf_list) == 0:
@@ -272,15 +280,15 @@ def meanify(config, logger=None):
     lu_min, lu_max = np.min(coords[:,0]), np.max(coords[:,0])
     lv_min, lv_max = np.min(coords[:,1]), np.max(coords[:,1])
 
-    binning = [np.linspace(lu_min, lu_max,50),np.linspace(lv_min, lv_max,50)]
-    import pylab as plt
-    plt.figure()
-    plt.scatter(coords[:,0], coords[:,1],s=10,lw=0)
+    binning = [np.linspace(lu_min, lu_max, binning),np.linspace(lv_min, lv_max, binning)]
+    #import pylab as plt
+    #plt.figure()
+    #plt.scatter(coords[:,0], coords[:,1],s=10,lw=0)
     counts, u0, v0 = np.histogram2d(coords[:,0], coords[:,1], bins=binning)
     counts = counts.T
-    plt.figure()
-    plt.pcolor(u0, v0, counts)
-    plt.show()
+    #plt.figure()
+    #plt.pcolor(u0, v0, counts)
+    #plt.show()
     counts = counts.reshape(-1)
 
     params0 = np.zeros((len(counts),len(params[0])))
@@ -297,12 +305,12 @@ def meanify(config, logger=None):
     u0, v0 = np.meshgrid(u0, v0)
 
     coords0 = np.array([u0.reshape(-1), v0.reshape(-1)]).T
-    print(np.shape(coords0))
-    print(np.shape(params0))
-    print(np.shape(coords0[0]))
-    print(np.shape(params0[0]))
-    print(np.shape(u0))
-    print(np.shape(u0))
+    #print(np.shape(coords0))
+    #print(np.shape(params0))
+    #print(np.shape(coords0[0]))
+    #print(np.shape(params0[0]))
+    #print(np.shape(u0))
+    #print(np.shape(u0))
 
     dtypes = [('COORDS0', coords0.dtype, coords0.shape),
               ('PARAMS0', params0.dtype, params0.shape),
