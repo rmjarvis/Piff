@@ -56,7 +56,7 @@ class GPInterp2pcf(Interp):
     :param logger:      A logger object for logging debug info. [default: None]
     """
     def __init__(self, keys=('u','v'), kernel='RBF(1)', optimize=True, npca=0, normalize=True,
-                 logger=None, white_noise=0.):
+                 logger=None, white_noise=0., average_fits=None):
 
         self.keys = keys
         self.npca = npca
@@ -87,6 +87,17 @@ class GPInterp2pcf(Interp):
         self._2pcf = []
         self._2pcf_dist = []
         self._2pcf_fit = []
+
+        if average_fits is not None:
+            import fitsio
+            average = fitsio.read(average_fits)
+            X0 = average['COORDS0'][0]
+            y0 = average['PARAMS0'][0]
+        else:
+            X0 = None
+            y0 = None
+        self._X0 = X0
+        self._y0 = y0
 
     @staticmethod
     def _eval_kernel(kernel):
@@ -158,7 +169,7 @@ class GPInterp2pcf(Interp):
         kk = treecorr.KKCorrelation(min_sep=MIN, max_sep=MAX, nbins=20)
         kk.process(cat)
 
-        distance = kk.meanr #np.exp(kk.logr)
+        distance = kk.meanr
         Coord = np.array([distance,np.zeros_like(distance)]).T
 
         def PCF(param, k=kernel):
@@ -281,14 +292,9 @@ class GPInterp2pcf(Interp):
         self._X = X
         self._y = y
 
-        if stars0 is not None:
-            X0 = np.array([self.getProperties(star) for star in stars0])
-            y0 = np.array([star.fit.params for star in stars0])
-        else:
-            X0 = np.zeros_like(self._X)
-            y0 = np.zeros_like(self._y)
-        self._X0 = X0
-        self._y0 = y0
+        if self._X0 is None:
+            self._X0 = np.zeros_like(self._X)
+            self._y0 = np.zeros_like(self._y)
         self._spatial_average = self._build_average(X)
 
         if self.white_noise > 0:

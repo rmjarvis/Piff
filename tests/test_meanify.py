@@ -33,7 +33,58 @@ star_type = np.dtype([('u', float),
                       ('v0', float),
                       ('flux', float)])
 
-def make_average(Coord=None):
+
+mod0 = piff.GSObjectModel(galsim.Kolmogorov(half_light_radius=1.0), force_model_center=True,
+                          include_pixel=False, fastfit=False)
+
+def make_star(hlr, g1, g2, u0, v0, flux, noise=0., du=1., fpu=0., fpv=0., nside=32,
+              nom_u0=0., nom_v0=0., rng=None):
+    """Make a Star instance filled with a Kolmogorov profile
+    :param hlr:         The half_light_radius of the Kolmogorov.
+    :param g1, g2:      Shear applied to profile.
+    :param u0, v0:      The sub-pixel offset to apply.
+    :param flux:        The flux of the star
+    :param noise:       RMS Gaussian noise to be added to each pixel [default: 0]
+    :param du:          pixel size in "wcs" units [default: 1.]
+    :param fpu,fpv:     position of this cutout in some larger focal plane [default: 0,0]
+    :param nside:       The size of the array [default: 32]
+    :param nom_u0, nom_v0:  The nominal u0,v0 in the StarData [default: 0,0]
+    :param rng:         If adding noise, the galsim deviate to use for the random numbers
+                        [default: None]
+    """
+    k = galsim.Kolmogorov(half_light_radius=hlr, flux=flux).shear(g1=g1, g2=g2).shift(u0,v0)
+    if noise == 0.:
+        var = 0.1
+    else:
+        var = noise
+    star = piff.Star.makeTarget(x=nside/2+nom_u0/du, y=nside/2+nom_v0/du,
+                                u=fpu, v=fpv, scale=du, stamp_size=nside)
+    star.image.setOrigin(0,0)
+    k.drawImage(star.image, method='no_pixel',
+                offset=galsim.PositionD(nom_u0/du,nom_v0/du), use_true_center=False)
+    star.data.weight = star.image.copy()
+    star.weight.fill(1./var/var)
+    if noise != 0:
+        gn = galsim.GaussianNoise(sigma=noise, rng=rng)
+        star.image.addNoise(gn)
+    return star
+
+
+def params_to_stars(params, noise=0.0, rng=None):
+    stars = []
+    for param in params.ravel():
+        u, v, hlr, g1, g2, u0, v0, flux = param
+        s = make_star(hlr, g1, g2, u0, v0, flux, noise=noise, du=0.26, fpu=u, fpv=v, rng=rng)
+        try:
+            s = mod0.initialize(s)
+        except:
+            print("Failed to initialize star at ",u,v)
+        else:
+            print('Francis',s.fit.params_var)
+            stars.append(s)
+    return stars
+
+def make_average(Coord=None, gp=True):
     if Coord is None:
         x = np.linspace(0, 200, 10)
         x, y = np.meshgrid(x,x)
@@ -45,12 +96,32 @@ def make_average(Coord=None):
     
     average = 0.02 + 5e-8*(x-1024)**2 + 5e-8*(y-1024)**2
     params = np.recarray((len(x),), dtype=star_type)
+
     keys = ['hlr', 'g1', 'g2']
+
     for key in keys:
         if key is 'hlr':
             params[key] = average + 0.6
         else:
             params[key] = average
+
+    if gp:
+        from scipy.spatial.distance import pdist, squareform
+        dists = squareform(pdist(np.array([x, y]).T))
+        cov = 0.05**2 * np.exp(-0.5*dists**2/30.**2) 
+        
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            params['hlr'] += np.random.multivariate_normal([0]*len(x), cov)
+            params['g1'] += np.random.multivariate_normal([0]*len(x), cov)
+            params['g2'] += np.random.multivariate_normal([0]*len(x), cov)
+
+    #import pylab as plt
+    #for key  in keys:
+    #    plt.scatter(x, y, c=params[key], lw = 0, s=40)
+    #    plt.colorbar()
+    #    plt.title(key)
+    #    plt.show()
 
     params['u'] = x
     params['v'] = y
@@ -62,7 +133,7 @@ def make_average(Coord=None):
 
 def setup():
     np.random.seed(42)
-    for im in range(10):
+    for im in range(20):
         print(im)
         image = galsim.Image(2048, 2048, scale=0.26)
 
@@ -110,7 +181,7 @@ def setup():
             },
             'psf' : {
                 'model' : { 'type' : 'Kolmogorov',
-                        'fastfit': True,
+                            'fastfit': True,
                             'include_pixel': False },
                 'interp' : { 'type' : 'Polynomial',
                              'order' : 2}
@@ -124,7 +195,7 @@ def setup():
 @timer
 def test_meanify():
     
-    setup()
+    #setup()
     psf_file = os.path.join('output','test_mean_*.piff')
     average_file = os.path.join('output','average.fits')
     config = {
@@ -139,14 +210,25 @@ def test_meanify():
     piff.meanify(config)
 
     average = fitsio.read(average_file)
-    params0 = make_average(Coord=average['COORDS0'][0] / 0.26)
+    params0 = make_average(Coord=average['COORDS0'][0] / 0.26, gp=False)
     keys = ['hlr', 'g1', 'g2']
     import pylab as plt
     for i,key in enumerate(keys):
-        plt.hist(params0[key] - average['PARAMS0'][0][:,i],np.linspace(-0.01,0.01,30))
+        #plt.hist(params0[key] - average['PARAMS0'][0][:,i],np.linspace(-0.01,0.01,30))
         np.testing.assert_allclose(params0[key], average['PARAMS0'][0][:,i], rtol=1e-1, atol=1e-3)
-        plt.show()
-    
+        #plt.show()
+
 if __name__ == '__main__':
 
-    test_meanify()
+    #test_meanify()
+    x = np.random.uniform(0, 2048, size=100)
+    y = np.random.uniform(0, 2078, size=100)
+    coord = np.array([x,y]).T
+    average = make_average(Coord=coord)
+    
+    stars = params_to_stars(average, noise=0.0, rng=None)
+
+    gp = piff.GPInterp2pcf(kernel="0.05**2 * RBF(30.*0.26)",
+                           optimize=True, white_noise=0.)
+    gp.initialize(stars)
+    gp.solve(stars)
