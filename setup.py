@@ -286,7 +286,7 @@ ext=Extension("piff._piff",
               depends=headers,
               undef_macros = undef_macros)
 
-dependencies = ['numpy', 'scipy', 'pyyaml', 'treecorr', 'fitsio', 'scikit-learn>=0.18', 'lmfit', 'matplotlib>=1.5.0']
+dependencies = ['numpy', 'scipy', 'pyyaml', 'treecorr', 'fitsio', 'scikit-learn>=0.18', 'lmfit', 'matplotlib>=1.5.0', 'LSSTDESC.Coord']
 
 try:
     print('Checking that GalSim can be imported')
