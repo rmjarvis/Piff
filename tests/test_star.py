@@ -195,7 +195,11 @@ def test_celestial():
     size = 64
     image_pos = galsim.PositionD(1083.9, 617.3)
     sky_pos = wcs.toWorld(image_pos)
-    field_pos = pointing.project(sky_pos)
+    if galsim.__version__ >= '2.0':
+        u,v = pointing.project(sky_pos)
+        field_pos = galsim.PositionD(u/galsim.arcsec, v/galsim.arcsec)
+    else:
+        field_pos = pointing.project(sky_pos)
     icen = int(image_pos.x)
     jcen = int(image_pos.y)
 
@@ -228,7 +232,10 @@ def test_celestial():
     for data, wt, u, v in np.array(stardata.getDataVector()).T:
         # u,v values should correspond to image coordinates via wcs
         uv = galsim.PositionD(u,v) + field_pos
-        radec = pointing.deproject(uv)
+        if galsim.__version__ >= '2.0':
+            radec = pointing.deproject(uv.x * galsim.arcsec, uv.y * galsim.arcsec)
+        else:
+            radec = pointing.deproject(uv)
         xy = wcs.toImage(radec)
         # These should now be integers, but round in case of numerical inaccuracy.
         ix = int(round(xy.x))
