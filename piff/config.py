@@ -200,6 +200,7 @@ def meanify(config, logger=None):
     """
     from .input import Input
     from .psf import PSF
+    from .star import Star
     from .output import Output
     import glob
     import numpy as np
@@ -263,17 +264,25 @@ def meanify(config, logger=None):
         file_name_out = os.path.join(config['output']['dir'], file_name)
     file_name_out = config['output']['file_name']
 
-    psfs = [PSF.read(f, logger=logger) for f in file_name_in]
+    # TO DO/REPLACE
+    #hdu = fitsio.FITS('psf_0.piff') 
+    # piff.Star.read(hdu, 'psf_stars')
+    
+    #psfs = [PSF.read(f, logger=logger) for f in file_name_in]
 
     def _getcoord(star):
         return np.array([star.data[key] for key in ['u', 'v']])
 
     coords = []
     params = []
-    for psf in psfs:
-        for s in psf.stars:
+
+    for f in file_name_in:
+        hdu = fitsio.FITS(f) 
+        stars = Star.read(hdu, 'psf_stars')
+        for s in stars:
             coords.append(_getcoord(s))
             params.append(s.fit.params)
+
     coords = np.array(coords)
     params = np.array(params)
 
