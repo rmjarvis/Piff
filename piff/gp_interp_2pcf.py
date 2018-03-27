@@ -270,23 +270,11 @@ class GPInterp2pcf(Interp):
                 self.kernels = [copy.deepcopy(ker) for ker in self.kernel_template]                                        
         return stars
 
-    def _build_average(self, X, gp=True):
+    def _build_average(self, X):
         if np.sum(np.equal(self._X0, 0)) != len(self._X0[:,0])*len(self._X0[0]):
-            if not gp:
-                neigh = KNeighborsRegressor(n_neighbors=4)
-                neigh.fit(self._X0, self._y0)
-                average = neigh.predict(X)
-            else:
-                self._kernels0 = copy.deepcopy(self.kernels)
-                for i in range(self.nparams):
-                    y_err = np.ones_like(self._y0[:,i])*(np.std(self._y0[:,i])/100.)
-                    self._kernels0[i] = self._fit(self._kernels0[i],
-                                                  self._X0, self._y0[:,i],
-                                                  y_err)
-                average = np.array([self.return_gp_predict(self._y0[:,i],
-                                                           self._X0, X, ker,
-                                                           y_err=np.ones_like(self._y0[:,i])*(np.std(self._y0[:,i])/100.))
-                                    for i, ker in enumerate(self._kernels0)]).T
+            neigh = KNeighborsRegressor(n_neighbors=4)
+            neigh.fit(self._X0, self._y0)
+            average = neigh.predict(X)            
             return average
         else:
             return np.zeros((len(X[:,0]), self.nparams))
@@ -325,7 +313,7 @@ class GPInterp2pcf(Interp):
             #self._spatial_average = self._pca.transform(self._spatial_average)
 
         if self.normalize:
-            self._mean = np.mean(y,axis=0)
+            self._mean = np.mean(y - self._spatial_average, axis=0)
         else:
             self._mean = np.zeros(self.nparams)
 
