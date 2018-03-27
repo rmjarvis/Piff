@@ -58,7 +58,7 @@ def make_star(hlr, g1, g2, u0, v0, flux, noise=0., du=1., fpu=0., fpv=0., nside=
     else:
         var = noise
     star = piff.Star.makeTarget(x=nside/2+nom_u0/du, y=nside/2+nom_v0/du,
-                                u=fpu, v=fpv, scale=du, stamp_size=nside)
+                                u=fpu*du, v=fpv*du, scale=du, stamp_size=nside)
     star.image.setOrigin(0,0)
     k.drawImage(star.image, method='no_pixel',
                 offset=galsim.PositionD(nom_u0/du,nom_v0/du), use_true_center=False)
@@ -80,7 +80,6 @@ def params_to_stars(params, noise=0.0, rng=None):
         except:
             print("Failed to initialize star at ",u,v)
         else:
-            print('Francis',s.fit.params_var)
             stars.append(s)
     return stars
 
@@ -133,16 +132,16 @@ def make_average(Coord=None, gp=True):
 
 def setup():
     np.random.seed(42)
-    for im in range(20):
+    for im in range(30):
         print(im)
         image = galsim.Image(2048, 2048, scale=0.26)
 
         x_list = [np.random.uniform(0, 2048)]
         y_list = [np.random.uniform(0, 2048)]
         i=0
-        while i < 499:
+        while i < 599:
             x = np.random.uniform(0, 2048)
-            y = np.random.uniform(0, 2078)
+            y = np.random.uniform(0, 2048)
             D = np.sqrt((np.array(x_list)-x)**2 + (np.array(y_list)-y)**2)
             #avoid 2 stars on the same stamp
             if np.sum((D>60)) == len(D):
@@ -195,13 +194,13 @@ def setup():
 @timer
 def test_meanify():
     
-    #setup()
+    setup()
     psf_file = os.path.join('output','test_mean_*.piff')
     average_file = os.path.join('output','average.fits')
     config = {
         'input' : {
             'file_name' : psf_file,
-            'binning' : 20,
+            'binning' : 30,
         },
         'output' : {
             'file_name' : average_file,
@@ -221,14 +220,21 @@ def test_meanify():
 if __name__ == '__main__':
 
     #test_meanify()
-    x = np.random.uniform(0, 2048, size=100)
-    y = np.random.uniform(0, 2078, size=100)
+
+    x = np.random.uniform(0, 2048, size=700)
+    y = np.random.uniform(0, 2048, size=700)
     coord = np.array([x,y]).T
     average = make_average(Coord=coord)
     
     stars = params_to_stars(average, noise=0.0, rng=None)
+    stars_training = stars[:600]
+    stars_validation = stars[600:]
 
     gp = piff.GPInterp2pcf(kernel="0.05**2 * RBF(30.*0.26)",
-                           optimize=True, white_noise=0.)
-    gp.initialize(stars)
-    gp.solve(stars)
+                           optimize=False, white_noise=1e-5, average_fits='output/average.fits')
+    gp.initialize(stars_training)
+    gp.solve(stars_training)
+    stars_interp = gp.interpolateList(stars_validation)
+
+    params_interp = np.array([s.fit.params for s in stars_interp])
+    params_validation = np.array([s.fit.params for s in stars_validation])
