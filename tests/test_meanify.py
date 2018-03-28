@@ -93,7 +93,7 @@ def make_average(Coord=None, gp=True):
         x = Coord[:,0]
         y = Coord[:,1]
     
-    average = 0.02 + 7e-8*(x-1024)**2 + 7e-8*(y-1024)**2
+    average = 0.02 + 5e-8*(x-1024)**2 + 5e-8*(y-1024)**2
     params = np.recarray((len(x),), dtype=star_type)
 
     keys = ['hlr', 'g1', 'g2']
@@ -107,7 +107,7 @@ def make_average(Coord=None, gp=True):
     if gp:
         from scipy.spatial.distance import pdist, squareform
         dists = squareform(pdist(np.array([x, y]).T))
-        cov = 0.05**2 * np.exp(-0.5*dists**2/300.**2) 
+        cov = 0.03**2 * np.exp(-0.5*dists**2/300.**2) 
         
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
@@ -200,7 +200,7 @@ def test_meanify():
     config = {
         'input' : {
             'file_name' : psf_file,
-            'binning' : 20,
+            'binning' : 15,
         },
         'output' : {
             'file_name' : average_file,
@@ -211,62 +211,70 @@ def test_meanify():
     average = fitsio.read(average_file)
     params0 = make_average(Coord=average['COORDS0'][0] / 0.26, gp=False)
     keys = ['hlr', 'g1', 'g2']
-    import pylab as plt
+    #import pylab as plt
     for i,key in enumerate(keys):
-        plt.hist(params0[key] - average['PARAMS0'][0][:,i],np.linspace(-0.02,0.02,30))
-        #np.testing.assert_allclose(params0[key], average['PARAMS0'][0][:,i], rtol=1e-1, atol=1e-2)
-        plt.show()
+        #plt.hist(params0[key] - average['PARAMS0'][0][:,i],np.linspace(-0.02,0.02,30))
+        np.testing.assert_allclose(params0[key], average['PARAMS0'][0][:,i], rtol=1e-1, atol=1e-2)
+        #plt.show()
+
+@timer
+def test_gp_meanify():
+
+    np.random.seed(68)
+    x = np.random.uniform(0, 2048, size=1000)
+    y = np.random.uniform(0, 2048, size=1000)
+    coord = np.array([x,y]).T
+    average = make_average(Coord=coord)
+
+    stars = params_to_stars(average, noise=0.0, rng=None)
+    stars_training = stars[:900]
+    stars_validation = stars[900:]
+
+    fit_hyp = [False, True]
+
+    for fit in fit_hyp:
+        gp = piff.GPInterp2pcf(kernel="0.009 * RBF(300.*0.26)",
+                               optimize=fit_hyp, white_noise=1e-5, average_fits='output/average.fits')
+        gp.initialize(stars_training)
+        gp.solve(stars_training)
+        stars_interp = gp.interpolateList(stars_validation)
+        
+        params_interp = np.array([s.fit.params for s in stars_interp])
+        params_validation = np.array([s.fit.params for s in stars_validation])
+        params_training = np.array([s.fit.params for s in stars_training])
+        np.testing.assert_allclose(params_interp, params_validation, rtol=1e-1, atol=1e-2)
+
+        #def _getcoord(star):
+        #    return np.array([star.data[key] for key in ['u','v']])
+        #Xt = np.array([_getcoord(s) for s in stars_training])
+        #Xv = np.array([_getcoord(s) for s in stars_validation]) 
+    
+        #import pylab as plt
+
+        #for i in range(3):
+        #    plt.figure()
+        #    plt.hist(params_validation[:,i]-np.mean(params_validation[:,i]),bins=np.linspace(-0.20,0.20,30),histtype='step',color='blue',lw=3)
+        #    plt.hist((params_validation[:,i] - params_interp[:,i]),bins=np.linspace(-0.02,0.02,30),histtype='step',color='k',lw=3)
+
+        #for i in range(3):
+        #    MIN = np.min(params_training[:,i])
+        #    MAX = np.max(params_training[:,i])
+        #    plt.figure(figsize=(15,4))
+        #    plt.subplots_adjust(left=0.05,right=0.95)
+        #    plt.subplot(1,4,1)
+        #    plt.scatter(Xt[:,0],Xt[:,1], c= params_training[:,i],lw=0,s=40, vmin=MIN, vmax=MAX)
+        #    plt.colorbar()
+        #    plt.subplot(1,4,2)
+        #    plt.scatter(Xv[:,0],Xv[:,1], c= params_validation[:,i],lw=0,s=40,vmin=MIN, vmax=MAX)
+        #    plt.colorbar()
+        #    plt.subplot(1,4,3)
+        #    plt.scatter(Xv[:,0],Xv[:,1], c= params_interp[:,i],lw=0,s=40,vmin=MIN, vmax=MAX)
+        #    plt.colorbar()
+        #    plt.subplot(1,4,4)
+        #    plt.scatter(Xv[:,0],Xv[:,1], c= params_validation[:,i] - params_interp[:,i],lw=0,s=40)
+        #    plt.colorbar()
 
 if __name__ == '__main__':
 
-    #tt = make_average(gp = True)
     test_meanify()
-    #def _getcoord(star):
-    #    return np.array([star.data[key] for key in ['u','v']])
-
-    #x = np.random.uniform(0, 2048, size=1000)
-    #y = np.random.uniform(0, 2048, size=1000)
-    #coord = np.array([x,y]).T
-    #average = make_average(Coord=coord)
-
-    #stars = params_to_stars(average, noise=0.0, rng=None)
-    #stars_training = stars[:900]
-    #stars_validation = stars[900:]
-
-    #gp = piff.GPInterp2pcf(kernel="0.0025 * RBF(300.*0.26)",
-    #                       optimize=False, white_noise=1e-3, average_fits='output/average.fits')
-    #gp.initialize(stars_training)
-    #gp.solve(stars_training)
-    #stars_interp = gp.interpolateList(stars_validation)
-
-    #params_interp = np.array([s.fit.params for s in stars_interp])
-    #params_validation = np.array([s.fit.params for s in stars_validation])
-    #params_training = np.array([s.fit.params for s in stars_training])
-
-    #Xt = np.array([_getcoord(s) for s in stars_training])
-    #Xv = np.array([_getcoord(s) for s in stars_validation]) 
-
-    #import pylab as plt
-
-    #for i in range(3):
-    #    plt.figure()
-    #    plt.hist(params_validation[:,i]-np.mean(params_validation[:,i]),bins=np.linspace(-0.20,0.20,30),histtype='step',color='blue',lw=3)
-    #    plt.hist((params_validation[:,i] - params_interp[:,i]),bins=np.linspace(-0.02,0.02,30),histtype='step',color='k',lw=3)
-
-    #for i in range(3):
-    #    MIN = np.min(params_training[:,i])
-    #    MAX = np.max(params_training[:,i])
-    #    plt.figure(figsize=(15,4))
-    #    plt.subplots_adjust(left=0.05,right=0.95)
-    #    plt.subplot(1,4,1)
-    #    plt.scatter(Xt[:,0],Xt[:,1], c= params_training[:,i],lw=0,s=40, vmin=MIN, vmax=MAX)
-    #    plt.colorbar()
-    #    plt.subplot(1,4,2)
-    #    plt.scatter(Xv[:,0],Xv[:,1], c= params_validation[:,i],lw=0,s=40,vmin=MIN, vmax=MAX)
-    #    plt.colorbar()
-    #    plt.subplot(1,4,3)
-    #    plt.scatter(Xv[:,0],Xv[:,1], c= params_interp[:,i],lw=0,s=40,vmin=MIN, vmax=MAX)
-    #    plt.colorbar()
-    #    plt.subplot(1,4,4)
-    #    plt.scatter(Xv[:,0],Xv[:,1], c= params_validation[:,i] - params_interp[:,i],lw=0,s=40)#,vmin=MIN, vmax=MAX)
-    #    plt.colorbar()
+    test_gp_meanify()
