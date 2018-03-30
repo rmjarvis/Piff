@@ -313,7 +313,7 @@ class GPInterp2pcf(Interp):
             #self._spatial_average = self._pca.transform(self._spatial_average)
 
         if self.normalize:
-            self._mean = np.mean(y - self._spatial_average, axis=0)
+            self._mean = np.array([np.mean(y[:,i] - self._spatial_average[:,i]) for i in range(self.nparams)])
         else:
             self._mean = np.zeros(self.nparams)
 
