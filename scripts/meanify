@@ -18,7 +18,7 @@ import sys
 import piff
 
 def parse_args():
-    """Handle the command line arguments to plotify executable.
+    """Handle the command line arguments to meanify executable.
 
     Returns the args as an argparse.Namespace object.
 
@@ -78,7 +78,7 @@ def main():
 
     logger.warn('Using config file %s'%args.config_file)
 
-    # Run the plotify function
+    # Run the meanify function
     piff.meanify(config, logger)
 
 if __name__ == '__main__':
