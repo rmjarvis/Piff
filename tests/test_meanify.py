@@ -183,7 +183,7 @@ def setup():
         piff.piffify(config)
 
 @timer
-def test_meanify():
+def test_1_meanify():
     
     setup()
     psf_file = os.path.join('output','test_mean_*.piff')
@@ -207,7 +207,7 @@ def test_meanify():
         np.testing.assert_allclose(params0[key], average['PARAMS0'][0][:,i], rtol=1e-1, atol=1e-2)
 
 @timer
-def test_gp_meanify():
+def test_2_gp_meanify():
 
     np.random.seed(68)
     x = np.random.uniform(0, 2048, size=1000)
@@ -235,5 +235,5 @@ def test_gp_meanify():
 
 if __name__ == '__main__':
 
-    test_meanify()
-    test_gp_meanify()
+    test_1_meanify()
+    test_2_gp_meanify()
