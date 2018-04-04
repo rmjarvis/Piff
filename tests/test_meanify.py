@@ -18,8 +18,6 @@ import galsim
 import numpy as np
 import piff
 import os
-import subprocess
-import yaml
 import fitsio
 
 from piff_test_helper import get_script_name, timer
@@ -115,13 +113,6 @@ def make_average(Coord=None, gp=True):
             params['g1'] += np.random.multivariate_normal([0]*len(x), cov)
             params['g2'] += np.random.multivariate_normal([0]*len(x), cov)
 
-    #import pylab as plt
-    #for key  in keys:
-    #    plt.scatter(x, y, c=params[key], lw = 0, s=40)
-    #    plt.colorbar()
-    #    plt.title(key)
-    #    plt.show()
-
     params['u'] = x
     params['v'] = y
     params['flux'] = np.ones_like(average)
@@ -211,11 +202,9 @@ def test_meanify():
     average = fitsio.read(average_file)
     params0 = make_average(Coord=average['COORDS0'][0] / 0.26, gp=False)
     keys = ['hlr', 'g1', 'g2']
-    #import pylab as plt
+
     for i,key in enumerate(keys):
-        #plt.hist(params0[key] - average['PARAMS0'][0][:,i],np.linspace(-0.02,0.02,30))
         np.testing.assert_allclose(params0[key], average['PARAMS0'][0][:,i], rtol=1e-1, atol=1e-2)
-        #plt.show()
 
 @timer
 def test_gp_meanify():
@@ -243,36 +232,6 @@ def test_gp_meanify():
         params_validation = np.array([s.fit.params for s in stars_validation])
         params_training = np.array([s.fit.params for s in stars_training])
         np.testing.assert_allclose(params_interp, params_validation, rtol=1e-1, atol=1e-2)
-
-        #def _getcoord(star):
-        #    return np.array([star.data[key] for key in ['u','v']])
-        #Xt = np.array([_getcoord(s) for s in stars_training])
-        #Xv = np.array([_getcoord(s) for s in stars_validation]) 
-    
-        #import pylab as plt
-
-        #for i in range(3):
-        #    plt.figure()
-        #    plt.hist(params_validation[:,i]-np.mean(params_validation[:,i]),bins=np.linspace(-0.20,0.20,30),histtype='step',color='blue',lw=3)
-        #    plt.hist((params_validation[:,i] - params_interp[:,i]),bins=np.linspace(-0.02,0.02,30),histtype='step',color='k',lw=3)
-
-        #for i in range(3):
-        #    MIN = np.min(params_training[:,i])
-        #    MAX = np.max(params_training[:,i])
-        #    plt.figure(figsize=(15,4))
-        #    plt.subplots_adjust(left=0.05,right=0.95)
-        #    plt.subplot(1,4,1)
-        #    plt.scatter(Xt[:,0],Xt[:,1], c= params_training[:,i],lw=0,s=40, vmin=MIN, vmax=MAX)
-        #    plt.colorbar()
-        #    plt.subplot(1,4,2)
-        #    plt.scatter(Xv[:,0],Xv[:,1], c= params_validation[:,i],lw=0,s=40,vmin=MIN, vmax=MAX)
-        #    plt.colorbar()
-        #    plt.subplot(1,4,3)
-        #    plt.scatter(Xv[:,0],Xv[:,1], c= params_interp[:,i],lw=0,s=40,vmin=MIN, vmax=MAX)
-        #    plt.colorbar()
-        #    plt.subplot(1,4,4)
-        #    plt.scatter(Xv[:,0],Xv[:,1], c= params_validation[:,i] - params_interp[:,i],lw=0,s=40)
-        #    plt.colorbar()
 
 if __name__ == '__main__':
 

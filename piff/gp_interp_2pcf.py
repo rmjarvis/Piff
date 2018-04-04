@@ -19,7 +19,6 @@
 import numpy as np
 import treecorr
 import copy
-import dill
 
 from sklearn.gaussian_process.kernels import Kernel
 from sklearn.neighbors import KNeighborsRegressor
@@ -34,29 +33,32 @@ class GPInterp2pcf(Interp):
     """
     An interpolator that uses two-point correlation function and gaussian process to interpolate a single surface.
 
-    :param keys:        A list of star attributes to interpolate from. Must be 2 attributes
-                        using two-point correlation function to estimate hyperparameter(s)
-    :param kernel:      A string that can be `eval`ed to make a
-                        sklearn.gaussian_process.kernels.Kernel object.  The reprs of
-                        sklearn.gaussian_process.kernels will work, as well as the repr of a
-                        custom piff VonKarman object.  [default: 'RBF(1)']
-    :param optimize:    Boolean indicating whether or not to try and optimize the kernel by
-                        computing the two-point correlation function.  [default: True]
-    :param npca:        Number of principal components to keep. If !=0 pca is done on
-                        PSF parameters before any interpolation, and it will be the PC that will
-                        be interpolate and then retransform in PSF parameters. [default: 0, which
-                        means don't decompose PSF parameters into principle components.]
-    :param normalize:   Whether to normalize the interpolation parameters to have a mean of 0.
-                        Normally, the parameters being interpolated are not mean 0, so you would
-                        want this to be True, but if your parameters have an a priori mean of 0,
-                        then subtracting off the realized mean would be invalid.  [default: True]
-    :param white_noise: A float value that indicate the ammount of white noise that you want to
-                        use during the gp interpolation. This is an additional uncorrelated noise
-                        added to the error of the PSF parameters. [default: 0.]
-    :param logger:      A logger object for logging debug info. [default: None]
+    :param keys:         A list of star attributes to interpolate from. Must be 2 attributes
+                         using two-point correlation function to estimate hyperparameter(s)
+    :param kernel:       A string that can be `eval`ed to make a
+                         sklearn.gaussian_process.kernels.Kernel object.  The reprs of
+                         sklearn.gaussian_process.kernels will work, as well as the repr of a
+                         custom piff VonKarman object.  [default: 'RBF(1)']
+    :param optimize:     Boolean indicating whether or not to try and optimize the kernel by
+                         computing the two-point correlation function.  [default: True]
+    :param npca:         Number of principal components to keep. If !=0 pca is done on
+                         PSF parameters before any interpolation, and it will be the PC that will
+                         be interpolate and then retransform in PSF parameters. [default: 0, which
+                         means don't decompose PSF parameters into principle components.]
+    :param normalize:    Whether to normalize the interpolation parameters to have a mean of 0.
+                         Normally, the parameters being interpolated are not mean 0, so you would
+                         want this to be True, but if your parameters have an a priori mean of 0,
+                         then subtracting off the realized mean would be invalid.  [default: True]
+    :param white_noise:  A float value that indicate the ammount of white noise that you want to
+                         use during the gp interpolation. This is an additional uncorrelated noise
+                         added to the error of the PSF parameters. [default: 0.]
+    :param average_fits: A fits file that have the spatial average functions of PSF parameters 
+                         build in it. Build using meanify and piff output across different 
+                         exposures. See meanify documentation. [default: None]
+    :param logger:       A logger object for logging debug info. [default: None]
     """
     def __init__(self, keys=('u','v'), kernel='RBF(1)', optimize=True, npca=0, normalize=True,
-                 logger=None, white_noise=0., average_fits=None):
+                 white_noise=0., average_fits=None, logger=None):
 
         self.keys = keys
         self.npca = npca
@@ -89,6 +91,8 @@ class GPInterp2pcf(Interp):
         self._2pcf_fit = []
 
         if average_fits is not None:
+            if npca != 0:
+                raise ValueError('npca can be only 0 for the moment when average_fits is not None')
             import fitsio
             average = fitsio.read(average_fits)
             X0 = average['COORDS0'][0]
@@ -213,9 +217,7 @@ class GPInterp2pcf(Interp):
                           for i, ker in enumerate(self.kernels)]).T
 
         spatial_average = self._build_average(Xstar)
-        ##if self.npca>0:
-        ##    # need to check if it is ok 
-        ##    spatial_average = self._pca.transform(spatial_average)
+
         for i in range(self.nparams):
             ystar[:,i] += self._mean[i] + spatial_average[:,i]
         if self.npca > 0:
@@ -271,6 +273,11 @@ class GPInterp2pcf(Interp):
         return stars
 
     def _build_average(self, X):
+        """Compute spatial average for a given coordinate using KN interpolation.
+        If no average_fits was given, return array of 0. 
+
+        :param X: Coordinates of training stars or coordinates where to interpolate. (n_samples, 2)
+        """
         if np.sum(np.equal(self._X0, 0)) != len(self._X0[:,0])*len(self._X0[0]):
             neigh = KNeighborsRegressor(n_neighbors=4)
             neigh.fit(self._X0, self._y0)
@@ -279,7 +286,7 @@ class GPInterp2pcf(Interp):
         else:
             return np.zeros((len(X[:,0]), self.nparams))
 
-    def solve(self, stars=None, stars0=None, logger=None):
+    def solve(self, stars=None, logger=None):
         """Set up this GPInterp object.
 
         :param stars:    A list of Star instances to interpolate between
@@ -309,8 +316,6 @@ class GPInterp2pcf(Interp):
             y_err = self._pca.transform(y_err)
             self._y_pca, self._y_pca_err = y, y_err
             self.nparams = self.npca
-            # need to check if it is ok with math
-            #self._spatial_average = self._pca.transform(self._spatial_average)
 
         if self.normalize:
             self._mean = np.array([np.mean(y[:,i] - self._spatial_average[:,i]) for i in range(self.nparams)])
