@@ -193,7 +193,7 @@ def plotify(config, logger=None):
         stats.write(logger=logger)
 
 def meanify(config, logger=None):
-    """Take Piff model(s), build an average of the FoV, and execute output.
+    """Take Piff output(s), build an average of the FoV, and wirte output average.
 
     :param config:      The configuration file that defines how to build the model
     :param logger:      A logger object for logging progress. [default: None]
@@ -264,12 +264,6 @@ def meanify(config, logger=None):
         file_name_out = os.path.join(config['output']['dir'], file_name)
     file_name_out = config['output']['file_name']
 
-    # TO DO/REPLACE
-    #hdu = fitsio.FITS('psf_0.piff') 
-    # piff.Star.read(hdu, 'psf_stars')
-    
-    #psfs = [PSF.read(f, logger=logger) for f in file_name_in]
-
     def _getcoord(star):
         return np.array([star.data[key] for key in ['u', 'v']])
 
@@ -290,14 +284,8 @@ def meanify(config, logger=None):
     lv_min, lv_max = np.min(coords[:,1]), np.max(coords[:,1])
 
     binning = [np.linspace(lu_min, lu_max, binning),np.linspace(lv_min, lv_max, binning)]
-    #import pylab as plt
-    #plt.figure()
-    #plt.scatter(coords[:,0], coords[:,1],s=10,lw=0)
     counts, u0, v0 = np.histogram2d(coords[:,0], coords[:,1], bins=binning)
     counts = counts.T
-    #plt.figure()
-    #plt.pcolor(u0, v0, counts)
-    #plt.show()
     counts = counts.reshape(-1)
 
     params0 = np.zeros((len(counts),len(params[0])))
@@ -314,12 +302,6 @@ def meanify(config, logger=None):
     u0, v0 = np.meshgrid(u0, v0)
 
     coords0 = np.array([u0.reshape(-1), v0.reshape(-1)]).T
-    #print(np.shape(coords0))
-    #print(np.shape(params0))
-    #print(np.shape(coords0[0]))
-    #print(np.shape(params0[0]))
-    #print(np.shape(u0))
-    #print(np.shape(u0))
 
     dtypes = [('COORDS0', coords0.dtype, coords0.shape),
               ('PARAMS0', params0.dtype, params0.shape),
