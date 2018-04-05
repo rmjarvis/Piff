@@ -256,9 +256,10 @@ def meanify(config, logger=None):
 
     file_name_in = config['input']['file_name']
     logger.info("Looking for PSF at %s", file_name_in)
-    if 'dir' in config['output']:
-        file_name_out = os.path.join(config['output']['dir'], file_name)
+
     file_name_out = config['output']['file_name']
+    if 'dir' in config['output']:
+        file_name_out = os.path.join(config['output']['dir'], file_name_out)
 
     def _getcoord(star):
         return np.array([star.data[key] for key in ['u', 'v']])

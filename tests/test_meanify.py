@@ -183,7 +183,7 @@ def setup():
         piff.piffify(config)
 
 @timer
-def test_1_meanify():
+def test_meanify():
     setup()
     psf_file = 'test_mean_*.piff'
     average_file = 'average.fits'
@@ -204,12 +204,11 @@ def test_1_meanify():
     params0 = make_average(Coord=average['COORDS0'][0] / 0.26, gp=False)
     keys = ['hlr', 'g1', 'g2']
 
+    ## test if found initial average
     for i,key in enumerate(keys):
         np.testing.assert_allclose(params0[key], average['PARAMS0'][0][:,i], rtol=1e-1, atol=1e-2)
 
-@timer
-def test_2_gp_meanify():
-
+    ## gaussian process testing of meanify 
     np.random.seed(68)
     x = np.random.uniform(0, 2048, size=1000)
     y = np.random.uniform(0, 2048, size=1000)
@@ -236,5 +235,4 @@ def test_2_gp_meanify():
 
 if __name__ == '__main__':
 
-    test_1_meanify()
-    test_2_gp_meanify()
+    test_meanify()
