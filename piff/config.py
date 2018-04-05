@@ -238,7 +238,7 @@ def meanify(config, logger=None):
         psf_list = config['input']['file_name']
         if len(psf_list) == 0:
             raise ValueError("file_name may not be an empty list")
-    elif isinstance(config['input']['file_name'], basestring):
+    elif isinstance(config['input']['file_name'], str):
         file_name = config['input']['file_name']
         if dir is not None:
             file_name = os.path.join(dir, file_name)
