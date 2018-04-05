@@ -243,9 +243,6 @@ def meanify(config, logger=None):
         if dir is not None:
             file_name = os.path.join(dir, file_name)
         psf_list = sorted(glob.glob(file_name))
-        if dir is not None:
-            k = len(dir) + 1
-            psf_list = [ f[k:] for f in psf_list ]
         if len(psf_list) == 0:
             raise ValueError("No files found corresponding to "+config['file_name'])
     elif not isinstance(config['file_name'], dict):
@@ -258,7 +255,6 @@ def meanify(config, logger=None):
         config['input']['file_name'] = psf_list
 
     file_name_in = config['input']['file_name']
-    
     logger.info("Looking for PSF at %s", file_name_in)
     if 'dir' in config['output']:
         file_name_out = os.path.join(config['output']['dir'], file_name)
@@ -310,7 +306,6 @@ def meanify(config, logger=None):
 
     data['COORDS0'] = coords0
     data['PARAMS0'] = params0
-    
+
     with fitsio.FITS(file_name_out,'rw',clobber=True) as f:
         f.write_table(data, extname='average_solution')
-

@@ -184,17 +184,18 @@ def setup():
 
 @timer
 def test_1_meanify():
-    
     setup()
-    psf_file = os.path.join('output','test_mean_*.piff')
-    average_file = os.path.join('output','average.fits')
+    psf_file = 'test_mean_*.piff'
+    average_file = 'average.fits'
     config = {
         'input' : {
             'file_name' : psf_file,
             'binning' : 15,
+            'dir': 'output',
         },
         'output' : {
             'file_name' : average_file,
+            'dir': 'output',
         }}
 
     piff.meanify(config)
