@@ -839,6 +839,26 @@ def test_single_image():
         test_star = psf.drawStar(target_star)
         np.testing.assert_almost_equal(test_star.image.array/2., test_im.array/2., decimal=3)
 
+    # test copy_image property of drawStar and draw
+    for draw in [psf.drawStar, psf.model.draw]:
+        target_star_copy = psf.interp.interpolate(piff.Star(target_star.data.copy(), target_star.fit.copy()))  # interp is so that when we do psf.model.draw we have fit.params to work with
+
+        test_star_copy = draw(target_star_copy, copy_image=True)
+        test_star_nocopy = draw(target_star_copy, copy_image=False)
+        # if we modify target_star_copy, then test_star_nocopy should be modified, but not test_star_copy
+        target_star_copy.image.array[0,0] = 23456
+        assert test_star_nocopy.image.array[0,0] == target_star_copy.image.array[0,0]
+        assert test_star_copy.image.array[0,0] != target_star_copy.image.array[0,0]
+        # however the other pixels SHOULD still be all the same value
+        assert test_star_nocopy.image.array[1,1] == target_star_copy.image.array[1,1]
+        assert test_star_copy.image.array[1,1] == target_star_copy.image.array[1,1]
+
+    # check that drawing onto an image does not return a copy
+    image = psf.draw(x=x0, y=y0)
+    image_reference = psf.draw(x=x0, y=y0, image=image)
+    image_reference.array[0,0] = 123456
+    assert image.array[0,0] == image_reference.array[0,0]
+
 @timer
 def test_des_image():
     """Test the whole process with a DES CCD.
