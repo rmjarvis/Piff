@@ -200,7 +200,7 @@ def test_meanify():
 
     piff.meanify(config)
 
-    average = fitsio.read(average_file)
+    average = fitsio.read(os.path.join('output',average_file))
     params0 = make_average(Coord=average['COORDS0'][0] / 0.26, gp=False)
     keys = ['hlr', 'g1', 'g2']
 
