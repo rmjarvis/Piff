@@ -267,11 +267,22 @@ def test_io():
     for do_params in [False, True]:
         # test both case we have params and case we do not
         if do_params:
-            # add params and params_var
             params = np_rng.random_sample((nstars, 3))
             params_var = np_rng.random_sample((nstars, 3))
-            for star, p, pv in zip(stars, params, params_var):
+            new_fluxes = np_rng.random_sample(nstars) * 10000
+            for star, p, pv, f in zip(stars, params, params_var, new_fluxes):
+                old_flux = star.fit.flux
+                old_center = star.fit.center
+                # first do test without specifying new flux
                 star.fit = star.fit.newParams(p, params_var=pv)
+                assert star.fit.flux != f
+                assert star.fit.flux == old_flux
+                assert star.fit.center == old_center
+                # now specify new flux
+                star.fit = star.fit.newParams(p, params_var=pv, flux=f)
+                assert star.fit.flux == f
+                assert star.fit.flux != old_flux
+                assert star.fit.center == old_center
 
         file_name = os.path.join('output','star_io.fits')
         print('Writing stars to ',file_name)
