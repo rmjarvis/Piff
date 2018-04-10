@@ -187,26 +187,38 @@ def test_meanify():
     setup()
     psf_file = 'test_mean_*.piff'
     average_file = 'average.fits'
-    config = {
+
+    psfs_list = []
+    for i in range(20):
+        psfs_list.append('output/test_mean_%i.piff'%i)
+
+    config0 = {
+        'input' : {
+            'file_name' : psfs_list,
+        },
+        'output' : {
+            'file_name' : 'output/'+average_file,
+        }}
+
+    config1 = {
         'input' : {
             'file_name' : psf_file,
-            'binning' : 15,
             'dir': 'output',
         },
         'output' : {
             'file_name' : average_file,
             'dir': 'output',
+            'binning' : 15,
         }}
 
-    piff.meanify(config)
-
-    average = fitsio.read(os.path.join('output',average_file))
-    params0 = make_average(Coord=average['COORDS0'][0] / 0.26, gp=False)
-    keys = ['hlr', 'g1', 'g2']
-
-    ## test if found initial average
-    for i,key in enumerate(keys):
-        np.testing.assert_allclose(params0[key], average['PARAMS0'][0][:,i], rtol=1e-1, atol=1e-2)
+    for config in [config0, config1]:
+        piff.meanify(config)
+        ## test if found initial average
+        average = fitsio.read(os.path.join('output',average_file))
+        params0 = make_average(Coord=average['COORDS0'][0] / 0.26, gp=False)
+        keys = ['hlr', 'g1', 'g2']
+        for i,key in enumerate(keys):
+            np.testing.assert_allclose(params0[key], average['PARAMS0'][0][:,i], rtol=1e-1, atol=1e-2)
 
     ## gaussian process testing of meanify 
     np.random.seed(68)
@@ -227,7 +239,6 @@ def test_meanify():
         gp.initialize(stars_training)
         gp.solve(stars_training)
         stars_interp = gp.interpolateList(stars_validation)
-        
         params_interp = np.array([s.fit.params for s in stars_interp])
         params_validation = np.array([s.fit.params for s in stars_validation])
         params_training = np.array([s.fit.params for s in stars_training])
