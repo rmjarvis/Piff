@@ -226,13 +226,13 @@ def meanify(config, logger=None):
     else:
         dir = None
 
-    if 'binning' in config['input']:
-        if type(config['input']['binning']) is not int:
-            ValueError("type of binning should be integer (%s now)"%type(config['input']['binning']))
+    if 'binning' in config['output']:
+        if type(config['output']['binning']) is not int:
+            ValueError("type of binning should be integer (%s now)"%type(config['output']['binning']))
         else:
-            binning = config['input']['binning']
+            binning = config['output']['binning']
     else:
-        binning = 50
+        binning = 15
 
     if isinstance(config['input']['file_name'], list):
         psf_list = config['input']['file_name']
