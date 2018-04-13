@@ -252,10 +252,15 @@ def test_single_image():
 
     # Round trip to a file
     psf.write(psf_file, logger)
-    psf = piff.read(psf_file, logger)
-    assert type(psf.model) is piff.Gaussian
-    assert type(psf.interp) is piff.Mean
-    test_star = psf.interp.interpolate(target)
+    psf2 = piff.read(psf_file, logger)
+    assert type(psf2.model) is piff.Gaussian
+    assert type(psf2.interp) is piff.Mean
+    assert psf2.chisq == psf.chisq
+    assert psf2.last_delta_chisq == psf.last_delta_chisq
+    assert psf2.chisq_threshold == psf.chisq_threshold
+    assert psf2.dof == psf.dof
+    assert psf2.nremoved == psf.nremoved
+    test_star = psf2.interp.interpolate(target)
     np.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=4)
 
     # Do the whole thing with the config parser
