@@ -750,7 +750,7 @@ class StarData(object):
             mask = wt != 0.
             return pix[mask], wt[mask], u[mask], v[mask]
 
-    def setData(self, data, include_zero_weight=False):
+    def setData(self, data, include_zero_weight=False, copy_image=True):
         """Return new StarData with data values replaced by elements of provided 1d array.
         The array should match the ordering of the one that is produced by getDataVector().
 
@@ -758,13 +758,19 @@ class StarData(object):
         :param include_zero_weight: If True, the data array includes all pixels.
                                     If False, it only includes the pixels with weight > 0.
                                     [default: False]
+        :param copy_image:          If False, will use the same image object.
+                                    If True, will copy the image and then overwrite it.
+                                    [default: True]
 
         :returns:    New StarData structure
         """
         # ??? Do we need a way to fill in pixels that have zero weight and
         # don't get passed out by getDataVector()???
 
-        newimage = self.image.copy()
+        if copy_image:
+            newimage = self.image.copy()
+        else:
+            newimage = self.image
         if include_zero_weight:
             newimage.array[:,:] = data.reshape(newimage.array.shape)
         else:
