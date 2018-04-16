@@ -22,6 +22,7 @@ import numpy as np
 import galsim
 
 from .stats import Stats
+from .star import Star, StarFit
 
 class StarStats(Stats):
     """This Statistics class can take stars and make a set of plots of them as
@@ -37,7 +38,7 @@ class StarStats(Stats):
         :indices:       Indices of input stars that the plotting stars correspond to
     """
 
-    def __init__(self, number_plot=5,
+    def __init__(self, number_plot=5, adjust_stars=False,
                  file_name=None, logger=None):
         """
         :param number_plot:         Number of stars we wish to plot. If 0 or
@@ -45,12 +46,14 @@ class StarStats(Stats):
                                     plot all stars. Otherwise, we draw
                                     number_plot stars at random (without
                                     replacement). [default: 5]
+        :param adjust_stars:        Boolean. If true, when computing, will also fit for best starfit center and flux to match observed star. [default: False]
         :param file_name:           Name of the file to output to. [default: None]
         :param logger:              A logger object for logging debug info. [default: None]
         """
 
         self.number_plot = number_plot
         self.file_name = file_name
+        self.adjust_stars = adjust_stars
 
     def compute(self, psf, stars, logger=None):
         """
@@ -70,8 +73,70 @@ class StarStats(Stats):
         self.stars = []
         for index in self.indices:
             star = stars[index]
+            if self.adjust_stars:
+                star = self.fit_star(star, psf=psf, logger=logger)
             self.stars.append(star)
         self.models = psf.drawStarList(self.stars)
+
+    def fit_star(self, star, psf, logger=None):
+        """Adjust star.fit.flux and star.fit.center
+
+        :param star:        Star we want to adjust
+        :param psf:         PSF with which we adjust
+        :param logger:      A logger object for logging debug info. [default: None]
+
+        :returns: Star with modified fit and center
+        """
+        import lmfit
+        # create lmfit
+        lmparams = lmfit.Parameters()
+        # put in initial guesses for flux, du, dv if they exist
+        flux = star.fit.flux
+        du, dv = star.fit.center
+        # Order of params is important!
+        lmparams.add('flux', value=flux, vary=True, min=0.0)
+        lmparams.add('du', value=du, vary=True, min=-1, max=1)
+        lmparams.add('dv', value=dv, vary=True, min=-1, max=1)
+
+        # run lmfit
+        results = lmfit.minimize(self._fit_residual, lmparams,
+                                 args=(star, psf, logger,),
+                                 method='leastsq', epsfcn=1e-8,
+                                 maxfev=500)
+
+        # report results
+        logger.debug('Adjusted Star Fit Results:')
+        logger.debug(lmfit.fit_report(results))
+
+        # create new star with new fit
+        flux = results.params['flux'].value
+        du = results.params['du'].value
+        dv = results.params['dv'].value
+        center = (du, dv)
+        # also update the chisq, but keep the rest of the parameters from model fit
+        chisq = results.chisqr
+        fit = StarFit(star.fit.params, params_var=star.fit.params_var,
+                flux=flux, center=center, chisq=chisq, dof=star.fit.dof,
+                alpha=star.fit.alpha, beta=star.fit.beta,
+                worst_chisq=star.fit.worst_chisq)
+        star_fit = Star(star.data, fit)
+
+        return star_fit
+
+    def _fit_residual(self, lmparams, star, psf, logger=None):
+        # modify star's fit values
+        flux, du, dv = lmparams.valuesdict().values()
+        star.fit.flux = flux
+        star.fit.center = (du, dv)
+
+        # draw star
+        image_model = psf.drawStar(star).image
+
+        # get chi
+        image, weight, image_pos = star.data.getImage()
+        chi = (np.sqrt(weight.array) * (image_model.array - image.array)).flatten()
+
+        return chi
 
     def plot(self, logger=None, **kwargs):
         """Make the plots.

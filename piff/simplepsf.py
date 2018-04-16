@@ -25,6 +25,7 @@ from .model import Model, ModelFitError
 from .interp import Interp
 from .outliers import Outliers
 from .psf import PSF
+from .util import write_kwargs, read_kwargs
 
 class SimplePSF(PSF):
     """A PSF class that uses a single model and interpolator.
@@ -209,6 +210,13 @@ class SimplePSF(PSF):
             dof   = np.sum([s.fit.dof for s in self.stars])
             logger.warning("             Total chisq = %.2f / %d dof", chisq, dof)
 
+            # Save these so we can write them to the output file.
+            self.chisq_threshold = chisq_threshold
+            self.chisq = chisq
+            self.last_delta_chisq = oldchisq-chisq
+            self.dof = dof
+            self.nremoved = nremoved
+
             # Very simple convergence test here:
             # Note, the lack of abs here means if chisq increases, we also stop.
             # Also, don't quit if we removed any outliers.
@@ -218,33 +226,39 @@ class SimplePSF(PSF):
 
         logger.warning("PSF fit did not converge.  Max iterations = %d reached.",max_iterations)
 
-    def drawStarList(self, stars):
+    def drawStarList(self, stars, copy_image=True):
         """Generate PSF images for given stars. Takes advantage of
         interpolateList for significant speedup with some interpolators.
 
         :param stars:       List of Star instances holding information needed
                             for interpolation as well as an image/WCS into
                             which PSF will be rendered.
+        :param copy_image:          If False, will use the same image object.
+                                    If True, will copy the image and then overwrite it.
+                                    [default: True]
 
         :returns:           List of Star instances with its image filled with
                             rendered PSF
         """
         stars_interpolated = self.interp.interpolateList(stars)
-        stars_drawn = [self.model.draw(star) for star in stars_interpolated]
+        stars_drawn = [self.model.draw(star, copy_image=copy_image) for star in stars_interpolated]
         return stars_drawn
 
-    def drawStar(self, star):
+    def drawStar(self, star, copy_image=True):
         """Generate PSF image for a given star.
 
         :param star:        Star instance holding information needed for interpolation as
                             well as an image/WCS into which PSF will be rendered.
+        :param copy_image:          If False, will use the same image object.
+                                    If True, will copy the image and then overwrite it.
+                                    [default: True]
 
         :returns:           Star instance with its image filled with rendered PSF
         """
         # Interpolate parameters to this position/properties:
         star = self.interp.interpolate(star)
         # Render the image
-        return self.model.draw(star)
+        return self.model.draw(star, copy_image=copy_image)
 
     def _finish_write(self, fits, extname, logger):
         """Finish the writing process with any class-specific steps.
@@ -254,6 +268,18 @@ class SimplePSF(PSF):
         :param logger:      A logger object for logging debug info.
         """
         logger = galsim.config.LoggerWrapper(logger)
+        if hasattr(self, 'chisq'):
+            chisq_dict = {
+                'chisq_threshold' : self.chisq_threshold,
+                'chisq' : self.chisq,
+                'last_delta_chisq' : self.last_delta_chisq,
+                'dof' : self.dof,
+                'nremoved' : self.nremoved,
+            }
+        else:
+            chisq_dict = {}
+        write_kwargs(fits, extname + '_chisq', chisq_dict)
+        logger.debug("Wrote the chisq info to extension %s",extname + '_chisq')
         self.model.write(fits, extname + '_model')
         logger.debug("Wrote the PSF model to extension %s",extname + '_model')
         self.interp.write(fits, extname + '_interp')
@@ -269,6 +295,9 @@ class SimplePSF(PSF):
         :param extname:     The base name of the extension to write to.
         :param logger:      A logger object for logging debug info.
         """
+        chisq_dict = read_kwargs(fits, extname + '_chisq')
+        for key in chisq_dict:
+            setattr(self, key, chisq_dict[key])
         self.model = Model.read(fits, extname + '_model')
         self.interp = Interp.read(fits, extname + '_interp')
         if extname + '_outliers' in fits:

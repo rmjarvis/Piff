@@ -542,12 +542,15 @@ class PixelGrid(Model):
 
         return Star(star.data, outfit)
 
-    def draw(self, star):
+    def draw(self, star, copy_image=True):
         """Create new Star instance that has StarData filled with a rendering
         of the PSF specified by the current StarFit parameters, flux, and center.
         Coordinate mapping of the current StarData is assumed.
 
         :param star:   A Star instance
+        :param copy_image:          If False, will use the same image object.
+                                    If True, will copy the image and then overwrite it.
+                                    [default: True]
 
         :returns:      New Star instance with rendered PSF in StarData
         """
@@ -572,7 +575,7 @@ class PixelGrid(Model):
             # Change data from surface brightness into flux
             model *= star.data.pixel_area
 
-        return Star(star.data.setData(model,include_zero_weight=True), star.fit)
+        return Star(star.data.setData(model,include_zero_weight=True, copy_image=copy_image), star.fit)
 
     def reflux(self, star, fit_center=True, logger=None):
         """Fit the Model to the star's data, varying only the flux (and
