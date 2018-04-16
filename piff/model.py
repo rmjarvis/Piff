@@ -106,12 +106,15 @@ class Model(object):
         """
         raise NotImplementedError("Derived classes must define the fit function")
 
-    def draw(self, star):
+    def draw(self, star, copy_image=True):
         """Create new Star instance that has star.data filled with a rendering
         of the PSF specified by the current StarFit parameters, flux, and center.
         Coordinate mapping of the current StarData is assumed.
 
         :param star:   A Star instance
+        :param copy_image:          If False, will use the same image object.
+                                    If True, will copy the image and then overwrite it.
+                                    [default: True]
 
         :returns:      New Star instance with rendered PSF in StarData
         """

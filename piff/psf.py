@@ -171,21 +171,28 @@ class PSF(object):
         center = star.offset_to_center(offset)
         star = star.withFlux(flux, center)
 
+        # if a user specifies an image, then we want to preserve that image, so
+        # copy_image = False. If a user doesn't specify an image, then it
+        # doesn't matter if we overwrite it, so use copy_image=False
+        copy_image = False
         # Draw the star and return the image
-        star = self.drawStar(star)
+        star = self.drawStar(star, copy_image=copy_image)
         return star.data.image
 
-    def drawStarList(self, stars):
+    def drawStarList(self, stars, copy_image=True):
         """Generate PSF images for given stars.
 
         :param stars:       List of Star instances holding information needed
                             for interpolation as well as an image/WCS into
                             which PSF will be rendered.
+        :param copy_image:          If False, will use the same image object.
+                                    If True, will copy the image and then overwrite it.
+                                    [default: True]
 
         :returns:           List of Star instances with its image filled with
                             rendered PSF
         """
-        return [self.drawStar(star) for star in stars]
+        return [self.drawStar(star, copy_image=copy_image) for star in stars]
 
     def write(self, file_name, logger=None):
         """Write a PSF object to a file.

@@ -225,6 +225,13 @@ def test_center():
         np.testing.assert_almost_equal(star2.image.array[mask]/peak, s.image.array[mask]/peak,
                                        decimal=14)
 
+        # test copy_image
+        star_copy = mod.draw(star, copy_image=True)
+        star_nocopy = mod.draw(star, copy_image=False)
+        star.image.array[0,0] = 132435
+        assert star_nocopy.image.array[0,0] == star.image.array[0,0]
+        assert star_copy.image.array[0,0] != star.image.array[0,0]
+        assert star_copy.image.array[1,1] == star.image.array[1,1]
 
 @timer
 def test_interp():
