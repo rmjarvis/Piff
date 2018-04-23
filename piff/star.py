@@ -306,6 +306,11 @@ class Star(object):
             dtypes.append( ('params', float, len(stars[0].fit.params)) )
             cols.append( [ s.fit.params for s in stars ] )
 
+        # params_var might not be set, so check if it is None
+        if stars[0].fit.params_var is not None:
+            dtypes.append( ('params_var', float, len(stars[0].fit.params_var)) )
+            cols.append( [ s.fit.params_var for s in stars ] )
+
         # If pointing is set, write that
         if stars[0].data.pointing is not None:
             dtypes.extend( [('point_ra', float), ('point_dec', float)] )
@@ -359,6 +364,12 @@ class Star(object):
         else:
             params = [ None ] * len(data)
 
+        if 'params_var' in colnames:
+            params_var = data['params_var']
+            colnames.remove('params_var')
+        else:
+            params_var = [ None ] * len(data)
+
         if 'point_ra' in colnames:
             pointing_list = [ galsim.CelestialCoord(row['point_ra'] * galsim.degrees,
                                                     row['point_dec'] * galsim.degrees)
@@ -368,8 +379,8 @@ class Star(object):
         else:
             pointing_list = [ None ] * len(data)
 
-        fit_list = [ StarFit(p, flux=f, center=c, chisq=x)
-                     for (p,f,c,x) in zip(params, flux, center, chisq) ]
+        fit_list = [ StarFit(p, flux=f, center=c, chisq=x, params_var=pv)
+                     for (p,f,c,x,pv) in zip(params, flux, center, chisq, params_var) ]
 
         # The rest of the columns are the data properties
         prop_list = [ { c : row[c] for c in colnames } for row in data ]
@@ -974,18 +985,21 @@ class StarFit(object):
         self.worst_chisq = worst_chisq
         return
 
-    def newParams(self, p):
-        """Return new StarFit that has the array p installed as new parameters.
+    def newParams(self, params, **kwargs):
+        """Return new StarFit that has the array params installed as new parameters.
 
         :param params:  A 1d array holding new parameters; must match size of current ones
+        :param kwargs:  Any other additional properties for the star. Takes current flux and center if not provided, and otherwise puts in None
 
         :returns:  New StarFit object with altered parameters.  All chisq-related parameters
                    are set to None since they are no longer valid.
         """
-        npp = np.array(p)
+        npp = np.array(params)
         if self.params is not None and npp.shape != self.params.shape:
             raise TypeError('new StarFit parameters do not match dimensions of old ones')
-        return StarFit(npp, flux=self.flux, center=self.center)
+        flux = kwargs.pop('flux', self.flux)
+        center = kwargs.pop('center', self.center)
+        return StarFit(npp, flux=flux, center=center, **kwargs)
 
     def copy(self):
         return StarFit(self.params, self.flux, self.center, self.alpha, self.beta,
