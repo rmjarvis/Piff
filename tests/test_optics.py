@@ -45,6 +45,13 @@ def test_optical(model=None):
     np.testing.assert_almost_equal(star_fitted.fit.flux, star.fit.flux)
     np.testing.assert_almost_equal(star_fitted.fit.params, star.fit.params)
 
+    # test copy_image
+    star_copy = model.draw(star, copy_image=True)
+    star_nocopy = model.draw(star, copy_image=False)
+    star.image.array[0,0] = 132435
+    assert star_nocopy.image.array[0,0] == star.image.array[0,0]
+    assert star_copy.image.array[0,0] != star.image.array[0,0]
+    assert star_copy.image.array[1,1] == star.image.array[1,1]
 
 @timer
 def test_pupil_im(pupil_plane_file='input/DECam_pupil_128.fits'):

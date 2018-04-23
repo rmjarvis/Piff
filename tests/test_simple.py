@@ -218,7 +218,18 @@ def test_single_image():
     print('mean = ',interp.mean)
 
     # Check that the interpolation is what it should be
-    target = piff.Star.makeTarget(x=1024, y=123) # Any position would work here.
+    # Any position would work here.
+    chipnum = 0
+    x = 1024
+    y = 123
+    orig_wcs = input.getWCS()[chipnum]
+    orig_pointing = input.getPointing()
+    image_pos = galsim.PositionD(x,y)
+    world_pos = piff.StarData.calculateFieldPos(image_pos, orig_wcs, orig_pointing)
+    u,v = world_pos.x, world_pos.y
+    stamp_size = config['stamp_size']
+
+    target = piff.Star.makeTarget(x=x, y=y, u=u, v=v, wcs=orig_wcs, stamp_size=stamp_size, pointing=orig_pointing)
     true_params = [ sigma, g1, g2 ]
     test_star = interp.interpolate(target)
     np.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=4)
@@ -231,7 +242,7 @@ def test_single_image():
             'cat_file_name' : cat_file,
             'flag_col' : 'flag',
             'use_col' : 'use',
-            'stamp_size' : 48
+            'stamp_size' : stamp_size
         },
         'psf' : {
             'model' : { 'type' : 'Gaussian',
@@ -256,12 +267,42 @@ def test_single_image():
     np.testing.assert_equal(test_star.fit.params, test_star_list.fit.params)
     np.testing.assert_equal(test_star.image.array, test_star_list.image.array)
 
+    # test copy_image property of drawStar and draw
+    for draw in [psf.drawStar, psf.model.draw]:
+        target_star_copy = psf.interp.interpolate(piff.Star(target.data.copy(), target.fit.copy()))  # interp is so that when we do psf.model.draw we have fit.params to work with
+
+        test_star_copy = draw(target_star_copy, copy_image=True)
+        test_star_nocopy = draw(target_star_copy, copy_image=False)
+        # if we modify target_star_copy, then test_star_nocopy should be modified, but not test_star_copy
+        target_star_copy.image.array[0,0] = 23456
+        assert test_star_nocopy.image.array[0,0] == target_star_copy.image.array[0,0]
+        assert test_star_copy.image.array[0,0] != target_star_copy.image.array[0,0]
+        # however the other pixels SHOULD still be all the same value
+        assert test_star_nocopy.image.array[1,1] == target_star_copy.image.array[1,1]
+        assert test_star_copy.image.array[1,1] == target_star_copy.image.array[1,1]
+
+    # test that draw works
+    test_image = psf.draw(x=target['x'], y=target['y'], stamp_size=config['input']['stamp_size'], flux=target.fit.flux, offset=target.fit.center)
+    # this image should be the same values as test_star
+    assert test_image == test_star.image
+    # test that draw does not copy the image
+    image_ref = psf.draw(x=target['x'], y=target['y'], stamp_size=config['input']['stamp_size'], flux=target.fit.flux, offset=target.fit.center, image=test_image)
+    image_ref.array[0,0] = 123456789
+    assert test_image.array[0,0] == image_ref.array[0,0]
+    assert test_star.image.array[0,0] != test_image.array[0,0]
+    assert test_star.image.array[1,1] == test_image.array[1,1]
+
     # Round trip to a file
     psf.write(psf_file, logger)
-    psf = piff.read(psf_file, logger)
-    assert type(psf.model) is piff.Gaussian
-    assert type(psf.interp) is piff.Mean
-    test_star = psf.interp.interpolate(target)
+    psf2 = piff.read(psf_file, logger)
+    assert type(psf2.model) is piff.Gaussian
+    assert type(psf2.interp) is piff.Mean
+    assert psf2.chisq == psf.chisq
+    assert psf2.last_delta_chisq == psf.last_delta_chisq
+    assert psf2.chisq_threshold == psf.chisq_threshold
+    assert psf2.dof == psf.dof
+    assert psf2.nremoved == psf.nremoved
+    test_star = psf2.interp.interpolate(target)
     np.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=4)
 
     # Do the whole thing with the config parser
