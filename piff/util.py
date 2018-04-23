@@ -385,3 +385,88 @@ def hsm_error(star, logger=None, return_debug=False, return_error=True):
                sigma2_e2_data, sigma2_e2_u0, sigma2_e2_v0, sigma2_e2_flux
     else:
         return flux_calc, u0_calc, v0_calc, e0_calc, e1_calc, e2_calc, sigma_flux, sigma_u0, sigma_v0, sigma_e0, sigma_e1, sigma_e2
+
+
+def hsm_higher_order(star, logger=None):
+    """ Use python implementation of HSM to measure higher order moments of star image to get errors.
+
+    Slow since it's python, not C, but we should only have to do this once per star.
+
+    calculate the error on our e0,e1,e2
+
+    $ e_0= \sum \left[ (x-x_0)^2 + (y-y_0)^2  \right] K(x,y) I(x,y) $
+
+    where K(x,y) is the HSM kernel, I(x,y) is the image, s(x,y) is the shot noise per pixel
+    so
+
+    $ \sigma^2(e_0) = \sum \left\{ \left[ (x-x_0)^2 + (y-y_0)^2  \right] K(x,y) \right\}^2 s^2(x,y) $
+
+
+    TODO: might be a factor of 2 missing still?
+    TODO: what do the _i subscripts indicate? can I cut that and keep clarity?
+    """
+    from .gsobject_model import Gaussian
+    from .star import Star
+
+    star = star.copy()
+
+    # get vectors for data, weight and u, v
+    data_i, weight_i, u_i, v_i = star.data.getDataVector(include_zero_weight=True)
+    # also get the values for the HSM kernel, which is just the fitted hsm model
+    flux, cenu, cenv, size, g1, g2, flag = hsm(star)
+    profile = galsim.Gaussian(sigma=1.0).dilate(size).shear(g1=g1, g2=g2).shift(cenu, cenv) * flux
+    image = star.image.copy()
+    profile.drawImage(image, method='no_pixel', offset=(star.image_pos-image.true_center))
+    # convert image into kernel
+    kernel_i = image.array.flatten()
+
+    # now apply mask
+    mask = weight_i != 0.
+    data_i = data_i[mask]
+    weight_i = weight_i[mask]
+    kernel_i = kernel_i[mask]
+    u_i = u_i[mask]
+    v_i = v_i[mask]
+
+    # with HSM as our starting guess, and kernel, let's use the weights for a final step. This makes everything a lot simpler, conceptually. We place all these results here, and then work through the errors later
+    flux_calc = np.sum(weight_i * data_i * kernel_i)
+    normalization = flux_calc
+
+    u0_calc = np.sum(data_i * weight_i * kernel_i * u_i) / normalization
+    v0_calc = np.sum(data_i * weight_i * kernel_i * v_i) / normalization
+    # calculate moments
+    du_i = u_i - u0_calc
+    dv_i = v_i - v0_calc
+    Muu = 2 * np.sum(data_i * weight_i * kernel_i * du_i * du_i) / normalization
+    Mvv = 2 * np.sum(data_i * weight_i * kernel_i * dv_i * dv_i) / normalization
+    Muv = 2 * np.sum(data_i * weight_i * kernel_i * du_i * dv_i) / normalization
+
+    """
+
+    Muu_true = 2 * Muu
+    e0_true = Muu_true + Mvv_true
+    e1_true = Muu_true - Mvv_true
+    e0_calc = Muu + Mvv = 0.5 e0_true
+    e1_calc = (Muu - Mvv) / 2 = 0.25 e1_true
+
+
+    Q: if kernel above is actually K^2, not K, how does above change?
+    """
+    # now e0,e1,e2
+    # also note that this defintion for e1 and e2 is /2 compared to previous definitions
+    e0_calc = Muu + Mvv
+    e1_calc = Muu - Mvv
+    e2_calc = 2 * Muv
+
+    # calculate higher order moments
+    Muuu = 2 * np.sum(data_i * weight_i * kernel_i * du_i * du_i * du_i) / normalization
+    Muuv = 2 * np.sum(data_i * weight_i * kernel_i * du_i * du_i * dv_i) / normalization
+    Muvv = 2 * np.sum(data_i * weight_i * kernel_i * du_i * dv_i * dv_i) / normalization
+    Mvvv = 2 * np.sum(data_i * weight_i * kernel_i * dv_i * dv_i * dv_i) / normalization
+
+    zeta1_calc = Muuu + Muvv
+    zeta2_calc = Mvvv + Muuv
+    delta1_calc = Muuu - 3 * Muvv
+    delta2_calc = -(Mvvv - 3 * Muuv)
+
+    return flux_calc, u0_calc, v0_calc, e0_calc, e1_calc, e2_calc, zeta1_calc, zeta2_calc, delta1_calc, delta2_calc
