@@ -264,33 +264,55 @@ def test_io():
         star.data.weight = star.data.image.copy()
         star.data.weight.array[:] = np_rng.random_sample(star.data.image.array.shape)
 
-    file_name = os.path.join('output','star_io.fits')
-    print('Writing stars to ',file_name)
-    with fitsio.FITS(file_name,'rw',clobber=True) as fout:
-        piff.Star.write(stars, fout, extname='stars')
+    for do_params in [False, True]:
+        # test both case we have params and case we do not
+        if do_params:
+            params = np_rng.random_sample((nstars, 3))
+            params_var = np_rng.random_sample((nstars, 3))
+            new_fluxes = np_rng.random_sample(nstars) * 10000
+            for star, p, pv, f in zip(stars, params, params_var, new_fluxes):
+                old_flux = star.fit.flux
+                old_center = star.fit.center
+                # first do test without specifying new flux
+                star.fit = star.fit.newParams(p, params_var=pv)
+                assert star.fit.flux != f
+                assert star.fit.flux == old_flux
+                assert star.fit.center == old_center
+                # now specify new flux
+                star.fit = star.fit.newParams(p, params_var=pv, flux=f)
+                assert star.fit.flux == f
+                assert star.fit.flux != old_flux
+                assert star.fit.center == old_center
 
-    print('Reading from ',file_name)
-    with fitsio.FITS(file_name,'r') as fin:
-        stars2 = piff.Star.read(fin, extname='stars')
+        file_name = os.path.join('output','star_io.fits')
+        print('Writing stars to ',file_name)
+        with fitsio.FITS(file_name,'rw',clobber=True) as fout:
+            piff.Star.write(stars, fout, extname='stars')
 
-    for s1, s2 in zip(stars,stars2):
-        assert s1.data['x'] == s2.data['x']
-        assert s1.data['y'] == s2.data['y']
-        assert s1.data['u'] == s2.data['u']
-        assert s1.data['v'] == s2.data['v']
-        assert s1.data['color_ri'] == s2.data['color_ri']
-        assert s1.data['color_iz'] == s2.data['color_iz']
-        assert s1.data.properties == s2.data.properties
-        assert s1.fit.flux == s2.fit.flux
-        assert all(s1.fit.center == s2.fit.center)
-        assert s1.data.image.bounds == s2.data.image.bounds
-        assert s1.data.weight.bounds == s2.data.weight.bounds
-        # The wcs doesn't have to match, but they should be locally equivalent.
-        assert s1.data.image.wcs.jacobian() == s2.data.image.wcs.jacobian()
-        assert s1.data.weight.wcs.jacobian() == s2.data.weight.wcs.jacobian()
-        # The image and weight arrays are not serialized.
-        #np.testing.assert_almost_equal(s1.data.image.array,s2.data.image.array)
-        #np.testing.assert_almost_equal(s1.data.weight.array,s2.data.weight.array)
+        print('Reading from ',file_name)
+        with fitsio.FITS(file_name,'r') as fin:
+            stars2 = piff.Star.read(fin, extname='stars')
+
+        for s1, s2 in zip(stars,stars2):
+            assert s1.data['x'] == s2.data['x']
+            assert s1.data['y'] == s2.data['y']
+            assert s1.data['u'] == s2.data['u']
+            assert s1.data['v'] == s2.data['v']
+            assert s1.data['color_ri'] == s2.data['color_ri']
+            assert s1.data['color_iz'] == s2.data['color_iz']
+            assert s1.data.properties == s2.data.properties
+            assert s1.fit.flux == s2.fit.flux
+            assert all(s1.fit.center == s2.fit.center)
+            np.testing.assert_array_equal(s1.fit.params, s2.fit.params)
+            np.testing.assert_array_equal(s1.fit.params_var, s2.fit.params_var)
+            assert s1.data.image.bounds == s2.data.image.bounds
+            assert s1.data.weight.bounds == s2.data.weight.bounds
+            # The wcs doesn't have to match, but they should be locally equivalent.
+            assert s1.data.image.wcs.jacobian() == s2.data.image.wcs.jacobian()
+            assert s1.data.weight.wcs.jacobian() == s2.data.weight.wcs.jacobian()
+            # The image and weight arrays are not serialized.
+            #np.testing.assert_almost_equal(s1.data.image.array,s2.data.image.array)
+            #np.testing.assert_almost_equal(s1.data.weight.array,s2.data.weight.array)
 
 
 if __name__ == '__main__':
