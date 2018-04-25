@@ -768,6 +768,22 @@ class OptAtmoPSF(PSF):
                       center=star.fit.center)
         return Star(data, fit)
 
+    def draw_fitted_star_given_fitted_image_and_flux(self, x, y, fitted_image, pointing, flux):
+        """Generate PSF image for a given star and profile
+
+        :param star:        Star instance holding information needed for
+                            interpolation as well as an image/WCS into which
+                            PSF will be rendered.
+        :param profile:     A galsim profile
+        :param params:      Params associated with profile to put in the star.
+
+        :returns:           Star instance with its image filled with rendered
+                            PSF
+        """
+        # use flux and center properties
+	star = Star.makeTarget(x=x, y=y, image=fitted_image, pointing=pointing, flux=flux)
+        return star
+
     def drawStar(self, star):
         """Generate PSF image for a given star.
 
