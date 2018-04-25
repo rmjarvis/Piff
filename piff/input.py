@@ -21,6 +21,7 @@ from past.builtins import basestring
 import numpy as np
 import glob
 import os
+from scipy.optimize import curve_fit
 
 
 class Input(object):
@@ -140,6 +141,8 @@ class Input(object):
                     logger.info("Skipping star at position %f,%f with snr=%f."%(x,y,snr))
                     continue
                 if self.max_snr > 0 and snr > self.max_snr:
+                    logger.info("Skipping star at position %f,%f with snr=%f."%(x,y,snr))
+                    continue
                     factor = (self.max_snr / snr)**2
                     logger.debug("Scaling noise by factor of %f to achieve snr=%f",
                                  factor, self.max_snr)
@@ -160,7 +163,39 @@ class Input(object):
         logger.warning("Read a total of %d stars from %d image%s",len(stars),len(self.images),
                        "s" if len(self.images) > 1 else "")
 
-        return stars
+	flux_extras = []
+	for star in stars:
+	    flux_extra = 0
+	    for i in range(0,self.stamp_size):
+		for j in range(0,self.stamp_size):
+		    if np.sqrt(np.square((self.stamp_size-1.0)/2.0-i)+np.square((self.stamp_size-1.0)/2.0-j))>(self.stamp_size-1.0)/3.0:
+		        flux_extra = flux_extra + star.image.array[i][j]
+	    flux_extras.append(flux_extra)
+
+	hist = np.histogram(flux_extras, bins = 1000)
+	y = hist[0]
+	increment = (hist[1][1000]-hist[1][0])/1000.0
+	half_increment = increment/2.0
+	x_uncut = hist[1] + half_increment
+	x = np.delete(x_uncut,1000)
+	gaussian_amplitude = np.amax(y)
+	guess_sigma = 0.0
+	for i in range(0,len(y)):
+	    if y[i]>0.5*gaussian_amplitude:
+		guess_sigma = np.abs(x[i])
+		break
+
+	def gaussian_func(x,b):
+	    return gaussian_amplitude/np.exp(np.square(x)/(2*np.square(b)))
+	popt,pcov = curve_fit(gaussian_func,x,y,guess_sigma)
+	sigma = popt[0]
+	delete_list = []
+	for star_i, star in enumerate(stars):
+	    if flux_extras[star_i] > 2*sigma:
+		delete_list.append(star_i)
+	stars = np.delete(stars, delete_list)
+	stars = stars.tolist()
+	return stars
 
     @staticmethod
     def calculateSNR(image, weight):
@@ -508,7 +543,7 @@ class InputFiles(Input):
             self.gain.append(gain)
 
         self.min_snr = config.get('min_snr', None)
-        self.max_snr = config.get('max_snr', 100)
+        self.max_snr = config.get('max_snr', 200)
         self.use_partial = config.get('use_partial', False)
 
         # Finally, set the pointing coordinate.

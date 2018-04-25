@@ -215,6 +215,7 @@ class OptAtmoPSF(PSF):
 
         # same maxs are pretty reasonable
         self._max_shapes = np.array([1.5, 0.15, 0.15])
+        self._expanded_max_shapes = np.array([0.01, 0.01, 1.5, 0.15, 0.15])
         self._shape_weights = np.array([0.2, 0.4, 0.4])
 
         # kwargs
@@ -534,7 +535,7 @@ class OptAtmoPSF(PSF):
         self.fit_optics_indices = np.arange(len(self.stars))
         # cut self.fit_optics_indices based on snr and max_shapes
         conds_snr = (self.star_snrs >= self.min_optfit_snr)
-        conds_shape = (np.all(np.abs(self.star_shapes[:, 3:]) <= self._max_shapes, axis=1))
+        conds_shape = (np.all(np.abs(self.star_shapes[:, 5:]) <= self._expanded_max_shapes, axis=1))
         self.fit_optics_indices = self.fit_optics_indices[conds_snr * conds_shape]
         logger.info('Cutting {0} stars for fitting the optics based on SNR > {1} ({2} stars) and on maximum shapes ({3} stars)'.format(len(stars) - len(self.fit_optics_indices), self.min_optfit_snr, len(self.stars) - np.sum(conds_snr), len(stars) - np.sum(conds_snr)))
         if self.n_optfit_stars and self.n_optfit_stars < len(self.fit_optics_indices):
@@ -853,12 +854,54 @@ class OptAtmoPSF(PSF):
 
         if np.any(shape != shape):
             # TODO: not tested. Add test for terrible image ethat should fail
-            raise ModelFitError
+            #raise ModelFitError
+            pass
 
         logger.debug('Measured Shape is {0}'.format(str(shape)))
         if return_error:
             logger.debug('Measured Error is {0}'.format(str(error)))
             return shape, error
+        else:
+            return shape
+
+    def measure_shape_classic(self, star, return_error=True, return_only_error=False, logger=None):
+        """Measure the shape of a star using the HSM algorithm
+
+        :param star:                Star we want to measure
+        :param return_error:        Bool. If True, also measure the error
+                                    [default: True]
+        :param logger:              A logger object for logging debug info
+
+        :returns:                   Shape (and error if return_error) in
+                                    specified basis
+        """
+        logger = LoggerWrapper(logger)
+        if return_error:
+            # do in unnormalized basis by default
+            flux, u0, v0, e0, e1, e2, sigma_flux, sigma_u0, sigma_v0, sigma_e0, sigma_e1, sigma_e2 = hsm_error(star, return_debug=False, logger=logger, return_error=return_error)
+            error = [sigma_e0, sigma_e1, sigma_e2]
+        else:
+            flux, u0, v0, e0, e1, e2 = hsm_error(star, return_debug=False, logger=logger, return_error=False)
+
+#         # flux is underestimated empirically
+#         flux = flux / 0.92
+
+        # flux estimation is problematic. Works best for galsim profiles if we just record matched filter flux from array
+        flux = (star.image.array * star.image.array * star.weight.array).sum()
+
+        shape = [e0, e1, e2]
+
+        if np.any(shape != shape):
+            # TODO: not tested. Add test for terrible image ethat should fail
+            #raise ModelFitError
+            pass
+
+        logger.debug('Measured Shape is {0}'.format(str(shape)))
+        if return_error and not return_only_error:
+            logger.debug('Measured Error is {0}'.format(str(error)))
+            return shape, error
+        elif return_error and return_only_error:
+            return error
         else:
             return shape
 
@@ -1186,13 +1229,23 @@ class OptAtmoPSF(PSF):
     # TODO: vary_shape = False not tested
     # TODO: not putting in params not tested
     # TODO: variation with _enable_atmosphere not tested
-    def fit_model(self, star, params, vary_shape=True, return_results=False, logger=None):
+    def fit_model(self, star, params, vary_shape=True, return_results=False, guesses = [0.0, 0.0, 0.0, 0.0], replacements = [0.0, 0.0, 0.0, 0.0], logger=None):
         logger = LoggerWrapper(logger)
         import lmfit
         # create lmparameters
         # put in initial guesses for flux, du, dv if they exist
-        flux = star.fit.flux
-        du, dv = star.fit.center
+	if guesses[0] == 0.0:
+            flux = star.fit.flux
+            du, dv = star.fit.center
+	else:
+	    flux = guesses[1]
+	    du = guesses[2]
+	    dv = guesses[3]
+        print("guess_flux: {0}".format(flux))
+        print("guess_du: {0}".format(du))
+        print("guess_dv: {0}".format(dv))
+        #print("")
+	snr = self.measure_snr(star)
         lmparams = lmfit.Parameters()
         # Order of params is important!
         lmparams.add('flux', value=flux, vary=True, min=0.0)
@@ -1230,6 +1283,7 @@ class OptAtmoPSF(PSF):
         lmparams.add('g2', value=fit_g2,   vary=vary_shape, min=-max_g - opt_g2, max=max_g - opt_g2)
 
         # do fit
+	print("preparing to do fit_model fit")
         results = lmfit.minimize(self._fit_model_residual, lmparams,
                                  args=(star, params, vary_shape, logger,),
                                  method='leastsq', epsfcn=1e-8,
@@ -1238,6 +1292,23 @@ class OptAtmoPSF(PSF):
         flux = results.params['flux'].value
         du = results.params['du'].value
         dv = results.params['dv'].value
+
+        #if replace==11:
+        #    flux = 523000.0
+	#    dv = 0.05
+        #if replace==16:
+        #    flux = 270000.0
+	#    du = -0.02
+	#    dv = -0.12
+        if replacements[0]!=0.0:
+            flux = replacements[1]
+            du = replacements[2]
+            dv = replacements[3]
+        print("flux: {0}".format(flux))
+        print("du: {0}".format(du))
+        print("dv: {0}".format(dv))
+        print("snr: {0}".format(snr))
+        #print("")
         if vary_shape:
             fit_params = np.array([results.params['size'].value, results.params['g1'].value, results.params['g2'].value])
             if results.errorbars:
@@ -1256,6 +1327,12 @@ class OptAtmoPSF(PSF):
         center = (du, dv)
         chisq = results.chisqr
         dof = results.nfree
+	iterations = results.nfev
+        print("chisq: {0}".format(chisq))
+        print("dof: {0}".format(dof))
+        print("iterations: {0}".format(iterations))	
+        print("max_iterations: {0}".format(200))	
+	print("")
         fit = StarFit(fit_params, params_var=params_var, flux=flux, center=center,
                       chisq=chisq, dof=dof)
         star_fit = Star(star.data, fit)
@@ -1389,6 +1466,10 @@ class OptAtmoPSF(PSF):
                 shape_model = self.measure_shape(star_model, return_error=False)
                 if np.any(shape_model != shape_model):
                     logger.warning('Star {0} returned nan shape'.format(i))
+                    logger.warning('Parameters are {0}'.format(str(params)))
+                    logger.warning('Input parameters are {0}'.format(str(lmparams.valuesdict())))
+                    logger.warning('Filling with zero chi')
+		    shape_model = shape
                     indices = np.zeros_like(shape_model, dtype=bool)
                 else:
                     indices = np.ones_like(shape_model, dtype=bool)
@@ -1540,7 +1621,7 @@ class OptAtmoPSF(PSF):
             params[1] = params[1] + g1
             params[2] = params[2] + g2
         else:
-            flux, du, dv = lmparams.valuesdict().values()
+            flux, du, dv, size, g1, g2 = lmparams.valuesdict().values()
 
         prof = self.getProfile(params).shift(du, dv) * flux
 
