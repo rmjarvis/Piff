@@ -283,15 +283,10 @@ class Star(object):
 
         # Add the local WCS values
         dtypes.extend( [('dudx', float), ('dudy', float), ('dvdx', float), ('dvdy', float) ] )
-        cols.append( [s.data.affine_wcs.jacobian().dudx for s in stars] )
-        cols.append( [s.data.affine_wcs.jacobian().dudy for s in stars] )
-        cols.append( [s.data.affine_wcs.jacobian().dvdx for s in stars] )
-        cols.append( [s.data.affine_wcs.jacobian().dvdy for s in stars] )
-        dtypes.extend( [('origin_x', float), ('origin_y', float), ('world_origin_x', float), ('world_origin_y', float) ] )
-        cols.append( [s.data.affine_wcs.origin.x for s in stars] )
-        cols.append( [s.data.affine_wcs.origin.y for s in stars] )
-        cols.append( [s.data.affine_wcs.world_origin.x for s in stars] )
-        cols.append( [s.data.affine_wcs.world_origin.y for s in stars] )
+        cols.append( [s.data.local_wcs.jacobian().dudx for s in stars] )
+        cols.append( [s.data.local_wcs.jacobian().dudy for s in stars] )
+        cols.append( [s.data.local_wcs.jacobian().dvdx for s in stars] )
+        cols.append( [s.data.local_wcs.jacobian().dvdy for s in stars] )
 
         # Add the bounds
         dtypes.extend( [('xmin', int), ('xmax', int), ('ymin', int), ('ymax', int) ] )
@@ -310,6 +305,11 @@ class Star(object):
         if stars[0].fit.params is not None:
             dtypes.append( ('params', float, len(stars[0].fit.params)) )
             cols.append( [ s.fit.params for s in stars ] )
+
+        # params_var might not be set, so check if it is None
+        if stars[0].fit.params_var is not None:
+            dtypes.append( ('params_var', float, len(stars[0].fit.params_var)) )
+            cols.append( [ s.fit.params_var for s in stars ] )
 
         # If pointing is set, write that
         if stars[0].data.pointing is not None:
@@ -337,9 +337,7 @@ class Star(object):
         for key in ['x', 'y', 'u', 'v',
                     'dudx', 'dudy', 'dvdx', 'dvdy',
                     'xmin', 'xmax', 'ymin', 'ymax',
-                    'flux', 'center', 'chisq',
-                    'origin_x', 'origin_y',
-                    'world_origin_x', 'world_origin_y']:
+                    'flux', 'center', 'chisq']:
             assert key in colnames
             colnames.remove(key)
 
@@ -352,10 +350,6 @@ class Star(object):
         dudy = data['dudy']
         dvdx = data['dvdx']
         dvdy = data['dvdy']
-        origin_x = data['origin_x']
-        origin_y = data['origin_y']
-        world_origin_x = data['world_origin_x']
-        world_origin_y = data['world_origin_y']
         xmin = data['xmin']
         xmax = data['xmax']
         ymin = data['ymin']
@@ -370,6 +364,12 @@ class Star(object):
         else:
             params = [ None ] * len(data)
 
+        if 'params_var' in colnames:
+            params_var = data['params_var']
+            colnames.remove('params_var')
+        else:
+            params_var = [ None ] * len(data)
+
         if 'point_ra' in colnames:
             pointing_list = [ galsim.CelestialCoord(row['point_ra'] * galsim.degrees,
                                                     row['point_dec'] * galsim.degrees)
@@ -379,8 +379,8 @@ class Star(object):
         else:
             pointing_list = [ None ] * len(data)
 
-        fit_list = [ StarFit(p, flux=f, center=c, chisq=x)
-                     for (p,f,c,x) in zip(params, flux, center, chisq) ]
+        fit_list = [ StarFit(p, flux=f, center=c, chisq=x, params_var=pv)
+                     for (p,f,c,x,pv) in zip(params, flux, center, chisq, params_var) ]
 
         # The rest of the columns are the data properties
         prop_list = [ { c : row[c] for c in colnames } for row in data ]
@@ -388,13 +388,9 @@ class Star(object):
         wcs_list = [ galsim.JacobianWCS(*jac) for jac in zip(dudx,dudy,dvdx,dvdy) ]
         pos_list = [ galsim.PositionD(*pos) for pos in zip(x_list,y_list) ]
         wpos_list = [ galsim.PositionD(*pos) for pos in zip(u_list,v_list) ]
-        origin_list = [ galsim.PositionD(*pos) for pos in zip(origin_x, origin_y) ]
-        world_origin_list = [ galsim.PositionD(*pos) for pos in zip(world_origin_x, world_origin_y) ]
-        # wcs_list = [ w.withOrigin(p, wp) for w,p,wp in zip(wcs_list, pos_list, wpos_list) ]
-        wcs_list = [ w.withOrigin(p, wp) for w,p,wp in zip(wcs_list, origin_list, world_origin_list) ]
+        wcs_list = [ w.withOrigin(p, wp) for w,p,wp in zip(wcs_list, pos_list, wpos_list) ]
         bounds_list = [ galsim.BoundsI(*b) for b in zip(xmin,xmax,ymin,ymax) ]
         image_list = [ galsim.Image(bounds=b, wcs=w) for b,w in zip(bounds_list, wcs_list) ]
-        # weights should have constant weight instead of zero weight
         weight_list = [ 1 + galsim.Image(bounds=b, wcs=w) for b,w in zip(bounds_list, wcs_list) ]
         data_list = [ StarData(im, pos, weight=w, properties=prop, pointing=point)
                       for im,pos,w,prop,point in zip(image_list, pos_list, weight_list,
@@ -483,6 +479,23 @@ class Star(object):
                   for star in stars ]
         return stars
 
+    def save_image(self, path):
+        """Save image of star and weight
+
+        :param path:    Location to save image
+        """
+        from matplotlib.backends.backend_agg import FigureCanvasAgg
+        from matplotlib.figure import Figure
+
+        fig = Figure(figsize=(8, 3))
+        axs = [fig.add_subplot(2, 2, 1), fig.add_subplot(2, 2, 2)]
+        im = axs[0].imshow(self.image.array)
+        fig.colorbar(im, ax=axs[0])
+        im = axs[1].imshow(self.weight.array)
+        fig.colorbar(im, ax=axs[1])
+
+        canvas = FigureCanvasAgg(fig)
+        canvas.print_figure(path, dpi=100)
 
     def offset_to_center(self, offset):
         """A utility routine to convert from an offset in image coordinates to the corresponding
@@ -535,9 +548,17 @@ class Star(object):
         return Star(self.data.addPoisson(signal=signal, gain=gain), self.fit)
 
     def copy(self):
+        """Create another Star instance
+
+        :returns: a new Star instance with copied data and fit parameters
+        """
         return Star(self.data.copy(), self.fit.copy())
 
     def clean(self):
+        """Returns a copied Star instance with no Fit parameter
+
+        :returns: Returns a copied Star instance with no Fit parameter
+        """
         # return star without its fit
         return Star(self.data.copy(), None)
 
@@ -623,10 +644,10 @@ class StarData(object):
         self.values_are_sb = values_are_sb
         # Make sure we have a local wcs in case the provided image is more complex.
         try:
-            self.affine_wcs = image.wcs.jacobian(image_pos).withOrigin(image.wcs.origin, image.wcs.world_origin)
+            self.local_wcs = image.wcs.jacobian(image_pos).withOrigin(image.wcs.origin, image.wcs.world_origin)
         except AttributeError:
             # no origin, which is fine
-            self.affine_wcs = image.wcs.jacobian(image_pos)
+            self.local_wcs = image.wcs.jacobian(image_pos)
 
         if weight is None:
             self.weight = galsim.Image(image.bounds, init_value=1, wcs=image.wcs, dtype=float)
@@ -643,7 +664,6 @@ class StarData(object):
         else:
             self.orig_weight = orig_weight
 
-        # need to assert that weight and image and all have the same shape
         if self.weight.array.shape != self.image.array.shape:
             raise ValueError('Weight and image array shapes not the same!')
 
@@ -657,7 +677,7 @@ class StarData(object):
             self.field_pos = self.calculateFieldPos(image_pos, image.wcs, pointing, self.properties)
         else:
             self.field_pos = field_pos
-        self.pixel_area = self.affine_wcs.pixelArea()
+        self.pixel_area = self.local_wcs.pixelArea()
 
         # Make sure the user didn't provide their own x,y,u,v in properties.
         for key in ['x', 'y', 'u', 'v']:
@@ -699,7 +719,11 @@ class StarData(object):
                     properties['ra'] = sky_pos.ra / galsim.hours
                 if 'dec' not in properties:
                     properties['dec'] = sky_pos.dec / galsim.degrees
-            return pointing.project(sky_pos)
+            if galsim.__version__ >= '2.0':
+                u, v = pointing.project(sky_pos)
+                return galsim.PositionD(u/galsim.arcsec, v/galsim.arcsec)
+            else:
+                return pointing.project(sky_pos)
         else:
             return wcs.toWorld(image_pos)
 
@@ -750,14 +774,14 @@ class StarData(object):
         y -= self.image_pos.y
 
         # Convert to u,v coords
-        # TODO: This will almost certainly be changed in galsim, so let's just stick this in for now
         try:
-            u = self.affine_wcs._u(x,y)
-            v = self.affine_wcs._v(x,y)
-        except:
+            # depending on your version of Galsim, you may or may not need to pass a "color" parameter
+            u = self.local_wcs._u(x,y)
+            v = self.local_wcs._v(x,y)
+        except TypeError:
             # newer version of galsim has a color command that needs to be specified?
-            u = self.affine_wcs._u(x,y, color=None)
-            v = self.affine_wcs._v(x,y, color=None)
+            u = self.local_wcs._u(x,y, color=None)
+            v = self.local_wcs._v(x,y, color=None)
 
         # Get flat versions of everything
         u = u.flatten()
@@ -772,7 +796,7 @@ class StarData(object):
             mask = wt != 0.
             return pix[mask], wt[mask], u[mask], v[mask]
 
-    def setData(self, data, include_zero_weight=False):
+    def setData(self, data, include_zero_weight=False, copy_image=True):
         """Return new StarData with data values replaced by elements of provided 1d array.
         The array should match the ordering of the one that is produced by getDataVector().
 
@@ -780,13 +804,19 @@ class StarData(object):
         :param include_zero_weight: If True, the data array includes all pixels.
                                     If False, it only includes the pixels with weight > 0.
                                     [default: False]
+        :param copy_image:          If False, will use the same image object.
+                                    If True, will copy the image and then overwrite it.
+                                    [default: True]
 
         :returns:    New StarData structure
         """
         # ??? Do we need a way to fill in pixels that have zero weight and
         # don't get passed out by getDataVector()???
 
-        newimage = self.image.copy()
+        if copy_image:
+            newimage = self.image.copy()
+        else:
+            newimage = self.image
         if include_zero_weight:
             newimage.array[:,:] = data.reshape(newimage.array.shape)
         else:
@@ -955,18 +985,21 @@ class StarFit(object):
         self.worst_chisq = worst_chisq
         return
 
-    def newParams(self, p):
-        """Return new StarFit that has the array p installed as new parameters.
+    def newParams(self, params, **kwargs):
+        """Return new StarFit that has the array params installed as new parameters.
 
         :param params:  A 1d array holding new parameters; must match size of current ones
+        :param kwargs:  Any other additional properties for the star. Takes current flux and center if not provided, and otherwise puts in None
 
         :returns:  New StarFit object with altered parameters.  All chisq-related parameters
                    are set to None since they are no longer valid.
         """
-        npp = np.array(p)
+        npp = np.array(params)
         if self.params is not None and npp.shape != self.params.shape:
             raise TypeError('new StarFit parameters do not match dimensions of old ones')
-        return StarFit(npp, flux=self.flux, center=self.center)
+        flux = kwargs.pop('flux', self.flux)
+        center = kwargs.pop('center', self.center)
+        return StarFit(npp, flux=flux, center=center, **kwargs)
 
     def copy(self):
         return StarFit(self.params, self.flux, self.center, self.alpha, self.beta,

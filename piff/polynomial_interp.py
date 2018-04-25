@@ -309,9 +309,6 @@ class Polynomial(Interp):
                 warnings.simplefilter("ignore", scipy.optimize.OptimizeWarning)
                 p,covmat=scipy.optimize.curve_fit(model, positions, parameter, p0)
 
-            logger.debug("Fitting parameter %d as %s "
-                         "with polynomial order %d", i, p, self._orders[i])
-
             # Build up the list of outputs, one for each parameter
             coeffs.append(self._unpack_coefficients(i,p))
 

@@ -121,6 +121,7 @@ class DECamInfo(object):
 
         self.infoDict
         self.mmperpixel = 0.015
+        self.arcsec_over_pixel = 0.26
 
         # ccddict returns the chip name when given a chip number
         # so ccddict[70] = 'FN4'
@@ -279,6 +280,30 @@ class DECamInfo(object):
         ix, iy = self.getPixel_chipnum(chipnums, xPos, yPos)
         return chipnums, ix, iy
 
+    def getChipNum(self, u, v):
+        """Given positions in arcsec, return chip numbers
+
+        :param u, v:    Array of u,v coordinates in arcsec on focal plane. Assume 0,0 is center of FP.
+
+        :returns chipnums:      Array of chip numbers
+        """
+        # convert u,v to xPos,yPos
+        arcsec_over_pixel = 0.26
+        mmperpixel = 0.015
+        xPos = v / -arcsec_over_pixel * mmperpixel
+        yPos = u / -arcsec_over_pixel * mmperpixel
+
+        pos = np.vstack((xPos, yPos)).T
+        # (Nsamp, Nchip, Ndim) = (len(xPos), 71, 2)
+        # first entry is a fake entry. Skip it!
+        conds = ((pos[:, None, 0] >= self.infoLowerLeftCorner[None, 1:, 0]) *
+                 (pos[:, None, 0] <= self.infoUpperRightCorner[None, 1:, 0]) *
+                 (pos[:, None, 1] >= self.infoLowerLeftCorner[None, 1:, 1]) *
+                 (pos[:, None, 1] <= self.infoUpperRightCorner[None, 1:, 1]))
+        chipnums = np.argwhere(conds)[:, 1] + 1
+
+        return chipnums
+
     def pixel_to_focal_stardata(self, stardata):
         """Take stardata and add focal plane position to properties
 
@@ -288,7 +313,7 @@ class DECamInfo(object):
         """
         # stardata needs to have chipnum as a property!
         focal_x, focal_y = self.getPosition_chipnum(
-            stardata['chipnum'], stardata['x'], stardata['y'])
+            np.int(stardata['chipnum']), stardata['x'], stardata['y'])
         properties = stardata.properties.copy()
         properties['focal_x'] = focal_x
         properties['focal_y'] = focal_y

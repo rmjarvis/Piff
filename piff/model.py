@@ -49,7 +49,7 @@ class Model(object):
 
         # Get the class to use for the model
         # Not sure if this is what we'll always want, but it would be simple if we can make it work.
-        model_class = getattr(piff, config_model.pop('type'))
+        model_class = getattr(piff, config_model['type'])
 
         # Read any other kwargs in the model field
         kwargs = model_class.parseKwargs(config_model, logger)
@@ -74,6 +74,7 @@ class Model(object):
         """
         kwargs = {}
         kwargs.update(config_model)
+        kwargs.pop('type', None)
         return kwargs
 
     def initialize(self, star, mask=True, logger=None):
@@ -105,12 +106,15 @@ class Model(object):
         """
         raise NotImplementedError("Derived classes must define the fit function")
 
-    def draw(self, star):
+    def draw(self, star, copy_image=True):
         """Create new Star instance that has star.data filled with a rendering
         of the PSF specified by the current StarFit parameters, flux, and center.
         Coordinate mapping of the current StarData is assumed.
 
         :param star:   A Star instance
+        :param copy_image:          If False, will use the same image object.
+                                    If True, will copy the image and then overwrite it.
+                                    [default: True]
 
         :returns:      New Star instance with rendered PSF in StarData
         """
@@ -174,7 +178,7 @@ class Model(object):
         model_cls = valid_model_types[model_type]
 
         kwargs = read_kwargs(fits, extname)
-        kwargs.pop('type')
+        kwargs.pop('type',None)
         model = model_cls(**kwargs)
         model._finish_read(fits, extname)
         return model

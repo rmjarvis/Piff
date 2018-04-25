@@ -225,6 +225,13 @@ def test_center():
         np.testing.assert_almost_equal(star2.image.array[mask]/peak, s.image.array[mask]/peak,
                                        decimal=14)
 
+        # test copy_image
+        star_copy = mod.draw(star, copy_image=True)
+        star_nocopy = mod.draw(star, copy_image=False)
+        star.image.array[0,0] = 132435
+        assert star_nocopy.image.array[0,0] == star.image.array[0,0]
+        assert star_copy.image.array[0,0] != star.image.array[0,0]
+        assert star_copy.image.array[1,1] == star.image.array[1,1]
 
 @timer
 def test_interp():
@@ -233,18 +240,26 @@ def test_interp():
     to get an average PSF
     """
     influx = 150.
-    for fiducial in [fiducial_gaussian, fiducial_kolmogorov, fiducial_moffat]:
+    if __name__ == '__main__':
+        fiducial_list = [fiducial_gaussian, fiducial_kolmogorov, fiducial_moffat]
+        niter = 3
+        npos = 10
+    else:
+        fiducial_list = [fiducial_moffat]
+        niter = 1  # Not actually any need for interating in this case.
+        npos = 4
+    for fiducial in fiducial_list:
         print()
         print("fiducial = ", fiducial)
         print()
         mod = piff.GSObjectModel(fiducial, include_pixel=False)
         g1 = g2 = u0 = v0 = 0.0
 
-         # Interpolator will be simple mean
+        # Interpolator will be simple mean
         interp = piff.Polynomial(order=0)
 
-         # Draw stars on a 2d grid of "focal plane" with 0<=u,v<=1
-        positions = np.linspace(0.,1.,10.)
+        # Draw stars on a 2d grid of "focal plane" with 0<=u,v<=1
+        positions = np.linspace(0.,1.,npos)
         stars = []
         rng = galsim.BaseDeviate(1234)
         for u in positions:
@@ -254,15 +269,15 @@ def test_interp():
                 s = mod.initialize(s)
                 stars.append(s)
 
-         # Also store away a noiseless copy of the PSF, origin of focal plane
+        # Also store away a noiseless copy of the PSF, origin of focal plane
         s0 = make_data(fiducial, 1.0, g1, g2, u0, v0, influx, pix_scale=0.5, include_pixel=False)
         s0 = mod.initialize(s0)
 
-         # Polynomial doesn't need this, but it should work nonetheless.
+        # Polynomial doesn't need this, but it should work nonetheless.
         interp.initialize(stars)
 
-         # Iterate solution using interpolator
-        for iteration in range(3):
+        # Iterate solution using interpolator
+        for iteration in range(niter):
             # Refit PSFs star by star:
             for i,s in enumerate(stars):
                 stars[i] = mod.fit(s)
@@ -280,7 +295,7 @@ def test_interp():
                 stars[i] = s
             print('iteration',iteration,'chisq=',chisq, 'dof=',dof)
 
-         # Now use the interpolator to produce a noiseless rendering
+        # Now use the interpolator to produce a noiseless rendering
         s1 = interp.interpolate(s0)
         s1 = mod.reflux(s1)
         print('Flux, ctr, chisq after interpolation: ',s1.fit.flux, s1.fit.center, s1.fit.chisq)
@@ -297,7 +312,11 @@ def test_interp():
 def test_missing():
     """Next: fit mean PSF to multiple images, with missing pixels.
     """
-    for fiducial in [fiducial_gaussian, fiducial_kolmogorov, fiducial_moffat]:
+    if __name__ == '__main__':
+        fiducial_list = [fiducial_gaussian, fiducial_kolmogorov, fiducial_moffat]
+    else:
+        fiducial_list = [fiducial_moffat]
+    for fiducial in fiducial_list:
         print()
         print("fiducial = ", fiducial)
         print()
@@ -373,8 +392,11 @@ def test_missing():
 def test_gradient():
     """Next: fit spatially-varying PSF to multiple images.
     """
-
-    for fiducial in [fiducial_gaussian, fiducial_kolmogorov, fiducial_moffat]:
+    if __name__ == '__main__':
+        fiducial_list = [fiducial_gaussian, fiducial_kolmogorov, fiducial_moffat]
+    else:
+        fiducial_list = [fiducial_moffat]
+    for fiducial in fiducial_list:
         print()
         print("fiducial = ", fiducial)
         print()
@@ -457,7 +479,11 @@ def test_gradient():
 def test_gradient_center():
     """Next: fit spatially-varying PSF, with spatially-varying centers to multiple images.
     """
-    for fiducial in [fiducial_gaussian, fiducial_kolmogorov, fiducial_moffat]:
+    if __name__ == '__main__':
+        fiducial_list = [fiducial_gaussian, fiducial_kolmogorov, fiducial_moffat]
+    else:
+        fiducial_list = [fiducial_moffat]
+    for fiducial in fiducial_list:
         print()
         print("fiducial = ", fiducial)
         print()

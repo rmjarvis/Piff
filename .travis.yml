@@ -46,7 +46,7 @@ before_install:
     - popd
 
     # Install other GalSim prereqs
-    - pip install numpy astropy==1.1.1 future pyyaml
+    - pip install numpy astropy==1.1.1 future pyyaml LSSTDESC.Coord
 
     # Only get GalSim if not cached
     - pushd $HOME
