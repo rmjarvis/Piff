@@ -21,7 +21,7 @@ import piff
 
 from piff_test_helper import get_script_name, timer, CaptureLog
 
-
+@timer
 def setup():
     """Make sure the images and catalogs that we'll use throughout this module are done first.
     """
@@ -642,7 +642,9 @@ def test_pointing():
     np.testing.assert_raises(ValueError, piff.InputFiles,
                              dict(ra=0*galsim.degrees, dec=0*galsim.radians, **base_config))
     np.testing.assert_raises(KeyError, piff.InputFiles,
-                             dict(ra='bad_ra', dec='bad_dec', **base_config))
+                             dict(ra='bad_ra', dec='DEC', **base_config))
+    np.testing.assert_raises(KeyError, piff.InputFiles,
+                             dict(ra='RA', dec='bad_dec', **base_config))
     np.testing.assert_raises(ValueError, piff.InputFiles,
                              dict(ra=0, **base_config))
     np.testing.assert_raises(ValueError, piff.InputFiles,

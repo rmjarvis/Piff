@@ -87,13 +87,13 @@ def make_constant_psf_params(ntrain, nvalidate, nvisualize):
         u = ud()
         v = ud()
         flux = ud()*50+100
-        training_data[i] = np.array([u, v, hlr, g1, g2, u0, v0, flux])
+        training_data[i] = (u, v, hlr, g1, g2, u0, v0, flux)
 
     for i in range(nvalidate):
         u = ud()*0.5 + 0.25
         v = ud()*0.5 + 0.25
         flux = 1.0
-        validate_data[i] = np.array([u, v, hlr, g1, g2, u0, v0, flux])
+        validate_data[i] = (u, v, hlr, g1, g2, u0, v0, flux)
 
     vis_data = np.recarray((nvisualize, nvisualize), dtype=star_type)
     u = v = np.linspace(0, 1, nvisualize)
@@ -135,7 +135,7 @@ def make_polynomial_psf_params(ntrain, nvalidate, nvisualize):
         g2 = vals[2] * 0.1
         u0 = vals[3]
         v0 = vals[4]
-        training_data[i] = np.array([u, v, hlr, g1, g2, u0, v0, flux])
+        training_data[i] = (u, v, hlr, g1, g2, u0, v0, flux)
 
     for i in range(nvalidate):
         u = ud()*0.5 + 0.25
@@ -147,7 +147,7 @@ def make_polynomial_psf_params(ntrain, nvalidate, nvisualize):
         g2 = vals[2] * 0.1
         u0 = vals[3]
         v0 = vals[4]
-        validate_data[i] = np.array([u, v, hlr, g1, g2, u0, v0, flux])
+        validate_data[i] = (u, v, hlr, g1, g2, u0, v0, flux)
 
     vis_data = np.recarray((nvisualize*nvisualize), dtype=star_type)
     u = v = np.linspace(0, 1, nvisualize)
@@ -159,7 +159,7 @@ def make_polynomial_psf_params(ntrain, nvalidate, nvisualize):
         g2 = vals[2] * 0.1
         u0 = vals[3]
         v0 = vals[4]
-        vis_data[i] = np.array([u1, v1, hlr, g1, g2, u0, v0, 1.0])
+        vis_data[i] = (u1, v1, hlr, g1, g2, u0, v0, 1.0)
 
     return training_data, validate_data, vis_data.reshape((nvisualize, nvisualize))
 
@@ -211,7 +211,7 @@ def make_grf_psf_params(ntrain, nvalidate, nvisualize, scale_length=0.3):
 
     return training_data, validate_data, vis_data
 
-def make_vonkarman_psf_params(ntrain, nvalidate, nvisualize, scale_length=3.):
+def make_vonkarman_psf_params(ntrain, nvalidate, nvisualize, scale_length=2.):
     """ Make training/testing data for PSF with params drawn from isotropic Von Karman
     gaussian random field.
     """
@@ -294,7 +294,7 @@ def make_vonkarman_and_rbf_psf_params(ntrain, nvalidate, nvisualize, scale_lengt
     cov_pos = 0.1**2 * np.exp(-0.5*dists**2/scale_length**2)
 
     # Next, generate input data by drawing from a single Gaussian Random Field.
-    kernel = 0.05**2 * piff.VonKarman(length_scale = scale_length)
+    kernel = 0.1**2 * piff.VonKarman(length_scale = scale_length)
     cov = kernel.__call__(np.array([us, vs]).T)    
 
     params['u'] = us
@@ -647,7 +647,10 @@ def check_gp(training_data, validation_data, visualization_data,
         np.testing.assert_allclose(interp.gp.kernel_.theta, interp2.gp.kernel_.theta)
         np.testing.assert_allclose(interp.gp.alpha_, interp2.gp.alpha_, rtol=1e-6, atol=1.e-7)
         np.testing.assert_allclose(interp.gp.X_train_, interp2.gp.X_train_)
-        np.testing.assert_allclose(interp.gp.y_train_mean, interp2.gp.y_train_mean)
+        if hasattr(interp.gp, '_y_train_mean'):
+            np.testing.assert_allclose(interp.gp._y_train_mean, interp2.gp._y_train_mean)
+        else:
+            np.testing.assert_allclose(interp.gp.y_train_mean, interp2.gp.y_train_mean)
         validate(validate_stars, interp2, rtol=rtol)
 
 
@@ -816,7 +819,7 @@ def test_vonkarman_psf():
         npcas = [0]
         optimizes = [True, False]
         check_config = True
-        rtol = 0.02
+        rtol = 0.05
     else:
         ntrain = 100
         npcas = [0]
@@ -829,7 +832,7 @@ def test_vonkarman_psf():
     training_data, validation_data, visualization_data = make_vonkarman_psf_params(
             ntrain, nvalidate, nvisualize)
 
-    kernel = "0.01*VonKarman(3., (1e-1, 1e1))"
+    kernel = "0.01*VonKarman(2., (1e-1, 1e1))"
 
     for npca in npcas:
         for optimize in optimizes:
@@ -851,7 +854,7 @@ def test_gp_with_kernels():
         check_config = True
         rtol = 0.02
     else:
-        ntrain = 100
+        ntrain = 500
         npcas = [0]
         optimizes = [False]
         check_config = False
@@ -862,11 +865,11 @@ def test_gp_with_kernels():
     training_data, validation_data, visualization_data = make_vonkarman_and_rbf_psf_params(
             ntrain, nvalidate, nvisualize)
     
-    kernel = ["1*RBF(0.3, (1e-1, 1e1))",
-              "1*RBF(0.3, (1e-1, 1e1))",
-              "0.5*VonKarman(0.3, (1e-1, 1e1))",
-              "0.5*VonKarman(0.3, (1e-1, 1e1))",
-              "0.5*VonKarman(0.3, (1e-1, 1e1))"]
+    kernel = ["0.01*RBF(0.7, (1e-1, 1e1))",
+              "0.01*RBF(0.7, (1e-1, 1e1))",
+              "0.01*VonKarman(0.7, (1e-1, 1e1))",
+              "0.01*VonKarman(0.7, (1e-1, 1e1))",
+              "0.01*VonKarman(0.7, (1e-1, 1e1))"]
 
     for npca in npcas:
         for optimize in optimizes:
@@ -926,15 +929,19 @@ def test_vonkarman_kernel():
         A = (x[:,0]-x[:,0][:,None])
         B = (x[:,1]-x[:,1][:,None])
         distance = np.sqrt(A*A + B*B)
-        K = param[0]**2 * (distance**(5./6.)) * special.kv(-5./6.,2*np.pi*distance/param[1])
+        K = param[0]**2 * ((distance/param[1])**(5./6.)) * special.kv(-5./6.,2*np.pi*distance/param[1])
         Filtre = np.isfinite(K)
         dist = np.linspace(1e-4,1.,100)
-        div = 5./6. 
-        K[~Filtre] = param[0]**2 * special.gamma(div) /(2 * ((np.pi / param[1])**div) )
+        div = 5./6.
+        lim0 = special.gamma(div) /(2 * (np.pi**div) )
+        K[~Filtre] = param[0]**2 * lim0
+        K /= lim0
         return K
         
     def _vonkarman_corr_function(param, distance):
-        return param[0]**2 * (distance**(5./6.)) * special.kv(-5./6.,2*np.pi*distance/param[1])
+        div = 5./6.
+        lim0 = (2 * (np.pi**div) ) / special.gamma(div) 
+        return param[0]**2 * lim0 * ((distance/param[1])**(5./6.)) * special.kv(-5./6.,2*np.pi*distance/param[1])
     
     for corr in corr_lenght:
         for amp in kernel_amp:

@@ -6,3 +6,4 @@ fitsio
 scikit-learn>=0.18
 lmfit
 matplotlib>=1.5.0
+LSSTDESC.Coord>=1.0.5

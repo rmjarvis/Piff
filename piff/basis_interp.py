@@ -19,7 +19,9 @@
 from __future__ import print_function
 
 import numpy as np
+import scipy.linalg
 import galsim
+import warnings
 
 from .interp import Interp
 from .star import Star, StarFit
@@ -115,16 +117,30 @@ class BasisInterp(Interp):
         nq = B.shape[0]
         A = A.reshape(nq,nq)
         logger.debug('Beginning solution of matrix size %d',A.shape[0])
-        try:
-            dq = np.linalg.solve(A,B)
-        except np.linalg.LinAlgError as e:  # pragma: no cover
-            logger.warning('Caught %s',str(e))
+        # cf. comments in pixelgrid.py about this function in scipy 1.0.0
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            logger.info('A.shape = %s',A.shape)
+            logger.info('B.shape = %s',B.shape)
+            dq = scipy.linalg.solve(A, B, assume_a='pos', check_finite=False)
+        if len(w) > 0:
+            logger.warning('Caught %s',w[0].message)
+            logger.debug('norm(A dq - B) = %s',scipy.linalg.norm(A.dot(dq) - B))
+            logger.debug('norm(dq) = %s',scipy.linalg.norm(dq))
+        if False:
             logger.warning('Switching to svd solution')
-            U,Sd,V = np.linalg.svd(A, full_matrices=False)
-            nsvd = np.sum(Sd > 1.e-10 * Sd[0])
-            Sd[:nsvd+1] = 1./Sd[:nsvd+1]
+            Sd,U = scipy.linalg.eigh(A)
+            nsvd = np.sum(np.abs(Sd) > 1.e-15 * np.abs(Sd[-1]))
+            logger.info('2-condition is %e',np.abs(Sd[-1]/Sd[0]))
+            logger.info('nsvd = %d of %d',nsvd,len(Sd))
+            # Note: unlike scipy.linalg.svd, the Sd here is in *ascending* order, not descending.
+            Sd[-nsvd:] = 1./Sd[-nsvd:]
+            Sd[:-nsvd] = 0.
             S = np.diag(Sd)
-            dq = U.T.dot(S.dot(V.T.dot(B)))
+            dq = U.dot(S.dot(U.T.dot(B)))
+            logger.info('norm(A dq - B) = %s',scipy.linalg.norm(A.dot(dq) - B))
+            logger.info('norm(dq) = %s',scipy.linalg.norm(dq))
+            logger.info('norm(q) = %s',scipy.linalg.norm(self.q))
 
         logger.debug('...finished solution')
         self.q += dq.reshape(self.q.shape)
