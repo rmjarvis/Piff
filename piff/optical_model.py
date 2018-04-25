@@ -36,6 +36,7 @@ optical_templates = {
              'strut_thick': 0.050 * (1462.526 / 4010.) / 2.0, # conversion factor is nebulous?!
              'strut_angle': 45 * galsim.degrees,
              'r0': 0.15,
+             #'L0': 25.0,
            },
 }
 
@@ -127,7 +128,9 @@ class Optical(Model):
             self.optical_psf_kwargs['pupil_plane_im'] = pupil_plane_im
 
         kolmogorov_keys = ('lam', 'r0', 'lam_over_r0', 'scale_unit',
-                           'fwhm', 'half_light_radius', 'r0_500')
+                           'fwhm', 'half_light_radius', 'r0_500', 'L0')
+        #kolmogorov_keys = ('lam', 'r0', 'lam_over_r0', 'scale_unit',
+        #                   'fwhm', 'half_light_radius', 'r0_500')
         self.kolmogorov_kwargs = { key : self.kwargs[key] for key in self.kwargs
                                                           if key in kolmogorov_keys }
         # If lam is the only one, then remove it -- we don't have a Kolmogorov component then.
