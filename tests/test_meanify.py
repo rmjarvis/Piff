@@ -81,15 +81,15 @@ def params_to_stars(params, noise=0.0, rng=None):
             stars.append(s)
     return stars
 
-def make_average(Coord=None, gp=True):
-    if Coord is None:
+def make_average(coord=None, gp=True):
+    if coord is None:
         x = np.linspace(0, 2048, 10)
         x, y = np.meshgrid(x,x)
         x = x.reshape(len(x)**2)
         y = y.reshape(len(y)**2)
     else:
-        x = Coord[:,0]
-        y = Coord[:,1]
+        x = coord[:,0]
+        y = coord[:,1]
     
     average = 0.02 + 5e-8*(x-1024)**2 + 5e-8*(y-1024)**2
     params = np.recarray((len(x),), dtype=star_type)
@@ -106,7 +106,8 @@ def make_average(Coord=None, gp=True):
         from scipy.spatial.distance import pdist, squareform
         dists = squareform(pdist(np.array([x, y]).T))
         cov = 0.03**2 * np.exp(-0.5*dists**2/300.**2) 
-        
+
+        # avoids to print warning from numpy when generated uge gaussian random fields.
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             params['hlr'] += np.random.multivariate_normal([0]*len(x), cov)
@@ -135,13 +136,13 @@ def setup():
             y = np.random.uniform(0, 2048)
             D = np.sqrt((np.array(x_list)-x)**2 + (np.array(y_list)-y)**2)
             #avoid 2 stars on the same stamp
-            if np.sum((D>60)) == len(D):
+            if np.all(D > 60):
                 x_list.append(x)
                 y_list.append(y)
                 i+=1
 
         coord = np.array([x_list,y_list]).T
-        params = make_average(Coord=coord)
+        params = make_average(coord=coord)
         psfs = []
         for x, y, hlr, g1, g2 in zip(x_list, y_list, params['hlr'], params['g1'], params['g2']):
             psf = galsim.Kolmogorov(half_light_radius=hlr, flux=1.).shear(g1=g1, g2=g2)
@@ -215,7 +216,7 @@ def test_meanify():
         piff.meanify(config)
         ## test if found initial average
         average = fitsio.read(os.path.join('output',average_file))
-        params0 = make_average(Coord=average['COORDS0'][0] / 0.26, gp=False)
+        params0 = make_average(coord=average['COORDS0'][0] / 0.26, gp=False)
         keys = ['hlr', 'g1', 'g2']
         for i,key in enumerate(keys):
             np.testing.assert_allclose(params0[key], average['PARAMS0'][0][:,i], rtol=1e-1, atol=1e-2)
@@ -225,7 +226,7 @@ def test_meanify():
     x = np.random.uniform(0, 2048, size=1000)
     y = np.random.uniform(0, 2048, size=1000)
     coord = np.array([x,y]).T
-    average = make_average(Coord=coord)
+    average = make_average(coord=coord)
 
     stars = params_to_stars(average, noise=0.0, rng=None)
     stars_training = stars[:900]
