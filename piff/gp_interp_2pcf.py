@@ -52,13 +52,15 @@ class GPInterp2pcf(Interp):
     :param white_noise:  A float value that indicate the ammount of white noise that you want to
                          use during the gp interpolation. This is an additional uncorrelated noise
                          added to the error of the PSF parameters. [default: 0.]
+    :param n_neighbors:  Number of neighbors to used for interpolating the spatial average using
+                         a KNeighbors interpolation. Used only if average_fits is not None. [defaulf: 4]
     :param average_fits: A fits file that have the spatial average functions of PSF parameters 
                          build in it. Build using meanify and piff output across different 
                          exposures. See meanify documentation. [default: None]
     :param logger:       A logger object for logging debug info. [default: None]
     """
     def __init__(self, keys=('u','v'), kernel='RBF(1)', optimize=True, npca=0, normalize=True,
-                 white_noise=0., average_fits=None, logger=None):
+                 white_noise=0., n_neighbors=4, average_fits=None, logger=None):
 
         self.keys = keys
         self.npca = npca
@@ -66,6 +68,7 @@ class GPInterp2pcf(Interp):
         self.normalize = normalize
         self.optimize = optimize
         self.white_noise = white_noise
+        self.n_neighbors = n_neighbors
 
         self.kwargs = {
             'keys': keys,
@@ -279,7 +282,7 @@ class GPInterp2pcf(Interp):
         :param X: Coordinates of training stars or coordinates where to interpolate. (n_samples, 2)
         """
         if np.sum(np.equal(self._X0, 0)) != len(self._X0[:,0])*len(self._X0[0]):
-            neigh = KNeighborsRegressor(n_neighbors=4)
+            neigh = KNeighborsRegressor(n_neighbors=self.n_neighbors)
             neigh.fit(self._X0, self._y0)
             average = neigh.predict(X)            
             return average
@@ -318,7 +321,7 @@ class GPInterp2pcf(Interp):
             self.nparams = self.npca
 
         if self.normalize:
-            self._mean = np.array([np.mean(y[:,i] - self._spatial_average[:,i]) for i in range(self.nparams)])
+            self._mean = np.mean(y - self._spatial_average, axis=0)
         else:
             self._mean = np.zeros(self.nparams)
 
@@ -406,7 +409,7 @@ class GPInterp2pcf(Interp):
         self._spatial_average = self._build_average(self._X)
 
         if self.normalize:
-            self._mean = np.mean(self._y,axis=0)
+            self._mean = np.mean(self._y - self._spatial_average, axis=0)
         else:
             self._mean = np.zeros(self.nparams)
         if len(self.kernel_template)==1:
