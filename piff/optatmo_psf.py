@@ -1550,8 +1550,13 @@ def poly(X, coef, indices):
     """
 
     nstar = X.shape[0]
+    nparam = X.shape[1]
     ncoef = coef.shape[0]
     norder = indices.shape[1]
+
+    max_order = np.max(indices)
+    if max_order > nparam:
+        raise ValueError('Indices point to parameter index not passed')
 
     y = np.zeros(nstar, dtype=np.float64)
 
