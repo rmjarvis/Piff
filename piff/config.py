@@ -193,7 +193,7 @@ def plotify(config, logger=None):
         stats.write(logger=logger)
 
 def meanify(config, logger=None):
-    """Take Piff output(s), build an average of the FoV, and wirte output average.
+    """Take Piff output(s), build an average of the FoV, and write output average.
 
     :param config:      The configuration file that defines how to build the model
     :param logger:      A logger object for logging progress. [default: None]
