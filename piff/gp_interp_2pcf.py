@@ -219,7 +219,7 @@ class GPInterp2pcf(Interp):
                                                  self._X, Xstar, ker, y_err=y_err[:,i])
                           for i, ker in enumerate(self.kernels)]).T
 
-        spatial_average = self._build_average(Xstar)
+        spatial_average = self._build_average_meanify(Xstar)
 
         for i in range(self.nparams):
             ystar[:,i] += self._mean[i] + spatial_average[:,i]
@@ -275,8 +275,8 @@ class GPInterp2pcf(Interp):
                 self.kernels = [copy.deepcopy(ker) for ker in self.kernel_template]                                        
         return stars
 
-    def _build_average(self, X):
-        """Compute spatial average for a given coordinate using KN interpolation.
+    def _build_average_meanify(self, X):
+        """Compute spatial average from meanify output for a given coordinate using KN interpolation.
         If no average_fits was given, return array of 0. 
 
         :param X: Coordinates of training stars or coordinates where to interpolate. (n_samples, 2)
@@ -305,7 +305,7 @@ class GPInterp2pcf(Interp):
         if self._X0 is None:
             self._X0 = np.zeros_like(self._X)
             self._y0 = np.zeros_like(self._y)
-        self._spatial_average = self._build_average(X)
+        self._spatial_average = self._build_average_meanify(X)
 
         if self.white_noise > 0:
             y_err = np.sqrt(y_err**2 + self.white_noise**2)
@@ -406,7 +406,7 @@ class GPInterp2pcf(Interp):
 
         self._X0 = np.atleast_1d(data['X0'][0])
         self._y0 = np.atleast_1d(data['Y0'][0])
-        self._spatial_average = self._build_average(self._X)
+        self._spatial_average = self._build_average_meanify(self._X)
 
         if self.normalize:
             self._mean = np.mean(self._y - self._spatial_average, axis=0)
