@@ -215,7 +215,7 @@ def meanify(config, logger=None):
             raise ValueError("%s field is required in config dict"%key)
     for key in ['file_name']:
         if key not in config['input']:
-            raise ValueError("%s field is required in config dict output"%key)
+            raise ValueError("%s field is required in config dict input"%key)
 
     for key in ['file_name']:
         if key not in config['output']:
