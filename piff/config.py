@@ -198,10 +198,7 @@ def meanify(config, logger=None):
     :param config:      The configuration file that defines how to build the model
     :param logger:      A logger object for logging progress. [default: None]
     """
-    from .input import Input
-    from .psf import PSF
     from .star import Star
-    from .output import Output
     import glob
     import numpy as np
     import fitsio
@@ -210,33 +207,33 @@ def meanify(config, logger=None):
         verbose = config.get('verbose', 1)
         logger = setup_logger(verbose=verbose)
 
-    for key in ['input', 'output']:
+    for key in ['output', 'hyper']:
         if key not in config:
             raise ValueError("%s field is required in config dict"%key)
-    for key in ['file_name']:
-        if key not in config['input']:
-            raise ValueError("%s field is required in config dict input"%key)
-
     for key in ['file_name']:
         if key not in config['output']:
             raise ValueError("%s field is required in config dict output"%key)
 
-    if 'dir' in config['input']:
-        dir = config['input']['dir']
+    for key in ['file_name']:
+        if key not in config['hyper']:
+            raise ValueError("%s field is required in config dict hyper"%key)
+
+    if 'dir' in config['output']:
+        dir = config['output']['dir']
     else:
         dir = None
 
-    if 'bin_spacing' in config['output']:
-        bin_spacing = config['output']['bin_spacing'] #in arcsec
+    if 'bin_spacing' in config['hyper']:
+        bin_spacing = config['hyper']['bin_spacing'] #in arcsec
     else:
         bin_spacing = 120. #default bin_spacing: 120 arcsec
 
-    if isinstance(config['input']['file_name'], list):
-        psf_list = config['input']['file_name']
+    if isinstance(config['output']['file_name'], list):
+        psf_list = config['output']['file_name']
         if len(psf_list) == 0:
             raise ValueError("file_name may not be an empty list")
-    elif isinstance(config['input']['file_name'], str):
-        file_name = config['input']['file_name']
+    elif isinstance(config['output']['file_name'], str):
+        file_name = config['output']['file_name']
         if dir is not None:
             file_name = os.path.join(dir, file_name)
         psf_list = sorted(glob.glob(file_name))
@@ -249,14 +246,14 @@ def meanify(config, logger=None):
         logger.debug('psf_list = %s',psf_list)
         npsfs = len(psf_list)
         logger.debug('npsfs = %d',npsfs)
-        config['input']['file_name'] = psf_list
+        config['output']['file_name'] = psf_list
 
-    file_name_in = config['input']['file_name']
+    file_name_in = config['output']['file_name']
     logger.info("Looking for PSF at %s", file_name_in)
 
-    file_name_out = config['output']['file_name']
-    if 'dir' in config['output']:
-        file_name_out = os.path.join(config['output']['dir'], file_name_out)
+    file_name_out = config['hyper']['file_name']
+    if 'dir' in config['hyper']:
+        file_name_out = os.path.join(config['hyper']['dir'], file_name_out)
 
     def _getcoord(star):
         return np.array([star.data[key] for key in ['u', 'v']])
