@@ -226,13 +226,10 @@ def meanify(config, logger=None):
     else:
         dir = None
 
-    if 'binning' in config['output']:
-        if type(config['output']['binning']) is not int:
-            ValueError("type of binning should be integer (%s now)"%type(config['output']['binning']))
-        else:
-            binning = config['output']['binning']
+    if 'bin_spacing' in config['output']:
+        bin_spacing = config['output']['bin_spacing'] #in arcsec
     else:
-        binning = 15
+        bin_spacing = 120. #default bin_spacing: 120 arcsec
 
     if isinstance(config['input']['file_name'], list):
         psf_list = config['input']['file_name']
@@ -280,7 +277,9 @@ def meanify(config, logger=None):
     lu_min, lu_max = np.min(coords[:,0]), np.max(coords[:,0])
     lv_min, lv_max = np.min(coords[:,1]), np.max(coords[:,1])
 
-    binning = [np.linspace(lu_min, lu_max, binning),np.linspace(lv_min, lv_max, binning)]
+    nbin_u = int((lu_max - lu_min) / bin_spacing)
+    nbin_v = int((lv_max - lv_min) / bin_spacing)
+    binning = [np.linspace(lu_min, lu_max, nbin_u), np.linspace(lv_min, lv_max, nbin_v)]
     counts, u0, v0 = np.histogram2d(coords[:,0], coords[:,1], bins=binning)
     counts = counts.T
     counts = counts.reshape(-1)
