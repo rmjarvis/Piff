@@ -209,7 +209,7 @@ def test_meanify():
         'output' : {
             'file_name' : average_file,
             'dir': 'output',
-            'binning' : 15,
+            'bin_spacing' : 30, #arcsec
         }}
 
     for config in [config0, config1]:
