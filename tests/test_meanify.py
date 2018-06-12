@@ -194,19 +194,19 @@ def test_meanify():
         psfs_list.append('output/test_mean_%i.piff'%i)
 
     config0 = {
-        'input' : {
+        'output' : {
             'file_name' : psfs_list,
         },
-        'output' : {
+        'hyper' : {
             'file_name' : 'output/'+average_file,
         }}
 
     config1 = {
-        'input' : {
+        'output' : {
             'file_name' : psf_file,
             'dir': 'output',
         },
-        'output' : {
+        'hyper' : {
             'file_name' : average_file,
             'dir': 'output',
             'bin_spacing' : 30, #arcsec
