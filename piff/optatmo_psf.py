@@ -214,7 +214,9 @@ class OptAtmoPSF(PSF):
                 if self.reference_wavefront or self.optatmo_psf_kwargs['fix_' + zkey]:
                     self.optatmo_psf_kwargs[zkey] = 0
                 else:
-                    self.optatmo_psf_kwargs[zkey] = np.random.random() * (0.1 - -0.1) + -0.1
+                    initial_value = np.random.random() * (0.1 - -0.1) + -0.1
+                    logger.debug('Setting initial {0} to randomly generated value {1}'.format(zkey, initial_value))
+                    self.optatmo_psf_kwargs[zkey] = initial_value
                     # self.optatmo_psf_kwargs[zkey] = 0
         # update aberrations from our kwargs
         try:
@@ -326,7 +328,7 @@ class OptAtmoPSF(PSF):
         # process reference_wavefront kwargs
         reference_wavefront_kwargs = {}
         if 'reference_wavefront' in config_psf:
-            if config_psf['reference_wavefront'] in [None, 'none', 'None']:
+            if config_psf['reference_wavefront'] in [None, 'none', 'None', 'NONE']:
                 logger.info("Skipping reference wavefront")
                 reference_wavefront = None
             else:
@@ -339,31 +341,36 @@ class OptAtmoPSF(PSF):
         kwargs['reference_wavefront'] = reference_wavefront
 
         # process analytic formula
-        analytic_coefs = config_psf['analytic_coefs']
-        if isinstance(analytic_coefs, str):
-            analytic_coefs = np.load(analytic_coefs).item()
+        if 'analytic_coefs' not in config_psf:
+            analytic_coefs = None
+        elif config_psf['analytic_coefs'] in ['none', 'None', 'NONE', None]:
+            analytic_coefs = None
         else:
-            # we assume it is preloaded and preformatted otherwise
-            pass
-        # make sure the analytic_coefs are in a reasonable format
-        indices = []
-        coefs = []
-        # purge coefs and indices with j higher than jmax
-        jmax_pupil = kwargs['jmax_pupil']
-        for index, coef in zip(analytic_coefs['indices'], analytic_coefs['coefs']):
-            index = np.array(index).astype(np.int64)  # (n_coef, 4) for the up to 4 input terms
-            coef = np.array(coef).astype(np.float64)
-            # purge based on jmax_pupil
-            conds_full = index <= jmax_pupil  # +1 because of one-hot encoding
-            conds = np.all(conds_full, axis=1)
-            if conds.sum() != conds.size:
-                logger.warning('Analytic Coefs allow indices up to {0}, but jmax_pupil is only {1}. Cutting {2} out of {3} entries'.format(np.max(index), jmax_pupil, conds.size - conds.sum(), conds.size))
-                index = index[conds]
-                coef = coef[conds]
+            analytic_coefs = config_psf['analytic_coefs']
+            if isinstance(analytic_coefs, str):
+                analytic_coefs = np.load(analytic_coefs).item()
+            else:
+                # we assume it is preloaded and preformatted otherwise
+                pass
+            # make sure the analytic_coefs are in a reasonable format
+            indices = []
+            coefs = []
+            # purge coefs and indices with j higher than jmax
+            jmax_pupil = kwargs['jmax_pupil']
+            for index, coef in zip(analytic_coefs['indices'], analytic_coefs['coefs']):
+                index = np.array(index).astype(np.int64)  # (n_coef, 4) for the up to 4 input terms
+                coef = np.array(coef).astype(np.float64)
+                # purge based on jmax_pupil
+                conds_full = index <= jmax_pupil  # +1 because of one-hot encoding
+                conds = np.all(conds_full, axis=1)
+                if conds.sum() != conds.size:
+                    logger.warning('Analytic Coefs allow indices up to {0}, but jmax_pupil is only {1}. Cutting {2} out of {3} entries'.format(np.max(index), jmax_pupil, conds.size - conds.sum(), conds.size))
+                    index = index[conds]
+                    coef = coef[conds]
 
-            indices.append(index)
-            coefs.append(coef)
-        analytic_coefs = [coefs, indices]
+                indices.append(index)
+                coefs.append(coef)
+            analytic_coefs = [coefs, indices]
         kwargs['analytic_coefs'] = analytic_coefs
 
         if 'outliers' in kwargs:
@@ -388,20 +395,22 @@ class OptAtmoPSF(PSF):
             self.outliers.write(fits, extname + '_outliers')
             logger.debug("Wrote the PSF outliers to extension %s",extname + '_outliers')
 
-        shape_index = len(self.analytic_coefs[1][0][0])
-        dtype = [('coefs', 'f4'), ('indices', '{0}i4'.format(shape_index)), ('shape', 'i4')]
-        coefs = []
-        indices = []
-        shape = []
-        for i, coef, index in zip(range(len(self.analytic_coefs[0])), self.analytic_coefs[0], self.analytic_coefs[1]):
-            coefs += coef.tolist()
-            indices += index.tolist()
-            shape += [i] * len(index)
-        data = np.zeros(len(shape), dtype=dtype)
-        data['coefs'] = coefs
-        data['indices'] = indices
-        data['shape'] = shape
-        fits.write_table(data, extname=extname + '_analytic')
+        # analytic coefs
+        if self.analytic_coefs is not None:
+            shape_index = len(self.analytic_coefs[1][0][0])
+            dtype = [('coefs', 'f4'), ('indices', '{0}i4'.format(shape_index)), ('shape', 'i4')]
+            coefs = []
+            indices = []
+            shape = []
+            for i, coef, index in zip(range(len(self.analytic_coefs[0])), self.analytic_coefs[0], self.analytic_coefs[1]):
+                coefs += coef.tolist()
+                indices += index.tolist()
+                shape += [i] * len(index)
+            data = np.zeros(len(shape), dtype=dtype)
+            data['coefs'] = coefs
+            data['indices'] = indices
+            data['shape'] = shape
+            fits.write_table(data, extname=extname + '_analytic')
 
         # write reference wavefront if it exists
         if self.reference_wavefront:
@@ -450,16 +459,20 @@ class OptAtmoPSF(PSF):
             self.atmo_interp = None
             self._enable_atmosphere = False
 
-        data = fits[extname + '_analytic'].read()
-        coefs_flat = data['coefs']
-        indices_flat = data['indices']
-        shape = data['shape']
-        possible_shapes = np.sort(np.unique(shape))
-        analytic_coefs = [[], []]
-        for i in possible_shapes:
-            analytic_coefs[0].append(np.array(coefs_flat[shape == i]).astype(np.float64))
-            analytic_coefs[1].append(np.array(indices_flat[shape == i]).astype(np.int64))
-        self.analytic_coefs = analytic_coefs
+        try:
+            data = fits[extname + '_analytic'].read()
+            coefs_flat = data['coefs']
+            indices_flat = data['indices']
+            shape = data['shape']
+            possible_shapes = np.sort(np.unique(shape))
+            analytic_coefs = [[], []]
+            for i in possible_shapes:
+                analytic_coefs[0].append(np.array(coefs_flat[shape == i]).astype(np.float64))
+                analytic_coefs[1].append(np.array(indices_flat[shape == i]).astype(np.int64))
+            self.analytic_coefs = analytic_coefs
+        except IOError:
+            # analytic coefs not in fits, so no such things!
+            self.analytic_coefs = None
 
         # read optical_psf_kwargs
         self.optical_psf_kwargs = read_kwargs(fits, extname=extname + '_optical_psf_kwargs')
@@ -485,9 +498,12 @@ class OptAtmoPSF(PSF):
             self.optatmo_psf_kwargs[key] = data[key][0]
         logger.info('Reloading optatmopsf state')
         self._update_optatmopsf(self.optatmo_psf_kwargs, logger)
+        logger.info('checking for outliers')
         if extname + '_outliers' in fits:
+            logger.info('Reloading outliers')
             self.outliers = Outliers.read(fits, extname + '_outliers')
         else:
+            logger.info('Skipping outliers')
             self.outliers = None
 
     def fit(self, stars, wcs, pointing,
@@ -563,8 +579,9 @@ class OptAtmoPSF(PSF):
         self.fit_optics_star_shapes = self.star_shapes[self.fit_optics_indices]
         self.fit_optics_star_errors = self.star_errors[self.fit_optics_indices]
 
-        # perform the fit!
-        self.fit_analytic(self.fit_optics_stars, self.fit_optics_star_shapes, self.fit_optics_star_errors, logger=logger, **kwargs)
+        # perform initial optics fit with analytic parameters, if we have them
+        if self.analytic_coefs is not None:
+            self.fit_analytic(self.fit_optics_stars, self.fit_optics_star_shapes, self.fit_optics_star_errors, logger=logger, **kwargs)
 
         # first just fit the size to correct size offset. Only use 200 stars
         n_fit_size = 200
@@ -992,13 +1009,14 @@ class OptAtmoPSF(PSF):
         if self.reference_wavefront: self._create_cache(stars, logger=logger)
 
         # make kwargs with only size
-        dparam = 0.1  # search only between +- 0.1 of the size term
+        Ns = kwargs.pop('Ns', 201)
+        dparam = kwargs.pop('dparam', 0.1)  # search +- this range
         param = self.optatmo_psf_kwargs['size']
         fit_size_kwargs = {'size': param, 'min_size': param - dparam, 'max_size': param + dparam}
         lmparams = self._fit_optics_lmparams(fit_size_kwargs, ['size'])
 
         # do fit
-        results = lmfit.minimize(self._fit_size_residual, lmparams, args=(stars, shapes, shape_errors, logger,), method='brute', Ns=201)  # 1e-3 steps
+        results = lmfit.minimize(self._fit_size_residual, lmparams, args=(stars, shapes, shape_errors, logger,), method='brute', Ns=Ns)  # 1e-3 steps
 
         # set final fit
         logger.info('Optical fit from lmfit parameters:')
