@@ -123,19 +123,23 @@ def test_shearing():
 
 @timer
 def test_gaussian():
-    import galsim
-    if __name__ == '__main__':
-        logger = piff.config.setup_logger(verbose=3)
-    else:
-        logger = piff.config.setup_logger(verbose=1)
-    logger.info('test_gaussian')
-    gaussian = piff.Gaussian()
-    # test gaussian alone
     sigma = 0.7
     r0 = 0.14
     size = 0.7
     g1 = -0.2
     g2 = 0.24
+    import galsim
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(verbose=3)
+        r0s = [0, r0, 0, r0]
+        fastfits = [True, True, False, False]
+    else:
+        logger = piff.config.setup_logger(verbose=1)
+        r0s = [0, r0]
+        fastfits = [True, False]
+    logger.info('test_gaussian')
+    gaussian = piff.Gaussian()
+    # test gaussian alone
     fit_kwargs = {'flux': 123, 'center': (-0.1, 0.3)}
     star = make_empty_star(params=np.array([1, g1, g2]), fit_kwargs=fit_kwargs)
     model = piff.Optical(r0=0, sigma=sigma, template='des', logger=logger)
@@ -164,7 +168,7 @@ def test_gaussian():
 
     assert model_slow.gsparams != model_r0.gsparams
 
-    for r0, fastfit in zip([0, r0, 0, r0], [True, True, False, False]):
+    for r0, fastfit in zip(r0s, fastfits):
         # atmo and optics terms are highly degenerate so don't bother testing together
         for vary_atmo, vary_optics in zip([True, False, False], [False, True, False]):
             logger.info('r0, fastfit, vary_atmo, vary_optics')
@@ -281,11 +285,11 @@ def make_empty_star(icen=500, jcen=700, ccdnum=28, params=None,
     return star
 
 if __name__ == '__main__':
-    # test_init()
-    # test_optical()
-    # test_pupil_im(pupil_plane_file='input/DECam_pupil_128.fits')
-    # test_pupil_im(pupil_plane_file='input/DECam_pupil_512.fits')
-    # test_kolmogorov()
-    # test_shearing()
+    test_init()
+    test_optical()
+    test_pupil_im(pupil_plane_file='input/DECam_pupil_128.fits')
+    test_pupil_im(pupil_plane_file='input/DECam_pupil_512.fits')
+    test_kolmogorov()
+    test_shearing()
     test_gaussian()
     test_disk()

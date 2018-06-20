@@ -245,10 +245,12 @@ class Optical(Model):
             self._save_optical_psf_kwargs = copy.deepcopy(self.optical_psf_kwargs)
             if 'pad_factor' not in self.optical_psf_kwargs:
                 self.optical_psf_kwargs['pad_factor'] = 0.5
-                self.optical_psf_kwargs['pad_factor'] = 1.1
+                self.optical_psf_kwargs['pad_factor'] = 1.1  # does work
+                self.optical_psf_kwargs['pad_factor'] = 1.0
             if 'oversampling' not in self.optical_psf_kwargs:
                 self.optical_psf_kwargs['oversampling'] = 0.5
-                self.optical_psf_kwargs['oversampling'] = 1.1
+                self.optical_psf_kwargs['oversampling'] = 1.1  # does work
+                self.optical_psf_kwargs['oversampling'] = 1.0
 
         # make initial lmparams
         lmparams = lmfit.Parameters()

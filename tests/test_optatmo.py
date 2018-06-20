@@ -267,7 +267,7 @@ def test_atmo_interp_fit():
 def test_fit():
     # setup logger
     if __name__ == '__main__':
-        logger = piff.config.setup_logger(verbose=3)
+        logger = piff.config.setup_logger(verbose=2)
     else:
         logger = piff.config.setup_logger(verbose=1)
     logger.debug('Entering test_fit')
@@ -296,17 +296,24 @@ def test_fit():
                           # 'fix_zPupil010_zFocal001': True,
                           'zPupil011_zFocal001': 0.2,
                           'fix_zPupil011_zFocal001': True,
-                        }
-    config['optatmo_psf_kwargs'] = optatmo_psf_kwargs
+                        }  # avoid the defocus,astig,spherical -> negatives degeneracy by fixing spherical
+    config['optatmo_psf_kwargs'] = copy.deepcopy(optatmo_psf_kwargs)
     config_draw = copy.deepcopy(config)
-    optatmo_psf_kwargs_values = {'size': 0.8, 'zPupil004_zFocal001': 0.2, 'zPupil009_zFocal001': -0.25, 'zPupil008_zFocal001': 0.4, 'zPupil007_zFocal001': 0.2, 'zPupil006_zFocal001': -0.2, 'zPupil005_zFocal001': 0.3, 'zPupil010_zFocal001': 0.2}
+    optatmo_psf_kwargs_values = {'size': 0.8,
+            'zPupil004_zFocal001': 0.2,
+            'zPupil005_zFocal001': 0.3,
+            'zPupil006_zFocal001': -0.2,
+            'zPupil007_zFocal001': 0.2,
+            'zPupil008_zFocal001': 0.4,
+            'zPupil009_zFocal001': -0.25,
+            'zPupil010_zFocal001': 0.2}
     config_draw['optatmo_psf_kwargs'].update(optatmo_psf_kwargs_values)
     psf_draw = piff.PSF.process(config_draw)
-    psf_train = piff.PSF.process(config)
+    psf_train = piff.PSF.process(copy.deepcopy(config))
 
     # make stars
     logger.info('Making Stars')
-    nstars = 10000
+    nstars = 10
     chipnums = np.random.choice(range(1,63), nstars)
     icens = np.random.randint(0, 1024, nstars)
     jcens = np.random.randint(0, 2048, nstars)
@@ -327,18 +334,28 @@ def test_fit():
         stars_to_fit.append(star.clean())
 
     # do fit
-    psf_train.fit(stars_to_fit, wcs, pointing, logger=logger, Ns=5)  # go faster on size
-    logger.debug('Parameter: Input, Fit, Input - Fit')
-    for key in sorted(optatmo_psf_kwargs_values):
-        train = optatmo_psf_kwargs_values[key]
-        fit = psf_train.optatmo_psf_kwargs[key]
-        logger.debug('{0}: {1:+.3f}, {2:+.3f}, {3:+.3f}'.format(key, train, fit, train - fit))
-    # I don't really trust these fits to better than 0.1
-    for key in sorted(optatmo_psf_kwargs_values):
-        train = optatmo_psf_kwargs_values[key]
-        fit = psf_train.optatmo_psf_kwargs[key]
-        diff = np.abs(train - fit)
-        assert diff <= 0.075,'failed to fit {0}: {1:+.3f}, {2:+.3f}, {3:+.3f}'.format(key, train, fit, train - fit)
+    for fit_optics_mode in ['analytic', 'shape', 'pixel']:
+    # for fit_optics_mode in ['pixel']:
+        psf_train = piff.PSF.process(copy.deepcopy(config))
+        logger.info('Test fitting optics mode {0}'.format(fit_optics_mode))
+        psf_train.fit_optics_mode = fit_optics_mode
+        psf_train.fit(stars_to_fit, wcs, pointing, logger=logger, Ns=5, maxfev=10)  # go faster on size
+        logger.info('Fit results for mode {0}'.format(fit_optics_mode))
+        logger.info('Parameter: Input, Fit, Input - Fit')
+        for key in sorted(optatmo_psf_kwargs_values):
+            train = optatmo_psf_kwargs_values[key]
+            fit = psf_train.optatmo_psf_kwargs[key]
+            logger.info('{0}: {1:+.3f}, {2:+.3f}, {3:+.3f}'.format(key, train, fit, train - fit))
+        # I don't really trust these fits to better than 0.1
+        for key in sorted(optatmo_psf_kwargs_values):
+            train = optatmo_psf_kwargs_values[key]
+            fit = psf_train.optatmo_psf_kwargs[key]
+            diff = np.abs(train - fit)
+            if fit_optics_mode == 'analytic':
+                tol = 0.1  # lower expectations with the analytic mode
+            else:
+                tol = 0.01
+            assert diff <= tol,'failed to fit {0} to tolerance {4}: {1:+.3f}, {2:+.3f}, {3:+.3f}'.format(key, train, fit, train - fit, tol)
 
 @timer
 def test_atmo_model_fit():
@@ -894,15 +911,15 @@ def test_lmparams():
     assert lmparams['size'].value == kwargs['min_size']
 
 if __name__ == '__main__':
-        test_init()
-        test_aberrations()
-        test_reference_wavefront()
-        test_jmaxs()
-        test_atmo_model_fit()
-        test_atmo_interp_fit()
-        test_profile()
-        test_snr_and_shapes()
-        test_analytic_coefs()
-        test_roundtrip()
-        test_lmparams()
+        # test_init()
+        # test_aberrations()
+        # test_reference_wavefront()
+        # test_jmaxs()
+        # test_atmo_model_fit()
+        # test_atmo_interp_fit()
+        # test_profile()
+        # test_snr_and_shapes()
+        # test_analytic_coefs()
+        # test_roundtrip()
+        # test_lmparams()
         test_fit()
