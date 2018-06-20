@@ -22,10 +22,12 @@ from __future__ import print_function
 import galsim
 import coord
 import fitsio
+import copy
 import numpy as np
 
 from .model import Model
 from .star import Star, StarFit, StarData
+from .config import LoggerWrapper
 
 # The only one here by default is 'des', but this allows people to easily add another template
 optical_templates = {
@@ -41,7 +43,7 @@ optical_templates = {
 }
 
 class Optical(Model):
-    def __init__(self, template=None, logger=None, **kwargs):
+    def __init__(self, template=None, vary_atmosphere=True, vary_optics=True, logger=None, fastfit=True, **kwargs):
         """Initialize the Optical Model
 
         There are potentially three components to this model that are convolved together.
@@ -51,6 +53,7 @@ class Optical(Model):
         are fixed and are given at initialization.  These parameters are passed to GalSim, so
         they have the same definitions as used there.
 
+        :param fastfit:        If True, will lower requirements for galsim fourier transforms yielding considerable speedup during fitting
         :param diam:            Diameter of telescope aperture in meters. [required (but cf.
                                 template option)]
         :param lam:             Wavelength of observations in nanometers. [required (but cf.
@@ -75,11 +78,9 @@ class Optical(Model):
         :param r0:              The Fried parameter in units of meters to use to calculate fwhm
                                 as fwhm = 0.976 lam / r0. [default: None]
 
-        Finall, there is allowed to be a final Gaussian component and an applied shear.
+        Finally, there is allowed to be a final Gaussian component and an applied shear.
 
-        :param sigma:           Convolve with gaussian of size sigma. [default: 0]
-        :param g1, g2:          Shear to apply to final image. Simulates vibrational modes.
-                                [default: 0]
+        :param sigma:           Convolve with gaussian of size sigma. [default: None]
 
         Since there are a lot of parameters here, we provide the option of setting many of them
         from a template value.  e.g. template = 'des' will use the values stored in the dict
@@ -138,10 +139,23 @@ class Optical(Model):
         if 'r0' in self.kolmogorov_kwargs and not self.kolmogorov_kwargs['r0']:
             self.kolmogorov_kwargs = {}
 
-        # Store the Gaussian and shear parts
-        self.sigma = kwargs.pop('sigma',None)
-        self.g1 = kwargs.pop('g1',None)
-        self.g2 = kwargs.pop('g2',None)
+
+        self.gsparams = galsim.GSParams()
+
+        if len(self.kolmogorov_kwargs) > 0:
+            logger.debug('Creating Kolmogorov Atmosphere')
+            self.atmo = galsim.Kolmogorov(**self.kolmogorov_kwargs)
+            sigma = kwargs.pop('sigma',None)
+            if sigma is not None:
+                logger.debug('Found extra sigma = {0}. It will be unused'.format(sigma))
+        else:
+            logger.debug('No kolmogorov atmosphere found.')
+            sigma = kwargs.pop('sigma',None)
+            logger.debug('Filling with gaussian sigma = {0}'.format(sigma))
+            if sigma is not None:
+                self.atmo = galsim.Gaussian(sigma=sigma)
+            else:
+                self.atmo = None
 
         # Check that no unexpected parameters were passed in:
         extra_kwargs = [k for k in kwargs if k not in optical_psf_keys and k not in kolmogorov_keys]
@@ -159,13 +173,165 @@ class Optical(Model):
             if key in self.kwargs:
                 self.kwargs[key] = repr(self.kwargs[key])
 
-    def fit(self, star):
-        """Warning: This method just updates the fit with the chisq and dof!
+        self.vary_atmosphere = vary_atmosphere
+        self.vary_optics = vary_optics
+        self._fastfit = fastfit
+        self.kwargs['vary_atmosphere'] = vary_atmosphere
+        self.kwargs['vary_optics'] = vary_optics
+        self.kwargs['fastfit'] = fastfit
+
+    def _fit_residual(self, lmparams, star, logger=None):
+        logger = LoggerWrapper(logger)
+
+        image, weight, image_pos = star.data.getImage()
+        all_params = lmparams.valuesdict().values()
+
+        flux, du, dv = all_params[:3]
+        params = all_params[3:]
+
+
+        prof = self.getProfile(params, logger=logger).shift(du, dv) * flux
+
+        # draw
+        # Equivalent to galsim.Image(image, dtype=float), but without the sanity checks.
+        model_image = galsim._Image(np.empty_like(image.array, dtype=float),
+                                    image.bounds, image.wcs)
+        prof.drawImage(model_image,
+                       offset=(image_pos - model_image.true_center))
+
+        # Caculate sqrt(weight) * (model_image - image) in place for efficiency.
+        model_image.array[:,:] -= image.array
+        model_image.array[:,:] *= np.sqrt(weight.array)
+        chi = model_image.array.ravel()
+
+        # logger.debug('current params, chi2 / dof of {0}:'.format(np.sum(chi ** 2) / len(chi)))
+        # logger.debug(str(all_params))
+        return chi
+
+    def fit(self, star, params0=None, fastfit=None, logger=None, **kwargs):
+        """Fit star parameters. Depending on the model settings, may fit only flux and centering, or may also fit other parameters
 
         :param star:    A Star instance
+        :param params0: Initial set of parameters for fit. If None, will choose some (reasonable) defaults
+        :param **kwargs: A set of parameters to pass in for changing the
+                            way lmfit does the minimization.
+        :param logger:      A logger object for logging debug info. [default: None]
 
         :returns: a new Star with the fitted parameters in star.fit
         """
+        lmfit_kwargs = {'method': 'leastsq', 'epsfcn': 1e-5, 'maxfev': 1000}
+        lmfit_kwargs.update(**kwargs)
+        logger = LoggerWrapper(logger)
+        import lmfit
+
+        if fastfit is None:
+            fastfit = self._fastfit
+
+        # update convolution if fastfit
+        if fastfit:
+            logger.debug('fastfit mode activated')
+            self._save_gsparams = self.gsparams
+            self.gsparams = galsim.GSParams(
+                minimum_fft_size=32,  # 128
+                # maximum_fft_size=4096,  # 4096
+                # stepk_minimum_hlr=5,  # 5
+                # folding_threshold=5e-3,  # 5e-3
+                # maxk_threshold=1e-3,  # 1e-3
+                # kvalue_accuracy=1e-5,  # 1e-5
+                # xvalue_accuracy=1e-5,  # 1e-5
+                # table_spacing=1.,  # 1
+                )
+            # speedup in optical modeling
+            self._save_optical_psf_kwargs = copy.deepcopy(self.optical_psf_kwargs)
+            if 'pad_factor' not in self.optical_psf_kwargs:
+                self.optical_psf_kwargs['pad_factor'] = 0.5
+                self.optical_psf_kwargs['pad_factor'] = 1.1
+            if 'oversampling' not in self.optical_psf_kwargs:
+                self.optical_psf_kwargs['oversampling'] = 0.5
+                self.optical_psf_kwargs['oversampling'] = 1.1
+
+        # make initial lmparams
+        lmparams = lmfit.Parameters()
+
+        flux = star.fit.flux
+        if flux == 1.:
+            # a pretty reasonable first guess is to just take the sum of the pixels
+            flux = star.image.array.sum()
+        lmparams.add('flux', value=flux, vary=True, min=0.0)
+        lmparams.add('du', value=star.fit.center[0], vary=True, min=-0.3, max=0.3)
+        lmparams.add('dv', value=star.fit.center[1], vary=True, min=-0.3, max=0.3)
+
+        # atmo params
+        if params0 is None:
+            size0 = 1
+            g10 = 0
+            g20 = 0
+        else:
+            size0, g10, g20 = params0[:3]
+
+        min_size = 0.45
+        max_size = 2.0
+        max_g = 0.4
+        lmparams.add('size', value=size0, vary=self.vary_atmosphere, min=min_size, max=max_size)
+        lmparams.add('g1', value=g10, vary=self.vary_atmosphere, min=-max_g, max=max_g)
+        lmparams.add('g2', value=g20, vary=self.vary_atmosphere, min=-max_g, max=max_g)
+
+        # sanity checks
+        if size0 < min_size:
+            logger.warning('Initial size is less than recommended minimum: {0} < {1}'.format(size0, min_size))
+        if size0 > max_size:
+            logger.warning('Initial size is greater than recommended maximum: {0} > {1}'.format(size0, max_size))
+        if g10 > max_g:
+            logger.warning('Initial g1 is greater than recommended maximum: {0} > {1}'.format(g10, max_g))
+        if g10 < -max_g:
+            logger.warning('Initial g1 is less than recommended minimum: {0} < {1}'.format(g10, -max_g))
+        if g20 > max_g:
+            logger.warning('Initial g2 is greater than recommended maximum: {0} > {1}'.format(g20, max_g))
+        if g20 < -max_g:
+            logger.warning('Initial g2 is less than recommended minimum: {0} < {1}'.format(g20, -max_g))
+
+        # optics params
+        # if params0 passed, use it to guess size, otherwise default to 4-11
+        if params0 is None:
+            n_optics_params = 8
+            optics_params = np.zeros(n_optics_params)
+        else:
+            n_optics_params = len(params0) - 3
+            optics_params = params0[3:]
+        for i in range(n_optics_params):
+            lmparams.add('zernike_{0}'.format(i + 4), value=optics_params[i], vary=self.vary_optics, min=-2, max=2)
+
+        # run fit
+        results = lmfit.minimize(self._fit_residual, lmparams, args=(star, logger,), **lmfit_kwargs)
+        logger.debug(lmfit.fit_report(results, min_correl=0.5))
+
+        if fastfit:
+            logger.debug('fastfit mode deactivated')
+            self.gsparams = self._save_gsparams
+            self.optical_psf_kwargs = self._save_optical_psf_kwargs
+
+        # extract values
+        flux = results.params['flux'].value
+        du = results.params['du'].value
+        dv = results.params['dv'].value
+        center = (du, dv)
+        chisq = results.chisqr
+        dof = results.nfree
+        fit_params = np.zeros(len(results.params) - 3)
+        params_var = np.zeros(len(results.params) - 3)
+        for i, key in enumerate(results.params):
+            indx = i - 3  # first three are flux and center
+            if key in ['flux', 'du', 'dv']:
+                continue
+            param = results.params[key]
+            fit_params[indx] = param.value
+            if hasattr(param, 'stderr'):
+                params_var[indx] = param.stderr ** 2
+
+        fit = StarFit(fit_params, params_var=params_var, flux=flux, center=center, chisq=chisq, dof=dof)
+        return Star(star.data, fit)
+
+
         image = star.image
         weight = star.weight
         # make image from self.draw
@@ -180,44 +346,53 @@ class Optical(Model):
                       center=star.fit.center, chisq=chisq, dof=dof)
         return Star(star.data, fit)
 
-    def getProfile(self, params):
+    def getProfile(self, params, logger=None):
         """Get a version of the model as a GalSim GSObject
 
-        :param params:      A np array with [z4, z5, z6...z11]
+        :param params:      A np array with [size, g1, g2, z4, z5, z6...]
 
         :returns: a galsim.GSObject instance
         """
+        logger = LoggerWrapper(logger)
         import galsim
+
+        if params is None:
+            size = 1
+            g1 = 0
+            g2 = 0
+            optics_params = []
+            logger.warning('entered getProfile of optical model with star lacking fit parameters. Entering default values and skipping optical aberrations')
+        else:
+            size, g1, g2 = params[:3]
+            optics_params = params[3:]
+        # atmo
         prof = []
-        # gaussian
-        if self.sigma is not None:
-            gaussian = galsim.Gaussian(sigma=self.sigma)
-            prof.append(gaussian)
-        # atmosphere
-        if len(self.kolmogorov_kwargs) > 0:
-            atm = galsim.Kolmogorov(**self.kolmogorov_kwargs)
-            prof.append(atm)
+        if self.atmo is not None:
+            # * 1. to prevent error in galsim dilate
+            prof.append(self.atmo.dilate(size * 1.).shear(g1=g1, g2=g2))
+        else:
+            logger.warning('No atmosphere model found')
+
         # optics
-        if params is None or len(params) == 0:
-            # no optics here
+        if len(optics_params) == 0:
+            # no optics here; this should behave like a gsobject
             pass
         else:
-            aberrations = [0,0,0,0] + list(params)
-            optics = galsim.OpticalPSF(aberrations=aberrations, **self.optical_psf_kwargs)
+            aberrations = [0,0,0,0] + list(optics_params)
+            optics = galsim.OpticalPSF(aberrations=aberrations, gsparams=self.gsparams, **self.optical_psf_kwargs)
             prof.append(optics)
-            # convolve together
 
         if len(prof) == 0:
             raise RuntimeError('No profile returned by model!')
-
-        prof = galsim.Convolve(prof)
-
-        if self.g1 is not None or self.g2 is not None:
-            prof = prof.shear(g1=self.g1, g2=self.g2)
+        if len(prof) == 1:
+            prof = prof[0]
+        # convolve together
+        elif len(prof) > 1:
+            prof = galsim.Convolve(prof, gsparams=self.gsparams)
 
         return prof
 
-    def draw(self, star, copy_image=True):
+    def draw(self, star, copy_image=True, logger=None):
         """Draw the model on the given image.
 
         :param star:    A Star instance with the fitted parameters to use for drawing and a
@@ -228,14 +403,23 @@ class Optical(Model):
 
         :returns: a new Star instance with the data field having an image of the drawn model.
         """
-        import galsim
-        prof = self.getProfile(star.fit.params)
-        center = galsim.PositionD(*star.fit.center)
-        offset = star.data.image_pos + center - star.data.image.true_center
+        logger = LoggerWrapper(logger)
+        prof = self.getProfile(star.fit.params, logger=logger).shift(star.fit.center) * star.fit.flux
         if copy_image:
             image = star.image.copy()
         else:
             image = star.image
-        prof.drawImage(image, method='no_pixel', offset=offset)
-        data = StarData(image, star.data.image_pos, star.data.weight)
+        prof.drawImage(image, method='auto', offset=(star.image_pos-image.true_center))
+        properties = star.data.properties.copy()
+        for key in ['x', 'y', 'u', 'v']:
+            # Get rid of keys that constructor doesn't want to see:
+            properties.pop(key, None)
+        data = StarData(image=image,
+                        image_pos=star.data.image_pos,
+                        weight=star.data.weight,
+                        pointing=star.data.pointing,
+                        field_pos=star.data.field_pos,
+                        values_are_sb=star.data.values_are_sb,
+                        orig_weight=star.data.orig_weight,
+                        properties=properties)
         return Star(data, star.fit)
