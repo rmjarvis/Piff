@@ -198,3 +198,118 @@ def plotify(config, logger=None):
     for stats in output.stats_list:
         stats.compute(psf,stars,logger=logger)
         stats.write(logger=logger)
+
+def meanify(config, logger=None):
+    """Take Piff output(s), build an average of the FoV, and write output average.
+
+    :param config:      The configuration file that defines how to build the model
+    :param logger:      A logger object for logging progress. [default: None]
+    """
+    from .star import Star
+    import glob
+    import numpy as np
+    import fitsio
+
+    if logger is None:
+        verbose = config.get('verbose', 1)
+        logger = setup_logger(verbose=verbose)
+
+    for key in ['output', 'hyper']:
+        if key not in config:
+            raise ValueError("%s field is required in config dict"%key)
+    for key in ['file_name']:
+        if key not in config['output']:
+            raise ValueError("%s field is required in config dict output"%key)
+
+    for key in ['file_name']:
+        if key not in config['hyper']:
+            raise ValueError("%s field is required in config dict hyper"%key)
+
+    if 'dir' in config['output']:
+        dir = config['output']['dir']
+    else:
+        dir = None
+
+    if 'bin_spacing' in config['hyper']:
+        bin_spacing = config['hyper']['bin_spacing'] #in arcsec
+    else:
+        bin_spacing = 120. #default bin_spacing: 120 arcsec
+
+    if isinstance(config['output']['file_name'], list):
+        psf_list = config['output']['file_name']
+        if len(psf_list) == 0:
+            raise ValueError("file_name may not be an empty list")
+    elif isinstance(config['output']['file_name'], str):
+        file_name = config['output']['file_name']
+        if dir is not None:
+            file_name = os.path.join(dir, file_name)
+        psf_list = sorted(glob.glob(file_name))
+        if len(psf_list) == 0:
+            raise ValueError("No files found corresponding to "+config['file_name'])
+    elif not isinstance(config['file_name'], dict):
+        raise ValueError("file_name should be either a dict or a string")
+
+    if psf_list is not None:
+        logger.debug('psf_list = %s',psf_list)
+        npsfs = len(psf_list)
+        logger.debug('npsfs = %d',npsfs)
+        config['output']['file_name'] = psf_list
+
+    file_name_in = config['output']['file_name']
+    logger.info("Looking for PSF at %s", file_name_in)
+
+    file_name_out = config['hyper']['file_name']
+    if 'dir' in config['hyper']:
+        file_name_out = os.path.join(config['hyper']['dir'], file_name_out)
+
+    def _getcoord(star):
+        return np.array([star.data[key] for key in ['u', 'v']])
+
+    coords = []
+    params = []
+
+    for f in file_name_in:
+        hdu = fitsio.FITS(f) 
+        stars = Star.read(hdu, 'psf_stars')
+        for s in stars:
+            coords.append(_getcoord(s))
+            params.append(s.fit.params)
+
+    coords = np.array(coords)
+    params = np.array(params)
+
+    lu_min, lu_max = np.min(coords[:,0]), np.max(coords[:,0])
+    lv_min, lv_max = np.min(coords[:,1]), np.max(coords[:,1])
+
+    nbin_u = int((lu_max - lu_min) / bin_spacing)
+    nbin_v = int((lv_max - lv_min) / bin_spacing)
+    binning = [np.linspace(lu_min, lu_max, nbin_u), np.linspace(lv_min, lv_max, nbin_v)]
+    counts, u0, v0 = np.histogram2d(coords[:,0], coords[:,1], bins=binning)
+    counts = counts.T
+    counts = counts.reshape(-1)
+
+    params0 = np.zeros((len(counts),len(params[0])))
+
+    for i in range(len(params[0])):
+        average = np.histogram2d(coords[:,0], coords[:,1], bins=binning, weights=params[:,i])[0].T
+        average = average.reshape(-1)
+        average[average!=0] /= counts[average!=0]
+        params0[:,i] = average
+
+    # get center of each bin 
+    u0 = u0[:-1] + (u0[1] - u0[0])/2.
+    v0 = v0[:-1] + (v0[1] - v0[0])/2.
+    u0, v0 = np.meshgrid(u0, v0)
+
+    coords0 = np.array([u0.reshape(-1), v0.reshape(-1)]).T
+
+    dtypes = [('COORDS0', coords0.dtype, coords0.shape),
+              ('PARAMS0', params0.dtype, params0.shape),
+          ]
+    data = np.empty(1, dtype=dtypes)
+
+    data['COORDS0'] = coords0
+    data['PARAMS0'] = params0
+
+    with fitsio.FITS(file_name_out,'rw',clobber=True) as f:
+        f.write_table(data, extname='average_solution')
