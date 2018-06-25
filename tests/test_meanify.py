@@ -186,7 +186,6 @@ def setup():
 
 @timer
 def test_meanify():
-    setup()
     psf_file = 'test_mean_*.piff'
     average_file = 'average.fits'
 
@@ -247,5 +246,5 @@ def test_meanify():
         np.testing.assert_allclose(params_interp, params_validation, rtol=1e-1, atol=1e-2)
 
 if __name__ == '__main__':
-
+    setup()
     test_meanify()
