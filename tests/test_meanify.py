@@ -147,6 +147,7 @@ def setup():
         for x, y, hlr, g1, g2 in zip(x_list, y_list, params['hlr'], params['g1'], params['g2']):
             psf = galsim.Kolmogorov(half_light_radius=hlr, flux=1.).shear(g1=g1, g2=g2)
             bounds = galsim.BoundsI(int(x-21), int(x+22), int(y-21), int(y+22))
+            if not image.bounds.includes(bounds): continue
             offset = galsim.PositionD( x-int(x)-0.5 , y-int(y)-0.5 )
             psf.drawImage(image=image[bounds], method='no_pixel', offset=offset)
 
