@@ -207,9 +207,11 @@ def test_meanify():
     if __name__ == '__main__':
         rtol = 1.e-1
         atol = 1.e-2
+        bin_spacing = 30  # arcsec
     else:
         rtol = 1.e-1
         atol = 3.e-2
+        bin_spacing = 150  # arcsec
 
     psf_file = 'test_mean_*.piff'
     average_file = 'average.fits'
@@ -232,7 +234,7 @@ def test_meanify():
         'hyper' : {
             'file_name' : average_file,
             'dir': 'output',
-            'bin_spacing' : 30, #arcsec
+            'bin_spacing' : bin_spacing,
         }}
 
     for config in [config0, config1]:
