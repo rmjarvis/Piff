@@ -37,6 +37,10 @@ before_install:
     - python setup.py install --prefix=$PYHOME
     - popd
 
+    # Workaround for bug in pandas 0.22.  Install 0.21 preemptively, so treecorr's pandas
+    # dependency doesn't trigger building 0.22.
+    - pip install pandas==0.21
+
 cache:
     pip: true
     directories:
