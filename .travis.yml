@@ -27,7 +27,7 @@ before_install:
 
     # Install GalSim
     - pip install -U pip setuptools
-    - pip install numpy astropy future pyyaml LSSTDESC.Coord pybind11 eigency
+    - pip install numpy astropy future pyyaml LSSTDESC.Coord pybind11
     - pip install galsim
 
     # Workaround for fitsio bug that has been fixed on master, but not pip yet.
