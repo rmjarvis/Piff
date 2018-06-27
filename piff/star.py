@@ -391,7 +391,7 @@ class Star(object):
         wcs_list = [ w.withOrigin(p, wp) for w,p,wp in zip(wcs_list, pos_list, wpos_list) ]
         bounds_list = [ galsim.BoundsI(*b) for b in zip(xmin,xmax,ymin,ymax) ]
         image_list = [ galsim.Image(bounds=b, wcs=w) for b,w in zip(bounds_list, wcs_list) ]
-        weight_list = [ 1 + galsim.Image(bounds=b, wcs=w) for b,w in zip(bounds_list, wcs_list) ]
+        weight_list = [ galsim.Image(init_value=1.0, bounds=b, wcs=w) for b,w in zip(bounds_list, wcs_list) ]
         data_list = [ StarData(im, pos, weight=w, properties=prop, pointing=point)
                       for im,pos,w,prop,point in zip(image_list, pos_list, weight_list,
                                                      prop_list, pointing_list) ]
