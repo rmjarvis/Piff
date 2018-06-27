@@ -525,7 +525,7 @@ class PixelGrid(Model):
         # Now get the final alpha, beta, chisq for the remaining PSF params
         outchisq = chisq - np.dot(beta[s1].T,np.dot(a11inv, beta[s1]))
         if logger:
-            logger.info('chisq = %f -> %f  dof = %d'%(chisq,outchisq,dof))
+            logger.debug('chisq = %f -> %f  dof = %d'%(chisq,outchisq,dof))
         tmp = np.dot(a11inv, alpha[s1,s0])
         outbeta = beta[s0] - np.dot(beta[s1].T,tmp)
         outalpha = alpha[s0,s0] - np.dot(alpha[s0,s1],tmp)
