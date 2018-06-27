@@ -563,21 +563,26 @@ class OptAtmoPSF(PSF):
         self.star_errors = np.array(self.star_errors)
         self.star_snrs = np.array(self.star_snrs)
 
+        conds_shape = (np.all(np.abs(self.star_shapes[:, 3:]) <= self._max_shapes, axis=1))
+        # also a MAD cut
+        med = np.median(self.star_shapes[:, 3:], axis=0)
+        madx = np.abs(self.star_shapes[:, 3:] - med[None])
+        mad = np.median(madx, axis=0)
+        logger.debug('MAD values: {0}'.format(str(mad)))
+        conds_mad = (np.all(madx <= 1.48 * 5 * mad, axis=1))
+
+        self.stars_indices = np.arange(len(self.stars))
+        self.stars_indices = self.stars_indices[conds_shape * conds_mad]
+        self.stars = [self.stars[indx] for indx in self.stars_indices]
+        self.star_shapes = self.star_shapes[self.stars_indices]
+        self.star_errors = self.star_errors[self.stars_indices]
+        self.star_snrs = self.star_snrs[self.stars_indices]
+
         # determine stars used in optical fit
         self.fit_optics_indices = np.arange(len(self.stars))
-        # cut self.fit_optics_indices based on snr and max_shapes
         conds_snr = (self.star_snrs >= self.min_optfit_snr)
-        conds_shape = (np.all(np.abs(self.star_shapes[:, 3:]) <= self._max_shapes, axis=1))
-        self.fit_optics_indices = self.fit_optics_indices[conds_snr * conds_shape]
-        logger.info('Cutting {0} stars for fitting the optics based on SNR > {1} ({2} stars) and on maximum shapes ({3} stars)'.format(len(stars) - len(self.fit_optics_indices), self.min_optfit_snr, len(self.stars) - np.sum(conds_snr), len(stars) - np.sum(conds_snr)))
-
-
-        # perform initial optics fit with analytic parameters, if we have them
-        if self.analytic_coefs is not None:
-            self.fit_optics_stars = [self.stars[indx] for indx in self.fit_optics_indices]
-            self.fit_optics_star_shapes = self.star_shapes[self.fit_optics_indices]
-            self.fit_optics_star_errors = self.star_errors[self.fit_optics_indices]
-            self.fit_optics(self.fit_optics_stars, self.fit_optics_star_shapes, self.fit_optics_star_errors, mode='analytic', logger=logger, **kwargs)
+        self.fit_optics_indices = self.fit_optics_indices[conds_snr]
+        logger.info('Cutting to {0} stars for fitting the optics based on SNR > {1} ({2} stars) on maximum shapes ({3} stars) and on a 5 sigma outlier cut ({4} stars)'.format(len(self.fit_optics_indices), self.min_optfit_snr, len(conds_snr) - np.sum(conds_snr), len(conds_shape) - np.sum(conds_shape), len(conds_mad) - np.sum(conds_mad)))
 
         # cut further if we have more stars than n_optfit_stars
         if self.n_optfit_stars and self.n_optfit_stars < len(self.fit_optics_indices):
@@ -594,8 +599,12 @@ class OptAtmoPSF(PSF):
         self.fit_optics_star_shapes = self.star_shapes[self.fit_optics_indices]
         self.fit_optics_star_errors = self.star_errors[self.fit_optics_indices]
 
-        # first just fit the size to correct size offset. Only use 200 stars
-        n_fit_size = 200
+        # perform initial optics fit with analytic parameters, if we have them
+        if self.analytic_coefs is not None:
+            self.fit_optics(self.fit_optics_stars, self.fit_optics_star_shapes, self.fit_optics_star_errors, mode='analytic', logger=logger, **kwargs)
+
+        # first just fit the size to correct size offset. Only use a few stars
+        n_fit_size = 50
         self.fit_size_indices = np.arange(len(self.fit_optics_stars))
         if n_fit_size < len(self.fit_optics_stars):
 
@@ -1009,7 +1018,6 @@ class OptAtmoPSF(PSF):
         results = lmfit.minimize(residual, lmparams, args=(stars, shapes, errors, logger,), epsfcn=1e-5)
 
         logger.info(lmfit.fit_report(results, min_correl=0.5))
-        valdict = results.params.valuesdict()
         if mode == 'pixel':
             # smooth vars
             self._fit_pixel_sizes_vars = self._fit_pixel_sizes_vars + 1e-4 ** 2
@@ -1074,7 +1082,7 @@ class OptAtmoPSF(PSF):
         if self.reference_wavefront: self._delete_cache(logger=logger)
 
     def fit_size(self, stars, shapes, shape_errors, logger=None, **kwargs):
-        """Adjust size from analytic fit by doing forced search of 201 steps +-
+        """Adjust size from analytic fit by doing forced search of 501 steps +-
         0.1 about analytic fit
 
         :param stars:           A list of Star instances.
@@ -1091,8 +1099,8 @@ class OptAtmoPSF(PSF):
         if self.reference_wavefront: self._create_cache(stars, logger=logger)
 
         # make kwargs with only size
-        Ns = kwargs.pop('Ns', 201)
-        dparam = kwargs.pop('dparam', 0.1)  # search +- this range
+        Ns = kwargs.pop('Ns', 501)
+        dparam = kwargs.pop('dparam', 0.3)  # search +- this range
         param = self.optatmo_psf_kwargs['size']
         fit_size_kwargs = {'size': param, 'min_size': param - dparam, 'max_size': param + dparam}
         lmparams = self._fit_optics_lmparams(fit_size_kwargs, ['size'])
