@@ -93,6 +93,7 @@ class Optical(Model):
 
                 >>> model = piff.OpticalModel(template='des', lam=1000)
         """
+        import coord  # In case needed for eval
         logger = galsim.config.LoggerWrapper(logger)
         # If pupil_angle and strut angle are provided as strings, eval them.
         for key in ['pupil_angle', 'strut_angle']:

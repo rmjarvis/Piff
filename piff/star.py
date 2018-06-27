@@ -668,7 +668,11 @@ class StarData(object):
                     properties['ra'] = sky_pos.ra / galsim.hours
                 if 'dec' not in properties:
                     properties['dec'] = sky_pos.dec / galsim.degrees
-            return pointing.project(sky_pos)
+            if galsim.__version__ >= '2.0':
+                u, v = pointing.project(sky_pos)
+                return galsim.PositionD(u/galsim.arcsec, v/galsim.arcsec)
+            else:
+                return pointing.project(sky_pos)
         else:
             return wcs.toWorld(image_pos)
 
