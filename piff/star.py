@@ -320,6 +320,28 @@ class Star(object):
         fits.write_table(data, extname=extname)
 
     @classmethod
+    def read_coords_params(cls, fits, extname):
+        """Read only star fit parameters and coordinates from a FITS file.
+
+        :param fits:        An open fitsio.FITS object
+        :param extname:     The name of the extension to read from
+
+        :returns: the arrays coords and params
+        """
+        import galsim
+        assert extname in fits
+        colnames = fits[extname].get_colnames()
+
+        columns = ['u', 'v', 'params']
+        for key in columns:
+            assert key in colnames
+
+        data = fits[extname].read(columns=columns)
+        coords = np.array([data['u'], data['v']]).T
+        params = data['params']
+        return coords, params
+
+    @classmethod
     def read(cls, fits, extname):
         """Read stars from a FITS file.
 
