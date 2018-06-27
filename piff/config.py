@@ -264,7 +264,7 @@ def meanify(config, logger=None):
     for fi, f in enumerate(file_name_in):
         logger.debug('Loading file {0} of {1}'.format(fi, len(file_name_in)))
         fits = fitsio.FITS(f)
-        coord, param = piff.Star.read_coords_params(fits, 'psf_stars')
+        coord, param = Star.read_coords_params(fits, 'psf_stars')
         fits.close()
 
         coords.append(coord)
