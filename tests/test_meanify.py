@@ -19,6 +19,8 @@ import numpy as np
 import piff
 import os
 import fitsio
+import glob
+import os
 
 from piff_test_helper import get_script_name, timer
 
@@ -124,14 +126,25 @@ def make_average(coord=None, gp=True):
 
 def setup():
     np.random.seed(42)
-    for im in range(20):
-        print(im)
+    if __name__ == '__main__':
+        nimages = 20
+        stars_per_image = 500
+    else:
+        nimages = 2
+        stars_per_image = 50
+
+    # Delete any existing image files
+    for image_file in glob.glob(os.path.join('output','test_mean_image_*.fits')):
+        os.remove(image_file)
+
+    for k in range(nimages):
+        print(k)
         image = galsim.Image(2048, 2048, scale=0.26)
 
         x_list = [np.random.uniform(0, 2048)]
         y_list = [np.random.uniform(0, 2048)]
         i=0
-        while i < 549:
+        while i < stars_per_image:
             x = np.random.uniform(0, 2048)
             y = np.random.uniform(0, 2048)
             D = np.sqrt((np.array(x_list)-x)**2 + (np.array(y_list)-y)**2)
@@ -147,22 +160,23 @@ def setup():
         for x, y, hlr, g1, g2 in zip(x_list, y_list, params['hlr'], params['g1'], params['g2']):
             psf = galsim.Kolmogorov(half_light_radius=hlr, flux=1.).shear(g1=g1, g2=g2)
             bounds = galsim.BoundsI(int(x-21), int(x+22), int(y-21), int(y+22))
+            if not image.bounds.includes(bounds): continue
             offset = galsim.PositionD( x-int(x)-0.5 , y-int(y)-0.5 )
             psf.drawImage(image=image[bounds], method='no_pixel', offset=offset)
 
-        image_file = os.path.join('output','test_mean_image_%i.fits'%(im))
+        image_file = os.path.join('output','test_mean_image_%02i.fits'%k)
         image.write(image_file)
 
         dtype = [ ('x','f8'), ('y','f8') ]
         data = np.empty(len(x_list), dtype=dtype)
         data['x'] = x_list
         data['y'] = y_list
-        cat_file = os.path.join('output','test_mean_cat_%i.fits'%(im))
+        cat_file = os.path.join('output','test_mean_cat_%02i.fits'%k)
         fitsio.write(cat_file, data, clobber=True)
 
-        image_file = os.path.join('output','test_mean_image_%i.fits'%(im))
-        cat_file = os.path.join('output','test_mean_cat_%i.fits'%(im))
-        psf_file = os.path.join('output','test_mean_%i.piff'%(im))
+        image_file = os.path.join('output','test_mean_image_%02i.fits'%k)
+        cat_file = os.path.join('output','test_mean_cat_%02i.fits'%k)
+        psf_file = os.path.join('output','test_mean_%02i.piff'%k)
 
         config = {
             'input' : {
@@ -181,17 +195,28 @@ def setup():
                 'file_name' : psf_file
             }
         }
+        if __name__ == '__main__':
+            config['verbose'] = 2
+        else:
+            config['verbose'] = 0
         piff.piffify(config)
 
 @timer
 def test_meanify():
-    setup()
+
+    if __name__ == '__main__':
+        rtol = 1.e-1
+        atol = 1.e-2
+        bin_spacing = 30  # arcsec
+    else:
+        rtol = 1.e-1
+        atol = 3.e-2
+        bin_spacing = 150  # arcsec
+
     psf_file = 'test_mean_*.piff'
     average_file = 'average.fits'
 
-    psfs_list = []
-    for i in range(20):
-        psfs_list.append('output/test_mean_%i.piff'%i)
+    psfs_list = sorted(glob.glob(os.path.join('output', 'test_mean_*.piff')))
 
     config0 = {
         'output' : {
@@ -209,7 +234,7 @@ def test_meanify():
         'hyper' : {
             'file_name' : average_file,
             'dir': 'output',
-            'bin_spacing' : 30, #arcsec
+            'bin_spacing' : bin_spacing,
         }}
 
     for config in [config0, config1]:
@@ -219,7 +244,8 @@ def test_meanify():
         params0 = make_average(coord=average['COORDS0'][0] / 0.26, gp=False)
         keys = ['hlr', 'g1', 'g2']
         for i,key in enumerate(keys):
-            np.testing.assert_allclose(params0[key], average['PARAMS0'][0][:,i], rtol=1e-1, atol=1e-2)
+            np.testing.assert_allclose(params0[key], average['PARAMS0'][0][:,i],
+                                       rtol=rtol, atol=atol)
 
     ## gaussian process testing of meanify 
     np.random.seed(68)
@@ -243,8 +269,8 @@ def test_meanify():
         params_interp = np.array([s.fit.params for s in stars_interp])
         params_validation = np.array([s.fit.params for s in stars_validation])
         params_training = np.array([s.fit.params for s in stars_training])
-        np.testing.assert_allclose(params_interp, params_validation, rtol=1e-1, atol=1e-2)
+        np.testing.assert_allclose(params_interp, params_validation, rtol=rtol, atol=atol)
 
 if __name__ == '__main__':
-
+    setup()
     test_meanify()
