@@ -268,15 +268,19 @@ def meanify(config, logger=None):
     coords = []
     params = []
 
-    for f in file_name_in:
-        hdu = fitsio.FITS(f) 
-        stars = Star.read(hdu, 'psf_stars')
-        for s in stars:
-            coords.append(_getcoord(s))
-            params.append(s.fit.params)
+    for fi, f in enumerate(file_name_in):
+        logger.debug('Loading file {0} of {1}'.format(fi, len(file_name_in)))
+        # rewrite takes ~0.02 sec per psf, while previous took 2-3 sec.
+        star_arr = fitsio.read(f, 'psf_stars')
+        coord = np.array([star_arr['u'], star_arr['v']])
+        param = star_arr['params']
 
-    coords = np.array(coords)
-    params = np.array(params)
+        coords.append(coord)
+        params.append(param)
+
+    params = np.concatenate(params, axis=0)
+    coords = np.concatenate(coords, axis=1).T
+    logger.info('Computing average for {0} params with {1} stars'.format(len(params[0]), len(coords)))
 
     lu_min, lu_max = np.min(coords[:,0]), np.max(coords[:,0])
     lv_min, lv_max = np.min(coords[:,1]), np.max(coords[:,1])
@@ -311,5 +315,6 @@ def meanify(config, logger=None):
     data['COORDS0'] = coords0
     data['PARAMS0'] = params0
 
+    logger.info('Writing average solution to {0}'.format(file_name_out))
     with fitsio.FITS(file_name_out,'rw',clobber=True) as f:
         f.write_table(data, extname='average_solution')
