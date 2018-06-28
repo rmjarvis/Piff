@@ -338,6 +338,7 @@ class GPInterp2pcf(Interp):
                                         y_err[:,i], logger=logger)
             if logger:
                 logger.info('param %d: %s',i,kernel.set_params())
+                logger.info('param %d: %s',i,self.kernels[i])
 
 
     def interpolate(self, star, logger=None):

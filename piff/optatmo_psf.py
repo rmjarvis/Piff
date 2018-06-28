@@ -604,7 +604,7 @@ class OptAtmoPSF(PSF):
             self.fit_optics(self.fit_optics_stars, self.fit_optics_star_shapes, self.fit_optics_star_errors, mode='analytic', logger=logger, **kwargs)
 
         # first just fit the size to correct size offset. Only use a few stars
-        n_fit_size = 50
+        n_fit_size = 500
         self.fit_size_indices = np.arange(len(self.fit_optics_stars))
         if n_fit_size < len(self.fit_optics_stars):
 
