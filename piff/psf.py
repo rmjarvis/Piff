@@ -21,6 +21,7 @@ from __future__ import print_function
 import numpy as np
 import fitsio
 import galsim
+import sys
 
 from .star import Star, StarData
 from .util import write_kwargs, read_kwargs
@@ -391,8 +392,11 @@ class PSF(object):
         wcs_str = [ data[key] for key in wcs_keys ] # Get all wcs_str columns
         wcs_str = [ b''.join(s) for s in zip(*wcs_str) ]  # Rejoint into single string each
         wcs_str = [ base64.b64decode(s) for s in wcs_str ] # Convert back from b64 encoding
-        print(wcs_str)
-        wcs_list = [ pickle.loads(s, encoding='bytes') for s in wcs_str ]  # Convert back into wcs objects
+        # Convert back into wcs objects
+        if sys.version_info > (3,0):
+            wcs_list = [ pickle.loads(s, encoding='bytes') for s in wcs_str ]
+        else:
+            wcs_list = [ pickle.loads(s) for s in wcs_str ]
 
         wcs = dict(zip(chipnums, wcs_list))
 
