@@ -38,7 +38,7 @@ Features: (Some are aspirational.  We're still working on the code!)
 Installation
 ------------
 
-The current stable version, v0.2.3, is installable with pip::
+The current stable version, v0.2.4, is installable with pip::
 
     pip install Piff
 
