@@ -23,7 +23,7 @@ import copy
 import galsim
 
 from .psf import PSF
-from .util import write_kwargs, read_kwargs, make_dtype, adjust_value
+from .util import write_kwargs, read_kwargs, make_dtype, adjust_value, measure_snr
 
 class SingleChipPSF(PSF):
     """A PSF class that uses a separate PSF solution for each chip
@@ -111,6 +111,17 @@ class SingleChipPSF(PSF):
             raise ValueError("SingleChip drawStar requires the star to have a chipnum property")
         chipnum = star['chipnum']
         return self.psf_by_chip[chipnum].drawStar(star)
+
+    @staticmethod
+    def measure_snr(star):
+        """Calculate the signal-to-noise of a given star. Calls util
+        measure_snr function
+
+        :param star:    Input star, with stamp, weight
+
+        :returns:       signal to noise ratio
+        """
+        return measure_snr(star)
 
     def _finish_write(self, fits, extname, logger):
         """Finish the writing process with any class-specific steps.

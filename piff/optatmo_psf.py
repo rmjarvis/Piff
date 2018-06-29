@@ -21,6 +21,7 @@ from __future__ import print_function
 import galsim
 import numpy as np
 import numba
+import math
 
 from .psf import PSF
 from .optical_model import Optical
@@ -29,7 +30,7 @@ from .outliers import Outliers
 from .model import ModelFitError
 # from .gsobject_model import GSObjectModel, Kolmogorov, Gaussian
 from .star import Star, StarFit, StarData
-from .util import hsm_error, measure_snr, write_kwargs, read_kwargs
+from .util import hsm_error, hsm_higher_order, hsm_higher_order_exact_errors, measure_snr, write_kwargs, read_kwargs
 from .config import LoggerWrapper
 
 class OptAtmoPSF(PSF):
@@ -256,6 +257,7 @@ class OptAtmoPSF(PSF):
         self._expanded_max_shapes = np.array([0.01, 0.01, 1.5, 0.15, 0.15])
         # weighting of shapes in fit_analytic, fit_size
         self._shape_weights = np.array([0.2, 0.4, 0.4])
+        self._shape_weights_third_moments = np.array([0.2, 0.4, 0.4, 0.10, 0.10, 0.10, 0.10])
 
         # kwargs
         self.kwargs = {'fov_radius': self.fov_radius,
@@ -491,7 +493,7 @@ class OptAtmoPSF(PSF):
         else:
             self.outliers = None
 
-    def fit(self, stars, wcs, pointing,
+    def fit(self, stars, wcs, pointing, core_directory, exposure,
             chisq_threshold=0.1, max_iterations=30, logger=None, **kwargs):
         """Fit interpolated PSF model to star data using standard sequence of operations.
 
@@ -520,11 +522,15 @@ class OptAtmoPSF(PSF):
         self.stars = []
         self.star_shapes = []
         self.star_errors = []
+        self.star_shapes_third_moments = []
+        self.star_errors_third_moments = []
         self.star_snrs = []
         for star_i, star in enumerate(stars):
             logger.debug('Measuring shape of star {0}'.format(star_i))
             try:
                 shape, error = self.measure_shape(star, return_error=True, logger=logger)
+                shape_third_moments = self.measure_shape_third_moments(star, logger=logger)
+                error_third_moments = self.measure_error_third_moments(star, logger=logger)
                 star = Star(star.data, StarFit(None, flux=shape[0], center=(shape[1], shape[2])))
                 star.data.properties['shape'] = shape
                 star.data.properties['shape_error'] = error
@@ -533,6 +539,8 @@ class OptAtmoPSF(PSF):
                 self.stars.append(star)
                 self.star_shapes.append(shape)
                 self.star_errors.append(error)
+                self.star_shapes_third_moments.append(shape_third_moments)
+                self.star_errors_third_moments.append(error_third_moments)
                 self.star_snrs.append(snr)
             except (ModelFitError, RuntimeError) as e:
                 # something went wrong with this star
@@ -540,6 +548,8 @@ class OptAtmoPSF(PSF):
                 logger.warning('Star {0} failed shape estimation. Skipping. This is usually because there is a second object in the stamp, or there is some pretty severe masking'.format(star_i))
         self.star_shapes = np.array(self.star_shapes)
         self.star_errors = np.array(self.star_errors)
+        self.star_shapes_third_moments = np.array(self.star_shapes_third_moments)
+        self.star_errors_third_moments = np.array(self.star_errors_third_moments)
         self.star_snrs = np.array(self.star_snrs)
 
         # determine stars used in optical fit
@@ -547,6 +557,14 @@ class OptAtmoPSF(PSF):
         # cut self.fit_optics_indices based on snr and max_shapes
         conds_snr = (self.star_snrs >= self.min_optfit_snr)
         conds_shape = (np.all(np.abs(self.star_shapes[:, 5:]) <= self._expanded_max_shapes, axis=1))
+	nan_count = 0
+	for shape_third_moment_i, shape_third_moment in enumerate(self.star_shapes_third_moments):
+	    if np.any(np.isnan(shape_third_moment)):
+		print("nan found for {0}".format(shape_third_moment_i))
+		nan_count = nan_count +1
+	print("nan_count: {0}".format(nan_count))
+
+        #conds_third_moments = (np.all(not np.isnan(self.star_shapes_third_moments), axis=1))
         self.fit_optics_indices = self.fit_optics_indices[conds_snr * conds_shape]
         logger.info('Cutting {0} stars for fitting the optics based on SNR > {1} ({2} stars) and on maximum shapes ({3} stars)'.format(len(stars) - len(self.fit_optics_indices), self.min_optfit_snr, len(self.stars) - np.sum(conds_snr), len(stars) - np.sum(conds_snr)))
         # cut further if we have more stars than n_optfit_stars
@@ -563,6 +581,8 @@ class OptAtmoPSF(PSF):
         self.fit_optics_stars = [self.stars[indx] for indx in self.fit_optics_indices]
         self.fit_optics_star_shapes = self.star_shapes[self.fit_optics_indices]
         self.fit_optics_star_errors = self.star_errors[self.fit_optics_indices]
+        self.fit_optics_star_shapes_third_moments = self.star_shapes_third_moments[self.fit_optics_indices]
+        self.fit_optics_star_errors_third_moments = self.star_errors_third_moments[self.fit_optics_indices]
 
         # perform the fit!
         self.fit_analytic(self.fit_optics_stars, self.fit_optics_star_shapes, self.fit_optics_star_errors, logger=logger, **kwargs)
@@ -581,11 +601,19 @@ class OptAtmoPSF(PSF):
         self.fit_size_star_errors = self.fit_optics_star_errors[self.fit_size_indices]
         self.fit_size(self.fit_size_stars, self.fit_size_star_shapes, self.fit_size_star_errors, logger=logger, **kwargs)
 
+	nan_count = 0
+	for shape_third_moment_i, shape_third_moment in enumerate(self.fit_optics_star_shapes_third_moments):
+	    if np.any(np.isnan(shape_third_moment)):
+		print("nan found for {0}".format(shape_third_moment_i))
+		nan_count = nan_count +1
+	print("nan_count: {0}".format(nan_count))
+        self.fit_optics_third_moments(self.fit_optics_stars, self.fit_optics_star_shapes, self.fit_optics_star_errors, self.fit_optics_star_shapes_third_moments, self.fit_optics_star_errors_third_moments, logger=logger, **kwargs)
+
         # fit atmosphere. Can also be skipped
         if self.atmo_interp in ['skip', 'Skip', None, 'none', 'None', 0]:
             pass
         else:
-            stars_fit_atmosphere = self.fit_atmosphere(self.stars, chisq_threshold=chisq_threshold, max_iterations=max_iterations, logger=logger, **kwargs)
+            stars_fit_atmosphere = self.fit_atmosphere(self.stars, core_directory=core_directory, exposure=exposure, chisq_threshold=chisq_threshold, max_iterations=max_iterations, logger=logger, **kwargs)
             self.stars = stars_fit_atmosphere
 
             # enable atmosphere interpolation now that we have solved the interp
@@ -921,6 +949,53 @@ class OptAtmoPSF(PSF):
         else:
             return shape
 
+    def measure_shape_third_moments(self, star, logger=None):
+        """Measure the shape of a star using the HSM algorithm
+
+        :param star:                Star we want to measure
+        :param return_error:        Bool. If True, also measure the error
+                                    [default: True]
+        :param logger:              A logger object for logging debug info
+
+        :returns:                   Shape (and error if return_error) in
+                                    unnormalized basis
+        """
+        logger = LoggerWrapper(logger)
+
+        # values = flux, u0, v0, e0, e1, e2, sigma_flux, sigma_u0, sigma_v0, sigma_e0, sigma_e1, sigma_e2
+        values = hsm_higher_order(star, logger=logger)
+
+        shape = np.array(values)
+        if np.any(shape != shape):
+            # TODO: not tested. Add test for terrible image ethat should fail
+            #raise ModelFitError
+            pass
+
+        # flux is underestimated empirically
+        shape[0] = shape[0] / 0.92
+
+        return shape
+
+    def measure_error_third_moments(self, star, logger=None):
+        """Measure the shape of a star using the HSM algorithm
+
+        :param star:                Star we want to measure
+        :param return_error:        Bool. If True, also measure the error
+                                    [default: True]
+        :param logger:              A logger object for logging debug info
+
+        :returns:                   Shape (and error if return_error) in
+                                    unnormalized basis
+        """
+        logger = LoggerWrapper(logger)
+
+        # values = flux, u0, v0, e0, e1, e2, sigma_flux, sigma_u0, sigma_v0, sigma_e0, sigma_e1, sigma_e2
+        values = hsm_higher_order_exact_errors(star, logger=logger)
+
+        error = np.array(values)
+
+        return error
+
     def measure_shape_classic(self, star, return_error=True, return_only_error=False, logger=None):
         """Measure the shape of a star using the HSM algorithm
 
@@ -1077,7 +1152,83 @@ class OptAtmoPSF(PSF):
 
         if self.reference_wavefront: self._delete_cache(logger=logger)
 
-    def fit_atmosphere(self, stars,
+    # TODO: update kwargs
+    def fit_optics_third_moments(self, stars, shapes, shape_errors, shapes_third_moments, shape_errors_third_moments, logger=None, **kwargs):
+        """Fit interpolated PSF model to star data using standard sequence of
+        operations.
+
+        :param stars:           A list of Star instances.
+        :param logger:          A logger object for logging debug info.
+                                [default: None]
+        """
+        logger = LoggerWrapper(logger)
+        import lmfit
+        logger.info("Start fitting Optical fit for {0} stars and {1} shapes".format(len(stars), len(shapes)))
+
+        # save reference wavefront values so we don't keep calling it during fit
+        if self.reference_wavefront: self._create_cache(stars, logger=logger)
+
+        lmparams = self._fit_optics_lmparams(self.optatmo_psf_kwargs, self.keys)
+
+        # do fit
+        #results = lmfit.minimize(self._fit_optics_third_moments_residual, lmparams, args=(stars, shapes, shape_errors, shapes_third_moments, logger,), method='leastsq')
+
+	print("")
+	print("")
+	nan_count = 0
+	for shape_i, shape in enumerate(shapes):
+	    if np.any(np.isnan(shape)):
+		print("nan found for {0}".format(shape_i))
+		nan_count = nan_count +1
+	print("shape nan_count: {0}".format(nan_count))
+
+	nan_count = 0
+	for shape_error_i, shape_error in enumerate(shape_errors):
+	    if np.any(np.isnan(shape_error)):
+		print("nan found for {0}".format(shape_error_i))
+		nan_count = nan_count +1
+	print("shape_error nan_count: {0}".format(nan_count))
+
+	nan_count = 0
+	for shape_third_moments_i, shape_third_moments in enumerate(shapes_third_moments):
+	    if np.any(np.isnan(shape_third_moments)):
+		print("nan found for {0}".format(shape_third_moments_i))
+		nan_count = nan_count +1
+	print("shape_third_moments nan_count: {0}".format(nan_count))
+
+	print("lmparams: {0}".format(lmparams))
+
+	print("shapes_third_moments: {0}".format(shapes_third_moments))
+
+        results = lmfit.minimize(self._fit_optics_third_moments_residual, lmparams, args=(stars, shapes, shape_errors, shapes_third_moments, shape_errors_third_moments, logger,))
+
+        # set final fit
+        logger.info('Optical fit from lmfit parameters:')
+        logger.info(lmfit.fit_report(results, min_correl=0.5))
+
+        key_i = 0
+        for key in self.keys:
+            if not self.optatmo_psf_kwargs['fix_' + key]:
+                val = results.params.valuesdict()[key]
+                self.optatmo_psf_kwargs[key] = val
+
+                try:
+                    err = np.sqrt(results.covar[key_i, key_i])
+                    self.optatmo_psf_kwargs['error_' + key] = err
+                except TypeError:
+                    # covar is None for Reasons.
+                    placeholder_error = 10000
+                    logger.warning('No Error calculated for parameter {0}! Replacing with large number {1}!'.format(key, placeholder_error))
+                    self.optatmo_psf_kwargs['error_' + key] = placeholder_error
+                key_i += 1
+        self._update_optatmopsf(self.optatmo_psf_kwargs, logger=logger)
+
+        # save this for debugging purposes
+        self._fit_optics_results = results
+
+        if self.reference_wavefront: self._delete_cache(logger=logger)
+
+    def fit_atmosphere(self, stars, core_directory, exposure,
                        chisq_threshold=0.1, max_iterations=30, logger=None):
         """Fit interpolated PSF model to star data using standard sequence of
         operations. Will also reject with outliers
@@ -1104,7 +1255,7 @@ class OptAtmoPSF(PSF):
         new_stars = []
         for star_i, star in zip(range(len(stars)), stars):
             try:
-                model_fitted_star, results = self.fit_model(star, params=params[star_i], vary_shape=True, vary_optics=False, logger=logger)
+                model_fitted_star, results = self.fit_model(star, params=params[star_i], vary_shape=True, vary_optics=False, return_results=True, logger=logger)
                 new_stars.append(model_fitted_star)
             except (KeyboardInterrupt, SystemExit):
                 raise
@@ -1193,6 +1344,19 @@ class OptAtmoPSF(PSF):
             else:
                 logger.warning("PSF fit did not converge.  Max iterations = %d reached.", max_iterations)
 
+
+	try:
+            chisq = np.sum([s.fit.chisq for s in stars])
+            dof   = np.sum([s.fit.dof for s in stars])
+	    redchi = chisq / dof
+	except:
+	    print("failed to get redchi")
+    	    pass
+	try:
+	    np.save("{0}/npy_storage/redchi/{1}.npy".format(core_directory, exposure), np.array([redchi]))
+	except:
+	    print("failed to save redchi")
+    	    pass
         return stars
 
     def fit_model(self, star, params, vary_shape=True, return_results=False, guesses = [0.0, 0.0, 0.0, 0.0], replacements = [0.0, 0.0, 0.0, 0.0], vary_optics=False, minimize_kwargs={'method': 'leastsq', 'epsfcn': 1e-5, 'maxfev': 1000}, logger=None):
@@ -1294,22 +1458,21 @@ class OptAtmoPSF(PSF):
         print("du: {0}".format(du))
         print("dv: {0}".format(dv))
         print("snr: {0}".format(snr))
-        #print("")
-        if vary_shape:
-            fit_params = np.array([results.params['size'].value, results.params['g1'].value, results.params['g2'].value])
-            if results.errorbars:
-                params_var = np.diag(results.covar)[3:]
-            else:
-                params_var = np.zeros(len(params))
-        else:
-            try:
-                fit_params = star.fit.params
-            except AttributeError:
-                fit_params = None
-            try:
-                params_var = star.fit.params_var
-            except AttributeError:
-                params_var = None
+        #if vary_shape:
+        #    fit_params = np.array([results.params['size'].value, results.params['g1'].value, results.params['g2'].value])
+        #    if results.errorbars:
+        #        params_var = np.diag(results.covar)[3:]
+        #    else:
+        #        params_var = np.zeros(len(params))
+        #else:
+        #    try:
+        #        fit_params = star.fit.params
+        #    except AttributeError:
+        #        fit_params = None
+        #    try:
+        #        params_var = star.fit.params_var
+        #    except AttributeError:
+        #        params_var = None
         center = (du, dv)
         chisq = results.chisqr
         dof = results.nfree
@@ -1585,6 +1748,96 @@ class OptAtmoPSF(PSF):
             chi_i = self._shape_weights * (((shape_model - shape) / error)[3:])
             chi = np.hstack((chi, chi_i))
         logger.debug('Current Total Chi2 / dof is {0:.4e} / {1}'.format(np.sum(np.square(chi)), len(chi)))
+
+        return chi
+
+    def _fit_optics_third_moments_residual(self, lmparams, stars, shapes, shape_errors, shapes_third_moments, shape_errors_third_moments, logger=None):
+        """Residual function for fitting the optics parameters to the observed
+        shapes. Fitting is done via lmfit.
+
+        :param lmparams:    LMFit Parameters object
+        :param stars:       A list of Stars
+        :param shapes:      A list of premeasured Star shapes
+        :param errors:      A list of premeasured Star shape errors
+        :param logger:      A logger object for logging debug info.
+                            [default: None]
+
+        :returns chi:       Chi of observed size to model size
+
+        Notes
+        -----
+        This is done by forward modeling the PSF and measuring its shape via HSM
+        """
+	print("successfully entered _fit_optics_third_moments_residual!")
+        logger = LoggerWrapper(logger)
+        # update psf
+        self._update_optatmopsf(lmparams.valuesdict(), logger)
+
+        # get optical params
+        opt_params = self.getParamsList(stars)
+
+        # measure their shapes and calculate chi
+        chi = np.array([])
+
+	print("preparing to enter for loop!")
+
+        for i, star in enumerate(stars):
+            print("currently on star {0} in for loop!".format(i))
+            params = opt_params[i]
+            shape = shapes[i]
+            error = shape_errors[i]
+            shape_third_moments = shapes_third_moments[i]
+            error_third_moments = shape_errors_third_moments[i]
+            #error_third_moments = np.ones(10)
+            #error_third_moments[:6] = error
+
+            try:
+                # get profile; modify based on flux and shifts
+                profile = self.getProfile(params)
+
+                # measure final shape
+                star_model = self.drawProfile(star, profile, params)
+                shape_model = self.measure_shape_third_moments(star_model)
+		#error_third_moments[6:] = np.sqrt(np.abs(shape_model[6:]))
+                if np.any(shape_model != shape_model):
+                    logger.warning('Star {0} returned nan shape'.format(i))
+                    logger.warning('Parameters are {0}'.format(str(params)))
+                    logger.warning('Input parameters are {0}'.format(str(lmparams.valuesdict())))
+                    logger.warning('Filling with zero chi')
+		    shape_model = shape_third_moments
+                #    indices = np.zeros_like(shape_model, dtype=bool)
+                #else:
+                #    indices = np.ones_like(shape_model, dtype=bool)
+            except (ModelFitError, RuntimeError) as e:
+                logger.warning(str(e))
+                logger.warning('Star {0}\'s model failed to be drawn and measured.'.format(i))
+                logger.warning('Parameters are {0}'.format(str(params)))
+                logger.warning('Input parameters are {0}'.format(str(lmparams.valuesdict())))
+                logger.warning('Filling with zero chi')
+                shape_model = shape_third_moments
+
+            # don't care about flux, du, dv here
+
+	    print("preparing to calculate chi_i and add it to total chi for star {0}!".format(i))
+	    print("self._shape_weights_third_moments: {0}".format(self._shape_weights_third_moments))
+	    print("shape_model: {0}".format(shape_model))
+	    print("shape_third_moments: {0}".format(shape_third_moments))
+	    print("error_third_moments: {0}".format(error_third_moments))
+
+            chi_i = self._shape_weights_third_moments * (((shape_model - shape_third_moments) / error_third_moments)[3:])
+            chi = np.hstack((chi, chi_i))
+
+	    print("finished calculating chi_i and adding it to total chi for star {0}!".format(i))
+	    print("chi_i: {0}".format(chi_i))
+	    print("chi: {0}".format(chi))
+
+
+	print("now exiting for loop!")
+
+        logger.debug('Current Total Chi2 / dof is {0:.4e} / {1}'.format(np.sum(np.square(chi)), len(chi)))
+
+	print("preparing to return chi!")
+	print("chi: {0}".format(chi))
 
         return chi
 

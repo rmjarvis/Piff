@@ -25,7 +25,7 @@ from .model import Model, ModelFitError
 from .interp import Interp
 from .outliers import Outliers
 from .psf import PSF
-from .util import write_kwargs, read_kwargs
+from .util import write_kwargs, read_kwargs, measure_snr
 
 class SimplePSF(PSF):
     """A PSF class that uses a single model and interpolator.
@@ -259,6 +259,17 @@ class SimplePSF(PSF):
         star = self.interp.interpolate(star)
         # Render the image
         return self.model.draw(star, copy_image=copy_image)
+
+    @staticmethod
+    def measure_snr(star):
+        """Calculate the signal-to-noise of a given star. Calls util
+        measure_snr function
+
+        :param star:    Input star, with stamp, weight
+
+        :returns:       signal to noise ratio
+        """
+        return measure_snr(star)
 
     def _finish_write(self, fits, extname, logger):
         """Finish the writing process with any class-specific steps.
