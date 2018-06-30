@@ -320,9 +320,11 @@ class GSObjectModel(Model):
         if star.fit.params is None:
             if self._force_model_center:
                 params = np.array([ 1.0, 0.0, 0.0])
+                params_var = np.array([ 0.0, 0.0, 0.0])
             else:
                 params = np.array([ 0.0, 0.0, 1.0, 0.0, 0.0])
-            fit = StarFit(params, flux=1.0, center=(0.0, 0.0))
+                params_var = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
+            fit = StarFit(params, flux=1.0, center=(0.0, 0.0), params_var=params_var)
             star = Star(star.data, fit)
             star = self.fit(star, fastfit=True)
         star = self.reflux(star, fit_center=False)
@@ -362,7 +364,8 @@ class GSObjectModel(Model):
                                            chisq = results.chisqr,
                                            dof = np.count_nonzero(star.data.weight.array) - 3,
                                            alpha = star.fit.alpha,
-                                           beta = star.fit.beta))
+                                           beta = star.fit.beta,
+                                           params_var = star.fit.params_var))
         else:
             image, weight, image_pos = star.data.getImage()
             model_image = self.draw(star).image
@@ -375,7 +378,8 @@ class GSObjectModel(Model):
                                            chisq = new_chisq,
                                            dof = np.count_nonzero(weight.array) - 1,
                                            alpha = star.fit.alpha,
-                                           beta = star.fit.beta))
+                                           beta = star.fit.beta,
+                                           params_var = star.fit.params_var))
 
 
 class Gaussian(GSObjectModel):
