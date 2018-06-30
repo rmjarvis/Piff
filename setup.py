@@ -48,7 +48,7 @@ except:
 print('Python version = ',sys.version)
 py_version = "%d.%d"%sys.version_info[0:2]  # we check things based on the major.minor version.
 
-scripts = ['piffify', 'plotify']
+scripts = ['piffify', 'plotify', 'meanify']
 scripts = [ os.path.join('scripts',f) for f in scripts ]
 
 sources = glob.glob(os.path.join('src','*.c'))

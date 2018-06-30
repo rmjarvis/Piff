@@ -103,7 +103,6 @@ def test_init():
     assert psf.atmo_interp == None
     assert psf.reference_wavefront == None
     assert 'r0' not in psf.kolmogorov_kwargs
-    assert psf.kolmogorov_kwargs['half_light_radius'] == 1.0
     assert psf.optical_psf_kwargs['pad_factor'] == optical_psf_kwargs['pad_factor']
     assert psf.optical_psf_kwargs['oversampling'] == optical_psf_kwargs['oversampling']
 
@@ -268,7 +267,7 @@ def test_atmo_interp_fit():
 def test_fit():
     # setup logger
     if __name__ == '__main__':
-        logger = piff.config.setup_logger(verbose=3)
+        logger = piff.config.setup_logger(verbose=2)
     else:
         logger = piff.config.setup_logger(verbose=1)
     logger.debug('Entering test_fit')
@@ -281,24 +280,40 @@ def test_fit():
 
     optatmo_psf_kwargs = {'size': 1.0, 'g1': 0, 'g2': 0,
                           'fix_size': False, 'fix_g1': True, 'fix_g2': True,
-                          'zPupil004_zFocal001': -0.15, 'fix_zPupil004_zFocal001': False,
-                          'zPupil005_zFocal001': 0.1, 'fix_zPupil005_zFocal001': False,
-                          'zPupil006_zFocal001': 0.25, 'fix_zPupil006_zFocal001': False,
-                          'zPupil007_zFocal001': -0.1, 'fix_zPupil007_zFocal001': True,
-                          'zPupil008_zFocal001': 0.1, 'fix_zPupil008_zFocal001': True,
-                          'zPupil009_zFocal001': 0.3, 'fix_zPupil009_zFocal001': True,
-                          'zPupil010_zFocal001': -0.4, 'fix_zPupil010_zFocal001': True,
-                          'zPupil011_zFocal001': 0.2, 'fix_zPupil011_zFocal001': True,
-                        }
-    config['optatmo_psf_kwargs'] = optatmo_psf_kwargs
+                          'zPupil004_zFocal001': -0.15,
+                          # 'fix_zPupil004_zFocal001': True,
+                          'zPupil005_zFocal001': 0.1,
+                          # 'fix_zPupil005_zFocal001': True,
+                          'zPupil006_zFocal001': 0.25,
+                          # 'fix_zPupil006_zFocal001': True,
+                          'zPupil007_zFocal001': -0.1,
+                          # 'fix_zPupil007_zFocal001': True,
+                          'zPupil008_zFocal001': 0.1,
+                          # 'fix_zPupil008_zFocal001': True,
+                          'zPupil009_zFocal001': 0.3,
+                          # 'fix_zPupil009_zFocal001': True,
+                          'zPupil010_zFocal001': -0.4,
+                          # 'fix_zPupil010_zFocal001': True,
+                          'zPupil011_zFocal001': 0.2,
+                          'fix_zPupil011_zFocal001': True,
+                        }  # avoid the defocus,astig,spherical -> negatives degeneracy by fixing spherical
+    config['optatmo_psf_kwargs'] = copy.deepcopy(optatmo_psf_kwargs)
     config_draw = copy.deepcopy(config)
-    optatmo_psf_kwargs_values = {'size': 0.8, 'zPupil004_zFocal001': 0.2, 'zPupil005_zFocal001': -0.25, 'zPupil006_zFocal001': 0.4}
+    optatmo_psf_kwargs_values = {'size': 0.8,
+            'zPupil004_zFocal001': 0.2,
+            'zPupil005_zFocal001': 0.3,
+            'zPupil006_zFocal001': -0.2,
+            'zPupil007_zFocal001': 0.2,
+            'zPupil008_zFocal001': 0.4,
+            'zPupil009_zFocal001': -0.25,
+            'zPupil010_zFocal001': 0.2}
     config_draw['optatmo_psf_kwargs'].update(optatmo_psf_kwargs_values)
     psf_draw = piff.PSF.process(config_draw)
-    psf_train = piff.PSF.process(config)
+    psf_train = piff.PSF.process(copy.deepcopy(config))
 
     # make stars
-    nstars = 100
+    logger.info('Making Stars')
+    nstars = 10
     chipnums = np.random.choice(range(1,63), nstars)
     icens = np.random.randint(0, 1024, nstars)
     jcens = np.random.randint(0, 2048, nstars)
@@ -319,11 +334,28 @@ def test_fit():
         stars_to_fit.append(star.clean())
 
     # do fit
-    psf_train.fit(stars_to_fit, wcs, pointing, logger=logger)
-    import ipdb; ipdb.set_trace()
-    # I am pleased if we can get within +- 0.05 waves
-
-    pass
+    for fit_optics_mode in ['analytic', 'shape', 'pixel']:
+    # for fit_optics_mode in ['pixel']:
+        psf_train = piff.PSF.process(copy.deepcopy(config))
+        logger.info('Test fitting optics mode {0}'.format(fit_optics_mode))
+        psf_train.fit_optics_mode = fit_optics_mode
+        psf_train.fit(stars_to_fit, wcs, pointing, logger=logger, Ns=5, maxfev=10)  # go faster on size
+        logger.info('Fit results for mode {0}'.format(fit_optics_mode))
+        logger.info('Parameter: Input, Fit, Input - Fit')
+        for key in sorted(optatmo_psf_kwargs_values):
+            train = optatmo_psf_kwargs_values[key]
+            fit = psf_train.optatmo_psf_kwargs[key]
+            logger.info('{0}: {1:+.3f}, {2:+.3f}, {3:+.3f}'.format(key, train, fit, train - fit))
+        # I don't really trust these fits to better than 0.1
+        for key in sorted(optatmo_psf_kwargs_values):
+            train = optatmo_psf_kwargs_values[key]
+            fit = psf_train.optatmo_psf_kwargs[key]
+            diff = np.abs(train - fit)
+            if fit_optics_mode == 'analytic':
+                tol = 0.1  # lower expectations with the analytic mode
+            else:
+                tol = 0.01
+            assert diff <= tol,'failed to fit {0} to tolerance {4}: {1:+.3f}, {2:+.3f}, {3:+.3f}'.format(key, train, fit, train - fit, tol)
 
 @timer
 def test_atmo_model_fit():
@@ -559,6 +591,31 @@ def test_analytic_coefs():
     for i in psf.analytic_coefs[1]:
         assert not np.any(i > config['jmax_pupil'])
 
+    # replace analytic coefs with 'None'
+    config = return_config()
+    config['analytic_coefs'] = None
+    psf = piff.PSF.process(config)
+    assert psf.analytic_coefs == None
+    config = return_config()
+    config['analytic_coefs'] = 'none'
+    psf = piff.PSF.process(config)
+    assert psf.analytic_coefs == None
+
+    # make a psf without analytic coefs in the config
+    config = return_config()
+    config.pop('analytic_coefs')
+    config.pop('atmo_interp', None)
+    psf = piff.PSF.process(config)
+    assert psf.analytic_coefs == None
+
+    # test that we can read and write with no analytic coefs
+    psf_file = os.path.join('output','optatmo_des_psf.fits')
+    if os.path.exists(psf_file):
+        os.remove(psf_file)
+    psf.write(psf_file, logger=logger)
+    psf_read = piff.read(psf_file, logger=logger)
+    assert psf.analytic_coefs == psf_read.analytic_coefs
+
 @timer
 def test_snr_and_shapes():
     # set up logger
@@ -667,7 +724,7 @@ def test_roundtrip():
     image_file = './input/DECam_00241238_01.fits.fz'
     cat_file = './input/DECam_00241238_01_psfcat_tb_maxmag_17.0_magcut_3.0_findstars.fits'
     orig_image = galsim.fits.read(image_file)
-    psf_file = os.path.join('output','pixel_des_psf.fits')
+    psf_file = os.path.join('output','optatmo_des_psf.fits')
     config_psf = return_config()
     # fit only constant defocus
     config_psf['jmax_focal'] = 1
@@ -865,6 +922,4 @@ if __name__ == '__main__':
         test_analytic_coefs()
         test_roundtrip()
         test_lmparams()
-
-        # TODO!
         test_fit()

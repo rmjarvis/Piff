@@ -92,6 +92,9 @@ class StarStats(Stats):
         lmparams = lmfit.Parameters()
         # put in initial guesses for flux, du, dv if they exist
         flux = star.fit.flux
+        if flux == 1.0:
+            # provide a reasonable starting guess
+            flux = star.image.array.sum()
         du, dv = star.fit.center
         # Order of params is important!
         lmparams.add('flux', value=flux, vary=True, min=0.0)
@@ -179,8 +182,8 @@ class StarStats(Stats):
             star_image = star.image
             model_image = model.image
             # share color range between star and model images
-            vmin = np.percentile([star_image.array, model_image.array], q=10)
-            vmax = np.percentile([star_image.array, model_image.array], q=90)
+            vmin = np.percentile([star_image.array, model_image.array], q=5)
+            vmax = np.percentile([star_image.array, model_image.array], q=95)
 
             axs[i][0].imshow(star_image.array, vmin=vmin, vmax=vmax, **kwargs)
             im = axs[i][1].imshow(model_image.array, vmin=vmin, vmax=vmax, **kwargs)
