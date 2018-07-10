@@ -297,7 +297,7 @@ def meanify(config, logger=None):
     for i in range(len(params[0])):
         average = np.histogram2d(coords[:,0], coords[:,1], bins=binning, weights=params[:,i])[0].T
         average = average.reshape(-1)
-        average[average!=0] /= counts[average!=0]
+        average[counts!=0] /= counts[counts!=0]
         params0[:,i] = average
 
     # get center of each bin 
@@ -306,6 +306,10 @@ def meanify(config, logger=None):
     u0, v0 = np.meshgrid(u0, v0)
 
     coords0 = np.array([u0.reshape(-1), v0.reshape(-1)]).T
+
+    # remove any entries with counts == 0
+    coords0 = coords0[counts != 0]
+    params0 = params0[counts != 0]
 
     dtypes = [('COORDS0', coords0.dtype, coords0.shape),
               ('PARAMS0', params0.dtype, params0.shape),
