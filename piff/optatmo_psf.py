@@ -19,6 +19,7 @@
 from __future__ import print_function
 
 import galsim
+import coord
 import numpy as np
 import numba
 
@@ -37,7 +38,7 @@ class OptAtmoPSF(PSF):
     """Combine Optical and Atmospheric PSFs together
     """
 
-    def __init__(self, atmo_interp=None, outliers=None, analytic_coefs=None, optatmo_psf_kwargs={}, optical_psf_kwargs={}, kolmogorov_kwargs={}, reference_wavefront=None, n_optfit_stars=0, fov_radius=4500., jmax_pupil=11, jmax_focal=10, min_optfit_snr=0, fit_optics_mode='analytic', fit_atmosphere_mode='pixel', atmosphere_model='kolmogorov', logger=None, **kwargs):
+    def __init__(self, atmo_interp=None, outliers=None, analytic_coefs=None, optatmo_psf_kwargs={}, optical_psf_kwargs={}, kolmogorov_kwargs={}, reference_wavefront=None, n_optfit_stars=0, fov_radius=4500., jmax_pupil=11, jmax_focal=10, min_optfit_snr=0, fit_optics_mode='analytic', fit_atmosphere_mode='pixel', atmosphere_model='kolmogorov', atmo_mad_outlier=False, logger=None, **kwargs):
         """
         Fit Combined Atmosphere and Optical PSF in two stage process.
 
@@ -81,6 +82,7 @@ class OptAtmoPSF(PSF):
                                         for atmosphere fitting mode. [default:
                                         'pixel']
         :param atmosphere_model:        Choose ['kolmogorov', 'vonkarman']. Selects the galsim object used for the atmospheric piece. Note that when using vonkarman, the outer scale L0 is set to 25 by default and the adjusted by the fit_model piece.
+        :param atmo_mad_outlier:        Boolean. If true, when computing atmosphere interps remove 5 sigma outliers from a MAD cut
         :param logger:                  A logger object for logging debug info.
                                         [default: None]
 
@@ -280,6 +282,8 @@ class OptAtmoPSF(PSF):
             self.n_params_atmosphere = 4
             self.n_params_constant_atmosphere = 3
 
+        self.atmo_mad_outlier = atmo_mad_outlier
+
         # kwargs
         self.kwargs = {'fov_radius': self.fov_radius,
                        'jmax_pupil': self.jmax_pupil,
@@ -289,6 +293,7 @@ class OptAtmoPSF(PSF):
                        'fit_optics_mode': self.fit_optics_mode,
                        'fit_atmosphere_mode': self.fit_atmosphere_mode,
                        'atmosphere_model': self.atmosphere_model,
+                       'atmo_mad_outlier': self.atmo_mad_outlier,
                        # junk entries to be overwritten in _finish_read function
                        'analytic_coefs': 0,
                        'optatmo_psf_kwargs': 0,
@@ -748,8 +753,8 @@ class OptAtmoPSF(PSF):
                 params[:, 0:self.n_params_atmosphere] += aberrations_atmo_star
         else:
             if self.atmosphere_model == 'vonkarman':
-                # set the vonkarman outer scale to a nominal starting place of 25
-                params[:, 3] = 25
+                # set the vonkarman outer scale to a nominal starting place
+                params[:, 3] = 10
 
         return params
 
@@ -1197,6 +1202,21 @@ class OptAtmoPSF(PSF):
         logger.debug("Stripping star fit params down to just atmosphere params for fitting with the atmo_interp")
         stripped_stars = self.stripStarList(model_fitted_stars, logger=logger)
         stars = stripped_stars
+
+        if self.atmo_mad_outlier:
+            logger.info('Stripping MAD outliers from star fit params')
+            params = np.array([s.fit.params for s in stars])
+            madp = np.abs(params - np.median(params, axis=0)[np.newaxis])
+            madcut = np.all(madp <= 5 * 1.48 * np.median(madp)[np.newaxis] + 1e-8, axis=1)
+            mad_stars = []
+            for si, s, keep in zip(range(len(stars)), stars, madcut):
+                if keep:
+                    mad_stars.append(s)
+                else:
+                    logger.debug('Removing star {0} based on MAD. params are {1}'.format(si, str(params[si])))
+            if len(mad_stars) != len(stars):
+                logger.info('Stripped stars from {0} to {1} based on 5sig MAD cut'.format(len(stars), len(mad_stars)))
+            stars = mad_stars
 
         # fit interpolant
         logger.info("Initializing atmo interpolator")
