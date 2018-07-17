@@ -256,11 +256,15 @@ def meanify(config, logger=None):
         config['output']['file_name'] = psf_list
 
     file_name_in = config['output']['file_name']
-    logger.info("Looking for PSF at %s", file_name_in)
+    logger.debug("Looking for PSF at %s", file_name_in)
 
     file_name_out = config['hyper']['file_name']
     if 'dir' in config['hyper']:
         file_name_out = os.path.join(config['hyper']['dir'], file_name_out)
+
+    max_snr = config['hyper'].pop('max_snr', 0)
+    max_chisq = config['hyper'].pop('max_chisq', 0)
+    max_sigma = config['hyper'].pop('max_sigma', 0)
 
     def _getcoord(star):
         return np.array([star.data[key] for key in ['u', 'v']])
@@ -269,11 +273,57 @@ def meanify(config, logger=None):
     params = []
 
     for fi, f in enumerate(file_name_in):
-        logger.debug('Loading file {0} of {1}'.format(fi, len(file_name_in)))
+        logger.info('Loading file {0} of {1}'.format(fi, len(file_name_in)))
         # rewrite takes ~0.02 sec per psf, while previous took 2-3 sec.
-        star_arr = fitsio.read(f, 'psf_stars')
+        try:
+            star_arr = fitsio.read(f, 'psf_stars')
+        except IOError:
+            logger.warning('Failed to load file {0}! Ignoring'.format(f))
+            continue
+        len_star_arr = len(star_arr)
         coord = np.array([star_arr['u'], star_arr['v']])
         param = star_arr['params']
+
+        if max_snr > 0:
+            snr = star_arr['snr']
+            snr_conds = snr < max_snr
+
+            if np.sum(snr_conds) != len(snr_conds):
+                logger.info('Cutting to {0} out of {1} for snr >= {2}'.format(np.sum(snr_conds), len(snr_conds), max_snr))
+
+            coord = coord[:, snr_conds]
+            param = param[snr_conds]
+            star_arr = star_arr[snr_conds]
+
+        if max_chisq > 0:
+            # gotta figure out DOF. let's assume it's just total number of possible pixels - number of params - 3 (for flux, centering)
+            dof = (star_arr['xmax'] - star_arr['xmin']) * (star_arr['ymax'] - star_arr['ymin']) - (star_arr['params'].shape[1] + 3)
+            chisq_per_dof = star_arr['chisq'] / dof
+            chisq_conds = chisq_per_dof < max_chisq
+
+            if np.sum(chisq_conds) != len(chisq_conds):
+                logger.info('Cutting to {0} out of {1} for chisq >= {2}'.format(np.sum(chisq_conds), len(chisq_conds), max_chisq))
+
+            coord = coord[:, chisq_conds]
+            param = param[chisq_conds]
+            star_arr = star_arr[chisq_conds]
+
+        if max_sigma > 0:
+            # calculate MAD and convert to sigma
+            med = np.median(param, axis=0)
+            mad_i = np.abs(param - med[None])
+            mad = np.median(mad_i, axis=0) + 1e-8  # 1e-8 for any params that are constant
+            sigma_conds = np.all(mad_i < max_sigma * (1.5 * mad[None]), axis=1)
+
+            if np.sum(sigma_conds) != len(sigma_conds):
+                logger.info('Cutting to {0} out of {1} for sigma >= {2}'.format(np.sum(sigma_conds), len(sigma_conds), max_sigma))
+
+            coord = coord[:, sigma_conds]
+            param = param[sigma_conds]
+            star_arr = star_arr[sigma_conds]
+
+        if len(star_arr) != len_star_arr:
+            logger.info('Only adding {0} out of {1} possible stars from {2} for meanify'.format(len(star_arr), len_star_arr, f))
 
         coords.append(coord)
         params.append(param)

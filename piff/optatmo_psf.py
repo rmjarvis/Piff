@@ -193,8 +193,9 @@ class OptAtmoPSF(PSF):
         else:
             self._noll_coef_field = galsim.phase_screens._noll_coef_array(self.jmax_focal, 0.0, False)
 
+        min_sizes = {'kolmogorov': 0.45, 'vonkarman': 0.7}
         self.optatmo_psf_kwargs = {
-                'size': 1.0,  'fix_size': False, 'min_size': 0.45, 'max_size': 3.0,
+                'size': 1.0,  'fix_size': False, 'min_size': min_sizes[atmosphere_model], 'max_size': 3.0,
                 'g1':   0,    'fix_g1':   False, 'min_g1': -0.4, 'max_g1': 0.4,
                 'g2':   0,    'fix_g2':   False, 'min_g2': -0.4, 'max_g2': 0.4,
             }
@@ -801,7 +802,7 @@ class OptAtmoPSF(PSF):
                                  'r0': self.kolmogorov_kwargs['r0'] / size,
                                  'L0': L0,}
             atmo = galsim.VonKarman(gsparams=self.gsparams,
-                                    do_delta=False, **kolmogorov_kwargs).shear(g1=g1, g2=g2)
+                                    **kolmogorov_kwargs).shear(g1=g1, g2=g2)
 
         # convolve together
         prof = galsim.Convolve([opt, atmo], gsparams=self.gsparams)
@@ -1142,6 +1143,14 @@ class OptAtmoPSF(PSF):
         dparam = kwargs.pop('dparam', 0.3)  # search +- this range
         param = self.optatmo_psf_kwargs['size']
         fit_size_kwargs = {'size': param, 'min_size': param - dparam, 'max_size': param + dparam}
+        # make sure we don't go too crazy
+        min_size = self.optatmo_psf_kwargs['min_size']
+        if fit_size_kwargs['min_size'] < min_size:
+            fit_size_kwargs['min_size'] = min_size
+        max_size = self.optatmo_psf_kwargs['max_size']
+        if fit_size_kwargs['max_size'] < max_size:
+            fit_size_kwargs['max_size'] = max_size
+
         lmparams = self._fit_optics_lmparams(fit_size_kwargs, ['size'])
 
         # do fit
@@ -1204,7 +1213,7 @@ class OptAtmoPSF(PSF):
         stars = stripped_stars
 
         if self.atmo_mad_outlier:
-            logger.info('Stripping MAD outliers from star fit params')
+            logger.info('Stripping MAD outliers from star fit params of atmosphere')
             params = np.array([s.fit.params for s in stars])
             madp = np.abs(params - np.median(params, axis=0)[np.newaxis])
             madcut = np.all(madp <= 5 * 1.48 * np.median(madp)[np.newaxis] + 1e-8, axis=1)
@@ -1217,6 +1226,8 @@ class OptAtmoPSF(PSF):
             if len(mad_stars) != len(stars):
                 logger.info('Stripped stars from {0} to {1} based on 5sig MAD cut'.format(len(stars), len(mad_stars)))
             stars = mad_stars
+        fitted_model_params = [s.fit.params for s in stars]
+        fitted_model_params_var = [s.fit.params_var for s in stars]
 
         # fit interpolant
         logger.info("Initializing atmo interpolator")
@@ -1228,58 +1239,47 @@ class OptAtmoPSF(PSF):
             # with no outliers, no need to do the below cycle
             self.atmo_interp.solve(stars, logger=logger)
         else:
+            # get the params again after all the stars
             oldchisq = 0.
             for iteration in range(max_iterations):
                 nremoved = 0
                 logger.warning("Iteration %d: Fitting %d stars", iteration+1, len(stars))
 
-                new_stars = []
-                params = self.getParamsList(stars)
-                for star_i, star in zip(range(len(stars)), stars):
-                    try:
-                        model_fitted_star, results = self.fit_model(star, params=params[star_i], vary_shape=True, vary_optics=False, mode=self.fit_atmosphere_mode, logger=logger)
-                        new_stars.append(model_fitted_star)
-                    except (KeyboardInterrupt, SystemExit):
-                        raise
-                    except Exception as e:
-                        logger.warning('{0}'.format(str(e)))
-                        logger.warning('Warning! Failed to fit atmosphere model for star {0}. Ignoring star in atmosphere fit'.format(star_i))
-                logger.debug("Stripping star fit params down to just atmosphere params for atmo_interp")
-                stripped_stars = self.stripStarList(new_stars, logger=logger)
-                stars = stripped_stars
-
-
-                logger.debug("             Calculating the interpolation")
+                #####
+                # outliers
+                #####
+                # solve atmo_interp with the reduced set of stars
+                stars = self.atmo_interp.initialize(stars, logger=logger)
                 self.atmo_interp.solve(stars, logger=logger)
 
-                # Refit and recenter all stars, collect stats
-                logger.debug("             Re-fluxing stars")
-                new_stars = []
-                interpolated_stars = self.atmo_interp.interpolateList(stars)
-                for s_interp in interpolated_stars:
-                    try:
-                        new_star = self.reflux(s_interp,logger=logger)  # fit params come from model fit of just flux, du, dv while other params come from interpolation
-                    except (KeyboardInterrupt, SystemExit):
-                        raise
-                    except Exception as e:  # pragma: no cover
-                        logger.warning("Caught exception:")
-                        logger.warning("Failed trying to reflux star at %s.  Excluding it.",
-                                           s_interp.image_pos)
-                        nremoved += 1
-                    else:
-                        new_stars.append(new_star)
-                # need to not strip stars because we need the chisq and dof for outlier rejection
-                stars = new_stars
+                # create new stars including atmo interp
+                params = self.getParamsList(stars)
+                stars_interp = self.atmo_interp.interpolateList(stars)
+                aberrations_atmo_star = np.array([star.fit.params for star in stars_interp])
+                params[:, 0:self.n_params_atmosphere] += aberrations_atmo_star
 
-                if self.outliers:
-                    # Perform outlier rejection
-                    logger.debug("             Looking for outliers")
-                    stars, nremoved1 = self.outliers.removeOutliers(stars, logger=logger)
-                    if nremoved1 == 0:
-                        logger.debug("             No outliers found")
-                    else:
-                        logger.info("             Removed %d outliers", nremoved1)
-                    nremoved += nremoved1
+                # refluxing star and get chisq
+                refluxed_stars = []
+                for param, star in zip(params, stars_interp):
+                    refluxed_star, res = self.fit_model(star, param, vary_shape=False, vary_optics=False, logger=logger)
+                    refluxed_stars.append(refluxed_star)
+
+                # put back into the refluxed stars the fitted model params. This way when outliers returns the new list, we won't have to refit those parameters (which will be the same as earlier)
+                reparam_stars = []
+                for params, params_var, star in zip(fitted_model_params, fitted_model_params_var, refluxed_stars):
+                    new_star = Star(star.data, StarFit(params, params_var=params_var, flux=star.fit.flux, center=star.fit.center, chisq=star.fit.chisq, dof=star.fit.dof, alpha=star.fit.alpha, beta=star.fit.beta, worst_chisq=star.fit.worst_chisq))
+                    reparam_stars.append(new_star)
+
+                # Perform outlier rejection
+                logger.debug("             Looking for outliers")
+                nonoutlier_stars, nremoved1 = self.outliers.removeOutliers(reparam_stars, logger=logger)
+                if nremoved1 == 0:
+                    logger.debug("             No outliers found")
+                else:
+                    logger.info("             Removed %d outliers", nremoved1)
+                nremoved += nremoved1
+
+                stars = nonoutlier_stars
 
                 chisq = np.sum([s.fit.chisq for s in stars])
                 dof   = np.sum([s.fit.dof for s in stars])
