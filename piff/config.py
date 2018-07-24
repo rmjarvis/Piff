@@ -255,9 +255,6 @@ def meanify(config, logger=None):
     if 'dir' in config['hyper']:
         file_name_out = os.path.join(config['hyper']['dir'], file_name_out)
 
-    def _getcoord(star):
-        return np.array([star.data[key] for key in ['u', 'v']])
-
     coords = []
     params = []
 

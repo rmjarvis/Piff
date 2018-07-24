@@ -329,12 +329,12 @@ class Star(object):
         :returns: the arrays coords and params
         """
         import galsim
-        assert extname in fits
+        if extname not in fits: raise RuntimeError('{0} not found in FITS object'.format(extname))
         colnames = fits[extname].get_colnames()
 
         columns = ['u', 'v', 'params']
         for key in columns:
-            assert key in colnames
+            if key not in colnames: raise RuntimeError('{0} not found in table'.format(key))
 
         data = fits[extname].read(columns=columns)
         coords = np.array([data['u'], data['v']]).T
