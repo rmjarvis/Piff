@@ -328,7 +328,7 @@ def test_io():
             np.testing.assert_array_equal(s2coords, s2coords_manual)
             np.testing.assert_array_equal(s2params, s2params_manual)
         else:
-            # reading read_coords_params should fail with an AssertionError if there is no params
+            # reading read_coords_params should fail with a RuntimeError if there is no params
             with np.testing.assert_raises(RuntimeError):
                 with fitsio.FITS(file_name, 'r') as fin:
                     s2coords, s2params = piff.Star.read_coords_params(fin, 'stars')
