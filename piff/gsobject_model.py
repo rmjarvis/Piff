@@ -243,10 +243,11 @@ class GSObjectModel(Model):
         if not results.success:
             raise RuntimeError("Error fitting with lmfit.")
 
-        if results.covar is None:
-            params_var = np.zeros(6)
-        else:
+        try:
             params_var = np.diag(results.covar)
+        except ValueError, AttributeError:
+            # results.covar is either None or does not exist
+            params_var = np.zeros(6)
 
         return flux, du, dv, scale, g1, g2, params_var
 
