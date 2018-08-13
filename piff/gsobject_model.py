@@ -235,6 +235,7 @@ class GSObjectModel(Model):
         :returns: (flux, dx, dy, scale, g1, g2, flag)
         """
         import lmfit
+        logger = galsim.config.LoggerWrapper(logger)
         params = self._lmfit_params(star)
         results = self._lmfit_minimize(params, star, logger=logger)
         if logger:
