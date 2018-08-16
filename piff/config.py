@@ -294,7 +294,7 @@ def meanify(config, logger=None):
         average, u0, v0, bin_target = binned_statistic_2d(coords[:,0], coords[:,1], params[:,i], bins=binning, statistic=stat_used)
         average = average.T
         average = average.reshape(-1)
-        average[~np.isfinite(average)] = 0.
+        Filter = np.isfinite(average).reshape(-1)
         params0[:,i] = average
 
     # get center of each bin 
@@ -303,6 +303,10 @@ def meanify(config, logger=None):
     u0, v0 = np.meshgrid(u0, v0)
 
     coords0 = np.array([u0.reshape(-1), v0.reshape(-1)]).T
+
+    # remove any entries with counts == 0
+    coords0 = coords0[Filter]
+    params0 = params0[Filter]
 
     dtypes = [('COORDS0', coords0.dtype, coords0.shape),
               ('PARAMS0', params0.dtype, params0.shape),
