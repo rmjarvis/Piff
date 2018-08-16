@@ -235,6 +235,7 @@ def test_meanify():
             'file_name' : average_file,
             'dir': 'output',
             'bin_spacing' : bin_spacing,
+            'statistic' : 'median',
         }}
 
     for config in [config0, config1]:
@@ -272,5 +273,5 @@ def test_meanify():
         np.testing.assert_allclose(params_interp, params_validation, rtol=rtol, atol=atol)
 
 if __name__ == '__main__':
-    #setup()
+    setup()
     test_meanify()
