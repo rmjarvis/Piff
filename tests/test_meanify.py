@@ -234,7 +234,7 @@ def test_meanify():
         'hyper' : {
             'file_name' : average_file,
             'dir': 'output',
-            'bin_spacing' : bin_spacing,
+            'bin_spacing' : 30.#bin_spacing,
         }}
 
     for config in [config0, config1]:
@@ -244,9 +244,10 @@ def test_meanify():
         params0 = make_average(coord=average['COORDS0'][0] / 0.26, gp=False)
         keys = ['hlr', 'g1', 'g2']
         for i,key in enumerate(keys):
+            print(key)
             np.testing.assert_allclose(params0[key], average['PARAMS0'][0][:,i],
                                        rtol=rtol, atol=atol)
-
+        
     ## gaussian process testing of meanify 
     np.random.seed(68)
     x = np.random.uniform(0, 2048, size=1000)
@@ -272,5 +273,5 @@ def test_meanify():
         np.testing.assert_allclose(params_interp, params_validation, rtol=rtol, atol=atol)
 
 if __name__ == '__main__':
-    setup()
+    #setup()
     test_meanify()
