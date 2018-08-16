@@ -206,7 +206,7 @@ def test_meanify():
 
     if __name__ == '__main__':
         rtol = 1.e-1
-        atol = 1.e-2
+        atol = 2.e-2
         bin_spacing = 30  # arcsec
     else:
         rtol = 1.e-1
@@ -234,7 +234,7 @@ def test_meanify():
         'hyper' : {
             'file_name' : average_file,
             'dir': 'output',
-            'bin_spacing' : 30.#bin_spacing,
+            'bin_spacing' : bin_spacing,
         }}
 
     for config in [config0, config1]:
@@ -244,7 +244,6 @@ def test_meanify():
         params0 = make_average(coord=average['COORDS0'][0] / 0.26, gp=False)
         keys = ['hlr', 'g1', 'g2']
         for i,key in enumerate(keys):
-            print(key)
             np.testing.assert_allclose(params0[key], average['PARAMS0'][0][:,i],
                                        rtol=rtol, atol=atol)
         
