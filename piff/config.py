@@ -229,6 +229,15 @@ def meanify(config, logger=None):
     else:
         bin_spacing = 120. #default bin_spacing: 120 arcsec
 
+    if 'statistic' in config['hyper']:
+        if config['hyper']['statistic'] not in ['mean', 'median']:
+            raise ValueError("%s is not a suported statistic (only mean and median are currently suported)"
+                             %config['hyper']['statistic'])
+        else:
+            stat_used = config['hyper']['statistic']
+    else:
+        stat_used = 'mean' #default statistics: arithmetic mean over each bin
+
     if isinstance(config['output']['file_name'], list):
         psf_list = config['output']['file_name']
         if len(psf_list) == 0:
@@ -280,9 +289,9 @@ def meanify(config, logger=None):
     binning = [np.linspace(lu_min, lu_max, nbin_u), np.linspace(lv_min, lv_max, nbin_v)]
     nbinning = (len(binning[0]) - 1) * (len(binning[1]) - 1)
     params0 = np.zeros((nbinning, len(params[0])))
-    print('I am doing the new version')
+
     for i in range(len(params[0])):
-        average, u0, v0, bin_target = binned_statistic_2d(coords[:,0], coords[:,1], params[:,i], bins=binning, statistic='mean')
+        average, u0, v0, bin_target = binned_statistic_2d(coords[:,0], coords[:,1], params[:,i], bins=binning, statistic=stat_used)
         average = average.T
         average = average.reshape(-1)
         average[~np.isfinite(average)] = 0.
