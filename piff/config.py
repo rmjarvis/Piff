@@ -201,6 +201,7 @@ def meanify(config, logger=None):
     from .star import Star
     import glob
     import numpy as np
+    from scipy.stats import binned_statistic_2d
     import fitsio
 
     if logger is None:
@@ -277,16 +278,14 @@ def meanify(config, logger=None):
     nbin_u = int((lu_max - lu_min) / bin_spacing)
     nbin_v = int((lv_max - lv_min) / bin_spacing)
     binning = [np.linspace(lu_min, lu_max, nbin_u), np.linspace(lv_min, lv_max, nbin_v)]
-    counts, u0, v0 = np.histogram2d(coords[:,0], coords[:,1], bins=binning)
-    counts = counts.T
-    counts = counts.reshape(-1)
-
-    params0 = np.zeros((len(counts),len(params[0])))
-
+    nbinning = (len(binning[0]) - 1) * (len(binning[1]) - 1)
+    params0 = np.zeros((nbinning, len(params[0])))
+    print('I am doing the new version')
     for i in range(len(params[0])):
-        average = np.histogram2d(coords[:,0], coords[:,1], bins=binning, weights=params[:,i])[0].T
+        average, u0, v0, bin_target = binned_statistic_2d(coords[:,0], coords[:,1], params[:,i], bins=binning, statistic='mean')
+        average = average.T
         average = average.reshape(-1)
-        average[average!=0] /= counts[average!=0]
+        average[~np.isfinite(average)] = 0.
         params0[:,i] = average
 
     # get center of each bin 
