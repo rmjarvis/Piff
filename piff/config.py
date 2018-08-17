@@ -238,6 +238,14 @@ def meanify(config, logger=None):
     else:
         stat_used = 'mean' #default statistics: arithmetic mean over each bin
 
+    if 'params_fitted' in config['hyper']:
+        if type(config['hyper']['params_fitted']) != list:
+            raise TypeError('must give a list of index for params_fitted')
+        else:
+            params_fitted = config['hyper']['params_fitted']
+    else:
+        params_fitted = None
+
     if isinstance(config['output']['file_name'], list):
         psf_list = config['output']['file_name']
         if len(psf_list) == 0:
@@ -281,6 +289,9 @@ def meanify(config, logger=None):
     coords = np.concatenate(coords, axis=0)
     logger.info('Computing average for {0} params with {1} stars'.format(len(params[0]), len(coords)))
 
+    if params_fitted is None:
+        params_fitted = range(len(params[0]))
+
     lu_min, lu_max = np.min(coords[:,0]), np.max(coords[:,0])
     lv_min, lv_max = np.min(coords[:,1]), np.max(coords[:,1])
 
@@ -291,11 +302,14 @@ def meanify(config, logger=None):
     params0 = np.zeros((nbinning, len(params[0])))
 
     for i in range(len(params[0])):
-        average, u0, v0, bin_target = binned_statistic_2d(coords[:,0], coords[:,1], params[:,i], bins=binning, statistic=stat_used)
-        average = average.T
-        average = average.reshape(-1)
-        Filter = np.isfinite(average).reshape(-1)
-        params0[:,i] = average
+        if i in params_fitted:
+            average, u0, v0, bin_target = binned_statistic_2d(coords[:,0], coords[:,1],
+                                                              params[:,i], bins=binning,
+                                                              statistic=stat_used)
+            average = average.T
+            average = average.reshape(-1)
+            Filter = np.isfinite(average).reshape(-1)
+            params0[:,i] = average
 
     # get center of each bin 
     u0 = u0[:-1] + (u0[1] - u0[0])/2.

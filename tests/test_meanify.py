@@ -235,19 +235,36 @@ def test_meanify():
             'file_name' : average_file,
             'dir': 'output',
             'bin_spacing' : bin_spacing,
+            'statistic' : 'mean',
+            'params_fitted': [0, 2]
+        }}
+
+    config2 = {
+        'output' : {
+            'file_name' : psf_file,
+            'dir': 'output',
+        },
+        'hyper' : {
+            'file_name' : average_file,
+            'dir': 'output',
+            'bin_spacing' : bin_spacing,
             'statistic' : 'median',
         }}
 
-    for config in [config0, config1]:
+    for config in [config0, config1, config2]:
         piff.meanify(config)
         ## test if found initial average
         average = fitsio.read(os.path.join('output',average_file))
         params0 = make_average(coord=average['COORDS0'][0] / 0.26, gp=False)
         keys = ['hlr', 'g1', 'g2']
         for i,key in enumerate(keys):
-            np.testing.assert_allclose(params0[key], average['PARAMS0'][0][:,i],
-                                       rtol=rtol, atol=atol)
-        
+            if config == config1 and i == 1:
+                np.testing.assert_allclose(np.zeros(len(average['PARAMS0'][0][:,i])),
+                                           average['PARAMS0'][0][:,i], rtol=0, atol=0)
+            else:
+                np.testing.assert_allclose(params0[key], average['PARAMS0'][0][:,i],
+                                           rtol=rtol, atol=atol)
+
     ## gaussian process testing of meanify 
     np.random.seed(68)
     x = np.random.uniform(0, 2048, size=1000)
