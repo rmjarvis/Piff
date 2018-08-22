@@ -1297,7 +1297,7 @@ class OptAtmoPSF(PSF):
 
         return model_fitted_stars, stars
 
-    def fit_model(self, star, params, vary_shape=True, vary_optics=False,  mode='pixel', minimize_kwargs={'method': 'leastsq', 'epsfcn': 1e-5, 'maxfev': 1000}, logger=None):
+    def fit_model(self, star, params, vary_shape=True, vary_optics=False,  mode='pixel', minimize_kwargs={}, logger=None):
         """Fit model to star's pixel data. Always vary flux and center, but also can selectively vary atmospheric terms and Zernike coefficients
 
         :param star:        A Star instance
@@ -1365,10 +1365,17 @@ class OptAtmoPSF(PSF):
             residual = self._fit_model_residual
 
         # do fit
+        minimize_kwargs_in = {'method': 'leastsq', 'epsfcn': 1e-5, 'maxfev': 1000}
+        minimize_kwargs_in.update(minimize_kwargs)
         results = lmfit.minimize(residual, lmparams,
                                  args=(star, logger,),
-                                 **minimize_kwargs)
+                                 **minimize_kwargs_in)
         logger.debug(lmfit.fit_report(results, min_correl=0.5))
+        if not results.success:
+            raise AttributeError('Not successful fit')
+        # errors can be zero if the chisq is close to perfect
+        if ((not results.errorbars) * (results.chisqr > 1e-8)):
+            raise AttributeError('No estimated errorbars')
 
         # subtract 3 for the flux, du, dv
         fit_params = np.zeros(len(results.params) - 3)
@@ -1379,12 +1386,10 @@ class OptAtmoPSF(PSF):
                 continue
             param = results.params[key]
             fit_params[indx] = param.value
-            if hasattr(param, 'stderr'):
-                try:
-                    params_var[indx] = param.stderr ** 2
-                except TypeError:
-                    # no errors, so leave as zero
-                    pass
+            if param.vary:
+                if hasattr(param, 'stderr'):
+                    var = param.stderr ** 2
+                params_var[indx] = var
 
         flux = results.params['flux'].value
         du = results.params['du'].value
