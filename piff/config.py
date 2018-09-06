@@ -300,6 +300,7 @@ def meanify(config, logger=None):
     binning = [np.linspace(lu_min, lu_max, nbin_u), np.linspace(lv_min, lv_max, nbin_v)]
     nbinning = (len(binning[0]) - 1) * (len(binning[1]) - 1)
     params0 = np.zeros((nbinning, len(params[0])))
+    Filter = np.array([True]*nbinning)
 
     for i in range(len(params[0])):
         if i in params_fitted:
@@ -308,7 +309,7 @@ def meanify(config, logger=None):
                                                               statistic=stat_used)
             average = average.T
             average = average.reshape(-1)
-            Filter = np.isfinite(average).reshape(-1)
+            Filter &= np.isfinite(average).reshape(-1)
             params0[:,i] = average
 
     # get center of each bin 
@@ -318,7 +319,8 @@ def meanify(config, logger=None):
 
     coords0 = np.array([u0.reshape(-1), v0.reshape(-1)]).T
 
-    # remove any entries with counts == 0
+    # remove any entries with nan (counts == 0 and non finite value in
+    # the 2D statistic computation) 
     coords0 = coords0[Filter]
     params0 = params0[Filter]
 
