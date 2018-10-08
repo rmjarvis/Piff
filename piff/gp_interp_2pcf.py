@@ -59,7 +59,7 @@ class GPInterp2pcf(Interp):
                          exposures. See meanify documentation. [default: None]
     :param logger:       A logger object for logging debug info. [default: None]
     """
-    def __init__(self, keys=('u','v'), kernel='RBF(1)', optimize=True, npca=0, normalize=True,
+    def __init__(self, keys=('u','v'), kernel='RBF(1)', optimize=True, npca=0, anisotropy=True, normalize=True,
                  white_noise=0., n_neighbors=4, average_fits=None, logger=None):
 
         self.keys = keys
@@ -69,6 +69,7 @@ class GPInterp2pcf(Interp):
         self.optimize = optimize
         self.white_noise = white_noise
         self.n_neighbors = n_neighbors
+        self.anisotropy = anisotropy
 
         self.kwargs = {
             'keys': keys,
@@ -162,22 +163,35 @@ class GPInterp2pcf(Interp):
         :param y:  The dependent responses.  (n_samples, n_targets)
         :param y_err: Error of y. (n_samples, n_targets)
         """
+        print('FOR PF I AM DOING NEW VERSION WITH ANISOTROPY')
         size_x = np.max(X[:,0]) - np.min(X[:,0])
         size_y = np.max(X[:,1]) - np.min(X[:,1])
         rho = float(len(X[:,0])) / (size_x * size_y)
-        MIN = np.sqrt(1./rho)
+        if self.anisotropy:
+            MIN = 0.
+        else:
+            MIN = np.sqrt(1./rho)
         MAX = np.sqrt(size_x**2 + size_y**2)/2.
 
         if np.sum(y_err) == 0:
             w = None
         else:
             w = 1./y_err**2
-        cat = treecorr.Catalog(x=X[:,0], y=X[:,1], k=(y-np.mean(y)), w=w)
-        kk = treecorr.KKCorrelation(min_sep=MIN, max_sep=MAX, nbins=20)
-        kk.process(cat)
 
-        distance = kk.meanr
-        Coord = np.array([distance,np.zeros_like(distance)]).T
+        if self.anisotropy:
+            cat = treecorr.Catalog(x=X[:,0], y=X[:,1], k=(y-np.mean(y)), w=w)
+            kk = treecorr.KKCorrelation(min_sep=MIN, max_sep=MAX, nbins=10, metric='TwoD', bin_slop=0)
+            kk.process(cat, cat, metric='TwoD')
+            mask = (kk.xi == 0)
+            distance = np.array([kk.dx, kk.dy]).T
+            Coord = distance
+        else:
+            cat = treecorr.Catalog(x=X[:,0], y=X[:,1], k=(y-np.mean(y)), w=w)
+            kk = treecorr.KKCorrelation(min_sep=MIN, max_sep=MAX, nbins=20)
+            kk.process(cat)
+            distance = kk.meanr
+            mask = np.array([True]*len(kk.xi))
+            Coord = np.array([distance,np.zeros_like(distance)]).T
 
         def PCF(param, k=kernel):
             kernel =  k.clone_with_theta(param)
@@ -185,13 +199,13 @@ class GPInterp2pcf(Interp):
             return pcf
 
         def chi2(param, disp=np.std(y)):
-            residual = kk.xi - PCF(param)
+            residual = kk.xi[mask] - PCF(param)[mask]
             var = disp**2
             return np.sum(residual**2/var)
 
         p0 = kernel.theta
-        results_fmin = optimize.fmin(chi2,p0,disp=False)
-        results_bfgs = optimize.minimize(chi2,p0,method="L-BFGS-B")
+        results_fmin = optimize.fmin(chi2, p0, disp=False)
+        results_bfgs = optimize.minimize(chi2, p0, method="L-BFGS-B")
         results = [results_fmin, results_bfgs['x']]
         chi2_min = [chi2(results[0]), chi2(results[1])]
         ind_min = chi2_min.index(min(chi2_min))
