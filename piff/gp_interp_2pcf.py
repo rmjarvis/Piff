@@ -24,9 +24,80 @@ from sklearn.gaussian_process.kernels import Kernel
 from sklearn.neighbors import KNeighborsRegressor
 from scipy import optimize
 from scipy.linalg import cholesky, cho_solve
+from scipy.stats import binned_statistic_2d
+import itertools
 
 from .interp import Interp
 from .star import Star, StarFit
+
+class bootstrap_area_2pcf(object):
+    
+    def __init__(self, X, y, y_err, chipnums=None, bin_spacing=10):
+        """Fit statistical uncertaintie on two-point correlation function using bootstraping.
+
+        :param X:  The independent covariates.  (n_samples, 2)
+        :param y:  The dependent responses.  (n_samples, n_targets)
+        :param y_err: Error of y. (n_samples, n_targets)
+        :param chipnums: CCD id. binning ignore if chipnums are given. (n_samples)
+        :param bin_spacing: Size of the area. Ignore if chipnums are given.
+        """
+        self.X = X
+        self.y = y
+        self.y_err = y_err
+        self.chipnums = chipnums
+        self.bin_spacing = bin_spacing
+        
+        if self.chipnums is not None:
+            self.area_id = self.chipnums
+        else:
+            lu_min, lu_max = np.min(self.X[:,0]), np.max(self.X[:,0])
+            lv_min, lv_max = np.min(self.X[:,1]), np.max(self.X[:,1])
+
+            nbin_u = int((lu_max - lu_min) / self.bin_spacing)
+            nbin_v = int((lv_max - lv_min) / self.bin_spacing)
+            binning = [np.linspace(lu_min, lu_max, nbin_u), np.linspace(lv_min, lv_max, nbin_v)]
+            psf_count, u0, v0, bin_target = binned_statistic_2d(self.X[:,0], self.X[:,1],
+                                                                None, bins=binning,
+                                                                statistic='count')
+            self.area_id = bin_target
+            
+        self.area_name = []
+        for Id in self.area_id:
+            if Id not in self.area_name:
+                self.area_name.append(Id)
+        self.area_name = np.array(self.area_name)
+        self.area_name.sort()
+        self.n_area = len(self.area_name)
+            
+    def resample_bootstrap(self, seed=610639139):
+        """
+        Make a single bootstarp resampling.
+        """
+
+        np.random.seed(seed)
+
+        u_output = []
+        v_output = []
+        y_output = []
+        y_err_output = []
+
+        for i in range(self.n_area):
+            area = np.random.randint(0,self.n_area-1)
+            Filter = (self.area_id == self.area_name[area])
+            u_output.append(self.X[:,0][Filter])
+            v_output.append(self.X[:,1][Filter])
+            y_output.append(self.y[Filter])
+            y_err_output.append(self.y_err[Filter])
+
+
+        u_ressample = np.array(list(itertools.chain.from_iterable(u_output)))
+        v_ressample = np.array(list(itertools.chain.from_iterable(v_output)))
+        y_ressample = np.array(list(itertools.chain.from_iterable(y_output)))
+        y_err_ressample = np.array(list(itertools.chain.from_iterable(y_err_output)))
+        plt.scatter(self.X[:,0], self.X[:,1], s=1, c='k',lw=0)
+        plt.scatter(u_ressample, v_ressample, s=10, c='b', alpha=0.1)
+        plt.show()
+        return u_ressample, v_ressample, y_ressample, y_err_ressample
 
 
 class GPInterp2pcf(Interp):
