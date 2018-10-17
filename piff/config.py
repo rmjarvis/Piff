@@ -201,6 +201,7 @@ def meanify(config, logger=None):
     from .star import Star
     import glob
     import numpy as np
+    from scipy.stats import binned_statistic_2d
     import fitsio
 
     if logger is None:
@@ -227,6 +228,23 @@ def meanify(config, logger=None):
         bin_spacing = config['hyper']['bin_spacing'] #in arcsec
     else:
         bin_spacing = 120. #default bin_spacing: 120 arcsec
+
+    if 'statistic' in config['hyper']:
+        if config['hyper']['statistic'] not in ['mean', 'median']:
+            raise ValueError("%s is not a suported statistic (only mean and median are currently suported)"
+                             %config['hyper']['statistic'])
+        else:
+            stat_used = config['hyper']['statistic']
+    else:
+        stat_used = 'mean' #default statistics: arithmetic mean over each bin
+
+    if 'params_fitted' in config['hyper']:
+        if type(config['hyper']['params_fitted']) != list:
+            raise TypeError('must give a list of index for params_fitted')
+        else:
+            params_fitted = config['hyper']['params_fitted']
+    else:
+        params_fitted = None
 
     if isinstance(config['output']['file_name'], list):
         psf_list = config['output']['file_name']
@@ -271,23 +289,28 @@ def meanify(config, logger=None):
     coords = np.concatenate(coords, axis=0)
     logger.info('Computing average for {0} params with {1} stars'.format(len(params[0]), len(coords)))
 
+    if params_fitted is None:
+        params_fitted = range(len(params[0]))
+
     lu_min, lu_max = np.min(coords[:,0]), np.max(coords[:,0])
     lv_min, lv_max = np.min(coords[:,1]), np.max(coords[:,1])
 
     nbin_u = int((lu_max - lu_min) / bin_spacing)
     nbin_v = int((lv_max - lv_min) / bin_spacing)
     binning = [np.linspace(lu_min, lu_max, nbin_u), np.linspace(lv_min, lv_max, nbin_v)]
-    counts, u0, v0 = np.histogram2d(coords[:,0], coords[:,1], bins=binning)
-    counts = counts.T
-    counts = counts.reshape(-1)
-
-    params0 = np.zeros((len(counts),len(params[0])))
+    nbinning = (len(binning[0]) - 1) * (len(binning[1]) - 1)
+    params0 = np.zeros((nbinning, len(params[0])))
+    Filter = np.array([True]*nbinning)
 
     for i in range(len(params[0])):
-        average = np.histogram2d(coords[:,0], coords[:,1], bins=binning, weights=params[:,i])[0].T
-        average = average.reshape(-1)
-        average[average!=0] /= counts[average!=0]
-        params0[:,i] = average
+        if i in params_fitted:
+            average, u0, v0, bin_target = binned_statistic_2d(coords[:,0], coords[:,1],
+                                                              params[:,i], bins=binning,
+                                                              statistic=stat_used)
+            average = average.T
+            average = average.reshape(-1)
+            Filter &= np.isfinite(average).reshape(-1)
+            params0[:,i] = average
 
     # get center of each bin 
     u0 = u0[:-1] + (u0[1] - u0[0])/2.
@@ -295,6 +318,11 @@ def meanify(config, logger=None):
     u0, v0 = np.meshgrid(u0, v0)
 
     coords0 = np.array([u0.reshape(-1), v0.reshape(-1)]).T
+
+    # remove any entries with nan (counts == 0 and non finite value in
+    # the 2D statistic computation) 
+    coords0 = coords0[Filter]
+    params0 = params0[Filter]
 
     dtypes = [('COORDS0', coords0.dtype, coords0.shape),
               ('PARAMS0', params0.dtype, params0.shape),
