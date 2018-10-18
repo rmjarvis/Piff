@@ -32,20 +32,28 @@ from .star import Star, StarFit
 
 class bootstrap_area_2pcf(object):
     
-    def __init__(self, X, y, y_err, chipnums=None, bin_spacing=10):
+    def __init__(self, X, y, y_err, chipnums=None, bin_spacing=10,
+                 MIN=0, MAX=10, nbins=10, anisotropy=False):
         """Fit statistical uncertaintie on two-point correlation function using bootstraping.
 
-        :param X:  The independent covariates.  (n_samples, 2)
-        :param y:  The dependent responses.  (n_samples, n_targets)
-        :param y_err: Error of y. (n_samples, n_targets)
-        :param chipnums: CCD id. binning ignore if chipnums are given. (n_samples)
+        :param X:           The independent covariates.  (n_samples, 2)
+        :param y:           The dependent responses.  (n_samples, n_targets)
+        :param y_err:       Error of y. (n_samples, n_targets)
+        :param chipnums:    CCD id. binning ignore if chipnums are given. (n_samples)
         :param bin_spacing: Size of the area. Ignore if chipnums are given.
+        :param MIN:         Minimum bin for treecorr. (float) 
+        :param MAX:         Maximum bin for treecorr. (float)
+        :param anisotropy:  2D 2-point correlation function. (Boolean) 
         """
         self.X = X
         self.y = y
         self.y_err = y_err
         self.chipnums = chipnums
         self.bin_spacing = bin_spacing
+        self.MIN = MIN
+        self.MAX = MAX
+        self.nbins = nbins
+        self.anisotropy = anisotropy
         
         if self.chipnums is not None:
             self.area_id = self.chipnums
@@ -69,12 +77,10 @@ class bootstrap_area_2pcf(object):
         self.area_name.sort()
         self.n_area = len(self.area_name)
             
-    def resample_bootstrap(self, seed=610639139):
+    def resample_bootstrap(self):
         """
         Make a single bootstarp resampling.
         """
-
-        np.random.seed(seed)
 
         u_output = []
         v_output = []
@@ -94,10 +100,58 @@ class bootstrap_area_2pcf(object):
         v_ressample = np.array(list(itertools.chain.from_iterable(v_output)))
         y_ressample = np.array(list(itertools.chain.from_iterable(y_output)))
         y_err_ressample = np.array(list(itertools.chain.from_iterable(y_err_output)))
-        plt.scatter(self.X[:,0], self.X[:,1], s=1, c='k',lw=0)
-        plt.scatter(u_ressample, v_ressample, s=10, c='b', alpha=0.1)
-        plt.show()
+        #plt.scatter(self.X[:,0], self.X[:,1], s=1, c='k',lw=0)
+        #plt.scatter(u_ressample, v_ressample, s=10, c='b', alpha=0.1)
+        #plt.show()
         return u_ressample, v_ressample, y_ressample, y_err_ressample
+    
+    def comp_2pcf(self, X, y, y_err):
+
+        if np.sum(y_err) == 0:
+            w = None
+        else:
+            w = 1./y_err**2
+
+        if self.anisotropy:
+            cat = treecorr.Catalog(x=X[:,0], y=X[:,1], k=(y-np.mean(y)), w=w)
+            kk = treecorr.KKCorrelation(min_sep=self.MIN, max_sep=self.MAX, nbins=self.nbins,
+                                        metric='TwoD', bin_slop=0)
+            kk.process(cat, cat, metric='TwoD')
+            mask = (kk.xi != 0)
+            distance = np.array([kk.dx, kk.dy]).T
+            Coord = distance
+        else:
+            cat = treecorr.Catalog(x=X[:,0], y=X[:,1], k=(y-np.mean(y)), w=w)
+            kk = treecorr.KKCorrelation(min_sep=self.MIN, max_sep=self.MAX, nbins=self.nbins)
+            kk.process(cat)
+            distance = kk.meanr
+            mask = np.array([True]*len(kk.xi))
+            Coord = np.array([distance,np.zeros_like(distance)]).T
+
+        return kk.xi, distance, Coord, mask
+
+    
+    def comp_xi_var(self, seed=610639139):
+        
+        np.random.seed(seed)
+        xi_bootstrap = []
+        for i in range(100):
+            u, v, y, y_err = self.resample_bootstrap()
+            coord = np.array([u, v]).T
+            xi, d, c, m = self.comp_2pcf(coord, y, y_err)
+            xi_bootstrap.append(xi)
+        xi_bootstrap = np.array(xi_bootstrap)
+        
+        xi_var = np.var(xi_bootstrap, axis=0)
+        
+        return xi_var
+    
+    def return_2pcf(self, seed=610639139):
+        
+        xi, distance, coord, mask = self.comp_2pcf(self.X, self.y, self.y_err)
+        xi_var = self.comp_xi_var(seed=seed)
+        
+        return xi, xi_var, distance, coord, mask
 
 
 class GPInterp2pcf(Interp):
