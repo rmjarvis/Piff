@@ -385,7 +385,7 @@ class InputFiles(Input):
                 image_file_name = os.path.join(dir, image_file_name)
             image_list = sorted(glob.glob(image_file_name))
             if dir is not None:
-                k = len(dir) + 1
+                k = len(dir) if dir[-1] == '/' else len(dir)+1
                 image_list = [ f[k:] for f in image_list ]
             if len(image_list) == 0:
                 raise ValueError("No files found corresponding to "+config['image_file_name'])
@@ -416,7 +416,7 @@ class InputFiles(Input):
                 cat_file_name = os.path.join(dir, cat_file_name)
             cat_list = sorted(glob.glob(cat_file_name))
             if dir is not None:
-                k = len(dir) + 1
+                k = len(dir) if dir[-1] == '/' else len(dir)+1
                 cat_list = [ f[k:] for f in cat_list ]
             if len(cat_list) == 0:
                 raise ValueError("No files found corresponding to "+config['cat_file_name'])
