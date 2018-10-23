@@ -86,7 +86,7 @@ from .basis_interp import BasisInterp, BasisPolynomial
 from .knn_interp import kNNInterp
 from .gp_interp import GPInterp
 from .gp_interp_2pcf import GPInterp2pcf
-from .kernel import ExplicitKernel, AnisotropicRBF, VonKarman
+from .kernel import ExplicitKernel, AnisotropicRBF, VonKarman, AnisotropicVonKarman
 
 # Outlier handlers are named BlahOutliers where Blah is what they are called in teh config file
 from .outliers import Outliers, ChisqOutliers

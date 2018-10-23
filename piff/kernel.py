@@ -340,40 +340,24 @@ class AnisotropicVonKarman(StationaryKernelMixin, NormalizedKernelMixin, Kernel)
 
         if Y is None:
             dists = pdist(X, metric='mahalanobis', VI=self.invLam)
-            # FOR PF: TO DO --> switch to VK
-            K = np.exp(-0.5 * dists**2)
+            K = dists **(5./6.) *  special.kv(5./6., 2*np.pi * dists)
+            lim0 = special.gamma(5./6.) /(2 * ((np.pi)**(5./6.)) )
             K = squareform(K)
-            np.fill_diagonal(K, 1)
+            np.fill_diagonal(K, lim0)
         else:
             if eval_gradient:
                 raise ValueError(
-                    "Gradient can only be evaluated when Y is None.")
-            # FOR PF: TO DO --> switch to VK
+                    "Gradient can not be evaluated.")
             dists = cdist(X, Y, metric='mahalanobis', VI=self.invLam)
-            K = np.exp(-0.5 * dists**2)
+            K = dists **(5./6.) *  special.kv(5./6., 2*np.pi * dists)
+            Filter = np.isfinite(K)
+            if np.sum(Filter) != len(K[0])*len(K[:,0]):
+                lim0 = special.gamma(5./6.) /(2 * ((np.pi)**(5./6.)) )
+                K[~Filter] = lim0
 
         if eval_gradient:
-            # FOR PF: TO DO --> switch to VK
-            if self.hyperparameter_cholesky_factor.fixed:
-                return K, np.empty((X.shape[0], X.shape[0], 0))
-            else:
-                # dK_pq/dth_k = -0.5 * K_pq *
-                #               ((x_p_i-x_q_i) * dInvLam_ij/dth_k * (x_q_j - x_q_j))
-                # dInvLam_ij/dth_k = dL_ij/dth_k * L_ij.T  +  L_ij * dL_ij.T/dth_k
-                # dL_ij/dth_k is a matrix with all zeros except for one element.  That element is
-                # L_ij if k indicates one of the theta parameters landing on the Cholesky diagonal,
-                # and is 1.0 if k indicates one of the thetas in the lower triangular region.
-                L_grad = np.zeros((self.ntheta, self.ndim, self.ndim), dtype=float)
-                L_grad[(np.arange(self.ndim),)+self._d] = self._L[self._d]
-                L_grad[(np.arange(self.ndim, self.ntheta),)+self._t] = 1.0
-
-                half_invLam_grad = np.dot(L_grad, self._L.T)
-                invLam_grad = half_invLam_grad + np.transpose(half_invLam_grad, (0, 2, 1))
-
-                dX = X[:, np.newaxis, :] - X[np.newaxis, :, :]
-                dist_grad = np.einsum("ijk,lkm,ijm->ijl", dX, invLam_grad, dX)
-                K_gradient = -0.5 * K[:, :, np.newaxis] * dist_grad
-                return K, K_gradient
+            raise ValueError(
+                "Gradient can not be evaluated.")
         else:
             return K
 
