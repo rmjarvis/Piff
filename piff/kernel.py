@@ -336,6 +336,7 @@ class AnisotropicVonKarman(StationaryKernelMixin, NormalizedKernelMixin, Kernel)
 
     def __call__(self, X, Y=None, eval_gradient=False):
         from scipy.spatial.distance import pdist, cdist, squareform
+        from scipy import special
         X = np.atleast_2d(X)
 
         if Y is None:
