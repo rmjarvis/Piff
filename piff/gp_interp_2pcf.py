@@ -291,39 +291,20 @@ class GPInterp2pcf(Interp):
         :param y:  The dependent responses.  (n_samples, n_targets)
         :param y_err: Error of y. (n_samples, n_targets)
         """
-        print('FOR PF I AM DOING NEW VERSION WITH ANISOTROPY and Bootstrap')
         size_x = np.max(X[:,0]) - np.min(X[:,0])
         size_y = np.max(X[:,1]) - np.min(X[:,1])
         rho = float(len(X[:,0])) / (size_x * size_y)
         if self.anisotropy:
             MIN = 0.
+            nbins = 10
         else:
             MIN = np.sqrt(1./rho)
+            nbins = 20
         MAX = np.sqrt(size_x**2 + size_y**2)/2.
 
         bap = bootstrap_area_2pcf(X, y, y_err, chipnums=None, bin_spacing=((MAX - MIN) / 10.),
-                                  MIN=MIN, MAX=MAX, nbins=10, anisotropy=self.anisotropy)
+                                  MIN=MIN, MAX=MAX, nbins=nbins, anisotropy=self.anisotropy)
         xi, xi_var, distance, coord, mask = bap.return_2pcf()
-
-        #if np.sum(y_err) == 0:
-        #    w = None
-        #else:
-        #    w = 1./y_err**2
-
-        #if self.anisotropy:
-        #    cat = treecorr.Catalog(x=X[:,0], y=X[:,1], k=(y-np.mean(y)), w=w)
-        #    kk = treecorr.KKCorrelation(min_sep=MIN, max_sep=MAX, nbins=10, metric='TwoD', bin_slop=0)
-        #    kk.process(cat, cat, metric='TwoD')
-        #    mask = (kk.xi == 0)
-        #    distance = np.array([kk.dx, kk.dy]).T
-        #    Coord = distance
-        #else:
-        #    cat = treecorr.Catalog(x=X[:,0], y=X[:,1], k=(y-np.mean(y)), w=w)
-        #    kk = treecorr.KKCorrelation(min_sep=MIN, max_sep=MAX, nbins=20)
-        #    kk.process(cat)
-        #    distance = kk.meanr
-        #    mask = np.array([True]*len(kk.xi))
-        #    Coord = np.array([distance,np.zeros_like(distance)]).T
 
         def PCF(param, k=kernel):
             kernel =  k.clone_with_theta(param)
@@ -341,24 +322,6 @@ class GPInterp2pcf(Interp):
         chi2_min = [chi2(results[0]), chi2(results[1])]
         ind_min = chi2_min.index(min(chi2_min))
         results = results[ind_min]
-
-        import pylab as plt
-        plt.figure(figsize=(12,8))
-        xaxis = np.linspace(1, len(xi), len(xi))
-        plt.plot(xaxis, xi, 'b')
-        plt.plot(xaxis, PCF(results), 'k')
-        plt.fill_between(xaxis, xi-np.sqrt(xi_var), xi+np.sqrt(xi_var), alpha=0.3, color='b')
-        
-        LENNN = int(np.sqrt(len(xi)))
-        plt.figure()
-        colormin = np.min(xi)
-        colormax = np.max(xi)
-        plt.imshow(xi.reshape((LENNN,LENNN)), vmin=colormin, vmax=colormax)
-        plt.colorbar()
-        plt.figure()
-        plt.imshow(PCF(results).reshape((LENNN,LENNN)), vmin=colormin, vmax=colormax)
-        plt.colorbar()
-        plt.show()
 
         self._2pcf.append(xi)
         self._2pcf_var.append(xi_var)
