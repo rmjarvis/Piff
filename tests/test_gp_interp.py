@@ -882,7 +882,7 @@ def test_gp_with_kernels():
 def test_anisotropic_rbf_kernel():
     if __name__ == '__main__':
         ntrain = 250
-        npcas = [0, 5]
+        npcas = [0]
         optimizes = [True, False]
         check_config = True
     else:
@@ -903,15 +903,18 @@ def test_anisotropic_rbf_kernel():
     invLam = np.linalg.inv(cov)
 
     kernel = "0.1*AnisotropicRBF(invLam={0!r})".format(invLam)
-    kernel += "+ WhiteKernel(1e-5, (1e-7, 1e-2))"
 
     print(kernel)
 
     for npca in npcas:
         for optimize in optimizes:
-            check_gp(training_data, validation_data, visualization_data, kernel,
+            #print('Hey PF state:', npca, optimize)
+            check_gp(training_data, validation_data, visualization_data, kernel+ "+ WhiteKernel(1e-5, (1e-7, 1e-2))",
                      npca=npca, optimize=optimize, file_name="test_anisotropic_rbf.fits",
                      rng=rng, check_config=check_config)
+            check_gp_2pcf(training_data, validation_data, visualization_data, kernel,
+                          npca=npca, optimize=optimize, rng=rng, check_config=True)
+
 
 @timer
 def test_vonkarman_kernel():
@@ -1104,9 +1107,9 @@ def test_guess_2pcf():
     for guess in guesses:
         # noise of 0.3 turns out to be pretty significant here.
         stars = params_to_stars(training_data, noise=0.1, rng=rng)
-        kernel = "1*RBF({0}, (1e-6, 1e1))".format(guess)
+        kernel = "0.05*RBF({0}, (1e-6, 1e1))".format(guess)
         norm = guess < 0.2  # Arbitrary.  Just check both True and False.
-        interp = piff.GPInterp2pcf(kernel=kernel, normalize=norm, white_noise=0.)
+        interp = piff.GPInterp2pcf(kernel=kernel, normalize=norm, white_noise=0., anisotropy=False)
         stars = [mod.fit(s) for s in stars]
         stars = interp.initialize(stars)
         interp.solve(stars)
@@ -1116,12 +1119,10 @@ def test_guess_2pcf():
             inferred_scale_length.append(np.exp(interp.kernels[i].theta[1]))
 
     # Check that the inferred scale length is close to the input value of 0.1
-    np.testing.assert_allclose(inferred_scale_length, 0.1, atol=rtol/3)
+    np.testing.assert_allclose(inferred_scale_length, 0.1, atol=rtol/2.)
     # More interesting however, is how independent is the optimization wrt the initial value.
     # So check that the standard deviation of the results is much smaller than the value.
     np.testing.assert_array_less(np.std(inferred_scale_length), 0.3*rtol)
-
-
 
 @timer
 def test_anisotropic_guess():
