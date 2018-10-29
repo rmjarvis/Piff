@@ -311,17 +311,15 @@ class GPInterp2pcf(Interp):
             pcf = kernel.__call__(coord,Y=np.zeros_like(coord))[:,0]
             return pcf
 
+        xi_mask = xi[mask]
+        xi_var_mask = xi_var[mask]
         def chi2(param):
-            residual = xi[mask] - PCF(param)[mask]
-            return np.sum(residual**2/xi_var[mask])
+            residual = xi_mask - PCF(param)[mask]
+            return np.sum(residual**2/xi_var_mask)
 
         p0 = kernel.theta
-        results_fmin = optimize.fmin(chi2, p0, disp=False)
         results_bfgs = optimize.minimize(chi2, p0, method="L-BFGS-B")
-        results = [results_fmin, results_bfgs['x']]
-        chi2_min = [chi2(results[0]), chi2(results[1])]
-        ind_min = chi2_min.index(min(chi2_min))
-        results = results[ind_min]
+        results = results_bfgs['x']
 
         self._2pcf.append(xi)
         self._2pcf_var.append(xi_var)
