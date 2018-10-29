@@ -32,42 +32,40 @@ from .star import Star, StarFit
 
 class bootstrap_area_2pcf(object):
     
-    def __init__(self, X, y, y_err, chipnums=None, bin_spacing=10,
-                 MIN=0, MAX=10, nbins=10, anisotropy=False):
+    def __init__(self, X, y, y_err, bin_spacing=10,
+                 MIN=0, MAX=10, nbins=20, anisotropy=False):
         """Fit statistical uncertaintie on two-point correlation function using bootstraping.
 
         :param X:           The independent covariates.  (n_samples, 2)
         :param y:           The dependent responses.  (n_samples, n_targets)
         :param y_err:       Error of y. (n_samples, n_targets)
-        :param chipnums:    CCD id. binning ignore if chipnums are given. (n_samples)
         :param bin_spacing: Size of the area. Ignore if chipnums are given.
         :param MIN:         Minimum bin for treecorr. (float) 
         :param MAX:         Maximum bin for treecorr. (float)
-        :param anisotropy:  2D 2-point correlation function. (Boolean) 
+        :param anisotropy:  2D 2-point correlation function. 
+                            Used 2D correlation function for the 
+                            fiting part of the GP. (Boolean) 
         """
         self.X = X
         self.y = y
         self.y_err = y_err
-        self.chipnums = chipnums
         self.bin_spacing = bin_spacing
         self.MIN = MIN
         self.MAX = MAX
         self.nbins = nbins
         self.anisotropy = anisotropy
         
-        if self.chipnums is not None:
-            self.area_id = self.chipnums
-        else:
-            lu_min, lu_max = np.min(self.X[:,0]), np.max(self.X[:,0])
-            lv_min, lv_max = np.min(self.X[:,1]), np.max(self.X[:,1])
 
-            nbin_u = int((lu_max - lu_min) / self.bin_spacing)
-            nbin_v = int((lv_max - lv_min) / self.bin_spacing)
-            binning = [np.linspace(lu_min, lu_max, nbin_u), np.linspace(lv_min, lv_max, nbin_v)]
-            psf_count, u0, v0, bin_target = binned_statistic_2d(self.X[:,0], self.X[:,1],
-                                                                None, bins=binning,
-                                                                statistic='count')
-            self.area_id = bin_target
+        lu_min, lu_max = np.min(self.X[:,0]), np.max(self.X[:,0])
+        lv_min, lv_max = np.min(self.X[:,1]), np.max(self.X[:,1])
+        
+        nbin_u = int((lu_max - lu_min) / self.bin_spacing)
+        nbin_v = int((lv_max - lv_min) / self.bin_spacing)
+        binning = [np.linspace(lu_min, lu_max, nbin_u), np.linspace(lv_min, lv_max, nbin_v)]
+        psf_count, u0, v0, bin_target = binned_statistic_2d(self.X[:,0], self.X[:,1],
+                                                            None, bins=binning,
+                                                            statistic='count')
+        self.area_id = bin_target
             
         self.area_name = []
         for Id in self.area_id:
@@ -79,9 +77,8 @@ class bootstrap_area_2pcf(object):
             
     def resample_bootstrap(self):
         """
-        Make a single bootstarp resampling.
+        Make a single bootstrap resampling.
         """
-
         u_output = []
         v_output = []
         y_output = []
@@ -100,13 +97,16 @@ class bootstrap_area_2pcf(object):
         v_ressample = np.array(list(itertools.chain.from_iterable(v_output)))
         y_ressample = np.array(list(itertools.chain.from_iterable(y_output)))
         y_err_ressample = np.array(list(itertools.chain.from_iterable(y_err_output)))
-        #plt.scatter(self.X[:,0], self.X[:,1], s=1, c='k',lw=0)
-        #plt.scatter(u_ressample, v_ressample, s=10, c='b', alpha=0.1)
-        #plt.show()
         return u_ressample, v_ressample, y_ressample, y_err_ressample
     
     def comp_2pcf(self, X, y, y_err):
+        """
+        Estimate 2-point correlation function using TreeCorr. 
 
+        :param X:  The independent covariates.  (n_samples, 2)
+        :param y:  The dependent responses.  (n_samples, n_targets)
+        :param y_err: Error of y. (n_samples, n_targets)
+        """
         if np.sum(y_err) == 0:
             w = None
         else:
@@ -132,7 +132,11 @@ class bootstrap_area_2pcf(object):
 
     
     def comp_xi_var(self, seed=610639139):
-        
+        """
+        Estimate 2-point correlation function variance using Bootstrap. 
+
+        :param seed: seed of the random generator. 
+        """
         np.random.seed(seed)
         xi_bootstrap = []
         for i in range(100):
@@ -147,7 +151,11 @@ class bootstrap_area_2pcf(object):
         return xi_var
     
     def return_2pcf(self, seed=610639139):
-        
+        """
+        Return 2-point correlation function and its variance using Bootstrap. 
+
+        :param seed: seed of the random generator. 
+        """
         xi, distance, coord, mask = self.comp_2pcf(self.X, self.y, self.y_err)
         xi_var = self.comp_xi_var(seed=seed)
         
@@ -170,6 +178,8 @@ class GPInterp2pcf(Interp):
                          PSF parameters before any interpolation, and it will be the PC that will
                          be interpolate and then retransform in PSF parameters. [default: 0, which
                          means don't decompose PSF parameters into principle components.]
+    :param anisotropy:   2D 2-point correlation function. Used 2D correlation function for the
+                         fiting part of the GP instead of a 1D correlation function. [default: False]     
     :param normalize:    Whether to normalize the interpolation parameters to have a mean of 0.
                          Normally, the parameters being interpolated are not mean 0, so you would
                          want this to be True, but if your parameters have an a priori mean of 0,
@@ -179,22 +189,29 @@ class GPInterp2pcf(Interp):
                          added to the error of the PSF parameters. [default: 0.]
     :param n_neighbors:  Number of neighbors to used for interpolating the spatial average using
                          a KNeighbors interpolation. Used only if average_fits is not None. [defaulf: 4]
+    :param nbins:        Number of bins (if 1D correlation function) of the square root of the number 
+                         of bins (if 2D correlation function) used in TreeCorr to compute the 
+                         2-point correlation function. [default: 20]
+    :param max_sep:      Maximum separation between pairs when computing 2-point correlation 
+                         function. In the same units as the keys. Compute automaticaly if it 
+                         is not given. [default: None]
     :param average_fits: A fits file that have the spatial average functions of PSF parameters 
                          build in it. Build using meanify and piff output across different 
                          exposures. See meanify documentation. [default: None]
     :param logger:       A logger object for logging debug info. [default: None]
     """
     def __init__(self, keys=('u','v'), kernel='RBF(1)', optimize=True, npca=0, anisotropy=True, normalize=True,
-                 white_noise=0., n_neighbors=4, average_fits=None, logger=None):
+                 white_noise=0., n_neighbors=4, average_fits=None, nbins=20, max_sep=None, logger=None):
 
         self.keys = keys
         self.npca = npca
-        self.degenerate_points = False
         self.normalize = normalize
         self.optimize = optimize
         self.white_noise = white_noise
         self.n_neighbors = n_neighbors
         self.anisotropy = anisotropy
+        self.nbins = nbins
+        self.max_sep = max_sep
 
         self.kwargs = {
             'keys': keys,
@@ -296,14 +313,16 @@ class GPInterp2pcf(Interp):
         rho = float(len(X[:,0])) / (size_x * size_y)
         if self.anisotropy:
             MIN = 0.
-            nbins = 10
         else:
             MIN = np.sqrt(1./rho)
-            nbins = 20
-        MAX = np.sqrt(size_x**2 + size_y**2)/2.
 
-        bap = bootstrap_area_2pcf(X, y, y_err, chipnums=None, bin_spacing=((MAX - MIN) / 10.),
-                                  MIN=MIN, MAX=MAX, nbins=nbins, anisotropy=self.anisotropy)
+        if self.max_sep is not None:
+            MAX = self.max_sep
+        else:
+            MAX = np.sqrt(size_x**2 + size_y**2)/2.
+
+        bap = bootstrap_area_2pcf(X, y, y_err, bin_spacing=((MAX - MIN) / 10.),
+                                  MIN=MIN, MAX=MAX, nbins=self.nbins, anisotropy=self.anisotropy)
         xi, xi_var, distance, coord, mask = bap.return_2pcf()
 
         def PCF(param, k=kernel):
