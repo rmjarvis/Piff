@@ -30,16 +30,15 @@ import itertools
 from .interp import Interp
 from .star import Star, StarFit
 
-class bootstrap_area_2pcf(object):
+class bootstrap_2pcf(object):
     
-    def __init__(self, X, y, y_err, bin_spacing=10,
+    def __init__(self, X, y, y_err,
                  MIN=0, MAX=10, nbins=20, anisotropy=False):
         """Fit statistical uncertaintie on two-point correlation function using bootstraping.
 
         :param X:           The independent covariates.  (n_samples, 2)
         :param y:           The dependent responses.  (n_samples, n_targets)
         :param y_err:       Error of y. (n_samples, n_targets)
-        :param bin_spacing: Size of the area. Ignore if chipnums are given.
         :param MIN:         Minimum bin for treecorr. (float) 
         :param MAX:         Maximum bin for treecorr. (float)
         :param anisotropy:  2D 2-point correlation function. 
@@ -49,54 +48,28 @@ class bootstrap_area_2pcf(object):
         self.X = X
         self.y = y
         self.y_err = y_err
-        self.bin_spacing = bin_spacing
         self.MIN = MIN
         self.MAX = MAX
         self.nbins = nbins
-        self.anisotropy = anisotropy
-        
+        self.anisotropy = anisotropy        
 
-        lu_min, lu_max = np.min(self.X[:,0]), np.max(self.X[:,0])
-        lv_min, lv_max = np.min(self.X[:,1]), np.max(self.X[:,1])
-        
-        nbin_u = int((lu_max - lu_min) / self.bin_spacing)
-        nbin_v = int((lv_max - lv_min) / self.bin_spacing)
-        binning = [np.linspace(lu_min, lu_max, nbin_u), np.linspace(lv_min, lv_max, nbin_v)]
-        psf_count, u0, v0, bin_target = binned_statistic_2d(self.X[:,0], self.X[:,1],
-                                                            None, bins=binning,
-                                                            statistic='count')
-        self.area_id = bin_target
-            
-        self.area_name = []
-        for Id in self.area_id:
-            if Id not in self.area_name:
-                self.area_name.append(Id)
-        self.area_name = np.array(self.area_name)
-        self.area_name.sort()
-        self.n_area = len(self.area_name)
-            
-    def resample_bootstrap(self):
+     def resample_bootstrap(self):
         """
-        Make a single bootstrap resampling.
+        Make a single bootstarp resampling on stars.
         """
-        u_output = []
-        v_output = []
-        y_output = []
-        y_err_output = []
+        npsfs = len(self.y)
+        u_ressample = np.zeros(npsfs)
+        v_ressample = np.zeros(npsfs)
+        y_ressample = np.zeros(npsfs)
+        y_err_ressample = np.zeros(npsfs)
 
-        for i in range(self.n_area):
-            area = np.random.randint(0,self.n_area-1)
-            Filter = (self.area_id == self.area_name[area])
-            u_output.append(self.X[:,0][Filter])
-            v_output.append(self.X[:,1][Filter])
-            y_output.append(self.y[Filter])
-            y_err_output.append(self.y_err[Filter])
+        for i in range(npsfs):
+            ind_star = np.random.randint(0,npsfs-1)
+            u_ressample[i] = self.X[:,0][ind_star]
+            v_ressample[i] = self.X[:,1][ind_star]
+            y_ressample[i] = self.y[ind_star]
+            y_err_ressample[i] = self.y_err[ind_star]
 
-
-        u_ressample = np.array(list(itertools.chain.from_iterable(u_output)))
-        v_ressample = np.array(list(itertools.chain.from_iterable(v_output)))
-        y_ressample = np.array(list(itertools.chain.from_iterable(y_output)))
-        y_err_ressample = np.array(list(itertools.chain.from_iterable(y_err_output)))
         return u_ressample, v_ressample, y_ressample, y_err_ressample
     
     def comp_2pcf(self, X, y, y_err):
@@ -118,6 +91,17 @@ class bootstrap_area_2pcf(object):
                                         metric='TwoD', bin_slop=0)
             kk.process(cat, cat, metric='TwoD')
             mask = (kk.xi != 0)
+            npixel = int(np.sqrt(len(kk.xi)))
+            mask = mask.reshape((npixel,npixel))
+            if len(mask)%2 == 0:
+                nmask = (len(mask)/2)
+                mask[nmask:,:] = False
+            else:
+                nmask = (len(mask)/2)+1
+                mask[nmask:,:] = False
+                mask[nmask-1][nmask:] = False
+            mask = mask.reshape(npixel**2)
+
             distance = np.array([kk.dx, kk.dy]).T
             Coord = distance
         else:
@@ -131,24 +115,26 @@ class bootstrap_area_2pcf(object):
         return kk.xi, distance, Coord, mask
 
     
-    def comp_xi_var(self, seed=610639139):
+    def comp_xi_covariance(self, n_bootstrap=1000, seed=610639139):
         """
-        Estimate 2-point correlation function variance using Bootstrap. 
+        Estimate 2-point correlation function covariance matrix using Bootstrap. 
 
         :param seed: seed of the random generator. 
         """
         np.random.seed(seed)
         xi_bootstrap = []
-        for i in range(100):
+        for i in range(n_bootstrap):
             u, v, y, y_err = self.resample_bootstrap()
             coord = np.array([u, v]).T
             xi, d, c, m = self.comp_2pcf(coord, y, y_err)
-            xi_bootstrap.append(xi)
+            if i==0:
+                mask = m
+            xi_bootstrap.append(xi[mask])
         xi_bootstrap = np.array(xi_bootstrap)
-        
-        xi_var = np.var(xi_bootstrap, axis=0)
-        
-        return xi_var
+
+        dxi = xi_bootstrap - np.mean(xi_bootstrap, axis=0)
+        xi_cov = 1./(len(dxi)-1.) * np.dot(dxi.T, dxi)    
+        return xi_cov
     
     def return_2pcf(self, seed=610639139):
         """
@@ -157,9 +143,18 @@ class bootstrap_area_2pcf(object):
         :param seed: seed of the random generator. 
         """
         xi, distance, coord, mask = self.comp_2pcf(self.X, self.y, self.y_err)
-        xi_var = self.comp_xi_var(seed=seed)
-        
-        return xi, xi_var, distance, coord, mask
+
+        # Choice done from Andy Taylor et al. 2012
+        def f_bias(x, npixel=len(xi[mask])):
+            top = x - 1.
+            bottom = x - npixel - 2.
+            return (top/bottom) - 1.2
+        results = optimize.fsolve(f_bias, len(xi[mask]) + 10)
+        xi_cov = self.comp_xi_var(n_bootstrap=int(results[0]), seed=seed)
+        bias_factor = (int(results[0]) - 1.) / (int(results[0]) - len(xi[mask]) - 2.)
+        xi_weight = np.linalg.inv(xi_cov) * bias_factor
+
+        return xi, xi_weight, distance, coord, mask
 
 
 class GPInterp2pcf(Interp):
@@ -233,7 +228,7 @@ class GPInterp2pcf(Interp):
                 self.kernel_template = [self._eval_kernel(ker) for ker in kernel]
 
         self._2pcf = []
-        self._2pcf_var = []
+        self._2pcf_weight = []
         self._2pcf_dist = []
         self._2pcf_fit = []
 
@@ -321,9 +316,10 @@ class GPInterp2pcf(Interp):
         else:
             MAX = np.sqrt(size_x**2 + size_y**2)/2.
 
-        bap = bootstrap_area_2pcf(X, y, y_err, bin_spacing=((MAX - MIN) / 10.),
-                                  MIN=MIN, MAX=MAX, nbins=self.nbins, anisotropy=self.anisotropy)
-        xi, xi_var, distance, coord, mask = bap.return_2pcf()
+        bp = bootstrap_2pcf(X, y, y_err,
+                            MIN=MIN, MAX=MAX, nbins=self.nbins,
+                            anisotropy=self.anisotropy)
+        xi, xi_weight, distance, coord, mask = bp.return_2pcf()
 
         def PCF(param, k=kernel):
             kernel =  k.clone_with_theta(param)
@@ -331,17 +327,17 @@ class GPInterp2pcf(Interp):
             return pcf
 
         xi_mask = xi[mask]
-        xi_var_mask = xi_var[mask]
+        #xi_var_mask = xi_var[mask]
         def chi2(param):
             residual = xi_mask - PCF(param)[mask]
-            return np.sum(residual**2/xi_var_mask)
+            return residual.dot(xi_weight.dot(residual)) #np.sum(residual**2/xi_var_mask)
 
         p0 = kernel.theta
         results_bfgs = optimize.minimize(chi2, p0, method="L-BFGS-B")
         results = results_bfgs['x']
 
         self._2pcf.append(xi)
-        self._2pcf_var.append(xi_var)
+        self._2pcf_weight.append(xi_weight)
         self._2pcf_dist.append(distance)
         kernel = kernel.clone_with_theta(results)
         self._2pcf_fit.append(PCF(kernel.theta))
