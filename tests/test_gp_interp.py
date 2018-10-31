@@ -680,7 +680,9 @@ def check_gp_2pcf(training_data, validation_data, visualization_data,
                 'kernel' : kernel,
                 'npca' : npca,
                 'optimize' : optimize,
-                'white_noise': 1e-5
+                'white_noise': 1e-5,
+                'nbins': nbins,
+                'anisotropy': anisotropy
             }
         }
         print(config)
@@ -748,7 +750,7 @@ def test_polynomial_psf():
 
     training_data, validation_data, visualization_data = make_polynomial_psf_params(
             ntrain, nvalidate, nvisualize)
-    kernel = "1*RBF(0.3, (1e-1, 1e3))"
+    kernel = "0.01*RBF(0.3, (1e-1, 1e3))"
     # We probably aren't measuring fwhm, g1, g2, etc. to better than 1e-5, so add that amount of
     # white noise
     #kernel += " + WhiteKernel(1e-5, (1e-7, 1e-1))"
@@ -757,8 +759,9 @@ def test_polynomial_psf():
         for optimize in optimizes:
             check_gp(training_data, validation_data, visualization_data, kernel,
                      npca=npca, optimize=optimize, rng=rng)
-            check_gp_2pcf(training_data, validation_data, visualization_data, kernel,
-                          npca=npca, optimize=optimize, rng=rng)
+            if npca == 0:
+                check_gp_2pcf(training_data, validation_data, visualization_data, kernel,
+                              npca=npca, optimize=optimize, rng=rng)
 
 
 @timer
@@ -1179,18 +1182,30 @@ if __name__ == '__main__':
     # import cProfile, pstats
     # pr = cProfile.Profile()
     # pr.enable()
-    test_constant_psf()
-    test_polynomial_psf()
+    #test_constant_psf()
+    #print('OK TEST 1')
+    #test_polynomial_psf()
+    #print('OK TEST 2')
     test_grf_psf()
+    print('OK TEST 3')
     test_vonkarman_psf()
+    print('OK TEST 4')
     test_anisotropic_rbf_kernel()
+    print('OK TEST 5')
     test_gp_with_kernels()
+    print('OK TEST 6')
     test_vonkarman_kernel()
+    print('OK TEST 7')
     test_yaml()
+    print('OK TEST 8')
     test_anisotropic_limit()
+    print('OK TEST 9')
     test_guess()
+    print('OK TEST 10')
     test_guess_2pcf()
+    print('OK TEST 11')
     test_anisotropic_guess()
+    print('OK TEST 12')
     # pr.disable()
     # ps = pstats.Stats(pr).sort_stats('tottime')
     # ps.print_stats(25)

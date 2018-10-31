@@ -53,22 +53,22 @@ class bootstrap_2pcf(object):
         self.nbins = nbins
         self.anisotropy = anisotropy        
 
-     def resample_bootstrap(self):
+    def resample_bootstrap(self):
         """
         Make a single bootstarp resampling on stars.
         """
         npsfs = len(self.y)
-        u_ressample = np.zeros(npsfs)
-        v_ressample = np.zeros(npsfs)
-        y_ressample = np.zeros(npsfs)
-        y_err_ressample = np.zeros(npsfs)
+        #u_ressample = np.zeros(npsfs)
+        #v_ressample = np.zeros(npsfs)
+        #y_ressample = np.zeros(npsfs)
+        #y_err_ressample = np.zeros(npsfs)
 
-        for i in range(npsfs):
-            ind_star = np.random.randint(0,npsfs-1)
-            u_ressample[i] = self.X[:,0][ind_star]
-            v_ressample[i] = self.X[:,1][ind_star]
-            y_ressample[i] = self.y[ind_star]
-            y_err_ressample[i] = self.y_err[ind_star]
+        #for i in range(npsfs):
+        ind_star = np.random.randint(0,npsfs-1, size=npsfs)
+        u_ressample = self.X[:,0][ind_star]
+        v_ressample = self.X[:,1][ind_star]
+        y_ressample = self.y[ind_star]
+        y_err_ressample = self.y_err[ind_star]
 
         return u_ressample, v_ressample, y_ressample, y_err_ressample
     
@@ -115,7 +115,7 @@ class bootstrap_2pcf(object):
         return kk.xi, distance, Coord, mask
 
     
-    def comp_xi_covariance(self, n_bootstrap=1000, seed=610639139):
+    def comp_xi_covariance(self, n_bootstrap=1000, mask=None, seed=610639139):
         """
         Estimate 2-point correlation function covariance matrix using Bootstrap. 
 
@@ -127,8 +127,9 @@ class bootstrap_2pcf(object):
             u, v, y, y_err = self.resample_bootstrap()
             coord = np.array([u, v]).T
             xi, d, c, m = self.comp_2pcf(coord, y, y_err)
-            if i==0:
-                mask = m
+            if mask is None:
+                mask = np.array([True]*len(xi))
+                
             xi_bootstrap.append(xi[mask])
         xi_bootstrap = np.array(xi_bootstrap)
 
@@ -148,12 +149,22 @@ class bootstrap_2pcf(object):
         def f_bias(x, npixel=len(xi[mask])):
             top = x - 1.
             bottom = x - npixel - 2.
-            return (top/bottom) - 1.2
+            return (top/bottom) - 3.
         results = optimize.fsolve(f_bias, len(xi[mask]) + 10)
-        xi_cov = self.comp_xi_var(n_bootstrap=int(results[0]), seed=seed)
+        xi_cov = self.comp_xi_covariance(n_bootstrap=int(results[0]), mask=mask, seed=seed)
         bias_factor = (int(results[0]) - 1.) / (int(results[0]) - len(xi[mask]) - 2.)
         xi_weight = np.linalg.inv(xi_cov) * bias_factor
 
+        #import pylab as plt
+        #plt.figure()
+        #plt.scatter(distance, xi)
+        #plt.ylim(np.min(xi), np.max(xi))
+        #plt.figure()
+        #MAX = 1.
+        #v = xi_cov.diagonal()
+        #plt.imshow(xi_cov/np.sqrt(v*v[:,None]), cmap=plt.cm.seismic, vmin=-MAX, vmax=MAX)
+        #plt.colorbar()
+        #plt.show()
         return xi, xi_weight, distance, coord, mask
 
 
@@ -327,15 +338,28 @@ class GPInterp2pcf(Interp):
             return pcf
 
         xi_mask = xi[mask]
-        #xi_var_mask = xi_var[mask]
         def chi2(param):
             residual = xi_mask - PCF(param)[mask]
             return residual.dot(xi_weight.dot(residual)) #np.sum(residual**2/xi_var_mask)
 
         p0 = kernel.theta
-        results_bfgs = optimize.minimize(chi2, p0, method="L-BFGS-B")
-        results = results_bfgs['x']
 
+        results_fmin = optimize.fmin(chi2,p0,disp=False)
+        results_bfgs = optimize.minimize(chi2,p0,method="L-BFGS-B")
+        results = [results_fmin, results_bfgs['x']]
+        chi2_min = [chi2(results[0]), chi2(results[1])]
+        ind_min = chi2_min.index(min(chi2_min))
+        results = results[ind_min]
+
+        #results_bfgs = optimize.minimize(chi2, p0, method="L-BFGS-B")
+        #results = results_bfgs['x']
+
+        import pylab as plt
+        plt.figure()
+        plt.scatter(distance, xi)
+        plt.plot(distance, PCF(kernel.theta))
+        plt.ylim(np.min([np.min(xi),np.min(PCF(kernel.theta))]), np.max([np.max(xi),np.max(PCF(kernel.theta))]))
+        plt.show()
         self._2pcf.append(xi)
         self._2pcf_weight.append(xi_weight)
         self._2pcf_dist.append(distance)
