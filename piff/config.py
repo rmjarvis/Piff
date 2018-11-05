@@ -208,6 +208,7 @@ def meanify(config, logger=None):
     from .star import Star
     import glob
     import numpy as np
+    from scipy.stats import binned_statistic_2d
     import fitsio
 
     if logger is None:
@@ -234,6 +235,23 @@ def meanify(config, logger=None):
         bin_spacing = config['hyper']['bin_spacing'] #in arcsec
     else:
         bin_spacing = 120. #default bin_spacing: 120 arcsec
+
+    if 'statistic' in config['hyper']:
+        if config['hyper']['statistic'] not in ['mean', 'median']:
+            raise ValueError("%s is not a suported statistic (only mean and median are currently suported)"
+                             %config['hyper']['statistic'])
+        else:
+            stat_used = config['hyper']['statistic']
+    else:
+        stat_used = 'mean' #default statistics: arithmetic mean over each bin
+
+    if 'params_fitted' in config['hyper']:
+        if type(config['hyper']['params_fitted']) != list:
+            raise TypeError('must give a list of index for params_fitted')
+        else:
+            params_fitted = config['hyper']['params_fitted']
+    else:
+        params_fitted = None
 
     if isinstance(config['output']['file_name'], list):
         psf_list = config['output']['file_name']
@@ -262,75 +280,27 @@ def meanify(config, logger=None):
     if 'dir' in config['hyper']:
         file_name_out = os.path.join(config['hyper']['dir'], file_name_out)
 
-    max_snr = config['hyper'].pop('max_snr', 0)
-    max_chisq = config['hyper'].pop('max_chisq', 0)
-    max_sigma = config['hyper'].pop('max_sigma', 0)
-
-    def _getcoord(star):
-        return np.array([star.data[key] for key in ['u', 'v']])
-
     coords = []
     params = []
 
     for fi, f in enumerate(file_name_in):
-        logger.info('Loading file {0} of {1}'.format(fi, len(file_name_in)))
-        # rewrite takes ~0.02 sec per psf, while previous took 2-3 sec.
+        logger.debug('Loading file {0} of {1}'.format(fi, len(file_name_in)))
         try:
-            star_arr = fitsio.read(f, 'psf_stars')
+            fits = fitsio.FITS(f)
+            coord, param = Star.read_coords_params(fits, 'psf_stars')
+            fits.close()
+            coords.append(coord)
+            params.append(param)
         except IOError:
             logger.warning('Failed to load file {0}! Ignoring'.format(f))
             continue
-        len_star_arr = len(star_arr)
-        coord = np.array([star_arr['u'], star_arr['v']])
-        param = star_arr['params']
-
-        if max_snr > 0:
-            snr = star_arr['snr']
-            snr_conds = snr < max_snr
-
-            if np.sum(snr_conds) != len(snr_conds):
-                logger.info('Cutting to {0} out of {1} for snr >= {2}'.format(np.sum(snr_conds), len(snr_conds), max_snr))
-
-            coord = coord[:, snr_conds]
-            param = param[snr_conds]
-            star_arr = star_arr[snr_conds]
-
-        if max_chisq > 0:
-            # gotta figure out DOF. let's assume it's just total number of possible pixels - number of params - 3 (for flux, centering)
-            dof = (star_arr['xmax'] - star_arr['xmin']) * (star_arr['ymax'] - star_arr['ymin']) - (star_arr['params'].shape[1] + 3)
-            chisq_per_dof = star_arr['chisq'] / dof
-            chisq_conds = chisq_per_dof < max_chisq
-
-            if np.sum(chisq_conds) != len(chisq_conds):
-                logger.info('Cutting to {0} out of {1} for chisq >= {2}'.format(np.sum(chisq_conds), len(chisq_conds), max_chisq))
-
-            coord = coord[:, chisq_conds]
-            param = param[chisq_conds]
-            star_arr = star_arr[chisq_conds]
-
-        if max_sigma > 0:
-            # calculate MAD and convert to sigma
-            med = np.median(param, axis=0)
-            mad_i = np.abs(param - med[None])
-            mad = np.median(mad_i, axis=0) + 1e-8  # 1e-8 for any params that are constant
-            sigma_conds = np.all(mad_i < max_sigma * (1.5 * mad[None]), axis=1)
-
-            if np.sum(sigma_conds) != len(sigma_conds):
-                logger.info('Cutting to {0} out of {1} for sigma >= {2}'.format(np.sum(sigma_conds), len(sigma_conds), max_sigma))
-
-            coord = coord[:, sigma_conds]
-            param = param[sigma_conds]
-            star_arr = star_arr[sigma_conds]
-
-        if len(star_arr) != len_star_arr:
-            logger.info('Only adding {0} out of {1} possible stars from {2} for meanify'.format(len(star_arr), len_star_arr, f))
-
-        coords.append(coord)
-        params.append(param)
 
     params = np.concatenate(params, axis=0)
-    coords = np.concatenate(coords, axis=1).T
+    coords = np.concatenate(coords, axis=0)
     logger.info('Computing average for {0} params with {1} stars'.format(len(params[0]), len(coords)))
+
+    if params_fitted is None:
+        params_fitted = range(len(params[0]))
 
     lu_min, lu_max = np.min(coords[:,0]), np.max(coords[:,0])
     lv_min, lv_max = np.min(coords[:,1]), np.max(coords[:,1])
@@ -338,17 +308,19 @@ def meanify(config, logger=None):
     nbin_u = int((lu_max - lu_min) / bin_spacing)
     nbin_v = int((lv_max - lv_min) / bin_spacing)
     binning = [np.linspace(lu_min, lu_max, nbin_u), np.linspace(lv_min, lv_max, nbin_v)]
-    counts, u0, v0 = np.histogram2d(coords[:,0], coords[:,1], bins=binning)
-    counts = counts.T
-    counts = counts.reshape(-1)
-
-    params0 = np.zeros((len(counts),len(params[0])))
+    nbinning = (len(binning[0]) - 1) * (len(binning[1]) - 1)
+    params0 = np.zeros((nbinning, len(params[0])))
+    Filter = np.array([True]*nbinning)
 
     for i in range(len(params[0])):
-        average = np.histogram2d(coords[:,0], coords[:,1], bins=binning, weights=params[:,i])[0].T
-        average = average.reshape(-1)
-        average[counts!=0] /= counts[counts!=0]
-        params0[:,i] = average
+        if i in params_fitted:
+            average, u0, v0, bin_target = binned_statistic_2d(coords[:,0], coords[:,1],
+                                                              params[:,i], bins=binning,
+                                                              statistic=stat_used)
+            average = average.T
+            average = average.reshape(-1)
+            Filter &= np.isfinite(average).reshape(-1)
+            params0[:,i] = average
 
     # get center of each bin 
     u0 = u0[:-1] + (u0[1] - u0[0])/2.
@@ -357,9 +329,10 @@ def meanify(config, logger=None):
 
     coords0 = np.array([u0.reshape(-1), v0.reshape(-1)]).T
 
-    # remove any entries with counts == 0
-    coords0 = coords0[counts != 0]
-    params0 = params0[counts != 0]
+    # remove any entries with nan (counts == 0 and non finite value in
+    # the 2D statistic computation) 
+    coords0 = coords0[Filter]
+    params0 = params0[Filter]
 
     dtypes = [('COORDS0', coords0.dtype, coords0.shape),
               ('PARAMS0', params0.dtype, params0.shape),

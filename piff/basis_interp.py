@@ -118,16 +118,23 @@ class BasisInterp(Interp):
         A = A.reshape(nq,nq)
         logger.debug('Beginning solution of matrix size %d',A.shape[0])
         # cf. comments in pixelgrid.py about this function in scipy 1.0.0
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            logger.info('A.shape = %s',A.shape)
-            logger.info('B.shape = %s',B.shape)
-            dq = scipy.linalg.solve(A, B, assume_a='pos', check_finite=False)
-        if len(w) > 0:
-            logger.warning('Caught %s',w[0].message)
-            logger.debug('norm(A dq - B) = %s',scipy.linalg.norm(A.dot(dq) - B))
-            logger.debug('norm(dq) = %s',scipy.linalg.norm(dq))
-        if False:
+        try:
+            with warnings.catch_warnings(record=True) as w:
+                warnings.simplefilter("always")
+                logger.info('A.shape = %s',A.shape)
+                logger.info('B.shape = %s',B.shape)
+                dq = scipy.linalg.solve(A, B, assume_a='pos', check_finite=False)
+            if len(w) > 0:
+                # Jumping to the svd solution for this turns out to be bad.  It leads to a
+                # a significant increase in the mean size residual in DES data.  We don't have
+                # a unit test that would catch this, so be careful about changing the
+                # behavior of this part of the code!  For now, we just go to the svd solution
+                # when A is fully singular, not just when it has a high condition.
+                logger.warning(w[0].message)
+                logger.debug('norm(A dq - B) = %s',scipy.linalg.norm(A.dot(dq) - B))
+                logger.debug('norm(dq) = %s',scipy.linalg.norm(dq))
+        except (np.linalg.LinAlgError, scipy.linalg.LinAlgError) as e:
+            logger.warning('Caught %s',str(e))
             logger.warning('Switching to svd solution')
             Sd,U = scipy.linalg.eigh(A)
             nsvd = np.sum(np.abs(Sd) > 1.e-15 * np.abs(Sd[-1]))

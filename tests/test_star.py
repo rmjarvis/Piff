@@ -314,6 +314,24 @@ def test_io():
             #np.testing.assert_almost_equal(s1.data.image.array,s2.data.image.array)
             #np.testing.assert_almost_equal(s1.data.weight.array,s2.data.weight.array)
 
+        # test read_coords_params
+        if do_params:
+            with fitsio.FITS(file_name, 'r') as fin:
+                s2coords, s2params = piff.Star.read_coords_params(fin, 'stars')
+            s2coords_manual = []
+            s2params_manual = []
+            for s in stars2:
+                s2coords_manual.append(np.array([s.data[key] for key in ['u', 'v']]))
+                s2params_manual.append(s.fit.params)
+            s2coords_manual = np.array(s2coords_manual)
+            s2params_manual = np.array(s2params_manual)
+            np.testing.assert_array_equal(s2coords, s2coords_manual)
+            np.testing.assert_array_equal(s2params, s2params_manual)
+        else:
+            # reading read_coords_params should fail with a RuntimeError if there is no params
+            with np.testing.assert_raises(RuntimeError):
+                with fitsio.FITS(file_name, 'r') as fin:
+                    s2coords, s2params = piff.Star.read_coords_params(fin, 'stars')
 
 if __name__ == '__main__':
     test_init()
