@@ -235,6 +235,7 @@ class GSObjectModel(Model):
         :returns: (flux, dx, dy, scale, g1, g2, flag)
         """
         import lmfit
+        logger = galsim.config.LoggerWrapper(logger)
         params = self._lmfit_params(star)
         results = self._lmfit_minimize(params, star, logger=logger)
         if logger:
@@ -243,10 +244,13 @@ class GSObjectModel(Model):
         if not results.success:
             raise RuntimeError("Error fitting with lmfit.")
 
-        if results.covar is None:
-            params_var = np.zeros(6)
-        else:
+        try:
             params_var = np.diag(results.covar)
+        except (ValueError, AttributeError) as e:
+            logger.warning("Failed to get params_var")
+            logger.warning("  -- Caught exception: %s",e)
+            # results.covar is either None or does not exist
+            params_var = np.zeros(6)
 
         return flux, du, dv, scale, g1, g2, params_var
 
