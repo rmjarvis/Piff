@@ -149,22 +149,15 @@ class bootstrap_2pcf(object):
         def f_bias(x, npixel=len(xi[mask])):
             top = x - 1.
             bottom = x - npixel - 2.
-            return (top/bottom) - 3.
+            return (top/bottom) - 2.
         results = optimize.fsolve(f_bias, len(xi[mask]) + 10)
         xi_cov = self.comp_xi_covariance(n_bootstrap=int(results[0]), mask=mask, seed=seed)
         bias_factor = (int(results[0]) - 1.) / (int(results[0]) - len(xi[mask]) - 2.)
+        
         xi_weight = np.linalg.inv(xi_cov) * bias_factor
+        #xi_cov = np.eye(len(xi))*np.std(self.y) # TO REMOVE
+        #xi_weight = np.linalg.inv(xi_cov) # TO REMOVE 
 
-        #import pylab as plt
-        #plt.figure()
-        #plt.scatter(distance, xi)
-        #plt.ylim(np.min(xi), np.max(xi))
-        #plt.figure()
-        #MAX = 1.
-        #v = xi_cov.diagonal()
-        #plt.imshow(xi_cov/np.sqrt(v*v[:,None]), cmap=plt.cm.seismic, vmin=-MAX, vmax=MAX)
-        #plt.colorbar()
-        #plt.show()
         return xi, xi_weight, distance, coord, mask
 
 
@@ -206,8 +199,8 @@ class GPInterp2pcf(Interp):
                          exposures. See meanify documentation. [default: None]
     :param logger:       A logger object for logging debug info. [default: None]
     """
-    def __init__(self, keys=('u','v'), kernel='RBF(1)', optimize=True, npca=0, anisotropy=True, normalize=True,
-                 white_noise=0., n_neighbors=4, average_fits=None, nbins=20, max_sep=None, logger=None):
+    def __init__(self, keys=('u','v'), kernel='RBF(1)', optimize=True, npca=0, anisotropy=False, normalize=True,
+                 white_noise=0., n_neighbors=4, average_fits=None, nbins=20, min_sep=None, max_sep=None, logger=None):
 
         self.keys = keys
         self.npca = npca
@@ -217,6 +210,7 @@ class GPInterp2pcf(Interp):
         self.n_neighbors = n_neighbors
         self.anisotropy = anisotropy
         self.nbins = nbins
+        self.min_sep = min_sep
         self.max_sep = max_sep
 
         self.kwargs = {
@@ -317,11 +311,13 @@ class GPInterp2pcf(Interp):
         size_x = np.max(X[:,0]) - np.min(X[:,0])
         size_y = np.max(X[:,1]) - np.min(X[:,1])
         rho = float(len(X[:,0])) / (size_x * size_y)
-        if self.anisotropy:
-            MIN = 0.
+        if self.min_sep:
+            MIN = self.min_sep
         else:
-            MIN = np.sqrt(1./rho)
-
+            if self.anisotropy:
+                MIN = 0.
+            else:
+                MIN = np.sqrt(1./rho)
         if self.max_sep is not None:
             MAX = self.max_sep
         else:
@@ -354,12 +350,23 @@ class GPInterp2pcf(Interp):
         #results_bfgs = optimize.minimize(chi2, p0, method="L-BFGS-B")
         #results = results_bfgs['x']
 
-        import pylab as plt
-        plt.figure()
-        plt.scatter(distance, xi)
-        plt.plot(distance, PCF(kernel.theta))
-        plt.ylim(np.min([np.min(xi),np.min(PCF(kernel.theta))]), np.max([np.max(xi),np.max(PCF(kernel.theta))]))
-        plt.show()
+        #import pylab as plt
+
+        #plt.figure()
+        #cov = np.linalg.inv(xi_weight)
+        #v = cov.diagonal()
+        #plt.imshow(cov/np.sqrt(v*v[:,None]), cmap=plt.cm.seismic, vmin=-1, vmax=1)
+        #plt.colorbar()
+
+        #if not self.anisotropy:
+        #    plt.figure()
+        #    plt.scatter(distance, xi)
+        #    plt.fill_between(distance, xi-np.sqrt(v), xi+np.sqrt(v),
+        #                     alpha=0.3, color='b', label='bootstrap error')
+        #    plt.plot(distance, PCF(kernel.theta))
+        #    plt.ylim(np.min([np.min(xi),np.min(PCF(kernel.theta))]), np.max([np.max(xi),np.max(PCF(kernel.theta))]))
+        #plt.show()
+
         self._2pcf.append(xi)
         self._2pcf_weight.append(xi_weight)
         self._2pcf_dist.append(distance)
