@@ -663,10 +663,14 @@ def check_gp_2pcf(training_data, validation_data, visualization_data,
     validate_stars = params_to_stars(validation_data, noise=0.0, rng=rng)
     if anisotropy:
         nbins = 10
+        MIN = 0
+        MAX = 0.6
     else:
         nbins = 20
+        MIN = 0.1
+        MAX = 0.6
     interp = piff.GPInterp2pcf(kernel=kernel, optimize=optimize, anisotropy=anisotropy,
-                               npca=npca, nbins=nbins, white_noise=1e-5)
+                               npca=npca, nbins=nbins, min_sep=MIN, max_sep=MAX, white_noise=1e-5)
     interp.initialize(stars)
     iterate_2pcf(stars, interp)
     if visualize:
@@ -782,7 +786,7 @@ def test_grf_psf():
     training_data, validation_data, visualization_data = make_grf_psf_params(
             ntrain, nvalidate, nvisualize)
 
-    kernel = "1*RBF(0.3, (1e-1, 1e1))"
+    kernel = "0.01*RBF(0.3, (1e-1, 1e1))"
     # We probably aren't measuring fwhm, g1, g2, etc. to better than 1e-5, so add that amount of
     # white noise
     #kernel += " + WhiteKernel(1e-5, (1e-7, 1e-1))"
@@ -793,7 +797,7 @@ def test_grf_psf():
                      npca=npca, optimize=optimize, file_name="test_gp_grf.fits", rng=rng,
                      check_config=check_config)
             check_gp_2pcf(training_data, validation_data, visualization_data, kernel,
-                          npca=npca, optimize=optimize, file_name="test_gp_grf.fits", rng=rng,
+                          npca=npca, optimize=optimize, anisotropy=False, file_name="test_gp_grf.fits", rng=rng,
                           check_config=check_config)
 
     # Check ExplicitKernel here too
@@ -810,15 +814,17 @@ def test_grf_psf():
                  check_config=check_config)
 
     # Try out an AnisotropicRBF on the isotropic data too.
-    kernel = "1*AnisotropicRBF(scale_length=[0.3, 0.3])"
-    kernel += " + WhiteKernel(1e-5)"
+    kernel = "0.01*AnisotropicRBF(scale_length=[0.3, 0.3])"
+    #kernel += " + WhiteKernel(1e-5)"
     for npca in npcas:
         for optimize in optimizes:
-            check_gp(training_data, validation_data, visualization_data, kernel,
+            check_gp(training_data, validation_data, visualization_data, kernel+ "+ WhiteKernel(1e-5)",
                      npca=npca, optimize=optimize,
                      file_name="test_aniso_isotropic_grf.fits", rng=rng,
                      check_config=check_config)
-
+            #check_gp_2pcf(training_data, validation_data, visualization_data, kernel,
+            #              npca=npca, optimize=optimize, anisotropy=True, file_name="test_gp_grf.fits", rng=rng,
+            #              check_config=check_config)
 
 @timer
 def test_vonkarman_psf():
@@ -849,8 +855,8 @@ def test_vonkarman_psf():
                      npca=npca, optimize=optimize, file_name="test_gp_vonkarman.fits", rng=rng,
                      check_config=check_config, rtol=rtol)
             check_gp_2pcf(training_data, validation_data, visualization_data, kernel,
-                     npca=npca, optimize=optimize, file_name="test_gp_vonkarman.fits", rng=rng,
-                     check_config=check_config, rtol=rtol)
+                          npca=npca, optimize=optimize, anisotropy=False, file_name="test_gp_vonkarman.fits", rng=rng,
+                          check_config=check_config, rtol=rtol)
 
 @timer
 def test_gp_with_kernels():
@@ -1182,10 +1188,10 @@ if __name__ == '__main__':
     # import cProfile, pstats
     # pr = cProfile.Profile()
     # pr.enable()
-    #test_constant_psf()
-    #print('OK TEST 1')
-    #test_polynomial_psf()
-    #print('OK TEST 2')
+    test_constant_psf()
+    print('OK TEST 1')
+    test_polynomial_psf()
+    print('OK TEST 2')
     test_grf_psf()
     print('OK TEST 3')
     test_vonkarman_psf()
