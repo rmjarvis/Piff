@@ -275,6 +275,10 @@ class InputFiles(Input):
             :cat_hdu:       The hdu to use in the catalog files. [default: 1]
             :x_col:         The name of the X column in the input catalogs. [default: 'x']
             :y_col:         The name of the Y column in the input catalogs. [default: 'y']
+            :ra_col:        (Alternative to x_col, y_col) The name of a right ascension column in
+                            the input catalogs.  Will use the WCS to find (x,y) [default: None]
+            :dec_col:       (Alternative to x_col, y_col) The name of a declination column in
+                            the input catalogs.  Will use the WCS to find (x,y) [default: None]
             :flag_col:      The name of a flag column in the input catalogs.  Anything with
                             flag != 0 is removed from the catalogs. [default: None]
             :use_col:       The name of a use column in the input catalogs.  Anything with
@@ -330,6 +334,10 @@ class InputFiles(Input):
                 'chipnum' : int,
                 'x_col' : str,
                 'y_col' : str,
+                'ra_col' : str,
+                'dec_col' : str,
+                'ra_units' : str,
+                'dec_units' : str,
                 'sky_col' : str,
                 'gain_col' : str,
                 'flag_col' : str,
@@ -495,6 +503,10 @@ class InputFiles(Input):
             cat_hdu = params.get('cat_hdu', None)
             x_col = params.get('x_col', 'x')
             y_col = params.get('y_col', 'y')
+            ra_col = params.get('ra_col', None)
+            dec_col = params.get('dec_col', None)
+            ra_units = params.get('ra_units', 'deg')
+            dec_units = params.get('dec_units', 'deg')
             flag_col = params.get('flag_col', None)
             use_col = params.get('use_col', None)
             sky_col = params.get('sky_col', None)
@@ -504,8 +516,11 @@ class InputFiles(Input):
             nstars = params.get('nstars', None)
 
             image_pos, sky, gain = self.readStarCatalog(
-                    cat_file_name, cat_hdu, x_col, y_col, flag_col, use_col,
-                    sky_col, gain_col, sky, gain, nstars, image_file_name, logger)
+                    cat_file_name, cat_hdu, x_col, y_col,
+                    ra_col, dec_col, ra_units, dec_units, image.wcs,
+                    flag_col, use_col, sky_col, gain_col,
+                    sky, gain, nstars, image_file_name, logger)
+
             self.cat_file_name.append(cat_file_name)
             self.image_pos.append(image_pos)
             self.sky.append(sky)
@@ -578,16 +593,23 @@ class InputFiles(Input):
             weight.array[badpix.array != 0] = 0
         return image, weight
 
-    def readStarCatalog(self, cat_file_name, cat_hdu, x_col, y_col, flag_col, use_col,
-                        sky_col, gain_col, sky, gain, nstars, image_file_name, logger):
+    def readStarCatalog(self, cat_file_name, cat_hdu, x_col, y_col,
+                        ra_col, dec_col, ra_units, dec_units, wcs,
+                        flag_col, use_col, sky_col, gain_col,
+                        sky, gain, nstars, image_file_name, logger):
         """Read in the star catalogs and return lists of positions for each star in each image.
 
         :param cat_file_name:   The name of the catalog file to read in.
         :param cat_hdu:         The hdu to use.
         :param x_col:           The name of the column with x values.
         :param y_col:           The name of the column with y values.
-        :param flag_col:        Optionally, the name of a column with flag values.
-        :param use_col:         Optionally, the name of a column with use values.
+        :param ra_col:          The name of a column with RA values.
+        :param dec_col:         The name of a column with Dec values.
+        :param ra_units:        The units of the ra column.
+        :param dec_units:       The units of the dec column.
+        :param wcs:             The WCS to use to convert from Ra,Dec -> x,y.
+        :param flag_col:        The name of a column with flag values.
+        :param use_col:         The name of a column with use values.
         :param sky_col:         A column with sky (background) levels.
         :param gain_col:        A column with gain values.
         :param sky:             Either a float value for the sky to use for all objects or a str
@@ -627,13 +649,30 @@ class InputFiles(Input):
             cat = cat[:nstars]
 
         # Make the list of positions:
-        if x_col not in cat.dtype.names:
-            raise ValueError("x_col = %s is not a column in %s"%(x_col,cat_file_name))
-        if y_col not in cat.dtype.names:
-            raise ValueError("y_col = %s is not a column in %s"%(y_col,cat_file_name))
-        x_values = cat[x_col]
-        y_values = cat[y_col]
-        image_pos = [ galsim.PositionD(x,y) for x,y in zip(x_values, y_values) ]
+        if ra_col is not None or dec_col is not None:
+            if ra_col is None or dec_col is None:
+                raise ValueError("ra_col and dec_col are both required if one is provided.")
+            ra_values = cat[ra_col]
+            dec_values = cat[dec_col]
+            ra_units = galsim.AngleUnit.from_name(ra_units)
+            dec_units = galsim.AngleUnit.from_name(dec_units)
+            def safe_to_image(wcs, ra, dec):
+                try:
+                    return wcs.toImage(galsim.CelestialCoord(ra*ra_units, dec*dec_units))
+                except galsim.GalSimError:
+                    # If the ra,dec is way off the image, this might fail to converge.
+                    # In this case return something clearly not on an image so it gets
+                    # excluded during the bounds check.
+                    return galsim.PositionD(1.e99, 1.e99)
+            image_pos = [ safe_to_image(wcs,ra,dec) for ra,dec in zip(ra_values, dec_values) ]
+        else:
+            if x_col not in cat.dtype.names:
+                raise ValueError("x_col = %s is not a column in %s"%(x_col,cat_file_name))
+            if y_col not in cat.dtype.names:
+                raise ValueError("y_col = %s is not a column in %s"%(y_col,cat_file_name))
+            x_values = cat[x_col]
+            y_values = cat[y_col]
+            image_pos = [ galsim.PositionD(x,y) for x,y in zip(x_values, y_values) ]
 
         # Make the list of sky values:
         if sky_col is not None:
