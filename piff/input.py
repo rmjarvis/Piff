@@ -517,6 +517,8 @@ class InputFiles(Input):
                     ra_col, dec_col, ra_units, dec_units, image.wcs,
                     flag_col, use_col, sky_col, gain_col,
                     sky, gain, nstars, image_file_name, logger)
+            # Check for objects off the edge.  We won't use them.
+            image_pos = [ pos for pos in image_pos if image.bounds.includes(pos) ]
 
             self.cat_file_name.append(cat_file_name)
             self.image_pos.append(image_pos)
