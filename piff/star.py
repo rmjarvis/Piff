@@ -819,7 +819,8 @@ class StarData(object):
                         extracted.  If None, the data image is used.  All signals are
                         clipped from below at zero.
         :param gain:    The gain, in e per ADU, assumed in calculating new weights.  If None
-                        is given, then the 'gain' property is used, else defaults gain=1.
+                        is given, then the 'gain' property is used, else defaults to not
+                        adding any variance.
 
         :returns: a new StarData instance with updated weight array.
         """
