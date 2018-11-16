@@ -338,6 +338,7 @@ class InputFiles(Input):
                 'weight_hdu' : int,
                 'badpix_hdu' : int,
                 'cat_hdu' : int,
+                'invert_weight' : bool,
                 'stamp_size' : int,
                 'gain' : str,
                 'min_snr' : float,
@@ -474,6 +475,9 @@ class InputFiles(Input):
 
             image, weight = self.readImage(
                     image_file_name, image_hdu, weight_hdu, badpix_hdu, noise, logger)
+
+            if config.get('invert_weight', False):
+                weight.invertSelf()
 
             # Update the wcs if necessary
             if 'wcs' in config:
