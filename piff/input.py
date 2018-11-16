@@ -379,8 +379,11 @@ class InputFiles(Input):
             if nimages < 1:
                 raise ValueError('input.nimages must be >= 1')
 
+        # Deal with dir here, since sometimes we need to have it already atteched for glob
+        # to work.
         if 'dir' in config:
             dir = galsim.config.ParseValue(config, 'dir', base, str)[0]
+            del config['dir']
 
         if 'image_file_name' not in config:
             raise AttributeError('Attribute image_file_name is required')
@@ -388,14 +391,13 @@ class InputFiles(Input):
             image_list = config['image_file_name']
             if len(image_list) == 0:
                 raise ValueError("image_file_name may not be an empty list")
+            if dir is not None:
+                image_list = [os.path.join(dir, n) for n in image_list]
         elif isinstance(config['image_file_name'], basestring):
             image_file_name = config['image_file_name']
             if dir is not None:
                 image_file_name = os.path.join(dir, image_file_name)
             image_list = sorted(glob.glob(image_file_name))
-            if dir is not None:
-                k = len(dir) if dir[-1] == '/' else len(dir)+1
-                image_list = [ f[k:] for f in image_list ]
             if len(image_list) == 0:
                 raise ValueError("No files found corresponding to "+config['image_file_name'])
         elif not isinstance(config['image_file_name'], dict):
@@ -419,14 +421,13 @@ class InputFiles(Input):
             cat_list = config['cat_file_name']
             if len(cat_list) == 0:
                 raise ValueError("cat_file_name may not be an empty list")
+            if dir is not None:
+                cat_list = [os.path.join(dir, n) for n in cat_list]
         elif isinstance(config['cat_file_name'], basestring):
             cat_file_name = config['cat_file_name']
             if dir is not None:
                 cat_file_name = os.path.join(dir, cat_file_name)
             cat_list = sorted(glob.glob(cat_file_name))
-            if dir is not None:
-                k = len(dir) if dir[-1] == '/' else len(dir)+1
-                cat_list = [ f[k:] for f in cat_list ]
             if len(cat_list) == 0:
                 raise ValueError("No files found corresponding to "+config['cat_file_name'])
         elif not isinstance(config['cat_file_name'], dict):
@@ -474,8 +475,6 @@ class InputFiles(Input):
 
             # Read the image
             image_file_name = params['image_file_name']
-            if 'dir' in params:
-                image_file_name = os.path.join(params['dir'], image_file_name)
             image_hdu = params.get('image_hdu', None)
             weight_hdu = params.get('weight_hdu', None)
             badpix_hdu = params.get('badpix_hdu', None)
@@ -498,8 +497,6 @@ class InputFiles(Input):
 
             # Read the catalog
             cat_file_name = params['cat_file_name']
-            if 'dir' in params:
-                cat_file_name = os.path.join(params['dir'], cat_file_name)
             cat_hdu = params.get('cat_hdu', None)
             x_col = params.get('x_col', 'x')
             y_col = params.get('y_col', 'y')
