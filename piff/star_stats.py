@@ -141,6 +141,70 @@ class StarStats(Stats):
 
         return chi
 
+
+    def fit_star_alternate(star, psf, logger=None):
+        """Adjust star.fit.flux and star.fit.center
+
+        :param star:        Star we want to adjust
+        :param psf:         PSF with which we adjust
+        :param logger:      A logger object for logging debug info. [default: None]
+
+        :returns: Star with modified fit and center
+        """
+        import lmfit
+        # create lmfit
+        lmparams = lmfit.Parameters()
+        # put in initial guesses for flux, du, dv if they exist
+        flux = star.fit.flux
+        if flux == 1.0:
+            # provide a reasonable starting guess
+            flux = star.image.array.sum()
+        du, dv = star.fit.center
+        # Order of params is important!
+        lmparams.add('flux', value=flux, vary=True, min=0.0)
+        lmparams.add('du', value=du, vary=True, min=-1, max=1)
+        lmparams.add('dv', value=dv, vary=True, min=-1, max=1)
+
+        # run lmfit
+        results = lmfit.minimize(_fit_residual_alternate, lmparams,
+                                 args=(star, psf, logger,),
+                                 method='leastsq', epsfcn=1e-8,
+                                 maxfev=500)
+
+        # report results
+        logger.debug('Adjusted Star Fit Results:')
+        logger.debug(lmfit.fit_report(results))
+
+        # create new star with new fit
+        flux = results.params['flux'].value
+        du = results.params['du'].value
+        dv = results.params['dv'].value
+        center = (du, dv)
+        # also update the chisq, but keep the rest of the parameters from model fit
+        chisq = results.chisqr
+        fit = StarFit(star.fit.params, params_var=star.fit.params_var,
+                flux=flux, center=center, chisq=chisq, dof=star.fit.dof,
+                alpha=star.fit.alpha, beta=star.fit.beta,
+                worst_chisq=star.fit.worst_chisq)
+        star_fit = Star(star.data, fit)
+
+        return star_fit
+
+    def _fit_residual_alternate(lmparams, star, psf, logger=None):
+        # modify star's fit values
+        flux, du, dv = lmparams.valuesdict().values()
+        star.fit.flux = flux
+        star.fit.center = (du, dv)
+
+        # draw star
+        image_model = psf.drawStar(star).image
+
+        # get chi
+        image, weight, image_pos = star.data.getImage()
+        chi = (np.sqrt(weight.array) * (image_model.array - image.array)).flatten()
+
+        return chi
+
     def plot(self, logger=None, **kwargs):
         """Make the plots.
 

@@ -234,6 +234,7 @@ def meanify(config, logger=None):
         bin_spacing = config['hyper']['bin_spacing'] #in arcsec
     else:
         bin_spacing = 120. #default bin_spacing: 120 arcsec
+    print("bin_spacing: {0}".format(bin_spacing))
 
     if isinstance(config['output']['file_name'], list):
         psf_list = config['output']['file_name']
@@ -249,14 +250,21 @@ def meanify(config, logger=None):
     elif not isinstance(config['file_name'], dict):
         raise ValueError("file_name should be either a dict or a string")
 
+    import time
     if psf_list is not None:
         logger.debug('psf_list = %s',psf_list)
+        print('psf_list = %s',psf_list)
+	time.sleep(10)
         npsfs = len(psf_list)
         logger.debug('npsfs = %d',npsfs)
+        print('npsfs = %d',npsfs)
+	time.sleep(10)
         config['output']['file_name'] = psf_list
 
     file_name_in = config['output']['file_name']
     logger.info("Looking for PSF at %s", file_name_in)
+    print("Looking for PSF at %s", file_name_in)
+    time.sleep(10)
 
     file_name_out = config['hyper']['file_name']
     if 'dir' in config['hyper']:
@@ -270,11 +278,22 @@ def meanify(config, logger=None):
 
     for fi, f in enumerate(file_name_in):
         logger.debug('Loading file {0} of {1}'.format(fi, len(file_name_in)))
+        print('Loading file {0} of {1}'.format(fi, len(file_name_in)))
+	#time.sleep(10)
         # rewrite takes ~0.02 sec per psf, while previous took 2-3 sec.
         star_arr = fitsio.read(f, 'psf_stars')
+	corrupted=False
+	for early_element in star_arr['u']:
+	    if early_element > 10000.0:
+	        print("alert! early element was bigger than 10000.0!")
+	        print("star_arr['u']: {0}".format(star_arr['u']))
+		time.sleep(10)
+		corrupted=True
+	if corrupted==True:
+	    continue
         coord = np.array([star_arr['u'], star_arr['v']])
         param = star_arr['params']
-
+	#print("coord: {0}".format(coord))
         coords.append(coord)
         params.append(param)
 
@@ -282,11 +301,23 @@ def meanify(config, logger=None):
     coords = np.concatenate(coords, axis=1).T
     logger.info('Computing average for {0} params with {1} stars'.format(len(params[0]), len(coords)))
 
+    print("coord[:,0]: {0}".format(coords[:,0]))
+    for element in coords[:,0]:
+	#print("element: {0}".format(element))
+	#time.sleep(1)
+	if element >10000.0:
+	    print("alert! element was bigger than 10000.0")
+	    time.sleep(10)
     lu_min, lu_max = np.min(coords[:,0]), np.max(coords[:,0])
     lv_min, lv_max = np.min(coords[:,1]), np.max(coords[:,1])
-
+    #print("lu_min: {0}".format(lu_min))
+    #print("lu_max: {0}".format(lu_max))
+    #print("lv_min: {0}".format(lv_min))
+    #print("lv_max: {0}".format(lv_max))
     nbin_u = int((lu_max - lu_min) / bin_spacing)
     nbin_v = int((lv_max - lv_min) / bin_spacing)
+    #print("nbin_u: {0}".format(nbin_u))
+    #print("nbin_v: {0}".format(nbin_v))
     binning = [np.linspace(lu_min, lu_max, nbin_u), np.linspace(lv_min, lv_max, nbin_v)]
     counts, u0, v0 = np.histogram2d(coords[:,0], coords[:,1], bins=binning)
     counts = counts.T
