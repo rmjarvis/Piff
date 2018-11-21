@@ -166,8 +166,6 @@ def test_gaussian():
     assert type(model_r0.atmo) is galsim.Kolmogorov
     assert type(model_sigma.atmo) is galsim.Gaussian
 
-    assert model_slow.gsparams != model_r0.gsparams
-
     for r0, fastfit in zip(r0s, fastfits):
         # atmo and optics terms are highly degenerate so don't bother testing together
         for vary_atmo, vary_optics in zip([True, False, False], [False, True, False]):

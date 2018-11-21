@@ -334,8 +334,7 @@ def test_fit():
         stars_to_fit.append(star.clean())
 
     # do fit
-    for fit_optics_mode in ['analytic', 'shape', 'pixel']:
-    # for fit_optics_mode in ['pixel']:
+    for fit_optics_mode in ['pixel', 'shape']:
         psf_train = piff.PSF.process(copy.deepcopy(config))
         logger.info('Test fitting optics mode {0}'.format(fit_optics_mode))
         psf_train.fit_optics_mode = fit_optics_mode
@@ -911,15 +910,15 @@ def test_lmparams():
     assert lmparams['size'].value == kwargs['min_size']
 
 if __name__ == '__main__':
-        test_init()
-        test_aberrations()
-        test_reference_wavefront()
-        test_jmaxs()
-        test_atmo_model_fit()
-        test_atmo_interp_fit()
-        test_profile()
-        test_snr_and_shapes()
-        test_analytic_coefs()
-        test_roundtrip()
-        test_lmparams()
-        test_fit()
+    test_init()
+    test_aberrations()
+    test_reference_wavefront()
+    test_jmaxs()
+    test_atmo_model_fit()
+    test_atmo_interp_fit()
+    test_profile()
+    test_snr_and_shapes()
+    test_analytic_coefs()
+    test_roundtrip()
+    test_lmparams()
+    test_fit()
