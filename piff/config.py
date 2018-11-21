@@ -208,6 +208,7 @@ def meanify(config, logger=None):
     from .star import Star
     import glob
     import numpy as np
+    from scipy.stats import binned_statistic_2d
     import fitsio
 
     if logger is None:
@@ -235,6 +236,23 @@ def meanify(config, logger=None):
     else:
         bin_spacing = 120. #default bin_spacing: 120 arcsec
     print("bin_spacing: {0}".format(bin_spacing))
+
+    if 'statistic' in config['hyper']:
+        if config['hyper']['statistic'] not in ['mean', 'median']:
+            raise ValueError("%s is not a suported statistic (only mean and median are currently suported)"
+                             %config['hyper']['statistic'])
+        else:
+            stat_used = config['hyper']['statistic']
+    else:
+        stat_used = 'mean' #default statistics: arithmetic mean over each bin
+
+    if 'params_fitted' in config['hyper']:
+        if type(config['hyper']['params_fitted']) != list:
+            raise TypeError('must give a list of index for params_fitted')
+        else:
+            params_fitted = config['hyper']['params_fitted']
+    else:
+        params_fitted = None
 
     if isinstance(config['output']['file_name'], list):
         psf_list = config['output']['file_name']
@@ -270,44 +288,53 @@ def meanify(config, logger=None):
     if 'dir' in config['hyper']:
         file_name_out = os.path.join(config['hyper']['dir'], file_name_out)
 
-    def _getcoord(star):
-        return np.array([star.data[key] for key in ['u', 'v']])
-
     coords = []
     params = []
 
     for fi, f in enumerate(file_name_in):
         logger.debug('Loading file {0} of {1}'.format(fi, len(file_name_in)))
-        print('Loading file {0} of {1}'.format(fi, len(file_name_in)))
-	#time.sleep(10)
-        # rewrite takes ~0.02 sec per psf, while previous took 2-3 sec.
-        star_arr = fitsio.read(f, 'psf_stars')
-	corrupted=False
-	for early_element in star_arr['u']:
-	    if early_element > 10000.0:
-	        print("alert! early element was bigger than 10000.0!")
-	        print("star_arr['u']: {0}".format(star_arr['u']))
-		time.sleep(10)
-		corrupted=True
-	if corrupted==True:
-	    continue
-        coord = np.array([star_arr['u'], star_arr['v']])
-        param = star_arr['params']
-	#print("coord: {0}".format(coord))
-        coords.append(coord)
-        params.append(param)
+    #    print('Loading file {0} of {1}'.format(fi, len(file_name_in)))
+	##time.sleep(10)
+    #    # rewrite takes ~0.02 sec per psf, while previous took 2-3 sec.
+    #    star_arr = fitsio.read(f, 'psf_stars')
+	#corrupted=False
+	#for early_element in star_arr['u']:
+	#    if early_element > 10000.0:
+	#        print("alert! early element was bigger than 10000.0!")
+	#        print("star_arr['u']: {0}".format(star_arr['u']))
+	#	time.sleep(10)
+	#	corrupted=True
+	#if corrupted==True:
+	#    continue
+    #    coord = np.array([star_arr['u'], star_arr['v']])
+    #    param = star_arr['params']
+	##print("coord: {0}".format(coord))
+    #    coords.append(coord)
+    #    params.append(param)
+        try:
+            fits = fitsio.FITS(f)
+            coord, param = Star.read_coords_params(fits, 'psf_stars')
+            fits.close()
+            coords.append(coord)
+            params.append(param)
+        except IOError:
+            logger.warning('Failed to load file {0}! Ignoring'.format(f))
+            continue
 
     params = np.concatenate(params, axis=0)
-    coords = np.concatenate(coords, axis=1).T
+    coords = np.concatenate(coords, axis=0)
     logger.info('Computing average for {0} params with {1} stars'.format(len(params[0]), len(coords)))
 
-    print("coord[:,0]: {0}".format(coords[:,0]))
-    for element in coords[:,0]:
-	#print("element: {0}".format(element))
-	#time.sleep(1)
-	if element >10000.0:
-	    print("alert! element was bigger than 10000.0")
-	    time.sleep(10)
+    #print("coord[:,0]: {0}".format(coords[:,0]))
+    #for element in coords[:,0]:
+	##print("element: {0}".format(element))
+	##time.sleep(1)
+	#if element >10000.0:
+	#    print("alert! element was bigger than 10000.0")
+	#    time.sleep(10)
+    if params_fitted is None:
+        params_fitted = range(len(params[0]))
+
     lu_min, lu_max = np.min(coords[:,0]), np.max(coords[:,0])
     lv_min, lv_max = np.min(coords[:,1]), np.max(coords[:,1])
     #print("lu_min: {0}".format(lu_min))
@@ -319,17 +346,19 @@ def meanify(config, logger=None):
     #print("nbin_u: {0}".format(nbin_u))
     #print("nbin_v: {0}".format(nbin_v))
     binning = [np.linspace(lu_min, lu_max, nbin_u), np.linspace(lv_min, lv_max, nbin_v)]
-    counts, u0, v0 = np.histogram2d(coords[:,0], coords[:,1], bins=binning)
-    counts = counts.T
-    counts = counts.reshape(-1)
-
-    params0 = np.zeros((len(counts),len(params[0])))
+    nbinning = (len(binning[0]) - 1) * (len(binning[1]) - 1)
+    params0 = np.zeros((nbinning, len(params[0])))
+    Filter = np.array([True]*nbinning)
 
     for i in range(len(params[0])):
-        average = np.histogram2d(coords[:,0], coords[:,1], bins=binning, weights=params[:,i])[0].T
-        average = average.reshape(-1)
-        average[average!=0] /= counts[average!=0]
-        params0[:,i] = average
+        if i in params_fitted:
+            average, u0, v0, bin_target = binned_statistic_2d(coords[:,0], coords[:,1],
+                                                              params[:,i], bins=binning,
+                                                              statistic=stat_used)
+            average = average.T
+            average = average.reshape(-1)
+            Filter &= np.isfinite(average).reshape(-1)
+            params0[:,i] = average
 
     # get center of each bin 
     u0 = u0[:-1] + (u0[1] - u0[0])/2.
@@ -337,6 +366,11 @@ def meanify(config, logger=None):
     u0, v0 = np.meshgrid(u0, v0)
 
     coords0 = np.array([u0.reshape(-1), v0.reshape(-1)]).T
+
+    # remove any entries with nan (counts == 0 and non finite value in
+    # the 2D statistic computation) 
+    coords0 = coords0[Filter]
+    params0 = params0[Filter]
 
     dtypes = [('COORDS0', coords0.dtype, coords0.shape),
               ('PARAMS0', params0.dtype, params0.shape),
