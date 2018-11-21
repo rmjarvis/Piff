@@ -19,9 +19,14 @@
 from __future__ import print_function
 
 import galsim
+import coord
 import numpy as np
 import numba
-import math
+import os
+from sklearn.ensemble import RandomForestRegressor
+import cPickle
+import pickle
+from scipy.interpolate import Rbf
 
 from .psf import PSF
 from .optical_model import Optical
@@ -33,15 +38,44 @@ from .star import Star, StarFit, StarData
 from .util import hsm_error, hsm_higher_order, hsm_higher_order_exact_errors, measure_snr, write_kwargs, read_kwargs
 from .config import LoggerWrapper
 
+class wavefrontmap(object):
+    """ wavefrontmap is a class used to build and access a Wavefront map - zernike coefficients vs. X,Y
+
+    Aaron Roodman (C) SLAC National Accelerator Laboratory, Stanford University 2018.
+    """
+
+    def __init__(self,file):
+        # init contains all initializations which are done only once for all fits
+
+        
+        self.file = file
+        mapdict = pickle.load(open(self.file,'rb'))
+        self.x = mapdict['x']
+        self.y = mapdict['y']
+        self.zcoeff = mapdict['zcoeff']
+
+        self.interpDict = {}
+        for iZ in range(3,37):    # numbering is such that iZ=3 is zern4
+            self.interpDict[iZ] = Rbf(self.x, self.y, self.zcoeff[:,iZ])        
+
+    def get(self,x,y,nZernikeFirst=12,nZernikeLast=37):
+        # fill an array with Zernike coefficients for this x,y in the Map
+
+        zout = np.zeros((nZernikeLast-nZernikeFirst+1))
+        for iZactual in range(nZernikeFirst,nZernikeLast+1):
+            iZ = iZactual-1
+            zout[iZactual-nZernikeFirst] = self.interpDict[iZ](x,y)
+
+        return zout
+
 class OptAtmoPSF(PSF):
 
     """Combine Optical and Atmospheric PSFs together
     """
 
-    def __init__(self, atmo_interp=None, outliers=None, analytic_coefs=None, optatmo_psf_kwargs={}, optical_psf_kwargs={}, kolmogorov_kwargs={}, reference_wavefront=None, n_optfit_stars=0, fov_radius=4500., jmax_pupil=11, jmax_focal=10, min_optfit_snr=0, fit_optics_mode='analytic', logger=None, **kwargs):
+    def __init__(self, atmo_interp=None, outliers=None, analytic_coefs=None, optatmo_psf_kwargs={}, optical_psf_kwargs={}, kolmogorov_kwargs={}, reference_wavefront=None, n_optfit_stars=0, fov_radius=4500., jmax_pupil=11, jmax_focal=10, min_optfit_snr=0, fit_optics_mode='analytic', fit_atmosphere_mode='pixel', atmosphere_model='kolmogorov', atmo_mad_outlier=False, shape_weights=[], logger=None, **kwargs):
         """
         Fit Combined Atmosphere and Optical PSF in two stage process.
-
         :param atmo_interp:             Piff Interpolant object that represents
                                         the atmospheric interpolation
         :param outliers:                Optionally, an Outliers instance used
@@ -78,65 +112,57 @@ class OptAtmoPSF(PSF):
         :param fit_optics_mode:         Choose ['analytic', 'shape', 'pixel']
                                         for optics fitting mode. [default:
                                         'analytic']
+        :param fit_atmosphere_mode:     Choose ['shape', 'pixel']
+                                        for atmosphere fitting mode. [default:
+                                        'pixel']
+        :param atmosphere_model:        Choose ['kolmogorov', 'vonkarman']. Selects the galsim object used for the atmospheric piece. Note that when using vonkarman, the outer scale L0 is set to 25 by default and the adjusted by the fit_model piece.
+        :param atmo_mad_outlier:        Boolean. If true, when computing atmosphere interps remove 5 sigma outliers from a MAD cut
         :param logger:                  A logger object for logging debug info.
                                         [default: None]
-
         Notes
         -----
         Our model of the PSF is the convolution of an elliptical Kolmogorov
         with an optics model:
-
             PSF = convolve(Kolmogorov(size, g1, g2), Optics(defocus, etc))
-
         Call [size, g1, g2, defocus, astigmatism-y, astigmatism-x, ...] a_k,
         with k starting at 1 so that the Zernike terms like defocus can keep
         the noll convention. Thus, we call the size a_1, g1 (confusingly) a_2,
         and so on. The goal of this PSF model is to return a_k given focal
         plane coordinates u, v. So, for the i-th star:
-
         a_{ik} (u_i, v_i) = \sum^{jmax_focal}_{\ell=1} b_{k \ell} Z_{\ell} (u_i, v_i)
                             + a^{reference}_{k} (u_i, v_i) [if k >= 4]
                             + atmo_interp(u_i, v_i) [if k < 4]
-
         We note that b_{k \ell} = 0 if k in [1, 2, 3] and \ell > 1, which is to
         say that we fit a constant atmosphere and let the atmo_interp deal with
         differences from constant. b_{k \ell} is called a Double Zernike
         Decomposition. The fitting process can be broken down into two major
         steps:
-
         1. Fit b_{k \ell} by looking at the field pattern of the shapes e_{ij}
             -   First, we use an analytic relation for e_{ij}:
-
                     e_{ij} = f(a_{ik}; analytic_coefs)
-
                 This relation is very fast. We pass in b_{k \ell} to a least
                 squares minimization and generally fit these terms on the order
                 of a few minutes.
-
                 These analytic_coefs are specific to the instrument and should
                 be recalculated for different telescopes.  I fitted the
                 analytic coefs to up to fourth in combinations of up to three
                 terms, e.g. z_i z_j z_k z_\ell with \ell = at least one of i,
                 j, k.
-
             -   The analytic relation is not perfect, and will overestimate the
                 size. I believe this is comes from noise in the pixels and from
                 the effects of masking, neither of which are taken into account
                 in the analytic relation. It is a simple fix, however: simply
                 take a few stars, grid search b_{1 1} (ie constant size), and
                 adjust accordingly.
-
         2. Fit atmo_interp.
             -   a_{ik} = a^{optics}_{ik} + a^{atmosphere}_{ik} for k < 4, where
                 a^{optics}_{ik} = \sum_{\ell} b_{k \ell} Z_{\ell} (u_i, v_i).
                 We directly find a^{atmosphere}_{ik} for each star by
                 minimizing the chi2 of the pixels of the observed star and the
                 model as drawn here.
-
             -   After finding a^{atmosphere}_{ik}, we fit the atmo_interp to
                 interpolate those parameters as a function of focal plane
                 position (u_i, v_i).
-
         """
         logger = LoggerWrapper(logger)
 
@@ -164,6 +190,7 @@ class OptAtmoPSF(PSF):
         self.optical_psf_kwargs = optical_psf_kwargs
         self.kolmogorov_kwargs = kolmogorov_kwargs
         self.reference_wavefront = reference_wavefront
+        self.higher_order_reference_wavefront = wavefrontmap(file="/nfs/slac/kipac/fs1/g/des/aresh/higher_order_reference_wavefront_pickle/decam_2012-nominalzernike-protocol2.pickle")
 
         self.min_optfit_snr = min_optfit_snr
         self.n_optfit_stars = n_optfit_stars
@@ -183,10 +210,14 @@ class OptAtmoPSF(PSF):
         self.fov_radius = fov_radius
 
         # Field-of-view does not have obscuration, so obscuration=0 and annular=False here.
+        #if galsim.__version__ >= 2.0:
+        #    self._noll_coef_field = galsim.zernike._noll_coef_array(self.jmax_focal, 0.0)
+        #else:
         self._noll_coef_field = galsim.phase_screens._noll_coef_array(self.jmax_focal, 0.0, False)
 
+        min_sizes = {'kolmogorov': 0.45, 'vonkarman': 0.7}
         self.optatmo_psf_kwargs = {
-                'size': 1.0,  'fix_size': False, 'min_size': 0.45, 'max_size': 2.0,
+                'size': 1.0,  'fix_size': False, 'min_size': min_sizes[atmosphere_model], 'max_size': 3.0,
                 'g1':   0,    'fix_g1':   False, 'min_g1': -0.4, 'max_g1': 0.4,
                 'g2':   0,    'fix_g2':   False, 'min_g2': -0.4, 'max_g2': 0.4,
             }
@@ -258,21 +289,42 @@ class OptAtmoPSF(PSF):
             self.optical_psf_kwargs['oversampling'] = 0.5
 
         # max size of shapes allowed in fit_analytic, fit_size
-        self._max_shapes = np.array([1.5, 0.15, 0.15])
-        self._expanded_max_shapes = np.array([0.01, 0.01, 1.5, 0.15, 0.15])
+        self._max_shapes = np.array([1.5, 0.15, 0.15, 0.15, 0.15, 0.15, 0.15])
         # weighting of shapes in fit_analytic, fit_size
-        self._shape_weights = np.array([0.2, 0.4, 0.4])
-        self._shape_weights_third_moments = np.array([0.2, 0.4, 0.4, 0.10, 0.10, 0.10, 0.10])
+        #self._shape_weights = np.array([0.2, 0.4, 0.4])
+        self._shape_weights = np.array([0.2, 0.4, 0.4, 0.00, 0.00, 0.00, 0.00])
+        if len(shape_weights) > 0:
+            if len(shape_weights) != len(self._shape_weights):
+                raise ValueError('Specified {0} shape weights, but need to specify {1}!'.format(len(shape_weights), len(self._shape_weights)))
+            for i, si in enumerate(shape_weights):
+                self._shape_weights[i] = si
+            
 
         self.fit_optics_mode = fit_optics_mode
+        self.fit_atmosphere_mode = fit_atmosphere_mode
+        if atmosphere_model not in ['kolmogorov', 'vonkarman']:
+            raise KeyError('Atmosphere model {0} not allowed! choose either kolmogorov or vonkarman'.format(atmosphere_model))
+        self.atmosphere_model = atmosphere_model
+        if self.atmosphere_model == 'kolmogorov':
+            self.n_params_atmosphere = 3
+            self.n_params_constant_atmosphere = 3
+        elif self.atmosphere_model == 'vonkarman':
+            self.n_params_atmosphere = 4
+            self.n_params_constant_atmosphere = 3
+
+        self.atmo_mad_outlier = atmo_mad_outlier
 
         # kwargs
         self.kwargs = {'fov_radius': self.fov_radius,
+                       'shape_weights': self._shape_weights,
                        'jmax_pupil': self.jmax_pupil,
                        'jmax_focal': self.jmax_focal,
                        'min_optfit_snr': self.min_optfit_snr,
                        'n_optfit_stars': self.n_optfit_stars,
                        'fit_optics_mode': self.fit_optics_mode,
+                       'fit_atmosphere_mode': self.fit_atmosphere_mode,
+                       'atmosphere_model': self.atmosphere_model,
+                       'atmo_mad_outlier': self.atmo_mad_outlier,
                        # junk entries to be overwritten in _finish_read function
                        'analytic_coefs': 0,
                        'optatmo_psf_kwargs': 0,
@@ -286,17 +338,17 @@ class OptAtmoPSF(PSF):
         # cache parameters to cut down on lookup
         self._cache = False
         self._aberrations_reference_wavefront = None
+        self._cache_higher_order = False
+        self._aberrations_higher_order_reference_wavefront = None
 
     @classmethod
     def parseKwargs(cls, config_psf, logger):
         """Parse the psf field of a configuration dict and return the kwargs to
         use for initializing an instance of the class.
-
         :param config_psf:      The psf field of the configuration dict,
                                 config['psf']
         :param logger:          A logger object for logging debug info.
                                 [default: None]
-
         :returns:               a kwargs dict to pass to the initializer
         """
         logger = LoggerWrapper(logger)
@@ -320,8 +372,8 @@ class OptAtmoPSF(PSF):
             # kolmogorov_kwargs = {'half_light_radius': 1.0}
             kolmogorov_kwargs = {'fwhm': 1.0}
         kwargs['kolmogorov_kwargs'] = kolmogorov_kwargs
-
-        # optical fit
+       
+       #custom shape weights for the moments used in fitting     
         if 'optatmo_psf_kwargs' in config_psf:
             kwargs['optatmo_psf_kwargs'] = config_psf['optatmo_psf_kwargs']
 
@@ -390,7 +442,6 @@ class OptAtmoPSF(PSF):
 
     def _finish_write(self, fits, extname, logger):
         """Finish the writing process with any class-specific steps.
-
         :param fits:        An open fitsio.FITS object
         :param extname:     The base name of the extension to write to.
         :param logger:      A logger object for logging debug info.
@@ -454,7 +505,6 @@ class OptAtmoPSF(PSF):
 
     def _finish_read(self, fits, extname, logger):
         """Finish the reading process with any class-specific steps.
-
         :param fits:        An open fitsio.FITS object
         :param extname:     The base name of the extension to write to.
         :param logger:      A logger object for logging debug info.
@@ -515,10 +565,9 @@ class OptAtmoPSF(PSF):
             logger.info('Skipping outliers')
             self.outliers = None
 
-    def fit(self, stars, wcs, pointing, core_directory, exposure,
+    def fit(self, stars, wcs, pointing,
             chisq_threshold=0.1, max_iterations=30, logger=None, **kwargs):
         """Fit interpolated PSF model to star data using standard sequence of operations.
-
         :param stars:           A list of Star instances.
         :param wcs:             A dict of WCS solutions indexed by chipnum.
         :param pointing:        A galsim.CelestialCoord object giving the
@@ -536,6 +585,7 @@ class OptAtmoPSF(PSF):
         """
         logger = LoggerWrapper(logger)
 
+        self.higher_order_reference_wavefront = wavefrontmap(file="/nfs/slac/kipac/fs1/g/des/aresh/higher_order_reference_wavefront_pickle/decam_2012-nominalzernike-protocol2.pickle")
         self.wcs = wcs
         self.pointing = pointing
         # do first pass of flux, centers, and shapes for the stars
@@ -544,15 +594,14 @@ class OptAtmoPSF(PSF):
         self.stars = []
         self.star_shapes = []
         self.star_errors = []
-        self.star_shapes_third_moments = []
-        self.star_errors_third_moments = []
         self.star_snrs = []
         for star_i, star in enumerate(stars):
             logger.debug('Measuring shape of star {0}'.format(star_i))
             try:
-                shape, error = self.measure_shape(star, return_error=True, logger=logger)
-                shape_third_moments = self.measure_shape_third_moments(star, logger=logger)
-                error_third_moments = self.measure_error_third_moments(star, logger=logger)
+                #shape, error = self.measure_shape(star, return_error=True, logger=logger)
+                shape = self.measure_shape_third_moments(star, logger=logger)
+		print("shape: {0}".format(shape))
+                error = self.measure_error_third_moments(star, logger=logger)
                 star = Star(star.data, StarFit(None, flux=shape[0], center=(shape[1], shape[2])))
                 star.data.properties['shape'] = shape
                 star.data.properties['shape_error'] = error
@@ -561,26 +610,27 @@ class OptAtmoPSF(PSF):
                 self.stars.append(star)
                 self.star_shapes.append(shape)
                 self.star_errors.append(error)
-                self.star_shapes_third_moments.append(shape_third_moments)
-                self.star_errors_third_moments.append(error_third_moments)
                 self.star_snrs.append(snr)
             except (ModelFitError, RuntimeError) as e:
                 # something went wrong with this star
                 logger.warning(str(e))
                 logger.warning('Star {0} failed shape estimation. Skipping. This is usually because there is a second object in the stamp, or there is some pretty severe masking'.format(star_i))
+	print("self.star_shapes: {0}".format(self.star_shapes))
         self.star_shapes = np.array(self.star_shapes)
+	print("self.star_shapes: {0}".format(self.star_shapes))
         self.star_errors = np.array(self.star_errors)
-        self.star_shapes_third_moments = np.array(self.star_shapes_third_moments)
-        self.star_errors_third_moments = np.array(self.star_errors_third_moments)
         self.star_snrs = np.array(self.star_snrs)
 
         conds_shape = (np.all(np.abs(self.star_shapes[:, 3:]) <= self._max_shapes, axis=1))
         # also a MAD cut
-        med = np.median(self.star_shapes[:, 3:], axis=0)
+        med = np.nanmedian(self.star_shapes[:, 3:], axis=0)
         madx = np.abs(self.star_shapes[:, 3:] - med[None])
-        mad = np.median(madx, axis=0)
+        mad = np.nanmedian(madx, axis=0)
         logger.debug('MAD values: {0}'.format(str(mad)))
         conds_mad = (np.all(madx <= 1.48 * 5 * mad, axis=1))
+	print("med: {0}".format(med))
+	print("madx: {0}".format(madx))
+	print("mad: {0}".format(mad))
 
         self.stars_indices = np.arange(len(self.stars))
         self.stars_indices = self.stars_indices[conds_shape * conds_mad]
@@ -592,18 +642,9 @@ class OptAtmoPSF(PSF):
         # determine stars used in optical fit
         self.fit_optics_indices = np.arange(len(self.stars))
         conds_snr = (self.star_snrs >= self.min_optfit_snr)
-        conds_shape = (np.all(np.abs(self.star_shapes[:, 5:]) <= self._expanded_max_shapes, axis=1))
-	nan_count = 0
-	for shape_third_moment_i, shape_third_moment in enumerate(self.star_shapes_third_moments):
-	    if np.any(np.isnan(shape_third_moment)):
-		print("nan found for {0}".format(shape_third_moment_i))
-		nan_count = nan_count +1
-	print("nan_count: {0}".format(nan_count))
-
-        #conds_third_moments = (np.all(not np.isnan(self.star_shapes_third_moments), axis=1))
-        self.fit_optics_indices = self.fit_optics_indices[conds_snr * conds_shape]
-        #logger.info('Cutting {0} stars for fitting the optics based on SNR > {1} ({2} stars) and on maximum shapes ({3} stars)'.format(len(stars) - len(self.fit_optics_indices), self.min_optfit_snr, len(self.stars) - np.sum(conds_snr), len(stars) - np.sum(conds_snr)))
+        self.fit_optics_indices = self.fit_optics_indices[conds_snr]
         logger.info('Cutting to {0} stars for fitting the optics based on SNR > {1} ({2} stars) on maximum shapes ({3} stars) and on a 5 sigma outlier cut ({4} stars)'.format(len(self.fit_optics_indices), self.min_optfit_snr, len(conds_snr) - np.sum(conds_snr), len(conds_shape) - np.sum(conds_shape), len(conds_mad) - np.sum(conds_mad)))
+
         # cut further if we have more stars than n_optfit_stars
         if self.n_optfit_stars and self.n_optfit_stars < len(self.fit_optics_indices):
             logger.info('Cutting from {0} to {1} stars'.format(len(self.fit_optics_indices), self.n_optfit_stars))
@@ -618,8 +659,6 @@ class OptAtmoPSF(PSF):
         self.fit_optics_stars = [self.stars[indx] for indx in self.fit_optics_indices]
         self.fit_optics_star_shapes = self.star_shapes[self.fit_optics_indices]
         self.fit_optics_star_errors = self.star_errors[self.fit_optics_indices]
-        self.fit_optics_star_shapes_third_moments = self.star_shapes_third_moments[self.fit_optics_indices]
-        self.fit_optics_star_errors_third_moments = self.star_errors_third_moments[self.fit_optics_indices]
 
         # perform initial optics fit with analytic parameters, if we have them
         if self.analytic_coefs is not None:
@@ -639,28 +678,52 @@ class OptAtmoPSF(PSF):
         self.fit_size_star_errors = self.fit_optics_star_errors[self.fit_size_indices]
         self.fit_size(self.fit_size_stars, self.fit_size_star_shapes, self.fit_size_star_errors, logger=logger, **kwargs)
 
-	nan_count = 0
-	for shape_third_moment_i, shape_third_moment in enumerate(self.fit_optics_star_shapes_third_moments):
-	    if np.any(np.isnan(shape_third_moment)):
-		print("nan found for {0}".format(shape_third_moment_i))
-		nan_count = nan_count +1
-	print("nan_count: {0}".format(nan_count))
-        self.fit_optics_third_moments(self.fit_optics_stars, self.fit_optics_star_shapes, self.fit_optics_star_errors, self.fit_optics_star_shapes_third_moments, self.fit_optics_star_errors_third_moments, logger=logger, **kwargs)
-        ## do a fit to moments or pixels, if we desired
-        #if self.fit_optics_mode in ['shape', 'pixel']:
-        #    self.fit_optics(self.fit_optics_stars, self.fit_optics_star_shapes, self.fit_optics_star_errors, mode=self.fit_optics_mode, logger=logger, **kwargs)
-        #elif self.fit_optics_mode == 'analytic':
-        #    # already did it, so can pass
-        #    pass
-        #else:
-        #    # an unrecognized mode? should I be worried?
-        #    logger.warning('Found unrecognized fit_optics_mode {0}. Ignoring'.format(self.fit_optics_mode))
+        # do a fit to moments or pixels, if we desired
+        if self.fit_optics_mode in ['shape', 'pixel']:
+            self.fit_optics(self.fit_optics_stars, self.fit_optics_star_shapes, self.fit_optics_star_errors, mode=self.fit_optics_mode, logger=logger, **kwargs)
+        elif self.fit_optics_mode == 'analytic':
+            # already did it, so can pass
+            pass
+        else:
+            # an unrecognized mode? should I be worried?
+            logger.warning('Found unrecognized fit_optics_mode {0}. Ignoring'.format(self.fit_optics_mode))
+
+
+        data_shapes_all_stars = []
+        data_errors_all_stars = []
+        model_shapes_all_stars = []
+        for star in self.stars:
+            data_shapes_all_stars.append(self.measure_shape_third_moments(star))
+            data_errors_all_stars.append(self.measure_error_third_moments(star))
+            model_shapes_all_stars.append(self.measure_shape_third_moments(self.drawStar(star)))
+        data_shapes_all_stars = np.array(data_shapes_all_stars)[:,3:]
+        data_errors_all_stars = np.array(data_errors_all_stars)[:,3:]
+        model_shapes_all_stars = np.array(model_shapes_all_stars)[:,3:]
+        pull_all_stars = (data_shapes_all_stars - model_shapes_all_stars) / data_errors_all_stars
+        conds_pull = (np.all(pull_all_stars <= 4.0, axis=1))
+        conds_pull_e0 = (pull_all_stars[:,0] <= 4.0)
+        conds_pull_e1 = (pull_all_stars[:,1] <= 4.0)
+        conds_pull_e2 = (pull_all_stars[:,2] <= 4.0)
+        self.number_of_outliers_optical = np.array([len(self.stars) - np.sum(conds_pull_e0), len(self.stars) - np.sum(conds_pull_e1), len(self.stars) - np.sum(conds_pull_e2)])
+        self.number_of_stars_pre_cut_optical = len(self.stars)
+        self.stars = np.array(self.stars)[conds_pull].tolist()
+        self.number_of_stars_post_cut_optical = len(self.stars)
+        self.pull_mean_optical = np.nanmean(pull_all_stars[:,:3], axis=0)
+        self.pull_rms_optical = np.sqrt(np.nanmean(np.square(pull_all_stars[:,:3]),axis=0))
+        self.pull_all_stars_optical = pull_all_stars
+        
+        #make sure to delete this below after its first (and only) intended use
+        #for m, moment in enumerate(["e0", "e1", "e2", "zeta1", "zeta2", "delta1", "delta2"]):
+        #    plt.figure()
+        #    plt.hist(pull_all_stars[:,m])
+        #    plt.savefig("/nfs/slac/kipac/fs1/g/des/aresh/twenty_exposures_fit_check_third_moments_weight_40_hundredths_by_fit_psf_all_bands_together_outlier_rejection_test/{0}_optical_pull_hist.png".format(moment))
+
 
         # fit atmosphere. Can also be skipped
         if self.atmo_interp in ['skip', 'Skip', None, 'none', 'None', 0]:
             pass
         else:
-            stars_fit_atmosphere, stars_fit_atmosphere_stripped  = self.fit_atmosphere(self.stars, core_directory=core_directory, exposure=exposure, chisq_threshold=chisq_threshold, max_iterations=max_iterations, logger=logger, **kwargs)
+            stars_fit_atmosphere, stars_fit_atmosphere_stripped = self.fit_atmosphere(self.stars, chisq_threshold=chisq_threshold, max_iterations=max_iterations, logger=logger, **kwargs)
             self.stars = stars_fit_atmosphere  # keeps all fit params and vars, but does NOT include any removed with outliers
 
             # enable atmosphere interpolation now that we have solved the interp
@@ -669,19 +732,15 @@ class OptAtmoPSF(PSF):
 
     def _getParamsList_aberrations_field(self, stars):
         """Get params for a list of stars from the aberrations
-
         :param stars:       List of Star instances holding information needed
                             for interpolation as well as an image/WCS into
                             which PSF will be rendered.
-
         :returns:           Params  [size, g1, g2, z4, z5...] for each star
-
         Notes
         -----
         We have a set of coefficients b_{k \ell} that describe the Zernike
         decomposition. Then, for the i-th star at position (u_i, v_i), we get
         param a_{ik} as:
-
             a_{ik} = \sum_{\ell} b_{k \ell} Z_{\ell} (u_i, v_i)
         """
         # collect u and v from stars
@@ -697,13 +756,10 @@ class OptAtmoPSF(PSF):
 
     def getParamsList(self, stars, logger=None):
         """Get params for a list of stars.
-
         :param stars:       List of Star instances holding information needed
                             for interpolation as well as an image/WCS into
                             which PSF will be rendered.
-
         :returns:           Params  [atm_size, atm_g1, atm_g2, opt_size, opt_g1, opt_g2, z4, z5...] for each star
-
         Notes
         -----
         For the i-th star, we have param a_{ik} = a_{ik}^{optics} +
@@ -718,11 +774,11 @@ class OptAtmoPSF(PSF):
         finally fitted.
         """
         logger = LoggerWrapper(logger)
-        params = np.zeros((len(stars), self.jmax_pupil + 3), dtype=np.float64)
+        params = np.zeros((len(stars), self.jmax_pupil + self.n_params_atmosphere), dtype=np.float64)
 
         logger.debug('Getting aberrations from optical / mean system')
         aberrations_pupil = self._getParamsList_aberrations_field(stars)
-        params[:, 3:] += aberrations_pupil
+        params[:, self.n_params_atmosphere:] += aberrations_pupil
 
         if self.reference_wavefront:
             if self._cache:
@@ -734,15 +790,44 @@ class OptAtmoPSF(PSF):
                 stars = [Star(star.data, None) for star in stars]
                 stars = self.reference_wavefront.interpolateList(stars)
                 aberrations_reference_wavefront = np.array([star_interpolated.fit.params for star_interpolated in stars])
+            if self._cache_higher_order:
+                logger.debug('Getting cached higher order reference wavefront aberrations')
+                # use precomputed higher order cache. assumes stars are the same as in cache!
+                aberrations_higher_order_reference_wavefront = self._aberrations_higher_order_reference_wavefront
+            else:
+                logger.debug('Getting higher_order_reference wavefront aberrations')
+                aberrations_higher_order_reference_wavefront = np.empty([len(stars),26])
+                for s, star in enumerate(stars):
+                    star_data = star.data
+                    star_data.local_wcs = star_data.image.wcs.local(star_data.image_pos)
+                    x_value = star_data.local_wcs._x(star_data['u'],star_data['v'])
+                    y_value = star_data.local_wcs._y(star_data['u'],star_data['v'])
+                    x_value = x_value * (15.0/1000.0)
+                    y_value = y_value * (15.0/1000.0) # wavefront map class expects units of mm, rather than pixels
+                    zout_camera = self.higher_order_reference_wavefront.get(x=x_value, y=y_value) #zout_camera[0] is for z12
+                    zout_sky = np.array([-zout_camera[0], zout_camera[1], zout_camera[2], -zout_camera[3], zout_camera[5], zout_camera[4], -zout_camera[7], -zout_camera[6], zout_camera[9], zout_camera[8], zout_camera[10], zout_camera[11], -zout_camera[12], -zout_camera[13], zout_camera[14], zout_camera[15], -zout_camera[16], zout_camera[18], zout_camera[17], -zout_camera[20], -zout_camera[19], zout_camera[22], zout_camera[21], -zout_camera[24], -zout_camera[23], zout_camera[25]]) #conversion from zout_camera (AOS system) to zout_sky (Galsim) inspired by thesis of Chris Davis
+                    aberrations_higher_order_reference_wavefront[s] = zout_sky
             # put aberrations_reference_wavefront
             # reference wavefront starts at z4 but may not span full range of
             # aberrations used
             n_reference_aberrations = aberrations_reference_wavefront.shape[1]
+            n_higher_order_reference_aberrations = 26
+            # the 3 here is because z4 starts at index 3
+            print("aberrations_reference_wavefront including beyond z11 every hundred rows: ")
+            print(aberrations_reference_wavefront[0::100])
+            print("aberrations_higher_order_reference_wavefront every hundred rows: ")
+            print(aberrations_higher_order_reference_wavefront[0::100])
+
+            aberrations_reference_wavefront = aberrations_reference_wavefront[:,:8] #limit reference wavefront to up to z11 to make room for higher order reference wavefront, which starts at z12
             if n_reference_aberrations + 3 < self.jmax_pupil:
-                params[:, 6: n_reference_aberrations + 6] += aberrations_reference_wavefront
+                params[:, self.n_params_atmosphere + self.n_params_constant_atmosphere: n_reference_aberrations + self.n_params_atmosphere + self.n_params_constant_atmosphere] += aberrations_reference_wavefront
+                if n_reference_aberrations + n_higher_order_reference_aberrations + 3 < self.jmax_pupil:
+                    params[:, self.n_params_atmosphere + self.n_params_constant_atmosphere + n_reference_aberrations: n_reference_aberrations + n_higher_order_reference_aberrations + self.n_params_atmosphere + self.n_params_constant_atmosphere] += aberrations_higher_order_reference_wavefront
+                else:
+                    params[:, self.n_params_atmosphere + self.n_params_constant_atmosphere + n_reference_aberrations:] += aberrations_higher_order_reference_wavefront[:, :self.jmax_pupil - 11]
             else:
                 # we have more jmax_pupil than reference wavefront
-                params[:, 6:] += aberrations_reference_wavefront[:, :self.jmax_pupil - 3]
+                params[:, self.n_params_atmosphere + self.n_params_constant_atmosphere:] += aberrations_reference_wavefront[:, :self.jmax_pupil - 3]
 
         # get kolmogorov parameters from atmosphere model, but only if we said so
         if self._enable_atmosphere:
@@ -754,17 +839,19 @@ class OptAtmoPSF(PSF):
                 stars = [Star(star.data, None) for star in stars]
                 stars = self.atmo_interp.interpolateList(stars)
                 aberrations_atmo_star = np.array([star.fit.params for star in stars])
-                params[:, 0:3] += aberrations_atmo_star
+                params[:, 0:self.n_params_atmosphere] += aberrations_atmo_star
+        else:
+            if self.atmosphere_model == 'vonkarman':
+                # set the vonkarman outer scale to a nominal starting place
+                params[:, 3] = 10
 
         return params
 
     def getParams(self, star):
         """Get params for a given star.
-
         :param star:        Star instance holding information needed for
                             interpolation as well as an image/WCS into which
                             PSF will be rendered.
-
         :returns:           Params  [atm_size, atm_g1, atm_g2, opt_size, opt_g1, opt_g2, z4, z5...]
         """
         return self.getParamsList([star])[0]
@@ -777,20 +864,32 @@ class OptAtmoPSF(PSF):
         logger = LoggerWrapper(logger)
 
         # optics
-        aberrations = np.zeros(4 + len(params[6:]))  # fill piston etc with 0
-        aberrations[4:] = params[6:]
+        aberrations = np.zeros(4 + len(params[self.n_params_atmosphere + self.n_params_constant_atmosphere:]))  # fill piston etc with 0
+        aberrations[4:] = params[self.n_params_atmosphere + self.n_params_constant_atmosphere:]
+        aberrations = aberrations * (700.0/self.optical_psf_kwargs['lam'])
         opt = galsim.OpticalPSF(aberrations=aberrations,
                                 gsparams=self.gsparams,
                                 **self.optical_psf_kwargs)
 
         # atmosphere
         # add stochastic and constant pieces together
-        size = params[0] + params[3]
-        g1 = params[1] + params[4]
-        g2 = params[2] + params[5]
-        atmo = galsim.Kolmogorov(gsparams=self.gsparams,
-                                 **self.kolmogorov_kwargs
-                                 ).dilate(size).shear(g1=g1, g2=g2)
+        if self.atmosphere_model == 'kolmogorov':
+            size = params[0] + params[3]
+            g1 = params[1] + params[4]
+            g2 = params[2] + params[5]
+            atmo = galsim.Kolmogorov(gsparams=self.gsparams,
+                                     **self.kolmogorov_kwargs
+                                     ).dilate(size).shear(g1=g1, g2=g2)
+        elif self.atmosphere_model == 'vonkarman':
+            size = params[0] + params[4]
+            g1 = params[1] + params[5]
+            g2 = params[2] + params[6]
+            L0 = params[3]
+            kolmogorov_kwargs = {'lam': self.kolmogorov_kwargs['lam'],
+                                 'r0': self.kolmogorov_kwargs['r0'] / size,
+                                 'L0': L0,}
+            atmo = galsim.VonKarman(gsparams=self.gsparams,
+                                    **kolmogorov_kwargs).shear(g1=g1, g2=g2)
 
         # convolve together
         prof = galsim.Convolve([opt, atmo], gsparams=self.gsparams)
@@ -799,7 +898,6 @@ class OptAtmoPSF(PSF):
 
     def drawProfile(self, star, prof, params, use_fit=True, copy_image=True):
         """Generate PSF image for a given star and profile
-
         :param star:        Star instance holding information needed for
                             interpolation as well as an image/WCS into which
                             PSF will be rendered.
@@ -807,7 +905,6 @@ class OptAtmoPSF(PSF):
         :param params:      Params associated with profile to put in the star.
         :param use_fit:     Bool [default: True] shift the profile by a star's
                             fitted center and multiply by its fitted flux
-
         :returns:           Star instance with its image filled with rendered
                             PSF
         """
@@ -850,16 +947,14 @@ class OptAtmoPSF(PSF):
                             PSF
         """
         # use flux and center properties
-	star = Star.makeTarget(x=x, y=y, image=fitted_image, pointing=pointing, flux=flux)
+        star = Star.makeTarget(x=x, y=y, image=fitted_image, pointing=pointing, flux=flux)
         return star
 
     def drawStar(self, star, copy_image=True):
         """Generate PSF image for a given star.
-
         :param star:        Star instance holding information needed for
                             interpolation as well as an image/WCS into which
                             PSF will be rendered.
-
         :returns:           Star instance with its image filled with rendered
                             PSF
         """
@@ -871,14 +966,11 @@ class OptAtmoPSF(PSF):
 
     def drawStarList(self, stars, copy_image=True):
         """Generate PSF images for given stars.
-
         :param stars:       List of Star instances holding information needed
                             for interpolation as well as an image/WCS into
                             which PSF will be rendered.
-
         :returns:           List of Star instances with its image filled with
                             rendered PSF
-
         Slightly different from drawStar because we get all params at once
         """
         # get all params at once
@@ -889,11 +981,9 @@ class OptAtmoPSF(PSF):
 
     def _update_optatmopsf(self, optatmo_psf_kwargs={}, logger=None):
         """Update the state of the PSF's field components
-
         :param optatmo_psf_kwargs:      A dictionary containing the keys we are
                                         updating, like "size" or
                                         "zPupil004_zFocal001"
-
         :param logger:                  A logger object for logging debug info
         """
         logger = LoggerWrapper(logger)
@@ -915,7 +1005,7 @@ class OptAtmoPSF(PSF):
             elif 'max_' in key:
                 continue
 
-            # size, g1, g2 mean constant terms
+            # size, g1, g2 mean constant terms.
             if key == 'size':
                 pupil_index = 1
                 focal_index = 1
@@ -959,12 +1049,10 @@ class OptAtmoPSF(PSF):
 
     def measure_shape(self, star, return_error=True, logger=None):
         """Measure the shape of a star using the HSM algorithm
-
         :param star:                Star we want to measure
         :param return_error:        Bool. If True, also measure the error
                                     [default: True]
         :param logger:              A logger object for logging debug info
-
         :returns:                   Shape (and error if return_error) in
                                     unnormalized basis
         """
@@ -975,9 +1063,7 @@ class OptAtmoPSF(PSF):
 
         shape = np.array(values[:6])
         if np.any(shape != shape):
-            # TODO: not tested. Add test for terrible image ethat should fail
-            #raise ModelFitError
-            pass
+            raise ModelFitError
 
         # flux is underestimated empirically
         shape[0] = shape[0] / 0.92
@@ -1037,68 +1123,23 @@ class OptAtmoPSF(PSF):
 
         return error
 
-    def measure_shape_classic(self, star, return_error=True, return_only_error=False, logger=None):
-        """Measure the shape of a star using the HSM algorithm
-
-        :param star:                Star we want to measure
-        :param return_error:        Bool. If True, also measure the error
-                                    [default: True]
-        :param logger:              A logger object for logging debug info
-
-        :returns:                   Shape (and error if return_error) in
-                                    specified basis
-        """
-        logger = LoggerWrapper(logger)
-        if return_error:
-            # do in unnormalized basis by default
-            flux, u0, v0, e0, e1, e2, sigma_flux, sigma_u0, sigma_v0, sigma_e0, sigma_e1, sigma_e2 = hsm_error(star, return_debug=False, logger=logger, return_error=return_error)
-            error = [sigma_e0, sigma_e1, sigma_e2]
-        else:
-            flux, u0, v0, e0, e1, e2 = hsm_error(star, return_debug=False, logger=logger, return_error=False)
-
-#         # flux is underestimated empirically
-#         flux = flux / 0.92
-
-        # flux estimation is problematic. Works best for galsim profiles if we just record matched filter flux from array
-        flux = (star.image.array * star.image.array * star.weight.array).sum()
-
-        shape = [e0, e1, e2]
-
-        if np.any(shape != shape):
-            # TODO: not tested. Add test for terrible image ethat should fail
-            #raise ModelFitError
-            pass
-
-        logger.debug('Measured Shape is {0}'.format(str(shape)))
-        if return_error and not return_only_error:
-            logger.debug('Measured Error is {0}'.format(str(error)))
-            return shape, error
-        elif return_error and return_only_error:
-            return error
-        else:
-            return shape
-
     @staticmethod
     def measure_snr(star):
         """Calculate the signal-to-noise of a given star. Calls util
         measure_snr function
-
         :param star:    Input star, with stamp, weight
-
         :returns:       signal to noise ratio
         """
         return measure_snr(star)
 
     def fit_optics(self, stars, shapes, errors, mode, logger=None, **kwargs):
         """Fit interpolated PSF model to star shapes.
-
         :param stars:       A list of Stars
         :param shapes:      A list of premeasured Star shapes
         :param errors:      A list of premeasured Star shape errors
         :param mode:        Parameter mode ['analytic', 'shape', 'pixel']. Dictates which residual function we use.
         :param logger:      A logger object for logging debug info.
                             [default: None]
-
         Notes
         -----
         This model leverages the fact that the j-th measured HSM shape of the
@@ -1107,10 +1148,8 @@ class OptAtmoPSF(PSF):
         I have an analytic function I defined in advance that takes f(a_{ik})
         and returns e_{ij}. The optical model is specified at given focal
         plane coordinates [u, v] by a sum over Zernike polynomials:
-
         a_{ik} (u_i, v_i) = \sum_{\ell} b_{k \ell} Z_{\ell} (u_i, v_i)
                             + a^{reference}_{k}(u_i, v_i)
-
         Having measured the shapes of stars, e_{ij} with errors \sigma_{ij}, we
         then find the optimal b_{k \ell}
         """
@@ -1120,6 +1159,7 @@ class OptAtmoPSF(PSF):
 
         # save reference wavefront values so we don't keep calling it during fit
         if self.reference_wavefront: self._create_cache(stars, logger=logger)
+        if self.reference_wavefront: self._create_cache_higher_order(stars, logger=logger)
 
         lmparams = self._fit_optics_lmparams(self.optatmo_psf_kwargs, self.keys)
         if mode == 'analytic':
@@ -1150,9 +1190,19 @@ class OptAtmoPSF(PSF):
             raise KeyError('Unrecognized fit mode: {0}'.format(mode))
 
         # do fit!
-        results = lmfit.minimize(residual, lmparams, args=(stars, shapes, errors, logger,), epsfcn=1e-5)
+        regr_dictionary = {}
+        try:
+            for m, moment in enumerate(np.array(["e0", "e1", "e2", "zeta1", "zeta2", "delta1", "delta2"])):
+                with open('/nfs/slac/kipac/fs1/g/des/aresh/random_forest_shapes_model_pickles/random_forest_shapes_model_{0}.cpickle'.format(moment), 'rb') as f:
+                    regr = cPickle.load(f)  
+                    regr_dictionary[moment] = regr          
+        except:
+            regr_dictionary = {"e0":None,"e1":None,"e2":None,"zeta1": None,"zeta2":None,"delta1":None,"delta2":None}         
+        if mode == 'analytic':
+            results = lmfit.minimize(residual, lmparams, args=(stars, shapes, errors, regr_dictionary, logger,), epsfcn=1e-5)
+        else:
+            results = lmfit.minimize(residual, lmparams, args=(stars, shapes, errors, logger,), epsfcn=1e-5)
 
-        logger.info(lmfit.fit_report(results, min_correl=0.5))
         if mode == 'pixel':
             # smooth vars
             self._fit_pixel_sizes_vars = self._fit_pixel_sizes_vars + 1e-4 ** 2
@@ -1207,7 +1257,7 @@ class OptAtmoPSF(PSF):
                 key_i += 1
         self._update_optatmopsf(self.optatmo_psf_kwargs, logger=logger)
 
-        logger.info('Analytic Optical fit from lmfit parameters:')
+        logger.info('{0} optical fit from lmfit parameters:'.format(mode))
         logger.info(lmfit.fit_report(results, min_correl=0.5))
 
         # save results for debugging purposes
@@ -1215,11 +1265,11 @@ class OptAtmoPSF(PSF):
 
         # remove saved values when we are done with the fit
         if self.reference_wavefront: self._delete_cache(logger=logger)
+        if self.reference_wavefront: self._delete_cache_higher_order(logger=logger)
 
     def fit_size(self, stars, shapes, shape_errors, logger=None, **kwargs):
         """Adjust size from analytic fit by doing forced search of 501 steps +-
         0.1 about analytic fit
-
         :param stars:           A list of Star instances.
         :param shapes:          A list of premeasured Star shapes
         :param shape_errors:    A list of premeasured Star shape errors
@@ -1232,12 +1282,21 @@ class OptAtmoPSF(PSF):
 
         # save reference wavefront values so we don't keep calling it during fit
         if self.reference_wavefront: self._create_cache(stars, logger=logger)
+        if self.reference_wavefront: self._create_cache_higher_order(stars, logger=logger)
 
         # make kwargs with only size
         Ns = kwargs.pop('Ns', 501)
         dparam = kwargs.pop('dparam', 0.3)  # search +- this range
         param = self.optatmo_psf_kwargs['size']
         fit_size_kwargs = {'size': param, 'min_size': param - dparam, 'max_size': param + dparam}
+        # make sure we don't go too crazy
+        min_size = self.optatmo_psf_kwargs['min_size']
+        if fit_size_kwargs['min_size'] < min_size:
+            fit_size_kwargs['min_size'] = min_size
+        max_size = self.optatmo_psf_kwargs['max_size']
+        if fit_size_kwargs['max_size'] < max_size:
+            fit_size_kwargs['max_size'] = max_size
+
         lmparams = self._fit_optics_lmparams(fit_size_kwargs, ['size'])
 
         # do fit
@@ -1259,88 +1318,12 @@ class OptAtmoPSF(PSF):
         self._fit_size_results = results
 
         if self.reference_wavefront: self._delete_cache(logger=logger)
+        if self.reference_wavefront: self._delete_cache_higher_order(logger=logger)
 
-    # TODO: update kwargs
-    def fit_optics_third_moments(self, stars, shapes, shape_errors, shapes_third_moments, shape_errors_third_moments, logger=None, **kwargs):
-        """Fit interpolated PSF model to star data using standard sequence of
-        operations.
-
-        :param stars:           A list of Star instances.
-        :param logger:          A logger object for logging debug info.
-                                [default: None]
-        """
-        logger = LoggerWrapper(logger)
-        import lmfit
-        logger.info("Start fitting Optical fit for {0} stars and {1} shapes".format(len(stars), len(shapes)))
-
-        # save reference wavefront values so we don't keep calling it during fit
-        if self.reference_wavefront: self._create_cache(stars, logger=logger)
-
-        lmparams = self._fit_optics_lmparams(self.optatmo_psf_kwargs, self.keys)
-
-        # do fit
-        #results = lmfit.minimize(self._fit_optics_third_moments_residual, lmparams, args=(stars, shapes, shape_errors, shapes_third_moments, logger,), method='leastsq')
-
-	print("")
-	print("")
-	nan_count = 0
-	for shape_i, shape in enumerate(shapes):
-	    if np.any(np.isnan(shape)):
-		print("nan found for {0}".format(shape_i))
-		nan_count = nan_count +1
-	print("shape nan_count: {0}".format(nan_count))
-
-	nan_count = 0
-	for shape_error_i, shape_error in enumerate(shape_errors):
-	    if np.any(np.isnan(shape_error)):
-		print("nan found for {0}".format(shape_error_i))
-		nan_count = nan_count +1
-	print("shape_error nan_count: {0}".format(nan_count))
-
-	nan_count = 0
-	for shape_third_moments_i, shape_third_moments in enumerate(shapes_third_moments):
-	    if np.any(np.isnan(shape_third_moments)):
-		print("nan found for {0}".format(shape_third_moments_i))
-		nan_count = nan_count +1
-	print("shape_third_moments nan_count: {0}".format(nan_count))
-
-	print("lmparams: {0}".format(lmparams))
-
-	print("shapes_third_moments: {0}".format(shapes_third_moments))
-
-        results = lmfit.minimize(self._fit_optics_third_moments_residual, lmparams, args=(stars, shapes, shape_errors, shapes_third_moments, shape_errors_third_moments, logger,))
-
-        # set final fit
-        logger.info('Optical fit from lmfit parameters:')
-        logger.info(lmfit.fit_report(results, min_correl=0.5))
-
-        key_i = 0
-        for key in self.keys:
-            if not self.optatmo_psf_kwargs['fix_' + key]:
-                val = results.params.valuesdict()[key]
-                self.optatmo_psf_kwargs[key] = val
-
-                try:
-                    err = np.sqrt(results.covar[key_i, key_i])
-                    self.optatmo_psf_kwargs['error_' + key] = err
-                except TypeError:
-                    # covar is None for Reasons.
-                    placeholder_error = 10000
-                    logger.warning('No Error calculated for parameter {0}! Replacing with large number {1}!'.format(key, placeholder_error))
-                    self.optatmo_psf_kwargs['error_' + key] = placeholder_error
-                key_i += 1
-        self._update_optatmopsf(self.optatmo_psf_kwargs, logger=logger)
-
-        # save this for debugging purposes
-        self._fit_optics_results = results
-
-        if self.reference_wavefront: self._delete_cache(logger=logger)
-
-    def fit_atmosphere(self, stars, core_directory, exposure,
+    def fit_atmosphere(self, stars,
                        chisq_threshold=0.1, max_iterations=30, logger=None):
         """Fit interpolated PSF model to star data using standard sequence of
         operations. Will also reject with outliers
-
         :param stars:           A list of Star instances.
         :param chisq_threshold: Change in reduced chisq at which iteration will
                                 terminate. If no outliers is provided, this is
@@ -1363,7 +1346,7 @@ class OptAtmoPSF(PSF):
         model_fitted_stars = []
         for star_i, star in zip(range(len(stars)), stars):
             try:
-                model_fitted_star, results = self.fit_model(star, params=params[star_i], vary_shape=True, vary_optics=False, return_results=True, logger=logger)
+                model_fitted_star, results = self.fit_model(star, params=params[star_i], vary_shape=True, vary_optics=False, mode=self.fit_atmosphere_mode, logger=logger)
                 model_fitted_stars.append(model_fitted_star)
             except (KeyboardInterrupt, SystemExit):
                 raise
@@ -1375,6 +1358,23 @@ class OptAtmoPSF(PSF):
         stripped_stars = self.stripStarList(model_fitted_stars, logger=logger)
         stars = stripped_stars
 
+        if self.atmo_mad_outlier:
+            logger.info('Stripping MAD outliers from star fit params of atmosphere')
+            params = np.array([s.fit.params for s in stars])
+            madp = np.abs(params - np.median(params, axis=0)[np.newaxis])
+            madcut = np.all(madp <= 5 * 1.48 * np.median(madp)[np.newaxis] + 1e-8, axis=1)
+            mad_stars = []
+            for si, s, keep in zip(range(len(stars)), stars, madcut):
+                if keep:
+                    mad_stars.append(s)
+                else:
+                    logger.debug('Removing star {0} based on MAD. params are {1}'.format(si, str(params[si])))
+            if len(mad_stars) != len(stars):
+                logger.info('Stripped stars from {0} to {1} based on 5sig MAD cut'.format(len(stars), len(mad_stars)))
+            stars = mad_stars
+        fitted_model_params = [s.fit.params for s in stars]
+        fitted_model_params_var = [s.fit.params_var for s in stars]
+
         # fit interpolant
         logger.info("Initializing atmo interpolator")
         stars = self.atmo_interp.initialize(stars, logger=logger)
@@ -1385,58 +1385,47 @@ class OptAtmoPSF(PSF):
             # with no outliers, no need to do the below cycle
             self.atmo_interp.solve(stars, logger=logger)
         else:
+            # get the params again after all the stars
             oldchisq = 0.
             for iteration in range(max_iterations):
                 nremoved = 0
                 logger.warning("Iteration %d: Fitting %d stars", iteration+1, len(stars))
 
-                new_stars = []
-                params = self.getParamsList(stars)
-                for star_i, star in zip(range(len(stars)), stars):
-                    try:
-                        model_fitted_star, results = self.fit_model(star, params=params[star_i], vary_shape=True, vary_optics=False, logger=logger)
-                        new_stars.append(model_fitted_star)
-                    except (KeyboardInterrupt, SystemExit):
-                        raise
-                    except Exception as e:
-                        logger.warning('{0}'.format(str(e)))
-                        logger.warning('Warning! Failed to fit atmosphere model for star {0}. Ignoring star in atmosphere fit'.format(star_i))
-                logger.debug("Stripping star fit params down to just atmosphere params for atmo_interp")
-                stripped_stars = self.stripStarList(new_stars, logger=logger)
-                stars = stripped_stars
-
-
-                logger.debug("             Calculating the interpolation")
+                #####
+                # outliers
+                #####
+                # solve atmo_interp with the reduced set of stars
+                stars = self.atmo_interp.initialize(stars, logger=logger)
                 self.atmo_interp.solve(stars, logger=logger)
 
-                # Refit and recenter all stars, collect stats
-                logger.debug("             Re-fluxing stars")
-                new_stars = []
-                interpolated_stars = self.atmo_interp.interpolateList(stars)
-                for s_interp in interpolated_stars:
-                    try:
-                        new_star = self.reflux(s_interp,logger=logger)  # fit params come from model fit of just flux, du, dv while other params come from interpolation
-                    except (KeyboardInterrupt, SystemExit):
-                        raise
-                    except Exception as e:  # pragma: no cover
-                        logger.warning("Caught exception:")
-                        logger.warning("Failed trying to reflux star at %s.  Excluding it.",
-                                           s_interp.image_pos)
-                        nremoved += 1
-                    else:
-                        new_stars.append(new_star)
-                # need to not strip stars because we need the chisq and dof for outlier rejection
-                stars = new_stars
+                # create new stars including atmo interp
+                params = self.getParamsList(stars)
+                stars_interp = self.atmo_interp.interpolateList(stars)
+                aberrations_atmo_star = np.array([star.fit.params for star in stars_interp])
+                params[:, 0:self.n_params_atmosphere] += aberrations_atmo_star
 
-                if self.outliers:
-                    # Perform outlier rejection
-                    logger.debug("             Looking for outliers")
-                    stars, nremoved1 = self.outliers.removeOutliers(stars, logger=logger)
-                    if nremoved1 == 0:
-                        logger.debug("             No outliers found")
-                    else:
-                        logger.info("             Removed %d outliers", nremoved1)
-                    nremoved += nremoved1
+                # refluxing star and get chisq
+                refluxed_stars = []
+                for param, star in zip(params, stars_interp):
+                    refluxed_star, res = self.fit_model(star, param, vary_shape=False, vary_optics=False, logger=logger)
+                    refluxed_stars.append(refluxed_star)
+
+                # put back into the refluxed stars the fitted model params. This way when outliers returns the new list, we won't have to refit those parameters (which will be the same as earlier)
+                reparam_stars = []
+                for params, params_var, star in zip(fitted_model_params, fitted_model_params_var, refluxed_stars):
+                    new_star = Star(star.data, StarFit(params, params_var=params_var, flux=star.fit.flux, center=star.fit.center, chisq=star.fit.chisq, dof=star.fit.dof, alpha=star.fit.alpha, beta=star.fit.beta, worst_chisq=star.fit.worst_chisq))
+                    reparam_stars.append(new_star)
+
+                # Perform outlier rejection
+                logger.debug("             Looking for outliers")
+                nonoutlier_stars, nremoved1 = self.outliers.removeOutliers(reparam_stars, logger=logger)
+                if nremoved1 == 0:
+                    logger.debug("             No outliers found")
+                else:
+                    logger.info("             Removed %d outliers", nremoved1)
+                nremoved += nremoved1
+
+                stars = nonoutlier_stars
 
                 chisq = np.sum([s.fit.chisq for s in stars])
                 dof   = np.sum([s.fit.dof for s in stars])
@@ -1452,23 +1441,10 @@ class OptAtmoPSF(PSF):
             else:
                 logger.warning("PSF fit did not converge.  Max iterations = %d reached.", max_iterations)
 
-	try:
-            chisq = np.sum([s.fit.chisq for s in stars])
-            dof   = np.sum([s.fit.dof for s in stars])
-	    redchi = chisq / dof
-	except:
-	    print("failed to get redchi")
-    	    pass
-	try:
-	    np.save("{0}/npy_storage/redchi/{1}.npy".format(core_directory, exposure), np.array([redchi]))
-	except:
-	    print("failed to save redchi")
-    	    pass
         return model_fitted_stars, stars
 
-    def fit_model(self, star, params, vary_shape=True, return_results=False, guesses = [0.0, 0.0, 0.0, 0.0], replacements = [0.0, 0.0, 0.0, 0.0], vary_optics=False, minimize_kwargs={'method': 'leastsq', 'epsfcn': 1e-5, 'maxfev': 1000}, logger=None):
+    def fit_model(self, star, params, vary_shape=True, vary_optics=False,  mode='pixel', minimize_kwargs={'method': 'leastsq', 'epsfcn': 1e-5, 'maxfev': 1000}, logger=None):
         """Fit model to star's pixel data. Always vary flux and center, but also can selectively vary atmospheric terms and Zernike coefficients
-
         :param star:        A Star instance
         :param params:      An array of initial star parameters like one would
                             get from getParams
@@ -1477,10 +1453,10 @@ class OptAtmoPSF(PSF):
         :param vary_optics: Boolean. If true, will vary Zernike coefficients
                             during fit [default: False]. This is only
                             moderately useful in most in focus cases.
+        :param mode:        Parameter mode ['shape', 'pixel']. Dictates which residual function we use. Default is pixel
         :param minimize_kwargs: A set of parameters to pass in for changing the
                             way lmfit does the minimization.
         :param logger:      A logger object for logging debug info. [default: None]
-
         :returns:           New Star instance and results, with updated flux,
                             center, chisq, dof, and fit params and params_var
         """
@@ -1488,21 +1464,11 @@ class OptAtmoPSF(PSF):
         import lmfit
         # create lmparameters
         # put in initial guesses for flux, du, dv if they exist
-	if guesses[0] == 0.0:
-            flux = star.fit.flux
-            du, dv = star.fit.center
-	else:
-	    flux = guesses[1]
-	    du = guesses[2]
-	    dv = guesses[3]
+        flux = star.fit.flux
         if flux == 1.:
             # a pretty reasonable first guess is to just take the sum of the pixels
             flux = star.image.array.sum()
-        print("guess_flux: {0}".format(flux))
-        print("guess_du: {0}".format(du))
-        print("guess_dv: {0}".format(dv))
-        #print("")
-	snr = self.measure_snr(star)
+        du, dv = star.fit.center
         lmparams = lmfit.Parameters()
         # Order of params is important!
         lmparams.add('flux', value=flux, vary=True, min=0.0)
@@ -1519,24 +1485,31 @@ class OptAtmoPSF(PSF):
         fit_size = params[0]
         fit_g1 = params[1]
         fit_g2 = params[2]
-        opt_size = params[3]
-        opt_g1 = params[4]
-        opt_g2 = params[5]
+        opt_size = params[self.n_params_atmosphere + 0]
+        opt_g1 = params[self.n_params_atmosphere + 1]
+        opt_g2 = params[self.n_params_atmosphere + 2]
         lmparams.add('atmo_size', value=fit_size, vary=vary_shape, min=min_size - opt_size, max=max_size - opt_size)
-        lmparams.add('atmo_g1', value=fit_g1,   vary=vary_shape, min=-max_g - opt_g1, max=max_g - opt_g1)
-        lmparams.add('atmo_g2', value=fit_g2,   vary=vary_shape, min=-max_g - opt_g2, max=max_g - opt_g2)
+        lmparams.add('atmo_g1', value=fit_g1, vary=vary_shape, min=-max_g - opt_g1, max=max_g - opt_g1)
+        lmparams.add('atmo_g2', value=fit_g2, vary=vary_shape, min=-max_g - opt_g2, max=max_g - opt_g2)
+        if self.atmosphere_model == 'vonkarman':
+            fit_L0 = params[3]
+            lmparams.add('atmo_L0', value=fit_L0, vary=vary_shape, min=1, max=2000)
         # add other params to the params model
         # we do NOT vary the optics size, g1, g2
         lmparams.add('optics_size', value=opt_size, vary=False)
         lmparams.add('optics_g1', value=opt_g1, vary=False)
         lmparams.add('optics_g2', value=opt_g2, vary=False)
-        for i, pi in enumerate(params[6:]):
+        for i, pi in enumerate(params[self.n_params_atmosphere + self.n_params_constant_atmosphere:]):
             # we do allow zernikes to vary
             lmparams.add('optics_zernike_{0}'.format(i + 4), value=pi, vary=vary_optics, min=-5, max=5)
 
+        if mode == 'shape':
+            residual = self._fit_model_shape_residual
+        elif mode == 'pixel':
+            residual = self._fit_model_residual
+
         # do fit
-	print("preparing to do fit_model fit")
-        results = lmfit.minimize(self._fit_model_residual, lmparams,
+        results = lmfit.minimize(residual, lmparams,
                                  args=(star, logger,),
                                  **minimize_kwargs)
         logger.debug(lmfit.fit_report(results, min_correl=0.5))
@@ -1551,65 +1524,34 @@ class OptAtmoPSF(PSF):
             param = results.params[key]
             fit_params[indx] = param.value
             if hasattr(param, 'stderr'):
-                params_var[indx] = param.stderr ** 2
+                try:
+                    params_var[indx] = param.stderr ** 2
+                except TypeError:
+                    # no errors, so leave as zero
+                    pass
 
         flux = results.params['flux'].value
         du = results.params['du'].value
         dv = results.params['dv'].value
-
-        if replacements[0]!=0.0:
-            flux = replacements[1]
-            du = replacements[2]
-            dv = replacements[3]
-        print("flux: {0}".format(flux))
-        print("du: {0}".format(du))
-        print("dv: {0}".format(dv))
-        print("snr: {0}".format(snr))
-        #if vary_shape:
-        #    fit_params = np.array([results.params['size'].value, results.params['g1'].value, results.params['g2'].value])
-        #    if results.errorbars:
-        #        params_var = np.diag(results.covar)[3:]
-        #    else:
-        #        params_var = np.zeros(len(params))
-        #else:
-        #    try:
-        #        fit_params = star.fit.params
-        #    except AttributeError:
-        #        fit_params = None
-        #    try:
-        #        params_var = star.fit.params_var
-        #    except AttributeError:
-        #        params_var = None
         center = (du, dv)
         chisq = results.chisqr
         dof = results.nfree
-	iterations = results.nfev
-        print("chisq: {0}".format(chisq))
-        print("dof: {0}".format(dof))
-        print("iterations: {0}".format(iterations))	
-        print("max_iterations: {0}".format(200))	
-	print("")
         fit = StarFit(fit_params, params_var=params_var, flux=flux, center=center,
                       chisq=chisq, dof=dof)
         star_fit = Star(star.data, fit)
-        if return_results:
-            return star_fit, results
-        else:
-            return star_fit
+        return star_fit, results
 
-    @classmethod
-    def stripStarList(cls, stars, logger=None):
+    def stripStarList(self, stars, logger=None):
         """take star fits and strip fit params to just the first three
         parameters, which correspond to the atmospheric terms. Keep flux and
         center but get rid of everything else
-
         :param stars:           A list of Star instances.
         :param logger:          A logger object for logging debug info.
                                 [default: None]
-
         :returns:               A list of stars with only num_keep fit params
         """
-        num_keep = 3  # hard coded
+        # num_keep = 3  # hard coded
+        num_keep = self.n_params_atmosphere
         new_stars = []
         for star_i, star in enumerate(stars):
             try:
@@ -1632,10 +1574,8 @@ class OptAtmoPSF(PSF):
 
     def adjustStarList(self, stars, logger=None):
         """Fit the Model to the star's data, varying only the flux and center.
-
         :param stars:       A list of Stars
         :param logger:      A logger object for logging debug info. [default: None]
-
         :returns:           New Star instances, with updated flux, center, chisq, dof
         """
         logger = LoggerWrapper(logger)
@@ -1648,22 +1588,17 @@ class OptAtmoPSF(PSF):
 
     def adjustStar(self, star, logger=None):
         """Fit the Model to the star's data, varying only the flux and center.
-
         :param star:        A Star instance
         :param logger:      A logger object for logging debug info. [default: None]
-
         :returns:           New Star instance, with updated flux, center, chisq, dof
         """
         return self.adjustStarList([star], logger=logger)[0]
 
     def reflux(self, star, logger=None):
         """Fit the Model to the star's data, varying only the flux and center. This puts one of the options for fit_model into the regular Piff syntax.
-
         :param star:        A Star instance
         :param logger:      A logger object for logging debug info. [default: None]
-
         :returns:           New Star instance, with updated flux, center, chisq, dof
-
         Notes
         -----
         This is just adjustStar but with a name more like other Piff models
@@ -1673,7 +1608,6 @@ class OptAtmoPSF(PSF):
     @staticmethod
     def analytic_shapes(params, analytic_coefs, logger=None):
         """Function that takes zernike coefficients and a predefined analytic relation and returns a list of shapes
-
         :param params:      A list of lists of coefficients [size, g1, g2, z4,
                             z5...] (nstars, ncoefficients) Note that these
                             coefficients have compressed the atmo_size and
@@ -1681,7 +1615,6 @@ class OptAtmoPSF(PSF):
                             for g1, g2
         :param analytic_coefs:  Structure that folds out the anlytic relation
         :param logger:      A logger object for logging debug info. [default: None]
-
         :returns:           A list of shapes (nstars, nshapes)
         """
         logger = LoggerWrapper(logger)
@@ -1701,7 +1634,6 @@ class OptAtmoPSF(PSF):
 
     def _fit_optics_lmparams(self, optatmo_psf_kwargs, keys):
         """turns optatmo_psf_kwargs and set of keys to fit into an lmparams object
-
         :param optatmo_psf_kwargs:  Dictionary with keys like (for parameter
                                     "size") size [value to start fit at],
                                     fix_size [do not allow parameter to vary],
@@ -1709,10 +1641,8 @@ class OptAtmoPSF(PSF):
                                     allowed for size during fit]. If None of
                                     these are specified, will fill with guessed
                                     values.
-
         :param keys:                List of keys we want to add to the lmfit
                                     parameters.
-
         :returns lmparams:          An lmfit Parameters object
         """
         import lmfit
@@ -1739,16 +1669,14 @@ class OptAtmoPSF(PSF):
             lmparams.add(key, value=value, vary=vary, min=min, max=max)
         return lmparams
 
-    def _fit_analytic_residual(self, lmparams, stars, shapes, shape_errors, logger=None):
+    def _fit_analytic_residual(self, lmparams, stars, shapes, shape_errors, regr_dictionary, logger=None):
         """Residual function for fitting optics via analytics
-
         :param lmparams:    LMFit Parameters object
         :param stars:       A list of Stars
         :param shapes:      A list of premeasured Star shapes
         :param errors:      A list of premeasured Star shape errors
         :param logger:      A logger object for logging debug info.
                             [default: None]
-
         :returns chi:       Chi of observed shapes to model shapes
         """
         logger = LoggerWrapper(logger)
@@ -1757,17 +1685,22 @@ class OptAtmoPSF(PSF):
 
         # get star params
         params_all = self.getParamsList(stars)
-        params = params_all[:, 3:]
-        # also throw in the atmo params
-        params[:, :3] += params_all[:, :3]
+        param_values_all_stars = params_all[:,self.n_params_atmosphere:self.n_params_atmosphere+11]
+        # ignore the atmosphere params
+        params = params_all[:, self.n_params_atmosphere:]
 
         # generate analytic star moments
-        shapes_model = self.analytic_shapes(params, self.analytic_coefs)
-        shape_weights = self._shape_weights
+        shapes_model_list = []
+        for m, moment in enumerate(np.array(["e0", "e1", "e2", "zeta1", "zeta2", "delta1", "delta2"])):    
+            regr = regr_dictionary[moment]    
+            shapes_model_list.append(regr.predict(param_values_all_stars))
+        shapes_model = np.column_stack(tuple(shapes_model_list))
+        #shapes_model = self.analytic_shapes(params, self.analytic_coefs)
+        shape_weights = self._shape_weights[:7]
 
-        # calculate chi
-        shapes = shapes[:, 3:]
-        errors = shape_errors[:, 3:]
+        # calculate chi. Exclude measurements of flux and centroids
+        shapes = shapes[:, 3:10]
+        errors = shape_errors[:, 3:10]
         chi = (shape_weights[None] * (shapes_model - shapes) / errors).flatten()
         logger.debug('Current Chi2 / dof is {0:.4e} / {1}'.format(np.sum(np.square(chi)), len(chi)))
 
@@ -1777,16 +1710,13 @@ class OptAtmoPSF(PSF):
         """Residual function for fitting the optics size parameter to the
         observed size. Function calls _fit_optics_residual and then takes only
         the size parameter.
-
         :param lmparams:    LMFit Parameters object
         :param stars:       A list of Stars
         :param shapes:      A list of premeasured Star shapes
         :param errors:      A list of premeasured Star shape errors
         :param logger:      A logger object for logging debug info.
                             [default: None]
-
         :returns chi:       Chi of observed size to model size
-
         Notes
         -----
         This is done by forward modeling the PSF and measuring its shape via HSM
@@ -1794,22 +1724,22 @@ class OptAtmoPSF(PSF):
         logger = LoggerWrapper(logger)
         # extract chi on size only and remove the shape_weight
         chi = self._fit_optics_residual(lmparams, stars, shapes, shape_errors, logger)
-        chi = chi[0::3] / self._shape_weights[0]
+	print("chi: {0}".format(chi))
+        #chi = chi[0::7] / self._shape_weights[0]
+        chi = chi[0] / self._shape_weights[0]	
+        print("chi: {0}".format(chi))
         return chi
 
     def _fit_optics_residual(self, lmparams, stars, shapes, shape_errors, logger=None):
         """Residual function for fitting the optics parameters to the observed
         shapes. Fitting is done via lmfit.
-
         :param lmparams:    LMFit Parameters object
         :param stars:       A list of Stars
         :param shapes:      A list of premeasured Star shapes
         :param errors:      A list of premeasured Star shape errors
         :param logger:      A logger object for logging debug info.
                             [default: None]
-
         :returns chi:       Chi of observed size to model size
-
         Notes
         -----
         This is done by forward modeling the PSF and measuring its shape via HSM
@@ -1827,23 +1757,30 @@ class OptAtmoPSF(PSF):
             params = opt_params[i]
             shape = shapes[i]
             error = shape_errors[i]
+            if i % 100 == 0:
+                print("shape: ")
+                print(shape)
 
             try:
                 # get profile; modify based on flux and shifts
                 profile = self.getProfile(params)
 
                 # measure final shape
+                if i % 100 == 0:
+                    print("params: ")
+                    print(params)
+
                 star_model = self.drawProfile(star, profile, params)
-                shape_model = self.measure_shape(star_model, return_error=False)
+                shape_model = self.measure_shape_third_moments(star_model)
+                if i % 100 == 0:
+                    print("shape_model: ")
+                    print(shape_model)
                 if np.any(shape_model != shape_model):
                     logger.warning('Star {0} returned nan shape'.format(i))
                     logger.warning('Parameters are {0}'.format(str(params)))
                     logger.warning('Input parameters are {0}'.format(str(lmparams.valuesdict())))
                     logger.warning('Filling with zero chi')
-		    shape_model = shape
-                #    indices = np.zeros_like(shape_model, dtype=bool)
-                #else:
-                #    indices = np.ones_like(shape_model, dtype=bool)
+                    shape_model = shape
             except (ModelFitError, RuntimeError) as e:
                 logger.warning(str(e))
                 logger.warning('Star {0}\'s model failed to be drawn and measured.'.format(i))
@@ -1854,111 +1791,22 @@ class OptAtmoPSF(PSF):
 
             # don't care about flux, du, dv here
             chi_i = self._shape_weights * (((shape_model - shape) / error)[3:])
+            if i % 100 == 0:
+                print("chi_i: ")
+                print(chi_i)
             chi = np.hstack((chi, chi_i))
         logger.debug('Current Total Chi2 / dof is {0:.4e} / {1}'.format(np.sum(np.square(chi)), len(chi)))
-
-        return chi
-
-    def _fit_optics_third_moments_residual(self, lmparams, stars, shapes, shape_errors, shapes_third_moments, shape_errors_third_moments, logger=None):
-        """Residual function for fitting the optics parameters to the observed
-        shapes. Fitting is done via lmfit.
-
-        :param lmparams:    LMFit Parameters object
-        :param stars:       A list of Stars
-        :param shapes:      A list of premeasured Star shapes
-        :param errors:      A list of premeasured Star shape errors
-        :param logger:      A logger object for logging debug info.
-                            [default: None]
-
-        :returns chi:       Chi of observed size to model size
-
-        Notes
-        -----
-        This is done by forward modeling the PSF and measuring its shape via HSM
-        """
-	print("successfully entered _fit_optics_third_moments_residual!")
-        logger = LoggerWrapper(logger)
-        # update psf
-        self._update_optatmopsf(lmparams.valuesdict(), logger)
-
-        # get optical params
-        opt_params = self.getParamsList(stars)
-
-        # measure their shapes and calculate chi
-        chi = np.array([])
-
-	print("preparing to enter for loop!")
-
-        for i, star in enumerate(stars):
-            print("currently on star {0} in for loop!".format(i))
-            params = opt_params[i]
-            shape = shapes[i]
-            error = shape_errors[i]
-            shape_third_moments = shapes_third_moments[i]
-            error_third_moments = shape_errors_third_moments[i]
-            #error_third_moments = np.ones(10)
-            #error_third_moments[:6] = error
-
-            try:
-                # get profile; modify based on flux and shifts
-                profile = self.getProfile(params)
-
-                # measure final shape
-                star_model = self.drawProfile(star, profile, params)
-                shape_model = self.measure_shape_third_moments(star_model)
-		#error_third_moments[6:] = np.sqrt(np.abs(shape_model[6:]))
-                if np.any(shape_model != shape_model):
-                    logger.warning('Star {0} returned nan shape'.format(i))
-                    logger.warning('Parameters are {0}'.format(str(params)))
-                    logger.warning('Input parameters are {0}'.format(str(lmparams.valuesdict())))
-                    logger.warning('Filling with zero chi')
-		    shape_model = shape_third_moments
-                #    indices = np.zeros_like(shape_model, dtype=bool)
-                #else:
-                #    indices = np.ones_like(shape_model, dtype=bool)
-            except (ModelFitError, RuntimeError) as e:
-                logger.warning(str(e))
-                logger.warning('Star {0}\'s model failed to be drawn and measured.'.format(i))
-                logger.warning('Parameters are {0}'.format(str(params)))
-                logger.warning('Input parameters are {0}'.format(str(lmparams.valuesdict())))
-                logger.warning('Filling with zero chi')
-                shape_model = shape_third_moments
-
-            # don't care about flux, du, dv here
-
-	    print("preparing to calculate chi_i and add it to total chi for star {0}!".format(i))
-	    print("self._shape_weights_third_moments: {0}".format(self._shape_weights_third_moments))
-	    print("shape_model: {0}".format(shape_model))
-	    print("shape_third_moments: {0}".format(shape_third_moments))
-	    print("error_third_moments: {0}".format(error_third_moments))
-
-            chi_i = self._shape_weights_third_moments * (((shape_model - shape_third_moments) / error_third_moments)[3:])
-            chi = np.hstack((chi, chi_i))
-
-	    print("finished calculating chi_i and adding it to total chi for star {0}!".format(i))
-	    print("chi_i: {0}".format(chi_i))
-	    print("chi: {0}".format(chi))
-
-
-	print("now exiting for loop!")
-
-        logger.debug('Current Total Chi2 / dof is {0:.4e} / {1}'.format(np.sum(np.square(chi)), len(chi)))
-
-	print("preparing to return chi!")
-	print("chi: {0}".format(chi))
 
         return chi
 
     def _fit_optics_pixel_residual(self, lmparams, stars, shapes, errors, logger=None):
         """Residual function for fitting all stars.
-
         :param lmparams:    LMFit Parameters object
         :param stars:       A list of Stars
         :param shapes:      A list of premeasured Star shapes
         :param errors:      A list of premeasured Star shape errors
         :param logger:      A logger object for logging debug info.
                             [default: None]
-
         :returns chi:       Chi of observed pixels of all stars to model pixels after fitting for flux, centering, and atmospheric size / ellipticity
         """
         logger = LoggerWrapper(logger)
@@ -1981,9 +1829,10 @@ class OptAtmoPSF(PSF):
                 params[0] = self._fit_pixel_sizes[i]
                 params[1] = self._fit_pixel_g1s[i]
                 params[2] = self._fit_pixel_g2s[i]
+                # TODO: because I hardcoded the numbers, I start L0 from whatever my initial guess was, if we do vonkarman
 
-                # do fit
-                fitted_star, fitted_results = self.fit_model(star, params, vary_shape=True, vary_optics=False, logger=logger)
+                # do fit marginalizing over the atmosphere shape
+                fitted_star, fitted_results = self.fit_model(star, params, vary_shape=True, vary_optics=False, mode='pixel', logger=logger)
 
                 # draw star for evaluating the chi2
                 prof = self.getProfile(fitted_star.fit.params).shift(fitted_star.fit.center) * fitted_star.fit.flux
@@ -2015,14 +1864,35 @@ class OptAtmoPSF(PSF):
 
         return chi
 
-    def _fit_model_residual(self, lmparams, star, logger=None):
+    def _fit_model_shape_residual(self, lmparams, star, logger=None):
         """Residual function for fitting individual profile parameters
-
         :param lmparams:    lmfit Parameters object
         :param star:        A Star instance.
         :param logger:      A logger object for logging debug info.
                             [default: None]
+        :returns chi:       Chi of observed shape params to model params
+        """
+        logger = LoggerWrapper(logger)
 
+        all_params = lmparams.valuesdict().values()
+        flux, du, dv = all_params[:3]
+        params = all_params[3:]
+
+        profile = self.getProfile(params).shift(du, dv) * flux
+        star_model = self.drawProfile(star, profile, params, use_fit=False)
+        shape_model = self.measure_shape(star_model, return_error=False)
+        shape, error = self.measure_shape(star, return_error=True)
+
+        chi = (shape_model - shape) / error
+
+        return chi
+
+    def _fit_model_residual(self, lmparams, star, logger=None):
+        """Residual function for fitting individual profile parameters
+        :param lmparams:    lmfit Parameters object
+        :param star:        A Star instance.
+        :param logger:      A logger object for logging debug info.
+                            [default: None]
         :returns chi:       Chi of observed pixels to model pixels
         """
         logger = LoggerWrapper(logger)
@@ -2044,7 +1914,6 @@ class OptAtmoPSF(PSF):
         to keep calling getParams but we aren't changing the positions of the
         stars. The reference_wavefront.interpolateList call is relatively
         expensive, so we save the results from that step and skip it if we can.
-
         :param stars:   A list of stars
         :param logger:  A logger object for logging debug info [default: None]
         """
@@ -2059,6 +1928,36 @@ class OptAtmoPSF(PSF):
             logger.debug('Cache called, but no reference wavefront. Skipping')
             self._cache = False
             self._aberrations_reference_wavefront = None
+            
+    def _create_cache_higher_order(self, stars, logger=None):
+        """Save aberrations from the higher order reference wavefront. This is useful if we want
+        to keep calling getParams but we aren't changing the positions of the
+        stars.
+        :param stars:   A list of stars
+        :param logger:  A logger object for logging debug info [default: None]
+        """
+        if self.reference_wavefront: #if no reference wavefront, assume no higher order reference wavefront either
+            logger.debug('Caching higher order reference aberrations')
+            self._cache_higher_order = True
+            aberrations_higher_order_reference_wavefront = np.empty([len(stars),26])
+            for s, star in enumerate(stars):
+                star_data = star.data
+                star_data.local_wcs = star_data.image.wcs.local(star_data.image_pos)
+                x_value = star_data.local_wcs._x(star_data['u'], star_data['v'])
+                y_value = star_data.local_wcs._y(star_data['u'], star_data['v'])
+                x_value = x_value * (15.0/1000.0)
+                y_value = y_value * (15.0/1000.0)  
+                zout_camera = self.higher_order_reference_wavefront.get(x=x_value, y=y_value)
+                zout_sky = np.array([-zout_camera[0], zout_camera[1], zout_camera[2], -zout_camera[3], zout_camera[5], zout_camera[4], -zout_camera[7], -zout_camera[6], zout_camera[9], zout_camera[8], zout_camera[10], zout_camera[11], -zout_camera[12], -zout_camera[13], zout_camera[14], zout_camera[15], -zout_camera[16], zout_camera[18], zout_camera[17], -zout_camera[20], -zout_camera[19], zout_camera[22], zout_camera[21], -zout_camera[24], -zout_camera[23], zout_camera[25]])
+                aberrations_higher_order_reference_wavefront[s] = zout_sky
+            #clean_stars = [Star(star.data, None) for star in stars]
+            #interp_stars = self.reference_wavefront.interpolateList(clean_stars)
+            #aberrations_reference_wavefront = np.array([star_interpolated.fit.params for star_interpolated in interp_stars])
+            self._aberrations_higher_order_reference_wavefront = aberrations_higher_order_reference_wavefront
+        else:
+            logger.debug('Higher Order Cache called, but no reference wavefront. Skipping') #if no reference wavefront, assume no higher order reference wavefront either
+            self._cache_higher_order = False
+            self._aberrations_higher_order_reference_wavefront = None
 
     def _delete_cache(self, logger=None):
         """Delete reference wavefront cache.
@@ -2070,17 +1969,26 @@ class OptAtmoPSF(PSF):
             logger.debug('Delete cache called, but no reference wavefront. Skipping')
         self._cache = False
         self._aberrations_reference_wavefront = None
+        
+    def _delete_cache_higher_order(self, logger=None):
+        """Delete higher order reference wavefront cache.
+        :param logger:  A logger object for logging debug info [default: None]
+        """
+        if self.reference_wavefront: #if no reference wavefront, assume no higher order reference wavefront either
+            logger.debug('Clearing cache_higher_order of reference aberrations')
+        else:
+            logger.debug('Delete cache_higher_order called, but no reference wavefront. Skipping') #if no reference wavefront, assume no higher order reference wavefront either
+        self._cache_higher_order = False
+        self._aberrations_higher_order_reference_wavefront = None
 
 # some functions to interpret analytic relations
 @numba.jit
 def poly(X, coef, indices):
     """Given input value X, coef and indices, return list of values y
-
     :param X:           array of values [nstar, nvar] we make polynomial out of
                         that is one-hot (ie the first term of each entry is 1)
     :param coef:        sets of coefficients [ncoef]
     :param indices:     sets which indices we are multiplying together [ncoef, norder]
-
     :returns y:         [nstar] values of the polynomial
     """
 
@@ -2109,11 +2017,9 @@ def poly(X, coef, indices):
 @numba.jit
 def poly_full(X, indices):
     """Turn X into polynomial terms as defined by indices
-
     :param X:           array of values [nstar, nvar] we make polynomial out of
                         that is one-hot (ie the first term of each entry is 1)
     :param indices:     sets which indices we are multiplying together [ncoef, norder]
-
     :returns Xpoly:     [nstar, ncoef] values of the polynomial
     """
 

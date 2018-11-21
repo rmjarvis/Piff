@@ -141,8 +141,8 @@ class Input(object):
                     logger.info("Skipping star at position %f,%f with snr=%f."%(x,y,snr))
                     continue
                 if self.max_snr > 0 and snr > self.max_snr:
-                    logger.info("Skipping star at position %f,%f with snr=%f."%(x,y,snr))
-                    continue
+                    #logger.info("Skipping star at position %f,%f with snr=%f."%(x,y,snr))
+                    #continue
                     factor = (self.max_snr / snr)**2
                     logger.debug("Scaling noise by factor of %f to achieve snr=%f",
                                  factor, self.max_snr)
@@ -162,6 +162,7 @@ class Input(object):
                 nstars_in_image += 1
         logger.warning("Read a total of %d stars from %d image%s",len(stars),len(self.images),
                        "s" if len(self.images) > 1 else "")
+
 
 	flux_extras = []
 	for star in stars:
@@ -195,6 +196,8 @@ class Input(object):
 		delete_list.append(star_i)
 	stars = np.delete(stars, delete_list)
 	stars = stars.tolist()
+
+	logger.info("There are {0} stars after the nuisance star cut".format(len(stars)))
 	return stars
 
     @staticmethod
@@ -636,6 +639,8 @@ class InputFiles(Input):
 
         # Read in the star catalog
         logger.warning("Reading star catalog %s.",cat_file_name)
+	print("cat_file_name: {0}".format(cat_file_name))
+	print("cat_hdu: {0}".format(cat_hdu))
         cat = fitsio.read(cat_file_name, cat_hdu)
 
         # Remove any objects with flag != 0
