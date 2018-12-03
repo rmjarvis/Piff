@@ -145,6 +145,29 @@ class bootstrap_2pcf(object):
         """
         xi, distance, coord, mask = self.comp_2pcf(self.X, self.y, self.y_err)
 
+        # TreeCorr had some bad value on the edge when
+        # computing the 2D correlation function. Mask
+        # them for the moment. 
+        if self.anisotropy:
+            N = int(np.sqrt(len(xi)))
+            xi = xi.reshape(N,N)
+            XI = copy.deepcopy(xi)
+            mask = mask.reshape(N,N)
+            for i in range(N-1):
+                for j in range(N-1):
+                    if XI[i,j-1] == 0 or XI[i,j+1] ==0:
+                        mask[i,j] = False
+                        xi[i, j] = 0
+
+            for i in [0,-1]: 
+                mask[:,i] = False
+                mask[i] = False
+                xi[:,i] = 0
+                xi[i] = 0
+            
+            xi = xi.reshape(N*N)
+            mask = mask.reshape(N*N)
+
         # Choice done from Andy Taylor et al. 2012
         def f_bias(x, npixel=len(xi[mask])):
             top = x - 1.
@@ -236,6 +259,7 @@ class GPInterp2pcf(Interp):
         self._2pcf_weight = []
         self._2pcf_dist = []
         self._2pcf_fit = []
+        self._2pcf_mask = []
 
         if average_fits is not None:
             if npca != 0:
@@ -372,6 +396,7 @@ class GPInterp2pcf(Interp):
         self._2pcf_dist.append(distance)
         kernel = kernel.clone_with_theta(results)
         self._2pcf_fit.append(PCF(kernel.theta))
+        self._2pcf_mask.append(mask)
         return kernel
 
     def _predict(self, Xstar):
