@@ -248,9 +248,11 @@ def test_cols():
                 'image_file_name' : 'test_input_image_00.fits',
                 'cat_file_name' : 'test_input_cat_00.fits',
                 'flag_col' : 'flag',
+                'skip_flag' : 4
              }
     input = piff.InputFiles(config, logger=logger)
     assert len(input.image_pos) == 1
+    print('len = ',len(input.image_pos[0]))
     assert len(input.image_pos[0]) == 80
 
     # Similarly the use columns will skip anything with use == 0 (every 7th item here)
@@ -258,10 +260,12 @@ def test_cols():
                 'dir' : 'input',
                 'image_file_name' : 'test_input_image_00.fits',
                 'cat_file_name' : 'test_input_cat_00.fits',
-                'use_col' : 'use',
+                'flag_col' : 'flag',
+                'use_flag' : 1
              }
     input = piff.InputFiles(config, logger=logger)
     assert len(input.image_pos) == 1
+    print('len = ',len(input.image_pos[0]))
     assert len(input.image_pos[0]) == 85
 
     # Can do both
@@ -269,12 +273,26 @@ def test_cols():
                 'dir' : 'input',
                 'image_file_name' : 'test_input_image_00.fits',
                 'cat_file_name' : 'test_input_cat_00.fits',
-                'use_col' : 'use',
+                'flag_col' : 'flag',
+                'skip_flag' : '4',
+                'use_flag' : '1',
+             }
+    input = piff.InputFiles(config, logger=logger)
+    assert len(input.image_pos) == 1
+    print('len = ',len(input.image_pos[0]))
+    assert len(input.image_pos[0]) == 68
+
+    # If no skip_flag it specified, it skips all != 0.
+    config = {
+                'dir' : 'input',
+                'image_file_name' : 'test_input_image_00.fits',
+                'cat_file_name' : 'test_input_cat_00.fits',
                 'flag_col' : 'flag',
              }
     input = piff.InputFiles(config, logger=logger)
     assert len(input.image_pos) == 1
-    assert len(input.image_pos[0]) == 68
+    print('len = ',len(input.image_pos[0]))
+    assert len(input.image_pos[0]) == 12
 
     # Check invalid column names
     base_config = {
@@ -286,7 +304,10 @@ def test_cols():
     np.testing.assert_raises(ValueError, piff.InputFiles, dict(sky_col='xx', **base_config))
     np.testing.assert_raises(ValueError, piff.InputFiles, dict(gain_col='xx', **base_config))
     np.testing.assert_raises(ValueError, piff.InputFiles, dict(flag_col='xx', **base_config))
-    np.testing.assert_raises(ValueError, piff.InputFiles, dict(use_col='xx', **base_config))
+    np.testing.assert_raises(ValueError, piff.InputFiles,
+                             dict(flag_col='flag', skip_flag='xx', **base_config))
+    np.testing.assert_raises(ValueError, piff.InputFiles,
+                             dict(flag_col='flag', use_flag='xx', **base_config))
 
     # Can't give duplicate sky, gain
     np.testing.assert_raises(ValueError, piff.InputFiles, dict(sky_col='sky', sky=3, **base_config))
