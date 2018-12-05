@@ -598,6 +598,21 @@ class InputFiles(Input):
             weight.array[badpix.array != 0] = 0
         return image, weight
 
+    @staticmethod
+    def _flag_select(col, flag):
+        if len(col.shape) == 1:
+            # Then just treat this as a straightforward bitmask.
+            return col & flag
+        else:
+            # Then treat this as an array of bools rather than a bitmask
+            mask = np.zeros(col.shape[0], dtype=bool)
+            for bit in range(col.shape[1]):
+                if flag % 2 == 1:
+                    mask |= col[:,bit]
+                flag = flag // 2
+                if flag == 0: break
+            return mask
+
     def readStarCatalog(self, cat_file_name, cat_hdu, x_col, y_col,
                         ra_col, dec_col, ra_units, dec_units, wcs,
                         flag_col, skip_flag, use_flag, sky_col, gain_col,
@@ -640,17 +655,20 @@ class InputFiles(Input):
         if flag_col is not None:
             if flag_col not in cat.dtype.names:
                 raise ValueError("flag_col = %s is not a column in %s"%(flag_col,cat_file_name))
+            col = cat[flag_col]
+            if len(col.shape) == 2:
+                logger.warning("Flag col (%s) is multidimensional.  Treatin as an array of bool",
+                               flag_col)
             if use_flag is not None:
                 # Remove any objects with flag & use_flag == 0
-                mask = cat[flag_col] & use_flag == 0
+                mask = self._flag_select(col, use_flag) == 0
                 logger.info("Removing objects with flag (col %s) & %d == 0",flag_col,use_flag)
                 if skip_flag != -1:
-                    mask2 = cat[flag_col] & skip_flag != 0
-                    mask |= mask2
+                    mask |= self._flag_select(col, skip_flag) != 0
                     logger.info("Removing objects with flag (col %s) & %d != 0",flag_col,skip_flag)
             else:
                 # Remove any objects with flag & skip_flag != 0
-                mask = cat[flag_col] & skip_flag != 0
+                mask = self._flag_select(col, skip_flag) != 0
                 if skip_flag == -1:
                     logger.info("Removing objects with flag (col %s) != 0",flag_col)
                 else:
