@@ -143,7 +143,7 @@ def test_single_image():
     # Where to put the stars.  Include some flagged and not used locations.
     x_list = [ 123.12, 345.98, 567.25, 1094.94, 924.15, 1532.74, 1743.11, 888.39, 1033.29, 1409.31 ]
     y_list = [ 345.43, 567.45, 1094.32, 924.29, 1532.92, 1743.83, 888.83, 1033.19, 1409.20, 123.11 ]
-    flag_list = [ 1, 1, 13, 1, 1, 5, 1, 1, 1, 1 ]
+    flag_list = [ 1, 1, 13, 1, 1, 4, 1, 1, 0, 1 ]
 
     # Draw a Gaussian PSF at each location on the image.
     sigma = 1.3
@@ -155,7 +155,7 @@ def test_single_image():
         offset = galsim.PositionD( x-int(x)-0.5 , y-int(y)-0.5 )
         psf.drawImage(image=image[bounds], method='no_pixel', offset=offset)
         # corrupt the ones that are marked as flagged
-        if flag:
+        if flag & 4:
             print('corrupting star at ',x,y)
             ar = image[bounds].array
             im_max = np.max(ar) * 0.2
