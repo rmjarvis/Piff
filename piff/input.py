@@ -279,10 +279,14 @@ class InputFiles(Input):
                             the input catalogs.  Will use the WCS to find (x,y) [default: None]
             :dec_col:       (Alternative to x_col, y_col) The name of a declination column in
                             the input catalogs.  Will use the WCS to find (x,y) [default: None]
-            :flag_col:      The name of a flag column in the input catalogs.  Anything with
-                            flag != 0 is removed from the catalogs. [default: None]
-            :use_col:       The name of a use column in the input catalogs.  Anything with
-                            use == 0 is removed from the catalogs. [default: None]
+            :flag_col:      The name of a flag column in the input catalogs. [default: None]
+                            By default, this will skip any objects with flag != 0, but see
+                            skip_flag and use_flag for other possible meanings for how the
+                            flag column can be used to select stars.
+            :skip_flag:     The flag indicating which items to not use. [default: -1]
+                            Items with flag & skip_flag != 0 will be skipped.
+            :use_flag:      The flag indicating which items to use. [default: None]
+                            Items with flag & use_flag == 0 will be skipped.
             :sky_col:       The name of a column with sky values. [default: None]
             :gain_col:      The name of a column with gain values. [default: None]
             :sky:           The sky level to subtract from the image values. [default: None]
@@ -341,7 +345,8 @@ class InputFiles(Input):
                 'sky_col' : str,
                 'gain_col' : str,
                 'flag_col' : str,
-                'use_col' : str,
+                'skip_flag' : int,
+                'use_flag' : int,
                 'image_hdu' : int,
                 'weight_hdu' : int,
                 'badpix_hdu' : int,
@@ -505,7 +510,8 @@ class InputFiles(Input):
             ra_units = params.get('ra_units', 'deg')
             dec_units = params.get('dec_units', 'deg')
             flag_col = params.get('flag_col', None)
-            use_col = params.get('use_col', None)
+            skip_flag = params.get('skip_flag', -1)
+            use_flag = params.get('use_flag', None)
             sky_col = params.get('sky_col', None)
             gain_col = params.get('gain_col', None)
             sky = params.get('sky', None)
@@ -515,7 +521,7 @@ class InputFiles(Input):
             image_pos, sky, gain = self.readStarCatalog(
                     cat_file_name, cat_hdu, x_col, y_col,
                     ra_col, dec_col, ra_units, dec_units, image.wcs,
-                    flag_col, use_col, sky_col, gain_col,
+                    flag_col, skip_flag, use_flag, sky_col, gain_col,
                     sky, gain, nstars, image_file_name, logger)
             # Check for objects off the edge.  We won't use them.
             image_pos = [ pos for pos in image_pos if image.bounds.includes(pos) ]
@@ -594,7 +600,7 @@ class InputFiles(Input):
 
     def readStarCatalog(self, cat_file_name, cat_hdu, x_col, y_col,
                         ra_col, dec_col, ra_units, dec_units, wcs,
-                        flag_col, use_col, sky_col, gain_col,
+                        flag_col, skip_flag, use_flag, sky_col, gain_col,
                         sky, gain, nstars, image_file_name, logger):
         """Read in the star catalogs and return lists of positions for each star in each image.
 
@@ -608,7 +614,10 @@ class InputFiles(Input):
         :param dec_units:       The units of the dec column.
         :param wcs:             The WCS to use to convert from Ra,Dec -> x,y.
         :param flag_col:        The name of a column with flag values.
-        :param use_col:         The name of a column with use values.
+        :param skip_flag:       The flag indicating which items to not use. [default: -1]
+                                Items with flag & skip_flag != 0 will be skipped.
+        :param use_flag:        The flag indicating which items to use. [default: None]
+                                Items with flag & use_flag == 0 will be skipped.
         :param sky_col:         A column with sky (background) levels.
         :param gain_col:        A column with gain values.
         :param sky:             Either a float value for the sky to use for all objects or a str
@@ -628,19 +637,25 @@ class InputFiles(Input):
         logger.warning("Reading star catalog %s.",cat_file_name)
         cat = fitsio.read(cat_file_name, cat_hdu)
 
-        # Remove any objects with flag != 0
         if flag_col is not None:
             if flag_col not in cat.dtype.names:
                 raise ValueError("flag_col = %s is not a column in %s"%(flag_col,cat_file_name))
-            logger.info("Removing objects with flag (col %s) != 0",flag_col)
-            cat = cat[cat[flag_col]==0]
-
-        # Remove any objects with use == 0
-        if use_col is not None:
-            if use_col not in cat.dtype.names:
-                raise ValueError("use_col = %s is not a column in %s"%(use_col,cat_file_name))
-            logger.info("Removing objects with use (col %s) == 0",use_col)
-            cat = cat[cat[use_col]!=0]
+            if use_flag is not None:
+                # Remove any objects with flag & use_flag == 0
+                mask = cat[flag_col] & use_flag == 0
+                logger.info("Removing objects with flag (col %s) & %d == 0",flag_col,use_flag)
+                if skip_flag != -1:
+                    mask2 = cat[flag_col] & skip_flag != 0
+                    mask |= mask2
+                    logger.info("Removing objects with flag (col %s) & %d != 0",flag_col,skip_flag)
+            else:
+                # Remove any objects with flag & skip_flag != 0
+                mask = cat[flag_col] & skip_flag != 0
+                if skip_flag == -1:
+                    logger.info("Removing objects with flag (col %s) != 0",flag_col)
+                else:
+                    logger.info("Removing objects with flag (col %s) & %d != 0",flag_col,skip_flag)
+            cat = cat[mask == 0]
 
         # Limit to nstars objects
         if nstars is not None and nstars < len(cat):
