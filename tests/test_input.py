@@ -274,8 +274,8 @@ def test_cols():
                 'image_file_name' : 'test_input_image_00.fits',
                 'cat_file_name' : 'test_input_cat_00.fits',
                 'flag_col' : 'flag',
-                'skip_flag' : '4',
-                'use_flag' : '1',
+                'skip_flag' : '$2**2',
+                'use_flag' : '$2**0',
              }
     input = piff.InputFiles(config, logger=logger)
     assert len(input.image_pos) == 1
@@ -316,6 +316,48 @@ def test_cols():
     # Invalid header keys
     np.testing.assert_raises(KeyError, piff.InputFiles, dict(sky='sky', **base_config))
     np.testing.assert_raises(KeyError, piff.InputFiles, dict(gain='gain', **base_config))
+
+
+@timer
+def test_boolarray():
+    """Test the ability to use a flag_col that is really a boolean array rather than ints.
+    """
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(verbose=2)
+    else:
+        logger = piff.config.setup_logger(log_file='output/test_single_image.log')
+
+    cat_file_name = os.path.join('input', 'test_input_cat_00.fits')
+    data = fitsio.read(cat_file_name)
+    print('flag = ',data['flag'])
+    new_flag = np.empty((len(data), 50), dtype=bool)
+    for bit in range(50):
+        new_flag[:,bit] = data['flag'] & 2**bit != 0
+    print('new_flag = ',new_flag)
+    # Write out the catalog to a file
+    print('dtype = ',new_flag.dtype)
+    dtype = [ ('x','f8'), ('y','f8'), ('flag', bool, 50) ]
+    new_data = np.empty(len(data), dtype=dtype)
+    new_data['x'] = data['x']
+    new_data['y'] = data['y']
+    new_data['flag'] = new_flag
+    new_cat_file_name = os.path.join('input','test_input_boolarray.fits')
+    fitsio.write(new_cat_file_name, new_data, clobber=True)
+
+    # Specifiable columns are: x, y, flag, use, sky, gain.  (We'll do flag, use below.)
+    config = {
+                'dir' : 'input',
+                'image_file_name' : 'test_input_image_00.fits',
+                'cat_file_name' : 'test_input_boolarray.fits',
+                'x_col' : 'x',
+                'y_col' : 'y',
+                'flag_col' : 'flag',
+                'skip_flag' : '$2**1 + 2**2 + 2**39'
+             }
+    input = piff.InputFiles(config, logger=logger)
+    assert len(input.image_pos) == 1
+    print('len = ',len(input.image_pos[0]))
+    assert len(input.image_pos[0]) == 80
 
 
 @timer
@@ -712,6 +754,7 @@ if __name__ == '__main__':
     test_basic()
     test_invalid()
     test_cols()
+    test_boolarray()
     test_chipnum()
     test_weight()
     test_stars()
