@@ -99,18 +99,21 @@ class SingleChipPSF(PSF):
         # update stars from psf outlier rejection
         self.stars = [ star for chipnum in wcs for star in self.psf_by_chip[chipnum].stars ]
 
-    def drawStar(self, star):
+    def drawStar(self, star, copy_image=True):
         """Generate PSF image for a given star.
 
         :param star:        Star instance holding information needed for interpolation as
                             well as an image/WCS into which PSF will be rendered.
+        :param copy_image:          If False, will use the same image object.
+                                    If True, will copy the image and then overwrite it.
+                                    [default: True]
 
         :returns:           Star instance with its image filled with rendered PSF
         """
         if 'chipnum' not in star.data.properties:
             raise ValueError("SingleChip drawStar requires the star to have a chipnum property")
         chipnum = star['chipnum']
-        return self.psf_by_chip[chipnum].drawStar(star)
+        return self.psf_by_chip[chipnum].drawStar(star, copy_image=copy_image)
 
     def _finish_write(self, fits, extname, logger):
         """Finish the writing process with any class-specific steps.
