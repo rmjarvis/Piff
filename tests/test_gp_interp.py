@@ -440,6 +440,7 @@ def iterate_2pcf(stars, interp):
     print("chisq/dof: {0}".format(chisq/dof))
 
     interp.initialize(stars)
+
     oldchisq = 0.
     print()
     for iteration in range(10):
@@ -922,13 +923,11 @@ def test_anisotropic_rbf_kernel():
 
     for npca in npcas:
         for optimize in optimizes:
-            #print('Hey PF state:', npca, optimize)
             check_gp(training_data, validation_data, visualization_data, kernel+ "+ WhiteKernel(1e-5, (1e-7, 1e-2))",
                      npca=npca, optimize=optimize, file_name="test_anisotropic_rbf.fits",
                      rng=rng, check_config=check_config)
             check_gp_2pcf(training_data, validation_data, visualization_data, kernel,
                           npca=npca, anisotropy=True, optimize=optimize, rng=rng, check_config=True)
-
 
 @timer
 def test_vonkarman_kernel():
