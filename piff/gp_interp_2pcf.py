@@ -31,39 +31,43 @@ from .interp import Interp
 from .star import Star, StarFit
 
 class bootstrap_2pcf(object):
-    
+
     def __init__(self, X, y, y_err,
-                 MIN=0, MAX=10, nbins=20, anisotropy=False):
+                 MIN=None, MAX=None, nbins=20, anisotropy=False):
         """Fit statistical uncertaintie on two-point correlation function using bootstraping.
 
         :param X:           The independent covariates.  (n_samples, 2)
         :param y:           The dependent responses.  (n_samples, n_targets)
         :param y_err:       Error of y. (n_samples, n_targets)
-        :param MIN:         Minimum bin for treecorr. (float) 
+        :param MIN:         Minimum bin for treecorr. (float)
         :param MAX:         Maximum bin for treecorr. (float)
-        :param anisotropy:  2D 2-point correlation function. 
-                            Used 2D correlation function for the 
-                            fiting part of the GP. (Boolean) 
+        :param anisotropy:  2D 2-point correlation function.
+                            Used 2D correlation function for the
+                            fiting part of the GP. (Boolean)
         """
         self.X = X
         self.y = y
         self.y_err = y_err
+
+        size_x = np.max(self.X[:,0]) - np.min(self.X[:,0])
+        size_y = np.max(self.X[:,1]) - np.min(self.X[:,1])
+        rho = float(len(self.X[:,0])) / (size_x * size_y)
+        if MIN is None:
+            MIN = np.sqrt(1./rho)
+        if MAX is None:
+            MAX = np.sqrt(size_x**2 + size_y**2)/2.
+
         self.MIN = MIN
         self.MAX = MAX
         self.nbins = nbins
-        self.anisotropy = anisotropy        
+        self.anisotropy = anisotropy
 
     def resample_bootstrap(self):
         """
         Make a single bootstarp resampling on stars.
         """
         npsfs = len(self.y)
-        #u_ressample = np.zeros(npsfs)
-        #v_ressample = np.zeros(npsfs)
-        #y_ressample = np.zeros(npsfs)
-        #y_err_ressample = np.zeros(npsfs)
 
-        #for i in range(npsfs):
         ind_star = np.random.randint(0,npsfs-1, size=npsfs)
         u_ressample = self.X[:,0][ind_star]
         v_ressample = self.X[:,1][ind_star]
@@ -71,10 +75,10 @@ class bootstrap_2pcf(object):
         y_err_ressample = self.y_err[ind_star]
 
         return u_ressample, v_ressample, y_ressample, y_err_ressample
-    
+
     def comp_2pcf(self, X, y, y_err):
         """
-        Estimate 2-point correlation function using TreeCorr. 
+        Estimate 2-point correlation function using TreeCorr.
 
         :param X:  The independent covariates.  (n_samples, 2)
         :param y:  The dependent responses.  (n_samples, n_targets)
@@ -113,13 +117,12 @@ class bootstrap_2pcf(object):
             Coord = np.array([distance,np.zeros_like(distance)]).T
 
         return kk.xi, distance, Coord, mask
-
     
     def comp_xi_covariance(self, n_bootstrap=1000, mask=None, seed=610639139):
         """
-        Estimate 2-point correlation function covariance matrix using Bootstrap. 
+        Estimate 2-point correlation function covariance matrix using Bootstrap.
 
-        :param seed: seed of the random generator. 
+        :param seed: seed of the random generator.
         """
         np.random.seed(seed)
         xi_bootstrap = []
@@ -129,25 +132,25 @@ class bootstrap_2pcf(object):
             xi, d, c, m = self.comp_2pcf(coord, y, y_err)
             if mask is None:
                 mask = np.array([True]*len(xi))
-                
+
             xi_bootstrap.append(xi[mask])
         xi_bootstrap = np.array(xi_bootstrap)
 
         dxi = xi_bootstrap - np.mean(xi_bootstrap, axis=0)
-        xi_cov = 1./(len(dxi)-1.) * np.dot(dxi.T, dxi)    
+        xi_cov = 1./(len(dxi)-1.) * np.dot(dxi.T, dxi)
         return xi_cov
-    
+
     def return_2pcf(self, seed=610639139):
         """
-        Return 2-point correlation function and its variance using Bootstrap. 
+        Return 2-point correlation function and its variance using Bootstrap.
 
-        :param seed: seed of the random generator. 
+        :param seed: seed of the random generator.
         """
         xi, distance, coord, mask = self.comp_2pcf(self.X, self.y, self.y_err)
 
         # TreeCorr had some bad value on the edge when
         # computing the 2D correlation function. Mask
-        # them for the moment. 
+        # them for the moment.
         if self.anisotropy:
             N = int(np.sqrt(len(xi)))
             xi = xi.reshape(N,N)
@@ -159,30 +162,28 @@ class bootstrap_2pcf(object):
                         mask[i,j] = False
                         xi[i, j] = 0
 
-            for i in [0,-1]: 
+            for i in [0,-1]:
                 mask[:,i] = False
                 mask[i] = False
                 xi[:,i] = 0
                 xi[i] = 0
-            
             xi = xi.reshape(N*N)
             mask = mask.reshape(N*N)
 
-        # Choice done from Andy Taylor et al. 2012
-        def f_bias(x, npixel=len(xi[mask])):
-            top = x - 1.
-            bottom = x - npixel - 2.
-            return (top/bottom) - 2.
-        results = optimize.fsolve(f_bias, len(xi[mask]) + 10)
-        xi_cov = self.comp_xi_covariance(n_bootstrap=int(results[0]), mask=mask, seed=seed)
-        bias_factor = (int(results[0]) - 1.) / (int(results[0]) - len(xi[mask]) - 2.)
-        
-        xi_weight = np.linalg.inv(xi_cov) * bias_factor
-        #xi_cov = np.eye(len(xi))*np.std(self.y) # TO REMOVE
-        #xi_weight = np.linalg.inv(xi_cov) # TO REMOVE 
+            # Choice done from Andy Taylor et al. 2012
+            def f_bias(x, npixel=len(xi[mask])):
+                top = x - 1.
+                bottom = x - npixel - 2.
+                return (top/bottom) - 2.
+            results = optimize.fsolve(f_bias, len(xi[mask]) + 10)
+            xi_cov = self.comp_xi_covariance(n_bootstrap=int(results[0]), mask=mask, seed=seed)
+            bias_factor = (int(results[0]) - 1.) / (int(results[0]) - len(xi[mask]) - 2.)
+            xi_weight = np.linalg.inv(xi_cov) * bias_factor
+        else:
+            # let like developed initialy for the moment
+            xi_weight = np.eye(len(xi)) * 1./np.var(self.y)
 
         return xi, xi_weight, distance, coord, mask
-
 
 class GPInterp2pcf(Interp):
     """
@@ -335,7 +336,7 @@ class GPInterp2pcf(Interp):
         size_x = np.max(X[:,0]) - np.min(X[:,0])
         size_y = np.max(X[:,1]) - np.min(X[:,1])
         rho = float(len(X[:,0])) / (size_x * size_y)
-        if self.min_sep:
+        if self.min_sep is not None:
             MIN = self.min_sep
         else:
             if self.anisotropy:
@@ -374,22 +375,23 @@ class GPInterp2pcf(Interp):
         #results_bfgs = optimize.minimize(chi2, p0, method="L-BFGS-B")
         #results = results_bfgs['x']
 
-        #import pylab as plt
+        import pylab as plt
+        
+        print(self.optimize, 'JE PLOT FRANCIS')
+        plt.figure()
+        cov = np.linalg.inv(xi_weight)
+        v = cov.diagonal()
+        plt.imshow(cov/np.sqrt(v*v[:,None]), cmap=plt.cm.seismic, vmin=-1, vmax=1)
+        plt.colorbar()
 
-        #plt.figure()
-        #cov = np.linalg.inv(xi_weight)
-        #v = cov.diagonal()
-        #plt.imshow(cov/np.sqrt(v*v[:,None]), cmap=plt.cm.seismic, vmin=-1, vmax=1)
-        #plt.colorbar()
-
-        #if not self.anisotropy:
-        #    plt.figure()
-        #    plt.scatter(distance, xi)
-        #    plt.fill_between(distance, xi-np.sqrt(v), xi+np.sqrt(v),
-        #                     alpha=0.3, color='b', label='bootstrap error')
-        #    plt.plot(distance, PCF(kernel.theta))
-        #    plt.ylim(np.min([np.min(xi),np.min(PCF(kernel.theta))]), np.max([np.max(xi),np.max(PCF(kernel.theta))]))
-        #plt.show()
+        if not self.anisotropy:
+            plt.figure()
+            plt.scatter(distance, xi)
+            plt.fill_between(distance, xi-np.sqrt(v), xi+np.sqrt(v),
+                             alpha=0.3, color='b', label='bootstrap error')
+            plt.plot(distance, PCF(kernel.theta))
+            plt.ylim(np.min([np.min(xi),np.min(PCF(kernel.theta))]), np.max([np.max(xi),np.max(PCF(kernel.theta))]))
+        plt.show()
 
         self._2pcf.append(xi)
         self._2pcf_weight.append(xi_weight)
