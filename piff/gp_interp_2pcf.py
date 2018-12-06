@@ -375,23 +375,22 @@ class GPInterp2pcf(Interp):
         #results_bfgs = optimize.minimize(chi2, p0, method="L-BFGS-B")
         #results = results_bfgs['x']
 
-        import pylab as plt
+        ##import pylab as plt
         
-        print(self.optimize, 'JE PLOT FRANCIS')
-        plt.figure()
-        cov = np.linalg.inv(xi_weight)
-        v = cov.diagonal()
-        plt.imshow(cov/np.sqrt(v*v[:,None]), cmap=plt.cm.seismic, vmin=-1, vmax=1)
-        plt.colorbar()
-
-        if not self.anisotropy:
-            plt.figure()
-            plt.scatter(distance, xi)
-            plt.fill_between(distance, xi-np.sqrt(v), xi+np.sqrt(v),
-                             alpha=0.3, color='b', label='bootstrap error')
-            plt.plot(distance, PCF(kernel.theta))
-            plt.ylim(np.min([np.min(xi),np.min(PCF(kernel.theta))]), np.max([np.max(xi),np.max(PCF(kernel.theta))]))
-        plt.show()
+        ##plt.figure()
+        ##cov = np.linalg.inv(xi_weight)
+        ##v = cov.diagonal()
+        ##plt.imshow(cov/np.sqrt(v*v[:,None]), cmap=plt.cm.seismic, vmin=-1, vmax=1)
+        ##plt.colorbar()
+        ##plt.show()
+        ##if not self.anisotropy:
+        ##    plt.figure()
+        ##    plt.scatter(distance, xi)
+        ##    plt.fill_between(distance, xi-np.sqrt(v), xi+np.sqrt(v),
+        ##                     alpha=0.3, color='b', label='bootstrap error')
+        ##    plt.plot(distance, PCF(kernel.theta))
+        ##    plt.ylim(np.min([np.min(xi),np.min(PCF(kernel.theta))]), np.max([np.max(xi),np.max(PCF(kernel.theta))]))
+        ##plt.show()
 
         self._2pcf.append(xi)
         self._2pcf_weight.append(xi_weight)
@@ -532,7 +531,6 @@ class GPInterp2pcf(Interp):
                                         y_err[:,i], logger=logger)
             if logger:
                 logger.info('param %d: %s',i,kernel.set_params())
-
 
     def interpolate(self, star, logger=None):
         """Perform the interpolation to find the interpolated parameter vector at some position.
