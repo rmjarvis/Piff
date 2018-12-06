@@ -442,7 +442,7 @@ class InputFiles(Input):
             logger.debug('cat_list = %s',cat_list)
             if nimages is not None and nimages != len(cat_list):
                 raise ValueError("nimages = %s doesn't match length of cat_file_name list (%d)"%(
-                        config['nimages'], len(cat_list)))
+                        nimages, len(cat_list)))
             nimages = len(cat_list)
             logger.debug('nimages = %d',nimages)
             config['cat_file_name'] = {
@@ -657,7 +657,7 @@ class InputFiles(Input):
                 raise ValueError("flag_col = %s is not a column in %s"%(flag_col,cat_file_name))
             col = cat[flag_col]
             if len(col.shape) == 2:
-                logger.warning("Flag col (%s) is multidimensional.  Treatin as an array of bool",
+                logger.warning("Flag col (%s) is multidimensional.  Treating as an array of bool",
                                flag_col)
             if use_flag is not None:
                 # Remove any objects with flag & use_flag == 0
