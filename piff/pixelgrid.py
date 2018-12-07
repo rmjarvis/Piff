@@ -288,7 +288,6 @@ class PixelGrid(Model):
         :returns: a star instance with the appropriate initial fit values
         """
         var = np.zeros(len(self._initial_params))
-        fit = StarFit(self._initial_params, star.fit.flux, star.fit.center, params_var=var)
         if mask:
             # Null weight at pixels where interpolation coefficients
             # come up short of specified fraction of the total kernel
@@ -296,8 +295,8 @@ class PixelGrid(Model):
 
             _, _, u, v = star.data.getDataVector()
             # Subtract star.fit.center from u, v:
-            u -= fit.center[0]
-            v -= fit.center[1]
+            u -= star.fit.center[0]
+            v -= star.fit.center[1]
             coeffs, psfx, psfy = self.interp(u/self.du, v/self.du)
             # Turn the (psfx,psfy) coordinates into an index into 1d parameter vector.
             index1d = self._indexFromPsfxy(psfx, psfy)
@@ -306,8 +305,13 @@ class PixelGrid(Model):
             coeffs = np.where(index1d < 0, 0., coeffs)
             use = np.sum(coeffs,axis=1) > required_kernel_fraction
             data = star.data.maskPixels(use)
+        else:
+            data = star.data
+        # Start with the sum of pixels as initial estimate of flux.
+        flux = data.image.array.sum()
+        fit = StarFit(self._initial_params, flux, star.fit.center, params_var=var)
         star = Star(data, fit)
-        # Update the flux to something close to right.
+        # Update the flux to something closer to right.
         star = self.reflux(star, fit_center=False, logger=logger)
         return star
 
