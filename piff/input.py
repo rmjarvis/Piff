@@ -352,6 +352,7 @@ class InputFiles(Input):
                 'badpix_hdu' : int,
                 'cat_hdu' : int,
                 'invert_weight' : bool,
+                'remove_signal_from_weight' : bool,
                 'stamp_size' : int,
                 'gain' : str,
                 'min_snr' : float,
@@ -498,7 +499,6 @@ class InputFiles(Input):
 
             self.image_file_name.append(image_file_name)
             self.images.append(image)
-            self.weight.append(weight)
 
             # Read the catalog
             cat_file_name = params['cat_file_name']
@@ -526,6 +526,27 @@ class InputFiles(Input):
             # Check for objects off the edge.  We won't use them.
             image_pos = [ pos for pos in image_pos if image.bounds.includes(pos) ]
 
+            if config.get('remove_signal_from_weight', False):
+                # Subtract off the mean sky, since this isn't part of the "signal" we want to
+                # remove from the weights.
+                if sky is None:
+                    signal = image
+                else:
+                    signal = image - np.mean(sky)
+                # For the gain, either all are None or all are values.
+                if gain[0] is None:
+                    # If None, then we want to estimate the gain from the weight image.
+                    weight, g = self._removeSignalFromWeight(signal, weight)
+                    gain = [g for _ in gain]
+                    logger.warning("Empirically determined gain = %f",g)
+                else:
+                    # If given, use the mean gain when removing the signal.
+                    # This isn't quite right, but hopefully the gain won't vary too much for
+                    # different objects, so it should be close.
+                    weight, _ = self._removeSignalFromWeight(signal, weight, gain=np.mean(gain))
+                logger.info("Removed signal from weight image.")
+
+            self.weight.append(weight)
             self.cat_file_name.append(cat_file_name)
             self.image_pos.append(image_pos)
             self.sky.append(sky)
@@ -539,6 +560,34 @@ class InputFiles(Input):
         ra = config.get('ra',None)
         dec = config.get('dec',None)
         self.setPointing(ra, dec, logger)
+
+
+    @staticmethod
+    def _removeSignalFromWeight(image, weight, gain=None):
+        """Remove the image signal from the weight map.
+
+        :param image:   The image to use as the signal
+        :param weight:  The weight image.
+        :param gain:    Optionally, the gain to use as the proportionality relation.
+                        If gain is None, then it will be estimated automatically and returned.
+                        [default: None]
+
+        :returns: newweight, gain
+        """
+        signal = image.array
+        variance = 1./weight.array
+
+        use = (weight.array != 0.) & np.isfinite(signal)
+
+        if gain is None:
+            fit = np.polyfit(signal[use].flatten(), variance[use].flatten(), deg=1)
+            gain = 1./fit[0]  # fit is [ 1/gain, sky_var ]
+
+        variance[use] -= signal[use] / gain
+
+        newweight = weight.copy()
+        newweight.array[use] = 1. / variance[use]
+        return newweight, gain
 
 
     def readImage(self, image_file_name, image_hdu, weight_hdu, badpix_hdu, noise, logger):
