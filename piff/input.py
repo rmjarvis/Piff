@@ -184,9 +184,12 @@ class Input(object):
         # S/N = F / sqrt(var(F))
         I = image.array
         w = weight.array
-        flux = (w*I*I).sum(dtype=float)
-        snr = flux**0.5
-        return snr
+        mask = np.isfinite(I) & np.isfinite(w)
+        flux = (w[mask]*I[mask]**2).sum(dtype=float)
+        if flux <= 0.:
+            return 0.
+        else:
+            return flux**0.5
 
     def getWCS(self, logger=None):
         """Get the WCS solutions for all the chips in the field of view.
