@@ -460,7 +460,8 @@ class RhoStats(Stats):
         ax.plot(meanr, xip, color=color)
         ax.plot(meanr, -xip, color=color, ls=':')
         ax.errorbar(meanr[xip>0], xip[xip>0], yerr=sig[xip>0], color=color, ls='', marker=marker)
-        ax.errorbar(meanr[xip<0], -xip[xip<0], yerr=sig[xip<0], color=color, ls='', marker=marker)
+        ax.errorbar(meanr[xip<0], -xip[xip<0], yerr=sig[xip<0], color=color, ls='', marker=marker,
+                    fillstyle='none', mfc='white')
         return ax.errorbar(-meanr, xip, yerr=sig, color=color, marker=marker)
 
     def plot(self, logger=None, **kwargs):
