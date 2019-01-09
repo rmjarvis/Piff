@@ -361,7 +361,7 @@ class GPInterp2pcf(Interp):
         xi_mask = xi[mask]
         def chi2(param):
             residual = xi_mask - PCF(param)[mask]
-            return residual.dot(xi_weight.dot(residual)) #np.sum(residual**2/xi_var_mask)
+            return residual.dot(xi_weight.dot(residual))
 
         p0 = kernel.theta
 
@@ -371,26 +371,6 @@ class GPInterp2pcf(Interp):
         chi2_min = [chi2(results[0]), chi2(results[1])]
         ind_min = chi2_min.index(min(chi2_min))
         results = results[ind_min]
-
-        #results_bfgs = optimize.minimize(chi2, p0, method="L-BFGS-B")
-        #results = results_bfgs['x']
-
-        ##import pylab as plt
-        
-        ##plt.figure()
-        ##cov = np.linalg.inv(xi_weight)
-        ##v = cov.diagonal()
-        ##plt.imshow(cov/np.sqrt(v*v[:,None]), cmap=plt.cm.seismic, vmin=-1, vmax=1)
-        ##plt.colorbar()
-        ##plt.show()
-        ##if not self.anisotropy:
-        ##    plt.figure()
-        ##    plt.scatter(distance, xi)
-        ##    plt.fill_between(distance, xi-np.sqrt(v), xi+np.sqrt(v),
-        ##                     alpha=0.3, color='b', label='bootstrap error')
-        ##    plt.plot(distance, PCF(kernel.theta))
-        ##    plt.ylim(np.min([np.min(xi),np.min(PCF(kernel.theta))]), np.max([np.max(xi),np.max(PCF(kernel.theta))]))
-        ##plt.show()
 
         self._2pcf.append(xi)
         self._2pcf_weight.append(xi_weight)
