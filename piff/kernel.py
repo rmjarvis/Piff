@@ -345,6 +345,7 @@ class AnisotropicVonKarman(StationaryKernelMixin, NormalizedKernelMixin, Kernel)
             lim0 = special.gamma(5./6.) /(2 * ((np.pi)**(5./6.)) )
             K = squareform(K)
             np.fill_diagonal(K, lim0)
+            K /= lim0
         else:
             if eval_gradient:
                 raise ValueError(
@@ -352,9 +353,10 @@ class AnisotropicVonKarman(StationaryKernelMixin, NormalizedKernelMixin, Kernel)
             dists = cdist(X, Y, metric='mahalanobis', VI=self.invLam)
             K = dists **(5./6.) *  special.kv(5./6., 2*np.pi * dists)
             Filter = np.isfinite(K)
+            lim0 = special.gamma(5./6.) /(2 * ((np.pi)**(5./6.)) )
             if np.sum(Filter) != len(K[0])*len(K[:,0]):
-                lim0 = special.gamma(5./6.) /(2 * ((np.pi)**(5./6.)) )
                 K[~Filter] = lim0
+            K /= lim0
 
         if eval_gradient:
             raise ValueError(

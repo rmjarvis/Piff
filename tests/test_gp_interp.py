@@ -37,6 +37,30 @@ star_type = np.dtype([('u', float),
                       ('v0', float),
                       ('flux', float)])
 
+def get_correlation_length_matrix(correlation_length, g1, g2):
+    """
+    Produce correlation matrix to introduce anisotropy in kernel. 
+    Used same parametrization as shape measurement in weak-lensing 
+    because this is mathematicaly equivalent (anistropic kernel 
+    will have an elliptical shape).
+
+    :param correlation_length: Correlation lenght of the kernel.
+    :param g1, g2:             Shear applied to isotropic kernel.
+    """
+    if abs(g1)>1:
+        g1 = 0
+    if abs(g2)>1:
+        g2 = 0
+    e = np.sqrt(g1**2 + g2**2)
+    q = (1-e) / (1+e)
+    phi = 0.5 * np.arctan2(g2, g1)
+    rot = np.array([[np.cos(phi), np.sin(phi)],
+                    [-np.sin(phi), np.cos(phi)]])
+    ell = np.array([[correlation_length**2, 0],
+                    [0, (correlation_length * q)**2]])
+    L = np.dot(rot.T, ell.dot(rot))
+    return L
+
 
 def make_star(hlr, g1, g2, u0, v0, flux, noise=0., du=1., fpu=0., fpv=0., nside=32,
               nom_u0=0., nom_v0=0., rng=None):
@@ -823,9 +847,6 @@ def test_grf_psf():
                      npca=npca, optimize=optimize,
                      file_name="test_aniso_isotropic_grf.fits", rng=rng,
                      check_config=check_config)
-            #check_gp_2pcf(training_data, validation_data, visualization_data, kernel,
-            #              npca=npca, optimize=optimize, anisotropy=True, file_name="test_gp_grf.fits", rng=rng,
-            #              check_config=check_config)
 
 @timer
 def test_vonkarman_psf():
@@ -848,6 +869,9 @@ def test_vonkarman_psf():
             ntrain, nvalidate, nvisualize)
 
     kernel = "0.01*VonKarman(2., (1e-1, 1e1))"
+    invLam = np.array([[0.25,0],
+                       [0,0.25]])
+    anisotropic_kernel = "0.01*AnisotropicVonKarman(invLam={0!r})".format(invLam)
 
     for npca in npcas:
         for optimize in optimizes:
@@ -977,6 +1001,63 @@ def test_vonkarman_kernel():
 
             np.testing.assert_allclose(ker_piff, ker_test, atol=1e-12)
             np.testing.assert_allclose(corr_piff, corr_test, atol=1e-12)
+
+@timer
+def test_anisotropic_vonkarman_kernel():
+    from scipy import special
+    from scipy.spatial.distance import pdist, squareform
+
+    corr_length = [1., 30. ,30. ,30., 30.]
+    g1 = [0, 0.4, 0.4, -0.4, -0.4]
+    g2 = [0, 0.4, -0.4, 0.4, -0.4]
+    kernel_amp = [1e-4, 1e-3, 1e-2, 1., 1.]
+    dist = np.linspace(0,10,100)
+    coord = np.array([dist,dist]).T
+
+    dist = np.linspace(-10,10,21)
+    #coord_corr = np.array([dist,np.zeros_like(dist)]).T
+
+    X, Y = np.meshgrid(dist,dist)
+    x = X.reshape(len(dist)**2)
+    y = Y.reshape(len(dist)**2)
+    coord_corr = np.array([x, y]).T
+
+    def _anisotropic_vonkarman_kernel(x, sigma, corr_length, g1, g2):
+        L = get_correlation_length_matrix(corr_length, g1, g2)
+        invL = np.linalg.inv(L)
+        dists = pdist(x, metric='mahalanobis', VI=invL)
+        K = dists **(5./6.) *  special.kv(5./6., 2*np.pi * dists)
+        lim0 = special.gamma(5./6.) /(2 * ((np.pi)**(5./6.)) )
+        K = squareform(K)
+        np.fill_diagonal(K, lim0)
+        K /= lim0
+        K *= sigma**2
+        return K
+        
+    def _anisotropic_vonkarman_corr_function( x, y, sigma, 
+                                              corr_length, g1, g2):
+        L = get_correlation_length_matrix(corr_length, g1, g2)
+        l = np.linalg.inv(L)
+        dist_a = (l[0,0]*x*x) + (2*l[0,1]*x*y) + (l[1,1]*y*y)
+        z = dist_a**(5./12.) *  special.kv(5./6., 2*np.pi * np.sqrt(dist_a))
+        Filter = np.isfinite(z)
+        lim0 = special.gamma(5./6.) /(2 * ((np.pi)**(5./6.)) )
+        if np.sum(Filter) != len(z):
+            z[~Filter] = lim0
+        z /= lim0
+        return z*sigma**2
+    
+    for i in range(5):
+        L = get_correlation_length_matrix(corr_length[i], g1[i], g2[i])
+        inv_L = np.linalg.inv(L)
+        ker = kernel_amp[i]**2 * piff.AnisotropicVonKarman(invLam=inv_L)
+        ker_piff = ker.__call__(coord)
+        corr_piff = ker.__call__(coord_corr,Y=np.zeros_like(coord_corr))[:,0]
+        ker_test = _anisotropic_vonkarman_kernel(coord, kernel_amp[i], corr_length[i], g1[i], g2[i])
+        corr_test = _anisotropic_vonkarman_corr_function(x, y, kernel_amp[i],
+                                                         corr_length[i], g1[i], g2[i])
+        np.testing.assert_allclose(ker_piff, ker_test, atol=1e-12)
+        np.testing.assert_allclose(corr_piff, corr_test, atol=1e-12)
 
 @timer
 def test_yaml():
@@ -1188,29 +1269,18 @@ if __name__ == '__main__':
     # pr = cProfile.Profile()
     # pr.enable()
     test_constant_psf()
-    print('OK TEST 1')
     test_polynomial_psf()
-    print('OK TEST 2')
     test_grf_psf()
-    print('OK TEST 3')
     test_vonkarman_psf()
-    print('OK TEST 4')
     test_anisotropic_rbf_kernel()
-    print('OK TEST 5')
     test_gp_with_kernels()
-    print('OK TEST 6')
     test_vonkarman_kernel()
-    print('OK TEST 7')
+    test_anisotropic_vonkarman_kernel()
     test_yaml()
-    print('OK TEST 8')
     test_anisotropic_limit()
-    print('OK TEST 9')
     test_guess()
-    print('OK TEST 10')
     test_guess_2pcf()
-    print('OK TEST 11')
     test_anisotropic_guess()
-    print('OK TEST 12')
     # pr.disable()
     # ps = pstats.Stats(pr).sort_stats('tottime')
     # ps.print_stats(25)
