@@ -925,9 +925,9 @@ def test_anisotropic_rbf_kernel():
         optimizes = [True, False]
         check_config = True
     else:
-        ntrain = 100
+        ntrain = 250
         npcas = [0]
-        optimizes = [False]
+        optimizes = [False, True]
         check_config = False
     nvalidate, nvisualize = 1, 21
     rng = galsim.BaseDeviate(5867943)
@@ -942,6 +942,7 @@ def test_anisotropic_rbf_kernel():
     invLam = np.linalg.inv(cov)
 
     kernel = "0.1*AnisotropicRBF(invLam={0!r})".format(invLam)
+    #kernel_vk= "0.1*AnisotropicVonKarman(invLam={0!r})".format(invLam)
 
     print(kernel)
 
@@ -1268,19 +1269,19 @@ if __name__ == '__main__':
     # import cProfile, pstats
     # pr = cProfile.Profile()
     # pr.enable()
-    test_constant_psf()
-    test_polynomial_psf()
-    test_grf_psf()
-    test_vonkarman_psf()
+    ##test_constant_psf()
+    ##test_polynomial_psf()
+    ##test_grf_psf()
+    ##test_vonkarman_psf()
     test_anisotropic_rbf_kernel()
-    test_gp_with_kernels()
-    test_vonkarman_kernel()
-    test_anisotropic_vonkarman_kernel()
-    test_yaml()
-    test_anisotropic_limit()
-    test_guess()
-    test_guess_2pcf()
-    test_anisotropic_guess()
+    ##test_gp_with_kernels()
+    ##test_vonkarman_kernel()
+    ##test_anisotropic_vonkarman_kernel()
+    ##test_yaml()
+    ##test_anisotropic_limit()
+    ##test_guess()
+    ##test_guess_2pcf()
+    ##test_anisotropic_guess()
     # pr.disable()
     # ps = pstats.Stats(pr).sort_stats('tottime')
     # ps.print_stats(25)
