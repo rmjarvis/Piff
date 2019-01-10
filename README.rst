@@ -4,7 +4,7 @@ PIFF: PSFs In the Full FOV
 Piff is a Python software package for modeling the point-spread function (PSF)
 across multiple detectors in the full field of view (FOV).
 
-Aspirational features: (We're still working on the code!)
+Features: (Some are aspirational.  We're still working on the code!)
 
 - Has multiple basis sets for the underlying PSF model, including pixel-based,
   shapelets, Gaussian mixture, maybe also Moffat and/or Kolmogorov.
@@ -13,8 +13,8 @@ Aspirational features: (We're still working on the code!)
 - Can interpolate across the full field-of-view, or across each chip separately,
   or a combination of both.
 - Can do the fitting in either real or Fourier space.
-- Has multiple interpolation functions including polynomials, kriging, and
-  PSFEnt.
+- Has multiple interpolation functions including polynomials, gaussian processes,
+  and others.
 - Can take knowledge of the optical aberrations as input to convolve the model
   of the atmospheric PSF.
 - Performs outlier rejection to detect and remove stars that are not good
@@ -27,8 +27,9 @@ Aspirational features: (We're still working on the code!)
   of the PSF at an arbitrary location.
 - Currently, the lead developers are:
   - Mike Jarvis (mikejarvis17 at gmail)
-  - Chris Davis (chris.pa.davis at gmail)
   - Josh Meyers (jmeyers314 at gmail)
+  - Pierre-Francois Leget (leget at stanford)
+  - Chris Davis (chris.pa.davis at gmail)
   If you'd like to join the development effort, or if you have any other
   questions or comments about the code, feel free to contact us at the above
   email addresses.
@@ -37,11 +38,12 @@ Aspirational features: (We're still working on the code!)
 Installation
 ------------
 
-Eventually, we'd like this to be installable as::
+The current stable version, v0.2.3, is installable with pip::
 
     pip install Piff
 
-But for now, only the setup.py installation is available::
+If you need the bleeding edge version on master, you can download or clone
+the repo and install with::
 
     python setup.py install
 
