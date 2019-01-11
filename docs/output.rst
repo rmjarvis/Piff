@@ -5,10 +5,10 @@ Output handlers govern how the final solution is handled.  The typical thing to 
 write to a FITS file, which is handled by the class :class:`~piff.OutputFile`.  This is 
 the default, so if you are using that, you can omit the :type: specification.
 
-OutputHandler
--------------
+Output
+------
 
-.. autoclass:: piff.OutputHandler
+.. autoclass:: piff.Output
    :members:
 
 OutputFile

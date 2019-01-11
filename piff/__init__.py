@@ -70,7 +70,7 @@ if False:
 
 
 # Import things from the other files that we want in the piff namespace
-from .config import piffify, setup_logger, read_config
+from .config import piffify, setup_logger, read_config, parse_variables
 
 # Models -- Class names here match what they are called in the config file
 from .model import Model, ModelFitError

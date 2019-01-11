@@ -30,7 +30,7 @@ class GPInterp(Interp):
     An interpolator that uses sklearn.gaussian_process to interpolate a single surface.
 
     :param keys:        A list of star attributes to interpolate from
-    :param kernel:      A string that can be `eval`ed to make a
+    :param kernel:      A string that can be eval-ed to make a
                         sklearn.gaussian_process.kernels.Kernel object.  The reprs of
                         sklearn.gaussian_process.kernels will work, as well as the repr of a
                         custom piff AnisotropicRBF or ExplicitKernel object.  [default: 'RBF()']
@@ -208,9 +208,9 @@ class GPInterp(Interp):
 class ExplicitKernel(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
     """ A kernel that wraps an arbitrary python function.
 
-    :param  fn:  String that can be combined with 'lambda du,dv:' to eval into a lambda expression.
-                 For example, fn="np.exp(-0.5*np.sqrt(du**2+dv**2)/0.1**2)" would make a Gaussian
-                 kernel with scale length of 0.1.
+    :param fn:  String that can be combined with 'lambda du,dv:' to eval into a lambda expression.
+                For example, fn="np.exp(-0.5*np.sqrt(du**2+dv**2)/0.1**2)" would make a Gaussian
+                kernel with scale length of 0.1.
     """
     def __init__(self, fn):
         self.fn = fn
@@ -245,7 +245,7 @@ class ExplicitKernel(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
 
 
 class AnisotropicRBF(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
-    """ A GaussianProcessRegressor Kernel representing a radial basis function (essentially a
+    """A GaussianProcessRegressor Kernel representing a radial basis function (essentially a
     squared exponential or Gaussian) but with arbitrary anisotropic covariance.
 
     While the parameter for this kernel, an inverse covariance matrix, can be specified directly
@@ -255,31 +255,31 @@ class AnisotropicRBF(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
 
     For optimization, it's necessary to reparameterize the inverse covariance matrix in such a way
     as to ensure that it's always positive definite.  To this end, we define `theta` (abbreviated
-    `th` below) such that
+    `th` below) such that::
 
-    invLam = L * L.T
-    L = [[exp(th[0])  0              0           ...    0                 0           ]
-         [th[n]       exp(th[1])]    0           ...    0                 0           ]
-         [th[n+1]     th[n+2]        exp(th[3])  ...    0                 0           ]
-         [...         ...            ...         ...    ...               ...         ]
-         [th[]        th[]           th[]        ...    exp(th[n-2])      0           ]
-         [th[]        th[]           th[]        ...    th[n*(n+1)/2-1]   exp(th[n-1])]]
+        invLam = L * L.T
+        L = [[exp(th[0])  0              0           ...    0                 0           ]
+             [th[n]       exp(th[1])]    0           ...    0                 0           ]
+             [th[n+1]     th[n+2]        exp(th[3])  ...    0                 0           ]
+             [...         ...            ...         ...    ...               ...         ]
+             [th[]        th[]           th[]        ...    exp(th[n-2])      0           ]
+             [th[]        th[]           th[]        ...    th[n*(n+1)/2-1]   exp(th[n-1])]]
 
     I.e., the inverse covariance matrix is Cholesky-decomposed, exp(theta[0:n]) lie on the diagonal
     of the Cholesky matrix, and theta[n:n*(n+1)/2] lie in the lower triangular part of the Cholesky
     matrix.  This parameterization invertably maps all valid n x n covariance matrices to
     R^(n*(n+1)/2).  I.e., the range of each theta[i] is -inf...inf.
 
-    :param  invLam:  Inverse covariance matrix of radial basis function.  Exactly one of invLam and
-                     scale_length must be provided.
-    :param  scale_length:  Axes-aligned scale lengths of the kernel.  len(scale_length) must be the
-                     same as the dimensionality of the kernel, even if the scale length is the same
-                     for each axis (i.e., even if the kernel is isotropic).  Exactly one of invLam
-                     and scale_length must be provided.
-    :param  bounds:  Optional keyword indicating fitting bounds on *theta*.  Can either be a
-                     2-element iterable, which will be taken to be the min and max value for every
-                     theta element, or an [ntheta, 2] array indicating bounds on each of ntheta
-                     elements.
+    :param invLam:      Inverse covariance matrix of radial basis function.  Exactly one of invLam
+                        and scale_length must be provided.
+    :param scale_length: Axes-aligned scale lengths of the kernel.  len(scale_length) must be the
+                        same as the dimensionality of the kernel, even if the scale length is the
+                        same for each axis (i.e., even if the kernel is isotropic).  Exactly one of
+                        invLam and scale_length must be provided.
+    :param bounds:      Optional keyword indicating fitting bounds on theta.  Can either be a
+                        2-element iterable, which will be taken to be the min and max value for
+                        every theta element, or an [ntheta, 2] array indicating bounds on each of
+                        ntheta elements.
     """
     def __init__(self, invLam=None, scale_length=None, bounds=(-5,5)):
         if scale_length is not None:
@@ -343,9 +343,19 @@ class AnisotropicRBF(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
         return Hyperparameter("CholeskyFactor", "numeric", (1e-5, 1e5), int(self.ntheta))
 
     def get_params(self, deep=True):
+        """Get a dict of the parameters
+
+        In this case, simply {'invLam' : invLam}
+
+        :returns: dict
+        """
         return {"invLam":self.invLam}
 
     def set_params(self, invLam=None):
+        """Set the paramters.  In this case, just invLam.
+
+        :param invLam:  The new value for invLam.
+        """
         if invLam is not None:
             self.invLam = invLam
             self._L = np.linalg.cholesky(self.invLam)
@@ -353,10 +363,12 @@ class AnisotropicRBF(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
 
     @property
     def theta(self):
+        """Get the theta value."""
         return self._theta
 
     @theta.setter
     def theta(self, theta):
+        """Set the theta value."""
         self._theta = theta
         self._L = np.zeros_like(self.invLam)
         self._L[np.diag_indices(self.ndim)] = np.exp(theta[:self.ndim])
@@ -368,4 +380,5 @@ class AnisotropicRBF(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
 
     @property
     def bounds(self):
+        """Get the bounds."""
         return self._bounds
