@@ -17,6 +17,7 @@ import galsim
 import numpy as np
 import piff
 import fitsio
+import os
 
 from piff_test_helper import get_script_name, timer
 
@@ -348,9 +349,65 @@ def test_single():
             #print('  fitted s,e1,e2 = ',star.fit.params)
             np.testing.assert_almost_equal(star.fit.params, [s,e1,e2], decimal=6)
 
+@timer
+def test_pickle():
+    """Test the reading a file written with python 2 pickling is readable with python 2 or 3.
+    """
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(verbose=2)
+    else:
+        logger = piff.config.setup_logger(log_file='output/test_pickle.log')
+
+    # First, this is the output file written by the above test_single function on python 2.
+    # Shoudl be trivially readable by python 2, but make sure it is also readable by python 3.
+    psf = piff.read('input/test_single_py27.piff', logger=logger)
+
+    wcs1 = galsim.TanWCS(
+            galsim.AffineTransform(0.26, 0.05, -0.08, -0.24, galsim.PositionD(1024,1024)),
+            galsim.CelestialCoord(-5 * galsim.arcmin, -25 * galsim.degrees)
+            )
+    wcs2 = galsim.TanWCS(
+            galsim.AffineTransform(0.25, -0.02, 0.01, 0.24, galsim.PositionD(1024,1024)),
+            galsim.CelestialCoord(5 * galsim.arcmin, -25 * galsim.degrees)
+            )
+
+    data1 = fitsio.read('input/test_single_cat1.fits')
+    data2 = fitsio.read('input/test_single_cat2.fits')
+    field_center = galsim.CelestialCoord(0 * galsim.degrees, -25 * galsim.degrees)
+
+    for chipnum, data, wcs in [(1,data1,wcs1), (2,data2,wcs2)]:
+        for k in range(len(data)):
+            x = data['x'][k]
+            y = data['y'][k]
+            e1 = data['e1'][k]
+            e2 = data['e2'][k]
+            s = data['s'][k]
+            #print('k,x,y = ',k,x,y)
+            #print('  true s,e1,e2 = ',s,e1,e2)
+            image_pos = galsim.PositionD(x,y)
+            star = piff.Star.makeTarget(x=x, y=y, wcs=wcs, stamp_size=48, pointing=field_center,
+                                        chipnum=chipnum)
+            star = psf.drawStar(star)
+            #print('  fitted s,e1,e2 = ',star.fit.params)
+            np.testing.assert_almost_equal(star.fit.params, [s,e1,e2], decimal=6)
+
+
+    # This is a DES Y3 PSF file that Matt Becker reported hadn't been readable with python 3.
+    # The problem was it had been written with python 2's pickle, which isn't directly
+    # compatible with python 3.  The code has been fixed to make it readable.  This unit
+    # test is just to ensure that it remains so.
+    # However, it only works if pixmappy is installed, so if not, just bail out.
+    try:
+        import pixmappy
+    except ImportError:
+        return
+    fname = os.path.join('input', 'D00240560_r_c01_r2362p01_piff.fits')
+    psf = piff.PSF.read(fname, logger=logger)
+    image = psf.draw(x=103.3, y=592.0)
 
 
 if __name__ == '__main__':
     test_focal()
     test_wrongwcs()
     test_single()
+    test_pickle()
