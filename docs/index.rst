@@ -13,6 +13,8 @@ Piff Documentation
    interp
    output
    psf
+   stats
+   outliers
 
 
 * :ref:`genindex`
