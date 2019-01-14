@@ -5,10 +5,10 @@ Input handlers govern how the observational data is read in. This includes both 
 and catalogs.  The class :class:`~piff.InputFiles` is the default, so if you are using
 that (which is typical), you can omit the :type: specification.
 
-InputHandler
-------------
+Input
+-----
 
-.. autoclass:: piff.InputHandler
+.. autoclass:: piff.Input
    :members:
 
 InputFiles

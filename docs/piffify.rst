@@ -19,9 +19,9 @@ Each field is governed by a :type: parameter (although there are useful defaults
 :input: and :output:.  This corresponds to different classes in the Python code.
 The other parameters in each field correspond to the initialization kwargs for the class.
 
-For instance the following cofiguration file uses the :class:`~piff.Pixel` class for the model and
+For instance the following cofiguration file uses the :class:`~piff.PixelGrid` class for the model and
 the :class:`~piff.Polynomial` class for interpolation.  It uses the default
-:class:`piff.InputFiles` and :class:`piff.OutputFile` for I/O.::
+:class:`~piff.InputFiles` and :class:`~piff.OutputFile` for I/O.::
 
     input:
         # default type is 'InputFiles', which can be (and typically is) omitted
@@ -31,7 +31,7 @@ the :class:`~piff.Polynomial` class for interpolation.  It uses the default
         y_col: Y_IMAGE
         weight_hdu: 3
     model:
-        type: Pixel
+        type: PixelGrid
         pixel_scale: 0.2
         size: 64
     interp:
@@ -41,4 +41,16 @@ the :class:`~piff.Polynomial` class for interpolation.  It uses the default
         # default type is 'InputFiles', which can be (and typically is) omitted
         file_name: some_exposure/piff_solution.fits
 
+
+The functionality of the piffify executable is also available from python via
+:func:`~piff.piffify` and related functions.
+
+
+.. autofunction:: piff.piffify
+
+.. autofunction:: piff.read_config
+
+.. autofunction:: piff.setup_logger
+
+.. autofunction:: piff.parse_variables
 

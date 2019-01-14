@@ -267,7 +267,6 @@ class PixelGrid(Model):
         :param in2d:    2d input array matching the PSF uv-plane grid
 
         :returns: None
-        ??? Return a new one instead???
         """
         params = self._1dFrom2d(in2d)
 
