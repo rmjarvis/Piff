@@ -26,7 +26,21 @@ def setup():
     """Make sure the images and catalogs that we'll use throughout this module are done first.
     """
     gs_config = galsim.config.ReadConfig(os.path.join('input','make_input.yaml'))[0]
-    galsim.config.Process(gs_config)
+    galsim.config.BuildFiles(2, galsim.config.CopyConfig(gs_config))
+
+    # For the third file, add in a real wcs and ra, dec to the output catalog.
+    gs_config['image']['wcs'] = {
+        'type': 'Tan',
+        'dudx': 0.27,
+        'dudy': 0.01,
+        'dvdx': -0.02,
+        'dvdy': 0.26,
+        'ra': '6 hours',
+        'dec': '-30 degrees',
+    }
+    gs_config['output']['truth']['columns']['ra'] = '$wcs.toWorld(image_pos).ra / galsim.hours'
+    gs_config['output']['truth']['columns']['dec'] = '$wcs.toWorld(image_pos).dec / galsim.degrees'
+    galsim.config.BuildFiles(1, galsim.config.CopyConfig(gs_config), file_num=1)
 
     cat_file_name = os.path.join('input', 'test_input_cat_00.fits')
     data = fitsio.read(cat_file_name)
@@ -103,6 +117,17 @@ def test_basic():
     cat_files = [ 'test_input_cat_%02d.fits'%k for k in range(3) ]
     config = {
                 'dir' : dir,
+                'image_file_name' : image_files,
+                'cat_file_name': cat_files
+             }
+    input = piff.InputFiles(config, logger=logger)
+    assert len(input.image_pos) == 3
+    np.testing.assert_array_equal([len(p) for p in input.image_pos], 100)
+
+    # Again without dir.
+    image_files = [ 'input/test_input_image_%02d.fits'%k for k in range(3) ]
+    cat_files = [ 'input/test_input_cat_%02d.fits'%k for k in range(3) ]
+    config = {
                 'image_file_name' : image_files,
                 'cat_file_name': cat_files
              }
@@ -191,12 +216,45 @@ def test_cols():
     else:
         logger = piff.config.setup_logger(log_file=os.path.join('output','test_input_cols.log'))
 
+    # Specifiable columns are: x, y, flag, use, sky, gain.  (We'll do flag, use below.)
+    config = {
+                'dir' : 'input',
+                'image_file_name' : 'test_input_image_02.fits',
+                'cat_file_name' : 'test_input_cat_02.fits',
+                'x_col' : 'x',
+                'y_col' : 'y',
+             }
+    input = piff.InputFiles(config, logger=logger)
+    assert len(input.image_pos) == 1
+    assert len(input.image_pos[0]) == 100
+
+    # Can do ra, dec instead of x, y
+    config = {
+                'dir' : 'input',
+                'image_file_name' : 'test_input_image_02.fits',
+                'cat_file_name' : 'test_input_cat_02.fits',
+                'ra_col' : 'ra',
+                'dec_col' : 'dec',
+                'ra_units' : 'hours',
+                'dec_units' : 'degrees',
+             }
+    input2 = piff.InputFiles(config, logger=logger)
+    print('input.image_pos = ',input.image_pos)
+    print('input2.image_pos = ',input2.image_pos)
+    assert len(input2.image_pos) == 1
+    assert len(input2.image_pos[0]) == 100
+    x1 = [pos.x for pos in input.image_pos[0]]
+    x2 = [pos.x for pos in input2.image_pos[0]]
+    y1 = [pos.y for pos in input.image_pos[0]]
+    y2 = [pos.y for pos in input2.image_pos[0]]
+    np.testing.assert_allclose(x2, x1)
+    np.testing.assert_allclose(y2, y1)
+
+    # Back to first file, where we also have header values for things.
     cat_file_name = os.path.join('input', 'test_input_cat_00.fits')
     data = fitsio.read(cat_file_name)
     sky = np.mean(data['sky'])
     gain = np.mean(data['gain'])
-
-    # Specifiable columns are: x, y, flag, use, sky, gain.  (We'll do flag, use below.)
     config = {
                 'dir' : 'input',
                 'image_file_name' : 'test_input_image_00.fits',
@@ -213,10 +271,7 @@ def test_cols():
     assert len(input.image_pos[0]) == 100
     assert len(input.sky[0]) == 100
     assert len(input.gain[0]) == 100
-
     # sky and gain are constant (although they don't have to be of course)
-    sky = input.sky[0][0]
-    gain = input.gain[0][0]
     np.testing.assert_array_equal(input.sky[0], sky)
     np.testing.assert_array_equal(input.gain[0], gain)
 
@@ -472,7 +527,6 @@ def test_weight():
     assert input.weight[0].array.shape == (1024, 1024)
     sky = input.sky[0][0]
     gain = input.gain[0][0]
-    scale = input.images[0].scale
     read_noise = 10
     expected_noise = sky / gain + read_noise**2 / gain**2
     np.testing.assert_almost_equal(input.weight[0].array, expected_noise**-1)
@@ -566,11 +620,24 @@ def test_lsst_weight():
     assert input.weight[0].array.shape == (1024, 1024)
     gain = input.gain[0][0]
     sky = input.sky[0][0]
-    scale = input.images[0].scale
     read_noise = 10
     expected_noise = sky / gain + read_noise**2 / gain**2
     print('expected noise = ',expected_noise)
     print('var = ',input.weight[0].array**-1)
+    np.testing.assert_allclose(input.weight[0].array, expected_noise**-1, rtol=1.e-6)
+
+    # If the gain is not given, it can determine it automatically.
+    config = {
+                'image_file_name' : 'input/test_input_image_00.fits',
+                'cat_file_name' : 'input/test_input_cat_00.fits',
+                'weight_hdu' : 10,
+                'sky' : 'SKYLEVEL',
+                'invert_weight' : True,
+                'remove_signal_from_weight' : True,
+             }
+    input = piff.InputFiles(config, logger=logger)
+    gain1 = input.gain[0][0]
+    assert np.isclose(gain1, gain, rtol=1.e-6)
     np.testing.assert_allclose(input.weight[0].array, expected_noise**-1, rtol=1.e-6)
 
     # Now pretend that the sky is part of the signal, so the input can match how we would
@@ -714,6 +781,14 @@ def test_stars():
     stars = input.makeStars(logger=logger)
     print('new len is ',len(stars))
     assert len(stars) == 37
+
+    # Check that negative snr flux yields 0, not an error (from sqrt(neg))
+    # Negative flux is actually ok, since it gets squared, but if an image has negative weights
+    # (which would be weird of course), then it could get to negative flux = wI^2.
+    star0 = stars[0]
+    star0.data.orig_weight *= -1.
+    snr0 = input.calculateSNR(star0.data.image, star0.data.orig_weight)
+    assert snr0 == 0.
 
 
 @timer
