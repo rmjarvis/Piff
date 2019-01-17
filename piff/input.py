@@ -658,7 +658,7 @@ class InputFiles(Input):
         else:
             # Then treat this as an array of bools rather than a bitmask
             mask = np.zeros(col.shape[0], dtype=bool)
-            for bit in range(col.shape[1]):
+            for bit in range(col.shape[1]):  # pragma: no branch
                 if flag % 2 == 1:
                     mask |= col[:,bit]
                 flag = flag // 2
@@ -743,7 +743,7 @@ class InputFiles(Input):
             def safe_to_image(wcs, ra, dec):
                 try:
                     return wcs.toImage(galsim.CelestialCoord(ra*ra_units, dec*dec_units))
-                except galsim.GalSimError:
+                except galsim.GalSimError:  # pragma: no cover
                     # If the ra,dec is way off the image, this might fail to converge.
                     # In this case return something clearly not on an image so it gets
                     # excluded during the bounds check.
