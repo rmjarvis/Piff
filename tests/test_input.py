@@ -40,7 +40,7 @@ def setup():
     }
     gs_config['output']['truth']['columns']['ra'] = '$wcs.toWorld(image_pos).ra / galsim.hours'
     gs_config['output']['truth']['columns']['dec'] = '$wcs.toWorld(image_pos).dec / galsim.degrees'
-    galsim.config.BuildFiles(1, galsim.config.CopyConfig(gs_config), file_num=1)
+    galsim.config.BuildFiles(1, galsim.config.CopyConfig(gs_config), file_num=2)
 
     cat_file_name = os.path.join('input', 'test_input_cat_00.fits')
     data = fitsio.read(cat_file_name)
