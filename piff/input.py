@@ -526,8 +526,9 @@ class InputFiles(Input):
                     ra_col, dec_col, ra_units, dec_units, image.wcs,
                     flag_col, skip_flag, use_flag, sky_col, gain_col,
                     sky, gain, nstars, image_file_name, logger)
-            # Check for objects off the edge.  We won't use them.
-            image_pos = [ pos for pos in image_pos if image.bounds.includes(pos) ]
+            # Check for objects well off the edge.  We won't use them.
+            big_bounds = image.bounds.expand(self.stamp_size)
+            image_pos = [ pos for pos in image_pos if big_bounds.includes(pos) ]
 
             if config.get('remove_signal_from_weight', False):
                 # Subtract off the mean sky, since this isn't part of the "signal" we want to
