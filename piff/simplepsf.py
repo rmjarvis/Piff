@@ -163,9 +163,9 @@ class SimplePSF(PSF):
                     new_star = fit_fn(s, logger=logger)
                 except (KeyboardInterrupt, SystemExit):
                     raise
-                except ModelFitError as e:
+                except ModelFitError as e:  # pragma: no cover
                     logger.warning("Failed fitting star at %s.  Excluding it.", s.image_pos)
-                    logger.warning("  -- Caught exceptiond %s", e)
+                    logger.warning("  -- Caught exception: %s", e)
                     nremoved += 1
                 else:
                     new_stars.append(new_star)
@@ -190,7 +190,7 @@ class SimplePSF(PSF):
                     except Exception as e:  # pragma: no cover
                         logger.warning("Failed trying to reflux star at %s.  Excluding it.",
                                        s.image_pos)
-                        logger.warning("  -- Caught exceptiond %s", e)
+                        logger.warning("  -- Caught exception: %s", e)
                         nremoved += 1
                     else:
                         new_stars.append(new_star)
