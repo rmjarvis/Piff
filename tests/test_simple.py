@@ -143,20 +143,19 @@ def test_single_image():
     # Where to put the stars.  Include some flagged and not used locations.
     x_list = [ 123.12, 345.98, 567.25, 1094.94, 924.15, 1532.74, 1743.11, 888.39, 1033.29, 1409.31 ]
     y_list = [ 345.43, 567.45, 1094.32, 924.29, 1532.92, 1743.83, 888.83, 1033.19, 1409.20, 123.11 ]
-    flag_list = [ 0, 0, 12, 0, 0, 1, 0, 0, 0, 0 ]
-    use_list = [ 1, 1, 1, 1, 1, 0, 1, 1, 0, 1 ]
+    flag_list = [ 1, 1, 13, 1, 1, 4, 1, 1, 0, 1 ]
 
     # Draw a Gaussian PSF at each location on the image.
     sigma = 1.3
     g1 = 0.23
     g2 = -0.17
     psf = galsim.Gaussian(sigma=sigma).shear(g1=g1, g2=g2)
-    for x,y,flag,use in zip(x_list, y_list, flag_list, use_list):
+    for x,y,flag in zip(x_list, y_list, flag_list):
         bounds = galsim.BoundsI(int(x-31), int(x+32), int(y-31), int(y+32))
         offset = galsim.PositionD( x-int(x)-0.5 , y-int(y)-0.5 )
         psf.drawImage(image=image[bounds], method='no_pixel', offset=offset)
         # corrupt the ones that are marked as flagged
-        if flag:
+        if flag & 4:
             print('corrupting star at ',x,y)
             ar = image[bounds].array
             im_max = np.max(ar) * 0.2
@@ -168,12 +167,11 @@ def test_single_image():
     image.write(image_file)
 
     # Write out the catalog to a file
-    dtype = [ ('x','f8'), ('y','f8'), ('flag','i2'), ('use','i2') ]
+    dtype = [ ('x','f8'), ('y','f8'), ('flag','i2') ]
     data = np.empty(len(x_list), dtype=dtype)
     data['x'] = x_list
     data['y'] = y_list
     data['flag'] = flag_list
-    data['use'] = use_list
     cat_file = os.path.join('output','simple_cat.fits')
     fitsio.write(cat_file, data, clobber=True)
 
@@ -193,11 +191,12 @@ def test_single_image():
     np.testing.assert_equal([pos.x for pos in input.image_pos[0]], x_list)
     np.testing.assert_equal([pos.y for pos in input.image_pos[0]], y_list)
 
-    # Repeat, using flag and use columns this time.
+    # Repeat, using flag columns this time.
     config = { 'image_file_name' : image_file,
                'cat_file_name': cat_file,
                'flag_col': 'flag',
-               'use_col': 'use',
+               'use_flag': '1',
+               'skip_flag': '4',
                'stamp_size': 48 }
     input = piff.InputFiles(config, logger=logger)
     print('pos = ',input.image_pos)
@@ -241,7 +240,8 @@ def test_single_image():
             'image_file_name' : image_file,
             'cat_file_name' : cat_file,
             'flag_col' : 'flag',
-            'use_col' : 'use',
+            'use_flag' : 1,
+            'skip_flag' : 4,
             'stamp_size' : stamp_size
         },
         'psf' : {
