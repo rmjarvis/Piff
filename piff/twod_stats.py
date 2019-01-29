@@ -35,10 +35,8 @@ class TwoDHistStats(Stats):
     After a call to :func:`compute`, the following attributes are accessible:
 
         :twodhists:     A dictionary of two dimensional histograms, with keys
-                        ['u', 'v',
-                         'T', 'g1', 'g2',
-                         'T_model', 'g1_model', 'g2_model',
-                         'dT', 'dg1', 'dg2']
+                        'u', 'v', 'T', 'g1', 'g2', 'T_model', 'g1_model', 'g2_model',
+                        'dT', 'dg1', 'dg2'
 
     These histograms are two dimensional masked arrays where the value of the
     pixel corresponds to reducing_function([objects in u-v voxel])
@@ -141,10 +139,10 @@ class TwoDHistStats(Stats):
         self.twodhists['dg2'] = self._array_to_2dhist(dg2, indx_u, indx_v, unique_indx)
 
     def plot(self, logger=None, **kwargs):
-        """Make the plots.
+        r"""Make the plots.
 
         :param logger:      A logger object for logging debug info. [default: None]
-        :params **kwargs:   Any additional kwargs go into the matplotlib plot() function.
+        :params \**kwargs:   Any additional kwargs go into the matplotlib plot() function.
                             [ignored in this function]
 
         :returns: fig, ax
@@ -386,21 +384,20 @@ class WhiskerStats(TwoDHistStats):
     After a call to :func:`compute`, the following attributes are accessible:
 
         :twodhists:     A dictionary of two dimensional histograms, with keys
-                        ['u', 'v',
-                         'w1', 'w2',
-                         'w1_model', 'w2_model',
-                         'dw1', 'dw2']
+                        'u', 'v', 'w1', 'w2', 'w1_model', 'w2_model', 'dw1', 'dw2'
 
     These histograms are two dimensional masked arrays where the value of the
     pixel corresponds to reducing_function([objects in u-v voxel])
 
-    Note: There are a couple different ways to define your whiskers. Here we
-    have taken the approach that the whisker represents the ellipticity as:
+    .. note::
 
-        theta = arctan(e2, e1) / 2
-        r = sqrt(e1 ** 2 + e2 ** 2)
-        w1 = r cos(theta)
-        w2 = r sin(theta)
+        There are a couple different ways to define your whiskers. Here we
+        have taken the approach that the whisker represents the ellipticity as:
+
+            theta = arctan(e2, e1) / 2
+            r = sqrt(e1 ** 2 + e2 ** 2)
+            w1 = r cos(theta)
+            w2 = r sin(theta)
 
     Because e1, e2 do not have units, w does not either.
     """
@@ -506,10 +503,10 @@ class WhiskerStats(TwoDHistStats):
         self.twodhists['dw2'] = self._array_to_2dhist(dw2, indx_u, indx_v, unique_indx)
 
     def plot(self, logger=None, **kwargs):
-        """Make the plots.
+        r"""Make the plots.
 
         :param logger:      A logger object for logging debug info. [default: None]
-        :params **kwargs:   Any additional kwargs go into the matplotlib plot() function.
+        :params \**kwargs:   Any additional kwargs go into the matplotlib plot() function.
                             [ignored in this function]
 
         :returns: fig, ax

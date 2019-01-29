@@ -102,22 +102,22 @@ class Stats(object):
         raise NotImplementedError("Derived classes must define the plot function")
 
     def plot(self, logger=None, **kwargs):
-        """Make the plots for this statistic.
+        r"""Make the plots for this statistic.
 
         :param logger:      A logger object for logging debug info. [default: None]
-        :param **kwargs:    Optionally, provide extra kwargs for the matplotlib plot command.
+        :param \**kwargs:    Optionally, provide extra kwargs for the matplotlib plot command.
 
         :returns: (fig, ax) The matplotlib figure and axis with the plot(s).
         """
         raise NotImplementedError("Derived classes must define the plot function")
 
     def write(self, file_name=None, logger=None, **kwargs):
-        """Write plots to a file.
+        r"""Write plots to a file.
 
         :param file_name:   The name of the file to write to. [default: Use self.file_name,
                             which is typically read from the config field.]
         :param logger:      A logger object for logging debug info. [default: None]
-        :param **kwargs:    Optionally, provide extra kwargs for the matplotlib plot command.
+        :param \**kwargs:    Optionally, provide extra kwargs for the matplotlib plot command.
         """
         # Note: don't import matplotlib.pyplot, since that can mess around with the user's
         # pyplot state.  Better to do everything with the matplotlib object oriented API.
@@ -188,8 +188,8 @@ class ShapeHistogramsStats(Stats):
         :g1:        The g1 component of the shapes of the observed stars.
         :g2:        The g2 component of the shapes of the observed stars.
         :T_model:   The size of the PSF model at the same locations as the stars.
-        :g1_model   The g1 component of the PSF model at these locations.
-        :g2_model   The g2 component of the PSF model at these locations.
+        :g1_model:  The g1 component of the PSF model at these locations.
+        :g2_model:  The g2 component of the PSF model at these locations.
         :dT:        The size residual, T - T_model
         :dg1:       The g1 residual, g1 - g1_model
         :dg2:       The g2 residual, g2 - g2_model
@@ -239,10 +239,10 @@ class ShapeHistogramsStats(Stats):
         self.dg2 = self.g2 - self.g2_model
 
     def plot(self, logger=None, **kwargs):
-        """Make the plots.
+        r"""Make the plots.
 
         :param logger:      A logger object for logging debug info. [default: None]
-        :params **kwargs:   Any additional kwargs go into the matplotlib hist() function.
+        :params \**kwargs:   Any additional kwargs go into the matplotlib hist() function.
 
         :returns: fig, ax
         """
@@ -331,13 +331,13 @@ class RhoStats(Stats):
     """
     def __init__(self, min_sep=0.5, max_sep=300, bin_size=0.1, file_name=None,
                  logger=None, **kwargs):
-        """
+        r"""
         :param min_sep:     Minimum separation (in arcmin) for pairs. [default: 0.5]
         :param max_sep:     Maximum separation (in arcmin) for pairs. [default: 300]
         :param bin_size:    Size of bins in log(sep). [default 0.1]
         :param file_name:   Name of the file to output to. [default: None]
         :param logger:      A logger object for logging debug info. [default: None]
-        :param **kwargs:    Any additional kwargs are passed on to TreeCorr.
+        :param \**kwargs:    Any additional kwargs are passed on to TreeCorr.
         """
         self.tckwargs = kwargs
         self.tckwargs['min_sep'] = min_sep
@@ -460,14 +460,15 @@ class RhoStats(Stats):
         ax.plot(meanr, xip, color=color)
         ax.plot(meanr, -xip, color=color, ls=':')
         ax.errorbar(meanr[xip>0], xip[xip>0], yerr=sig[xip>0], color=color, ls='', marker=marker)
-        ax.errorbar(meanr[xip<0], -xip[xip<0], yerr=sig[xip<0], color=color, ls='', marker=marker)
+        ax.errorbar(meanr[xip<0], -xip[xip<0], yerr=sig[xip<0], color=color, ls='', marker=marker,
+                    fillstyle='none', mfc='white')
         return ax.errorbar(-meanr, xip, yerr=sig, color=color, marker=marker)
 
     def plot(self, logger=None, **kwargs):
-        """Make the plots.
+        r"""Make the plots.
 
         :param logger:      A logger object for logging debug info. [default: None]
-        :params **kwargs:   Any additional kwargs go into the matplotlib plot() function.
+        :params \**kwargs:   Any additional kwargs go into the matplotlib plot() function.
                             [ignored in this function]
 
         :returns: fig, ax

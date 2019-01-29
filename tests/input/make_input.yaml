@@ -59,8 +59,7 @@ output:
         columns:
             x: '$image_pos.x'
             y: '$image_pos.y'
-            flag: '$1 if obj_num % 5 == 0 else 0'
-            use: '$0 if obj_num % 7 == 0 else 1'
+            flag: '$(4 if obj_num % 5 == 0 else 0) | (1 if obj_num % 7 != 0 else 0)'
             sky: 
                 # Since sky_level won't have been parsed yet, this is a trick to tell it that
                 # we are expected it to be a float, so it knows how to parse it.

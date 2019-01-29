@@ -31,7 +31,7 @@ class GPInterp(Interp):
     An interpolator that uses sklearn.gaussian_process to interpolate a single surface.
 
     :param keys:        A list of star attributes to interpolate from
-    :param kernel:      A string that can be `eval`ed to make a
+    :param kernel:      A string that can be eval-ed to make a
                         sklearn.gaussian_process.kernels.Kernel object.  The reprs of
                         sklearn.gaussian_process.kernels will work, as well as the repr of a
                         custom piff AnisotropicRBF or ExplicitKernel object.  [default: 'RBF()']
