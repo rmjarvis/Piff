@@ -26,14 +26,34 @@ def setup():
     """Make sure the images and catalogs that we'll use throughout this module are done first.
     """
     gs_config = galsim.config.ReadConfig(os.path.join('input','make_input.yaml'))[0]
-    galsim.config.Process(gs_config)
+    galsim.config.BuildFiles(2, galsim.config.CopyConfig(gs_config))
+
+    # For the third file, add in a real wcs and ra, dec to the output catalog.
+    gs_config['image']['wcs'] = {
+        'type': 'Tan',
+        'dudx': 0.27,
+        'dudy': 0.01,
+        'dvdx': -0.02,
+        'dvdy': 0.26,
+        'ra': '6 hours',
+        'dec': '-30 degrees',
+    }
+    gs_config['output']['truth']['columns']['ra'] = '$wcs.toWorld(image_pos).ra / galsim.hours'
+    gs_config['output']['truth']['columns']['dec'] = '$wcs.toWorld(image_pos).dec / galsim.degrees'
+    galsim.config.BuildFiles(1, galsim.config.CopyConfig(gs_config), file_num=2)
+
+    cat_file_name = os.path.join('input', 'test_input_cat_00.fits')
+    data = fitsio.read(cat_file_name)
+    sky = np.mean(data['sky'])
+    gain = np.mean(data['gain'])
+    print('sky, gain = ',sky,gain)
 
     # Add some header values to the first one.
     # Also add some alternate weight and badpix maps to enable some edge-case tests
     image_file = os.path.join('input','test_input_image_00.fits')
     with fitsio.FITS(image_file, 'rw') as f:
-        f[0].write_key('SKYLEVEL', 200, 'sky level')
-        f[0].write_key('GAIN_A', 2.0, 'gain')
+        f[0].write_key('SKYLEVEL', sky, 'sky level')
+        f[0].write_key('GAIN_A', gain, 'gain')
         f[0].write_key('RA', '06:00:00', 'telescope ra')
         f[0].write_key('DEC', '-30:00:00', 'telescope dec')
         wt = f[1].read().copy()
@@ -55,6 +75,9 @@ def setup():
         bp[:,:] = 0
         bp[1::2,:] = 16 # Odd cols
         f.write(bp) # hdu = 9
+        wt = f[1].read().copy()
+        var = 1/wt + (f[0].read() - sky) / gain
+        f.write(var) # hdu = 10
 
 
 @timer
@@ -64,7 +87,7 @@ def test_basic():
     if __name__ == '__main__':
         logger = piff.config.setup_logger(verbose=2)
     else:
-        logger = piff.config.setup_logger(log_file=os.path.join('output','test_input.log'))
+        logger = piff.config.setup_logger(log_file=os.path.join('output','test_input_basic.log'))
 
     dir = 'input'
     image_file = 'test_input_image_00.fits'
@@ -94,6 +117,17 @@ def test_basic():
     cat_files = [ 'test_input_cat_%02d.fits'%k for k in range(3) ]
     config = {
                 'dir' : dir,
+                'image_file_name' : image_files,
+                'cat_file_name': cat_files
+             }
+    input = piff.InputFiles(config, logger=logger)
+    assert len(input.image_pos) == 3
+    np.testing.assert_array_equal([len(p) for p in input.image_pos], 100)
+
+    # Again without dir.
+    image_files = [ 'input/test_input_image_%02d.fits'%k for k in range(3) ]
+    cat_files = [ 'input/test_input_cat_%02d.fits'%k for k in range(3) ]
+    config = {
                 'image_file_name' : image_files,
                 'cat_file_name': cat_files
              }
@@ -180,9 +214,47 @@ def test_cols():
     if __name__ == '__main__':
         logger = piff.config.setup_logger(verbose=2)
     else:
-        logger = piff.config.setup_logger(log_file=os.path.join('output','test_input.log'))
+        logger = piff.config.setup_logger(log_file=os.path.join('output','test_input_cols.log'))
 
     # Specifiable columns are: x, y, flag, use, sky, gain.  (We'll do flag, use below.)
+    config = {
+                'dir' : 'input',
+                'image_file_name' : 'test_input_image_02.fits',
+                'cat_file_name' : 'test_input_cat_02.fits',
+                'x_col' : 'x',
+                'y_col' : 'y',
+             }
+    input = piff.InputFiles(config, logger=logger)
+    assert len(input.image_pos) == 1
+    assert len(input.image_pos[0]) == 100
+
+    # Can do ra, dec instead of x, y
+    config = {
+                'dir' : 'input',
+                'image_file_name' : 'test_input_image_02.fits',
+                'cat_file_name' : 'test_input_cat_02.fits',
+                'ra_col' : 'ra',
+                'dec_col' : 'dec',
+                'ra_units' : 'hours',
+                'dec_units' : 'degrees',
+             }
+    input2 = piff.InputFiles(config, logger=logger)
+    print('input.image_pos = ',input.image_pos)
+    print('input2.image_pos = ',input2.image_pos)
+    assert len(input2.image_pos) == 1
+    assert len(input2.image_pos[0]) == 100
+    x1 = [pos.x for pos in input.image_pos[0]]
+    x2 = [pos.x for pos in input2.image_pos[0]]
+    y1 = [pos.y for pos in input.image_pos[0]]
+    y2 = [pos.y for pos in input2.image_pos[0]]
+    np.testing.assert_allclose(x2, x1)
+    np.testing.assert_allclose(y2, y1)
+
+    # Back to first file, where we also have header values for things.
+    cat_file_name = os.path.join('input', 'test_input_cat_00.fits')
+    data = fitsio.read(cat_file_name)
+    sky = np.mean(data['sky'])
+    gain = np.mean(data['gain'])
     config = {
                 'dir' : 'input',
                 'image_file_name' : 'test_input_image_00.fits',
@@ -199,10 +271,7 @@ def test_cols():
     assert len(input.image_pos[0]) == 100
     assert len(input.sky[0]) == 100
     assert len(input.gain[0]) == 100
-
     # sky and gain are constant (although they don't have to be of course)
-    sky = input.sky[0][0]
-    gain = input.gain[0][0]
     np.testing.assert_array_equal(input.sky[0], sky)
     np.testing.assert_array_equal(input.gain[0], gain)
 
@@ -239,8 +308,8 @@ def test_cols():
     assert len(input.gain) == 1
     assert len(input.sky[0]) == 100
     assert len(input.gain[0]) == 100
-    np.testing.assert_array_equal(input.sky[0], 200)
-    np.testing.assert_array_equal(input.gain[0], 2.0)
+    np.testing.assert_almost_equal(input.sky[0], sky)
+    np.testing.assert_almost_equal(input.gain[0], gain)
 
     # Using flag will skip flagged columns.  Here every 5th item is flagged.
     config = {
@@ -248,9 +317,11 @@ def test_cols():
                 'image_file_name' : 'test_input_image_00.fits',
                 'cat_file_name' : 'test_input_cat_00.fits',
                 'flag_col' : 'flag',
+                'skip_flag' : 4
              }
     input = piff.InputFiles(config, logger=logger)
     assert len(input.image_pos) == 1
+    print('len = ',len(input.image_pos[0]))
     assert len(input.image_pos[0]) == 80
 
     # Similarly the use columns will skip anything with use == 0 (every 7th item here)
@@ -258,10 +329,12 @@ def test_cols():
                 'dir' : 'input',
                 'image_file_name' : 'test_input_image_00.fits',
                 'cat_file_name' : 'test_input_cat_00.fits',
-                'use_col' : 'use',
+                'flag_col' : 'flag',
+                'use_flag' : 1
              }
     input = piff.InputFiles(config, logger=logger)
     assert len(input.image_pos) == 1
+    print('len = ',len(input.image_pos[0]))
     assert len(input.image_pos[0]) == 85
 
     # Can do both
@@ -269,12 +342,26 @@ def test_cols():
                 'dir' : 'input',
                 'image_file_name' : 'test_input_image_00.fits',
                 'cat_file_name' : 'test_input_cat_00.fits',
-                'use_col' : 'use',
+                'flag_col' : 'flag',
+                'skip_flag' : '$2**2',
+                'use_flag' : '$2**0',
+             }
+    input = piff.InputFiles(config, logger=logger)
+    assert len(input.image_pos) == 1
+    print('len = ',len(input.image_pos[0]))
+    assert len(input.image_pos[0]) == 68
+
+    # If no skip_flag it specified, it skips all != 0.
+    config = {
+                'dir' : 'input',
+                'image_file_name' : 'test_input_image_00.fits',
+                'cat_file_name' : 'test_input_cat_00.fits',
                 'flag_col' : 'flag',
              }
     input = piff.InputFiles(config, logger=logger)
     assert len(input.image_pos) == 1
-    assert len(input.image_pos[0]) == 68
+    print('len = ',len(input.image_pos[0]))
+    assert len(input.image_pos[0]) == 12
 
     # Check invalid column names
     base_config = {
@@ -286,7 +373,10 @@ def test_cols():
     np.testing.assert_raises(ValueError, piff.InputFiles, dict(sky_col='xx', **base_config))
     np.testing.assert_raises(ValueError, piff.InputFiles, dict(gain_col='xx', **base_config))
     np.testing.assert_raises(ValueError, piff.InputFiles, dict(flag_col='xx', **base_config))
-    np.testing.assert_raises(ValueError, piff.InputFiles, dict(use_col='xx', **base_config))
+    np.testing.assert_raises(ValueError, piff.InputFiles,
+                             dict(flag_col='flag', skip_flag='xx', **base_config))
+    np.testing.assert_raises(ValueError, piff.InputFiles,
+                             dict(flag_col='flag', use_flag='xx', **base_config))
 
     # Can't give duplicate sky, gain
     np.testing.assert_raises(ValueError, piff.InputFiles, dict(sky_col='sky', sky=3, **base_config))
@@ -298,13 +388,55 @@ def test_cols():
 
 
 @timer
+def test_boolarray():
+    """Test the ability to use a flag_col that is really a boolean array rather than ints.
+    """
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(verbose=2)
+    else:
+        logger = piff.config.setup_logger(log_file=os.path.join('output','test_input_bool.log'))
+
+    cat_file_name = os.path.join('input', 'test_input_cat_00.fits')
+    data = fitsio.read(cat_file_name)
+    print('flag = ',data['flag'])
+    new_flag = np.empty((len(data), 50), dtype=bool)
+    for bit in range(50):
+        new_flag[:,bit] = data['flag'] & 2**bit != 0
+    print('new_flag = ',new_flag)
+    # Write out the catalog to a file
+    print('dtype = ',new_flag.dtype)
+    dtype = [ ('x','f8'), ('y','f8'), ('flag', bool, 50) ]
+    new_data = np.empty(len(data), dtype=dtype)
+    new_data['x'] = data['x']
+    new_data['y'] = data['y']
+    new_data['flag'] = new_flag
+    new_cat_file_name = os.path.join('input','test_input_boolarray.fits')
+    fitsio.write(new_cat_file_name, new_data, clobber=True)
+
+    # Specifiable columns are: x, y, flag, use, sky, gain.  (We'll do flag, use below.)
+    config = {
+                'dir' : 'input',
+                'image_file_name' : 'test_input_image_00.fits',
+                'cat_file_name' : 'test_input_boolarray.fits',
+                'x_col' : 'x',
+                'y_col' : 'y',
+                'flag_col' : 'flag',
+                'skip_flag' : '$2**1 + 2**2 + 2**39'
+             }
+    input = piff.InputFiles(config, logger=logger)
+    assert len(input.image_pos) == 1
+    print('len = ',len(input.image_pos[0]))
+    assert len(input.image_pos[0]) == 80
+
+
+@timer
 def test_chipnum():
     """Test the ability to renumber the chipnums
     """
     if __name__ == '__main__':
         logger = piff.config.setup_logger(verbose=2)
     else:
-        logger = piff.config.setup_logger(log_file=os.path.join('output','test_input.log'))
+        logger = piff.config.setup_logger(log_file=os.path.join('output','test_input_chipnum.log'))
 
     # First, the default is to just use the index in the image list
     dir = 'input'
@@ -352,6 +484,7 @@ def test_chipnum():
     input = piff.InputFiles(config, logger=logger)
     assert input.chipnums == list(range(3))
 
+
 @timer
 def test_weight():
     """Test the weight map and bad pixel masks
@@ -359,7 +492,7 @@ def test_weight():
     if __name__ == '__main__':
         logger = piff.config.setup_logger(verbose=2)
     else:
-        logger = piff.config.setup_logger(log_file=os.path.join('output','test_input.log'))
+        logger = piff.config.setup_logger(log_file=os.path.join('output','test_input_weight.log'))
 
     # If no weight or badpix is specified, the weights are all equal.
     config = {
@@ -394,7 +527,6 @@ def test_weight():
     assert input.weight[0].array.shape == (1024, 1024)
     sky = input.sky[0][0]
     gain = input.gain[0][0]
-    scale = input.images[0].scale
     read_noise = 10
     expected_noise = sky / gain + read_noise**2 / gain**2
     np.testing.assert_almost_equal(input.weight[0].array, expected_noise**-1)
@@ -460,13 +592,88 @@ def test_weight():
 
 
 @timer
+def test_lsst_weight():
+    """Test the way LSSTDM stores the weight (as a variance including signal)
+    """
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(verbose=2)
+    else:
+        logger = piff.config.setup_logger(log_file=os.path.join('output','test_input_lsst.log'))
+
+    # First with a sky level.  This isn't actually how LSST calexps are made (they are sky
+    # subtracted), but it is how the input images are made.
+    config = {
+                'image_file_name' : 'input/test_input_image_00.fits',
+                'cat_file_name' : 'input/test_input_cat_00.fits',
+                'weight_hdu' : 10,
+                'sky' : 'SKYLEVEL',
+                'gain' : 'GAIN_A',
+                'invert_weight' : True,
+                'remove_signal_from_weight' : True,
+             }
+    input = piff.InputFiles(config, logger=logger)
+    assert len(input.image_pos) == 1
+    assert len(input.image_pos[0]) == 100
+    assert len(input.images) == 1
+    assert input.images[0].array.shape == (1024, 1024)
+    assert len(input.weight) == 1
+    assert input.weight[0].array.shape == (1024, 1024)
+    gain = input.gain[0][0]
+    sky = input.sky[0][0]
+    read_noise = 10
+    expected_noise = sky / gain + read_noise**2 / gain**2
+    print('expected noise = ',expected_noise)
+    print('var = ',input.weight[0].array**-1)
+    np.testing.assert_allclose(input.weight[0].array, expected_noise**-1, rtol=1.e-6)
+
+    # If the gain is not given, it can determine it automatically.
+    config = {
+                'image_file_name' : 'input/test_input_image_00.fits',
+                'cat_file_name' : 'input/test_input_cat_00.fits',
+                'weight_hdu' : 10,
+                'sky' : 'SKYLEVEL',
+                'invert_weight' : True,
+                'remove_signal_from_weight' : True,
+             }
+    input = piff.InputFiles(config, logger=logger)
+    gain1 = input.gain[0][0]
+    assert np.isclose(gain1, gain, rtol=1.e-6)
+    np.testing.assert_allclose(input.weight[0].array, expected_noise**-1, rtol=1.e-6)
+
+    # Now pretend that the sky is part of the signal, so the input can match how we would
+    # do this when running on calexps.
+    config = {
+                'image_file_name' : 'input/test_input_image_00.fits',
+                'cat_file_name' : 'input/test_input_cat_00.fits',
+                'weight_hdu' : 10,
+                'gain' : 'GAIN_A',
+                'invert_weight' : True,
+                'remove_signal_from_weight' : True,
+             }
+    input = piff.InputFiles(config, logger=logger)
+    assert len(input.image_pos) == 1
+    assert len(input.image_pos[0]) == 100
+    assert len(input.images) == 1
+    assert input.images[0].array.shape == (1024, 1024)
+    assert len(input.weight) == 1
+    assert input.weight[0].array.shape == (1024, 1024)
+    gain = input.gain[0][0]
+    scale = input.images[0].scale
+    read_noise = 10
+    expected_noise = read_noise**2 / gain**2
+    print('expected noise = ',expected_noise)
+    print('var = ',input.weight[0].array**-1)
+    np.testing.assert_allclose(input.weight[0].array, expected_noise**-1, rtol=1.e-5)
+
+
+@timer
 def test_stars():
     """Test the input.makeStars function
     """
     if __name__ == '__main__':
         logger = piff.config.setup_logger(verbose=2)
     else:
-        logger = piff.config.setup_logger(log_file=os.path.join('output','test_input.log'))
+        logger = piff.config.setup_logger(log_file=os.path.join('output','test_input_stars.log'))
 
     dir = 'input'
     image_file = 'test_input_image_00.fits'
@@ -575,6 +782,14 @@ def test_stars():
     print('new len is ',len(stars))
     assert len(stars) == 37
 
+    # Check that negative snr flux yields 0, not an error (from sqrt(neg))
+    # Negative flux is actually ok, since it gets squared, but if an image has negative weights
+    # (which would be weird of course), then it could get to negative flux = wI^2.
+    star0 = stars[0]
+    star0.data.orig_weight *= -1.
+    snr0 = input.calculateSNR(star0.data.image, star0.data.orig_weight)
+    assert snr0 == 0.
+
 
 @timer
 def test_pointing():
@@ -583,7 +798,7 @@ def test_pointing():
     if __name__ == '__main__':
         logger = piff.config.setup_logger(verbose=2)
     else:
-        logger = piff.config.setup_logger(log_file=os.path.join('output','test_input.log'))
+        logger = piff.config.setup_logger(log_file=os.path.join('output','test_input_pointing.log'))
 
     dir = 'input'
     image_file = 'test_input_image_00.fits'
@@ -691,7 +906,9 @@ if __name__ == '__main__':
     test_basic()
     test_invalid()
     test_cols()
+    test_boolarray()
     test_chipnum()
     test_weight()
+    test_lsst_weight()
     test_stars()
     test_pointing()

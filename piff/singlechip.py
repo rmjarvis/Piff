@@ -104,6 +104,9 @@ class SingleChipPSF(PSF):
 
         :param star:        Star instance holding information needed for interpolation as
                             well as an image/WCS into which PSF will be rendered.
+        :param copy_image:          If False, will use the same image object.
+                                    If True, will copy the image and then overwrite it.
+                                    [default: True]
 
         :returns:           Star instance with its image filled with rendered PSF
         """
