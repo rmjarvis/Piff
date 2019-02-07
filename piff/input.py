@@ -235,9 +235,12 @@ class Input(object):
         # S/N = F / sqrt(var(F))
         I = image.array
         w = weight.array
-        flux = (w*I*I).sum(dtype=float)
-        snr = flux**0.5
-        return snr
+        mask = np.isfinite(I) & np.isfinite(w)
+        flux = (w[mask]*I[mask]**2).sum(dtype=float)
+        if flux <= 0.:
+            return 0.
+        else:
+            return flux**0.5
 
     def getWCS(self, logger=None):
         """Get the WCS solutions for all the chips in the field of view.
@@ -326,10 +329,18 @@ class InputFiles(Input):
             :cat_hdu:       The hdu to use in the catalog files. [default: 1]
             :x_col:         The name of the X column in the input catalogs. [default: 'x']
             :y_col:         The name of the Y column in the input catalogs. [default: 'y']
-            :flag_col:      The name of a flag column in the input catalogs.  Anything with
-                            flag != 0 is removed from the catalogs. [default: None]
-            :use_col:       The name of a use column in the input catalogs.  Anything with
-                            use == 0 is removed from the catalogs. [default: None]
+            :ra_col:        (Alternative to x_col, y_col) The name of a right ascension column in
+                            the input catalogs.  Will use the WCS to find (x,y) [default: None]
+            :dec_col:       (Alternative to x_col, y_col) The name of a declination column in
+                            the input catalogs.  Will use the WCS to find (x,y) [default: None]
+            :flag_col:      The name of a flag column in the input catalogs. [default: None]
+                            By default, this will skip any objects with flag != 0, but see
+                            skip_flag and use_flag for other possible meanings for how the
+                            flag column can be used to select stars.
+            :skip_flag:     The flag indicating which items to not use. [default: -1]
+                            Items with flag & skip_flag != 0 will be skipped.
+            :use_flag:      The flag indicating which items to use. [default: None]
+                            Items with flag & use_flag == 0 will be skipped.
             :sky_col:       The name of a column with sky values. [default: None]
             :gain_col:      The name of a column with gain values. [default: None]
             :sky:           The sky level to subtract from the image values. [default: None]
@@ -381,14 +392,21 @@ class InputFiles(Input):
                 'chipnum' : int,
                 'x_col' : str,
                 'y_col' : str,
+                'ra_col' : str,
+                'dec_col' : str,
+                'ra_units' : str,
+                'dec_units' : str,
                 'sky_col' : str,
                 'gain_col' : str,
                 'flag_col' : str,
-                'use_col' : str,
+                'skip_flag' : int,
+                'use_flag' : int,
                 'image_hdu' : int,
                 'weight_hdu' : int,
                 'badpix_hdu' : int,
                 'cat_hdu' : int,
+                'invert_weight' : bool,
+                'remove_signal_from_weight' : bool,
                 'stamp_size' : int,
                 'gain' : str,
                 'min_snr' : float,
@@ -421,8 +439,11 @@ class InputFiles(Input):
             if nimages < 1:
                 raise ValueError('input.nimages must be >= 1')
 
+        # Deal with dir here, since sometimes we need to have it already atteched for glob
+        # to work.
         if 'dir' in config:
             dir = galsim.config.ParseValue(config, 'dir', base, str)[0]
+            del config['dir']
 
         if 'image_file_name' not in config:
             raise AttributeError('Attribute image_file_name is required')
@@ -430,14 +451,13 @@ class InputFiles(Input):
             image_list = config['image_file_name']
             if len(image_list) == 0:
                 raise ValueError("image_file_name may not be an empty list")
+            if dir is not None:
+                image_list = [os.path.join(dir, n) for n in image_list]
         elif isinstance(config['image_file_name'], basestring):
             image_file_name = config['image_file_name']
             if dir is not None:
                 image_file_name = os.path.join(dir, image_file_name)
             image_list = sorted(glob.glob(image_file_name))
-            if dir is not None:
-                k = len(dir) + 1
-                image_list = [ f[k:] for f in image_list ]
             if len(image_list) == 0:
                 raise ValueError("No files found corresponding to "+config['image_file_name'])
         elif not isinstance(config['image_file_name'], dict):
@@ -461,14 +481,13 @@ class InputFiles(Input):
             cat_list = config['cat_file_name']
             if len(cat_list) == 0:
                 raise ValueError("cat_file_name may not be an empty list")
+            if dir is not None:
+                cat_list = [os.path.join(dir, n) for n in cat_list]
         elif isinstance(config['cat_file_name'], basestring):
             cat_file_name = config['cat_file_name']
             if dir is not None:
                 cat_file_name = os.path.join(dir, cat_file_name)
             cat_list = sorted(glob.glob(cat_file_name))
-            if dir is not None:
-                k = len(dir) + 1
-                cat_list = [ f[k:] for f in cat_list ]
             if len(cat_list) == 0:
                 raise ValueError("No files found corresponding to "+config['cat_file_name'])
         elif not isinstance(config['cat_file_name'], dict):
@@ -478,7 +497,7 @@ class InputFiles(Input):
             logger.debug('cat_list = %s',cat_list)
             if nimages is not None and nimages != len(cat_list):
                 raise ValueError("nimages = %s doesn't match length of cat_file_name list (%d)"%(
-                        config['nimages'], len(cat_list)))
+                        nimages, len(cat_list)))
             nimages = len(cat_list)
             logger.debug('nimages = %d',nimages)
             config['cat_file_name'] = {
@@ -516,8 +535,6 @@ class InputFiles(Input):
 
             # Read the image
             image_file_name = params['image_file_name']
-            if 'dir' in params:
-                image_file_name = os.path.join(params['dir'], image_file_name)
             image_hdu = params.get('image_hdu', None)
             weight_hdu = params.get('weight_hdu', None)
             badpix_hdu = params.get('badpix_hdu', None)
@@ -526,6 +543,9 @@ class InputFiles(Input):
             image, weight = self.readImage(
                     image_file_name, image_hdu, weight_hdu, badpix_hdu, noise, logger)
 
+            if config.get('invert_weight', False):
+                weight.invertSelf()
+
             # Update the wcs if necessary
             if 'wcs' in config:
                 wcs = galsim.config.BuildWCS(config, 'wcs', base, logger)
@@ -533,17 +553,19 @@ class InputFiles(Input):
 
             self.image_file_name.append(image_file_name)
             self.images.append(image)
-            self.weight.append(weight)
 
             # Read the catalog
             cat_file_name = params['cat_file_name']
-            if 'dir' in params:
-                cat_file_name = os.path.join(params['dir'], cat_file_name)
             cat_hdu = params.get('cat_hdu', None)
             x_col = params.get('x_col', 'x')
             y_col = params.get('y_col', 'y')
+            ra_col = params.get('ra_col', None)
+            dec_col = params.get('dec_col', None)
+            ra_units = params.get('ra_units', 'deg')
+            dec_units = params.get('dec_units', 'deg')
             flag_col = params.get('flag_col', None)
-            use_col = params.get('use_col', None)
+            skip_flag = params.get('skip_flag', -1)
+            use_flag = params.get('use_flag', None)
             sky_col = params.get('sky_col', None)
             gain_col = params.get('gain_col', None)
             sky = params.get('sky', None)
@@ -551,8 +573,35 @@ class InputFiles(Input):
             nstars = params.get('nstars', None)
 
             image_pos, sky, gain = self.readStarCatalog(
-                    cat_file_name, cat_hdu, x_col, y_col, flag_col, use_col,
-                    sky_col, gain_col, sky, gain, nstars, image_file_name, logger)
+                    cat_file_name, cat_hdu, x_col, y_col,
+                    ra_col, dec_col, ra_units, dec_units, image.wcs,
+                    flag_col, skip_flag, use_flag, sky_col, gain_col,
+                    sky, gain, nstars, image_file_name, logger)
+            # Check for objects well off the edge.  We won't use them.
+            big_bounds = image.bounds.expand(self.stamp_size)
+            image_pos = [ pos for pos in image_pos if big_bounds.includes(pos) ]
+
+            if config.get('remove_signal_from_weight', False):
+                # Subtract off the mean sky, since this isn't part of the "signal" we want to
+                # remove from the weights.
+                if sky is None:
+                    signal = image
+                else:
+                    signal = image - np.mean(sky)
+                # For the gain, either all are None or all are values.
+                if gain[0] is None:
+                    # If None, then we want to estimate the gain from the weight image.
+                    weight, g = self._removeSignalFromWeight(signal, weight)
+                    gain = [g for _ in gain]
+                    logger.warning("Empirically determined gain = %f",g)
+                else:
+                    # If given, use the mean gain when removing the signal.
+                    # This isn't quite right, but hopefully the gain won't vary too much for
+                    # different objects, so it should be close.
+                    weight, _ = self._removeSignalFromWeight(signal, weight, gain=np.mean(gain))
+                logger.info("Removed signal from weight image.")
+
+            self.weight.append(weight)
             self.cat_file_name.append(cat_file_name)
             self.image_pos.append(image_pos)
             self.sky.append(sky)
@@ -566,6 +615,34 @@ class InputFiles(Input):
         ra = config.get('ra',None)
         dec = config.get('dec',None)
         self.setPointing(ra, dec, logger)
+
+
+    @staticmethod
+    def _removeSignalFromWeight(image, weight, gain=None):
+        """Remove the image signal from the weight map.
+
+        :param image:   The image to use as the signal
+        :param weight:  The weight image.
+        :param gain:    Optionally, the gain to use as the proportionality relation.
+                        If gain is None, then it will be estimated automatically and returned.
+                        [default: None]
+
+        :returns: newweight, gain
+        """
+        signal = image.array
+        variance = 1./weight.array
+
+        use = (weight.array != 0.) & np.isfinite(signal)
+
+        if gain is None:
+            fit = np.polyfit(signal[use].flatten(), variance[use].flatten(), deg=1)
+            gain = 1./fit[0]  # fit is [ 1/gain, sky_var ]
+
+        variance[use] -= signal[use] / gain
+
+        newweight = weight.copy()
+        newweight.array[use] = 1. / variance[use]
+        return newweight, gain
 
 
     def readImage(self, image_file_name, image_hdu, weight_hdu, badpix_hdu, noise, logger):
@@ -625,16 +702,41 @@ class InputFiles(Input):
             weight.array[badpix.array != 0] = 0
         return image, weight
 
-    def readStarCatalog(self, cat_file_name, cat_hdu, x_col, y_col, flag_col, use_col,
-                        sky_col, gain_col, sky, gain, nstars, image_file_name, logger):
+    @staticmethod
+    def _flag_select(col, flag):
+        if len(col.shape) == 1:
+            # Then just treat this as a straightforward bitmask.
+            return col & flag
+        else:
+            # Then treat this as an array of bools rather than a bitmask
+            mask = np.zeros(col.shape[0], dtype=bool)
+            for bit in range(col.shape[1]):  # pragma: no branch
+                if flag % 2 == 1:
+                    mask |= col[:,bit]
+                flag = flag // 2
+                if flag == 0: break
+            return mask
+
+    def readStarCatalog(self, cat_file_name, cat_hdu, x_col, y_col,
+                        ra_col, dec_col, ra_units, dec_units, wcs,
+                        flag_col, skip_flag, use_flag, sky_col, gain_col,
+                        sky, gain, nstars, image_file_name, logger):
         """Read in the star catalogs and return lists of positions for each star in each image.
 
         :param cat_file_name:   The name of the catalog file to read in.
         :param cat_hdu:         The hdu to use.
         :param x_col:           The name of the column with x values.
         :param y_col:           The name of the column with y values.
-        :param flag_col:        Optionally, the name of a column with flag values.
-        :param use_col:         Optionally, the name of a column with use values.
+        :param ra_col:          The name of a column with RA values.
+        :param dec_col:         The name of a column with Dec values.
+        :param ra_units:        The units of the ra column.
+        :param dec_units:       The units of the dec column.
+        :param wcs:             The WCS to use to convert from Ra,Dec -> x,y.
+        :param flag_col:        The name of a column with flag values.
+        :param skip_flag:       The flag indicating which items to not use. [default: -1]
+                                Items with flag & skip_flag != 0 will be skipped.
+        :param use_flag:        The flag indicating which items to use. [default: None]
+                                Items with flag & use_flag == 0 will be skipped.
         :param sky_col:         A column with sky (background) levels.
         :param gain_col:        A column with gain values.
         :param sky:             Either a float value for the sky to use for all objects or a str
@@ -656,19 +758,28 @@ class InputFiles(Input):
 	print("cat_hdu: {0}".format(cat_hdu))
         cat = fitsio.read(cat_file_name, cat_hdu)
 
-        # Remove any objects with flag != 0
         if flag_col is not None:
             if flag_col not in cat.dtype.names:
                 raise ValueError("flag_col = %s is not a column in %s"%(flag_col,cat_file_name))
-            logger.info("Removing objects with flag (col %s) != 0",flag_col)
-            cat = cat[cat[flag_col]==0]
-
-        # Remove any objects with use == 0
-        if use_col is not None:
-            if use_col not in cat.dtype.names:
-                raise ValueError("use_col = %s is not a column in %s"%(use_col,cat_file_name))
-            logger.info("Removing objects with use (col %s) == 0",use_col)
-            cat = cat[cat[use_col]!=0]
+            col = cat[flag_col]
+            if len(col.shape) == 2:
+                logger.warning("Flag col (%s) is multidimensional.  Treating as an array of bool",
+                               flag_col)
+            if use_flag is not None:
+                # Remove any objects with flag & use_flag == 0
+                mask = self._flag_select(col, use_flag) == 0
+                logger.info("Removing objects with flag (col %s) & %d == 0",flag_col,use_flag)
+                if skip_flag != -1:
+                    mask |= self._flag_select(col, skip_flag) != 0
+                    logger.info("Removing objects with flag (col %s) & %d != 0",flag_col,skip_flag)
+            else:
+                # Remove any objects with flag & skip_flag != 0
+                mask = self._flag_select(col, skip_flag) != 0
+                if skip_flag == -1:
+                    logger.info("Removing objects with flag (col %s) != 0",flag_col)
+                else:
+                    logger.info("Removing objects with flag (col %s) & %d != 0",flag_col,skip_flag)
+            cat = cat[mask == 0]
 
         # Limit to nstars objects
         if nstars is not None and nstars < len(cat):
@@ -676,13 +787,30 @@ class InputFiles(Input):
             cat = cat[:nstars]
 
         # Make the list of positions:
-        if x_col not in cat.dtype.names:
-            raise ValueError("x_col = %s is not a column in %s"%(x_col,cat_file_name))
-        if y_col not in cat.dtype.names:
-            raise ValueError("y_col = %s is not a column in %s"%(y_col,cat_file_name))
-        x_values = cat[x_col]
-        y_values = cat[y_col]
-        image_pos = [ galsim.PositionD(x,y) for x,y in zip(x_values, y_values) ]
+        if ra_col is not None or dec_col is not None:
+            if ra_col is None or dec_col is None:
+                raise ValueError("ra_col and dec_col are both required if one is provided.")
+            ra_values = cat[ra_col]
+            dec_values = cat[dec_col]
+            ra_units = galsim.AngleUnit.from_name(ra_units)
+            dec_units = galsim.AngleUnit.from_name(dec_units)
+            def safe_to_image(wcs, ra, dec):
+                try:
+                    return wcs.toImage(galsim.CelestialCoord(ra*ra_units, dec*dec_units))
+                except galsim.GalSimError:  # pragma: no cover
+                    # If the ra,dec is way off the image, this might fail to converge.
+                    # In this case return something clearly not on an image so it gets
+                    # excluded during the bounds check.
+                    return galsim.PositionD(1.e99, 1.e99)
+            image_pos = [ safe_to_image(wcs,ra,dec) for ra,dec in zip(ra_values, dec_values) ]
+        else:
+            if x_col not in cat.dtype.names:
+                raise ValueError("x_col = %s is not a column in %s"%(x_col,cat_file_name))
+            if y_col not in cat.dtype.names:
+                raise ValueError("y_col = %s is not a column in %s"%(y_col,cat_file_name))
+            x_values = cat[x_col]
+            y_values = cat[y_col]
+            image_pos = [ galsim.PositionD(x,y) for x,y in zip(x_values, y_values) ]
 
         # Make the list of sky values:
         if sky_col is not None:

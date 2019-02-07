@@ -105,7 +105,7 @@ class PSF(object):
 
     def draw(self, x, y, chipnum=0, flux=1.0, offset=(0,0), stamp_size=48, image=None,
              logger=None, **kwargs):
-        """Draws an image of the PSF at a given location.
+        r"""Draws an image of the PSF at a given location.
 
         The normal usage would be to specify (chipnum, x, y), in which case Piff will use the
         stored wcs information for that chip to interpolate to the given position and draw
@@ -138,7 +138,7 @@ class PSF(object):
                             [default: 48]
         :param image:       An existing image on which to draw, if desired. [default: None]
         :param logger:      A logger object for logging debug info. [default: None]
-        :param **kwargs:    Additional properties required for the interpolation.
+        :param \**kwargs:   Any additional properties required for the interpolation.
 
         :returns:           A GalSim Image of the PSF
         """
@@ -407,10 +407,22 @@ class PSF(object):
         # Convert back into wcs objects
         if sys.version_info > (3,0):
             wcs_list = [ pickle.loads(s, encoding='bytes') for s in wcs_str ]
+
         else:
             wcs_list = [ pickle.loads(s) for s in wcs_str ]
 
         wcs = dict(zip(chipnums, wcs_list))
+
+        if sys.version_info > (3,0):
+            try:
+                # If this doesn't work, then the file was probably written by py2, not py3
+                repr(wcs)
+            except Exception:
+                logger.info('Failed to decode wcs with bytes encoding.')
+                logger.info('Retry with encoding="latin1" in case file written with python 2.')
+                wcs_list = [ pickle.loads(s, encoding='latin1') for s in wcs_str ]
+                wcs = dict(zip(chipnums, wcs_list))
+                repr(wcs)
 
         if 'ra' in fits[extname].get_colnames():
             ra = data['ra']

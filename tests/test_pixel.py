@@ -103,7 +103,10 @@ def test_oversample():
     # Pixelized model with Lanczos 3 interp, coarser pix scale
     interp = 'Lanczos(3)'  # eval the string
     mod = piff.PixelGrid(2*du, nside//2, interp, start_sigma=1.5, force_model_center=False)
-    star = mod.initialize(s).withFlux(flux=np.sum(s.image.array))
+    # mask=False isn't required here. It's an option that we don't really test anywhere, but
+    # doing it here at least gets that branch covered.
+    # TODO: Either remove this option, which apparently isn't very useful, or add a real test.
+    star = mod.initialize(s, mask=False).withFlux(flux=np.sum(s.image.array))
 
     for i in range(2):
         star = mod.fit(star)
