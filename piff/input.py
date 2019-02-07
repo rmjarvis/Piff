@@ -198,6 +198,19 @@ class Input(object):
 	stars = stars.tolist()
 
 	logger.info("There are {0} stars after the nuisance star cut".format(len(stars)))
+	
+	star_weightmaps = []
+	for star in stars:
+		print("star_weightmap: {0}".format(star.weight.array))
+		star_weightmaps.append(star.weight.array)
+	star_weightmaps = np.array(star_weightmaps)
+	print("star_weightmaps: {0}".format(star_weightmaps))
+	conds_not_masked = (np.all(star_weightmaps != 0.0,axis=(1,2)))
+	for s, star_weightmap in enumerate(star_weightmaps):
+		if not np.all(star_weightmap != 0.0):
+			print("star_weightmap for star {0}: {1}".format(s, star_weightmap))
+	stars = np.array(stars)[conds_not_masked].tolist()
+	logger.info("There are {0} stars after the masked star cut".format(len(stars)))
 	return stars
 
     @staticmethod
