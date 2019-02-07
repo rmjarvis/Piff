@@ -687,7 +687,7 @@ class OptAtmoPSF(PSF):
         # do a fit to moments or pixels, if we desired
         self.total_redchi_across_iterations = []
         if self.fit_optics_mode in ['shape', 'pixel']:
-            self.fit_optics(self.fit_optics_stars, self.fit_optics_star_shapes, self.fit_optics_star_errors, mode=self.fit_optics_mode, logger=logger, ftol=1.e-7, **kwargs)
+            self.fit_optics(self.fit_optics_stars, self.fit_optics_star_shapes, self.fit_optics_star_errors, mode=self.fit_optics_mode, logger=logger, ftol=1.e-3, **kwargs)
         elif self.fit_optics_mode == 'analytic':
             # already did it, so can pass
             pass
