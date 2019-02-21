@@ -163,7 +163,7 @@ class Input(object):
         logger.warning("Read a total of %d stars from %d image%s",len(stars),len(self.images),
                        "s" if len(self.images) > 1 else "")
 
-
+        # here we remove nuisance stars. We do this by seeing if there is an unusual amount of flux far from the center of the postage stamp
 	flux_extras = []
 	for star in stars:
 	    flux_extra = 0
@@ -198,7 +198,8 @@ class Input(object):
 	stars = stars.tolist()
 
 	logger.info("There are {0} stars after the nuisance star cut".format(len(stars)))
-	
+
+        # here we remove stars that have been at least partially covered by a mask and thus have weight exactly 0 in at least one pixel of their postage stamp
 	star_weightmaps = []
 	for star in stars:
 		print("star_weightmap: {0}".format(star.weight.array))
@@ -578,8 +579,26 @@ class InputFiles(Input):
                     flag_col, skip_flag, use_flag, sky_col, gain_col,
                     sky, gain, nstars, image_file_name, logger)
             # Check for objects well off the edge.  We won't use them.
-            big_bounds = image.bounds.expand(self.stamp_size)
-            image_pos = [ pos for pos in image_pos if big_bounds.includes(pos) ]
+            #big_bounds = image.bounds.expand(self.stamp_size)
+            #image_pos = [ pos for pos in image_pos if big_bounds.includes(pos) ]
+#The above two lines cause the following error, so they are commented out:
+#cat_file_name: /nfs/slac/g/ki/ki19/des/cpd/y3_piff/exposures_v29_grizY/510062/psf_cat_510062_1.fits
+#cat_hdu: 2
+#Traceback (most recent call last):
+#  File "fit_psf.py", line 593, in <module>
+#    fit_psf(**kwargs)
+#  File "fit_psf.py", line 261, in fit_psf
+#    stars, wcs, pointing = piff.Input.process(config['input'], logger=logger)
+#  File "/u/ec/aresh/Piff-galsimify_optatmo/piff/input.py", line 54, in process
+#    input_handler = input_handler_class(config_input, logger)
+#  File "/u/ec/aresh/Piff-galsimify_optatmo/piff/input.py", line 583, in __init__
+#    image_pos = [ pos for pos in image_pos if big_bounds.includes(pos) ]
+#Boost.Python.ArgumentError: Python argument types in
+#    BoundsI.includes(BoundsI, PositionD)
+#did not match C++ signature:
+#    includes(galsim::Bounds<int> {lvalue}, galsim::Bounds<int>)
+#    includes(galsim::Bounds<int> {lvalue}, int, int)
+#    includes(galsim::Bounds<int> {lvalue}, galsim::Position<int>)
 
             if config.get('remove_signal_from_weight', False):
                 # Subtract off the mean sky, since this isn't part of the "signal" we want to
