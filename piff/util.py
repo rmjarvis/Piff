@@ -187,7 +187,11 @@ def measure_snr(star):
     return snr
 
 def hsm(star):
-    """ Use HSM to measure moments of star image.
+    """ Use HSM to measure moments of star image. Does not go beyond second moments.
+
+    :param star:    Input star, with stamp, weight
+
+    :returns:       The shape. Does not go beyond second moments. Also returns a flag.
     """
     image, weight, image_pos = star.data.getImage()
     # Note that FindAdaptiveMom only respects the weight function in a binary sense.  I.e., pixels
@@ -222,7 +226,7 @@ def hsm(star):
 
 
 def hsm_error(star, logger=None, return_debug=False, return_error=True):
-    """ Use python implementation of HSM to measure higher order moments of star image to get errors.
+    """ Use python implementation of HSM to measure moments of star image to get errors. Does not go beyond second moments.
 
     Slow since it's python, not C, but we should only have to do this once per star.
 
@@ -238,6 +242,17 @@ def hsm_error(star, logger=None, return_debug=False, return_error=True):
 
     TODO: might be a factor of 2 missing still?
     TODO: what do the _i subscripts indicate? can I cut that and keep clarity?
+
+
+    :param star:            Input star, with stamp, weight
+    :param logger:          A logger object for logging debug info.
+                            [default: None]
+    :param return_debug:    Boolean. If true, will return debug.
+                            [default: False]
+    :param return_error:    Boolean. If true, will also return the shape error.
+                            [default: True]
+
+    :returns:               The shape (and error if return_error). Does not go beyond second moments.
     """
     from .gsobject_model import Gaussian
     from .star import Star
@@ -392,6 +407,12 @@ def hsm_error(star, logger=None, return_debug=False, return_error=True):
 
 def hsm_third_moments(star, logger=None):
     """ Use python implementation of HSM to measure up to third moments of star image.
+
+    :param star:            Input star, with stamp, weight
+    :param logger:          A logger object for logging debug info.
+                            [default: None]
+
+    :returns:               The shape. Goes up to third moments.
     """
     from .gsobject_model import Gaussian
     from .star import Star
@@ -429,17 +450,6 @@ def hsm_third_moments(star, logger=None):
     Mvv = 2 * np.sum(data_i * weight_i * kernel_i * dv_i * dv_i) / normalization
     Muv = 2 * np.sum(data_i * weight_i * kernel_i * du_i * dv_i) / normalization
 
-    """
-
-    Muu_true = 2 * Muu
-    e0_true = Muu_true + Mvv_true
-    e1_true = Muu_true - Mvv_true
-    e0_calc = Muu + Mvv = 0.5 e0_true
-    e1_calc = (Muu - Mvv) / 2 = 0.25 e1_true
-
-
-    Q: if kernel above is actually K^2, not K, how does above change?
-    """
     # now e0,e1,e2
     # also note that this defintion for e1 and e2 is /2 compared to previous definitions
     e0_calc = Muu + Mvv
@@ -466,6 +476,12 @@ def hsm_third_moments(star, logger=None):
 
 def hsm_error_third_moments(star, logger=None):
     """ Use python implementation of HSM to measure up to third moments of star image to get errors.
+
+    :param star:            Input star, with stamp, weight
+    :param logger:          A logger object for logging debug info.
+                            [default: None]
+
+    :returns:               The shape error. Goes up to third moments.
     """
     from .gsobject_model import Gaussian
     from .star import Star
@@ -503,17 +519,6 @@ def hsm_error_third_moments(star, logger=None):
     Mvv = 2 * np.sum(data_i * weight_i * kernel_i * dv_i * dv_i) / normalization
     Muv = 2 * np.sum(data_i * weight_i * kernel_i * du_i * dv_i) / normalization
 
-    """
-
-    Muu_true = 2 * Muu
-    e0_true = Muu_true + Mvv_true
-    e1_true = Muu_true - Mvv_true
-    e0_calc = Muu + Mvv = 0.5 e0_true
-    e1_calc = (Muu - Mvv) / 2 = 0.25 e1_true
-
-
-    Q: if kernel above is actually K^2, not K, how does above change?
-    """
     # now e0,e1,e2
     # also note that this defintion for e1 and e2 is /2 compared to previous definitions
     e0_calc = Muu + Mvv
@@ -631,6 +636,8 @@ def hsm_error_third_moments(star, logger=None):
     #sigma_zeta2 = sigma_zeta2 * 0.545
     sigma_zeta1 = sigma_zeta1 * 0.52
     sigma_zeta2 = sigma_zeta2 * 0.55
+
+#below are the numbers gleaned when looking for fudge factors using simulated stars of different snr and location
 #snr 90, location (500, 500, 25), 1000 runs
 #[ 1.12804519  1.07293111  1.07145898  1.13775826  1.10059309  1.10546455  1.05268536  0.99594863  0.9396108   0.93940038]
 #snr 90, location (500, 500, 25), 100 runs
@@ -654,6 +661,13 @@ def hsm_error_third_moments(star, logger=None):
 
 def hsm_fourth_moments(star, logger=None):
     """ Use python implementation of HSM to measure up to fourth moments of star image.
+
+
+    :param star:            Input star, with stamp, weight
+    :param logger:          A logger object for logging debug info.
+                            [default: None]
+
+    :returns:               The shape. Goes up to fourth moments.
     """
     from .gsobject_model import Gaussian
     from .star import Star
@@ -691,17 +705,6 @@ def hsm_fourth_moments(star, logger=None):
     Mvv = 2 * np.sum(data_i * weight_i * kernel_i * dv_i * dv_i) / normalization
     Muv = 2 * np.sum(data_i * weight_i * kernel_i * du_i * dv_i) / normalization
 
-    """
-
-    Muu_true = 2 * Muu
-    e0_true = Muu_true + Mvv_true
-    e1_true = Muu_true - Mvv_true
-    e0_calc = Muu + Mvv = 0.5 e0_true
-    e1_calc = (Muu - Mvv) / 2 = 0.25 e1_true
-
-
-    Q: if kernel above is actually K^2, not K, how does above change?
-    """
     # now e0,e1,e2
     # also note that this defintion for e1 and e2 is /2 compared to previous definitions
     e0_calc = Muu + Mvv
@@ -742,6 +745,12 @@ def hsm_fourth_moments(star, logger=None):
 
 def hsm_error_fourth_moments(star, logger=None):
     """ Use python implementation of HSM to measure up to fourth moments of star image to get errors.
+
+    :param star:            Input star, with stamp, weight
+    :param logger:          A logger object for logging debug info.
+                            [default: None]
+
+    :returns:               The shape error. Goes up to fourth moments.
     """
     from .gsobject_model import Gaussian
     from .star import Star
@@ -779,17 +788,6 @@ def hsm_error_fourth_moments(star, logger=None):
     Mvv = 2 * np.sum(data_i * weight_i * kernel_i * dv_i * dv_i) / normalization
     Muv = 2 * np.sum(data_i * weight_i * kernel_i * du_i * dv_i) / normalization
 
-    """
-
-    Muu_true = 2 * Muu
-    e0_true = Muu_true + Mvv_true
-    e1_true = Muu_true - Mvv_true
-    e0_calc = Muu + Mvv = 0.5 e0_true
-    e1_calc = (Muu - Mvv) / 2 = 0.25 e1_true
-
-
-    Q: if kernel above is actually K^2, not K, how does above change?
-    """
     # now e0,e1,e2
     # also note that this defintion for e1 and e2 is /2 compared to previous definitions
     e0_calc = Muu + Mvv
@@ -949,6 +947,7 @@ def hsm_error_fourth_moments(star, logger=None):
     #sigma_zeta2 = sigma_zeta2 * 0.545
     sigma_zeta1 = sigma_zeta1 * 0.52
     sigma_zeta2 = sigma_zeta2 * 0.55
+#below are the numbers gleaned when looking for fudge factors using simulated stars of different snr and location
 #snr 90, location (500, 500, 25), 1000 runs
 #[ 1.12804519  1.07293111  1.07145898  1.13775826  1.10059309  1.10546455  1.05268536  0.99594863  0.9396108   0.93940038]
 #snr 90, location (500, 500, 25), 100 runs
@@ -967,6 +966,7 @@ def hsm_error_fourth_moments(star, logger=None):
     sigma_eta2 = sigma_eta2 * 2.6
     sigma_lambda1 = sigma_lambda1 * 1.1
     sigma_lambda2 = sigma_lambda2 * 1.1
+#below are the numbers gleaned when looking for fudge factors using simulated stars of different snr and location
 #snr 90, location (500, 500, 25), 100 runs
 #[ 1.12781393  1.07440408  1.07547636  1.13551989  1.09799606  1.106043 1.04924972  0.99272887  0.93874354  0.94343509  0.99765259  0.9923932 1.0064688   1.03260727  1.03864627]
 #snr 70, location (500, 500, 25), 100 runs
