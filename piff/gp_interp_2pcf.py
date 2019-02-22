@@ -92,8 +92,8 @@ class bootstrap_2pcf(object):
         if self.anisotropy:
             cat = treecorr.Catalog(x=X[:,0], y=X[:,1], k=(y-np.mean(y)), w=w)
             kk = treecorr.KKCorrelation(min_sep=self.MIN, max_sep=self.MAX, nbins=self.nbins,
-                                        metric='TwoD', bin_slop=0)
-            kk.process(cat, cat, metric='TwoD')
+                                        bin_type='TwoD', bin_slop=0)
+            kk.process(cat)
             mask = (kk.xi != 0)
             npixel = int(np.sqrt(len(kk.xi)))
             mask = mask.reshape((npixel,npixel))
