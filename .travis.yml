@@ -42,7 +42,7 @@ before_install:
     - pip install pandas==0.21
 
     # For now, use treecorr twod branch
-    - git clone git@github.com:rmjarvis/TreeCorr.git
+    - git clone https://github.com/rmjarvis/TreeCorr.git
     - cd TreeCorr
     - git checkout twod
     - python setup.py install --user
