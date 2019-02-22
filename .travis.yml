@@ -45,7 +45,7 @@ before_install:
     - git clone https://github.com/rmjarvis/TreeCorr.git
     - cd TreeCorr
     - git checkout twod
-    - python setup.py install --user
+    - python setup.py install --prefix=$PYHOME
     - cd ..
 
 cache:
