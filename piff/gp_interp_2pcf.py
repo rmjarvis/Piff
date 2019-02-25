@@ -94,9 +94,12 @@ class bootstrap_2pcf(object):
             kk = treecorr.KKCorrelation(min_sep=self.MIN, max_sep=self.MAX, nbins=self.nbins,
                                         bin_type='TwoD', bin_slop=0)
             kk.process(cat)
-            mask = (kk.xi != 0)
-            npixel = int(np.sqrt(len(kk.xi)))
-            mask = mask.reshape((npixel,npixel))
+            npixels = len(kk.xi)**2
+            mask = np.array([True]*npixels)
+
+            #mask = (kk.xi != 0)
+            #npixel = int(np.sqrt(len(kk.xi)))
+            mask = mask.reshape((int(np.sqrt(npixels)), int(np.sqrt(npixels))))
             if len(mask)%2 == 0:
                 nmask = (len(mask)/2)
                 mask[nmask:,:] = False
@@ -104,10 +107,11 @@ class bootstrap_2pcf(object):
                 nmask = (len(mask)/2)+1
                 mask[nmask:,:] = False
                 mask[nmask-1][nmask:] = False
-            mask = mask.reshape(npixel**2)
+            mask = mask.reshape(npixels)
 
-            distance = np.array([kk.dx, kk.dy]).T
+            distance = np.array([kk.dx.reshape(npixels), kk.dy.reshape(npixels)]).T
             Coord = distance
+            xi = kk.xi.reshape(npixels)
         else:
             cat = treecorr.Catalog(x=X[:,0], y=X[:,1], k=(y-np.mean(y)), w=w)
             kk = treecorr.KKCorrelation(min_sep=self.MIN, max_sep=self.MAX, nbins=self.nbins)
@@ -115,8 +119,9 @@ class bootstrap_2pcf(object):
             distance = kk.meanr
             mask = np.array([True]*len(kk.xi))
             Coord = np.array([distance,np.zeros_like(distance)]).T
+            xi = kk.xi
 
-        return kk.xi, distance, Coord, mask
+        return xi, distance, Coord, mask
     
     def comp_xi_covariance(self, n_bootstrap=1000, mask=None, seed=610639139):
         """
@@ -132,7 +137,6 @@ class bootstrap_2pcf(object):
             xi, d, c, m = self.comp_2pcf(coord, y, y_err)
             if mask is None:
                 mask = np.array([True]*len(xi))
-
             xi_bootstrap.append(xi[mask])
         xi_bootstrap = np.array(xi_bootstrap)
 
@@ -152,23 +156,23 @@ class bootstrap_2pcf(object):
         # computing the 2D correlation function. Mask
         # them for the moment.
         if self.anisotropy:
-            N = int(np.sqrt(len(xi)))
-            xi = xi.reshape(N,N)
-            XI = copy.deepcopy(xi)
-            mask = mask.reshape(N,N)
-            for i in range(N-1):
-                for j in range(N-1):
-                    if XI[i,j-1] == 0 or XI[i,j+1] ==0:
-                        mask[i,j] = False
-                        xi[i, j] = 0
+        #    N = int(np.sqrt(len(xi)))
+        #    xi = xi.reshape(N,N)
+        #    XI = copy.deepcopy(xi)
+        #    mask = mask.reshape(N,N)
+        #    for i in range(N-1):
+        #        for j in range(N-1):
+        #            if XI[i,j-1] == 0 or XI[i,j+1] ==0:
+        #                mask[i,j] = False
+        #                xi[i, j] = 0
 
-            for i in [0,-1]:
-                mask[:,i] = False
-                mask[i] = False
-                xi[:,i] = 0
-                xi[i] = 0
-            xi = xi.reshape(N*N)
-            mask = mask.reshape(N*N)
+        #    for i in [0,-1]:
+        #        mask[:,i] = False
+        #        mask[i] = False
+        #        xi[:,i] = 0
+        #        xi[i] = 0
+        #    xi = xi.reshape(N*N)
+        #    mask = mask.reshape(N*N)
 
             # Choice done from Andy Taylor et al. 2012
             def f_bias(x, npixel=len(xi[mask])):
