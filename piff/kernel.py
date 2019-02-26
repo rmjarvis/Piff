@@ -250,7 +250,7 @@ class VonKarman(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
 
             lim0 = special.gamma(5./6.) / (2 * (np.pi**(5./6.)))
             np.fill_diagonal(K, lim0)
-            K /= lim0 
+            K /= lim0
         else:
             if eval_gradient:
                 raise ValueError(
@@ -288,12 +288,12 @@ class VonKarman(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
 
 class AnisotropicVonKarman(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
     """ A GaussianProcessRegressor Kernel representing a Von-Karman correlation function
-    with an arbitrary anisotropic covariance. While the parameter for this kernel, 
-    an inverse covariance matrix, can be specified directly with the `invLam` kwarg, 
-    it may be more convenient to instead specify a characteristic scale-length for each axis 
-    using the `scale_length` kwarg.  Note that a list or array is required so that the dimensionality 
-    of the kernel can be determined from its length. For optimization, it's necessary to reparameterize 
-    the inverse covariance matrix in such a way as to ensure that it's always positive definite.  
+    with an arbitrary anisotropic covariance. While the parameter for this kernel,
+    an inverse covariance matrix, can be specified directly with the `invLam` kwarg,
+    it may be more convenient to instead specify a characteristic scale-length for each axis
+    using the `scale_length` kwarg.  Note that a list or array is required so that the dimensionality
+    of the kernel can be determined from its length. For optimization, it's necessary to reparameterize
+    the inverse covariance matrix in such a way as to ensure that it's always positive definite.
     To this end, we define `theta` (abbreviated `th` below) such that
     invLam = L * L.T
     L = [[exp(th[0])  0              0           ...    0                 0           ]
