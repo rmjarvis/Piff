@@ -101,10 +101,10 @@ class bootstrap_2pcf(object):
             #npixel = int(np.sqrt(len(kk.xi)))
             mask = mask.reshape((int(np.sqrt(npixels)), int(np.sqrt(npixels))))
             if len(mask)%2 == 0:
-                nmask = (len(mask)/2)
+                nmask = int(len(mask)/2)
                 mask[nmask:,:] = False
             else:
-                nmask = (len(mask)/2)+1
+                nmask = int((len(mask)/2)+1)
                 mask[nmask:,:] = False
                 mask[nmask-1][nmask:] = False
             mask = mask.reshape(npixels)
