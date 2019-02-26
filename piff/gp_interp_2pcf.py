@@ -96,9 +96,6 @@ class bootstrap_2pcf(object):
             kk.process(cat)
             npixels = len(kk.xi)**2
             mask = np.array([True]*npixels)
-
-            #mask = (kk.xi != 0)
-            #npixel = int(np.sqrt(len(kk.xi)))
             mask = mask.reshape((int(np.sqrt(npixels)), int(np.sqrt(npixels))))
             if len(mask)%2 == 0:
                 nmask = int(len(mask)/2)
@@ -122,7 +119,7 @@ class bootstrap_2pcf(object):
             xi = kk.xi
 
         return xi, distance, Coord, mask
-    
+
     def comp_xi_covariance(self, n_bootstrap=1000, mask=None, seed=610639139):
         """
         Estimate 2-point correlation function covariance matrix using Bootstrap.
@@ -151,29 +148,7 @@ class bootstrap_2pcf(object):
         :param seed: seed of the random generator.
         """
         xi, distance, coord, mask = self.comp_2pcf(self.X, self.y, self.y_err)
-
-        # TreeCorr had some bad value on the edge when
-        # computing the 2D correlation function. Mask
-        # them for the moment.
         if self.anisotropy:
-        #    N = int(np.sqrt(len(xi)))
-        #    xi = xi.reshape(N,N)
-        #    XI = copy.deepcopy(xi)
-        #    mask = mask.reshape(N,N)
-        #    for i in range(N-1):
-        #        for j in range(N-1):
-        #            if XI[i,j-1] == 0 or XI[i,j+1] ==0:
-        #                mask[i,j] = False
-        #                xi[i, j] = 0
-
-        #    for i in [0,-1]:
-        #        mask[:,i] = False
-        #        mask[i] = False
-        #        xi[:,i] = 0
-        #        xi[i] = 0
-        #    xi = xi.reshape(N*N)
-        #    mask = mask.reshape(N*N)
-
             # Choice done from Andy Taylor et al. 2012
             def f_bias(x, npixel=len(xi[mask])):
                 top = x - 1.
@@ -186,7 +161,6 @@ class bootstrap_2pcf(object):
         else:
             # let like developed initialy for the moment
             xi_weight = np.eye(len(xi)) * 1./np.var(self.y)
-
         return xi, xi_weight, distance, coord, mask
 
 class GPInterp2pcf(Interp):
@@ -206,7 +180,7 @@ class GPInterp2pcf(Interp):
                          be interpolate and then retransform in PSF parameters. [default: 0, which
                          means don't decompose PSF parameters into principle components.]
     :param anisotropy:   2D 2-point correlation function. Used 2D correlation function for the
-                         fiting part of the GP instead of a 1D correlation function. [default: False]     
+                         fiting part of the GP instead of a 1D correlation function. [default: False]
     :param normalize:    Whether to normalize the interpolation parameters to have a mean of 0.
                          Normally, the parameters being interpolated are not mean 0, so you would
                          want this to be True, but if your parameters have an a priori mean of 0,
@@ -216,14 +190,14 @@ class GPInterp2pcf(Interp):
                          added to the error of the PSF parameters. [default: 0.]
     :param n_neighbors:  Number of neighbors to used for interpolating the spatial average using
                          a KNeighbors interpolation. Used only if average_fits is not None. [defaulf: 4]
-    :param nbins:        Number of bins (if 1D correlation function) of the square root of the number 
-                         of bins (if 2D correlation function) used in TreeCorr to compute the 
+    :param nbins:        Number of bins (if 1D correlation function) of the square root of the number
+                         of bins (if 2D correlation function) used in TreeCorr to compute the
                          2-point correlation function. [default: 20]
-    :param max_sep:      Maximum separation between pairs when computing 2-point correlation 
-                         function. In the same units as the keys. Compute automaticaly if it 
+    :param max_sep:      Maximum separation between pairs when computing 2-point correlation
+                         function. In the same units as the keys. Compute automaticaly if it
                          is not given. [default: None]
-    :param average_fits: A fits file that have the spatial average functions of PSF parameters 
-                         build in it. Build using meanify and piff output across different 
+    :param average_fits: A fits file that have the spatial average functions of PSF parameters
+                         build in it. Build using meanify and piff output across different
                          exposures. See meanify documentation. [default: None]
     :param logger:       A logger object for logging debug info. [default: None]
     """
@@ -297,7 +271,7 @@ class GPInterp2pcf(Interp):
             exec(execstr, globals(), locals())
 
         from numpy import array
-            
+
         try:
             k = eval(kernel)
         except (KeyboardInterrupt, SystemExit):
@@ -322,13 +296,13 @@ class GPInterp2pcf(Interp):
         if logger:
             logger.debug('Start kernel: %s', kernel.set_params())
             logger.debug('gp.fit with mean y = %s',np.mean(y))
-        # Save these for potential read/write.                
+        # Save these for potential read/write.
         if self.optimize:
             kernel = self._optimizer_2pcf(kernel,X,y,y_err)
             if logger:
                 logger.debug('After fit: kernel = %s',kernel.set_params())
         return kernel
-    
+
     def _optimizer_2pcf(self, kernel, X, y, y_err):
         """Fit hyperparameter using two-point correlation function.
 
@@ -453,19 +427,19 @@ class GPInterp2pcf(Interp):
                                  "equal to the number of params (%i), number kernel provided: %i" \
                                  %((self.nparams,len(self.kernel_template))))
             else:
-                self.kernels = [copy.deepcopy(ker) for ker in self.kernel_template]                                        
+                self.kernels = [copy.deepcopy(ker) for ker in self.kernel_template]
         return stars
 
     def _build_average_meanify(self, X):
         """Compute spatial average from meanify output for a given coordinate using KN interpolation.
-        If no average_fits was given, return array of 0. 
+        If no average_fits was given, return array of 0.
 
         :param X: Coordinates of training stars or coordinates where to interpolate. (n_samples, 2)
         """
         if np.sum(np.equal(self._X0, 0)) != len(self._X0[:,0])*len(self._X0[0]):
             neigh = KNeighborsRegressor(n_neighbors=self.n_neighbors)
             neigh.fit(self._X0, self._y0)
-            average = neigh.predict(X)            
+            average = neigh.predict(X)         
             return average
         else:
             return np.zeros((len(X[:,0]), self.nparams))
@@ -603,4 +577,3 @@ class GPInterp2pcf(Interp):
 
         for i in range(self.nparams):
             self.kernels[i] = self.kernels[i].clone_with_theta(fit_theta[i])
-
