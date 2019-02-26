@@ -1060,6 +1060,13 @@ def test_anisotropic_vonkarman_kernel():
         np.testing.assert_allclose(ker_piff, ker_test, atol=1e-12)
         np.testing.assert_allclose(corr_piff, corr_test, atol=1e-12)
 
+        theta = ker.theta[1:]
+        L1 = np.zeros_like(inv_L)
+        L1[np.diag_indices(2)] = np.exp(theta[:2])
+        L1[np.tril_indices(2, -1)] = theta[2:]
+        invLam = np.dot(L1, L1.T)
+        np.testing.assert_allclose(inv_L, invLam, atol=1e-12)
+
 @timer
 def test_yaml():
 
