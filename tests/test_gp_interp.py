@@ -869,9 +869,9 @@ def test_vonkarman_psf():
             ntrain, nvalidate, nvisualize)
 
     kernel = "0.01*VonKarman(2., (1e-1, 1e1))"
-    invLam = np.array([[0.25,0],
-                       [0,0.25]])
-    anisotropic_kernel = "0.01*AnisotropicVonKarman(invLam={0!r})".format(invLam)
+    #invLam = np.array([[0.25,0],
+    #                   [0,0.25]])
+    anisotropic_kernel = "0.01*AnisotropicVonKarman(scale_length=[4.,4.])"#.format(invLam)
 
     for npca in npcas:
         for optimize in optimizes:
