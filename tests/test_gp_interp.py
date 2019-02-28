@@ -883,6 +883,10 @@ def test_vonkarman_psf():
                           npca=npca, optimize=optimize, anisotropy=False, file_name="test_gp_vonkarman.fits", rng=rng,
                           check_config=check_config, rtol=rtol)
 
+    check_gp_2pcf(training_data, validation_data, visualization_data, anisotropic_kernel,
+                  npca=0, optimize=False, anisotropy=True, file_name="test_gp_vonkarman.fits", rng=rng,
+                  check_config=check_config, rtol=rtol)
+
 @timer
 def test_gp_with_kernels():
 
