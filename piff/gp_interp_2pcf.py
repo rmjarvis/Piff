@@ -97,13 +97,13 @@ class bootstrap_2pcf(object):
             npixels = len(kk.xi)**2
             mask = np.array([True]*npixels)
             mask = mask.reshape((int(np.sqrt(npixels)), int(np.sqrt(npixels))))
-            if len(mask)%2 == 0:
-                nmask = int(len(mask)/2)
-                mask[nmask:,:] = False
-            else:
-                nmask = int((len(mask)/2)+1)
-                mask[nmask:,:] = False
-                mask[nmask-1][nmask:] = False
+
+            boolean_mask_odd = (len(mask)%2 == 0)
+            even_or_odd = len(mask)%2
+            nmask = int((len(mask)/2) + even_or_odd)
+            mask[nmask:,:] = False
+            mask[nmask-1][nmask:] = boolean_mask_odd
+
             mask = mask.reshape(npixels)
 
             distance = np.array([kk.dx.reshape(npixels), kk.dy.reshape(npixels)]).T
