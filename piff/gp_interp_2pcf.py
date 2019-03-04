@@ -101,8 +101,13 @@ class bootstrap_2pcf(object):
             kk = treecorr.KKCorrelation(min_sep=self.min_sep, max_sep=self.max_sep, nbins=self.nbins,
                                         bin_type='TwoD', bin_slop=0)
             kk.process(cat)
+            # Need a mask in the case of the 2D correlation function, to compute 
+            # the covariance matrix using the bootstrap. The 2D correlation 
+            # function is symmetric, so just half of the correlation function 
+            # is useful to compute the covariance matrix. If it is not done, 
+            # the covariance matrix is consequently not positive definite.
             npixels = len(kk.xi)**2
-            mask = np.array([True]*npixels)
+            mask = np.ones_like(kk.xi, dtype=bool)
             mask = mask.reshape((int(np.sqrt(npixels)), int(np.sqrt(npixels))))
 
             boolean_mask_odd = (len(mask)%2 == 0)
@@ -121,7 +126,7 @@ class bootstrap_2pcf(object):
             kk = treecorr.KKCorrelation(min_sep=self.min_sep, max_sep=self.max_sep, nbins=self.nbins)
             kk.process(cat)
             distance = kk.meanr
-            mask = np.array([True]*len(kk.xi))
+            mask = np.ones_like(kk.xi, dtype=bool)
             Coord = np.array([distance,np.zeros_like(distance)]).T
             xi = kk.xi
 
