@@ -33,14 +33,17 @@ from .star import Star, StarFit
 class bootstrap_2pcf(object):
 
     def __init__(self, X, y, y_err,
-                 MIN=None, MAX=None, nbins=20, anisotropy=False):
+                 min_sep=None, max_sep=None, nbins=20, anisotropy=False):
         """Fit statistical uncertaintie on two-point correlation function using bootstraping.
 
         :param X:           The independent covariates.  (n_samples, 2)
         :param y:           The dependent responses.  (n_samples, n_targets)
         :param y_err:       Error of y. (n_samples, n_targets)
-        :param MIN:         Minimum bin for treecorr. (float)
-        :param MAX:         Maximum bin for treecorr. (float)
+        :param min_sep:     Minimum bin for treecorr. (float)
+        :param max_sep:     Maximum bin for treecorr. (float)
+        :param nbins:       Number of bins (if 1D correlation function) of the square root of the number
+                            of bins (if 2D correlation function) used in TreeCorr to compute the
+                            2-point correlation function. [default: 20]
         :param anisotropy:  2D 2-point correlation function.
                             Used 2D correlation function for the
                             fiting part of the GP. (Boolean)
@@ -48,17 +51,21 @@ class bootstrap_2pcf(object):
         self.X = X
         self.y = y
         self.y_err = y_err
-
+        
         size_x = np.max(self.X[:,0]) - np.min(self.X[:,0])
         size_y = np.max(self.X[:,1]) - np.min(self.X[:,1])
         rho = float(len(self.X[:,0])) / (size_x * size_y)
-        if MIN is None:
-            MIN = np.sqrt(1./rho)
-        if MAX is None:
-            MAX = np.sqrt(size_x**2 + size_y**2)/2.
+        # if min_sep is None, set min_sep to the average separation
+        # between stars.
+        if min_sep is None:
+            min_sep = np.sqrt(1./rho)
+        # if max_sep is None, set max_sep to half of the size of the 
+        # given field.
+        if max_sep is None:
+            max_sep = np.sqrt(size_x**2 + size_y**2)/2.
 
-        self.MIN = MIN
-        self.MAX = MAX
+        self.min_sep = min_sep
+        self.max_sep = max_sep
         self.nbins = nbins
         self.anisotropy = anisotropy
 
@@ -91,7 +98,7 @@ class bootstrap_2pcf(object):
 
         if self.anisotropy:
             cat = treecorr.Catalog(x=X[:,0], y=X[:,1], k=(y-np.mean(y)), w=w)
-            kk = treecorr.KKCorrelation(min_sep=self.MIN, max_sep=self.MAX, nbins=self.nbins,
+            kk = treecorr.KKCorrelation(min_sep=self.min_sep, max_sep=self.max_sep, nbins=self.nbins,
                                         bin_type='TwoD', bin_slop=0)
             kk.process(cat)
             npixels = len(kk.xi)**2
@@ -111,7 +118,7 @@ class bootstrap_2pcf(object):
             xi = kk.xi.reshape(npixels)
         else:
             cat = treecorr.Catalog(x=X[:,0], y=X[:,1], k=(y-np.mean(y)), w=w)
-            kk = treecorr.KKCorrelation(min_sep=self.MIN, max_sep=self.MAX, nbins=self.nbins)
+            kk = treecorr.KKCorrelation(min_sep=self.min_sep, max_sep=self.max_sep, nbins=self.nbins)
             kk.process(cat)
             distance = kk.meanr
             mask = np.array([True]*len(kk.xi))
@@ -193,6 +200,9 @@ class GPInterp2pcf(Interp):
     :param nbins:        Number of bins (if 1D correlation function) of the square root of the number
                          of bins (if 2D correlation function) used in TreeCorr to compute the
                          2-point correlation function. [default: 20]
+    :param min_sep:      Minimum separation between pairs when computing 2-point correlation
+                         function. In the same units as the keys. Compute automaticaly if it
+                         is not given. [default: None]
     :param max_sep:      Maximum separation between pairs when computing 2-point correlation
                          function. In the same units as the keys. Compute automaticaly if it
                          is not given. [default: None]
@@ -315,19 +325,19 @@ class GPInterp2pcf(Interp):
         size_y = np.max(X[:,1]) - np.min(X[:,1])
         rho = float(len(X[:,0])) / (size_x * size_y)
         if self.min_sep is not None:
-            MIN = self.min_sep
+            min_sep = self.min_sep
         else:
             if self.anisotropy:
-                MIN = 0.
+                min_sep = 0.
             else:
-                MIN = np.sqrt(1./rho)
+                min_sep = np.sqrt(1./rho)
         if self.max_sep is not None:
-            MAX = self.max_sep
+            max_sep = self.max_sep
         else:
-            MAX = np.sqrt(size_x**2 + size_y**2)/2.
+            max_sep = np.sqrt(size_x**2 + size_y**2)/2.
 
         bp = bootstrap_2pcf(X, y, y_err,
-                            MIN=MIN, MAX=MAX, nbins=self.nbins,
+                            min_sep=min_sep, max_sep=max_sep, nbins=self.nbins,
                             anisotropy=self.anisotropy)
         xi, xi_weight, distance, coord, mask = bp.return_2pcf()
 
