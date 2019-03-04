@@ -33,7 +33,7 @@ from .star import Star, StarFit
 class bootstrap_2pcf(object):
 
     def __init__(self, X, y, y_err,
-                 min_sep=None, max_sep=None, nbins=20, anisotropy=False):
+                 min_sep, max_sep, nbins=20, anisotropic=False):
         """Fit statistical uncertaintie on two-point correlation function using bootstraping.
 
         :param X:           The independent covariates.  (n_samples, 2)
@@ -44,30 +44,17 @@ class bootstrap_2pcf(object):
         :param nbins:       Number of bins (if 1D correlation function) of the square root of the number
                             of bins (if 2D correlation function) used in TreeCorr to compute the
                             2-point correlation function. [default: 20]
-        :param anisotropy:  2D 2-point correlation function.
+        :param anisotropic:  2D 2-point correlation function.
                             Used 2D correlation function for the
                             fiting part of the GP. (Boolean)
         """
         self.X = X
         self.y = y
         self.y_err = y_err
-        
-        size_x = np.max(self.X[:,0]) - np.min(self.X[:,0])
-        size_y = np.max(self.X[:,1]) - np.min(self.X[:,1])
-        rho = float(len(self.X[:,0])) / (size_x * size_y)
-        # if min_sep is None, set min_sep to the average separation
-        # between stars.
-        if min_sep is None:
-            min_sep = np.sqrt(1./rho)
-        # if max_sep is None, set max_sep to half of the size of the 
-        # given field.
-        if max_sep is None:
-            max_sep = np.sqrt(size_x**2 + size_y**2)/2.
-
         self.min_sep = min_sep
         self.max_sep = max_sep
         self.nbins = nbins
-        self.anisotropy = anisotropy
+        self.anisotropic = anisotropic
 
     def resample_bootstrap(self):
         """
@@ -96,15 +83,15 @@ class bootstrap_2pcf(object):
         else:
             w = 1./y_err**2
 
-        if self.anisotropy:
+        if self.anisotropic:
             cat = treecorr.Catalog(x=X[:,0], y=X[:,1], k=(y-np.mean(y)), w=w)
             kk = treecorr.KKCorrelation(min_sep=self.min_sep, max_sep=self.max_sep, nbins=self.nbins,
                                         bin_type='TwoD', bin_slop=0)
             kk.process(cat)
-            # Need a mask in the case of the 2D correlation function, to compute 
-            # the covariance matrix using the bootstrap. The 2D correlation 
-            # function is symmetric, so just half of the correlation function 
-            # is useful to compute the covariance matrix. If it is not done, 
+            # Need a mask in the case of the 2D correlation function, to compute
+            # the covariance matrix using the bootstrap. The 2D correlation
+            # function is symmetric, so just half of the correlation function
+            # is useful to compute the covariance matrix. If it is not done,
             # the covariance matrix is consequently not positive definite.
             npixels = len(kk.xi)**2
             mask = np.ones_like(kk.xi, dtype=bool)
@@ -160,7 +147,7 @@ class bootstrap_2pcf(object):
         :param seed: seed of the random generator.
         """
         xi, distance, coord, mask = self.comp_2pcf(self.X, self.y, self.y_err)
-        if self.anisotropy:
+        if self.anisotropic:
             # Choice done from Andy Taylor et al. 2012
             def f_bias(x, npixel=len(xi[mask])):
                 top = x - 1.
@@ -191,7 +178,7 @@ class GPInterp2pcf(Interp):
                          PSF parameters before any interpolation, and it will be the PC that will
                          be interpolate and then retransform in PSF parameters. [default: 0, which
                          means don't decompose PSF parameters into principle components.]
-    :param anisotropy:   2D 2-point correlation function. Used 2D correlation function for the
+    :param anisotropic:   2D 2-point correlation function. Used 2D correlation function for the
                          fiting part of the GP instead of a 1D correlation function. [default: False]
     :param normalize:    Whether to normalize the interpolation parameters to have a mean of 0.
                          Normally, the parameters being interpolated are not mean 0, so you would
@@ -216,7 +203,7 @@ class GPInterp2pcf(Interp):
                          exposures. See meanify documentation. [default: None]
     :param logger:       A logger object for logging debug info. [default: None]
     """
-    def __init__(self, keys=('u','v'), kernel='RBF(1)', optimize=True, npca=0, anisotropy=False, normalize=True,
+    def __init__(self, keys=('u','v'), kernel='RBF(1)', optimize=True, npca=0, anisotropic=False, normalize=True,
                  white_noise=0., n_neighbors=4, average_fits=None, nbins=20, min_sep=None, max_sep=None, logger=None):
 
         self.keys = keys
@@ -225,7 +212,7 @@ class GPInterp2pcf(Interp):
         self.optimize = optimize
         self.white_noise = white_noise
         self.n_neighbors = n_neighbors
-        self.anisotropy = anisotropy
+        self.anisotropic = anisotropic
         self.nbins = nbins
         self.min_sep = min_sep
         self.max_sep = max_sep
@@ -329,13 +316,17 @@ class GPInterp2pcf(Interp):
         size_x = np.max(X[:,0]) - np.min(X[:,0])
         size_y = np.max(X[:,1]) - np.min(X[:,1])
         rho = float(len(X[:,0])) / (size_x * size_y)
+        # if min_sep is None and isotropic GP, set min_sep to the average separation
+        # between stars.
         if self.min_sep is not None:
             min_sep = self.min_sep
         else:
-            if self.anisotropy:
+            if self.anisotropic:
                 min_sep = 0.
             else:
                 min_sep = np.sqrt(1./rho)
+        # if max_sep is None, set max_sep to half of the size of the 
+        # given field.
         if self.max_sep is not None:
             max_sep = self.max_sep
         else:
@@ -343,7 +334,7 @@ class GPInterp2pcf(Interp):
 
         bp = bootstrap_2pcf(X, y, y_err,
                             min_sep=min_sep, max_sep=max_sep, nbins=self.nbins,
-                            anisotropy=self.anisotropy)
+                            anisotropic=self.anisotropic)
         xi, xi_weight, distance, coord, mask = bp.return_2pcf()
 
         def PCF(param, k=kernel):
