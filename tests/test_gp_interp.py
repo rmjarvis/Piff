@@ -680,13 +680,13 @@ def check_gp(training_data, validation_data, visualization_data,
 
 
 def check_gp_2pcf(training_data, validation_data, visualization_data,
-                  kernel, npca=0, optimize=False, anisotropy=False, file_name=None, rng=None,
+                  kernel, npca=0, optimize=False, anisotropic=False, file_name=None, rng=None,
                   visualize=False, check_config=False, rtol=0.02):
     """ Solve for global PSF model, test it, and optionally display it.
     """
     stars = params_to_stars(training_data, noise=0.03, rng=rng)
     validate_stars = params_to_stars(validation_data, noise=0.0, rng=rng)
-    if anisotropy:
+    if anisotropic:
         nbins = 10
         MIN = 0
         MAX = 0.6
@@ -694,7 +694,7 @@ def check_gp_2pcf(training_data, validation_data, visualization_data,
         nbins = 20
         MIN = 0.1
         MAX = 0.6
-    interp = piff.GPInterp2pcf(kernel=kernel, optimize=optimize, anisotropy=anisotropy,
+    interp = piff.GPInterp2pcf(kernel=kernel, optimize=optimize, anisotropic=anisotropic,
                                npca=npca, nbins=nbins, min_sep=MIN, max_sep=MAX, white_noise=1e-5)
     interp.initialize(stars)
     iterate_2pcf(stars, interp)
@@ -711,7 +711,7 @@ def check_gp_2pcf(training_data, validation_data, visualization_data,
                 'optimize' : optimize,
                 'white_noise': 1e-5,
                 'nbins': nbins,
-                'anisotropy': anisotropy
+                'anisotropic': anisotropic
             }
         }
         print(config)
@@ -822,7 +822,7 @@ def test_grf_psf():
                      npca=npca, optimize=optimize, file_name="test_gp_grf.fits", rng=rng,
                      check_config=check_config)
             check_gp_2pcf(training_data, validation_data, visualization_data, kernel,
-                          npca=npca, optimize=optimize, anisotropy=False, file_name="test_gp_grf.fits", rng=rng,
+                          npca=npca, optimize=optimize, anisotropic=False, file_name="test_gp_grf.fits", rng=rng,
                           check_config=check_config)
 
     # Check ExplicitKernel here too
@@ -880,11 +880,11 @@ def test_vonkarman_psf():
                      npca=npca, optimize=optimize, file_name="test_gp_vonkarman.fits", rng=rng,
                      check_config=check_config, rtol=rtol)
             check_gp_2pcf(training_data, validation_data, visualization_data, kernel,
-                          npca=npca, optimize=optimize, anisotropy=False, file_name="test_gp_vonkarman.fits", rng=rng,
+                          npca=npca, optimize=optimize, anisotropic=False, file_name="test_gp_vonkarman.fits", rng=rng,
                           check_config=check_config, rtol=rtol)
 
     check_gp_2pcf(training_data, validation_data, visualization_data, anisotropic_kernel,
-                  npca=0, optimize=False, anisotropy=True, file_name="test_gp_vonkarman.fits", rng=rng,
+                  npca=0, optimize=False, anisotropic=True, file_name="test_gp_vonkarman.fits", rng=rng,
                   check_config=check_config, rtol=rtol)
 
 @timer
@@ -956,7 +956,7 @@ def test_anisotropic_rbf_kernel():
                      npca=npca, optimize=optimize, file_name="test_anisotropic_rbf.fits",
                      rng=rng, check_config=check_config)
             check_gp_2pcf(training_data, validation_data, visualization_data, kernel,
-                          npca=npca, anisotropy=True, optimize=optimize, rng=rng, check_config=True)
+                          npca=npca, anisotropic=True, optimize=optimize, rng=rng, check_config=True)
 
 @timer
 def test_vonkarman_kernel():
@@ -1216,7 +1216,7 @@ def test_guess_2pcf():
         stars = params_to_stars(training_data, noise=0.1, rng=rng)
         kernel = "0.05*RBF({0}, (1e-6, 1e1))".format(guess)
         norm = guess < 0.2  # Arbitrary.  Just check both True and False.
-        interp = piff.GPInterp2pcf(kernel=kernel, normalize=norm, white_noise=0., anisotropy=False)
+        interp = piff.GPInterp2pcf(kernel=kernel, normalize=norm, white_noise=0., anisotropic=False)
         stars = [mod.fit(s) for s in stars]
         stars = interp.initialize(stars)
         interp.solve(stars)
