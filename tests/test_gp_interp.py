@@ -47,18 +47,12 @@ def get_correlation_length_matrix(correlation_length, g1, g2):
     :param correlation_length: Correlation lenght of the kernel.
     :param g1, g2:             Shear applied to isotropic kernel.
     """
-    if abs(g1)>1:
-        g1 = 0
-    if abs(g2)>1:
-        g2 = 0
+    if abs(g1)>1 or abs(g2)>1:
+        raise ValueError('abs value of g1 and g2 must be lower than one')
     e = np.sqrt(g1**2 + g2**2)
     q = (1-e) / (1+e)
-    phi = 0.5 * np.arctan2(g2, g1)
-    rot = np.array([[np.cos(phi), np.sin(phi)],
-                    [-np.sin(phi), np.cos(phi)]])
-    ell = np.array([[correlation_length**2, 0],
-                    [0, (correlation_length * q)**2]])
-    L = np.dot(rot.T, ell.dot(rot))
+    m = galsim.Shear(g1=g2, g2=g2).getMatrix() * correlation_length
+    L = m.dot(m) * q
     return L
 
 
