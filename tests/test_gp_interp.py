@@ -773,7 +773,7 @@ def test_polynomial_psf():
 
     training_data, validation_data, visualization_data = make_polynomial_psf_params(
             ntrain, nvalidate, nvisualize)
-    kernel = "0.01*RBF(0.3, (1e-1, 1e3))"
+    kernel = "1*RBF(0.3, (1e-1, 1e3))"
     # We probably aren't measuring fwhm, g1, g2, etc. to better than 1e-5, so add that amount of
     # white noise
     #kernel += " + WhiteKernel(1e-5, (1e-7, 1e-1))"
@@ -863,9 +863,7 @@ def test_vonkarman_psf():
             ntrain, nvalidate, nvisualize)
 
     kernel = "0.01*VonKarman(2., (1e-1, 1e1))"
-    #invLam = np.array([[0.25,0],
-    #                   [0,0.25]])
-    anisotropic_kernel = "0.01*AnisotropicVonKarman(scale_length=[4.,4.])"#.format(invLam)
+    anisotropic_kernel = "0.01*AnisotropicVonKarman(scale_length=[4.,4.])"
 
     for npca in npcas:
         for optimize in optimizes:
