@@ -26,9 +26,9 @@ before_install:
     - export MATPLOTLIBRC=$HOME/.matplotlib
 
     # Install GalSim
-    - pip install -U setuptools pip==9.0
-    - pip install numpy astropy future pyyaml LSSTDESC.Coord pybind11
-    - pip install galsim
+    - pip install -U setuptools pip
+    - pip install -U numpy astropy future pyyaml LSSTDESC.Coord pybind11
+    - pip install -U galsim
 
     # Workaround for fitsio bug that has been fixed on master, but not pip yet.
     - pushd $HOME
@@ -37,14 +37,10 @@ before_install:
     - python setup.py install --prefix=$PYHOME
     - popd
 
-    # Workaround for bug in pandas 0.22.  Install 0.21 preemptively, so treecorr's pandas
-    # dependency doesn't trigger building 0.22.
-    - pip install pandas==0.21
-
-    # For now, use treecorr twod branch
+    # For now, use treecorr master branch
     - git clone https://github.com/rmjarvis/TreeCorr.git
     - cd TreeCorr
-    - git checkout twod
+    - git checkout master
     - python setup.py install --prefix=$PYHOME
     - cd ..
 
