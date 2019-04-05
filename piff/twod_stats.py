@@ -100,7 +100,7 @@ class TwoDHistStats(Stats):
         indx_v = np.digitize(v, self.bins_v) - 1
 
         # get unique indices
-        unique_indx = np.vstack({tuple(row) for row in np.vstack((indx_u, indx_v)).T})
+        unique_indx = np.vstack([tuple(row) for row in np.vstack((indx_u, indx_v)).T])
 
         # compute the arrays
         logger.info("Computing TwoDHist arrays")
@@ -469,7 +469,7 @@ class WhiskerStats(Stats):
         indx_v = np.digitize(v, self.bins_v) - 1
 
         # get unique indices
-        unique_indx = np.vstack({tuple(row) for row in np.vstack((indx_u, indx_v)).T})
+        unique_indx = np.vstack([tuple(row) for row in np.vstack((indx_u, indx_v)).T])
 
         # compute the arrays
         logger.info("Computing TwoDHist arrays")
