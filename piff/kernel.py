@@ -245,7 +245,10 @@ class VonKarman(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
         length_scale = _check_length_scale(X, self.length_scale)
         if Y is None:
             dists = pdist(X, metric='euclidean')
-            K = ((dists/length_scale)**(5./6.)) * special.kv(5./6.,2*np.pi*dists/length_scale)
+            Filter = (dists != 0.)
+            K = np.zeros_like(dists)
+            K[Filter] = ((dists[Filter]/length_scale)**(5./6.) *
+                         special.kv(5./6.,2*np.pi*dists[Filter]/length_scale))
             K = squareform(K)
 
             lim0 = special.gamma(5./6.) / (2 * (np.pi**(5./6.)))
@@ -257,8 +260,10 @@ class VonKarman(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
                     "Gradient can only be evaluated when Y is None.")
 
             dists = cdist(X, Y, metric='euclidean')
-            K = ((dists/length_scale)**(5./6.)) * special.kv(5./6.,2*np.pi*dists/length_scale)
             Filter = (dists != 0.)
+            K = np.zeros_like(dists)
+            K[Filter] = ((dists[Filter]/length_scale)**(5./6.) *
+                       special.kv(5./6.,2*np.pi*dists[Filter]/length_scale))
             lim0 = special.gamma(5./6.) / (2 * (np.pi**(5./6.)))
             if np.sum(Filter) != len(K[0])*len(K[:,0]):
                 K[~Filter] = lim0
@@ -341,7 +346,9 @@ class AnisotropicVonKarman(StationaryKernelMixin, NormalizedKernelMixin, Kernel)
 
         if Y is None:
             dists = pdist(X, metric='mahalanobis', VI=self.invLam)
-            K = dists **(5./6.) *  special.kv(5./6., 2*np.pi * dists)
+            Filter = (dists != 0.)
+            K = np.zeros_like(dists)
+            K[Filter] = dists[Filter] **(5./6.) *  special.kv(5./6., 2*np.pi * dists[Filter])
             lim0 = special.gamma(5./6.) /(2 * ((np.pi)**(5./6.)) )
             K = squareform(K)
             np.fill_diagonal(K, lim0)
@@ -351,8 +358,9 @@ class AnisotropicVonKarman(StationaryKernelMixin, NormalizedKernelMixin, Kernel)
                 raise ValueError(
                     "Gradient can not be evaluated.")
             dists = cdist(X, Y, metric='mahalanobis', VI=self.invLam)
-            K = dists **(5./6.) *  special.kv(5./6., 2*np.pi * dists)
-            Filter = np.isfinite(K)
+            Filter = (dists != 0.)
+            K = np.zeros_like(dists)
+            K[Filter] = dists[Filter] **(5./6.) *  special.kv(5./6., 2*np.pi * dists[Filter])
             lim0 = special.gamma(5./6.) /(2 * ((np.pi)**(5./6.)) )
             if np.sum(Filter) != len(K[0])*len(K[:,0]):
                 K[~Filter] = lim0
