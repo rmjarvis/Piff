@@ -966,12 +966,14 @@ def test_vonkarman_kernel():
         A = (x[:,0]-x[:,0][:,None])
         B = (x[:,1]-x[:,1][:,None])
         distance = np.sqrt(A*A + B*B)
-        K = param[0]**2 * ((distance/param[1])**(5./6.)) * special.kv(-5./6.,2*np.pi*distance/param[1])
-        Filtre = np.isfinite(K)
+        Filter = distance != 0.
+        K = np.zeros_like(distance)
+        K[Filter] = param[0]**2 * ((distance[Filter]/param[1])**(5./6.) *
+                                   special.kv(-5./6.,2*np.pi*distance[Filter]/param[1]))
         dist = np.linspace(1e-4,1.,100)
         div = 5./6.
         lim0 = special.gamma(div) /(2 * (np.pi**div) )
-        K[~Filtre] = param[0]**2 * lim0
+        K[~Filter] = param[0]**2 * lim0
         K /= lim0
         return K
         
@@ -1036,8 +1038,9 @@ def test_anisotropic_vonkarman_kernel():
         L = get_correlation_length_matrix(corr_length, g1, g2)
         l = np.linalg.inv(L)
         dist_a = (l[0,0]*x*x) + (2*l[0,1]*x*y) + (l[1,1]*y*y)
-        z = dist_a**(5./12.) *  special.kv(5./6., 2*np.pi * np.sqrt(dist_a))
-        Filter = np.isfinite(z)
+        z = np.zeros_like(dist_a)
+        Filter = dist_a != 0.
+        z[Filter] = dist_a[Filter]**(5./12.) *  special.kv(5./6., 2*np.pi * np.sqrt(dist_a[Filter]))
         lim0 = special.gamma(5./6.) /(2 * ((np.pi)**(5./6.)) )
         if np.sum(Filter) != len(z):
             z[~Filter] = lim0
