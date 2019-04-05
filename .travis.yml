@@ -30,13 +30,6 @@ before_install:
     - pip install -U numpy astropy future pyyaml LSSTDESC.Coord pybind11
     - pip install -U galsim
 
-    # Workaround for fitsio bug that has been fixed on master, but not pip yet.
-    - pushd $HOME
-    - if ! test -d fitsio || ! test -f fitsio/setup.py; then git clone https://github.com/esheldon/fitsio.git ; else echo Using cached fitsio; fi
-    - cd fitsio
-    - python setup.py install --prefix=$PYHOME
-    - popd
-
     # For now, use treecorr master branch
     - git clone https://github.com/rmjarvis/TreeCorr.git
     - cd TreeCorr

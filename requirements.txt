@@ -1,7 +1,7 @@
 numpy
 scipy
 pyyaml
-treecorr>=3.4
+treecorr
 fitsio>=0.9.12
 scikit-learn>=0.18
 lmfit
