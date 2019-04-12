@@ -30,13 +30,6 @@ before_install:
     - pip install -U numpy astropy future pyyaml LSSTDESC.Coord pybind11
     - pip install -U galsim
 
-    # For now, use treecorr master branch
-    - git clone https://github.com/rmjarvis/TreeCorr.git
-    - cd TreeCorr
-    - git checkout master
-    - python setup.py install --prefix=$PYHOME
-    - cd ..
-
 cache:
     pip: true
     directories:
