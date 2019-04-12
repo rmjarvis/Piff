@@ -344,10 +344,12 @@ def test_rhostats_config():
     for rho in rhos:
         # Test the range of separations
         radius = np.exp(rho.logr)
-        # last bin can be one bigger than max_sep
-        np.testing.assert_array_less(radius, np.exp(np.log(max_sep) + bin_size))
+        np.testing.assert_array_less(radius, max_sep)
         np.testing.assert_array_less(min_sep, radius)
-        np.testing.assert_array_almost_equal(np.diff(rho.logr), bin_size, decimal=5)
+        # bin_size is reduced slightly to get integer number of bins
+        assert rho.bin_size < bin_size
+        assert np.isclose(rho.bin_size, bin_size, rtol=0.1)
+        np.testing.assert_array_almost_equal(np.diff(rho.logr), rho.bin_size, decimal=5)
 
         # Test that the max absolute value of each rho isn't crazy
         np.testing.assert_array_less(np.abs(rho.xip), 1)
