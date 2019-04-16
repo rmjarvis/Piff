@@ -39,7 +39,7 @@ optical_templates = {
              'strut_thick': 0.050 * (1462.526 / 4010.) / 2.0, # conversion factor is nebulous?!
              'strut_angle': 45 * galsim.degrees,
              'r0': 0.15,
-             #'L0': 25.0,
+             'L0': 25.0,
            },
 }
 
@@ -147,7 +147,7 @@ class Optical(Model):
 
         if len(self.kolmogorov_kwargs) > 0:
             logger.debug('Creating Kolmogorov Atmosphere')
-            self.atmo = galsim.Kolmogorov(**self.kolmogorov_kwargs)
+            self.atmo = galsim.VonKarman(**self.kolmogorov_kwargs)
             sigma = kwargs.pop('sigma',None)
             if sigma is not None:
                 logger.debug('Found extra sigma = {0}. It will be unused'.format(sigma))

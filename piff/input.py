@@ -202,10 +202,10 @@ class Input(object):
         # here we remove stars that have been at least partially covered by a mask and thus have weight exactly 0 in at least one pixel of their postage stamp
 	star_weightmaps = []
 	for star in stars:
-		print("star_weightmap: {0}".format(star.weight.array))
+		#print("star_weightmap: {0}".format(star.weight.array))
 		star_weightmaps.append(star.weight.array)
 	star_weightmaps = np.array(star_weightmaps)
-	print("star_weightmaps: {0}".format(star_weightmaps))
+	#print("star_weightmaps: {0}".format(star_weightmaps))
 	conds_not_masked = (np.all(star_weightmaps != 0.0,axis=(1,2)))
 	for s, star_weightmap in enumerate(star_weightmaps):
 		if not np.all(star_weightmap != 0.0):
