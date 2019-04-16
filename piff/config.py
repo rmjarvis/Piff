@@ -85,7 +85,7 @@ def parse_variables(config, variables, logger):
         key, value = v.split('=',1)
         try:
             # Use YAML parser to evaluate the string in case it is a list for instance.
-            value = yaml.load(value)
+            value = yaml.safe_load(value)
         except yaml.YAMLError as e:  # pragma: no cover
             logger.warning('Caught %r',e)
             logger.warning('Unable to parse %s.  Treating it as a string.',value)
@@ -98,7 +98,7 @@ def read_config(file_name):
     :param file_name:   The file name from which the configuration dict should be read.
     """
     with open(file_name) as fin:
-        config = yaml.load(fin.read())
+        config = yaml.safe_load(fin.read())
     return config
 
 

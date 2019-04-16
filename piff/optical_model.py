@@ -389,11 +389,18 @@ class Optical(Model):
 
         if len(prof) == 0:
             raise RuntimeError('No profile returned by model!')
+        #if len(prof) == 1:
+        #    prof = prof[0]
+        ## convolve together
+        #elif len(prof) > 1:
+        #    prof = galsim.Convolve(prof, gsparams=self.gsparams)
         if len(prof) == 1:
             prof = prof[0]
-        # convolve together
-        elif len(prof) > 1:
-            prof = galsim.Convolve(prof, gsparams=self.gsparams)
+        else:
+            prof = galsim.Convolve(prof)
+
+        if self.g1 is not None or self.g2 is not None:
+            prof = prof.shear(g1=self.g1, g2=self.g2)
 
         return prof
 

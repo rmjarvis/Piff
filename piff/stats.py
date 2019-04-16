@@ -540,7 +540,7 @@ class RhoStats(Stats):
         # Add a single rho stat to the plot.
         meanr = rho.meanr * (1. + rho.bin_size * offset)
         xip = rho.xip
-        sig = np.sqrt(rho.varxi)
+        sig = np.sqrt(rho.varxip)
         ax.plot(meanr, xip, color=color)
         ax.plot(meanr, -xip, color=color, ls=':')
         ax.errorbar(meanr[xip>0], xip[xip>0], yerr=sig[xip>0], color=color, ls='', marker=marker)
