@@ -256,7 +256,11 @@ class PSF(object):
         assert 'type' in fits[extname].get_colnames()
         psf_type = fits[extname].read()['type']
         assert len(psf_type) == 1
-        psf_type = str(psf_type[0].decode())
+        try:
+            psf_type = str(psf_type[0].decode())
+        except AttributeError:
+            # fitsio 1.0 returns strings
+            psf_type = psf_type[0]
 
         # Check that this is a valid PSF type
         psf_classes = piff.util.get_all_subclasses(piff.PSF)
@@ -390,7 +394,12 @@ class PSF(object):
 
         wcs_keys = [ 'wcs_str_%04d'%i for i in range(nchunks) ]
         wcs_str = [ data[key] for key in wcs_keys ] # Get all wcs_str columns
-        wcs_str = [ b''.join(s) for s in zip(*wcs_str) ]  # Rejoint into single string each
+        try:
+            wcs_str = [ b''.join(s) for s in zip(*wcs_str) ]  # Rejoint into single string each
+        except TypeError:
+            # fitsio 1.0 returns strings
+            wcs_str = [ ''.join(s) for s in zip(*wcs_str) ]  # Rejoint into single string each
+
         wcs_str = [ base64.b64decode(s) for s in wcs_str ] # Convert back from b64 encoding
         # Convert back into wcs objects
         if sys.version_info > (3,0):
