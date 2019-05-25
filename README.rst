@@ -45,6 +45,7 @@ The current stable version, v0.2.4, is installable with pip::
 If you need the bleeding edge version on master, you can download or clone
 the repo and install with::
 
+    pip install -r requirements.txt
     python setup.py install
 
 Depending on your setup, you might prefer/need one of these variants::
