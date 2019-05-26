@@ -75,7 +75,7 @@ from .config import plotify, process, meanify
 
 # Models -- Class names here match what they are called in the config file
 from .model import Model, ModelFitError
-from .pixelgrid import PixelGrid, Lanczos, Bilinear
+from .pixelgrid import PixelGrid, Lanczos
 from .gsobject_model import GSObjectModel, Gaussian, Kolmogorov, Moffat
 
 # Interpolators -- Class names here match what they are called in the config file
