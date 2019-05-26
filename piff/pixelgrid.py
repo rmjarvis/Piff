@@ -81,8 +81,9 @@ class PixelGrid(Model):
         logger.debug("force_model_center = %s",force_model_center)
         logger.debug("degenerate = %s",degenerate)
 
-        self.du = scale
-        self.pixel_area = self.du*self.du
+        self.scale = scale
+        self.size = size
+        self.pixel_area = self.scale*self.scale
         if interp is None: interp = Lanczos(3)
         elif isinstance(interp, basestring): interp = eval(interp)
         self.interp = interp
@@ -108,7 +109,6 @@ class PixelGrid(Model):
                 raise ValueError("Shape of input mask does not match size {:d}".format(size))
             self._mask = mask
 
-        self.ny, self.nx = self._mask.shape
         self._nparams = np.count_nonzero(self._mask)
         self._nparams -= 1  # The flux constraint will remove 1 degree of freedom
         self._constraints = 1
@@ -125,7 +125,7 @@ class PixelGrid(Model):
         # In this array, a negative entry is a pixel that is not being
         # fit (and always assumed to be zero, for interpolation purposes).
         self._indices = np.where( self._mask, self._constraints, -1)
-        self._origin = (self.ny//2, self.nx//2)
+        self._origin = (self.size//2, self.size//2)
         if not self._mask[self._origin]:
             raise ValueError("Not happy with central PSF pixel being masked")
         self._indices[self._origin] = 0    # Central pixel for flux constraint
@@ -173,8 +173,8 @@ class PixelGrid(Model):
         self._a = tmp
 
         # Now create a parameter array for a Gaussian that will be used to initialize new stars
-        u = np.arange( -self._origin[0], self._indices.shape[0]-self._origin[0]) * self.du
-        v = np.arange( -self._origin[1], self._indices.shape[1]-self._origin[1]) * self.du
+        u = np.arange( -self._origin[0], self._indices.shape[0]-self._origin[0]) * self.scale
+        v = np.arange( -self._origin[1], self._indices.shape[1]-self._origin[1]) * self.scale
         rsq = (u*u)[:,np.newaxis] + (v*v)[np.newaxis,:]
         gauss = np.exp(-rsq / (2.* start_sigma * start_sigma))
         if self._force_model_center:
@@ -241,24 +241,24 @@ class PixelGrid(Model):
         x = psfx + self._origin[1]
         # Mark references to invalid pixels with nopsf array
         # First note which pixels are referenced outside of grid:
-        nopsf = (y < 0) | (y >= self.ny) | (x < 0) | (x >= self.nx)
+        nopsf = (y < 0) | (y >= self.size) | (x < 0) | (x >= self.size)
         # Set them to reference pixel 0
         x = np.where(nopsf, 0, x)
         y = np.where(nopsf, 0, y)
         # Then read all indices, setting invalid ones to -1
         return np.where(nopsf, -1, self._indices[y, x])
 
-    def _fullPsf1d(self, star):
+    def _fullPsf1d(self, params):
         """ Using stored PSF parameters, create full 1d array of PSF grid
         point values by applying the flux (and center) constraints to generate
         the dependent values
 
-        :param star:  A Star instance whose parameters to use
+        :param params:  The parameters from star.fit, which don't include constrained params.
 
         :returns: 1d array of all PSF values at grid points in mask
         """
-        constrained = self._b - np.dot(self._a[:,:self._nparams], star.fit.params)
-        return np.concatenate((constrained, star.fit.params))
+        constrained = self._b - np.dot(self._a[:,:self._nparams], params)
+        return np.concatenate((constrained, params))
 
     def fillPSF(self, star, in2d):
         """ Initialize the PSF for a star from a given 2d uv-plane array.
@@ -304,7 +304,7 @@ class PixelGrid(Model):
             # Null weight at pixels where interpolation coefficients
             # come up short of specified fraction of the total kernel
             required_kernel_fraction = 0.7
-            coeffs, psfx, psfy = self.interp_calculate(u/self.du, v/self.du)
+            coeffs, psfx, psfy = self.interp_calculate(u/self.scale, v/self.scale)
             # Turn the (psfx,psfy) coordinates into an index into 1d parameter vector.
             index1d = self._indexFromPsfxy(psfx, psfy)
             # All invalid pixel references now have negative index;
@@ -418,11 +418,11 @@ class PixelGrid(Model):
         v -= star.fit.center[1]
 
         if self._force_model_center:
-            coeffs, psfx, psfy, dcdu, dcdv = self.interp_calculate(u/self.du, v/self.du, True)
-            dcdu /= self.du
-            dcdv /= self.du
+            coeffs, psfx, psfy, dcdu, dcdv = self.interp_calculate(u/self.scale, v/self.scale, True)
+            dcdu /= self.scale
+            dcdv /= self.scale
         else:
-            coeffs, psfx, psfy = self.interp_calculate(u/self.du, v/self.du)
+            coeffs, psfx, psfy = self.interp_calculate(u/self.scale, v/self.scale)
 
         # Turn the (psfy,psfx) coordinates into an index into 1d parameter vector.
         index1d = self._indexFromPsfxy(psfx, psfy)
@@ -437,7 +437,7 @@ class PixelGrid(Model):
 
         # Multiply kernel (and derivs) by current PSF element values
         # to get current estimates
-        pvals = self._fullPsf1d(star)[index1d]
+        pvals = self._fullPsf1d(star.fit.params)[index1d]
         mod = np.sum(coeffs*pvals, axis=1)
         if self._force_model_center:
             dmdu = star.fit.flux * np.sum(dcdu*pvals, axis=1)
@@ -508,7 +508,7 @@ class PixelGrid(Model):
         # missing pixel data or otherwise unspecified PSF
         # ??? make these properties of the Model???
         fractional_flux_prior = 0.5 # prior of 50% on pre-existing flux ???
-        center_shift_prior = 0.5*self.du #prior of 0.5 uv-plane pixels ???
+        center_shift_prior = 0.5*self.scale #prior of 0.5 uv-plane pixels ???
         alpha[self._nparams, self._nparams] += (fractional_flux_prior*star.fit.flux)**(-2.)
         if self._force_model_center:
             alpha[self._nparams+1, self._nparams+1] += (center_shift_prior)**(-2.)
@@ -567,7 +567,7 @@ class PixelGrid(Model):
         u -= star.fit.center[0]
         v -= star.fit.center[1]
 
-        coeffs, psfx, psfy = self.interp_calculate(u/self.du, v/self.du)
+        coeffs, psfx, psfy = self.interp_calculate(u/self.scale, v/self.scale)
         # Turn the (psfy,psfx) coordinates into an index into 1d parameter vector.
         index1d = self._indexFromPsfxy(psfx, psfy)
         # All invalid pixel references now have negative index; record and set to zero
@@ -576,7 +576,7 @@ class PixelGrid(Model):
         # And null the coefficients for such pixels
         coeffs = np.where(nopsf, 0., coeffs)
 
-        pvals = self._fullPsf1d(star)[index1d]
+        pvals = self._fullPsf1d(star.fit.params)[index1d]
         model = star.fit.flux * np.sum(coeffs*pvals, axis=1)
         if not star.data.values_are_sb:
             # Change data from surface brightness into flux
@@ -629,11 +629,11 @@ class PixelGrid(Model):
             u -= center[0]
             v -= center[1]
             if do_center:
-                coeffs, psfx, psfy, dcdu, dcdv = self.interp_calculate(u/self.du, v/self.du, True)
-                dcdu /= self.du
-                dcdv /= self.du
+                coeffs, psfx, psfy, dcdu, dcdv = self.interp_calculate(u/self.scale, v/self.scale, True)
+                dcdu /= self.scale
+                dcdv /= self.scale
             else:
-                coeffs, psfx, psfy = self.interp_calculate(u/self.du, v/self.du)
+                coeffs, psfx, psfy = self.interp_calculate(u/self.scale, v/self.scale)
             # Turn the (psfy,psfx) coordinates into an index into 1d parameter vector.
             index1d = self._indexFromPsfxy(psfx, psfy)
             # All invalid pixel references now have negative index; record and set to zero
@@ -647,7 +647,7 @@ class PixelGrid(Model):
 
             # Multiply kernel (and derivs) by current PSF element values
             # to get current estimates
-            pvals = self._fullPsf1d(star)[index1d]
+            pvals = self._fullPsf1d(star.fit.params)[index1d]
             mod = np.sum(coeffs*pvals, axis=1)
             if do_center:
                 dmdu = flux * np.sum(dcdu*pvals, axis=1)
