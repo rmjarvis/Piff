@@ -25,7 +25,7 @@ import warnings
 
 from galsim import Lanczos
 from .model import Model
-from .star import Star, StarFit
+from .star import Star, StarData, StarFit
 
 class PixelGrid(Model):
     """A PSF modeled as interpolation between a grid of points.

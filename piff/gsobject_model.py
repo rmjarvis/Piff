@@ -106,26 +106,6 @@ class GSObjectModel(Model):
             du, dv, scale, g1, g2 = params
         return self.gsobj.dilate(scale).shear(g1=g1, g2=g2).shift(du, dv)
 
-    def draw(self, star, copy_image=True):
-        """Draw the model on the given image.
-
-        :param star:    A Star instance with the fitted parameters to use for drawing and a
-                        data field that acts as a template image for the drawn model.
-        :param copy_image:          If False, will use the same image object.
-                                    If True, will copy the image and then overwrite it.
-                                    [default: True]
-
-        :returns: a new Star instance with the data field having an image of the drawn model.
-        """
-        prof = self.getProfile(star.fit.params).shift(star.fit.center) * star.fit.flux
-        if copy_image:
-            image = star.image.copy()
-        else:
-            image = star.image
-        prof.drawImage(image, method=self._method, offset=(star.image_pos-image.true_center))
-        data = StarData(image, star.image_pos, star.weight, star.data.pointing)
-        return Star(data, star.fit)
-
     def _lmfit_resid(self, lmparams, star):
         """Residual function to use with lmfit.  Essentially `chi` from `chisq`, but not summed
         over pixels yet.
