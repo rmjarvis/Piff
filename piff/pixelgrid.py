@@ -278,12 +278,10 @@ class PixelGrid(Model):
 
         star.fit.params[:] = params[self._constraints:]  # Omit the constrained pixels
 
-    def initialize(self, star, mask=True, logger=None):
+    def initialize(self, star, logger=None):
         """Initialize a star to work with the current model.
 
         :param star:    A Star instance with the raw data.
-        :param mask:    If True, set data.weight to zero at pixels that are outside
-                        the range of the model.
         :param logger:  A logger object for logging debug info. [default: None]
 
         :returns: a star instance with the appropriate initial fit values
@@ -300,20 +298,17 @@ class PixelGrid(Model):
         Iy = np.sum(data * v) / flux
         center = (Ix,Iy)
 
-        if mask:
-            # Null weight at pixels where interpolation coefficients
-            # come up short of specified fraction of the total kernel
-            required_kernel_fraction = 0.7
-            coeffs, psfx, psfy = self.interp_calculate(u/self.scale, v/self.scale)
-            # Turn the (psfx,psfy) coordinates into an index into 1d parameter vector.
-            index1d = self._indexFromPsfxy(psfx, psfy)
-            # All invalid pixel references now have negative index;
-            # Null the coefficients for such pixels
-            coeffs = np.where(index1d < 0, 0., coeffs)
-            use = np.sum(coeffs,axis=1) > required_kernel_fraction
-            stardata = star.data.maskPixels(use)
-        else:
-            stardata = star.data
+        # Null weight at pixels where interpolation coefficients
+        # come up short of specified fraction of the total kernel
+        required_kernel_fraction = 0.7
+        coeffs, psfx, psfy = self.interp_calculate(u/self.scale, v/self.scale)
+        # Turn the (psfx,psfy) coordinates into an index into 1d parameter vector.
+        index1d = self._indexFromPsfxy(psfx, psfy)
+        # All invalid pixel references now have negative index;
+        # Null the coefficients for such pixels
+        coeffs = np.where(index1d < 0, 0., coeffs)
+        use = np.sum(coeffs,axis=1) > required_kernel_fraction
+        stardata = star.data.maskPixels(use)
 
         starfit = StarFit(self._initial_params, flux, center, params_var=var)
         star = Star(stardata, starfit)

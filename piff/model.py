@@ -78,12 +78,10 @@ class Model(object):
         kwargs.pop('type', None)
         return kwargs
 
-    def initialize(self, star, mask=True, logger=None):
+    def initialize(self, star, logger=None):
         """Initialize a star to work with the current model.
 
         :param star:    A Star instance with the raw data.
-        :param mask:    If True, set data.weight to zero at pixels that are outside
-                        the range of the model. [default: True]
         :param logger:  A logger object for logging debug info. [default: None]
 
         :returns:       Star instance with the appropriate initial fit values
