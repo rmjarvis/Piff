@@ -23,6 +23,7 @@ import galsim
 import scipy.linalg
 import warnings
 
+from galsim import Lanczos
 from .model import Model
 from .star import Star, StarFit
 
@@ -56,7 +57,8 @@ class PixelGrid(Model):
 
         :param scale:       Pixel scale of the PSF model (in arcsec)
         :param size:        Number of pixels on each side of square grid.
-        :param interp:      An Interpolator to be used [default: Lanczos(3)]
+        :param interp:      An Interpolant to be used [default: Lanczos(3); currently only
+                            Lanczos(n) is implemented for any n]
         :param mask:        Optional square boolean 2d array, True where we want a non-zero value
                             [default: None]
         :param start_sigma: sigma of a 2d Gaussian installed as 1st guess for all stars
@@ -88,13 +90,13 @@ class PixelGrid(Model):
         self._degenerate = degenerate
 
         # These are the kwargs that can be serialized easily.
-        # TODO: Add interp to this, so it can be specified in the yaml file and read/written.
         self.kwargs = {
             'scale' : scale,
             'size' : size,
             'start_sigma' : start_sigma,
             'force_model_center' : force_model_center,
-            'degenerate' : degenerate
+            'degenerate' : degenerate,
+            'interp' : repr(self.interp),
         }
 
         if mask is None:
@@ -302,7 +304,7 @@ class PixelGrid(Model):
             # Null weight at pixels where interpolation coefficients
             # come up short of specified fraction of the total kernel
             required_kernel_fraction = 0.7
-            coeffs, psfx, psfy = self.interp(u/self.du, v/self.du)
+            coeffs, psfx, psfy = self.interp_calculate(u/self.du, v/self.du)
             # Turn the (psfx,psfy) coordinates into an index into 1d parameter vector.
             index1d = self._indexFromPsfxy(psfx, psfy)
             # All invalid pixel references now have negative index;
@@ -416,11 +418,11 @@ class PixelGrid(Model):
         v -= star.fit.center[1]
 
         if self._force_model_center:
-            coeffs, dcdu, dcdv, psfx, psfy = self.interp.derivatives(u/self.du, v/self.du)
+            coeffs, psfx, psfy, dcdu, dcdv = self.interp_calculate(u/self.du, v/self.du, True)
             dcdu /= self.du
             dcdv /= self.du
         else:
-            coeffs, psfx, psfy = self.interp(u/self.du, v/self.du)
+            coeffs, psfx, psfy = self.interp_calculate(u/self.du, v/self.du)
 
         # Turn the (psfy,psfx) coordinates into an index into 1d parameter vector.
         index1d = self._indexFromPsfxy(psfx, psfy)
@@ -565,7 +567,7 @@ class PixelGrid(Model):
         u -= star.fit.center[0]
         v -= star.fit.center[1]
 
-        coeffs, psfx, psfy = self.interp(u/self.du, v/self.du)
+        coeffs, psfx, psfy = self.interp_calculate(u/self.du, v/self.du)
         # Turn the (psfy,psfx) coordinates into an index into 1d parameter vector.
         index1d = self._indexFromPsfxy(psfx, psfy)
         # All invalid pixel references now have negative index; record and set to zero
@@ -627,11 +629,11 @@ class PixelGrid(Model):
             u -= center[0]
             v -= center[1]
             if do_center:
-                coeffs, dcdu, dcdv, psfx, psfy = self.interp.derivatives(u/self.du, v/self.du)
+                coeffs, psfx, psfy, dcdu, dcdv = self.interp_calculate(u/self.du, v/self.du, True)
                 dcdu /= self.du
                 dcdv /= self.du
             else:
-                coeffs, psfx, psfy = self.interp(u/self.du, v/self.du)
+                coeffs, psfx, psfy = self.interp_calculate(u/self.du, v/self.du)
             # Turn the (psfy,psfx) coordinates into an index into 1d parameter vector.
             index1d = self._indexFromPsfxy(psfx, psfy)
             # All invalid pixel references now have negative index; record and set to zero
@@ -720,18 +722,7 @@ class PixelGrid(Model):
 
         raise RuntimeError("Maximum number of iterations exceeded in PixelGrid.reflux()")
 
-
-class PixelInterpolant(object):
-    """Interface for interpolators
-    """
-    def range(self):
-        """Size of interpolation kernel
-
-        :returns: Maximum distance from target to source pixel.
-        """
-        raise NotImplementedError("Derived classes must define the range function")
-
-    def __call__(self, u, v):
+    def interp_calculate(self, u, v, derivs=False):
         """Calculate interpolation coefficient for vector of target points
 
         Outputs will be 3 matrices, each of dimensions (nin, nkernel) where nin is
@@ -739,90 +730,31 @@ class PixelInterpolant(object):
         The coeff matrix gives interpolation coefficients, then the y and x integer matrices
         give the grid point to which each coefficient is applied.
 
-        :param u: 1d array of target u coordinates
-        :param v: 1d array of target v coordinates
+        :param u:       1d array of target u coordinates
+        :param v:       1d array of target v coordinates
+        :param derivs:  whether to also return derivatives (default: False)
 
-        :returns: coeff, y, x
+        :returns: coeff, x, y[, dcdu, dcdv]
         """
-        raise NotImplementedError("Derived classes must define the __call__ function")
-
-    def derivatives(self, u, v):
-        """Calculate interpolation coefficient for vector of target points, and
-        their derivatives with respect to shift in u, v position of the star.
-
-        Outputs will be 5 matrices, each of dimensions (nin, nkernel) where nin is
-        number of input coordinates and nkernel is number of points in kernel footprint.
-        The coeff matrix gives interpolation coefficients; then there are derivatives of the
-        kernel with respect to u and v; then the y and x integer matrices
-        give the grid point to which each coefficient is applied.
-
-        :param u: 1d array of target u coordinates
-        :param v: 1d array of target v coordinates
-
-        :returns: coeff, dcdu, dcdv, y, x
-        """
-        raise NotImplementedError("Derived classes must define the derivatives function")
-
-
-class Lanczos(PixelInterpolant):
-    """Lanczos interpolator in 2 dimensions.
-    """
-    def __init__(self, order=3):
-        """Initialize with the order of the filter
-        """
-        self.order = order
+        n = int(np.ceil(self.interp.xrange))
         # Here is range of pixels to use in each dimension relative to ceil(u,v)
-        self._duv = np.arange(-self.order, self.order, dtype=int)
+        _duv = np.arange(-n, n, dtype=int)
         # And here are flattened arrays of u, v displacement for whole footprint
-        self._du = np.ones( (2*self.order,2*self.order), dtype=int) * self._duv
-        self._du = self._du.flatten()
-        self._dv = np.ones( (2*self.order,2*self.order), dtype=int) * \
-          self._duv[:,np.newaxis]
-        self._dv = self._dv.flatten()
-
-    def range(self):
-        return self.order
-
-    def _kernel1d(self, u):
-        """ Calculate the 1d interpolation kernel at each value in array u.
-
-        :param u: 1d array of (u_dest-u_src) spanning the footprint of the kernel.
-
-        :returns: interpolation kernel values at these grid points
-        """
-        # Normalize Lanczos to unit sum over kernel elements
-        k = np.sinc(u) * np.sinc(u/self.order)
-        return k / np.sum(k,axis=1)[:,np.newaxis]
-
-    def __call__(self, u, v):
-        return self._calculate(u,v,derivs=False)
-
-    def derivatives(self, u, v):
-        return self._calculate(u,v,derivs=True)
-
-    def _calculate(self, u, v, derivs=False):
-        """ Routine which does the kernel calculations.  Uses finite differences to
-        calculate derivatives, if requested.
-
-        :param u,v:    1d arrays of coordinates to which we are interpolating
-        :param derivs: Set to true if outputs should include derivatives w.r.t. u,v
-
-        :returns: coeffs, [dcoeff/du, dcoeff/dv,] x, y where each is a 2d array of
-        dimensions (len(u), # of kernel elements), holding coefficients of each grid point
-        for interpolation to each destination point, [derivatives of these], and x,y are
-        the integer coordinates of the grid points.
-        """
+        _du = np.ones( (2*n,2*n), dtype=int) * _duv
+        _du = _du.flatten()
+        _dv = np.ones( (2*n,2*n), dtype=int) * _duv[:,np.newaxis]
+        _dv = _dv.flatten()
 
         # Get integer and fractional parts of u, v
         u_ceil = np.ceil(u).astype(int)
         v_ceil = np.ceil(v).astype(int)
         # Make arrays giving coordinates of grid points within footprint
-        x = u_ceil[:,np.newaxis] + self._du[np.newaxis,:]
-        y = v_ceil[:,np.newaxis] + self._dv[np.newaxis,:]
+        x = u_ceil[:,np.newaxis] + _du[np.newaxis,:]
+        y = v_ceil[:,np.newaxis] + _dv[np.newaxis,:]
         # Make npts x (2*order) arrays holding 1d displacements
         # to be arguments of the 1d kernel functions
-        argu = (u_ceil-u)[:,np.newaxis] + self._duv
-        argv = (v_ceil-v)[:,np.newaxis] + self._duv
+        argu = (u_ceil-u)[:,np.newaxis] + _duv
+        argv = (v_ceil-v)[:,np.newaxis] + _duv
         # Calculate the Lanczos function each axis:
         ku = self._kernel1d(argu)
         kv = self._kernel1d(argv)
@@ -837,29 +769,9 @@ class Lanczos(PixelInterpolant):
             # and v
             dkv = (self._kernel1d(argv+duv)-self._kernel1d(argv-duv)) / (2*duv)
             dcdv = (ku[:,np.newaxis,:] * dkv[:,:,np.newaxis]).reshape(x.shape)
-            return coeffs, dcdu, dcdv, x, y
+            return coeffs, x, y, dcdu, dcdv
         else:
             return coeffs, x, y
-
-
-class Bilinear(PixelInterpolant):
-    """Lanczos interpolator in 2 dimensions.
-    """
-    def __init__(self):
-        """Initialize - "order" is the range, 1 pixel here
-        """
-        self.order = 1
-        # Here is range of pixels to use in each dimension relative to ceil(u,v)
-        self._duv = np.arange(-self.order, self.order, dtype=int)
-        # And here are flattened arrays of u, v displacement for whole footprint
-        self._du = np.ones( (2*self.order,2*self.order), dtype=int) * self._duv
-        self._du = self._du.flatten()
-        self._dv = np.ones( (2*self.order,2*self.order), dtype=int) * \
-          self._duv[:,np.newaxis]
-        self._dv = self._dv.flatten()
-
-    def range(self):
-        return self.order
 
     def _kernel1d(self, u):
         """ Calculate the 1d interpolation kernel at each value in array u.
@@ -868,51 +780,13 @@ class Bilinear(PixelInterpolant):
 
         :returns: interpolation kernel values at these grid points
         """
-        return 1. - np.abs(u)
+        # TODO: It would be nice to allow any GalSim.Interpolant for the interp, but
+        #       we'd need to get the equivalent of this functionality into the public API
+        #       of the galsim.Interpolant class.  Currently, there is nothing like this
+        #       available in the python API, although the C++ layer does do this calculation.
+        #       For now, we just implement this for Lanczos.
 
-    def __call__(self, u, v):
-        return self._calculate(u,v,derivs=False)
-
-    def derivatives(self, u, v):
-        return self._calculate(u,v,derivs=True)
-
-    def _calculate(self, u, v, derivs=False):
-        """ Routine which does the kernel calculations.  Uses finite differences to
-        calculate derivatives, if requested.
-
-        :param u,v:    1d arrays of coordinates to which we are interpolating
-        :param derivs: Set to true if outputs should include derivatives w.r.t. u,v
-
-        :returns: coeffs, [dcoeff/du, dcoeff/dv,] x, y where each is a 2d array of
-        dimensions (len(u), # of kernel elements), holding coefficients of each grid point
-        for interpolation to each destination point, [derivatives of these], and x,y are
-        the integer coordinates of the grid points.
-        """
-
-        # Get integer and fractional parts of u, v
-        u_ceil = np.ceil(u).astype(int)
-        v_ceil = np.ceil(v).astype(int)
-        # Make arrays giving coordinates of grid points within footprint
-        x = u_ceil[:,np.newaxis] + self._du[np.newaxis,:]
-        y = v_ceil[:,np.newaxis] + self._dv[np.newaxis,:]
-        # Make npts x (2*order) arrays holding 1d displacements
-        # to be arguments of the 1d kernel functions
-        argu = (u_ceil-u)[:,np.newaxis] + self._duv
-        argv = (v_ceil-v)[:,np.newaxis] + self._duv
-        # Calculate the 1d function each axis:
-        ku = self._kernel1d(argu)
-        kv = self._kernel1d(argv)
-        # Then take outer products to produce kernel
-        coeffs = (ku[:,np.newaxis,:] * kv[:,:,np.newaxis]).reshape(x.shape)
-
-        if derivs:
-            # Take derivatives with respect to u
-            duv = 0.01   # Step for finite differences
-            dku = (self._kernel1d(argu+duv)-self._kernel1d(argu-duv)) / (2*duv)
-            dcdu = (dku[:,np.newaxis,:] * kv[:,:,np.newaxis]).reshape(x.shape)
-            # and v
-            dkv = (self._kernel1d(argv+duv)-self._kernel1d(argv-duv)) / (2*duv)
-            dcdv = (ku[:,np.newaxis,:] * dkv[:,:,np.newaxis]).reshape(x.shape)
-            return coeffs, dcdu, dcdv, x, y
-        else:
-            return coeffs, x, y
+        # Normalize Lanczos to unit sum over kernel elements
+        n = self.interp._n
+        k = np.sinc(u) * np.sinc(u/n)
+        return k / np.sum(k,axis=1)[:,np.newaxis]
