@@ -120,7 +120,7 @@ class SimplePSF(PSF):
         new_stars = []
         for s in self.stars:
             try:
-                new_star = self.model.initialize(s, mask=True, logger=logger)
+                new_star = self.model.initialize(s, logger=logger)
             except (KeyboardInterrupt, SystemExit):
                 raise
             except Exception as e:  # pragma: no cover

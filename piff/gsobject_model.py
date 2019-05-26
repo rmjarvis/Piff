@@ -292,7 +292,7 @@ class GSObjectModel(Model):
         fit = StarFit(params, params_var=params_var, flux=flux, center=center, chisq=chisq, dof=dof)
         return Star(star.data, fit)
 
-    def initialize(self, star, mask=True, logger=None):
+    def initialize(self, star, logger=None):
         """Initialize the given star's fit parameters.
 
         :param star:  The Star to initialize.
