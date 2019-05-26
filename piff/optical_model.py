@@ -41,6 +41,9 @@ optical_templates = {
 }
 
 class Optical(Model):
+
+    _method = 'no_pixel'
+
     def __init__(self, template=None, logger=None, **kwargs):
         """Initialize the Optical Model
 
@@ -220,25 +223,3 @@ class Optical(Model):
 
         return prof
 
-    def draw(self, star, copy_image=True):
-        """Draw the model on the given image.
-
-        :param star:    A Star instance with the fitted parameters to use for drawing and a
-                        data field that acts as a template image for the drawn model.
-        :param copy_image:          If False, will use the same image object.
-                                    If True, will copy the image and then overwrite it.
-                                    [default: True]
-
-        :returns: a new Star instance with the data field having an image of the drawn model.
-        """
-        import galsim
-        prof = self.getProfile(star.fit.params)
-        center = galsim.PositionD(*star.fit.center)
-        offset = star.data.image_pos + center - star.data.image.true_center
-        if copy_image:
-            image = star.image.copy()
-        else:
-            image = star.image
-        prof.drawImage(image, method='no_pixel', offset=offset)
-        data = StarData(image, star.data.image_pos, star.data.weight)
-        return Star(data, star.fit)

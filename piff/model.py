@@ -20,6 +20,7 @@ from __future__ import print_function
 import numpy as np
 
 from .util import write_kwargs, read_kwargs
+from .star import Star, StarData
 
 
 # Raise this if there's a failure in the Model.fit() method.
@@ -107,18 +108,24 @@ class Model(object):
         raise NotImplementedError("Derived classes must define the fit function")
 
     def draw(self, star, copy_image=True):
-        """Create new Star instance that has star.data filled with a rendering
-        of the PSF specified by the current StarFit parameters, flux, and center.
-        Coordinate mapping of the current StarData is assumed.
+        """Draw the model on the given image.
 
-        :param star:   A Star instance
-        :param copy_image:          If False, will use the same image object.
-                                    If True, will copy the image and then overwrite it.
-                                    [default: True]
+        :param star:        A Star instance with the fitted parameters to use for drawing and a
+                            data field that acts as a template image for the drawn model.
+        :param copy_image:  If False, will use the same image object.
+                            If True, will copy the image and then overwrite it.
+                            [default: True]
 
-        :returns:      New Star instance with rendered PSF in StarData
+        :returns: a new Star instance with the data field having an image of the drawn model.
         """
-        raise NotImplementedError("Derived classes must define the draw function")
+        prof = self.getProfile(star.fit.params).shift(star.fit.center) * star.fit.flux
+        if copy_image:
+            image = star.image.copy()
+        else:
+            image = star.image
+        prof.drawImage(image, method=self._method, offset=(star.image_pos-image.true_center))
+        data = StarData(image, star.image_pos, star.weight, star.data.pointing)
+        return Star(data, star.fit)
 
     def write(self, fits, extname):
         """Write a Model to a FITS file.
