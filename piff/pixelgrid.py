@@ -662,8 +662,6 @@ class PixelGrid(Model):
             alpha = np.dot(derivs.T*weight, derivs)
             try:
                 df = np.linalg.solve(alpha, beta)
-            except (KeyboardInterrupt, SystemExit):
-                raise
             except Exception as e:
                 if do_center:
                     logger.debug("Caught exception %s",e)
