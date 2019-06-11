@@ -421,6 +421,13 @@ class PSF(object):
                 wcs = dict(zip(chipnums, wcs_list))
                 repr(wcs)
 
+        # Work-around for a change in the GalSim API with 2.0
+        # If the piff file was written with pre-2.0 GalSim, this fixes it.
+        for key in wcs:
+            w = wcs[key]
+            if hasattr(w, '_origin') and  isinstance(w._origin, galsim._galsim.PositionD):
+                w._origin = galsim.PositionD(w._origin)
+
         if 'ra' in fits[extname].get_colnames():
             ra = data['ra']
             dec = data['dec']
