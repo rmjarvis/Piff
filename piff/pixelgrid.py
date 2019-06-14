@@ -287,15 +287,21 @@ class PixelGrid(Model):
         :returns: a star instance with the appropriate initial fit values
         """
         var = np.zeros(len(self._initial_params))
+
+        data, weight, u, v = star.data.getDataVector()
+        # Start with the sum of pixels as initial estimate of flux.
+        flux = np.sum(data)
+        # Subtract star.fit.center from u, v:
+        u -= star.fit.center[0]
+        v -= star.fit.center[1]
+        Ix = np.sum(data * u) / flux
+        Iy = np.sum(data * v) / flux
+        center = (Ix,Iy)
+
         if mask:
             # Null weight at pixels where interpolation coefficients
             # come up short of specified fraction of the total kernel
             required_kernel_fraction = 0.7
-
-            _, _, u, v = star.data.getDataVector()
-            # Subtract star.fit.center from u, v:
-            u -= star.fit.center[0]
-            v -= star.fit.center[1]
             coeffs, psfx, psfy = self.interp(u/self.du, v/self.du)
             # Turn the (psfx,psfy) coordinates into an index into 1d parameter vector.
             index1d = self._indexFromPsfxy(psfx, psfy)
@@ -303,15 +309,12 @@ class PixelGrid(Model):
             # Null the coefficients for such pixels
             coeffs = np.where(index1d < 0, 0., coeffs)
             use = np.sum(coeffs,axis=1) > required_kernel_fraction
-            data = star.data.maskPixels(use)
+            stardata = star.data.maskPixels(use)
         else:
-            data = star.data
-        # Start with the sum of pixels as initial estimate of flux.
-        flux = data.image.array.sum()
-        fit = StarFit(self._initial_params, flux, star.fit.center, params_var=var)
-        star = Star(data, fit)
-        # Update the flux to something closer to right.
-        star = self.reflux(star, fit_center=False, logger=logger)
+            stardata = star.data
+
+        starfit = StarFit(self._initial_params, flux, center, params_var=var)
+        star = Star(stardata, starfit)
         return star
 
     def fit(self, star, logger=None):
@@ -399,7 +402,6 @@ class PixelGrid(Model):
 
         :returns: a new Star instance with updated StarFit
         """
-
         # Start by getting all interpolation coefficients for all observed points
         data, weight, u, v = star.data.getDataVector()
         if not star.data.values_are_sb:
@@ -653,7 +655,6 @@ class PixelGrid(Model):
                 derivs = mod.reshape(mod.shape+(1,))
                 # derivs should end up with shape (npts, nconstraints)
             resid = data - mod*flux
-            logger.debug("total pixels = %s, nopsf = %s",len(pvals),np.sum(nopsf))
 
             # Now begin construction of alpha/beta/chisq that give
             # chisq vs linearized model.
@@ -675,8 +676,7 @@ class PixelGrid(Model):
                 else:
                     raise
             dchi = np.dot(beta, df)
-            chisq = chisq - dchi
-            logger.debug("chisq -= %s => %s",dchi,chisq)
+            logger.debug("chisq -= %s => %s",dchi,chisq-dchi)
             # Record worst single pixel chisq:
             resid -= np.dot(derivs,df)
             rw = resid * weight
@@ -694,9 +694,11 @@ class PixelGrid(Model):
                 logger.debug("center += (%s,%s) => %s",df[1],df[2],center)
             dof = np.count_nonzero(weight) - self._constraints
             logger.debug("dchi, dof, do_center = %s, %s, %s", dchi, dof, do_center)
-            if dchi < chisq_thresh * chisq or not do_center:
+            if dchi < chisq_thresh * max(chisq,1) or not do_center:
                 # Done with iterations.  Return new Star with updated information
                 var = np.zeros(len(star.fit.params))
+                # If we're stopping now, update to the expected new chisq value.
+                chisq = chisq - dchi
                 return Star(star.data, StarFit(star.fit.params,
                                                params_var = var,
                                                flux = flux,
