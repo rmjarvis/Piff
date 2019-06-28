@@ -223,7 +223,7 @@ class OptAtmoPSF(PSF):
         min_sizes = {'kolmogorov': 0.45, 'vonkarman': 0.7}
         if atmosphere_model == 'vonkarman':
             self.optatmo_psf_kwargs = {
-                    'L0':   25.0,    'fix_L0':   False, 'min_L0': 5.0, 'max_L0': 100.0,
+                    'L0':   25.0,    'fix_L0':   False, 'min_L0': 1.0, 'max_L0': 2000.0,
                     'size': 1.0,  'fix_size': False, 'min_size': min_sizes[atmosphere_model], 'max_size': 3.0,
                     'g1':   0,    'fix_g1':   False, 'min_g1': -0.4, 'max_g1': 0.4,
                     'g2':   0,    'fix_g2':   False, 'min_g2': -0.4, 'max_g2': 0.4,
@@ -324,9 +324,9 @@ class OptAtmoPSF(PSF):
             self.n_params_constant_atmosphere = 3
             self.n_params_constant_atmosphere_and_atmosphere = 6
         elif self.atmosphere_model == 'vonkarman':
-            self.n_params_atmosphere = 3
+            self.n_params_atmosphere = 4
             self.n_params_constant_atmosphere = 4
-            self.n_params_constant_atmosphere_and_atmosphere = 7
+            self.n_params_constant_atmosphere_and_atmosphere = 8
 
         self.atmo_mad_outlier = atmo_mad_outlier
 
@@ -583,7 +583,7 @@ class OptAtmoPSF(PSF):
             logger.info('Skipping outliers')
             self.outliers = None
 
-    def fit(self, train_stars, test_stars, wcs, pointing,
+    def fit(self, stars, wcs, pointing,
             chisq_threshold=0.1, max_iterations=30, logger=None, **kwargs):
         """Fit interpolated PSF model to star data using standard sequence of operations.
         :param stars:           A list of Star instances.
@@ -606,21 +606,19 @@ class OptAtmoPSF(PSF):
         self.higher_order_reference_wavefront = wavefrontmap(file=self.higher_order_reference_wavefront_file) #here we save the specified higher order reference wavefront as an instance of the wavefrontmap class. The non-higher order reference wavefront goes up to z11 and this one goes from z12 to z37
         self.wcs = wcs
         self.pointing = pointing
-
-
-        # do first pass of flux, centers, and shapes for the train stars
-        # train stars that fail this step are going to constantly fail the fit, so
-        # we get rid of them
+        # do first pass of flux, centers, and shapes for the stars
+        # stars that fail this step are going to constantly fail the fit, sooo
+        # let's get rid of them
         self.stars = []
         self.star_shapes = []
         self.star_errors = []
         self.star_snrs = []
-        for star_i, star in enumerate(train_stars):
-            logger.debug('Measuring shape of train star {0}'.format(star_i))
+        for star_i, star in enumerate(stars):
+            logger.debug('Measuring shape of star {0}'.format(star_i))
             try:
-                shape = self.measure_shape_orthogonal(star, logger=logger) #shapes measured here include flux, center, 2nd, 3rd, and orthogonal radial moments up to eighth moments
+                shape = self.measure_shape_orthogonal(star, logger=logger) #shapes measured here include flux, center, 2nd, 3rd, and 4th moments
                 print("shape: {0}".format(shape))
-                error = self.measure_error_orthogonal(star, logger=logger) #errors measured here include flux, center, 2nd, 3rd, and orthogonal radial moments up to eighth moments
+                error = self.measure_error_orthogonal(star, logger=logger) #errors measured here include flux, center, 2nd, 3rd, and 4th moments
                 star = Star(star.data, StarFit(None, flux=shape[0], center=(shape[1], shape[2])))
                 star.data.properties['shape'] = shape
                 star.data.properties['shape_error'] = error
@@ -633,71 +631,25 @@ class OptAtmoPSF(PSF):
             except (ModelFitError, RuntimeError) as e:
                 # something went wrong with this star
                 logger.warning(str(e))
-                logger.warning('Train Star {0} failed shape estimation. Skipping'.format(star_i))
+                logger.warning('Star {0} failed shape estimation. Skipping. This is usually because there is a second object in the stamp, or there is some pretty severe masking'.format(star_i))
         print("self.star_shapes: {0}".format(self.star_shapes))
         self.star_shapes = np.array(self.star_shapes)
         print("self.star_shapes: {0}".format(self.star_shapes))
         self.star_errors = np.array(self.star_errors)
         self.star_snrs = np.array(self.star_snrs)
 
-        # do first pass of flux, centers, and shapes for the test stars
-        # test stars that fail this step are eliminated just like the train stars were before
-        self.test_stars = []
-        self.test_star_shapes = []
-        self.test_star_errors = []
-        self.test_star_snrs = []
-        for star_i, star in enumerate(test_stars):
-            logger.debug('Measuring shape of test star {0}'.format(star_i))
-            try:
-                shape = self.measure_shape_orthogonal(star, logger=logger) #shapes measured here include flux, center, 2nd, 3rd, and orthogonal radial moments up to eighth moments
-                print("shape: {0}".format(shape))
-                error = self.measure_error_orthogonal(star, logger=logger) #errors measured here include flux, center, 2nd, 3rd, and orthogonal radial moments up to eighth moments
-                star = Star(star.data, StarFit(None, flux=shape[0], center=(shape[1], shape[2])))
-                star.data.properties['shape'] = shape
-                star.data.properties['shape_error'] = error
-                snr = self.measure_snr(star)
-
-                self.test_stars.append(star)
-                self.test_star_shapes.append(shape)
-                self.test_star_errors.append(error)
-                self.test_star_snrs.append(snr)
-            except (ModelFitError, RuntimeError) as e:
-                # something went wrong with this star
-                logger.warning(str(e))
-                logger.warning('Test Star {0} failed shape estimation. Skipping'.format(star_i))
-        print("self.test_star_shapes: {0}".format(self.test_star_shapes))
-        self.test_star_shapes = np.array(self.test_star_shapes)
-        print("self.test_star_shapes: {0}".format(self.test_star_shapes))
-        self.test_star_errors = np.array(self.test_star_errors)
-        self.test_star_snrs = np.array(self.test_star_snrs)
-
-
-        # do a max shapes cut for the train stars
+        # do a max shapes cut
         conds_shape = (np.all(np.abs(self.star_shapes[:, 3:]) <= self._max_shapes, axis=1))
-
-        # do a max shapes cut for the test stars
-        test_conds_shape = (np.all(np.abs(self.test_star_shapes[:, 3:]) <= self._max_shapes, axis=1))
-
-
         # also a MAD cut
-        med = np.nanmedian(                                            np.concatenate([self.star_shapes[:, 3:], self.test_star_shapes[:, 3:]], axis=0)                                               , axis=0)
-        mad = np.nanmedian(                               np.abs(      np.concatenate([self.star_shapes[:, 3:], self.test_star_shapes[:, 3:]], axis=0)            - med[None])                       , axis=0)
+        med = np.nanmedian(self.star_shapes[:, 3:], axis=0)
+        madx = np.abs(self.star_shapes[:, 3:] - med[None])
+        mad = np.nanmedian(madx, axis=0)
         logger.debug('MAD values: {0}'.format(str(mad)))
+        conds_mad = (np.all(madx <= 1.48 * 5 * mad, axis=1))
         print("med: {0}".format(med))
+        print("madx: {0}".format(madx))
         print("mad: {0}".format(mad))
 
-        # do MAD cut for the train stars
-        madx = np.abs(self.star_shapes[:, 3:] - med[None])
-        conds_mad = (np.all(madx <= 1.48 * 5 * mad, axis=1))
-        print("madx: {0}".format(madx))
-
-        # do MAD cut for the test stars
-        test_madx = np.abs(self.test_star_shapes[:, 3:] - med[None])
-        test_conds_mad = (np.all(test_madx <= 1.48 * 5 * mad, axis=1))
-        print("test_madx: {0}".format(test_madx))
-
-
-        # apply the aforementioned max shapes and MAD cuts for the train stars
         self.stars_indices = np.arange(len(self.stars))
         self.stars_indices = self.stars_indices[conds_shape * conds_mad]
         self.stars = [self.stars[indx] for indx in self.stars_indices]
@@ -705,69 +657,50 @@ class OptAtmoPSF(PSF):
         self.star_errors = self.star_errors[self.stars_indices]
         self.star_snrs = self.star_snrs[self.stars_indices]
 
-        # apply the aforementioned max shapes and MAD cuts for the test stars
-        self.test_stars_indices = np.arange(len(self.test_stars))
-        self.test_stars_indices = self.test_stars_indices[test_conds_shape * test_conds_mad]
-        self.test_stars = [self.test_stars[indx] for indx in self.test_stars_indices]
-        self.test_star_shapes = self.test_star_shapes[self.test_stars_indices]
-        self.test_star_errors = self.test_star_errors[self.test_stars_indices]
-        self.test_star_snrs = self.test_star_snrs[self.test_stars_indices]
-
-
-        # do an snr cut for the stars for the fit and record how many have been cut and why so far in the logger
+        # do an snr cut and record how many have been cut and why so far
         self.fit_optics_indices = np.arange(len(self.stars))
         conds_snr = (self.star_snrs >= self.min_optfit_snr)
         self.fit_optics_indices = self.fit_optics_indices[conds_snr]
         logger.info('Cutting to {0} stars for fitting the optics based on SNR > {1} ({2} stars) on maximum shapes ({3} stars) and on a 5 sigma outlier cut ({4} stars)'.format(len(self.fit_optics_indices), self.min_optfit_snr, len(conds_snr) - np.sum(conds_snr), len(conds_shape) - np.sum(conds_shape), len(conds_mad) - np.sum(conds_mad)))
 
-
-        # cut further if we have more stars for fit than n_optfit_stars.
-        # Warning: only use n_optfit_stars if doing a test run, not a serious fit. This limits the ability to get the 500 highest SNR stars for the fit.
+        # cut further if we have more stars than n_optfit_stars
         if self.n_optfit_stars and self.n_optfit_stars < len(self.fit_optics_indices):
-            logger.info('Cutting from {0} to {1} stars for the fit as per specifications. Of these, the (at most) 500 highest SNR stars will be passed on to the optical fit'.format(len(self.fit_optics_indices), self.n_optfit_stars))
+            logger.info('Cutting from {0} to {1} stars'.format(len(self.fit_optics_indices), self.n_optfit_stars))
             max_stars = self.n_optfit_stars
             np.random.shuffle(self.fit_optics_indices)
             self.fit_optics_indices = self.fit_optics_indices[:max_stars]
         else:
-            if len(self.fit_optics_indices) < self.n_optfit_stars and self.n_optfit_stars > 0:
-                logger.info("{0} stars remaining after cuts instead of the {1} requested for fitting. Of these, the (at most) 500 highest SNR stars will be passed on to the optical fit".format(max_stars, self.n_optfit_stars))
+            max_stars = len(self.stars)
+            if len(self.fit_optics_indices) < max_stars and self.n_optfit_stars > 0:
+                logger.info("Using {0} stars instead of desired {1}".format(max_stars, self.n_optfit_stars))
 
         self.fit_optics_stars = [self.stars[indx] for indx in self.fit_optics_indices]
         self.fit_optics_star_shapes = self.star_shapes[self.fit_optics_indices]
         self.fit_optics_star_errors = self.star_errors[self.fit_optics_indices]
 
-        # cut down to 500 highest SNR stars for fit if have more than that remaining.
-        if len(self.fit_optics_stars) > 500: 
-            bright_train_stars = []
-            bright_train_star_shapes = []
-            bright_train_star_errors = []
-            snrs = []
-            for fit_optics_star in self.fit_optics_stars:
-                snrs.append(-self.measure_snr(fit_optics_star))
-            snrs = np.array(snrs)
-            order = np.argsort(snrs)
-
-            for o, order_entry in enumerate(order):
-                if o < 500:
-                    bright_train_stars.append(self.fit_optics_stars[order_entry])
-                    bright_train_star_shapes.append(self.fit_optics_star_shapes[order_entry])
-                    bright_train_star_errors.append(self.fit_optics_star_errors[order_entry])
-
-            self.fit_optics_stars = bright_train_stars
-            self.fit_optics_star_shapes = np.array(bright_train_star_shapes)
-            self.fit_optics_star_errors = np.array(bright_train_star_errors)
-
         # perform initial fit in "analytic" mode, which uses a random forest model (this model is trained to return shapes based on what fit parameters you give it)
         # the fit parameters here are the optical fit parameters and the average of the atmospheric fit parameters
-        self.fit_optics(self.fit_optics_stars, self.fit_optics_star_shapes, self.fit_optics_star_errors, mode='analytic', logger=logger, **kwargs)
+        if self.analytic_coefs is not None:
+            self.fit_optics(self.fit_optics_stars, self.fit_optics_star_shapes, self.fit_optics_star_errors, mode='analytic', logger=logger, **kwargs)
 
         # first just fit the optical size parameter to correct size offset
         # the size parameter is proportional to 1/r0, where r0 is the Fried parameter         
         # the "optics" size is the average of this across the focal plane, whereas
         # the "atmospheric" size is the deviation from this average at different points in the focal plane.
-        # only use the e0 moment to fit
+        # only use 500 stars and only use the e0 moment to fit
         # fit_size() is used before the full optical fit because it makes that fit faster
-        self.fit_size(self.fit_optics_stars, self.fit_optics_star_shapes, self.fit_optics_star_errors, logger=logger, **kwargs)
+        n_fit_size = 500
+        self.fit_size_indices = np.arange(len(self.fit_optics_stars))
+        if n_fit_size < len(self.fit_optics_stars):
+        
+            logger.debug('Cutting from {0} to {1} stars for fit_size'.format(len(self.fit_optics_stars), n_fit_size))
+            np.random.shuffle(self.fit_size_indices)
+            self.fit_size_indices = self.fit_size_indices[:n_fit_size]
+
+        self.fit_size_stars = [self.fit_optics_stars[indx] for indx in self.fit_size_indices]
+        self.fit_size_star_shapes = self.fit_optics_star_shapes[self.fit_size_indices]
+        self.fit_size_star_errors = self.fit_optics_star_errors[self.fit_size_indices]
+        self.fit_size(self.fit_size_stars, self.fit_size_star_shapes, self.fit_size_star_errors, logger=logger, **kwargs)
 
         # do a fit to moments ("shape" mode) or pixels ("pixel" mode), whichever is specified in the yaml file. Nothing happens here if "analytic" mode (which is the default) is chosen
         # this is the "optical" fit; despite being called that the fit parameters here are the optical fit parameters and the average of the atmospheric fit parameters
@@ -781,51 +714,42 @@ class OptAtmoPSF(PSF):
             # an unrecognized mode? should I be worried?
             logger.warning('Found unrecognized fit_optics_mode {0}. Ignoring'.format(self.fit_optics_mode))
 
-        # one extra round of outlier rejection using the pull from the moments (only up to third moments)
-        for s, stars in enumerate([self.stars, self.test_stars, self.fit_optics_stars]):
-            data_shapes_all_stars = []
-            data_errors_all_stars = []
-            model_shapes_all_stars = []
-            for star in stars:
-                data_shapes_all_stars.append(self.measure_shape_third_moments(star))
-                data_errors_all_stars.append(self.measure_error_third_moments(star))
-                model_shapes_all_stars.append(self.measure_shape_third_moments(self.drawStar(star)))
-            data_shapes_all_stars = np.array(data_shapes_all_stars)[:,3:]
-            data_errors_all_stars = np.array(data_errors_all_stars)[:,3:]
-            model_shapes_all_stars = np.array(model_shapes_all_stars)[:,3:]
-            pull_all_stars = (data_shapes_all_stars - model_shapes_all_stars) / data_errors_all_stars #pull is (data-model)/error
-            conds_pull = (np.all(np.abs(pull_all_stars) <= 4.0, axis=1)) #all stars with more than 4.0 pull are thrown out
-            conds_pull_e0 = (np.abs(pull_all_stars[:,0]) <= 4.0)
-            conds_pull_e1 = (np.abs(pull_all_stars[:,1]) <= 4.0)
-            conds_pull_e2 = (np.abs(pull_all_stars[:,2]) <= 4.0)
-            if s == 0:
-                self.stars = np.array(self.stars)[conds_pull].tolist()
-            if s == 1:
-                self.test_stars = np.array(self.test_stars)[conds_pull].tolist()
-            if s == 2:
-                self.number_of_outliers_optical = np.array([len(self.fit_optics_stars) - np.sum(conds_pull_e0), len(self.fit_optics_stars) - np.sum(conds_pull_e1), len(self.fit_optics_stars) - np.sum(conds_pull_e2)])
-                self.number_of_stars_pre_cut_optical = len(self.fit_optics_stars)
-                self.fit_optics_stars = np.array(self.fit_optics_stars)[conds_pull].tolist()
-                self.number_of_stars_post_cut_optical = len(self.fit_optics_stars)
-                self.pull_mean_optical = np.nanmean(pull_all_stars[:,:3], axis=0) #the mean pull (only second moments) for stars used in the fit is later used to find outliers among exposures
-                self.pull_rms_optical = np.sqrt(np.nanmean(np.square(pull_all_stars[:,:3]),axis=0))
-                self.pull_all_stars_optical = pull_all_stars
-
+        # one extra round of outlier rejection using the pull from the moment fits (only up to third moments)
+        data_shapes_all_stars = []
+        data_errors_all_stars = []
+        model_shapes_all_stars = []
+        for star in self.stars:
+            data_shapes_all_stars.append(self.measure_shape_third_moments(star))
+            data_errors_all_stars.append(self.measure_error_third_moments(star))
+            model_shapes_all_stars.append(self.measure_shape_third_moments(self.drawStar(star)))
+        data_shapes_all_stars = np.array(data_shapes_all_stars)[:,3:]
+        data_errors_all_stars = np.array(data_errors_all_stars)[:,3:]
+        model_shapes_all_stars = np.array(model_shapes_all_stars)[:,3:]
+        pull_all_stars = (data_shapes_all_stars - model_shapes_all_stars) / data_errors_all_stars #pull is (data-model)/error
+        conds_pull = (np.all(pull_all_stars <= 4.0, axis=1)) #all stars with more than 4.0 pull are thrown out
+        conds_pull_e0 = (pull_all_stars[:,0] <= 4.0)
+        conds_pull_e1 = (pull_all_stars[:,1] <= 4.0)
+        conds_pull_e2 = (pull_all_stars[:,2] <= 4.0)
+        self.number_of_outliers_optical = np.array([len(self.stars) - np.sum(conds_pull_e0), len(self.stars) - np.sum(conds_pull_e1), len(self.stars) - np.sum(conds_pull_e2)])
+        self.number_of_stars_pre_cut_optical = len(self.stars)
+        self.stars = np.array(self.stars)[conds_pull].tolist()
+        self.number_of_stars_post_cut_optical = len(self.stars)
+        self.pull_mean_optical = np.nanmean(pull_all_stars[:,:3], axis=0)
+        self.pull_rms_optical = np.sqrt(np.nanmean(np.square(pull_all_stars[:,:3]),axis=0))
+        self.pull_all_stars_optical = pull_all_stars
 
         number_of_stars_used_in_optical_chi = len(self.final_optical_chi)/10
-        moments_list = ["e0", "e1", "e2", "zeta1", "zeta2", "delta1", "delta2", "orth4", "orth6", "orth8"]
-        length_of_moments_list = len(moments_list) 
+        test_moments = ["e0", "e1", "e2", "zeta1", "zeta2", "delta1", "delta2", "orth4", "orth6", "orth8"]
         print("total chisq for optical chi: {0}".format(np.sum(np.square(self.final_optical_chi))))
-        for tm, test_moment in enumerate(moments_list):
-            print("total chisq for optical chi for {0}: {1}".format(test_moment,np.sum(np.square(self.final_optical_chi)[tm::length_of_moments_list])))
+        for tm, test_moment in enumerate(test_moments):
+            print("total chisq for optical chi for {0}: {1}".format(test_moment,np.sum(np.square(self.final_optical_chi)[tm::10])))
         print("total dof for optical chi: {0}".format(len(self.final_optical_chi)))
         print("number_of_stars_used_in_optical_chi: {0}".format(number_of_stars_used_in_optical_chi))
 
         # record the chi
         self.chisq_all_stars_optical = np.empty(number_of_stars_used_in_optical_chi)
         for s in range(0,number_of_stars_used_in_optical_chi):
-            self.chisq_all_stars_optical[s] = np.sum(np.square(self.final_optical_chi[s*length_of_moments_list:s*length_of_moments_list+length_of_moments_list]))
-
+            self.chisq_all_stars_optical[s] = np.sum(np.square(self.final_optical_chi[s*10:s*10+10]))
 
         # this is the "atmospheric" fit.
         # we start here with the optical fit parameters and the average values of the atmospheric parameters found in the optical fit and hold those fixed. 
@@ -841,16 +765,15 @@ class OptAtmoPSF(PSF):
             logger.info('Enabling Interpolated Atmosphere')
             self._enable_atmosphere = True
 
-
-
     def _getParamsList_aberrations_field(self, stars):
         """Get params for a list of stars from the aberrations
         :param stars:       List of Star instances holding information needed
                             for interpolation as well as an image/WCS into
                             which PSF will be rendered.
         :returns:           Params  [size, g1, g2, z4, z5...] for each star
-                            where all params that are not "z_number" are
-                            atmospheric params (average across the focal plane).
+                            where all params that are not "z_number" are the
+                            average values of the atmospheric params across
+                            the focal plane (so "size" is opt_size, etc.)
         Notes
         -----
         We have a set of coefficients b_{k \ell} that describe the Zernike
@@ -893,11 +816,11 @@ class OptAtmoPSF(PSF):
         finally fitted.
         """
         logger = LoggerWrapper(logger)
-        params = np.zeros((len(stars), self.jmax_pupil + self.n_params_constant_atmosphere), dtype=np.float64)
+        params = np.zeros((len(stars), self.jmax_pupil -3 + self.n_params_constant_atmosphere_and_atmosphere), dtype=np.float64) # the 3 seen here is because z4 is the first zenike used
 
         logger.debug('Getting aberrations from optical / mean system')
         aberrations_pupil = self._getParamsList_aberrations_field(stars)
-        params[:, self.n_params_constant_atmosphere:] += aberrations_pupil
+        params[:, self.n_params_constant_atmosphere_and_atmosphere - 3:] += aberrations_pupil # the 3 seen here is because aberrations_pupil also includes opt_size, opt_g1, and opt_g2
 
         if self.reference_wavefront:
             if self._cache:
@@ -930,7 +853,7 @@ class OptAtmoPSF(PSF):
             # reference wavefront starts at z4 but may not span full range of aberrations used
             n_reference_aberrations = aberrations_reference_wavefront.shape[1]
             n_higher_order_reference_aberrations = 26
-            # the 3 seen here below is because z4 starts at index 3
+            # the 3 seen here below is because z4 is the first zenike used
             #print("aberrations_reference_wavefront including beyond z11 every hundred rows: ")
             #print(aberrations_reference_wavefront[0::100])
             #print("aberrations_higher_order_reference_wavefront every hundred rows: ")
@@ -962,7 +885,7 @@ class OptAtmoPSF(PSF):
             # set the vonkarman outer scale
             #print("self.optatmo_psf_kwargs before returning params: {0}".format(self.optatmo_psf_kwargs))
             #print("self.optatmo_psf_kwargs['L0']: {0}".format(self.optatmo_psf_kwargs['L0']))
-            params[:, 3] = self.optatmo_psf_kwargs['L0']
+            params[:, 4] = self.optatmo_psf_kwargs['L0']
 
         return params
 
@@ -1009,10 +932,10 @@ class OptAtmoPSF(PSF):
                                      **self.kolmogorov_kwargs
                                      ).dilate(size).shear(g1=g1, g2=g2)
         elif self.atmosphere_model == 'vonkarman':
-            size = params[0] + params[4]
-            g1 = params[1] + params[5]
-            g2 = params[2] + params[6]
-            L0 = params[3]
+            size = params[0] + params[5]
+            g1 = params[1] + params[6]
+            g2 = params[2] + params[7]
+            L0 = params[3] + params[4]
             kolmogorov_kwargs = {'lam': self.kolmogorov_kwargs['lam'],
                                  'r0': self.kolmogorov_kwargs['r0'] / size,
                                  'L0': L0,}
@@ -1730,8 +1653,8 @@ class OptAtmoPSF(PSF):
 
         return model_fitted_stars, stars
 
-    #def fit_model(self, star, params, vary_shape=True, vary_optics=False,  mode='pixel', minimize_kwargs={'method': 'leastsq', 'epsfcn': 1e-5, 'maxfev': 1000}, logger=None):
-    def fit_model(self, star, params, vary_shape=True, vary_optics=False,  mode='shape', minimize_kwargs={}, logger=None, estimated_errorbars_not_required=False):
+    #def fit_model(self, star, params, vary_shape=True, vary_optics=False,  mode='pixel', minimize_kwargs={}, logger=None, estimated_errorbars_not_required=False, phase_two=False):
+    def fit_model(self, star, params, vary_shape=True, vary_optics=False,  mode='pixel', minimize_kwargs={}, logger=None, estimated_errorbars_not_required=False):
         """Fit model to star's pixel data. Always vary flux and center, but also can selectively vary atmospheric terms and Zernike coefficients
         :param star:        A Star instance
         :param params:      An array of initial star parameters like one would
@@ -1768,19 +1691,32 @@ class OptAtmoPSF(PSF):
         min_size = self.optatmo_psf_kwargs['min_size']
         max_size = self.optatmo_psf_kwargs['max_size']
         max_g = self.optatmo_psf_kwargs['max_g1']
+        min_L0 = self.optatmo_psf_kwargs['min_L0']
+        max_L0 = self.optatmo_psf_kwargs['max_L0']        
         # getParams puts in atmosphere terms
 
         fit_size = params[0]
         fit_g1 = params[1]
         fit_g2 = params[2]
         if self.atmosphere_model == 'vonkarman':
-            opt_L0 = params[3]
-        opt_size = params[self.n_params_constant_atmosphere + 0]
-        opt_g1 = params[self.n_params_constant_atmosphere + 1]
-        opt_g2 = params[self.n_params_constant_atmosphere + 2]      
+            fit_L0 = params[3]   
+            opt_L0 = params[4]
+        opt_size = params[self.n_params_constant_atmosphere_and_atmosphere - 3]
+        opt_g1 = params[self.n_params_constant_atmosphere_and_atmosphere - 2]
+        opt_g2 = params[self.n_params_constant_atmosphere_and_atmosphere - 1]      
+        #if phase_two==False:
         lmparams.add('atmo_size', value=fit_size, vary=vary_shape, min=min_size - opt_size, max=max_size - opt_size)
         lmparams.add('atmo_g1', value=fit_g1, vary=vary_shape, min=-max_g - opt_g1, max=max_g - opt_g1)
         lmparams.add('atmo_g2', value=fit_g2, vary=vary_shape, min=-max_g - opt_g2, max=max_g - opt_g2)
+        #else:
+        #    lmparams.add('atmo_size', value=fit_size, vary=vary_shape, min=fit_size - 0.06, max=fit_size + 0.06)
+        #    lmparams.add('atmo_g1', value=fit_g1, vary=False)
+        #    lmparams.add('atmo_g2', value=fit_g2, vary=False)
+        if self.atmosphere_model == 'vonkarman':
+            #if phase_two==False:
+            lmparams.add('atmo_L0', value=fit_L0, vary=vary_shape, min=min_L0 - opt_L0, max=max_L0 - opt_L0)  
+            #else:
+            #    lmparams.add('atmo_L0', value=fit_L0, vary=vary_shape, min=fit_L0 - 0.2, max=fit_L0 + 0.2)                 
         # add other params to the params model
         # we do NOT vary the optics size, g1, g2
         if self.atmosphere_model == 'vonkarman':
@@ -1987,7 +1923,7 @@ class OptAtmoPSF(PSF):
 
         # get star params
         params_all = self.getParamsList(stars)
-        param_values_all_stars = params_all[:,self.n_params_constant_atmosphere:self.n_params_constant_atmosphere+11]
+        param_values_all_stars = params_all[:,self.n_params_constant_atmosphere_and_atmosphere-3:self.n_params_constant_atmosphere_and_atmosphere-3+11] ## the 3 seen here is because param_values_all_stars also includes opt_size, opt_g1, and opt_g2, in addition to a few of the first zernikes
 
         # generate the stars' moments using random forest model and the fit parameters of the stars
         #note: only up to third moments used for the analytic fit
@@ -2194,7 +2130,7 @@ class OptAtmoPSF(PSF):
 
         return chi
 
-    def _fit_model_shape_residual(self, lmparams, star, logger=None): 
+    def _fit_model_shape_residual(self, lmparams, star, logger=None): #not necessarily set up to work with vonkarman atmosphere
         """Residual function for fitting individual profile parameters to observed shapes.
         :param lmparams:    lmfit Parameters object
         :param star:        A Star instance.
@@ -2210,9 +2146,9 @@ class OptAtmoPSF(PSF):
 
         profile = self.getProfile(params).shift(du, dv) * flux
         star_model = self.drawProfile(star, profile, params, use_fit=False)
-        shape_model = self.measure_shape_orthogonal(star_model) # maybe don't include flux and center in the chi?; maybe don't even float flux and center if using shape mode for fit_model()
-        shape = self.measure_shape_orthogonal(star)
-        error = self.measure_error_orthogonal(star)
+        #TODO: Note that this residual is never used, so updating it to use moments beyond second moments was never done. If this residual is ever to be used, this will have to be updated.
+        shape_model = self.measure_shape(star_model, return_error=False)
+        shape, error = self.measure_shape(star, return_error=True)
 
         chi = (shape_model - shape) / error
 

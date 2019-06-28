@@ -2210,7 +2210,7 @@ class OptAtmoPSF(PSF):
 
         profile = self.getProfile(params).shift(du, dv) * flux
         star_model = self.drawProfile(star, profile, params, use_fit=False)
-        shape_model = self.measure_shape_orthogonal(star_model) # maybe don't include flux and center in the chi?; maybe don't even float flux and center if using shape mode for fit_model()
+        shape_model = self.measure_shape_orthogonal(star_model) # maybe don't include flux and center in the chi?
         shape = self.measure_shape_orthogonal(star)
         error = self.measure_error_orthogonal(star)
 
