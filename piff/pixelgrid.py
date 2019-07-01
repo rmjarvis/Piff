@@ -32,8 +32,8 @@ class PixelGrid(Model):
 
     The parameters of the model are the values at the grid points, although the constraint
     for unit flux means that not all grid points are free parameters.  The grid is in uv
-    space, with the pitch and size specified on construction. Optionally a boolean
-    mask array can be passed specifying which tells which grid elements are non-zero.
+    space, with the pitch and size specified on construction.
+
     Interpolation will always assume values of zero outside of grid.  Integral of PSF is
     forced to unity and, optionally, centroid is forced to origin.  As a consequence 1 (or 3)
     of the PSF pixel values will be missing from the parameter vector as they are determined
@@ -51,7 +51,7 @@ class PixelGrid(Model):
     access them via 1d arrays.
 
     """
-    def __init__(self, scale, size, interp=None, mask=None, start_sigma=1.,
+    def __init__(self, scale, size, interp=None, start_sigma=1.,
                  force_model_center=True, degenerate=True, logger=None):
         """Constructor for PixelGrid defines the PSF pitch, size, and interpolator.
 
@@ -59,8 +59,6 @@ class PixelGrid(Model):
         :param size:        Number of pixels on each side of square grid.
         :param interp:      An Interpolant to be used [default: Lanczos(3); currently only
                             Lanczos(n) is implemented for any n]
-        :param mask:        Optional square boolean 2d array, True where we want a non-zero value
-                            [default: None]
         :param start_sigma: sigma of a 2d Gaussian installed as 1st guess for all stars
                             [default: 1.]
         :param force_model_center: If True, PSF model centroid is fixed at origin and
@@ -76,7 +74,6 @@ class PixelGrid(Model):
         logger.debug("scale = %s",scale)
         logger.debug("size = %s",size)
         logger.debug("interp = %s",interp)
-        logger.debug("mask = %s",mask)
         logger.debug("start_sigma = %s",start_sigma)
         logger.debug("force_model_center = %s",force_model_center)
         logger.debug("degenerate = %s",degenerate)
@@ -100,16 +97,10 @@ class PixelGrid(Model):
             'interp' : repr(self.interp),
         }
 
-        if mask is None:
-            if size <= 0:
-                raise ValueError("Non-positive PixelGrid size {:d}".format(size))
-            self._mask = np.ones( (size,size), dtype=bool)
-        else:
-            if mask.shape != (size,size):
-                raise ValueError("Shape of input mask does not match size {:d}".format(size))
-            self._mask = mask
+        if size <= 0:
+            raise ValueError("Non-positive PixelGrid size {:d}".format(size))
 
-        self._nparams = np.count_nonzero(self._mask)
+        self._nparams = size*size
         self._nparams -= 1  # The flux constraint will remove 1 degree of freedom
         self._constraints = 1
         if self._force_model_center:
@@ -124,19 +115,15 @@ class PixelGrid(Model):
         # flux (and center) conditions on the PSF.
         # In this array, a negative entry is a pixel that is not being
         # fit (and always assumed to be zero, for interpolation purposes).
-        self._indices = np.where( self._mask, self._constraints, -1)
+        self._indices = np.ones((size,size), dtype=int) * self._constraints
         self._origin = (self.size//2, self.size//2)
-        if not self._mask[self._origin]:
-            raise ValueError("Not happy with central PSF pixel being masked")
         self._indices[self._origin] = 0    # Central pixel for flux constraint
         if self._force_model_center:
             u1 = (self._origin[0]+1, self._origin[1])
             v1 = (self._origin[0],   self._origin[1]+1)
-            if not (self._mask[u1] and self._mask[v1]):
-                raise ValueError("Not happy with near-central PSF pixels being masked")
             self._indices[u1] = 1
             self._indices[v1] = 2
-        free_param = self._indices >= self._constraints
+        free_param = self._indices == self._constraints
         self._indices[free_param] = np.arange(self._constraints,
                                               self._constraints+self._nparams,
                                               dtype=int)
@@ -202,7 +189,7 @@ class PixelGrid(Model):
         :returns  None
         """
         out1d = np.zeros( (self._constraints + self._nparams,), dtype=in2d.dtype)
-        out1d[self._indices[self._mask]] = in2d[self._mask]
+        out1d[self._indices] = in2d
         return out1d
 
     def _2dFrom1d(self, in1d):
@@ -219,7 +206,7 @@ class PixelGrid(Model):
         i[:-1] = in1d
         # Now index the 1d array by the index array altered to point to the extra zero element
         # where the mask is False:
-        return i[ np.where(self._mask, self._indices, len(i)-1)]
+        return i[self._indices]
 
     def _indexFromPsfxy(self, psfx, psfy):
         """ Turn arrays of coordinates of the PSF array into a single same-shape
