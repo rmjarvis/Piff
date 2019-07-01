@@ -582,9 +582,7 @@ class PixelGrid(Model):
     def reflux(self, star, fit_center=True, logger=None):
         """Fit the Model to the star's data, varying only the flux (and
         center, if it is free).  Flux and center are updated in the Star's
-        attributes.  This is a single-step solution if only solving for flux,
-        otherwise an iterative operation.  DOF in the result assume
-        only flux (& center) are free parameters.
+        attributes.  DOF in the result assume only flux (& center) are free parameters.
 
         :param star:        A Star instance
         :param fit_center:  If False, disable any motion of center
@@ -603,117 +601,93 @@ class PixelGrid(Model):
         logger.debug("    image center = %s",star.data.image(star.data.image.center))
         logger.debug("    weight center = %s",star.data.weight(star.data.weight.center))
 
-        # This will be an iterative process if the centroid is free.
-        max_iterations = 100    # Max iteration count
-
-        chisq_thresh = 1.e-3     # Quit when chisq changes less than this (fractionally)
-        do_center = fit_center and self._force_model_center
         flux = star.fit.flux
         center = star.fit.center
-        prev_chisq = 1.e500
-        for iteration in range(max_iterations):
-            logger.debug("Start iteration %d",iteration)
-            # Start by getting all interpolation coefficients for all observed points
-            data, weight, u, v = star.data.getDataVector()
-            if not star.data.values_are_sb:
-                # If the images are flux instead of surface brightness, convert
-                # them into SB
-                star_pix_area = star.data.pixel_area
-                data /= star_pix_area
-                weight *= star_pix_area*star_pix_area
-            u -= center[0]
-            v -= center[1]
-            if do_center:
-                coeffs, psfx, psfy, dcdu, dcdv = self.interp_calculate(u/self.scale, v/self.scale, True)
-                dcdu /= self.scale
-                dcdv /= self.scale
-            else:
-                coeffs, psfx, psfy = self.interp_calculate(u/self.scale, v/self.scale)
-            # Turn the (psfy,psfx) coordinates into an index into 1d parameter vector.
-            index1d = self._indexFromPsfxy(psfx, psfy)
-            # All invalid pixel references now have negative index; record and set to zero
-            nopsf = index1d < 0
-            index1d = np.where(nopsf, 0, index1d)
-            # And null the coefficients for such pixels
-            coeffs = np.where(nopsf, 0., coeffs)
-            if do_center:
-                dcdu = np.where(nopsf, 0., dcdu)
-                dcdv = np.where(nopsf, 0., dcdv)
 
-            # Multiply kernel (and derivs) by current PSF element values
-            # to get current estimates
-            pvals = self._fullPsf1d(star.fit.params)[index1d]
-            mod = np.sum(coeffs*pvals, axis=1)
-            if do_center:
-                dmdu = flux * np.sum(dcdu*pvals, axis=1)
-                dmdv = flux * np.sum(dcdv*pvals, axis=1)
-                derivs = np.vstack( (mod, dmdu, dmdv)).T
-            else:
-                derivs = mod.reshape(mod.shape+(1,))
-                # derivs should end up with shape (npts, nconstraints)
-            resid = data - mod*flux
+        # Start by getting all interpolation coefficients for all observed points
+        data, weight, u, v = star.data.getDataVector()
 
-            # Now begin construction of alpha/beta/chisq that give
-            # chisq vs linearized model.
-            rw = resid * weight
-            chisq = np.sum(resid * rw)
-            logger.debug("initial chisq = %s",chisq)
-            beta = np.dot(derivs.T,rw)
-            alpha = np.dot(derivs.T*weight, derivs)
-            try:
-                df = np.linalg.solve(alpha, beta)
-            except Exception as e:
-                if do_center:
-                    logger.debug("Caught exception %s",e)
-                    logger.debug("Turning off centering and retrying")
-                    do_center = False
-                    continue
-                else:
-                    raise
-            dchi = np.dot(beta, df)
-            logger.debug("chisq -= %s => %s",dchi,chisq-dchi)
-            # Record worst single pixel chisq:
-            resid -= np.dot(derivs,df)
-            rw = resid * weight
-            worst_chisq = np.max(resid * rw)
-            logger.debug("worst_chisq = %s",worst_chisq)
+        if not star.data.values_are_sb:
+            # If the images are flux instead of surface brightness, convert
+            # them into SB
+            star_pix_area = star.data.pixel_area
+            data /= star_pix_area
+            weight *= star_pix_area*star_pix_area
 
-            # update the flux (and center) of the star
-            logger.debug("initial flux = %s",flux)
-            flux += df[0]
-            logger.debug("flux += %s => %s",df[0],flux)
-            logger.debug("center = %s",center)
-            if do_center:
-                center = (center[0]+df[1],
-                          center[1]+df[2])
-                logger.debug("center += (%s,%s) => %s",df[1],df[2],center)
-            dof = np.count_nonzero(weight) - self._constraints
-            logger.debug("dchi, dof, do_center = %s, %s, %s", dchi, dof, do_center)
-            if dchi < chisq_thresh * max(chisq,1) or not do_center:
-                # Done with iterations.  Return new Star with updated information
-                var = np.zeros(len(star.fit.params))
-                # If we're stopping now, update to the expected new chisq value.
-                chisq = chisq - dchi
-                return Star(star.data, StarFit(star.fit.params,
-                                               params_var = var,
-                                               flux = flux,
-                                               center = center,
-                                               chisq = chisq,
-                                               worst_chisq = worst_chisq,
-                                               dof = dof,
-                                               alpha = star.fit.alpha,
-                                               beta = star.fit.beta))
-            # If chisq went up, turn off centering.  There are a number of failure modes
-            # to this algorithm that can lead to oscillatory behavior, so if we start doing
-            # that, just turn off the centering for subsequent iterations.
-            if chisq > prev_chisq:
-                assert do_center  # The logic of the above test means this should be True here.
-                do_center = False
-                center = (center[0]-df[1], center[1]-df[2])  # undo the last centroid update.
-                logger.debug("chisq increased in reflux.  Turning off centering.")
-            prev_chisq = chisq
+        u -= center[0]
+        v -= center[1]
+        if self._force_model_center:
+            coeffs, psfx, psfy, dcdu, dcdv = self.interp_calculate(u/self.scale, v/self.scale, True)
+            dcdu /= self.scale
+            dcdv /= self.scale
+        else:
+            coeffs, psfx, psfy = self.interp_calculate(u/self.scale, v/self.scale)
 
-        raise RuntimeError("Maximum number of iterations exceeded in PixelGrid.reflux()")
+        # Turn the (psfy,psfx) coordinates into an index into 1d parameter vector.
+        index1d = self._indexFromPsfxy(psfx, psfy)
+        # All invalid pixel references now have negative index; record and set to zero
+        nopsf = index1d < 0
+        index1d = np.where(nopsf, 0, index1d)
+        # And null the coefficients for such pixels
+        coeffs = np.where(nopsf, 0., coeffs)
+        if self._force_model_center:
+            dcdu = np.where(nopsf, 0., dcdu)
+            dcdv = np.where(nopsf, 0., dcdv)
+
+        # Multiply kernel (and derivs) by current PSF element values
+        # to get current estimates
+        pvals = self._fullPsf1d(star.fit.params)[index1d]
+        mod = np.sum(coeffs*pvals, axis=1)
+        if self._force_model_center:
+            dmdu = flux * np.sum(dcdu*pvals, axis=1)
+            dmdv = flux * np.sum(dcdv*pvals, axis=1)
+            derivs = np.vstack( (mod, dmdu, dmdv)).T
+        else:
+            derivs = mod.reshape(mod.shape+(1,))
+            # derivs should end up with shape (npts, nconstraints)
+        resid = data - mod*flux
+
+        # Now begin construction of alpha/beta/chisq that give
+        # chisq vs linearized model.
+        rw = resid * weight
+        chisq = np.sum(resid * rw)
+        logger.debug("initial chisq = %s",chisq)
+        beta = np.dot(derivs.T,rw)
+        alpha = np.dot(derivs.T*weight, derivs)
+        df = np.linalg.solve(alpha, beta)
+
+        dchi = np.dot(beta, df)
+        logger.debug("chisq -= %s => %s",dchi,chisq-dchi)
+        # Record worst single pixel chisq:
+        resid -= np.dot(derivs,df)
+        rw = resid * weight
+        worst_chisq = np.max(resid * rw)
+        logger.debug("worst_chisq = %s",worst_chisq)
+
+        # update the flux (and center) of the star
+        logger.debug("initial flux = %s",flux)
+        flux += df[0]
+        logger.debug("flux += %s => %s",df[0],flux)
+        logger.debug("center = %s",center)
+        if self._force_model_center:
+            center = (center[0]+df[1],
+                      center[1]+df[2])
+            logger.debug("center += (%s,%s) => %s",df[1],df[2],center)
+        dof = np.count_nonzero(weight) - self._constraints
+        logger.debug("dchi, dof, do_center = %s, %s, %s", dchi, dof, self._force_model_center)
+
+        var = np.zeros(len(star.fit.params))
+        # Update to the expected new chisq value.
+        chisq = chisq - dchi
+        return Star(star.data, StarFit(star.fit.params,
+                                       params_var = var,
+                                       flux = flux,
+                                       center = center,
+                                       chisq = chisq,
+                                       worst_chisq = worst_chisq,
+                                       dof = dof,
+                                       alpha = star.fit.alpha,
+                                       beta = star.fit.beta))
 
     def interp_calculate(self, u, v, derivs=False):
         """Calculate interpolation coefficient for vector of target points
