@@ -28,16 +28,15 @@ from .model import Model
 from .star import Star, StarData, StarFit
 
 class PixelGrid(Model):
+
+    _method = 'no_pixel'
+
     """A PSF modeled as interpolation between a grid of points.
 
     The parameters of the model are the values at the grid points, although the constraint
     for unit flux means that not all grid points are free parameters.  The grid is in uv
-    space, with the pitch and size specified on construction.
-
-    Interpolation will always assume values of zero outside of grid.  Integral of PSF is
-    forced to unity and, optionally, centroid is forced to origin.  As a consequence 1 (or 3)
-    of the PSF pixel values will be missing from the parameter vector as they are determined
-    by the flux (and centroid) constraints. And there is more covariance between pixel values.
+    space, with the pitch and size specified on construction.  Interpolation will always
+    assume values of zero outside of grid.
 
     PixelGrid also needs an PixelInterpolant on construction to specify how to determine
     values between grid points.
@@ -101,83 +100,22 @@ class PixelGrid(Model):
             raise ValueError("Non-positive PixelGrid size {:d}".format(size))
 
         self._nparams = size*size
-        self._nparams -= 1  # The flux constraint will remove 1 degree of freedom
-        self._constraints = 1
-        if self._force_model_center:
-            self._nparams -= 2 # Centroid constraint will remove 2 more degrees of freedom
-            self._constraints += 2
-        logger.debug("nparams = %d, constraints = %d",self._nparams, self._constraints)
+        logger.debug("nparams = %d",self._nparams)
 
         # Now we need to make a 2d array whose entries are the indices of
-        # each pixel in the 1d parameter array.  We will put the central
-        # pixels (and first to top & right) at the front of the array
-        # because we will be chopping these off when we enforce the
-        # flux (and center) conditions on the PSF.
-        # In this array, a negative entry is a pixel that is not being
-        # fit (and always assumed to be zero, for interpolation purposes).
-        self._indices = np.ones((size,size), dtype=int) * self._constraints
-        self._origin = (self.size//2, self.size//2)
-        self._indices[self._origin] = 0    # Central pixel for flux constraint
-        if self._force_model_center:
-            u1 = (self._origin[0]+1, self._origin[1])
-            v1 = (self._origin[0],   self._origin[1]+1)
-            self._indices[u1] = 1
-            self._indices[v1] = 2
-        free_param = self._indices == self._constraints
-        self._indices[free_param] = np.arange(self._constraints,
-                                              self._constraints+self._nparams,
-                                              dtype=int)
-
-        # Next job is to create the flux/center constraint conditions.
-        # ??? Could have some type of window function here, for now just
-        # ??? using unweighted flux & centroid
-        A = np.zeros( (self._constraints, self._constraints + self._nparams), dtype=float)
-        B = np.zeros( (self._constraints,), dtype=float)
-        A[0,:] = 1.
-        B[0] = 1./self.pixel_area  # That's the flux constraint - sum(pixels) * pixel_area=1
-
-        if self._force_model_center:
-            # Generate linear center constraints too
-            delta_u = np.arange( -self._origin[0], self._indices.shape[0]-self._origin[0])
-            A[1,:] = self._1dFrom2d(np.ones(self._indices.shape, dtype=float) \
-                                    * delta_u[:,np.newaxis])
-            B[1] = 0.
-            delta_v = np.arange( -self._origin[1], self._indices.shape[1]-self._origin[1])
-            A[2,:] = self._1dFrom2d(np.ones(self._indices.shape, dtype=float)
-                                    * delta_v[np.newaxis,:])
-            B[2] = 0.
-
-        ainv = np.linalg.inv(A[:,:self._constraints])
-        self._a = np.dot(ainv, A[:, self._constraints:])
-        self._b = np.dot(ainv, B)
-        # Now our constraints are that p0 = _b - _a * p1 where p0 are the (1 or 3) constrained
-        # pixel values and p1 are the remaining free ones.
-        # For later convenience, add some columns of zeros to _a so it can multiply
-        # into arrays containing flux (and center) shift
-        tmp = np.zeros( (self._a.shape[0], self._a.shape[1]+self._constraints),
-                        dtype=float)
-        tmp[:,:self._a.shape[1]] = self._a
-        self._a = tmp
+        # each pixel in the 1d parameter array.
+        self._indices = np.arange(self._nparams, dtype=int).reshape(size,size)
 
         # Now create a parameter array for a Gaussian that will be used to initialize new stars
+        self._origin = (self.size//2, self.size//2)
         u = np.arange( -self._origin[0], self._indices.shape[0]-self._origin[0]) * self.scale
         v = np.arange( -self._origin[1], self._indices.shape[1]-self._origin[1]) * self.scale
         rsq = (u*u)[:,np.newaxis] + (v*v)[np.newaxis,:]
         gauss = np.exp(-rsq / (2.* start_sigma * start_sigma))
-        if self._force_model_center:
-            # If we are enforcing centering then we need to have symmetry about origin
-            # This means if PSF has even number of dimensions, need to null the hanger-on
-            if self._indices.shape[0]%2==0:
-                gauss[0,:] = 0.
-            if self._indices.shape[1]%2==0:
-                gauss[1,:] = 0.
         params = self._1dFrom2d(gauss)
         # Renormalize to get unity flux
         params /= np.sum(params)*self.pixel_area
-        self._initial_params = params[self._constraints:]
-
-        return
-
+        self._initial_params = params
     def _1dFrom2d(self, in2d):
         """Make a 1d array from a 2d array, using the model's
         mapping from the 2d psf grid to the 1d parameter array.
@@ -188,7 +126,7 @@ class PixelGrid(Model):
 
         :returns  None
         """
-        out1d = np.zeros( (self._constraints + self._nparams,), dtype=in2d.dtype)
+        out1d = np.zeros( (self._nparams,), dtype=in2d.dtype)
         out1d[self._indices] = in2d
         return out1d
 
@@ -235,36 +173,6 @@ class PixelGrid(Model):
         # Then read all indices, setting invalid ones to -1
         return np.where(nopsf, -1, self._indices[y, x])
 
-    def _fullPsf1d(self, params):
-        """ Using stored PSF parameters, create full 1d array of PSF grid
-        point values by applying the flux (and center) constraints to generate
-        the dependent values
-
-        :param params:  The parameters from star.fit, which don't include constrained params.
-
-        :returns: 1d array of all PSF values at grid points in mask
-        """
-        constrained = self._b - np.dot(self._a[:,:self._nparams], params)
-        return np.concatenate((constrained, params))
-
-    def fillPSF(self, star, in2d):
-        """ Initialize the PSF for a star from a given 2d uv-plane array.
-        Sets elements outside the mask to zero, renormalizes to enforce flux
-        condition, and checks centering condition if force_model_center=True
-
-        :param star:    A Star instance to initialize
-        :param in2d:    2d input array matching the PSF uv-plane grid
-
-        :returns: None
-        """
-        params = self._1dFrom2d(in2d)
-
-        # Renormalize to get unity flux
-        params /= np.sum(params)*self.pixel_area
-        # ??? check centering ???
-
-        star.fit.params[:] = params[self._constraints:]  # Omit the constrained pixels
-
     def initialize(self, star, logger=None):
         """Initialize a star to work with the current model.
 
@@ -278,12 +186,15 @@ class PixelGrid(Model):
         data, weight, u, v = star.data.getDataVector()
         # Start with the sum of pixels as initial estimate of flux.
         flux = np.sum(data)
-        # Subtract star.fit.center from u, v:
-        u -= star.fit.center[0]
-        v -= star.fit.center[1]
+        # Subtract center from u, v:
         Ix = np.sum(data * u) / flux
         Iy = np.sum(data * v) / flux
         center = (Ix,Iy)
+        u -= center[0]
+        v -= center[1]
+
+        # We will limit the calculations to |u|, |v| < maxuv
+        self.maxuv = self.size/2. * self.scale
 
         # Null weight at pixels where interpolation coefficients
         # come up short of specified fraction of the total kernel
@@ -298,8 +209,7 @@ class PixelGrid(Model):
         stardata = star.data.maskPixels(use)
 
         starfit = StarFit(self._initial_params, flux, center, params_var=var)
-        star = Star(stardata, starfit)
-        return star
+        return Star(star.data, starfit)
 
     def fit(self, star, logger=None):
         """Fit the Model to the star's data to yield iterative improvement on
@@ -311,11 +221,6 @@ class PixelGrid(Model):
         :returns: a new Star instance with updated fit information
         """
         star1 = self.chisq(star)  # Get chisq Taylor expansion for linearized model
-        ### Check for non-pos-def
-        ###S = np.linalg.svd(star1.fit.alpha,compute_uv=False)
-        ###print("  .in fit(), min SV:",np.min(S))###
-        ###U,S,Vt = np.linalg.svd(star1.fit.alpha,compute_uv=True)
-        ###print("  ..in fit(), min SV:",np.min(S))###
 
         # star1 has marginalized over flux (& center, if free), and updated these
         # for best linearized fit at the input parameter values.
@@ -336,8 +241,6 @@ class PixelGrid(Model):
             invs = np.zeros_like(S)
             invs[nonzero] = 1./S[nonzero]
 
-            ###print('S/zero:',S.shape,np.count_nonzero(np.abs(S)<=small),'small=',small) ###
-            ###print(' ',np.max(S[np.abs(S)<=small]),np.min(S[np.abs(S)>small])) ##
             # answer = V * S^{-1} * U^T * beta
             # dparam = np.dot(Vt.T, invs * np.dot(U.T,star1.fit.beta))
             dparam = np.dot(U, invs * np.dot(U.T,star1.fit.beta))
@@ -362,7 +265,7 @@ class PixelGrid(Model):
 
         # Create new StarFit, update the chisq value.  Note no beta is returned as
         # the quadratic Taylor expansion was about the old parameters, not these.
-        var = np.zeros(len(star1.fit.params + dparam))
+        var = np.zeros(len(star1.fit.params))
         starfit2 = StarFit(star1.fit.params + dparam,
                            params_var = var,
                            flux = star1.fit.flux,
@@ -371,7 +274,10 @@ class PixelGrid(Model):
                            chisq = star1.fit.chisq \
                                    + np.dot(dparam, np.dot(star1.fit.alpha, dparam)) \
                                    - 2 * np.dot(star1.fit.beta, dparam))
-        return Star(star1.data, starfit2)
+
+        star = Star(star1.data, starfit2)
+        self.normalize(star)
+        return star
 
     def chisq(self, star, logger=None):
         """Calculate dependence of chi^2 = -2 log L(D|p) on PSF parameters for single star.
@@ -398,74 +304,46 @@ class PixelGrid(Model):
         # Subtract star.fit.center from u, v:
         u -= star.fit.center[0]
         v -= star.fit.center[1]
+        mask = (np.abs(u) < self.maxuv) & (np.abs(v) < self.maxuv)
+        data = data[mask]
+        weight = weight[mask]
+        u = u[mask]
+        v = v[mask]
 
-        if self._force_model_center:
-            coeffs, psfx, psfy, dcdu, dcdv = self.interp_calculate(u/self.scale, v/self.scale, True)
-            dcdu /= self.scale
-            dcdv /= self.scale
-        else:
-            coeffs, psfx, psfy = self.interp_calculate(u/self.scale, v/self.scale)
+        coeffs, psfx, psfy = self.interp_calculate(u/self.scale, v/self.scale)
 
         # Turn the (psfy,psfx) coordinates into an index into 1d parameter vector.
         index1d = self._indexFromPsfxy(psfx, psfy)
         # All invalid pixel references now have negative index; record and set to zero
         nopsf = index1d < 0
-        index1d = np.where(nopsf, 0, index1d)
+        alt_index1d = np.where(nopsf, 0, index1d)
         # And null the coefficients for such pixels
         coeffs = np.where(nopsf, 0., coeffs)
-        if self._force_model_center:
-            dcdu = np.where(nopsf, 0., dcdu)
-            dcdv = np.where(nopsf, 0., dcdv)
 
         # Multiply kernel (and derivs) by current PSF element values
         # to get current estimates
-        pvals = self._fullPsf1d(star.fit.params)[index1d]
+        pvals = star.fit.params[alt_index1d]
         mod = np.sum(coeffs*pvals, axis=1)
-        if self._force_model_center:
-            dmdu = star.fit.flux * np.sum(dcdu*pvals, axis=1)
-            dmdv = star.fit.flux * np.sum(dcdv*pvals, axis=1)
         resid = data - mod*star.fit.flux
 
         # Now begin construction of alpha/beta/chisq that give
         # chisq vs linearized model.
         rw = resid * weight
         chisq = np.sum(resid * rw)
-        dof = np.count_nonzero(weight) - self._constraints
+        dof = np.count_nonzero(weight)
 
-        # To begin with, we build alpha and beta over all PSF points
-        # within mask, *and* the flux (and center) shifts.  Then
-        # will eliminate the constrained PSF points, and then
-        # marginalize over the flux (and center).
-
-        # Augment the coeffs and index1d vectors with extra column(s)
-        # for the shift in flux (and center), so it will be
-        # the derivative of model w.r.t. augmented parameter set
-        derivs = np.zeros( (coeffs.shape[0], coeffs.shape[1]+self._constraints),
-                           dtype=float)
-        indices = np.zeros( (index1d.shape[0], index1d.shape[1]+self._constraints),
-                            dtype=int)
-        derivs[:, :coeffs.shape[1]] = star.fit.flux * coeffs  #derivs wrt PSF elements
-        indices[:,:index1d.shape[1]] = index1d
-
-        # Add derivs wrt flux
-        derivs[:,coeffs.shape[1]] = mod
-        dflux_index = self._nparams + self._constraints
-        indices[:,coeffs.shape[1]] = dflux_index
-        if self._force_model_center:
-            # Derivs w.r.t. center shift:
-            derivs[:,coeffs.shape[1]+1] = dmdu
-            derivs[:,coeffs.shape[1]+2] = dmdv
-            indices[:,coeffs.shape[1]+1] = dflux_index+1
-            indices[:,coeffs.shape[1]+2] = dflux_index+2
+        derivs = star.fit.flux * coeffs  #derivs wrt PSF elements
 
         # Accumulate alpha and beta point by point.  I don't
         # know how to do it purely with numpy calls instead of a loop over data points
-        nderivs = self._nparams + 2*self._constraints
-        beta = np.zeros(nderivs, dtype=float)
-        alpha = np.zeros( (nderivs,nderivs), dtype=float)
+        beta = np.zeros(self._nparams, dtype=float)
+        alpha = np.zeros( (self._nparams,self._nparams), dtype=float)
         for i in range(len(data)):
-            ii = indices[i,:]
+            ii = index1d[i,:]
             cc = derivs[i,:]
+            # Select only those with ii >= 0
+            cc = cc[ii>=0]
+            ii = ii[ii>=0]
             # beta_j += resid_i * weight_i * coeff_{ij}
             beta[ii] += rw[i] * cc
             # alpha_jk += weight_i * coeff_ij * coeff_ik
@@ -473,98 +351,68 @@ class PixelGrid(Model):
             iouter = np.broadcast_to(ii, (len(ii),len(ii)))
             alpha[iouter.flatten(), iouter.T.flatten()] += dalpha.flatten()
 
-        # Next we eliminate the first _constraints PSF values from the parameters
-        # using the linear constraints that dp0 = - _a * dp1
-        s0 = slice(None, self._constraints)  # parameters to eliminate
-        s1 = slice(self._constraints, None)  # parameters to keep
-        beta = beta[s1] - np.dot(beta[s0], self._a).T
-        alpha = alpha[s1,s1] \
-          - np.dot( self._a.T, alpha[s0,s1]) \
-          - np.dot( alpha[s1,s0], self._a) \
-          + np.dot( self._a.T, np.dot(alpha[s0,s0],self._a))
-
-        # Now we marginalize over the flux (and center). These shifts are at
-        # the back end of the parameter array.
-        # But first we need to apply a prior to the shift of flux (and center)
-        # to avoid numerical instabilities when these are degenerate because of
-        # missing pixel data or otherwise unspecified PSF
-        # ??? make these properties of the Model???
-        fractional_flux_prior = 0.5 # prior of 50% on pre-existing flux ???
-        center_shift_prior = 0.5*self.scale #prior of 0.5 uv-plane pixels ???
-        alpha[self._nparams, self._nparams] += (fractional_flux_prior*star.fit.flux)**(-2.)
-        if self._force_model_center:
-            alpha[self._nparams+1, self._nparams+1] += (center_shift_prior)**(-2.)
-            alpha[self._nparams+2, self._nparams+2] += (center_shift_prior)**(-2.)
-
-        s0 = slice(None, self._nparams)  # parameters to keep
-        s1 = slice(self._nparams, None)  # parameters to marginalize
-        a11inv = np.linalg.inv(alpha[s1,s1])
-        # Calculate shift in flux - ??? Note that this is the solution for shift
-        # when PSF parameters do *not* move; so if we subsequently update
-        # the PSF params, we miss shifts due to covariances between flux and PSF.
-
-        df = np.dot(a11inv, beta[s1])
-        outflux = star.fit.flux + df[0]
-        if self._force_model_center:
-            outcenter = (star.fit.center[0] + df[1],
-                         star.fit.center[1] + df[2])
-        else:
-            outcenter = star.fit.center
-
-        # Now get the final alpha, beta, chisq for the remaining PSF params
-        outchisq = chisq - np.dot(beta[s1].T,np.dot(a11inv, beta[s1]))
-        if logger:
-            logger.debug('chisq = %f -> %f  dof = %d'%(chisq,outchisq,dof))
-        tmp = np.dot(a11inv, alpha[s1,s0])
-        outbeta = beta[s0] - np.dot(beta[s1].T,tmp)
-        outalpha = alpha[s0,s0] - np.dot(alpha[s0,s1],tmp)
-
         var = np.zeros(len(star.fit.params))
         outfit = StarFit(star.fit.params,
                          params_var = var,
-                         flux = outflux,
-                         center = outcenter,
-                         chisq = outchisq,
+                         flux = star.fit.flux,
+                         center = star.fit.center,
+                         chisq = chisq,
                          dof = dof,
-                         alpha = outalpha,
-                         beta = outbeta)
+                         alpha = alpha,
+                         beta = beta)
 
         return Star(star.data, outfit)
 
-    def draw(self, star, copy_image=True):
-        """Create new Star instance that has StarData filled with a rendering
-        of the PSF specified by the current StarFit parameters, flux, and center.
-        Coordinate mapping of the current StarData is assumed.
+    def getProfile(self, params):
+        """Get a version of the model as a GalSim GSObject
 
-        :param star:   A Star instance
-        :param copy_image:          If False, will use the same image object.
-                                    If True, will copy the image and then overwrite it.
-                                    [default: True]
+        :param params:      The fit parameters for a given star.
 
-        :returns:      New Star instance with rendered PSF in StarData
+        :returns: a galsim.GSObject instance
         """
-        # Start by getting all interpolation coefficients for all observed points
-        data, weight, u, v = star.data.getDataVector(include_zero_weight=True)
-        # Subtract star.fit.center from u, v
-        u -= star.fit.center[0]
-        v -= star.fit.center[1]
+        im = galsim.Image(params.reshape(self.size,self.size), scale=self.scale)
+        return galsim.InterpolatedImage(im, x_interpolant=self.interp,
+                                        normalization='sb', use_true_center=False)
 
-        coeffs, psfx, psfy = self.interp_calculate(u/self.scale, v/self.scale)
-        # Turn the (psfy,psfx) coordinates into an index into 1d parameter vector.
-        index1d = self._indexFromPsfxy(psfx, psfy)
-        # All invalid pixel references now have negative index; record and set to zero
-        nopsf = index1d < 0
-        index1d = np.where(nopsf, 0, index1d)
-        # And null the coefficients for such pixels
-        coeffs = np.where(nopsf, 0., coeffs)
+    def normalize(self, star):
+        """Make sure star.fit.params are normalized properly.
 
-        pvals = self._fullPsf1d(star.fit.params)[index1d]
-        model = star.fit.flux * np.sum(coeffs*pvals, axis=1)
-        if not star.data.values_are_sb:
-            # Change data from surface brightness into flux
-            model *= star.data.pixel_area
+        Note: This modifies the input star in place.
+        """
+        # Backwards compatibility check.
+        # We used to only keep nparams - 1 or nparams - 3 values in fit.params.
+        # If this is the case, fix it up to match up with our new convention.
+        nparams1 = len(star.fit.params)
+        nparams2 = self.size**2
+        if nparams1 < nparams2:
+            # Difference is either 1 or 3.  If not, something very weird happened.
+            assert nparams2 - nparams1 in [1,3]
 
-        return Star(star.data.setData(model,include_zero_weight=True, copy_image=copy_image), star.fit)
+            # First copy over the parameters into the full array
+            temp = np.zeros((self.size,self.size))
+            mask = np.ones((self.size,self.size), dtype=bool)
+            origin = (self.size//2, self.size//2)
+            mask[origin] = False
+            if nparams2 == nparams1 + 3:
+                mask[origin[0]+1,origin[1]] = False
+                mask[origin[0],origin[1]+1] = False
+            temp[mask] = star.fit.params
+
+            # Now populate the masked pixels
+            delta_u = np.arange(-origin[0], self.size-origin[0])
+            delta_v = np.arange(-origin[1], self.size-origin[1])
+            u, v = np.meshgrid(delta_u, delta_v)
+            if nparams2 == nparams1 + 3:
+                # Do off-origin pixels first so that the centroid is 0,0.
+                temp[origin[0]+1, origin[1]] = -np.sum(v*temp)
+                temp[origin[0], origin[1]+1] = -np.sum(u*temp)
+
+            # Now the center from the total flux == 1
+            temp[origin] = 1./self.pixel_area - np.sum(temp)
+
+            star.fit.params = temp.flatten()
+
+        star.fit.params /= np.sum(star.fit.params)*self.pixel_area
 
     def reflux(self, star, fit_center=True, logger=None):
         """Fit the Model to the star's data, varying only the flux (and
@@ -587,34 +435,45 @@ class PixelGrid(Model):
         #logger.debug("    weight = %s",star.data.weight.array)
         logger.debug("    image center = %s",star.data.image(star.data.image.center))
         logger.debug("    weight center = %s",star.data.weight(star.data.weight.center))
+        delta_u = np.arange(-self._origin[0], self.size-self._origin[0])
+        delta_v = np.arange(-self._origin[1], self.size-self._origin[1])
+        u, v = np.meshgrid(delta_u, delta_v)
+        temp = star.fit.params.reshape(self.size,self.size)
+        params_cenu = np.sum(u*temp)/np.sum(temp)
+        params_cenv = np.sum(v*temp)/np.sum(temp)
+
+        # Make sure input is properly normalized
+        self.normalize(star)
 
         flux = star.fit.flux
         center = star.fit.center
 
         # Start by getting all interpolation coefficients for all observed points
         data, weight, u, v = star.data.getDataVector()
-
         if not star.data.values_are_sb:
             # If the images are flux instead of surface brightness, convert
             # them into SB
             star_pix_area = star.data.pixel_area
             data /= star_pix_area
             weight *= star_pix_area*star_pix_area
-
         u -= center[0]
         v -= center[1]
+        mask = (np.abs(u) < self.maxuv) & (np.abs(v) < self.maxuv)
+        data = data[mask]
+        weight = weight[mask]
+        u = u[mask]
+        v = v[mask]
         if self._force_model_center:
             coeffs, psfx, psfy, dcdu, dcdv = self.interp_calculate(u/self.scale, v/self.scale, True)
             dcdu /= self.scale
             dcdv /= self.scale
         else:
             coeffs, psfx, psfy = self.interp_calculate(u/self.scale, v/self.scale)
-
         # Turn the (psfy,psfx) coordinates into an index into 1d parameter vector.
         index1d = self._indexFromPsfxy(psfx, psfy)
         # All invalid pixel references now have negative index; record and set to zero
         nopsf = index1d < 0
-        index1d = np.where(nopsf, 0, index1d)
+        alt_index1d = np.where(nopsf, 0, index1d)
         # And null the coefficients for such pixels
         coeffs = np.where(nopsf, 0., coeffs)
         if self._force_model_center:
@@ -623,7 +482,7 @@ class PixelGrid(Model):
 
         # Multiply kernel (and derivs) by current PSF element values
         # to get current estimates
-        pvals = self._fullPsf1d(star.fit.params)[index1d]
+        pvals = star.fit.params[alt_index1d]
         mod = np.sum(coeffs*pvals, axis=1)
         if self._force_model_center:
             dmdu = flux * np.sum(dcdu*pvals, axis=1)
@@ -631,8 +490,8 @@ class PixelGrid(Model):
             derivs = np.vstack( (mod, dmdu, dmdv)).T
         else:
             derivs = mod.reshape(mod.shape+(1,))
-            # derivs should end up with shape (npts, nconstraints)
         resid = data - mod*flux
+        logger.debug("total pixels = %s, nopsf = %s",len(pvals),np.sum(nopsf))
 
         # Now begin construction of alpha/beta/chisq that give
         # chisq vs linearized model.
@@ -660,7 +519,12 @@ class PixelGrid(Model):
             center = (center[0]+df[1],
                       center[1]+df[2])
             logger.debug("center += (%s,%s) => %s",df[1],df[2],center)
-        dof = np.count_nonzero(weight) - self._constraints
+
+            center = (center[0]+params_cenu*self.scale,
+                      center[1]+params_cenv*self.scale)
+            logger.debug("params cen = %s,%s.  center => %s",params_cenu,params_cenv,center)
+
+        dof = np.count_nonzero(weight)
         logger.debug("dchi, dof, do_center = %s, %s, %s", dchi, dof, self._force_model_center)
 
         var = np.zeros(len(star.fit.params))
@@ -705,6 +569,7 @@ class PixelGrid(Model):
         # Make arrays giving coordinates of grid points within footprint
         x = u_ceil[:,np.newaxis] + _du[np.newaxis,:]
         y = v_ceil[:,np.newaxis] + _dv[np.newaxis,:]
+
         # Make npts x (2*order) arrays holding 1d displacements
         # to be arguments of the 1d kernel functions
         argu = (u_ceil-u)[:,np.newaxis] + _duv

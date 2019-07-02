@@ -134,27 +134,27 @@ def test_center():
     x0 = 1.0  # 2 pixels off from center.
     y0 = -1.0
     du = 0.5
-    s = make_gaussian_data(2.0, x0, y0, influx, du=du)
+    s = make_gaussian_data(1.7, x0, y0, influx, du=du)
 
     if __name__ == '__main__':
         logger = piff.config.setup_logger(2)
     else:
         logger = None
     # Want an odd-sized model when center=True
-    mod = piff.PixelGrid(0.5, 29, force_model_center=True, start_sigma=2.5, logger=logger)
+    mod = piff.PixelGrid(0.5, 21, force_model_center=True, start_sigma=2.5, logger=logger)
     star = mod.initialize(s, logger=logger)
     print('Flux, ctr after init:',star.fit.flux,star.fit.center)
-    for i in range(3):
+    for i in range(4):
         star = mod.fit(star, logger=logger)
         print('Flux, ctr, chisq after fit {:d}:'.format(i),
               star.fit.flux, star.fit.center, star.fit.chisq)
         star = mod.reflux(star, logger=logger)
         print('Flux, ctr, chisq after reflux {:d}:'.format(i),
               star.fit.flux, star.fit.center, star.fit.chisq)
-    # Only accurate to a little under a percent.
+
     np.testing.assert_allclose(star.fit.flux, influx, rtol=1.e-2)
-    np.testing.assert_allclose(star.fit.center[0], x0, rtol=1.e-2)
-    np.testing.assert_allclose(star.fit.center[1], y0, rtol=1.e-2)
+    np.testing.assert_allclose(star.fit.center[0], x0, rtol=5.e-3)
+    np.testing.assert_allclose(star.fit.center[1], y0, rtol=5.e-3)
 
     # Residual image when done should be dominated by structure off the edge of the fitted region.
     mask = star.weight.array > 0
@@ -173,7 +173,7 @@ def test_center():
     du = 0.7
     s = make_gaussian_data(2.0, x0, y0, influx, du=du)
 
-    mod = piff.PixelGrid(0.5, 29, force_model_center=True, start_sigma=2.5)
+    mod = piff.PixelGrid(0.8, 29, force_model_center=True, start_sigma=2.5)
     star = mod.initialize(s)
     print('Flux, ctr after reflux:',star.fit.flux,star.fit.center)
     for i in range(3):
@@ -183,14 +183,13 @@ def test_center():
         star = mod.reflux(star)
         print('Flux, ctr, chisq after reflux {:d}:'.format(i),
               star.fit.flux, star.fit.center, star.fit.chisq)
-    # I think because the initial shift is not as extreme, this actually comes out a bit better.
-    np.testing.assert_allclose(star.fit.flux, influx, rtol=1.e-3)
-    np.testing.assert_allclose(star.fit.center[0], x0, rtol=2.e-3)
-    np.testing.assert_allclose(star.fit.center[1], y0, rtol=2.e-3)
+
+    np.testing.assert_allclose(star.fit.flux, influx, rtol=5.e-3)
+    np.testing.assert_allclose(star.fit.center[0], x0, rtol=5.e-3)
+    np.testing.assert_allclose(star.fit.center[1], y0, rtol=5.e-3)
 
     # Residual image when done should be dominated by structure off the edge of the fitted region.
     mask = star.weight.array > 0
-    # This comes out fairly close, but only 2 dp of accuracy, compared to 3 above.
     star2 = mod.draw(star)
     print('max image abs diff = ',np.max(np.abs(star2.image.array-s.image.array)))
     print('max image abs value = ',np.max(np.abs(s.image.array)))

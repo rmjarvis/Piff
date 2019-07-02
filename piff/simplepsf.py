@@ -251,6 +251,7 @@ class SimplePSF(PSF):
         """
         # Interpolate parameters to this position/properties:
         star = self.interp.interpolate(star)
+        self.model.normalize(star)
         # Render the image
         return self.model.draw(star, copy_image=copy_image)
 
