@@ -102,58 +102,24 @@ class PixelGrid(Model):
         self._nparams = size*size
         logger.debug("nparams = %d",self._nparams)
 
-        # Now we need to make a 2d array whose entries are the indices of
-        # each pixel in the 1d parameter array.
-        self._indices = np.arange(self._nparams, dtype=int).reshape(size,size)
-
         # Now create a parameter array for a Gaussian that will be used to initialize new stars
         self._origin = (self.size//2, self.size//2)
-        u = np.arange( -self._origin[0], self._indices.shape[0]-self._origin[0]) * self.scale
-        v = np.arange( -self._origin[1], self._indices.shape[1]-self._origin[1]) * self.scale
+        u = np.arange( -self._origin[0], size-self._origin[0]) * self.scale
+        v = np.arange( -self._origin[1], size-self._origin[1]) * self.scale
         rsq = (u*u)[:,np.newaxis] + (v*v)[np.newaxis,:]
         gauss = np.exp(-rsq / (2.* start_sigma * start_sigma))
-        params = self._1dFrom2d(gauss)
+        params = gauss.ravel()
         # Renormalize to get unity flux
         params /= np.sum(params)*self.pixel_area
         self._initial_params = params
-    def _1dFrom2d(self, in2d):
-        """Make a 1d array from a 2d array, using the model's
-        mapping from the 2d psf grid to the 1d parameter array.
-
-        :param in2d:    A 2d array matching the PSFs sample grid
-
-        :returns:       A 1d array of the length of number of grid points in use
-
-        :returns  None
-        """
-        out1d = np.zeros( (self._nparams,), dtype=in2d.dtype)
-        out1d[self._indices] = in2d
-        return out1d
-
-    def _2dFrom1d(self, in1d):
-        """Make a 2d array of the PSF from a 1d list of grid points, using the model's
-        mapping from the 2d psf to the 1d parameter array.
-
-        :param in1d:    A 1d array of values for PSF grid points in use
-
-        :returns:       A 2d array representing the PSF, with zeros for grid points not in mask.
-        """
-
-        i = np.zeros( (in1d.shape[0]+1,), dtype=int)
-        # The i array is the input array supplemented by a zero for pixels outside of mask
-        i[:-1] = in1d
-        # Now index the 1d array by the index array altered to point to the extra zero element
-        # where the mask is False:
-        return i[self._indices]
 
     def _indexFromPsfxy(self, psfx, psfy):
         """ Turn arrays of coordinates of the PSF array into a single same-shape
         array of indices into a 1d parameter vector.  The index is <0 wherever
         the psf x,y values were outside the PSF mask.
 
-        :param psfx:  array (any shape) of integer x displacements from origin
-        of the PSF grid
-        :param psfy:  array of integer y locations in PSF grid
+        :param psfx:  array of integer x displacements from origin of the PSF grid
+        :param psfy:  array of integer y displacements from origin of the PSF grid
 
         :returns: same shape array, filled with indices into 1d array
         """
@@ -167,11 +133,11 @@ class PixelGrid(Model):
         # Mark references to invalid pixels with nopsf array
         # First note which pixels are referenced outside of grid:
         nopsf = (y < 0) | (y >= self.size) | (x < 0) | (x >= self.size)
-        # Set them to reference pixel 0
-        x = np.where(nopsf, 0, x)
+        x = np.where(nopsf, 0, x)  # This just makes it so indices[y,x] is valid for all x,y
         y = np.where(nopsf, 0, y)
         # Then read all indices, setting invalid ones to -1
-        return np.where(nopsf, -1, self._indices[y, x])
+        indices = np.arange(self._nparams, dtype=int).reshape(self.size,self.size)
+        return np.where(nopsf, -1, indices[y, x])
 
     def initialize(self, star, logger=None):
         """Initialize a star to work with the current model.
@@ -190,23 +156,9 @@ class PixelGrid(Model):
         Ix = np.sum(data * u) / flux
         Iy = np.sum(data * v) / flux
         center = (Ix,Iy)
-        u -= center[0]
-        v -= center[1]
 
         # We will limit the calculations to |u|, |v| < maxuv
         self.maxuv = self.size/2. * self.scale
-
-        # Null weight at pixels where interpolation coefficients
-        # come up short of specified fraction of the total kernel
-        required_kernel_fraction = 0.7
-        coeffs, psfx, psfy = self.interp_calculate(u/self.scale, v/self.scale)
-        # Turn the (psfx,psfy) coordinates into an index into 1d parameter vector.
-        index1d = self._indexFromPsfxy(psfx, psfy)
-        # All invalid pixel references now have negative index;
-        # Null the coefficients for such pixels
-        coeffs = np.where(index1d < 0, 0., coeffs)
-        use = np.sum(coeffs,axis=1) > required_kernel_fraction
-        stardata = star.data.maskPixels(use)
 
         starfit = StarFit(self._initial_params, flux, center, params_var=var)
         return Star(star.data, starfit)
