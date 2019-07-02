@@ -93,6 +93,15 @@ class Model(object):
             star = star.withFlux(np.sum(star.data.image.array))
         return star
 
+    def normalize(self, star):
+        """Make sure star.fit.params are normalized properly.
+
+        Note: This modifies the input star in place.
+        """
+        # This is by default a no op.  Some models may need to do something to noramlize the
+        # parameter values in star.fit.
+        pass
+
     def fit(self, star):
         """Fit the Model to the star's data to yield iterative improvement on
         its PSF parameters, their uncertainties, and flux (and center, if free).
