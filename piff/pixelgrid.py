@@ -123,21 +123,17 @@ class PixelGrid(Model):
 
         :returns: same shape array, filled with indices into 1d array
         """
-
-        if not psfx.shape==psfy.shape:
-            raise ValueError("psfx and psfy arrays are not same shape")
-
-        # First, shift psfy, psfx to reference a 0-indexed array
+        # Shift psfy, psfx to reference a 0-indexed array
         y = psfy + self._origin[0]
         x = psfx + self._origin[1]
-        # Mark references to invalid pixels with nopsf array
-        # First note which pixels are referenced outside of grid:
-        nopsf = (y < 0) | (y >= self.size) | (x < 0) | (x >= self.size)
-        x = np.where(nopsf, 0, x)  # This just makes it so indices[y,x] is valid for all x,y
-        y = np.where(nopsf, 0, y)
-        # Then read all indices, setting invalid ones to -1
+
+        # Good pixels are where there is a valid index
+        # Others are set to -1.
+        ind = np.ones_like(psfx, dtype=int) * -1
+        good = (0 <= y) & (y < self.size) & (0 <= x) & (x < self.size)
         indices = np.arange(self._nparams, dtype=int).reshape(self.size,self.size)
-        return np.where(nopsf, -1, indices[y, x])
+        ind[good] = indices[y[good], x[good]]
+        return ind
 
     def initialize(self, star, logger=None):
         """Initialize a star to work with the current model.
@@ -152,12 +148,15 @@ class PixelGrid(Model):
         data, weight, u, v = star.data.getDataVector()
         # Start with the sum of pixels as initial estimate of flux.
         flux = np.sum(data)
-        # Subtract center from u, v:
-        Ix = np.sum(data * u) / flux
-        Iy = np.sum(data * v) / flux
-        center = (Ix,Iy)
+        # Initial center is the centroid of the data.
+        if self._force_model_center:
+            Ix = np.sum(data * u) / flux
+            Iy = np.sum(data * v) / flux
+            center = (Ix,Iy)
+        else:
+            center = star.fit.center
 
-        # We will limit the calculations to |u|, |v| < maxuv
+        # We will limit the calculations to |u|, |v| <= maxuv
         self.maxuv = self.size/2. * self.scale
 
         starfit = StarFit(self._initial_params, flux, center, params_var=var)
@@ -256,7 +255,7 @@ class PixelGrid(Model):
         # Subtract star.fit.center from u, v:
         u -= star.fit.center[0]
         v -= star.fit.center[1]
-        mask = (np.abs(u) < self.maxuv) & (np.abs(v) < self.maxuv)
+        mask = (np.abs(u) <= self.maxuv) & (np.abs(v) <= self.maxuv)
         data = data[mask]
         weight = weight[mask]
         u = u[mask]
@@ -410,7 +409,7 @@ class PixelGrid(Model):
             weight *= star_pix_area*star_pix_area
         u -= center[0]
         v -= center[1]
-        mask = (np.abs(u) < self.maxuv) & (np.abs(v) < self.maxuv)
+        mask = (np.abs(u) <= self.maxuv) & (np.abs(v) <= self.maxuv)
         data = data[mask]
         weight = weight[mask]
         u = u[mask]
