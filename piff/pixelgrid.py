@@ -369,7 +369,7 @@ class PixelGrid(Model):
         :param fit_center:  If False, disable any motion of center
         :param logger:      A logger object for logging debug info. [default: None]
 
-        :returns: a new Star instance, with updated flux, center, chisq, dof, worst
+        :returns: a new Star instance, with updated flux, center, chisq, dof
         """
         logger = galsim.config.LoggerWrapper(logger)
         logger.debug("Reflux for star:")
@@ -450,11 +450,6 @@ class PixelGrid(Model):
 
         dchi = np.dot(beta, df)
         logger.debug("chisq -= %s => %s",dchi,chisq-dchi)
-        # Record worst single pixel chisq:
-        resid -= np.dot(derivs,df)
-        rw = resid * weight
-        worst_chisq = np.max(resid * rw)
-        logger.debug("worst_chisq = %s",worst_chisq)
 
         # update the flux (and center) of the star
         logger.debug("initial flux = %s",flux)
@@ -479,7 +474,6 @@ class PixelGrid(Model):
                                        flux = flux,
                                        center = center,
                                        chisq = chisq,
-                                       worst_chisq = worst_chisq,
                                        dof = dof,
                                        alpha = star.fit.alpha,
                                        beta = star.fit.beta))
