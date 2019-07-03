@@ -33,31 +33,28 @@ class PixelGrid(Model):
 
     """A PSF modeled as interpolation between a grid of points.
 
-    The parameters of the model are the values at the grid points, although the constraint
-    for unit flux means that not all grid points are free parameters.  The grid is in uv
-    space, with the pitch and size specified on construction.  Interpolation will always
+    The parameters of the model are the values at the grid points, although the sum of the
+    values is constrained to be 1/scale**2, to give it unit total flux. The grid is in uv
+    space, with the scale and size specified on construction.  Interpolation will always
     assume values of zero outside of grid.
 
-    PixelGrid also needs an PixelInterpolant on construction to specify how to determine
-    values between grid points.
+    PixelGrid also needs to specify an interpolant to define how to values between grid points
+    are determined from the pixelated model.  For now only Lanczos is implemented, but we
+    plan to expand this to include all GalSim Interpolants.
 
     Stellar data is assumed either to be in flux units (with default sb=False), such that
     flux is defined as sum of pixel values; or in surface brightness units (sb=True), such
-    that flux is (sum of pixels)*(pixel area).  Internally the sb convention is used.
-
-    Convention of this code is that coordinates are (u,v).  All 2d forms of the PSF use
-    this indexing order also.  StarData classes can use whatever they want, we only
-    access them via 1d arrays.
-
+    that flux is (sum of pixels)*(pixel area).  Internally the sb convention is used, although
+    the flux convention is more typical of input data.
     """
     def __init__(self, scale, size, interp=None, start_sigma=1.,
                  force_model_center=True, degenerate=True, logger=None):
-        """Constructor for PixelGrid defines the PSF pitch, size, and interpolator.
+        """Constructor for PixelGrid defines the PSF scale, size, and interpolant.
 
         :param scale:       Pixel scale of the PSF model (in arcsec)
         :param size:        Number of pixels on each side of square grid.
         :param interp:      An Interpolant to be used [default: Lanczos(3); currently only
-                            Lanczos(n) is implemented for any n]
+                            Lanczos(n) is implemented, for any n]
         :param start_sigma: sigma of a 2d Gaussian installed as 1st guess for all stars
                             [default: 1.]
         :param force_model_center: If True, PSF model centroid is fixed at origin and
@@ -86,6 +83,9 @@ class PixelGrid(Model):
         self._force_model_center = force_model_center
         self._degenerate = degenerate
 
+        # We will limit the calculations to |u|, |v| <= maxuv
+        self.maxuv = self.size/2. * self.scale
+
         # These are the kwargs that can be serialized easily.
         self.kwargs = {
             'scale' : scale,
@@ -102,14 +102,17 @@ class PixelGrid(Model):
         self._nparams = size*size
         logger.debug("nparams = %d",self._nparams)
 
-        # Now create a parameter array for a Gaussian that will be used to initialize new stars
+        # Create an initial parameter array using a Gaussian profile.
+        # TODO: Better to do this in initialize based on the actual second moments of the
+        # first star?  Or maybe from median profile of all stars?
         self._origin = (self.size//2, self.size//2)
         u = np.arange( -self._origin[0], size-self._origin[0]) * self.scale
         v = np.arange( -self._origin[1], size-self._origin[1]) * self.scale
         rsq = (u*u)[:,np.newaxis] + (v*v)[np.newaxis,:]
         gauss = np.exp(-rsq / (2.* start_sigma * start_sigma))
         params = gauss.ravel()
-        # Renormalize to get unity flux
+
+        # Normalize to get unity flux
         params /= np.sum(params)*self.pixel_area
         self._initial_params = params
 
@@ -146,16 +149,14 @@ class PixelGrid(Model):
         data, weight, u, v = star.data.getDataVector()
         # Start with the sum of pixels as initial estimate of flux.
         flux = np.sum(data)
-        # Initial center is the centroid of the data.
         if self._force_model_center:
+            # Initial center is the centroid of the data.
             Ix = np.sum(data * u) / flux
             Iy = np.sum(data * v) / flux
             center = (Ix,Iy)
         else:
+            # In this case, center is fixed.
             center = star.fit.center
-
-        # We will limit the calculations to |u|, |v| <= maxuv
-        self.maxuv = self.size/2. * self.scale
 
         starfit = StarFit(self._initial_params, flux, center)
         return Star(star.data, starfit)
@@ -171,36 +172,50 @@ class PixelGrid(Model):
         """
         star1 = self.chisq(star)  # Get chisq Taylor expansion for linearized model
 
-        # star1 has marginalized over flux (& center, if free), and updated these
-        # for best linearized fit at the input parameter values.
+        # The chisq function calculates alpha and beta where
+        #
+        #    chisq = chisq_0 + 2 beta dp + dpT alpha dp
+        #
+        # is the linearized variation in chisq with respect to changes in the parameter values.
+        # The minimum of this linearized functional form is
+        #
+        #    dp = alpha^-1 beta
+        #
+        # If the star might be degenerate (_degenerate == True), then we need to solve this with
+        # SVD.  But if not, then we can use either cholesky (if positive definite) or LU
+        # decomposition (if not).
+
         if self._degenerate:
-            # Do SVD and retain
-            # input values for degenerate parameter combinations
-            # U,S,Vt = np.linalg.svd(star1.fit.alpha)
+            # Do SVD and retain input values for degenerate parameter combinations
+            # alpha = U S U^T
             S,U = np.linalg.eigh(star1.fit.alpha)
+
             # Invert, while zeroing small elements of S.
             # "Small" will be taken to be causing a small chisq change
             # when corresponding PSF component changes by the full flux of PSF
             small = 0.2 * self.pixel_area * self.pixel_area
-            if np.any(S < -small):
-                print("negative: ",np.min(S),"small:",small)###
+            if np.any(S < -small):  # pragma: no cover
                 raise ValueError("Negative singular value in alpha matrix")
+
             # Leave values that are close to zero equal to zero in inverse.
             nonzero = np.abs(S) > small
             invs = np.zeros_like(S)
             invs[nonzero] = 1./S[nonzero]
 
-            # answer = V * S^{-1} * U^T * beta
-            # dparam = np.dot(Vt.T, invs * np.dot(U.T,star1.fit.beta))
+            # dp = alpha^-1 beta
+            #    = (U S U^T)^-1 beta
+            #    = (U^T^-1 S^-1 U^-1) beta   .. using (ABC)^-1 = C^-1 B^-1 A^-1
+            #    = U S^-1 U^T beta           .. using U^-1 = U^T)
             dparam = np.dot(U, invs * np.dot(U.T,star1.fit.beta))
+
         else:
             # If it is known there are no degeneracies, we can skip SVD
             # Note: starting with scipy 1.0, the generic version of this got extremely slow.
             # Like 10x slower than scipy 0.19.1.  cf. https://github.com/scipy/scipy/issues/7847
             # So the assume_a='pos' bit is really important until they fix that.
             # Unfortunately, our matrices aren't necessarily always positive definite.  If not,
-            # we switch to the svd method, which might be overkill, but is cleaner than switching
-            # to LU for non-posdef, but then SV for fully singular.
+            # we switch to the generic method.  (If that fails, then this star will raise an
+            # exception and get excluded.  Only a problem if there are lots of these.)
             try:
                 with warnings.catch_warnings():
                     warnings.simplefilter("error")
@@ -214,14 +229,15 @@ class PixelGrid(Model):
 
         # Create new StarFit, update the chisq value.  Note no beta is returned as
         # the quadratic Taylor expansion was about the old parameters, not these.
-        # TODO: Calculate params_var and set that as well.
+        # TODO: Calculate params_var and set that as well.  params_var=np.diag(alpha) ??
+        new_chisq = (star1.fit.chisq
+                     + dparam.dot(star1.fit.alpha).dot(dparam)
+                     - 2 * star1.fit.beta.dot(dparam))
         starfit2 = StarFit(star1.fit.params + dparam,
                            flux = star1.fit.flux,
                            center = star1.fit.center,
-                           alpha = star1.fit.alpha,  # Inverse covariance matrix
-                           chisq = star1.fit.chisq \
-                                   + np.dot(dparam, np.dot(star1.fit.alpha, dparam)) \
-                                   - 2 * np.dot(star1.fit.beta, dparam))
+                           alpha = star1.fit.alpha,
+                           chisq = new_chisq)
 
         star = Star(star1.data, starfit2)
         self.normalize(star)
@@ -230,8 +246,7 @@ class PixelGrid(Model):
     def chisq(self, star, logger=None):
         """Calculate dependence of chi^2 = -2 log L(D|p) on PSF parameters for single star.
         as a quadratic form chi^2 = dp^T*alpha*dp - 2*beta*dp + chisq,
-        where dp is the *shift* from current parameter values.  Marginalization over
-        flux (and center, if free) should be done by this routine. Returned Star
+        where dp is the *shift* from current parameter values.  Returned Star
         instance has the resultant alpha, beta, chisq, flux, center) attributes,
         but params vector has not have been updated yet (could be degenerate).
 
@@ -243,8 +258,7 @@ class PixelGrid(Model):
         # Start by getting all interpolation coefficients for all observed points
         data, weight, u, v = star.data.getDataVector()
         if not star.data.values_are_sb:
-            # If the images are flux instead of surface brightness, convert
-            # them into SB
+            # If the images are flux instead of surface brightness, convert them into SB
             star_pix_area = star.data.pixel_area
             data /= star_pix_area
             weight *= star_pix_area*star_pix_area
@@ -252,12 +266,18 @@ class PixelGrid(Model):
         # Subtract star.fit.center from u, v:
         u -= star.fit.center[0]
         v -= star.fit.center[1]
+
+        # Only use pixels covered by the model.
         mask = (np.abs(u) <= self.maxuv) & (np.abs(v) <= self.maxuv)
         data = data[mask]
         weight = weight[mask]
         u = u[mask]
         v = v[mask]
 
+        # Compute the full set of coefficients for each pixel in the data
+        # The returned arrays here are Ndata x Ninterp.
+        # Each column column corresponds to a different x,y value in the model that could
+        # contribute information about the given data pixel.
         coeffs, psfx, psfy = self.interp_calculate(u/self.scale, v/self.scale)
 
         # Turn the (psfy,psfx) coordinates into an index into 1d parameter vector.
@@ -266,31 +286,41 @@ class PixelGrid(Model):
         nopsf = index1d < 0
         alt_index1d = np.where(nopsf, 0, index1d)
         # And null the coefficients for such pixels
+        # This just makes it easier to do the sums, since then the nopsf values won't contribute.
         coeffs = np.where(nopsf, 0., coeffs)
 
-        # Multiply kernel (and derivs) by current PSF element values
-        # to get current estimates
+        # Multiply kernel (and derivs) by current PSF element values to get current estimates
         pvals = star.fit.params[alt_index1d]
         mod = np.sum(coeffs*pvals, axis=1)
         resid = data - mod*star.fit.flux
 
-        # Now begin construction of alpha/beta/chisq that give
-        # chisq vs linearized model.
+        # Now begin construction of alpha/beta/chisq that give chisq vs linearized model.
         rw = resid * weight
         chisq = np.sum(resid * rw)
         dof = np.count_nonzero(weight)
 
-        derivs = star.fit.flux * coeffs  #derivs wrt PSF elements
+        # We can recast the math here in terms of the desin matrix, A.
+        #
+        #   alpha = AT A
+        #   beta = AT b
+        #
+        # Then, we can say we are looking for a weighted least squares solution to the problem
+        #
+        #   A dp = b
+        #
+        # where b is the array of residuals, and A_ij = coeffs[i][k] iff alt_index1d[i][k] == j.
+        #
+        # The weights are dealt with in the standard way, by multiplying both A and b by sqrt(w).
 
-        # Accumulate alpha and beta point by point.  I don't
-        # know how to do it purely with numpy calls instead of a loop over data points
+        # TODO: Use the above formalism to compute this faster (??)
+        #       For now, still accumulate alpha and beta point by point.
         beta = np.zeros(self._nparams, dtype=float)
         alpha = np.zeros( (self._nparams,self._nparams), dtype=float)
         for i in range(len(data)):
             ii = index1d[i,:]
-            cc = derivs[i,:]
+            cc = coeffs[i,:]
             # Select only those with ii >= 0
-            cc = cc[ii>=0]
+            cc = cc[ii>=0] * star.fit.flux
             ii = ii[ii>=0]
             # beta_j += resid_i * weight_i * coeff_{ij}
             beta[ii] += rw[i] * cc
@@ -318,7 +348,7 @@ class PixelGrid(Model):
         """
         im = galsim.Image(params.reshape(self.size,self.size), scale=self.scale)
         return galsim.InterpolatedImage(im, x_interpolant=self.interp,
-                                        normalization='sb', use_true_center=False)
+                                        normalization='sb', use_true_center=False, flux=1.)
 
     def normalize(self, star):
         """Make sure star.fit.params are normalized properly.
@@ -358,6 +388,7 @@ class PixelGrid(Model):
 
             star.fit.params = temp.flatten()
 
+        # Normally this is all that is required.
         star.fit.params /= np.sum(star.fit.params)*self.pixel_area
 
     def reflux(self, star, fit_center=True, logger=None):
@@ -381,6 +412,14 @@ class PixelGrid(Model):
         #logger.debug("    weight = %s",star.data.weight.array)
         logger.debug("    image center = %s",star.data.image(star.data.image.center))
         logger.debug("    weight center = %s",star.data.weight(star.data.weight.center))
+
+        # Make sure input is properly normalized
+        self.normalize(star)
+        flux = star.fit.flux
+        center = star.fit.center
+
+        # Calculate the current centroid of the model at the location of this star.
+        # We'll shift the star's position to try to zero this out.
         delta_u = np.arange(-self._origin[0], self.size-self._origin[0])
         delta_v = np.arange(-self._origin[1], self.size-self._origin[1])
         u, v = np.meshgrid(delta_u, delta_v)
@@ -388,17 +427,10 @@ class PixelGrid(Model):
         params_cenu = np.sum(u*temp)/np.sum(temp)
         params_cenv = np.sum(v*temp)/np.sum(temp)
 
-        # Make sure input is properly normalized
-        self.normalize(star)
-
-        flux = star.fit.flux
-        center = star.fit.center
-
         # Start by getting all interpolation coefficients for all observed points
         data, weight, u, v = star.data.getDataVector()
         if not star.data.values_are_sb:
-            # If the images are flux instead of surface brightness, convert
-            # them into SB
+            # If the images are flux instead of surface brightness, convert them into SB
             star_pix_area = star.data.pixel_area
             data /= star_pix_area
             weight *= star_pix_area*star_pix_area
@@ -409,6 +441,10 @@ class PixelGrid(Model):
         weight = weight[mask]
         u = u[mask]
         v = v[mask]
+
+        # Build the model and maybe also d(model)/dcenter
+        # This tracks the same steps in chisq.
+        # TODO: Make a helper function to consolidate the common code.
         if self._force_model_center:
             coeffs, psfx, psfy, dcdu, dcdv = self.interp_calculate(u/self.scale, v/self.scale, True)
             dcdu /= self.scale
@@ -426,21 +462,20 @@ class PixelGrid(Model):
             dcdu = np.where(nopsf, 0., dcdu)
             dcdv = np.where(nopsf, 0., dcdv)
 
-        # Multiply kernel (and derivs) by current PSF element values
-        # to get current estimates
+        # Multiply kernel (and derivs) by current PSF element values to get current estimates
         pvals = star.fit.params[alt_index1d]
         mod = np.sum(coeffs*pvals, axis=1)
         if self._force_model_center:
             dmdu = flux * np.sum(dcdu*pvals, axis=1)
             dmdv = flux * np.sum(dcdv*pvals, axis=1)
-            derivs = np.vstack( (mod, dmdu, dmdv)).T
+            derivs = np.vstack((mod, dmdu, dmdv)).T
         else:
-            derivs = mod.reshape(mod.shape+(1,))
+            # In this case, we're just making it a column vector.
+            derivs = np.vstack((mod,)).T
         resid = data - mod*flux
         logger.debug("total pixels = %s, nopsf = %s",len(pvals),np.sum(nopsf))
 
-        # Now begin construction of alpha/beta/chisq that give
-        # chisq vs linearized model.
+        # Now begin construction of alpha/beta/chisq that give chisq vs linearized model.
         rw = resid * weight
         chisq = np.sum(resid * rw)
         logger.debug("initial chisq = %s",chisq)
@@ -448,7 +483,7 @@ class PixelGrid(Model):
         alpha = np.dot(derivs.T*weight, derivs)
         df = np.linalg.solve(alpha, beta)
 
-        dchi = np.dot(beta, df)
+        dchi = beta.dot(df)
         logger.debug("chisq -= %s => %s",dchi,chisq-dchi)
 
         # update the flux (and center) of the star
@@ -461,6 +496,9 @@ class PixelGrid(Model):
                       center[1]+df[2])
             logger.debug("center += (%s,%s) => %s",df[1],df[2],center)
 
+            # In addition to shifting to the best fit center location, also shift
+            # by the centroid of the model itself, so the next next pass through the
+            # fit will be closer to centered.  In practice, this converges pretty quickly.
             center = (center[0]+params_cenu*self.scale,
                       center[1]+params_cenv*self.scale)
             logger.debug("params cen = %s,%s.  center => %s",params_cenu,params_cenv,center)
