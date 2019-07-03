@@ -143,8 +143,6 @@ class PixelGrid(Model):
 
         :returns: a star instance with the appropriate initial fit values
         """
-        var = np.zeros(len(self._initial_params))
-
         data, weight, u, v = star.data.getDataVector()
         # Start with the sum of pixels as initial estimate of flux.
         flux = np.sum(data)
@@ -159,7 +157,7 @@ class PixelGrid(Model):
         # We will limit the calculations to |u|, |v| <= maxuv
         self.maxuv = self.size/2. * self.scale
 
-        starfit = StarFit(self._initial_params, flux, center, params_var=var)
+        starfit = StarFit(self._initial_params, flux, center)
         return Star(star.data, starfit)
 
     def fit(self, star, logger=None):
@@ -216,9 +214,8 @@ class PixelGrid(Model):
 
         # Create new StarFit, update the chisq value.  Note no beta is returned as
         # the quadratic Taylor expansion was about the old parameters, not these.
-        var = np.zeros(len(star1.fit.params))
+        # TODO: Calculate params_var and set that as well.
         starfit2 = StarFit(star1.fit.params + dparam,
-                           params_var = var,
                            flux = star1.fit.flux,
                            center = star1.fit.center,
                            alpha = star1.fit.alpha,  # Inverse covariance matrix
@@ -302,9 +299,7 @@ class PixelGrid(Model):
             iouter = np.broadcast_to(ii, (len(ii),len(ii)))
             alpha[iouter.flatten(), iouter.T.flatten()] += dalpha.flatten()
 
-        var = np.zeros(len(star.fit.params))
         outfit = StarFit(star.fit.params,
-                         params_var = var,
                          flux = star.fit.flux,
                          center = star.fit.center,
                          chisq = chisq,
@@ -478,11 +473,9 @@ class PixelGrid(Model):
         dof = np.count_nonzero(weight)
         logger.debug("dchi, dof, do_center = %s, %s, %s", dchi, dof, self._force_model_center)
 
-        var = np.zeros(len(star.fit.params))
         # Update to the expected new chisq value.
         chisq = chisq - dchi
         return Star(star.data, StarFit(star.fit.params,
-                                       params_var = var,
                                        flux = flux,
                                        center = center,
                                        chisq = chisq,
