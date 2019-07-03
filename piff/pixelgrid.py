@@ -475,32 +475,43 @@ class PixelGrid(Model):
         resid = data - mod*flux
         logger.debug("total pixels = %s, nopsf = %s",len(pvals),np.sum(nopsf))
 
-        # Now begin construction of alpha/beta/chisq that give chisq vs linearized model.
-        rw = resid * weight
-        chisq = np.sum(resid * rw)
-        logger.debug("initial chisq = %s",chisq)
-        beta = np.dot(derivs.T,rw)
-        alpha = np.dot(derivs.T*weight, derivs)
-        df = np.linalg.solve(alpha, beta)
+        # Here we can stick with the design matrix rather than using alpha, beta.
+        #
+        #    A x = b
+        #
+        # where x = [ dflux, duc, dvc ]^T or just [ dflux ].
+        #
+        # A[0] = d( mod * flux ) / dflux = mod
+        # A[1] = d( mod * flux ) / duc   = flux * sum(dcdu * pvals, axis=1)
+        # A[2] = d( mod * flux ) / dvc   = flux * sum(dcdv * pvals, axis=1)
 
-        dchi = beta.dot(df)
-        logger.debug("chisq -= %s => %s",dchi,chisq-dchi)
+        # For large matrices, it is generally better to solve this with QRP, but with this
+        # small a matrix, it is faster and not any less stable to just compute AT A and AT b
+        # and solve the equation
+        #
+        #    AT A x = AT b
+
+        Atw = derivs.T * weight  # weighted least squares
+        AtA = Atw.dot(derivs)
+        Atb = Atw.dot(resid)
+        x = np.linalg.solve(AtA, Atb)
+        chisq = np.sum(resid**2 * weight)
+        dchi = Atb.dot(x)
+        logger.debug("chisq = %s - %s => %s",chisq,dchi,chisq-dchi)
 
         # update the flux (and center) of the star
         logger.debug("initial flux = %s",flux)
-        flux += df[0]
-        logger.debug("flux += %s => %s",df[0],flux)
+        flux += x[0]
+        logger.debug("flux += %s => %s",x[0],flux)
         logger.debug("center = %s",center)
         if self._force_model_center:
-            center = (center[0]+df[1],
-                      center[1]+df[2])
-            logger.debug("center += (%s,%s) => %s",df[1],df[2],center)
+            center = (center[0]+x[1], center[1]+x[2])
+            logger.debug("center += (%s,%s) => %s",x[1],x[2],center)
 
             # In addition to shifting to the best fit center location, also shift
             # by the centroid of the model itself, so the next next pass through the
             # fit will be closer to centered.  In practice, this converges pretty quickly.
-            center = (center[0]+params_cenu*self.scale,
-                      center[1]+params_cenv*self.scale)
+            center = (center[0]+params_cenu*self.scale, center[1]+params_cenv*self.scale)
             logger.debug("params cen = %s,%s.  center => %s",params_cenu,params_cenv,center)
 
         dof = np.count_nonzero(weight)
