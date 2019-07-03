@@ -325,7 +325,7 @@ class GSObjectModel(Model):
         :param fit_center:  If False, disable any motion of center
         :param logger:      A logger object for logging debug info. [default: None]
 
-        :returns:           New Star instance, with updated flux, center, chisq, dof, worst
+        :returns:           New Star instance, with updated flux, center, chisq, dof
         """
         logger = galsim.config.LoggerWrapper(logger)
         logger.debug("Reflux for star:")

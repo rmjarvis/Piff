@@ -933,7 +933,7 @@ class StarFit(object):
     if it is free to vary).
     """
     def __init__(self, params, flux=1., center=(0.,0.), params_var=None, alpha=None, beta=None,
-                 chisq=None, dof=None, worst_chisq=None):
+                 chisq=None, dof=None):
         """Constructor for base version of StarFit
 
         :param params: A 1d numpy array holding estimated PSF parameters
@@ -944,7 +944,6 @@ class StarFit(object):
         :param alpha:  Quadratic dependence of chi-squared on params about current values
         :param beta:   Linear dependence of chi-squared on params about current values
         :param chisq:  chi-squared value at current parameters.
-        :param worst_chisq:  highest chi-squared in any single pixel, after reflux()
         """
         # center might be a galsim.PositionD.  That's fine, but we'll convert to a tuple here.
         try:
@@ -960,7 +959,6 @@ class StarFit(object):
         self.beta = beta
         self.chisq = chisq
         self.dof = dof
-        self.worst_chisq = worst_chisq
         return
 
     def newParams(self, params, **kwargs):
@@ -981,7 +979,7 @@ class StarFit(object):
 
     def copy(self):
         return StarFit(self.params, self.flux, self.center, self.alpha, self.beta,
-                       self.chisq, self.dof, self.worst_chisq)
+                       self.chisq, self.dof)
 
     def __getitem__(self, key):
         """Get a property of the star fit.
