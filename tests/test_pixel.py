@@ -1091,6 +1091,94 @@ def test_des_image():
         orig_stamp = orig_image[stars[0].image.bounds] - stars[0]['sky']
         np.testing.assert_almost_equal(fit_stamp.array/flux, orig_stamp.array/flux, decimal=2)
 
+@timer
+def test_des2():
+    """Test a troublesome DES Y3 image that was producing bad results originally.
+    """
+    import os
+    import fitsio
+
+    image_file = 'input/D00362921_r_c57_r2331p02_immasked.fits.fz'
+    cat_file = 'input/D00362921_r_c57_r2331p02_use_stars.fits'
+    orig_image = galsim.fits.read(image_file)
+    psf_file = os.path.join('output','pixel_des2_psf.fits')
+
+    # The configuration dict corresponding to y3a1-v21, which originally had problems with this.
+    config = {
+        'input' : {
+            'image_file_name' : image_file,
+            'image_hdu' : 1,
+            'badpix_hdu' : 2,
+            'weight_hdu' : 3,
+            'cat_file_name' : cat_file,
+            'cat_hdu' : 1,
+            'x_col' : 'x',
+            'y_col' : 'y',
+            'sky_col' : 'sky',
+            'ra' : 'TELRA',
+            'dec' : 'TELDEC',
+            'gain' : 1.0,
+            # Real version uses pixmappy WCS, but that's not important for this test, so skip it
+
+            'max_snr' : 100,
+            'min_snr' : 20,
+            'stamp_size' : 25
+        },
+        'output' : {
+            'file_name' : psf_file,
+        },
+        'psf' : {
+            'model' : {
+                'type' : 'PixelGrid',
+                'scale' : 0.26,
+                'size' : 17,
+                'start_sigma' : 0.8,
+            },
+            'interp' : {
+                'type' : 'BasisPolynomial',
+                'order' : 3,
+            },
+            'outliers' : {
+                'type' : 'Chisq',
+                'nsigma' : 4,
+                'max_remove' : 0.01
+            }
+        },
+    }
+    if __name__ == '__main__':
+        config['verbose'] = 2
+    else:
+        config['verbose'] = 0
+
+    piff.piffify(config)
+    stars, wcs, pointing = piff.Input.process(config['input'])
+    psf = piff.read(psf_file)
+    stars = [psf.model.initialize(s) for s in stars]
+
+    # Check the first star is basically identical
+    flux = stars[0].fit.flux
+    offset = stars[0].center_to_offset(stars[0].fit.center)
+    fit_stamp = psf.draw(x=stars[0]['x'], y=stars[0]['y'], stamp_size=25, flux=flux, offset=offset)
+    orig_stamp = orig_image[stars[0].image.bounds] - stars[0]['sky']
+    np.testing.assert_almost_equal(fit_stamp.array/flux, orig_stamp.array/flux, decimal=2)
+
+    # Now check a location far from any input stars where this used to get a checkerboard pattern.
+    test_x = 2200
+    test_y = 0
+    test_stamp = psf.draw(x=test_x, y=test_y, stamp_size=25)
+    # This is a regression test to compare to the result at commit 8b15bab.
+    # This commit involved a significant refactoring of the PixelGrid class, which fixed
+    # the checkerboard failure mode, at least for this specific test.
+    check_stamp = galsim.fits.read('input/des2_8b15bab.fits')
+    np.testing.assert_almost_equal(test_stamp.array, check_stamp.array, decimal=2)
+
+    # For comparison, this is the result for the prior commit, before the fix, which fails.
+    # And if you open both images in ds9, you can see the checkerboard pattern I'm talking about.
+    bad_stamp = galsim.fits.read('input/des2_a9e0969.fits')
+    with np.testing.assert_raises(AssertionError):
+        np.testing.assert_almost_equal(bad_stamp.array, check_stamp.array, decimal=2)
+
+
 if __name__ == '__main__':
     #import cProfile, pstats
     #pr = cProfile.Profile()
@@ -1106,6 +1194,7 @@ if __name__ == '__main__':
     test_undersamp_drift()
     test_single_image()
     test_des_image()
+    test_des2()
     #pr.disable()
     #ps = pstats.Stats(pr).sort_stats('tottime')
     #ps.print_stats(20)
