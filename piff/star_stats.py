@@ -117,7 +117,7 @@ class StarStats(Stats):
         chisq = results.chisqr
         fit = StarFit(star.fit.params, params_var=star.fit.params_var,
                 flux=flux, center=center, chisq=chisq, dof=star.fit.dof,
-                alpha=star.fit.alpha, beta=star.fit.beta)
+                A=star.fit.A, b=star.fit.b)
         star_fit = Star(star.data, fit)
 
         return star_fit

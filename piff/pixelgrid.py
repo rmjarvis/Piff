@@ -172,18 +172,21 @@ class PixelGrid(Model):
         """
         star1 = self.chisq(star)  # Get chisq Taylor expansion for linearized model
 
-        # The chisq function calculates alpha and beta where
+        # The chisq function calculates A and b where
         #
-        #    chisq = chisq_0 + 2 beta dp + dpT alpha dp
+        #    chisq = chisq_0 + 2 bT A dp + dpT AT A dp
         #
         # is the linearized variation in chisq with respect to changes in the parameter values.
         # The minimum of this linearized functional form is
         #
-        #    dp = alpha^-1 beta
+        #    dp = (AT A)^-1 AT b
         #
-        # If the star might be degenerate (_degenerate == True), then we need to solve this with
-        # SVD.  But if not, then we can use either cholesky (if positive definite) or LU
-        # decomposition (if not).
+        # This is just the least squares solution of
+        #
+        #    A dp = b
+        #
+        # If the star might be degenerate (_degenerate == True), then we use svd to solve it,
+        # else we can just QRP, which is faster.
 
         if self._degenerate:
             # Do SVD and retain input values for degenerate parameter combinations
@@ -236,7 +239,7 @@ class PixelGrid(Model):
         starfit2 = StarFit(star1.fit.params + dparam,
                            flux = star1.fit.flux,
                            center = star1.fit.center,
-                           alpha = star1.fit.alpha,
+                           A = star1.fit.A,
                            chisq = new_chisq)
 
         star = Star(star1.data, starfit2)
@@ -245,9 +248,9 @@ class PixelGrid(Model):
 
     def chisq(self, star, logger=None):
         """Calculate dependence of chi^2 = -2 log L(D|p) on PSF parameters for single star.
-        as a quadratic form chi^2 = dp^T*alpha*dp - 2*beta*dp + chisq,
+        as a quadratic form chi^2 = dp^T AT A dp - 2 bT A dp + chisq,
         where dp is the *shift* from current parameter values.  Returned Star
-        instance has the resultant alpha, beta, chisq, flux, center) attributes,
+        instance has the resultant A, b, chisq, flux, center) attributes,
         but params vector has not have been updated yet (could be degenerate).
 
         :param star:    A Star instance
@@ -294,14 +297,9 @@ class PixelGrid(Model):
         mod = np.sum(coeffs*pvals, axis=1)
         resid = data - mod*star.fit.flux
 
-        # Now construct alpha/beta/chisq that give chisq vs linearized model.
+        # Now construct A, b, chisq that give chisq vs linearized model.
         #
-        # We can recast the math here in terms of the desin matrix, A.
-        #
-        #   alpha = AT A
-        #   beta = AT b
-        #
-        # Then, we can say we are looking for a weighted least squares solution to the problem
+        # We can say we are looking for a weighted least squares solution to the problem
         #
         #   A dp = b
         #
@@ -317,10 +315,10 @@ class PixelGrid(Model):
             cc = cc[ii>=0] * star.fit.flux
             ii = ii[ii>=0]
             A[i,ii] = cc
-        Atw = A.T * weight
-        beta = Atw.dot(resid)
-        alpha = Atw.dot(A)
-        chisq = np.sum(resid**2 * weight)
+        sw = np.sqrt(weight)
+        Aw = A * sw[:,np.newaxis]
+        bw = resid * sw
+        chisq = np.sum(bw**2)
         dof = np.count_nonzero(weight)
 
         outfit = StarFit(star.fit.params,
@@ -328,8 +326,8 @@ class PixelGrid(Model):
                          center = star.fit.center,
                          chisq = chisq,
                          dof = dof,
-                         alpha = alpha,
-                         beta = beta)
+                         A = Aw,
+                         b = bw)
 
         return Star(star.data, outfit)
 
@@ -469,11 +467,11 @@ class PixelGrid(Model):
         resid = data - mod*flux
         logger.debug("total pixels = %s, nopsf = %s",len(pvals),np.sum(nopsf))
 
-        # Here we can stick with the design matrix rather than using alpha, beta.
+        # Now construct the design matrix for this minimization
         #
         #    A x = b
         #
-        # where x = [ dflux, duc, dvc ]^T or just [ dflux ].
+        # where x = [ dflux, duc, dvc ]^T or just [ dflux ] and b = resid.
         #
         # A[0] = d( mod * flux ) / dflux = mod
         # A[1] = d( mod * flux ) / duc   = flux * sum(dcdu * pvals, axis=1)
@@ -518,8 +516,8 @@ class PixelGrid(Model):
                                        center = center,
                                        chisq = chisq,
                                        dof = dof,
-                                       alpha = star.fit.alpha,
-                                       beta = star.fit.beta))
+                                       A = star.fit.A,
+                                       b = star.fit.b))
 
     def interp_calculate(self, u, v, derivs=False):
         """Calculate interpolation coefficient for vector of target points
