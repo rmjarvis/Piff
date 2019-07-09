@@ -347,8 +347,6 @@ class GSObjectModel(Model):
                                                      results.params['dv'].value),
                                            chisq = results.chisqr,
                                            dof = np.count_nonzero(star.data.weight.array) - 3,
-                                           alpha = star.fit.alpha,
-                                           beta = star.fit.beta,
                                            params_var = star.fit.params_var))
         else:
             image, weight, image_pos = star.data.getImage()
@@ -361,8 +359,6 @@ class GSObjectModel(Model):
                                            center = star.fit.center,
                                            chisq = new_chisq,
                                            dof = np.count_nonzero(weight.array) - 1,
-                                           alpha = star.fit.alpha,
-                                           beta = star.fit.beta,
                                            params_var = star.fit.params_var))
 
 

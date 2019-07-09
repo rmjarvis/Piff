@@ -925,14 +925,11 @@ class StarFit(object):
     :chisq:       Chi-squared of  fit to the data (if any) with current params
     :dof:         Degrees of freedom in the fit (will depend on whether last fit had
                   parameters free or just the flux/center).
-    :alpha, beta: matrix, vector, giving Taylor expansion of chisq wrt params about
-                  their current values. The alpha matrix also is the inverse covariance
-                  matrix of the params.
-
-    The params and alpha,beta,chisq are assumed to be marginalized over flux (and over center,
-    if it is free to vary).
+    :A, b:        matrix, vector, giving design matrix equation for the Taylor expansion of chisq
+                  wrt params about their current values. The alpha matrix, AT A, is also the
+                  inverse covariance matrix of the params.
     """
-    def __init__(self, params, flux=1., center=(0.,0.), params_var=None, alpha=None, beta=None,
+    def __init__(self, params, flux=1., center=(0.,0.), params_var=None, A=None, b=None,
                  chisq=None, dof=None):
         """Constructor for base version of StarFit
 
@@ -941,8 +938,10 @@ class StarFit(object):
         :param flux:   Estimated flux for this star
         :param center: Estimated or fixed center position (u,v) of this star relative to
                        the StarData.image_pos reference point.
-        :param alpha:  Quadratic dependence of chi-squared on params about current values
-        :param beta:   Linear dependence of chi-squared on params about current values
+        :param A:      Design matrix for the quadratic dependence of chi-squared on params about
+                       current values.  Quatratic terms is dpT AT A dp.
+        :param b:      Vector portion of design equation. Linear term of chi-squared dependence
+                       on params about current values is -2 AT b.
         :param chisq:  chi-squared value at current parameters.
         """
         # center might be a galsim.PositionD.  That's fine, but we'll convert to a tuple here.
@@ -955,11 +954,19 @@ class StarFit(object):
         self.params_var = params_var
         self.flux = flux
         self.center = center
-        self.alpha = alpha
-        self.beta = beta
+        self.A = A
+        self.b = b
         self.chisq = chisq
         self.dof = dof
         return
+
+    @property
+    def alpha(self):
+        return self.A.T.dot(self.A)
+
+    @property
+    def beta(self):
+        return self.A.T.dot(self.b)
 
     def newParams(self, params, **kwargs):
         """Return new StarFit that has the array params installed as new parameters.
@@ -978,7 +985,7 @@ class StarFit(object):
         return StarFit(npp, flux=flux, center=center, **kwargs)
 
     def copy(self):
-        return StarFit(self.params, self.flux, self.center, self.alpha, self.beta,
+        return StarFit(self.params, self.flux, self.center, self.A, self.b,
                        self.chisq, self.dof)
 
     def __getitem__(self, key):
