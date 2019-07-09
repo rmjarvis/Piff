@@ -294,11 +294,8 @@ class PixelGrid(Model):
         mod = np.sum(coeffs*pvals, axis=1)
         resid = data - mod*star.fit.flux
 
-        # Now begin construction of alpha/beta/chisq that give chisq vs linearized model.
-        rw = resid * weight
-        chisq = np.sum(resid * rw)
-        dof = np.count_nonzero(weight)
-
+        # Now construct alpha/beta/chisq that give chisq vs linearized model.
+        #
         # We can recast the math here in terms of the desin matrix, A.
         #
         #   alpha = AT A
@@ -312,22 +309,19 @@ class PixelGrid(Model):
         #
         # The weights are dealt with in the standard way, by multiplying both A and b by sqrt(w).
 
-        # TODO: Use the above formalism to compute this faster (??)
-        #       For now, still accumulate alpha and beta point by point.
-        beta = np.zeros(self._nparams, dtype=float)
-        alpha = np.zeros( (self._nparams,self._nparams), dtype=float)
+        A = np.zeros((len(data), self._nparams), dtype=float)
         for i in range(len(data)):
             ii = index1d[i,:]
             cc = coeffs[i,:]
             # Select only those with ii >= 0
             cc = cc[ii>=0] * star.fit.flux
             ii = ii[ii>=0]
-            # beta_j += resid_i * weight_i * coeff_{ij}
-            beta[ii] += rw[i] * cc
-            # alpha_jk += weight_i * coeff_ij * coeff_ik
-            dalpha = cc[np.newaxis,:]*cc[:,np.newaxis] * weight[i]
-            iouter = np.broadcast_to(ii, (len(ii),len(ii)))
-            alpha[iouter.flatten(), iouter.T.flatten()] += dalpha.flatten()
+            A[i,ii] = cc
+        Atw = A.T * weight
+        beta = Atw.dot(resid)
+        alpha = Atw.dot(A)
+        chisq = np.sum(resid**2 * weight)
+        dof = np.count_nonzero(weight)
 
         outfit = StarFit(star.fit.params,
                          flux = star.fit.flux,
