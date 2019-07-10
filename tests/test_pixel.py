@@ -214,7 +214,7 @@ def test_interp():
     # Pixelized model with Lanczos 3 interpolation, slightly smaller than data
     # than the data
     pixinterp = piff.Lanczos(3)
-    mod = piff.PixelGrid(0.5, size, pixinterp, start_sigma=1.5, degenerate=False)
+    mod = piff.PixelGrid(0.5, size, pixinterp, start_sigma=1.5)
 
     # Interpolator will be simple mean
     interp = piff.Polynomial(order=0)
@@ -368,7 +368,7 @@ def test_gradient():
     # than the data
     pixinterp = piff.Lanczos(3)
     mod = piff.PixelGrid(0.5, size, pixinterp, start_sigma=1.5,
-                         degenerate=False, force_model_center=False)
+                         force_model_center=False)
 
     # Interpolator will be linear
     interp = piff.Polynomial(order=1)

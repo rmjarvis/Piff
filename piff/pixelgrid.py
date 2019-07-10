@@ -48,7 +48,8 @@ class PixelGrid(Model):
     the flux convention is more typical of input data.
     """
     def __init__(self, scale, size, interp=None, start_sigma=1.,
-                 force_model_center=True, degenerate=True, logger=None):
+                 force_model_center=True, logger=None,
+                 degenerate=None):
         """Constructor for PixelGrid defines the PSF scale, size, and interpolant.
 
         :param scale:       Pixel scale of the PSF model (in arcsec)
@@ -61,10 +62,9 @@ class PixelGrid(Model):
                             PSF fitting will marginalize over stellar position.  If False, stellar
                             position is fixed at input value and the fitted PSF may be off-center.
                             [default: True]
-        :param degenerate:  Is it possible that individual stars give degenerate PSF sol'n?
-                            If False, it runs faster, but fails on degeneracies. [default: True]
         :param logger:      A logger object for logging debug info. [default: None]
         """
+        # degenerate is for backwards compatibility.  Ignore.
         logger = galsim.config.LoggerWrapper(logger)
         logger.debug("Building Pixel model with the following parameters:")
         logger.debug("scale = %s",scale)
@@ -72,7 +72,6 @@ class PixelGrid(Model):
         logger.debug("interp = %s",interp)
         logger.debug("start_sigma = %s",start_sigma)
         logger.debug("force_model_center = %s",force_model_center)
-        logger.debug("degenerate = %s",degenerate)
 
         self.scale = scale
         self.size = size
@@ -81,7 +80,6 @@ class PixelGrid(Model):
         elif isinstance(interp, basestring): interp = eval(interp)
         self.interp = interp
         self._force_model_center = force_model_center
-        self._degenerate = degenerate
 
         # We will limit the calculations to |u|, |v| <= maxuv
         self.maxuv = self.size/2. * self.scale
@@ -92,7 +90,6 @@ class PixelGrid(Model):
             'size' : size,
             'start_sigma' : start_sigma,
             'force_model_center' : force_model_center,
-            'degenerate' : degenerate,
             'interp' : repr(self.interp),
         }
 
