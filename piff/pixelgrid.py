@@ -185,57 +185,18 @@ class PixelGrid(Model):
         #
         #    A dp = b
         #
-        # If the star might be degenerate (_degenerate == True), then we use svd to solve it,
-        # else we can just QRP, which is faster.
-
-        if self._degenerate:
-            # Do SVD and retain input values for degenerate parameter combinations
-            # alpha = U S U^T
-            S,U = np.linalg.eigh(star1.fit.alpha)
-
-            # Invert, while zeroing small elements of S.
-            # "Small" will be taken to be causing a small chisq change
-            # when corresponding PSF component changes by the full flux of PSF
-            small = 0.2 * self.pixel_area * self.pixel_area
-            if np.any(S < -small):  # pragma: no cover
-                raise ValueError("Negative singular value in alpha matrix")
-
-            # Leave values that are close to zero equal to zero in inverse.
-            nonzero = np.abs(S) > small
-            invs = np.zeros_like(S)
-            invs[nonzero] = 1./S[nonzero]
-
-            # dp = alpha^-1 beta
-            #    = (U S U^T)^-1 beta
-            #    = (U^T^-1 S^-1 U^-1) beta   .. using (ABC)^-1 = C^-1 B^-1 A^-1
-            #    = U S^-1 U^T beta           .. using U^-1 = U^T)
-            dparam = np.dot(U, invs * np.dot(U.T,star1.fit.beta))
-
-        else:
-            # If it is known there are no degeneracies, we can skip SVD
-            # Note: starting with scipy 1.0, the generic version of this got extremely slow.
-            # Like 10x slower than scipy 0.19.1.  cf. https://github.com/scipy/scipy/issues/7847
-            # So the assume_a='pos' bit is really important until they fix that.
-            # Unfortunately, our matrices aren't necessarily always positive definite.  If not,
-            # we switch to the generic method.  (If that fails, then this star will raise an
-            # exception and get excluded.  Only a problem if there are lots of these.)
-            try:
-                with warnings.catch_warnings():
-                    warnings.simplefilter("error")
-                    dparam = scipy.linalg.solve(star1.fit.alpha, star1.fit.beta, assume_a='pos',
-                                                check_finite=False)
-            except (RuntimeWarning, np.linalg.LinAlgError) as e:  # pragma: no cover
-                if logger:
-                    logger.warning('Caught %s',str(e))
-                    logger.warning('Switching to non-posdef method')
-                dparam = scipy.linalg.solve(star1.fit.alpha, star1.fit.beta)
+        # Even if the solutionis degenerate, gelsy works fine using QRP decomposition.
+        # And it's much faster than SVD.
+        dparam = scipy.linalg.lstsq(star1.fit.A, star1.fit.b,
+                                    check_finite=False, cond=1.e-6,
+                                    lapack_driver='gelsy')[0]
 
         # Create new StarFit, update the chisq value.  Note no beta is returned as
         # the quadratic Taylor expansion was about the old parameters, not these.
         # TODO: Calculate params_var and set that as well.  params_var=np.diag(alpha) ??
-        new_chisq = (star1.fit.chisq
-                     + dparam.dot(star1.fit.alpha).dot(dparam)
-                     - 2 * star1.fit.beta.dot(dparam))
+        Adp = star1.fit.A.dot(dparam)
+        new_chisq = star1.fit.chisq + Adp.dot(Adp) - 2 * Adp.dot(star1.fit.b)
+
         starfit2 = StarFit(star1.fit.params + dparam,
                            flux = star1.fit.flux,
                            center = star1.fit.center,
