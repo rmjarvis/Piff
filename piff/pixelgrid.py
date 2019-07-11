@@ -26,6 +26,7 @@ import warnings
 from galsim import Lanczos
 from .model import Model
 from .star import Star, StarData, StarFit
+from .util import hsm
 
 class PixelGrid(Model):
 
@@ -47,30 +48,26 @@ class PixelGrid(Model):
     that flux is (sum of pixels)*(pixel area).  Internally the sb convention is used, although
     the flux convention is more typical of input data.
     """
-    def __init__(self, scale, size, interp=None, start_sigma=1.,
-                 force_model_center=True, logger=None,
-                 degenerate=None):
+    def __init__(self, scale, size, interp=None, force_model_center=True, logger=None,
+                 start_sigma=None, degenerate=None):
         """Constructor for PixelGrid defines the PSF scale, size, and interpolant.
 
         :param scale:       Pixel scale of the PSF model (in arcsec)
         :param size:        Number of pixels on each side of square grid.
         :param interp:      An Interpolant to be used [default: Lanczos(3); currently only
                             Lanczos(n) is implemented, for any n]
-        :param start_sigma: sigma of a 2d Gaussian installed as 1st guess for all stars
-                            [default: 1.]
         :param force_model_center: If True, PSF model centroid is fixed at origin and
                             PSF fitting will marginalize over stellar position.  If False, stellar
                             position is fixed at input value and the fitted PSF may be off-center.
                             [default: True]
         :param logger:      A logger object for logging debug info. [default: None]
         """
-        # degenerate is for backwards compatibility.  Ignore.
+        # start_sigma and degenerate are for backwards compatibility.  Ignore.
         logger = galsim.config.LoggerWrapper(logger)
         logger.debug("Building Pixel model with the following parameters:")
         logger.debug("scale = %s",scale)
         logger.debug("size = %s",size)
         logger.debug("interp = %s",interp)
-        logger.debug("start_sigma = %s",start_sigma)
         logger.debug("force_model_center = %s",force_model_center)
 
         self.scale = scale
@@ -84,11 +81,13 @@ class PixelGrid(Model):
         # We will limit the calculations to |u|, |v| <= maxuv
         self.maxuv = self.size/2. * self.scale
 
+        # The origin of the model in image coordinates
+        self._origin = (self.size//2, self.size//2)
+
         # These are the kwargs that can be serialized easily.
         self.kwargs = {
             'scale' : scale,
             'size' : size,
-            'start_sigma' : start_sigma,
             'force_model_center' : force_model_center,
             'interp' : repr(self.interp),
         }
@@ -98,20 +97,6 @@ class PixelGrid(Model):
 
         self._nparams = size*size
         logger.debug("nparams = %d",self._nparams)
-
-        # Create an initial parameter array using a Gaussian profile.
-        # TODO: Better to do this in initialize based on the actual second moments of the
-        # first star?  Or maybe from median profile of all stars?
-        self._origin = (self.size//2, self.size//2)
-        u = np.arange( -self._origin[0], size-self._origin[0]) * self.scale
-        v = np.arange( -self._origin[1], size-self._origin[1]) * self.scale
-        rsq = (u*u)[:,np.newaxis] + (v*v)[np.newaxis,:]
-        gauss = np.exp(-rsq / (2.* start_sigma * start_sigma))
-        params = gauss.ravel()
-
-        # Normalize to get unity flux
-        params /= np.sum(params)*self.pixel_area
-        self._initial_params = params
 
     def _indexFromPsfxy(self, psfx, psfy):
         """ Turn arrays of coordinates of the PSF array into a single same-shape
@@ -155,7 +140,21 @@ class PixelGrid(Model):
             # In this case, center is fixed.
             center = star.fit.center
 
-        starfit = StarFit(self._initial_params, flux, center)
+        # Calculate the second moment to initialize an initial Gaussian profile.
+        # hsm returns: flux, x, y, sigma, g1, g2, flag
+        sigma = hsm(star)[3]
+
+        # Create an initial parameter array using a Gaussian profile.
+        u = np.arange( -self._origin[0], self.size-self._origin[0]) * self.scale
+        v = np.arange( -self._origin[1], self.size-self._origin[1]) * self.scale
+        rsq = (u*u)[:,np.newaxis] + (v*v)[np.newaxis,:]
+        gauss = np.exp(-rsq / (2.* sigma**2))
+        params = gauss.ravel()
+
+        # Normalize to get unity flux
+        params /= np.sum(params)*self.pixel_area
+
+        starfit = StarFit(params, flux, center)
         return Star(star.data, starfit)
 
     def fit(self, star, logger=None):
