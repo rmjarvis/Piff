@@ -392,6 +392,7 @@ def test_pickle():
             np.testing.assert_almost_equal(star.fit.params, [s,e1,e2], decimal=6)
 
 
+def test_olddes():
     # This is a DES Y3 PSF file that Matt Becker reported hadn't been readable with python 3.
     # The problem was it had been written with python 2's pickle, which isn't directly
     # compatible with python 3.  The code has been fixed to make it readable.  This unit
@@ -401,9 +402,21 @@ def test_pickle():
         import pixmappy
     except ImportError:
         return
+    import copy
+
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(verbose=2)
+    else:
+        logger = piff.config.setup_logger(log_file='output/test_pickle.log')
+
     fname = os.path.join('input', 'D00240560_r_c01_r2362p01_piff.fits')
     psf = piff.PSF.read(fname, logger=logger)
     image = psf.draw(x=103.3, y=592.0)
+
+    # Also check that it is picklable.
+    psf2 = copy.deepcopy(psf)
+    image2 = psf2.draw(x=103.3, y=592.0)
+    np.testing.assert_equal(image2.array, image.array)
 
 
 if __name__ == '__main__':
@@ -411,3 +424,4 @@ if __name__ == '__main__':
     test_wrongwcs()
     test_single()
     test_pickle()
+    test_olddes()

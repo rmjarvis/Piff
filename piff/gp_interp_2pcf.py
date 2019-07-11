@@ -228,7 +228,7 @@ class GPInterp2pcf(Interp):
         if len(keys)!=2:
             raise ValueError('the total size of keys can not be something else than 2 using two-point correlation function. Here len(keys) = %i'%(len(keys)))
 
-        if type(kernel) is str:
+        if isinstance(kernel,str):
             self.kernel_template = [self._eval_kernel(kernel)]
         else:
             if type(kernel) is not list and type(kernel) is not np.ndarray:
