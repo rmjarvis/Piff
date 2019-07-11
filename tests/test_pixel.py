@@ -1192,6 +1192,27 @@ def test_des2():
     test_stamp = psf.draw(x=test_x, y=test_y, stamp_size=25)
     np.testing.assert_almost_equal(test_stamp.array, check_stamp.array, decimal=2)
 
+    # With only 10 stars (or fewer), there are not enough constraints for a 3rd order solution
+    config['input']['nstars'] = 10
+    with np.testing.assert_raises(RuntimeError):
+        piff.piffify(config)
+
+    # A contrived example to hit the QRP option
+    # I manually duplicated some of the entries in the catalog, so the solution is singular.
+    # Also, reduce the order to only 2 and nstars to 6 so it doesn't take too long.
+    config['input']['cat_file_name'] = 'input/des2_qrp_cat.fits'
+    config['psf']['interp']['order'] = 2
+    config['input']['nstars'] = 6
+    t4 = time.time()
+    piff.piffify(config)
+    t5 = time.time()
+    print('Time for QRP solution (with order=2 and nstars=6) = ',t5-t4)
+    psf = piff.read(psf_file)
+    test_stamp = psf.draw(x=test_x, y=test_y, stamp_size=25)
+    # This wouldn't be expected to match precisely anymore, but at 1 d.p. it still does.
+    # Basically saying the solution doesn't go completely haywire.
+    np.testing.assert_almost_equal(test_stamp.array, check_stamp.array, decimal=1)
+
 
 if __name__ == '__main__':
     #import cProfile, pstats

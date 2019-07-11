@@ -179,6 +179,9 @@ class BasisInterp(Interp):
         A = np.vstack(A_chunks)
         b = np.concatenate(b_chunks)
 
+        if A.shape[0] < A.shape[1]:
+            raise RuntimeError("Too few constraints for solution. (Probably too few stars)")
+
         # Note: The following snippet is the straightforward way to do this using the
         #       scipy qr function.  However, it generates the full Q matrix, which is slow.
         #       Using the lapack functions directly is slightly more obfuscated, but faster.
@@ -199,24 +202,20 @@ class BasisInterp(Interp):
         abs_Rdiag = np.abs(np.diag(QR))
         cond = np.min(abs_Rdiag) / np.max(abs_Rdiag)
         if cond < 1.e-12:
-            # TODO: Write a unit test that covers this branch.  I tested it by manually changing
-            # the above check to 1.e-6, which was high enough to trigger it.  But we should
-            # really have a unit test that exercises this code.
-
             # Note: this calculation is much slower, but it is safe to use even for
             # singular inputs, so it will always produce a valid answer.
-            logger.info('Nominal condition number is %s (min, max = %s, %s)', cond,
+            logger.info('Nominal condition is %s (min, max = %s, %s)', cond,
                         np.min(abs_Rdiag), np.max(abs_Rdiag))
             logger.info('Switching to QRP solution')
             QR, P, tau, work, info = scipy.linalg.lapack.dgeqp3(A, overwrite_a=True)
             P[:] -= 1  # Switch to python 0-based indexing.
             abs_Rdiag = np.abs(np.diag(QR))
             cond = np.min(abs_Rdiag) / np.max(abs_Rdiag)
-            logger.info('Condition number for QRP is %s (min, max = %s, %s)', cond,
+            logger.info('Condition for QRP is %s (min, max = %s, %s)', cond,
                         np.min(abs_Rdiag), np.max(abs_Rdiag))
             # Skip any rows of R that have essentially 0 on the diagonal.
             k = np.sum(abs_Rdiag > 1.e-15 * np.max(abs_Rdiag))
-            logger.info('k = %d, m = %d',k,m)
+            logger.debug('k = %d, m = %d',k,m)
         else:
             P = None
             k = m
