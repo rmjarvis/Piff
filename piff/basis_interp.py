@@ -64,7 +64,7 @@ class BasisInterp(Interp):
 
         :returns:           A new list of Stars which have their parameters initialized.
         """
-        c = stars[0].fit.params.copy()
+        c = np.mean([s.fit.params for s in stars], axis=0)
         self.q = c[:,np.newaxis] * self.constant(1.)[np.newaxis,:]
         stars = self.interpolateList(stars)
         return stars
