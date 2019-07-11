@@ -18,6 +18,7 @@ import piff
 import galsim
 import yaml
 import subprocess
+import time
 
 from piff_test_helper import get_script_name, timer
 
@@ -1150,7 +1151,10 @@ def test_des2():
     else:
         config['verbose'] = 0
 
+    t0 = time.time()
     piff.piffify(config)
+    t1 = time.time()
+    print('Time for direct ATA solution = ',t1-t0)
     stars, wcs, pointing = piff.Input.process(config['input'])
     psf = piff.read(psf_file)
     stars = [psf.model.initialize(s) for s in stars]
@@ -1177,6 +1181,16 @@ def test_des2():
     bad_stamp = galsim.fits.read('input/des2_a9e0969.fits')
     with np.testing.assert_raises(AssertionError):
         np.testing.assert_almost_equal(bad_stamp.array, check_stamp.array, decimal=2)
+
+    # Repeat with QR solution
+    config['psf']['interp']['use_qr'] = True
+    t2 = time.time()
+    piff.piffify(config)
+    t3 = time.time()
+    print('Time for QR solution = ',t3-t2)
+    psf = piff.read(psf_file)
+    test_stamp = psf.draw(x=test_x, y=test_y, stamp_size=25)
+    np.testing.assert_almost_equal(test_stamp.array, check_stamp.array, decimal=2)
 
 
 if __name__ == '__main__':
