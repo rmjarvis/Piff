@@ -1210,6 +1210,18 @@ def test_des2():
     # Basically saying the solution doesn't go completely haywire.
     np.testing.assert_almost_equal(test_stamp.array, check_stamp.array, decimal=1)
 
+    # Also exercise the SVD fallback to the non-QR method.
+    config['psf']['interp']['use_qr'] = False
+    t6 = time.time()
+    piff.piffify(config)
+    t7 = time.time()
+    print('Time for SVD solution (with order=2 and nstars=6) = ',t7-t6)
+    psf = piff.read(psf_file)
+    test_stamp = psf.draw(x=test_x, y=test_y, stamp_size=25)
+    # This wouldn't be expected to match precisely anymore, but at 1 d.p. it still does.
+    # Basically saying the solution doesn't go completely haywire.
+    np.testing.assert_almost_equal(test_stamp.array, check_stamp.array, decimal=1)
+
 
 if __name__ == '__main__':
     #import cProfile, pstats
