@@ -1027,12 +1027,15 @@ def test_des_image():
             weight = s.weight  # These should be 1/var_pix
             resid = fit_stamp - orig_stamp
             chisq = np.sum(resid.array**2 * weight.array)
-            print('chisq = ',chisq)
+            dof = np.sum(weight.array != 0)
+            print('chisq, dof = ',chisq,dof)
             print('cf. star.chisq, dof = ',s.fit.chisq, s.fit.dof)
-            assert abs(chisq - s.fit.chisq) < 1.e-3 * chisq
-            if chisq > 2. * s.fit.dof:
+            # These don't match up, since we have the full image now, not just the part that
+            # overlaps the model. However, they should more or less match when chisq > dof.
+            # And in both cases most of the solutions should have chisq < dof or so.
+            if chisq > 2. * dof:
                 n_bad += 1
-            elif chisq > 1.1 * s.fit.dof:
+            elif chisq > 1.1 * dof:
                 n_marginal += 1
             else:
                 n_good += 1
