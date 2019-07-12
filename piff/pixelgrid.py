@@ -314,7 +314,9 @@ class PixelGrid(Model):
             mask = np.ones((self.size,self.size), dtype=bool)
             origin = (self.size//2, self.size//2)
             mask[origin] = False
-            if nparams2 == nparams1 + 3:
+            if nparams2 == nparams1 + 3:  # pragma: no branch
+                # Note: the only regression we test is with centroids free, so we always hit
+                #       this branch.
                 mask[origin[0]+1,origin[1]] = False
                 mask[origin[0],origin[1]+1] = False
             temp[mask] = star.fit.params
@@ -323,7 +325,7 @@ class PixelGrid(Model):
             delta_u = np.arange(-origin[0], self.size-origin[0])
             delta_v = np.arange(-origin[1], self.size-origin[1])
             u, v = np.meshgrid(delta_u, delta_v)
-            if nparams2 == nparams1 + 3:
+            if nparams2 == nparams1 + 3:  # pragma: no branch
                 # Do off-origin pixels first so that the centroid is 0,0.
                 temp[origin[0]+1, origin[1]] = -np.sum(v*temp)
                 temp[origin[0], origin[1]+1] = -np.sum(u*temp)
