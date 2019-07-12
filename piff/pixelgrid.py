@@ -217,11 +217,11 @@ class PixelGrid(Model):
         """
         # Start by getting all interpolation coefficients for all observed points
         data, weight, u, v = star.data.getDataVector()
-        if not star.data.values_are_sb:
-            # If the images are flux instead of surface brightness, convert them into SB
-            star_pix_area = star.data.pixel_area
-            data /= star_pix_area
-            weight *= star_pix_area*star_pix_area
+
+        # Images are flux instead of surface brightness, convert them into SB
+        star_pix_area = star.data.pixel_area
+        data /= star_pix_area
+        weight *= star_pix_area*star_pix_area
 
         # Subtract star.fit.center from u, v:
         u -= star.fit.center[0]
@@ -378,11 +378,12 @@ class PixelGrid(Model):
 
         # Start by getting all interpolation coefficients for all observed points
         data, weight, u, v = star.data.getDataVector()
-        if not star.data.values_are_sb:
-            # If the images are flux instead of surface brightness, convert them into SB
-            star_pix_area = star.data.pixel_area
-            data /= star_pix_area
-            weight *= star_pix_area*star_pix_area
+
+        # Images are flux instead of surface brightness, convert them into SB
+        star_pix_area = star.data.pixel_area
+        data /= star_pix_area
+        weight *= star_pix_area*star_pix_area
+
         u -= center[0]
         v -= center[1]
         mask = (np.abs(u) <= self.maxuv) & (np.abs(v) <= self.maxuv)

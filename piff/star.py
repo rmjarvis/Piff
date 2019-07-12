@@ -492,7 +492,6 @@ class Star(object):
                                        weight=weight[star.data.image.bounds],
                                        pointing= (pointing if pointing is not None
                                                   else star.data.pointing),
-                                       values_are_sb=star.data.values_are_sb,
                                        properties=star.data.properties,
                                        _xyuv_set=True),
                        fit = star.fit)
@@ -573,11 +572,9 @@ class StarData(object):
 
     Different use cases may prefer the data in one of these forms or the other.
 
-    A StarData object also must have these two properties:
-      :property values_are_sb: True (False) if pixel values are in surface
-      brightness (flux) units.
+    A StarData object also has this property:
       :property pixel_area:    Solid angle on sky subtended by each pixel,
-      in units of the uv system.
+                               in units of the uv system.
 
     The other information is stored in a dict.  This dict will include at least the following
     items:
@@ -618,20 +615,17 @@ class StarData(object):
                         the wcs and a pointing. [default: None]
     :param properties:  A dict containing other properties about the star that might be of
                         interest. [default: None]
-    :param values_are_sb: True if pixel data give surface brightness, False if they're flux
-                        [default: False]
     :param orig_weight: The original weight map prior to any additional Poisson variance being
                         added.  [default: None, which means use orig_weight=weight]
     :param logger:      A logger object for logging debug info. [default: None]
     """
     def __init__(self, image, image_pos, weight=None, pointing=None, field_pos=None,
-                 properties=None, values_are_sb=False, orig_weight=None, logger=None,
+                 properties=None, orig_weight=None, logger=None,
                  _xyuv_set=False):
         import galsim
         # Save all of these as attributes.
         self.image = image
         self.image_pos = image_pos
-        self.values_are_sb = values_are_sb
         # Make sure we have a local wcs in case the provided image is more complex.
         self.local_wcs = image.wcs.local(image_pos)
 
@@ -807,7 +801,6 @@ class StarData(object):
                         orig_weight=self.orig_weight,
                         pointing=self.pointing,
                         field_pos=self.field_pos,
-                        values_are_sb=self.values_are_sb,
                         properties=self.properties,
                         _xyuv_set=True)
 
@@ -859,7 +852,6 @@ class StarData(object):
                         weight=newweight,
                         orig_weight=self.orig_weight,
                         pointing=self.pointing,
-                        values_are_sb=self.values_are_sb,
                         properties=dict(self.properties, gain=gain),
                         _xyuv_set = True)
 
@@ -902,7 +894,6 @@ class StarData(object):
                         weight=weight,
                         orig_weight=orig_weight,
                         pointing=self.pointing,
-                        values_are_sb=self.values_are_sb,
                         properties=self.properties,
                         _xyuv_set=True)
 
