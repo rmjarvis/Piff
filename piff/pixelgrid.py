@@ -218,11 +218,6 @@ class PixelGrid(Model):
         # Start by getting all interpolation coefficients for all observed points
         data, weight, u, v = star.data.getDataVector()
 
-        # Images are flux instead of surface brightness, convert them into SB
-        star_pix_area = star.data.pixel_area
-        data /= star_pix_area
-        weight *= star_pix_area*star_pix_area
-
         # Subtract star.fit.center from u, v:
         u -= star.fit.center[0]
         v -= star.fit.center[1]
@@ -252,7 +247,8 @@ class PixelGrid(Model):
         # Multiply kernel (and derivs) by current PSF element values to get current estimates
         pvals = star.fit.params[alt_index1d]
         mod = np.sum(coeffs*pvals, axis=1)
-        resid = data - mod*star.fit.flux
+        scaled_flux = star.fit.flux * star.data.pixel_area
+        resid = data - mod * scaled_flux
 
         # Now construct A, b, chisq that give chisq vs linearized model.
         #
@@ -269,7 +265,7 @@ class PixelGrid(Model):
             ii = index1d[i,:]
             cc = coeffs[i,:]
             # Select only those with ii >= 0
-            cc = cc[ii>=0] * star.fit.flux
+            cc = cc[ii>=0] * scaled_flux
             ii = ii[ii>=0]
             A[i,ii] = cc
         sw = np.sqrt(weight)
@@ -364,7 +360,7 @@ class PixelGrid(Model):
 
         # Make sure input is properly normalized
         self.normalize(star)
-        flux = star.fit.flux
+        scaled_flux = star.fit.flux * star.data.pixel_area
         center = star.fit.center
 
         # Calculate the current centroid of the model at the location of this star.
@@ -378,11 +374,6 @@ class PixelGrid(Model):
 
         # Start by getting all interpolation coefficients for all observed points
         data, weight, u, v = star.data.getDataVector()
-
-        # Images are flux instead of surface brightness, convert them into SB
-        star_pix_area = star.data.pixel_area
-        data /= star_pix_area
-        weight *= star_pix_area*star_pix_area
 
         u -= center[0]
         v -= center[1]
@@ -416,13 +407,13 @@ class PixelGrid(Model):
         pvals = star.fit.params[alt_index1d]
         mod = np.sum(coeffs*pvals, axis=1)
         if self._force_model_center:
-            dmdu = flux * np.sum(dcdu*pvals, axis=1)
-            dmdv = flux * np.sum(dcdv*pvals, axis=1)
+            dmdu = scaled_flux * np.sum(dcdu*pvals, axis=1)
+            dmdv = scaled_flux * np.sum(dcdv*pvals, axis=1)
             derivs = np.vstack((mod, dmdu, dmdv)).T
         else:
             # In this case, we're just making it a column vector.
             derivs = np.vstack((mod,)).T
-        resid = data - mod*flux
+        resid = data - mod*scaled_flux
         logger.debug("total pixels = %s, nopsf = %s",len(pvals),np.sum(nopsf))
 
         # Now construct the design matrix for this minimization
@@ -450,9 +441,9 @@ class PixelGrid(Model):
         logger.debug("chisq = %s - %s => %s",chisq,dchi,chisq-dchi)
 
         # update the flux (and center) of the star
-        logger.debug("initial flux = %s",flux)
-        flux += x[0]
-        logger.debug("flux += %s => %s",x[0],flux)
+        logger.debug("initial flux = %s",scaled_flux)
+        scaled_flux += x[0]
+        logger.debug("flux += %s => %s",x[0],scaled_flux)
         logger.debug("center = %s",center)
         if self._force_model_center:
             center = (center[0]+x[1], center[1]+x[2])
@@ -470,7 +461,7 @@ class PixelGrid(Model):
         # Update to the expected new chisq value.
         chisq = chisq - dchi
         return Star(star.data, StarFit(star.fit.params,
-                                       flux = flux,
+                                       flux = scaled_flux / star.data.pixel_area,
                                        center = center,
                                        chisq = chisq,
                                        dof = dof,
