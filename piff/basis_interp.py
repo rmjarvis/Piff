@@ -257,7 +257,7 @@ class BasisInterp(Interp):
                 tmp1 = s.fit.alpha[:,:,np.newaxis] * K
                 tmp2 = K[np.newaxis,:,np.newaxis,np.newaxis] * tmp1[:,np.newaxis,:,:]
                 ATA += tmp2.reshape(nq,nq)
-            else:
+            else:  # pragma: no cover
                 # This is equivalent, but slower.
                 # It is here to make more explicit the connection between this calculation
                 # and the corresponding part of the QR code above.
