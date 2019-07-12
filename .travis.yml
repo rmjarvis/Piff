@@ -30,6 +30,10 @@ before_install:
     - pip install -U numpy astropy future pyyaml LSSTDESC.Coord pybind11
     - pip install -U galsim
 
+    # Install Pixmappy
+    - git clone https://github.com/gbernstein/pixmappy.git
+    - cd pixmappy; python setup.py install; cd ..
+
 cache:
     pip: true
     directories:
