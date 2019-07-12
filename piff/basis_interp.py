@@ -283,13 +283,13 @@ class BasisInterp(Interp):
                 # size rediduals.  We don't have a unit test that would catch this, so be careful
                 # about changing the behavior of this part of the code!  For now, we just go to
                 # the svd solution when ATA is fully singular.
-                logger.warning(w[0].message)
+                logger.info(w[0].message)
                 logger.debug('norm(ATA dq - ATb) = %s',scipy.linalg.norm(ATA.dot(dq) - ATb))
                 logger.debug('norm(dq) = %s',scipy.linalg.norm(dq))
 
         except (np.linalg.LinAlgError, scipy.linalg.LinAlgError) as e:
-            logger.warning('Caught %s',str(e))
-            logger.warning('Switching to svd solution')
+            logger.info('Caught %s',str(e))
+            logger.info('Switching to svd solution')
             Sd,U = scipy.linalg.eigh(ATA)
             nsvd = np.sum(np.abs(Sd) > 1.e-15 * np.abs(Sd[-1]))
             logger.info('2-condition is %e',np.abs(Sd[-1]/Sd[0]))
