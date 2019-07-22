@@ -1,3 +1,5 @@
+# Note: to use this file with a kolmogorov atmosphere, small adjustments would be needed. It is currently only set-up to work with vonkarman atmosphere.
+
 
 # Copyright (c) 2016 by Mike Jarvis and the other collaborators on GitHub at
 # https://github.com/rmjarvis/Piff  All rights reserved.

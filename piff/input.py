@@ -209,7 +209,8 @@ class Input(object):
 	conds_not_masked = (np.all(star_weightmaps != 0.0,axis=(1,2)))
 	for s, star_weightmap in enumerate(star_weightmaps):
 		if not np.all(star_weightmap != 0.0):
-			print("star_weightmap for star {0}: {1}".format(s, star_weightmap))
+			#print("star_weightmap for star {0}: {1}".format(s, star_weightmap))
+			pass
 	stars = np.array(stars)[conds_not_masked].tolist()
 	logger.info("There are {0} stars after the masked star cut".format(len(stars)))
 	return stars

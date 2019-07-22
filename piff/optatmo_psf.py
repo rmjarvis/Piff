@@ -619,7 +619,7 @@ class OptAtmoPSF(PSF):
             logger.debug('Measuring shape of train star {0}'.format(star_i))
             try:
                 shape = self.measure_shape_orthogonal(star, logger=logger) #shapes measured here include flux, center, 2nd, 3rd, and orthogonal radial moments up to eighth moments
-                print("shape: {0}".format(shape))
+                #print("shape: {0}".format(shape))
                 error = self.measure_error_orthogonal(star, logger=logger) #errors measured here include flux, center, 2nd, 3rd, and orthogonal radial moments up to eighth moments
                 star = Star(star.data, StarFit(None, flux=shape[0], center=(shape[1], shape[2])))
                 star.data.properties['shape'] = shape
@@ -634,9 +634,9 @@ class OptAtmoPSF(PSF):
                 # something went wrong with this star
                 logger.warning(str(e))
                 logger.warning('Train Star {0} failed shape estimation. Skipping'.format(star_i))
-        print("self.star_shapes: {0}".format(self.star_shapes))
+        #print("self.star_shapes: {0}".format(self.star_shapes))
         self.star_shapes = np.array(self.star_shapes)
-        print("self.star_shapes: {0}".format(self.star_shapes))
+        #print("self.star_shapes: {0}".format(self.star_shapes))
         self.star_errors = np.array(self.star_errors)
         self.star_snrs = np.array(self.star_snrs)
 
@@ -650,7 +650,7 @@ class OptAtmoPSF(PSF):
             logger.debug('Measuring shape of test star {0}'.format(star_i))
             try:
                 shape = self.measure_shape_orthogonal(star, logger=logger) #shapes measured here include flux, center, 2nd, 3rd, and orthogonal radial moments up to eighth moments
-                print("shape: {0}".format(shape))
+                #print("shape: {0}".format(shape))
                 error = self.measure_error_orthogonal(star, logger=logger) #errors measured here include flux, center, 2nd, 3rd, and orthogonal radial moments up to eighth moments
                 star = Star(star.data, StarFit(None, flux=shape[0], center=(shape[1], shape[2])))
                 star.data.properties['shape'] = shape
@@ -665,9 +665,9 @@ class OptAtmoPSF(PSF):
                 # something went wrong with this star
                 logger.warning(str(e))
                 logger.warning('Test Star {0} failed shape estimation. Skipping'.format(star_i))
-        print("self.test_star_shapes: {0}".format(self.test_star_shapes))
+        #print("self.test_star_shapes: {0}".format(self.test_star_shapes))
         self.test_star_shapes = np.array(self.test_star_shapes)
-        print("self.test_star_shapes: {0}".format(self.test_star_shapes))
+        #print("self.test_star_shapes: {0}".format(self.test_star_shapes))
         self.test_star_errors = np.array(self.test_star_errors)
         self.test_star_snrs = np.array(self.test_star_snrs)
 
@@ -683,18 +683,18 @@ class OptAtmoPSF(PSF):
         med = np.nanmedian(                                            np.concatenate([self.star_shapes[:, 3:], self.test_star_shapes[:, 3:]], axis=0)                                               , axis=0)
         mad = np.nanmedian(                               np.abs(      np.concatenate([self.star_shapes[:, 3:], self.test_star_shapes[:, 3:]], axis=0)            - med[None])                       , axis=0)
         logger.debug('MAD values: {0}'.format(str(mad)))
-        print("med: {0}".format(med))
-        print("mad: {0}".format(mad))
+        #print("med: {0}".format(med))
+        #print("mad: {0}".format(mad))
 
         # do MAD cut for the train stars
         madx = np.abs(self.star_shapes[:, 3:] - med[None])
         conds_mad = (np.all(madx <= 1.48 * 5 * mad, axis=1))
-        print("madx: {0}".format(madx))
+        #print("madx: {0}".format(madx))
 
         # do MAD cut for the test stars
         test_madx = np.abs(self.test_star_shapes[:, 3:] - med[None])
         test_conds_mad = (np.all(test_madx <= 1.48 * 5 * mad, axis=1))
-        print("test_madx: {0}".format(test_madx))
+        #print("test_madx: {0}".format(test_madx))
 
 
         # apply the aforementioned max shapes and MAD cuts for the train stars
@@ -1105,7 +1105,7 @@ class OptAtmoPSF(PSF):
         """
         # get all params at once
         params = self.getParamsList(stars)
-        print("params[0]: {0}".format(params[0]))
+        #print("params[0]: {0}".format(params[0]))
         # now step through to make the stars
         stars_drawn = [self.drawProfile(star, self.getProfile(param), param, copy_image=copy_image) for param, star in zip(params, stars)]
         return stars_drawn
@@ -1120,8 +1120,8 @@ class OptAtmoPSF(PSF):
                                         Fried parameter)
         :param logger:                  A logger object for logging debug info
         """
-        print("")
-        print("")
+        #print("")
+        #print("")
         logger = LoggerWrapper(logger)
         if len(optatmo_psf_kwargs) == 0:
             optatmo_psf_kwargs = self.optatmo_psf_kwargs
@@ -1132,7 +1132,8 @@ class OptAtmoPSF(PSF):
         aberrations_changed = False
         for key in keys:
             if key == 'L0' or key == 'g1':
-                print("")
+                #print("")
+                pass
             # skip some keys that often show up in the argument
             if 'error_' in key:
                 continue
@@ -1171,16 +1172,18 @@ class OptAtmoPSF(PSF):
             if key != 'L0':
                 old_value = self.aberrations_field[pupil_index - 1, focal_index - 1]
                 if key == 'g1':
-                    print("self.aberrations_field[pupil_index - 1, focal_index - 1]: {0}".format(self.aberrations_field[pupil_index - 1, focal_index - 1]))
-                    print("old_value: {0}".format(old_value)) 
+                    #print("self.aberrations_field[pupil_index - 1, focal_index - 1]: {0}".format(self.aberrations_field[pupil_index - 1, focal_index - 1]))
+                    #print("old_value: {0}".format(old_value))
+                    pass 
             else:
                 old_value = self.optatmo_psf_kwargs['L0']
-                print("self.optatmo_psf_kwargs['L0']: {0}".format(self.optatmo_psf_kwargs['L0']))
-                print("old_value: {0}".format(old_value)) 
+                #print("self.optatmo_psf_kwargs['L0']: {0}".format(self.optatmo_psf_kwargs['L0']))
+                #print("old_value: {0}".format(old_value)) 
             new_value = optatmo_psf_kwargs[key]
             if key == 'L0' or key == 'g1':
-                print("optatmo_psf_kwargs['{0}']: {1}".format(key,optatmo_psf_kwargs[key]))
-                print("new_value: {0}".format(new_value))                
+                #print("optatmo_psf_kwargs['{0}']: {1}".format(key,optatmo_psf_kwargs[key]))
+                #print("new_value: {0}".format(new_value))  
+                pass              
 
             # figure out if we really need to recompute the coef arrays
             if old_value != new_value:
@@ -1190,31 +1193,33 @@ class OptAtmoPSF(PSF):
                 logger.debug('Updating Zernike parameter {0} from {1:+.4e} + {3:+.4e} = {2:+.4e}'.format(key, old_value, new_value, new_value - old_value))
                 if key != 'L0':
                     if key == 'g1':
-                        print("preparing to change g1")
-                        print("self.aberrations_field[pupil_index - 1, focal_index - 1]: {0}".format(self.aberrations_field[pupil_index - 1, focal_index - 1]))
-                        print("old_value: {0}".format(old_value)) 
-                        print("optatmo_psf_kwargs['g1']: {0}".format(optatmo_psf_kwargs[key]))
-                        print("new_value: {0}".format(new_value))   
+                        #print("preparing to change g1")
+                        #print("self.aberrations_field[pupil_index - 1, focal_index - 1]: {0}".format(self.aberrations_field[pupil_index - 1, focal_index - 1]))
+                        #print("old_value: {0}".format(old_value)) 
+                        #print("optatmo_psf_kwargs['g1']: {0}".format(optatmo_psf_kwargs[key]))
+                        #print("new_value: {0}".format(new_value))
+                        pass 
                     self.aberrations_field[pupil_index - 1, focal_index - 1] = new_value
                     if key == 'g1':
-                        print("finished changing g1")
-                        print("self.aberrations_field[pupil_index - 1, focal_index - 1]: {0}".format(self.aberrations_field[pupil_index - 1, focal_index - 1]))
-                        print("old_value: {0}".format(old_value)) 
-                        print("optatmo_psf_kwargs['g1']: {0}".format(optatmo_psf_kwargs[key]))
-                        print("new_value: {0}".format(new_value)) 
+                        #print("finished changing g1")
+                        #print("self.aberrations_field[pupil_index - 1, focal_index - 1]: {0}".format(self.aberrations_field[pupil_index - 1, focal_index - 1]))
+                        #print("old_value: {0}".format(old_value)) 
+                        #print("optatmo_psf_kwargs['g1']: {0}".format(optatmo_psf_kwargs[key]))
+                        #print("new_value: {0}".format(new_value))
+                        pass
                     aberrations_changed = True
                 else:
-                    print("preparing to change L0")
-                    print("self.optatmo_psf_kwargs['L0']: {0}".format(self.optatmo_psf_kwargs['L0']))
-                    print("old_value: {0}".format(old_value)) 
-                    print("optatmo_psf_kwargs['L0']: {0}".format(optatmo_psf_kwargs[key]))
-                    print("new_value: {0}".format(new_value))                    
+                    #print("preparing to change L0")
+                    #print("self.optatmo_psf_kwargs['L0']: {0}".format(self.optatmo_psf_kwargs['L0']))
+                    #print("old_value: {0}".format(old_value)) 
+                    #print("optatmo_psf_kwargs['L0']: {0}".format(optatmo_psf_kwargs[key]))
+                    #print("new_value: {0}".format(new_value))                    
                     self.optatmo_psf_kwargs['L0'] = new_value 
-                    print("finished changing L0")   
-                    print("self.optatmo_psf_kwargs['L0']: {0}".format(self.optatmo_psf_kwargs['L0']))
-                    print("old_value: {0}".format(old_value)) 
-                    print("optatmo_psf_kwargs['L0']: {0}".format(optatmo_psf_kwargs[key]))
-                    print("new_value: {0}".format(new_value))                                      
+                    #print("finished changing L0")   
+                    #print("self.optatmo_psf_kwargs['L0']: {0}".format(self.optatmo_psf_kwargs['L0']))
+                    #print("old_value: {0}".format(old_value)) 
+                    #print("optatmo_psf_kwargs['L0']: {0}".format(optatmo_psf_kwargs[key]))
+                    #print("new_value: {0}".format(new_value))                                      
 
         if aberrations_changed:
             logger.debug('---------- Recomputing field zernike coefficients')
@@ -1222,8 +1227,8 @@ class OptAtmoPSF(PSF):
             # shape (jmax_pupil, maxn_focal, maxm_focal)
             self._coef_arrays_field = np.array([np.dot(self._noll_coef_field, a)
                                                 for a in self.aberrations_field])
-        print("")
-        print("")
+        #print("")
+        #print("")
 
     def measure_shape(self, star, return_error=True, logger=None):
         """Measure the shape of a star using the HSM algorithm. Does not go beyond second moments.
@@ -1424,11 +1429,11 @@ class OptAtmoPSF(PSF):
         if self.reference_wavefront: self._create_cache(stars, logger=logger)
         if self.reference_wavefront: self._create_cache_higher_order(stars, logger=logger)
 
-        print("self.optatmo_psf_kwargs before getting lmparams: {0}".format(self.optatmo_psf_kwargs))
-        print("self.optatmo_psf_kwargs['L0']: {0}".format(self.optatmo_psf_kwargs['L0']))        
-        print("self.optatmo_psf_kwargs['g1']: {0}".format(self.optatmo_psf_kwargs['g1']))    
+        #print("self.optatmo_psf_kwargs before getting lmparams: {0}".format(self.optatmo_psf_kwargs))
+        #print("self.optatmo_psf_kwargs['L0']: {0}".format(self.optatmo_psf_kwargs['L0']))        
+        #print("self.optatmo_psf_kwargs['g1']: {0}".format(self.optatmo_psf_kwargs['g1']))    
         lmparams = self._fit_optics_lmparams(self.optatmo_psf_kwargs, self.keys)
-        print("lmparams: {0}".format(lmparams))
+        #print("lmparams: {0}".format(lmparams))
         if mode == 'analytic':
             residual = self._fit_analytic_residual
         elif mode == 'shape':
@@ -1471,9 +1476,9 @@ class OptAtmoPSF(PSF):
             results = lmfit.minimize(residual, lmparams, args=(stars, shapes, errors, regr_dictionary, logger,), epsfcn=1e-5)
         elif mode == 'shape':
             results = lmfit.minimize(residual, lmparams, args=(stars, shapes, errors, logger,), epsfcn=1e-5, ftol=ftol)
-            print("results.params.valuesdict(): {0}".format(results.params.valuesdict()))
-            print("results.params.valuesdict()['L0']: {0}".format(results.params.valuesdict()['L0']))  
-            print("results.params.valuesdict()['g1']: {0}".format(results.params.valuesdict()['L0']))            
+            #print("results.params.valuesdict(): {0}".format(results.params.valuesdict()))
+            #print("results.params.valuesdict()['L0']: {0}".format(results.params.valuesdict()['L0']))  
+            #print("results.params.valuesdict()['g1']: {0}".format(results.params.valuesdict()['L0']))            
         else:
             results = lmfit.minimize(residual, lmparams, args=(stars, shapes, errors, logger,), epsfcn=1e-5)
 
@@ -1515,9 +1520,9 @@ class OptAtmoPSF(PSF):
         # update PSF parameters with fit results
         # TODO: can I go through this for loop from lmparams directly without blindly hoping key_i lines up?
         key_i = 0
-        print("self.optatmo_psf_kwargs before replacing with results: {0}".format(self.optatmo_psf_kwargs))
-        print("self.optatmo_psf_kwargs['L0']: {0}".format(self.optatmo_psf_kwargs['L0']))        
-        print("self.optatmo_psf_kwargs['g1']: {0}".format(self.optatmo_psf_kwargs['L0']))     
+        #print("self.optatmo_psf_kwargs before replacing with results: {0}".format(self.optatmo_psf_kwargs))
+        #print("self.optatmo_psf_kwargs['L0']: {0}".format(self.optatmo_psf_kwargs['L0']))        
+        #print("self.optatmo_psf_kwargs['g1']: {0}".format(self.optatmo_psf_kwargs['L0']))     
         for key in self.keys:
             if not self.optatmo_psf_kwargs['fix_' + key]:
                 val = results.params.valuesdict()[key]
@@ -1532,9 +1537,9 @@ class OptAtmoPSF(PSF):
                     logger.warning('No Error calculated for parameter {0}! Replacing with large number {1}!'.format(key, placeholder_error))
                     self.optatmo_psf_kwargs['error_' + key] = placeholder_error
                 key_i += 1
-        print("self.optatmo_psf_kwargs after replacing with results: {0}".format(self.optatmo_psf_kwargs))
-        print("self.optatmo_psf_kwargs['L0']: {0}".format(self.optatmo_psf_kwargs['L0'])) 
-        print("self.optatmo_psf_kwargs['g1']: {0}".format(self.optatmo_psf_kwargs['g1']))                                    
+        #print("self.optatmo_psf_kwargs after replacing with results: {0}".format(self.optatmo_psf_kwargs))
+        #print("self.optatmo_psf_kwargs['L0']: {0}".format(self.optatmo_psf_kwargs['L0'])) 
+        #print("self.optatmo_psf_kwargs['g1']: {0}".format(self.optatmo_psf_kwargs['g1']))                                    
         self._update_optatmopsf(self.optatmo_psf_kwargs, logger=logger)
 
         logger.info('{0} optical fit from lmfit parameters:'.format(mode))
@@ -1731,7 +1736,7 @@ class OptAtmoPSF(PSF):
         return model_fitted_stars, stars
 
     #def fit_model(self, star, params, vary_shape=True, vary_optics=False,  mode='pixel', minimize_kwargs={'method': 'leastsq', 'epsfcn': 1e-5, 'maxfev': 1000}, logger=None):
-    def fit_model(self, star, params, vary_shape=True, vary_optics=False,  mode='shape', minimize_kwargs={}, logger=None, estimated_errorbars_not_required=False):
+    def fit_model(self, star, params, vary_shape=True, vary_optics=False,  mode='pixel', minimize_kwargs={}, logger=None, estimated_errorbars_not_required=False):
         """Fit model to star's pixel data. Always vary flux and center, but also can selectively vary atmospheric terms and Zernike coefficients
         :param star:        A Star instance
         :param params:      An array of initial star parameters like one would
@@ -1768,48 +1773,91 @@ class OptAtmoPSF(PSF):
         min_size = self.optatmo_psf_kwargs['min_size']
         max_size = self.optatmo_psf_kwargs['max_size']
         max_g = self.optatmo_psf_kwargs['max_g1']
-        # getParams puts in atmosphere terms
 
-        fit_size = params[0]
-        fit_g1 = params[1]
-        fit_g2 = params[2]
+        # cache optical profile if vary_optics is set to False
+        if vary_optics == False:
+            aberrations = np.zeros(4 + len(params[self.n_params_constant_atmosphere_and_atmosphere:]))  # fill piston etc with 0
+            aberrations[4:] = params[self.n_params_constant_atmosphere_and_atmosphere:]
+            aberrations = aberrations * (700.0/self.optical_psf_kwargs['lam'])
+            optical_profile = galsim.OpticalPSF(aberrations=aberrations,
+                                gsparams=self.gsparams,
+                                **self.optical_psf_kwargs)
+        else:
+            optical_profile = None
+
+        # measure the shape and shape error of the data star 
+        shape = self.measure_shape_orthogonal(star)
+        error = self.measure_error_orthogonal(star)
+
+        # optical residuals are used to get the initial starting values for atmo_size, atmo_g1, and atmo_g2 if vary_optics is set to False
+        if vary_optics == False:
+            # calculate the second moment residuals for a model star made only with values from an optical fit
+            full_profile = self.getProfile(params)
+            star_model = self.drawProfile(star, full_profile, params)
+            shape_model = self.measure_shape_orthogonal(star_model)
+            shape_difference = shape - shape_model
+            optical_de0 = shape_difference[3]
+            optical_de1 = shape_difference[4]
+            optical_de2 = shape_difference[5]
+            # linear relations between between the optical residals of the second moments and atmo_size/atmo_g1/atmo_g2 taken by comparing the two against each other for a couple dozen exposures
+            fit_size = 1.143 * optical_de0 + 0.001
+            fit_g1 = 1.075 * optical_de1 + 0.001
+            fit_g2 = 1.033 * optical_de2
+        else:
+            # getParams is used to get the initial starting values for atmo_size, atmo_g1, and atmo_g2 if vary_optics is set to True
+            fit_size = params[0]
+            fit_g1 = params[1]
+            fit_g2 = params[2]
+
+        # acquire the values of opt_size, opt_g1, opt_g2, and, possibly, opt_L0 if using vonkarman atmosphere
         if self.atmosphere_model == 'vonkarman':
             opt_L0 = params[3]
         opt_size = params[self.n_params_constant_atmosphere + 0]
         opt_g1 = params[self.n_params_constant_atmosphere + 1]
         opt_g2 = params[self.n_params_constant_atmosphere + 2]      
+
+        # finish putting in atmo_size, atmo_g1, and atmo_g2 terms
         lmparams.add('atmo_size', value=fit_size, vary=vary_shape, min=min_size - opt_size, max=max_size - opt_size)
         lmparams.add('atmo_g1', value=fit_g1, vary=vary_shape, min=-max_g - opt_g1, max=max_g - opt_g1)
         lmparams.add('atmo_g2', value=fit_g2, vary=vary_shape, min=-max_g - opt_g2, max=max_g - opt_g2)
-        # add other params to the params model
-        # we do NOT vary the optics size, g1, g2
+
+        # put in the other params to the params model
         if self.atmosphere_model == 'vonkarman':
-            lmparams.add('optics_L0', value=opt_L0, vary=False)
+            lmparams.add('optics_L0', value=opt_L0, vary=False) # we NEVER vary the opt_size, opt_g1, opt_g2, or, if we use it, opt_L0
         lmparams.add('optics_size', value=opt_size, vary=False)
         lmparams.add('optics_g1', value=opt_g1, vary=False)
         lmparams.add('optics_g2', value=opt_g2, vary=False)
         for i, pi in enumerate(params[self.n_params_constant_atmosphere_and_atmosphere:]):
-            # we do allow zernikes to vary
-            lmparams.add('optics_zernike_{0}'.format(i + 4), value=pi, vary=vary_optics, min=-5, max=5)
+            lmparams.add('optics_zernike_{0}'.format(i + 4), value=pi, vary=vary_optics, min=-5, max=5) # we do allow zernikes to vary if vary_optics is set to True
 
+        # set up the residual to either use moments or pixels, as desired
         if mode == 'shape':
             residual = self._fit_model_shape_residual
         elif mode == 'pixel':
             residual = self._fit_model_residual
 
-        # do fit
+        # prepare minimize_kwargs_in for fit
         minimize_kwargs_in = {'method': 'leastsq', 'epsfcn': 1e-5, 'maxfev': 1000}
         minimize_kwargs_in.update(minimize_kwargs)
-        results = lmfit.minimize(residual, lmparams,
-                                 args=(star, logger,),
+
+        # do fit
+        if mode == 'shape':
+            results = lmfit.minimize(residual, lmparams,
+                                 args=(star, optical_profile, shape, error, logger,),
+                                 **minimize_kwargs_in)
+        else:
+            results = lmfit.minimize(residual, lmparams,
+                                 args=(star, optical_profile, logger,),
                                  **minimize_kwargs_in)
         logger.debug(lmfit.fit_report(results, min_correl=0.5))
         if not results.success:
             raise AttributeError('Not successful fit')
+
         # errors can be zero if the chisq is close to perfect
         if ((not results.errorbars) * (results.chisqr > 1e-8)):
             if estimated_errorbars_not_required:
                 print("Warning: No estimated errorbars")
+                logger.info('Warning: No estimated errorbars')
             else:
                 raise AttributeError('No estimated errorbars')
 
@@ -2056,26 +2104,28 @@ class OptAtmoPSF(PSF):
         """
         logger = LoggerWrapper(logger)
         # update psf
-        print("self.optatmo_psf_kwargs before using _update_optatmopsf(): {0}".format(self.optatmo_psf_kwargs))
-        print("self.optatmo_psf_kwargs['L0']: {0}".format(self.optatmo_psf_kwargs['L0']))    
-        print("self.optatmo_psf_kwargs['g1']: {0}".format(self.optatmo_psf_kwargs['g1']))           
-        print("lmparams.valuesdict(): {0}".format(lmparams.valuesdict()))
+        #print("self.optatmo_psf_kwargs before using _update_optatmopsf(): {0}".format(self.optatmo_psf_kwargs))
+        #print("self.optatmo_psf_kwargs['L0']: {0}".format(self.optatmo_psf_kwargs['L0']))    
+        #print("self.optatmo_psf_kwargs['g1']: {0}".format(self.optatmo_psf_kwargs['g1']))           
+        #print("lmparams.valuesdict(): {0}".format(lmparams.valuesdict()))
         try:
-            print("lmparams.valuesdict()['L0']: {0}".format(lmparams.valuesdict()['L0']))  
-            print("lmparams.valuesdict()['g1']: {0}".format(lmparams.valuesdict()['g1']))    
+            #print("lmparams.valuesdict()['L0']: {0}".format(lmparams.valuesdict()['L0']))  
+            #print("lmparams.valuesdict()['g1']: {0}".format(lmparams.valuesdict()['g1']))
+            pass 
         except:
-            print("no L0 or g1 currently in lmparams.valuesdict()")     
+            #print("no L0 or g1 currently in lmparams.valuesdict()")     
+            pass
         self._update_optatmopsf(lmparams.valuesdict(), logger)
 
         # get optical params
-        print("self.optatmo_psf_kwargs before getting params for _fit_optics_residual() but after using _update_optatmopsf(): {0}".format(self.optatmo_psf_kwargs))
-        print("self.optatmo_psf_kwargs['L0']: {0}".format(self.optatmo_psf_kwargs['L0']))        
-        print("self.optatmo_psf_kwargs['g1']: {0}".format(self.optatmo_psf_kwargs['g1'])) 
+        #print("self.optatmo_psf_kwargs before getting params for _fit_optics_residual() but after using _update_optatmopsf(): {0}".format(self.optatmo_psf_kwargs))
+        #print("self.optatmo_psf_kwargs['L0']: {0}".format(self.optatmo_psf_kwargs['L0']))        
+        #print("self.optatmo_psf_kwargs['g1']: {0}".format(self.optatmo_psf_kwargs['g1'])) 
         opt_params = self.getParamsList(stars)
-        print("params for first star: {0}".format(opt_params[0]))
-        print("self.optatmo_psf_kwargs after getting params for _fit_optics_residual(): {0}".format(self.optatmo_psf_kwargs))
-        print("self.optatmo_psf_kwargs['L0']: {0}".format(self.optatmo_psf_kwargs['L0']))   
-        print("self.optatmo_psf_kwargs['g1']: {0}".format(self.optatmo_psf_kwargs['g1']))         
+        #print("params for first star: {0}".format(opt_params[0]))
+        #print("self.optatmo_psf_kwargs after getting params for _fit_optics_residual(): {0}".format(self.optatmo_psf_kwargs))
+        #print("self.optatmo_psf_kwargs['L0']: {0}".format(self.optatmo_psf_kwargs['L0']))   
+        #print("self.optatmo_psf_kwargs['g1']: {0}".format(self.optatmo_psf_kwargs['g1']))         
 
         # measure their shapes and calculate chi
         chi = np.array([])
@@ -2084,8 +2134,9 @@ class OptAtmoPSF(PSF):
             shape = shapes[i]
             error = shape_errors[i]
             if i % 100 == 0:
-                print("shape: ")
-                print(shape)
+                #print("shape: ")
+                #print(shape)
+                pass
 
             try:
                 # get profile; modify based on flux and shifts
@@ -2093,14 +2144,16 @@ class OptAtmoPSF(PSF):
 
                 # measure final shape
                 if i % 100 == 0:
-                    print("params: ")
-                    print(params)
+                    #print("params: ")
+                    #print(params)
+                    pass
 
                 star_model = self.drawProfile(star, profile, params)
                 shape_model = self.measure_shape_orthogonal(star_model)
                 if i % 100 == 0:
-                    print("shape_model: ")
-                    print(shape_model)
+                    #print("shape_model: ")
+                    #print(shape_model)
+                    pass
                 if np.any(shape_model != shape_model):
                     logger.warning('Star {0} returned nan shape'.format(i))
                     logger.warning('Parameters are {0}'.format(str(params)))
@@ -2118,8 +2171,9 @@ class OptAtmoPSF(PSF):
             # don't care about flux, du, dv here
             chi_i = self._shape_weights * (((shape_model - shape) / error)[3:])
             if i % 100 == 0:
-                print("chi_i: ")
-                print(chi_i)
+                #print("chi_i: ")
+                #print(chi_i)
+                pass
             chi = np.hstack((chi, chi_i))
         logger.debug('Current Total Chi2 / dof is {0:.4e} / {1}'.format(np.sum(np.square(chi)), len(chi)))
         if only_size == False:
@@ -2194,7 +2248,8 @@ class OptAtmoPSF(PSF):
 
         return chi
 
-    def _fit_model_shape_residual(self, lmparams, star, logger=None): 
+    def _fit_model_shape_residual(self, lmparams, star, optical_profile, shape, error, logger=None): 
+        # Note: Indications are that this alternative to _fit_model_residual() is slower. As a result, it has not been updates in a while and it is not known if it is compatible with the current version of the PIFF fitting pipeline.
         """Residual function for fitting individual profile parameters to observed shapes.
         :param lmparams:    lmfit Parameters object
         :param star:        A Star instance.
@@ -2207,18 +2262,41 @@ class OptAtmoPSF(PSF):
         all_params = lmparams.valuesdict().values()
         flux, du, dv = all_params[:3]
         params = all_params[3:]
+        if optical_profile == None:
+            # if no optical profile, make the entire profile from scratch
+            profile = self.getProfile(params).shift(du, dv) * flux
+        else:
+            # if there is an optical profile, just make the atmospheric profile
+            # add stochastic (labelled "atm") and constant (labelled "opt") pieces together
+            if self.atmosphere_model == 'kolmogorov':
+                size = params[0] + params[3]
+                g1 = params[1] + params[4]
+                g2 = params[2] + params[5]
+                atmo = galsim.Kolmogorov(gsparams=self.gsparams,
+                                         **self.kolmogorov_kwargs
+                                         ).dilate(size).shear(g1=g1, g2=g2)
+            elif self.atmosphere_model == 'vonkarman':
+                size = params[0] + params[4]
+                g1 = params[1] + params[5]
+                g2 = params[2] + params[6]
+                L0 = params[3]
+                kolmogorov_kwargs = {'lam': self.kolmogorov_kwargs['lam'],
+                                     'r0': self.kolmogorov_kwargs['r0'] / size,
+                                     'L0': L0,}
+                atmo = galsim.VonKarman(gsparams=self.gsparams,
+                                        **kolmogorov_kwargs).shear(g1=g1, g2=g2)
 
-        profile = self.getProfile(params).shift(du, dv) * flux
+            # convolve together
+            profile = galsim.Convolve([optical_profile, atmo], gsparams=self.gsparams).shift(du, dv) * flux
+
         star_model = self.drawProfile(star, profile, params, use_fit=False)
         shape_model = self.measure_shape_orthogonal(star_model) # maybe don't include flux and center in the chi?; maybe don't even float flux and center if using shape mode for fit_model()
-        shape = self.measure_shape_orthogonal(star)
-        error = self.measure_error_orthogonal(star)
 
         chi = (shape_model - shape) / error
 
         return chi
 
-    def _fit_model_residual(self, lmparams, star, logger=None):
+    def _fit_model_residual(self, lmparams, star, optical_profile, logger=None):
         """Residual function for fitting individual profile parameters to observed pixels.
         :param lmparams:    lmfit Parameters object
         :param star:        A Star instance.
@@ -2231,8 +2309,32 @@ class OptAtmoPSF(PSF):
         all_params = lmparams.valuesdict().values()
         flux, du, dv = all_params[:3]
         params = all_params[3:]
+        if optical_profile == None:
+            # if no optical profile, make the entire profile from scratch
+            prof = self.getProfile(params).shift(du, dv) * flux
+        else:
+            # if there is an optical profile, just make the atmospheric profile
+            # add stochastic (labelled "atm") and constant (labelled "opt") pieces together
+            if self.atmosphere_model == 'kolmogorov':
+                size = params[0] + params[3]
+                g1 = params[1] + params[4]
+                g2 = params[2] + params[5]
+                atmo = galsim.Kolmogorov(gsparams=self.gsparams,
+                                         **self.kolmogorov_kwargs
+                                         ).dilate(size).shear(g1=g1, g2=g2)
+            elif self.atmosphere_model == 'vonkarman':
+                size = params[0] + params[4]
+                g1 = params[1] + params[5]
+                g2 = params[2] + params[6]
+                L0 = params[3]
+                kolmogorov_kwargs = {'lam': self.kolmogorov_kwargs['lam'],
+                                     'r0': self.kolmogorov_kwargs['r0'] / size,
+                                     'L0': L0,}
+                atmo = galsim.VonKarman(gsparams=self.gsparams,
+                                        **kolmogorov_kwargs).shear(g1=g1, g2=g2)
 
-        prof = self.getProfile(params).shift(du, dv) * flux
+            # convolve together
+            prof = galsim.Convolve([optical_profile, atmo], gsparams=self.gsparams).shift(du, dv) * flux
 
         # calculate chi
         image, weight, image_pos = star.data.getImage()
