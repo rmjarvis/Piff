@@ -108,7 +108,7 @@ class OptAtmoPSF(PSF):
         :param higher_order_reference_wavefront_file:           A string with the path and filename of the 
                                                                 pickle containing the higher order
                                                                 reference wavefront. Note: the code should
-                                                                not work if this file is not specified. 
+                                                                not work if this file is not specified.
         :random_forest_shapes_model_pickles_location:           A string with the path to the folder
                                                                 containing the random forest model pickles
                                                                 for the random_forest fit. Note: the code
@@ -159,7 +159,7 @@ class OptAtmoPSF(PSF):
             -   After finding a^{atmosphere}_{ik}, we fit the atmo_interp to
                 interpolate those parameters as a function of focal plane
                 position (u_i, v_i).
-        """#TODO: either stop code from working if lower order reference wavefront not specified or allow code to work if higher order reference wavefront specified
+        """
         logger = LoggerWrapper(logger)
 
         # If pupil_angle and strut angle are provided as strings, eval them.

@@ -63,6 +63,8 @@ def return_config():
             'jmax_pupil': 11,
             'jmax_focal': 11,
             'min_optfit_snr': 0,
+            'higher_order_reference_wavefront_file': './input/decam_2012-nominalzernike-protocol2.pickle',
+            'random_forest_shapes_model_pickles_location': '/nfs/slac/kipac/fs1/g/des/aresh/random_forest_shapes_model_pickles', #the random forest model pickles are too big to fit inside of the PIFF tests folder, so I put the path to where I have them in my directory #TODO: resolve this issue somehow so this is not necessary
             'optatmo_psf_kwargs':
                 {
                     'fix_zPupil011': True
