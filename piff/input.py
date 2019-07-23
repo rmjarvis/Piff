@@ -164,56 +164,56 @@ class Input(object):
                        "s" if len(self.images) > 1 else "")
 
         # here we remove nuisance stars. We do this by seeing if there is an unusual amount of flux far from the center of the postage stamp
-	flux_extras = []
-	for star in stars:
-	    flux_extra = 0
-	    for i in range(0,self.stamp_size):
-		for j in range(0,self.stamp_size):
-		    if np.sqrt(np.square((self.stamp_size-1.0)/2.0-i)+np.square((self.stamp_size-1.0)/2.0-j))>(self.stamp_size-1.0)/3.0:
-		        flux_extra = flux_extra + star.image.array[i][j]
-	    flux_extras.append(flux_extra)
+        flux_extras = []
+        for star in stars:
+            flux_extra = 0
+            for i in range(0,self.stamp_size):
+                for j in range(0,self.stamp_size):
+                    if np.sqrt(np.square((self.stamp_size-1.0)/2.0-i)+np.square((self.stamp_size-1.0)/2.0-j))>(self.stamp_size-1.0)/3.0:
+                        flux_extra = flux_extra + star.image.array[i][j]
+            flux_extras.append(flux_extra)
 
-	hist = np.histogram(flux_extras, bins = 1000)
-	y = hist[0]
-	increment = (hist[1][1000]-hist[1][0])/1000.0
-	half_increment = increment/2.0
-	x_uncut = hist[1] + half_increment
-	x = np.delete(x_uncut,1000)
-	gaussian_amplitude = np.amax(y)
-	guess_sigma = 0.0
-	for i in range(0,len(y)):
-	    if y[i]>0.5*gaussian_amplitude:
-		guess_sigma = np.abs(x[i])
-		break
+        hist = np.histogram(flux_extras, bins = 1000)
+        y = hist[0]
+        increment = (hist[1][1000]-hist[1][0])/1000.0
+        half_increment = increment/2.0
+        x_uncut = hist[1] + half_increment
+        x = np.delete(x_uncut,1000)
+        gaussian_amplitude = np.amax(y)
+        guess_sigma = 0.0
+        for i in range(0,len(y)):
+            if y[i]>0.5*gaussian_amplitude:
+                guess_sigma = np.abs(x[i])
+                break
 
-	def gaussian_func(x,b):
-	    return gaussian_amplitude/np.exp(np.square(x)/(2*np.square(b)))
-	popt,pcov = curve_fit(gaussian_func,x,y,guess_sigma)
-	sigma = popt[0]
-	delete_list = []
-	for star_i, star in enumerate(stars):
-	    if flux_extras[star_i] > 2*sigma:
-		delete_list.append(star_i)
-	stars = np.delete(stars, delete_list)
-	stars = stars.tolist()
+        def gaussian_func(x,b):
+            return gaussian_amplitude/np.exp(np.square(x)/(2*np.square(b)))
+        popt,pcov = curve_fit(gaussian_func,x,y,guess_sigma)
+        sigma = popt[0]
+        delete_list = []
+        for star_i, star in enumerate(stars):
+            if flux_extras[star_i] > 2*sigma:
+                delete_list.append(star_i)
+        stars = np.delete(stars, delete_list)
+        stars = stars.tolist()
 
-	logger.info("There are {0} stars after the nuisance star cut".format(len(stars)))
+        logger.info("There are {0} stars after the nuisance star cut".format(len(stars)))
 
         # here we remove stars that have been at least partially covered by a mask and thus have weight exactly 0 in at least one pixel of their postage stamp
-	star_weightmaps = []
-	for star in stars:
-		#print("star_weightmap: {0}".format(star.weight.array))
-		star_weightmaps.append(star.weight.array)
-	star_weightmaps = np.array(star_weightmaps)
-	#print("star_weightmaps: {0}".format(star_weightmaps))
-	conds_not_masked = (np.all(star_weightmaps != 0.0,axis=(1,2)))
-	for s, star_weightmap in enumerate(star_weightmaps):
-		if not np.all(star_weightmap != 0.0):
-			#print("star_weightmap for star {0}: {1}".format(s, star_weightmap))
-			pass
-	stars = np.array(stars)[conds_not_masked].tolist()
-	logger.info("There are {0} stars after the masked star cut".format(len(stars)))
-	return stars
+        star_weightmaps = []
+        for star in stars:
+            #print("star_weightmap: {0}".format(star.weight.array))
+            star_weightmaps.append(star.weight.array)
+        star_weightmaps = np.array(star_weightmaps)
+        #print("star_weightmaps: {0}".format(star_weightmaps))
+        conds_not_masked = (np.all(star_weightmaps != 0.0,axis=(1,2)))
+        for s, star_weightmap in enumerate(star_weightmaps):
+            if not np.all(star_weightmap != 0.0):
+                #print("star_weightmap for star {0}: {1}".format(s, star_weightmap))
+                pass
+        stars = np.array(stars)[conds_not_masked].tolist()
+        logger.info("There are {0} stars after the masked star cut".format(len(stars)))
+        return stars
 
     @staticmethod
     def calculateSNR(image, weight):
@@ -582,24 +582,7 @@ class InputFiles(Input):
             # Check for objects well off the edge.  We won't use them.
             #big_bounds = image.bounds.expand(self.stamp_size)
             #image_pos = [ pos for pos in image_pos if big_bounds.includes(pos) ]
-#The above two lines cause the following error, so they are commented out:
-#cat_file_name: /nfs/slac/g/ki/ki19/des/cpd/y3_piff/exposures_v29_grizY/510062/psf_cat_510062_1.fits
-#cat_hdu: 2
-#Traceback (most recent call last):
-#  File "fit_psf.py", line 593, in <module>
-#    fit_psf(**kwargs)
-#  File "fit_psf.py", line 261, in fit_psf
-#    stars, wcs, pointing = piff.Input.process(config['input'], logger=logger)
-#  File "/u/ec/aresh/Piff-galsimify_optatmo/piff/input.py", line 54, in process
-#    input_handler = input_handler_class(config_input, logger)
-#  File "/u/ec/aresh/Piff-galsimify_optatmo/piff/input.py", line 583, in __init__
-#    image_pos = [ pos for pos in image_pos if big_bounds.includes(pos) ]
-#Boost.Python.ArgumentError: Python argument types in
-#    BoundsI.includes(BoundsI, PositionD)
-#did not match C++ signature:
-#    includes(galsim::Bounds<int> {lvalue}, galsim::Bounds<int>)
-#    includes(galsim::Bounds<int> {lvalue}, int, int)
-#    includes(galsim::Bounds<int> {lvalue}, galsim::Position<int>)
+            #The above two lines cause an  error, so they are commented out for now:
 
             if config.get('remove_signal_from_weight', False):
                 # Subtract off the mean sky, since this isn't part of the "signal" we want to

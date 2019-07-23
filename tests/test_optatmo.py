@@ -67,7 +67,7 @@ def return_config():
                 {
                     'fix_zPupil011': True
                 },
-            'analytic_coefs': '/nfs/slac/g/ki/ki18/cpd/Projects/DES/Piff/piff/des/analytic_hsm_coefs.npy',
+            #'analytic_coefs': '/nfs/slac/g/ki/ki18/cpd/Projects/DES/Piff/piff/des/analytic_hsm_coefs.npy',
             'atmo_interp':
                 {
                     'type': 'Polynomial',
@@ -350,8 +350,8 @@ def test_fit():
             train = optatmo_psf_kwargs_values[key]
             fit = psf_train.optatmo_psf_kwargs[key]
             diff = np.abs(train - fit)
-            if fit_optics_mode == 'analytic':
-                tol = 0.1  # lower expectations with the analytic mode
+            if fit_optics_mode == 'random_forest':
+                tol = 0.1  # lower expectations with the random_forest mode
             else:
                 tol = 0.01
             assert diff <= tol,'failed to fit {0} to tolerance {4}: {1:+.3f}, {2:+.3f}, {3:+.3f}'.format(key, train, fit, train - fit, tol)
@@ -549,6 +549,7 @@ def test_jmaxs():
     assert psf.aberrations_field[21-1, 45-1] == optatmo_psf_kwargs['zPupil021_zFocal045']
     assert psf.aberrations_field[4-1, 1-1] == optatmo_psf_kwargs['zPupil004_zFocal001']
 
+"""
 @timer
 def test_analytic_coefs():
     # set up logger
@@ -614,6 +615,7 @@ def test_analytic_coefs():
     psf.write(psf_file, logger=logger)
     psf_read = piff.read(psf_file, logger=logger)
     assert psf.analytic_coefs == psf_read.analytic_coefs
+"""
 
 @timer
 def test_snr_and_shapes():
@@ -781,10 +783,12 @@ def test_roundtrip():
     assert psf.kolmogorov_kwargs == psf_original.kolmogorov_kwargs
     assert psf.optical_psf_kwargs == psf_original.optical_psf_kwargs
 
+"""
     # check analytic coefs
     for ac1, ac2 in zip(psf.analytic_coefs, psf_original.analytic_coefs):
         for c1, c2 in zip(ac1, ac2):
             np.testing.assert_allclose(c1, c2)
+"""
 
     # copy these over to facilitate later writing for these tests
     stars = psf.stars
@@ -918,7 +922,7 @@ if __name__ == '__main__':
     test_atmo_interp_fit()
     test_profile()
     test_snr_and_shapes()
-    test_analytic_coefs()
+    #test_analytic_coefs()
     test_roundtrip()
     test_lmparams()
     test_fit()
