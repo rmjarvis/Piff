@@ -1,3 +1,5 @@
+#This whole unit test file tests many methods of the Optical class, which have been replaced by equivalent ones in the OptAtmoPSF class; therefore, this unit test file serves no purpose. TODO: make an equivalent unit test file that tests the equivalent methods in the OptAtmoPSF class.
+
 # Copyright (c) 2016 by Mike Jarvis and the other collaborators on GitHub at
 # https://github.com/rmjarvis/Piff  All rights reserved.
 #
