@@ -204,11 +204,11 @@ class Input(object):
         delete_list = []
         for star_i, star in enumerate(stars):
             #if flux_extras[star_i] > 5*sigma:
-            if madx[star_i] > 1.48 * 6 * mad:
+            if madx[star_i] > 1.48 * 7.5 * mad:
                 delete_list.append(star_i)
                 #plt.figure()
                 #plt.imshow(star.image.array)
-                #plt.savefig("/u/ec/aresh/Piff-galsimify_optatmo/tests/stars_with_nuisance_stars/star_{0}.png".format(star_i))
+                #plt.savefig("/u/ec/aresh/Piff-galsimify_optatmo/tests/star_{0}.png".format(star_i))
         stars = np.delete(stars, delete_list)
         stars = stars.tolist()
 
