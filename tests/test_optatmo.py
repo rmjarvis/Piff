@@ -54,7 +54,7 @@ def return_config():
                 {
                     #'file_name': './input/Science-20121120s1-v20i2.fits',
                     #'file_name': '/nfs/slac/kipac/fs1/g/des/aresh/lower_order_reference_wavefront_folder/Science-20140212s2-v22i2.fits',
-                    'file_name': './input/Science-20140212s2-v22i2.fits',
+                    'file_name': '/nfs/slac/kipac/fs1/g/des/aresh/lower_order_reference_wavefront_folder/Science-20140212s2-v22i2.fits',
                     'extname': 1,
                     'n_neighbors': 40,
                     'weights': 'distance',
@@ -68,7 +68,7 @@ def return_config():
             'jmax_focal': 11,
             'min_optfit_snr': 0,
             'higher_order_reference_wavefront_file': './input/decam_2012-nominalzernike-protocol2.pickle',
-            'random_forest_shapes_model_pickles_location': '.input/random_forest_shapes_model_pickles', #the random forest model pickles are too big to fit inside of the PIFF tests folder, so I put the path to where I have them in my directory #TODO: resolve this issue somehow so this is not necessary
+            'random_forest_shapes_model_pickles_location': '/nfs/slac/kipac/fs1/g/des/aresh/random_forest_shapes_model_pickles', #the random forest model pickles are too big to fit inside of the PIFF tests folder, so I put the path to where I have them in my directory #TODO: resolve this issue somehow so this is not necessary
             'optatmo_psf_kwargs':
                 {
                     'fix_zPupil011': True
