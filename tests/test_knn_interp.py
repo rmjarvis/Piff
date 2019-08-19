@@ -177,13 +177,15 @@ def test_disk():
 def test_decam_wavefront():
     #file_name = 'input/Science-20121120s1-v20i2.fits'
     #extname = 'Science-20121120s1-v20i2'
-    file_name = 'input/Science-20140212s2-v22i2.fits'
+    #file_name = 'input/Science-20140212s2-v22i2.fits'
+    file_name = '/nfs/slac/kipac/fs1/g/des/aresh/lower_order_reference_wavefront_folder/Science-20140212s2-v22i2.fits'
     extname = 1
 
     if __name__ == '__main__':
         logger = piff.config.setup_logger(verbose=2)
     else:
         logger = None
+    print("file_name 1: {0}".format(file_name))
     knn = piff.des.DECamWavefront(file_name, extname, logger=logger)
 
     n_samples = 2000
@@ -232,7 +234,8 @@ def test_decam_wavefront():
 def test_decam_disk():
     #file_name = 'input/Science-20121120s1-v20i2.fits'
     #extname = 'Science-20121120s1-v20i2'
-    file_name = 'input/Science-20140212s2-v22i2.fits'
+    #file_name = 'input/Science-20140212s2-v22i2.fits'
+    file_name = '/nfs/slac/kipac/fs1/g/des/aresh/lower_order_reference_wavefront_folder/Science-20140212s2-v22i2.fits'
     extname = 1
     knn = piff.des.DECamWavefront(file_name, extname, n_neighbors=30)
 

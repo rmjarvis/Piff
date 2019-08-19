@@ -228,6 +228,10 @@ class GPInterp2pcf(Interp):
         if len(keys)!=2:
             raise ValueError('the total size of keys can not be something else than 2 using two-point correlation function. Here len(keys) = %i'%(len(keys)))
 
+        print("kernel: {0}".format(kernel))
+        print("type(kernel): {0}".format(type(kernel)))
+        if str(type(kernel)) == "<class 'numpy.str_'>":
+            kernel = str(kernel)
         if type(kernel) is str:
             self.kernel_template = [self._eval_kernel(kernel)]
         else:

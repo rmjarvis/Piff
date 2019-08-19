@@ -24,7 +24,7 @@ import numpy as np
 import copy
 import os
 from sklearn.ensemble import RandomForestRegressor
-import cPickle
+import _pickle as cPickle
 import pickle
 from scipy.interpolate import Rbf
 
@@ -37,6 +37,48 @@ from .model import ModelFitError
 from .star import Star, StarFit, StarData
 from .util import hsm_error, hsm_third_moments, hsm_error_third_moments, hsm_fourth_moments, hsm_error_fourth_moments, hsm_orthogonal, hsm_error_orthogonal, measure_snr, write_kwargs, read_kwargs
 from .config import LoggerWrapper
+
+def horner_from_galsim1(x, coef, dtype=None):
+    """Evaluate univariate polynomial using Horner's method.
+
+    I.e., take A + Bx + Cx^2 + Dx^3 and evaluate it as
+    A + x(B + x(C + x(D)))
+
+    @param x        A numpy array of values at which to evaluate the polynomial.
+    @param coef     Polynomial coefficients of increasing powers of x.
+    @param dtype    Optionally specify the dtype of the return array. [default: None]
+
+    @returns a numpy array of the evaluated polynomial.  Will be the same shape as x.
+    """
+    coef = np.trim_zeros(coef, trim='b')
+    result = np.zeros_like(x, dtype=dtype)
+    if len(coef) == 0: return result
+    result += coef[-1]
+    for c in coef[-2::-1]:
+        result *= x
+        if c != 0: result += c
+    #np.testing.assert_almost_equal(result, np.polynomial.polynomial.polyval(x,coef))
+    return result
+
+def horner2d_from_galsim1(x, y, coefs, dtype=None):
+    """Evaluate bivariate polynomial using nested Horner's method.
+
+    @param x        A numpy array of the x values at which to evaluate the polynomial.
+    @param y        A numpy array of the y values at which to evaluate the polynomial.
+    @param coefs    2D array-like of coefficients in increasing powers of x and y.
+                    The first axis corresponds to increasing the power of y, and the second to
+                    increasing the power of x.
+    @param dtype    Optionally specify the dtype of the return array. [default: None]
+
+    @returns a numpy array of the evaluated polynomial.  Will be the same shape as x and y.
+    """
+    result = horner_from_galsim1(y, coefs[-1], dtype=dtype)
+    for coef in coefs[-2::-1]:
+        result *= x
+        result += horner_from_galsim1(y, coef, dtype=dtype)
+    # Useful when working on this... (Numpy method is much slower, btw.)
+    #np.testing.assert_almost_equal(result, np.polynomial.polynomial.polyval2d(x,y,coefs))
+    return result
 
 class wavefrontmap(object):
     """ wavefrontmap is a class used to build and access a Wavefront map - zernike coefficients vs. X,Y
@@ -208,9 +250,9 @@ class OptAtmoPSF(PSF):
 
         # Field-of-view does not have obscuration, so obscuration=0 and annular=False here.
         #if galsim.__version__ >= 2.0:
-        #    self._noll_coef_field = galsim.zernike._noll_coef_array(self.jmax_focal, 0.0)
+        self._noll_coef_field = galsim.zernike._noll_coef_array(self.jmax_focal, 0.0)
         #else:
-        self._noll_coef_field = galsim.phase_screens._noll_coef_array(self.jmax_focal, 0.0, False)
+        #    self._noll_coef_field = galsim.phase_screens._noll_coef_array(self.jmax_focal, 0.0, False)
 
         min_sizes = {'kolmogorov': 0.45, 'vonkarman': 0.7}
         if atmosphere_model == 'vonkarman':
@@ -544,7 +586,7 @@ class OptAtmoPSF(PSF):
             logger.debug('Measuring shape of train star {0}'.format(star_i))
             try:
                 shape = self.measure_shape_orthogonal(star, logger=logger) #shapes measured here include flux, center, 2nd, 3rd, and orthogonal radial moments up to eighth moments
-                #print("shape: {0}".format(shape))
+                print("shape: {0}".format(shape))
                 error = self.measure_error_orthogonal(star, logger=logger) #errors measured here include flux, center, 2nd, 3rd, and orthogonal radial moments up to eighth moments
                 star = Star(star.data, StarFit(None, flux=shape[0], center=(shape[1], shape[2])))
                 star.data.properties['shape'] = shape
@@ -694,7 +736,21 @@ class OptAtmoPSF(PSF):
         # the "atmospheric" size is the deviation from this average at different points in the focal plane.
         # only use the e0 moment to fit
         # fit_size() is used before the full optical fit because it makes that fit faster
+        #self.opt_sizes_from_fit_size = []
+        #self.chis_from_fit_size = []
+        moments_list = ["e0", "e1", "e2", "zeta1", "zeta2", "delta1", "delta2", "orth4", "orth6", "orth8"]
+        self.length_of_moments_list = len(moments_list)
         self.fit_size(self.fit_optics_stars, self.fit_optics_star_shapes, self.fit_optics_star_errors, logger=logger, **kwargs)
+        #print("self.opt_sizes_from_fit_size: {0}".format(self.opt_sizes_from_fit_size))
+        #print("self.chis_from_fit_size: {0}".format(self.chis_from_fit_size))
+        #argmin = np.argmin(self.chis_from_fit_size)
+        #min_chi_opt_size = self.opt_sizes_from_fit_size[argmin]
+        #min_chi = self.chis_from_fit_size[argmin]
+        #print("min-chi opt_size covered by fit_size: {0}".format(min_chi_opt_size))
+        #print("min-chi covered by fit_size: {0}".format(min_chi))
+        #print("opt_size found by lmfit for fit_size(): {0}".format(self._fit_size_results.params.valuesdict()['size']))
+        #import sys
+        #sys.exit()
 
         # do a fit to moments ("shape" mode) or pixels ("pixel" mode), whichever is specified in the yaml file. Nothing happens here if "random_forest" mode (which is the default) is chosen
         # this is the "optical" fit; despite being called that the fit parameters here are the optical fit parameters and the average of the atmospheric fit parameters
@@ -746,19 +802,17 @@ class OptAtmoPSF(PSF):
                 self.pull_all_stars_optical = pull_all_stars
 
 
-        number_of_stars_used_in_optical_chi = len(self.final_optical_chi)/10
-        moments_list = ["e0", "e1", "e2", "zeta1", "zeta2", "delta1", "delta2", "orth4", "orth6", "orth8"]
-        length_of_moments_list = len(moments_list) 
+        number_of_stars_used_in_optical_chi = len(self.final_optical_chi)/self.length_of_moments_list 
         print("total chisq for optical chi: {0}".format(np.sum(np.square(self.final_optical_chi))))
         for tm, test_moment in enumerate(moments_list):
-            print("total chisq for optical chi for {0}: {1}".format(test_moment,np.sum(np.square(self.final_optical_chi)[tm::length_of_moments_list])))
+            print("total chisq for optical chi for {0}: {1}".format(test_moment,np.sum(np.square(self.final_optical_chi)[tm::self.length_of_moments_list])))
         print("total dof for optical chi: {0}".format(len(self.final_optical_chi)))
         print("number_of_stars_used_in_optical_chi: {0}".format(number_of_stars_used_in_optical_chi))
 
         # record the chi
         self.chisq_all_stars_optical = np.empty(number_of_stars_used_in_optical_chi)
         for s in range(0,number_of_stars_used_in_optical_chi):
-            self.chisq_all_stars_optical[s] = np.sum(np.square(self.final_optical_chi[s*length_of_moments_list:s*length_of_moments_list+length_of_moments_list]))
+            self.chisq_all_stars_optical[s] = np.sum(np.square(self.final_optical_chi[s*self.length_of_moments_list:s*self.length_of_moments_list+self.length_of_moments_list]))
         print("len(self.stars): {0}".format(len(self.stars)))
 
         # this is the "atmospheric" fit.
@@ -775,8 +829,6 @@ class OptAtmoPSF(PSF):
             # enable atmosphere interpolation now that we have solved the interp
             logger.info('Enabling Interpolated Atmosphere')
             self._enable_atmosphere = True
-
-
 
     def _getParamsList_aberrations_field(self, stars):
         """Get params for a list of stars from the aberrations
@@ -799,7 +851,8 @@ class OptAtmoPSF(PSF):
         r = (u + 1j * v) / self.fov_radius
         rsqr = np.abs(r) ** 2
         # get [size, g1, g2, z4, z5...]
-        aberrations_pupil = np.array([galsim.utilities.horner2d(rsqr, r, ca, dtype=complex).real
+        #aberrations_pupil = np.array([galsim.utilities.horner2d(rsqr, r, ca, dtype=complex).real
+        aberrations_pupil = np.array([horner2d_from_galsim1(rsqr, r, ca, dtype=complex).real
                                for ca in self._coef_arrays_field]).T  # (nstars, ncoefs)
 
         return aberrations_pupil
@@ -977,18 +1030,25 @@ class OptAtmoPSF(PSF):
                             PSF
         """
         # use flux and center properties
+        #print("preparing to use flux and center properties")
         if use_fit:
             prof = prof.shift(star.fit.center) * star.fit.flux
+        #print("preparing to use getImage()")
         image, weight, image_pos = star.data.getImage()
+        #print("preparing possibly copy image")
         if copy_image:
             image_model = image.copy()
         else:
             image_model = image
+        #print("preparing to use drawImage()")
         prof.drawImage(image_model, method='auto', offset=(star.image_pos-image_model.true_center))
+        #print("preparing to copy properties")
         properties = star.data.properties.copy()
+        #print("preparing to pop some properties")
         for key in ['x', 'y', 'u', 'v']:
             # Get rid of keys that constructor doesn't want to see:
             properties.pop(key, None)
+        #print("preparing to make StarData object")
         data = StarData(image=image_model,
                         image_pos=star.data.image_pos,
                         weight=star.data.weight,
@@ -997,9 +1057,11 @@ class OptAtmoPSF(PSF):
                         values_are_sb=star.data.values_are_sb,
                         orig_weight=star.data.orig_weight,
                         properties=properties)
+        #print("preparing to make StarFata object")
         fit = StarFit(params,
                       flux=star.fit.flux,
                       center=star.fit.center)
+        #print("preparing to make Star object")
         return Star(data, fit)
 
     def draw_fitted_star_given_fitted_image_and_flux(self, x, y, fitted_image, pointing, flux):
@@ -1815,8 +1877,8 @@ class OptAtmoPSF(PSF):
             results = lmfit.minimize(residual, lmparams,
                                  args=(star, optical_profile, logger,),
                                  **minimize_kwargs_in)
-        print("finished individual star fit for star")
-        logger.info("finished individual star fit for star")   
+        #print("finished individual star fit for star")
+        #logger.info("finished individual star fit for star")   
         nfev = results.nfev
         nvarys = results.nvarys
         maxfev = 2000*(nvarys+1)
@@ -2040,8 +2102,11 @@ class OptAtmoPSF(PSF):
         # fit_size() is used before the full optical fit and makes that fit faster
         chi = self._fit_optics_residual(lmparams, stars, shapes, shape_errors, logger, only_size=True)
         #print("chi: {0}".format(chi))
-        chi = chi[0] / self._shape_weights[0]	
+        chi = chi[0::self.length_of_moments_list] / self._shape_weights[0::self.length_of_moments_list]
+        #self.opt_sizes_from_fit_size.append(lmparams.valuesdict()['size'])
+        #self.chis_from_fit_size.append(chi)
         #print("chi: {0}".format(chi))
+        logger.debug('Current Total Chi2 / dof is {0:.4e} / {1}'.format(np.sum(np.square(chi)), len(chi)))
         # chi is a one-dimensional numpy array, containing e0_weight*((e0_model-e0)/e0_error) for all stars
         return chi
 
@@ -2098,6 +2163,12 @@ class OptAtmoPSF(PSF):
                 #print(shape)
                 pass
 
+            #logger.info("preparing to do getProfile()")
+            #profile = self.getProfile(params)
+            #logger.info("preparing to do drawProfile()")
+            #star_model = self.drawProfile(star, profile, params)
+            #logger.info("preparing to do measure_shape_orthogonal()")
+            #shape_model = self.measure_shape_orthogonal(star_model)
             try:
                 # get profile; modify based on flux and shifts
                 profile = self.getProfile(params)
@@ -2135,8 +2206,9 @@ class OptAtmoPSF(PSF):
                 #print(chi_i)
                 pass
             chi = np.hstack((chi, chi_i))
-        logger.debug('Current Total Chi2 / dof is {0:.4e} / {1}'.format(np.sum(np.square(chi)), len(chi)))
+        
         if only_size == False:
+            logger.debug('Current Total Chi2 / dof is {0:.4e} / {1}'.format(np.sum(np.square(chi)), len(chi)))
             self.total_redchi_across_iterations.append(np.sum(np.square(chi))/len(chi))
         self.final_optical_chi = chi
         # chi is a one-dimensional numpy array, containing moment_weight*((moment_model-moment)/moment_error) for all moments, for all stars
@@ -2219,7 +2291,7 @@ class OptAtmoPSF(PSF):
         """
         logger = LoggerWrapper(logger)
 
-        all_params = lmparams.valuesdict().values()
+        all_params = np.array(list(lmparams.valuesdict().values()))
         flux, du, dv = all_params[:3]
         params = all_params[3:]
         if optical_profile == None:
@@ -2266,7 +2338,9 @@ class OptAtmoPSF(PSF):
         """
         logger = LoggerWrapper(logger)
 
-        all_params = lmparams.valuesdict().values()
+        all_params = np.array(list(lmparams.valuesdict().values()))
+        #print("all_params: {0}".format(all_params))
+        #print("type(all_params): {0}".format(type(all_params)))
         flux, du, dv = all_params[:3]
         params = all_params[3:]
         if optical_profile == None:

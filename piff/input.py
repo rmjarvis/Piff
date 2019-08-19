@@ -168,15 +168,60 @@ class Input(object):
         logger.warning("Read a total of %d stars from %d image%s",len(stars),len(self.images),
                        "s" if len(self.images) > 1 else "")
 
+        # here we remove stars which have a deformed postage stamp
+        postage_stamp_heights = []
+        postage_stamp_widths = []
+        for star in stars:
+            postage_stamp_heights.append(star.image.array.shape[0])
+            postage_stamp_widths.append(star.image.array.shape[1])
+        postage_stamp_heights = np.array(postage_stamp_heights)
+        postage_stamp_widths = np.array(postage_stamp_widths)
+        conds_height_not_deformed = (postage_stamp_heights == self.stamp_size)
+        conds_width_not_deformed = (postage_stamp_widths == self.stamp_size)
+        stars = np.array(stars)[conds_height_not_deformed*conds_width_not_deformed].tolist()
+        logger.info("There are {0} stars after the deformed star cut".format(len(stars)))
+        print("There are {0} stars after the deformed star cut".format(len(stars)))
+
         # here we remove nuisance stars. We do this by seeing if there is an unusual amount of flux far from the center of the postage stamp
         flux_extras = []
-        for star in stars:
+        #print("self.stamp_size: {0}".format(self.stamp_size))
+        #number_of_deformed_stars = 0
+        for star_i, star in enumerate(stars):
+            #if star_i == 20 or star_i == 50:
+            #    plt.figure()
+            #    plt.imshow(star.image.array)
+            #    plt.savefig("/u/ec/aresh/Piff-galsimify_optatmo/tests/non_deformed_star_{0}.png".format(star_i))
+            #print("star_i: {0}".format(star_i))
             flux_extra = 0
+            #broken = False
             for i in range(0,self.stamp_size):
+                #if broken == True:
+                #    break
                 for j in range(0,self.stamp_size):
                     if np.sqrt(np.square((self.stamp_size-1.0)/2.0-i)+np.square((self.stamp_size-1.0)/2.0-j))>(self.stamp_size-1.0)*(5.0/12.0):
+                        #print("i: {0}".format(i))
+                        #print("j: {0}".format(j))
+                        #print("len(star.image.array) : {0}".format(star.image.array.shape))
+                        #try:
                         flux_extra = flux_extra + star.image.array[i][j]
+                        #except:
+                        #    print("i: {0}".format(i))
+                        #    print("j: {0}".format(j))
+                        #    print("len(star.image.array) : {0}".format(star.image.array.shape))
+                        #    number_of_deformed_stars = number_of_deformed_stars + 1
+                        #    print("deformed star found!")
+                        #    broken = True
+                        #    plt.figure()
+                        #    plt.imshow(star.image.array)
+                        #    plt.savefig("/u/ec/aresh/Piff-galsimify_optatmo/tests/deformed_star_{0}.png".format(star_i))
+                        #    break
+            #if broken == True:
+            #    continue
             flux_extras.append(flux_extra)
+        #print("number of stars: {0}".format(len(stars)))
+        #print("number_of_deformed_stars: {0}".format(number_of_deformed_stars))
+        #import sys
+        #sys.exit()
 
         #hist = np.histogram(flux_extras, bins = 1000)
         #y = hist[0]
@@ -216,21 +261,22 @@ class Input(object):
         print("There are {0} stars after the nuisance star cut".format(len(stars)))
 
         # here we remove stars that have been at least partially covered by a mask and thus have weight exactly 0 in at least one pixel of their postage stamp
-        star_weightmaps = []
-        for star in stars:
-            #print("star_weightmap: {0}".format(star.weight.array))
-            star_weightmaps.append(star.weight.array)
-        star_weightmaps = np.array(star_weightmaps)
-        #print("star_weightmaps: {0}".format(star_weightmaps))
-        conds_not_masked = (np.all(star_weightmaps != 0.0,axis=(1,2)))
-        for s, star_weightmap in enumerate(star_weightmaps):
-            if not np.all(star_weightmap != 0.0):
-                #print("star_weightmap for star {0}: {1}".format(s, star_weightmap))
-                #plt.figure()
-                #plt.imshow(star_weightmap)
-                #plt.savefig("/u/ec/aresh/Piff-galsimify_optatmo/tests/weightmaps_of_masked_stars/star_weightmap_{0}.png".format(s))
-                pass
-        stars = np.array(stars)[conds_not_masked].tolist()
+        if len(stars) > 0:
+            star_weightmaps = []
+            for star in stars:
+                #print("star_weightmap: {0}".format(star.weight.array))
+                star_weightmaps.append(star.weight.array)
+            star_weightmaps = np.array(star_weightmaps)
+            #print("star_weightmaps: {0}".format(star_weightmaps))
+            conds_not_masked = (np.all(star_weightmaps != 0.0,axis=(1,2)))
+            for s, star_weightmap in enumerate(star_weightmaps):
+                if not np.all(star_weightmap != 0.0):
+                    #print("star_weightmap for star {0}: {1}".format(s, star_weightmap))
+                    #plt.figure()
+                    #plt.imshow(star_weightmap)
+                    #plt.savefig("/u/ec/aresh/Piff-galsimify_optatmo/tests/weightmaps_of_masked_stars/star_weightmap_{0}.png".format(s))
+                    pass
+            stars = np.array(stars)[conds_not_masked].tolist()
         logger.info("There are {0} stars after the masked star cut".format(len(stars)))
         print("There are {0} stars after the masked star cut".format(len(stars)))
         return stars
@@ -532,7 +578,7 @@ class InputFiles(Input):
                              'file names')
 
         self.chipnums = list(range(nimages))
-        self.stamp_size = int(config.get('stamp_size', 32))
+        self.stamp_size = int(config.get('stamp_size', 19)) # previous default was 32
         self.images = []
         self.weight = []
         self.image_pos = []
@@ -777,8 +823,8 @@ class InputFiles(Input):
 
         # Read in the star catalog
         logger.warning("Reading star catalog %s.",cat_file_name)
-	print("cat_file_name: {0}".format(cat_file_name))
-	print("cat_hdu: {0}".format(cat_hdu))
+        print("cat_file_name: {0}".format(cat_file_name))
+        print("cat_hdu: {0}".format(cat_hdu))
         cat = fitsio.read(cat_file_name, cat_hdu)
 
         if flag_col is not None:

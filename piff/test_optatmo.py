@@ -530,10 +530,6 @@ def test_jmaxs():
     config['jmax_focal'] = 45
     psf = piff.PSF.process(config)
     stars = [make_star(100, 100, 1), make_star(100, 100, 60), make_star(100, 100, 3)]  # 0 and 1 share u, 0 and 2 share v
-    #np.save("/u/ec/aresh/Piff-galsimify_optatmo/tests/stars.npy",stars)
-    #print("succeeded")
-    #import sys
-    #sys.exit()
     aberrations_pupil = psf._getParamsList_aberrations_field(stars)
     #print("aberrations_pupil 1: {0}".format(aberrations_pupil))
 
@@ -982,11 +978,18 @@ def test_lmparams():
     lmparams = psf._fit_optics_lmparams(kwargs, keys)
     assert lmparams['size'].value == kwargs['min_size']
 
+"""
+class dummy_safe(object):
+    def make_print()
+        print("printing")
+        return "printing"
+"""
+
 if __name__ == '__main__':
-    #test_init()
-    #test_aberrations()
-    #test_reference_wavefront()
-    #test_jmaxs()
+    test_init()
+    test_aberrations()
+    test_reference_wavefront()
+    test_jmaxs()
     test_atmo_model_fit()
     test_atmo_interp_fit()
     test_profile()
