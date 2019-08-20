@@ -160,8 +160,7 @@ class OptAtmoPSF(PSF):
         :param fit_atmosphere_mode:                             Choose ['shape', 'pixel']
                                                                 for atmosphere fitting mode. [default:
                                                                 'pixel']
-        :param atmosphere_model:                                Choose ['kolmogorov', 'vonkarman']. Selects the galsim object used for the atmospheric piece.
-                                                                Note that the default is vonkarman and to use kolmogorov would require some changes to input.py.
+        :param atmosphere_model:                                Choose ['kolmogorov', 'vonkarman']. Selects the galsim object used for the atmospheric piece. Note that the default is vonkarman and to use kolmogorov would require some changes to input.py.
         :param atmo_mad_outlier:                                Boolean. If true, when computing atmosphere interps remove 5 sigma outliers from a MAD cut
         :shape_weights:                                         A list of weights for the different moments to be used in the chisq fit
         :param logger:                                          A logger object for logging debug info.

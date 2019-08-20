@@ -343,7 +343,7 @@ def test_fit():
 
     # do fit
     #for fit_optics_mode in ['pixel', 'shape']:
-    for fit_optics_mode in ['shape']: # pixel mode too slow; uncertain if it would pass unit test
+    for fit_optics_mode in ['shape']:
         psf_train = piff.PSF.process(copy.deepcopy(config))
         logger.info('Test fitting optics mode {0}'.format(fit_optics_mode))
         psf_train.fit_optics_mode = fit_optics_mode
