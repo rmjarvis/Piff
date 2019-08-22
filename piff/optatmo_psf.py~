@@ -1921,7 +1921,6 @@ class OptAtmoPSF(PSF):
             param = results.params[key]
             fit_params[indx] = param.value
             if param.vary:
-                var = 0.0
                 if hasattr(param, 'stderr'):
                     if type(param.stderr) == "NoneType":
                         if estimated_errorbars_not_required:  # if estimated errorbars not required param variances likely also not required; this is likely if you are using fit_model() just to do a refluxing for a star

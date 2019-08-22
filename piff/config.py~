@@ -133,13 +133,13 @@ def process(config, logger=None):
     stars, wcs, pointing = Input.process(config['input'], logger=logger)
 
     psf = PSF.process(config['psf'], logger=logger)
-    #for star_i, star in enumerate(stars):
-    #    shape = psf.measure_shape_orthogonal(star)
-    #    if star_i % 10 == 0:
-    #        print("from piffify: star_i: {0}".format(star_i))
-    #        print("from piffify: shape: {0}".format(shape))
-    #        import sys
-    #        sys.exit()
+    for star_i, star in enumerate(stars):
+        shape = psf.measure_shape_orthogonal(star)
+        #if star_i % 10 == 0:
+        #    print("from piffify: star_i: {0}".format(star_i))
+        #    print("from piffify: shape: {0}".format(shape))
+        #    import sys
+        #    sys.exit()
     if 'type' in config['psf']:
         if config['psf']['type'] == 'OptAtmo':
             np.random.seed(12345)

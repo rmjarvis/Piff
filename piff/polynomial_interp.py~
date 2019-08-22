@@ -295,8 +295,8 @@ class Polynomial(Interp):
 
         # Loop through the parameters
         for i, parameter in enumerate(parameters):
-            #print("i: {0}".format(i))
-            #print("parameter: {0}".format(parameter))
+            print("i: {0}".format(i))
+            print("parameter: {0}".format(parameter))
 
             def model(uv,*coeffs):
                 C = self._unpack_coefficients(i, coeffs)
