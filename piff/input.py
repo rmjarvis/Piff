@@ -186,67 +186,18 @@ class Input(object):
         # here we remove nuisance stars. We do this by seeing if there is an unusual amount of flux far from the center of the postage stamp
         if len(stars) > 0:
             flux_extras = []
-            #print("self.stamp_size: {0}".format(self.stamp_size))
-            #number_of_deformed_stars = 0
             for star_i, star in enumerate(stars):
                 if star.image.array.shape[0] != self.stamp_size or star.image.array.shape[1] != self.stamp_size:
                     logger.info("Star {0} unable to be tested for having a nuisance star due to being deformed. Star will stay in.".format(star_i))
                     print("Star {0} unable to be tested for having a nuisance star due to being deformed. Star will stay in.".format(star_i))
                     flux_extras.append(np.nan)
                     continue
-                #if star_i == 20 or star_i == 50:
-                #    plt.figure()
-                #    plt.imshow(star.image.array)
-                #    plt.savefig("/u/ec/aresh/Piff-galsimify_optatmo/tests/non_deformed_star_{0}.png".format(star_i))
-                #print("star_i: {0}".format(star_i))
                 flux_extra = 0
-                #broken = False
                 for i in range(0,self.stamp_size):
-                    #if broken == True:
-                    #    break
                     for j in range(0,self.stamp_size):
                         if np.sqrt(np.square((self.stamp_size-1.0)/2.0-i)+np.square((self.stamp_size-1.0)/2.0-j))>(self.stamp_size-1.0)*(5.0/12.0):
-                            #print("i: {0}".format(i))
-                            #print("j: {0}".format(j))
-                            #print("len(star.image.array) : {0}".format(star.image.array.shape))
-                            #try:
                             flux_extra = flux_extra + star.image.array[i][j]
-                            #except:
-                            #    print("i: {0}".format(i))
-                            #    print("j: {0}".format(j))
-                            #    print("len(star.image.array) : {0}".format(star.image.array.shape))
-                            #    number_of_deformed_stars = number_of_deformed_stars + 1
-                            #    print("deformed star found!")
-                            #    broken = True
-                            #    plt.figure()
-                            #    plt.imshow(star.image.array)
-                            #    plt.savefig("/u/ec/aresh/Piff-galsimify_optatmo/tests/deformed_star_{0}.png".format(star_i))
-                            #    break
-                #if broken == True:
-                #    continue
                 flux_extras.append(flux_extra)
-            #print("number of stars: {0}".format(len(stars)))
-            #print("number_of_deformed_stars: {0}".format(number_of_deformed_stars))
-            #import sys
-            #sys.exit()
-
-            #hist = np.histogram(flux_extras, bins = 1000)
-            #y = hist[0]
-            #increment = (hist[1][1000]-hist[1][0])/1000.0
-            #half_increment = increment/2.0
-            #x_uncut = hist[1] + half_increment
-            #x = np.delete(x_uncut,1000)
-            #gaussian_amplitude = np.amax(y)
-            #guess_sigma = 0.0
-            #for i in range(0,len(y)):
-            #    if y[i]>0.5*gaussian_amplitude:
-            #        guess_sigma = np.abs(x[i])
-            #        break
-
-            #def gaussian_func(x,b):
-            #    return gaussian_amplitude/np.exp(-np.square(x)/(2*np.square(b)))
-            #popt,pcov = curve_fit(gaussian_func,x,y,guess_sigma)
-            #sigma = popt[0]
 
             flux_extras = np.array(flux_extras)
             med = np.nanmedian(flux_extras)
@@ -255,12 +206,8 @@ class Input(object):
 
             delete_list = []
             for star_i, star in enumerate(stars):
-                #if flux_extras[star_i] > 5*sigma:
                 if madx[star_i] > 1.48 * self.cutoff_nuisance_level * mad:
                     delete_list.append(star_i)
-                    #plt.figure()
-                    #plt.imshow(star.image.array)
-                    #plt.savefig("/u/ec/aresh/Piff-galsimify_optatmo/tests/star_{0}.png".format(star_i))
             stars = np.delete(stars, delete_list)
             stars = stars.tolist()
 
@@ -272,25 +219,8 @@ class Input(object):
             star_weightmaps = []
             delete_list = []
             for star_i, star in enumerate(stars):
-                #print("star_weightmap: {0}".format(star.weight.array))
-                #if star.weight.array.shape[0] == self.stamp_size and star.weight.array.shape[1] == self.stamp_size:
-                #    star_weightmaps.append(star.weight.array)
                 if star.weight.array.shape[0] * star.weight.array.shape[1] - np.count_nonzero(star.weight.array) >= self.cutoff_masked_level:
                     delete_list.append(star_i)
-                #    star_weightmaps.append(np.ones([self.stamp_size,self.stamp_size]))
-                #else:
-                #    star_weightmaps.append(np.ones([self.stamp_size,self.stamp_size]))
-            #star_weightmaps = np.array(star_weightmaps)
-            #print("star_weightmaps: {0}".format(star_weightmaps))
-            #conds_not_masked = (np.all(star_weightmaps != 0.0,axis=(1,2)))
-            #for s, star_weightmap in enumerate(star_weightmaps):
-            #    if not np.all(star_weightmap != 0.0):
-            #        #print("star_weightmap for star {0}: {1}".format(s, star_weightmap))
-            #        #plt.figure()
-            #        #plt.imshow(star_weightmap)
-            #        #plt.savefig("/u/ec/aresh/Piff-galsimify_optatmo/tests/weightmaps_of_masked_stars/star_weightmap_{0}.png".format(s))
-            #        pass
-            #stars = np.array(stars)[conds_not_masked].tolist()
             stars = np.delete(stars, delete_list)
             stars = stars.tolist()
         logger.info("There are {0} stars after the masked star cut".format(len(stars)))

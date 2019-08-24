@@ -2207,6 +2207,8 @@ class OptAtmoPSF(PSF):
         logger = LoggerWrapper(logger)
 
         all_params = np.array(list(lmparams.valuesdict().values()))
+        #print("all_params: {0}".format(all_params))
+        #print("type(all_params): {0}".format(type(all_params)))
         flux, du, dv = all_params[:3]
         params = all_params[3:]
         if optical_profile == None:
