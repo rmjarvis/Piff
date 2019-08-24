@@ -679,7 +679,195 @@ def test_stars():
     image_file = 'test_input_image_00.fits'
     cat_file = 'test_input_cat_00.fits'
 
-    # Turn off two defaults for now (max_snr=100 and use_partial=False)
+    # Turn off two defaults for now (max_snr=200 and use_partial=False)
+    config = {
+                'dir' : dir,
+                'image_file_name' : image_file,
+                'cat_file_name' : cat_file,
+                'weight_hdu' : 1,
+                'sky_col' : 'sky',
+                'gain_col' : 'gain',
+                'max_snr' : 0,
+                'use_partial' : True,
+                '_cutoff_deformed_level' : 1000, # effectively lower number of cuts for deformed stars to 0 for the purposes of this test, which tests other cuts
+                '_cutoff_nuisance_level' : 1000, # effectively lower number of cuts for stars with nuisance stars to 0 for the purposes of this test, which tests other cuts
+                '_cutoff_masked_level' : 1000,  # effectively lower number of cuts for partially masked stars to 0 for the purposes of this test, which tests other cuts
+             }
+    input = piff.InputFiles(config, logger=logger)
+    stars = input.makeStars(logger=logger)
+    print("number of stars 1: {0}".format(len(stars)))
+    assert len(stars) == 100
+    chipnum_list = [ star['chipnum'] for star in stars ]
+    gain_list = [ star['gain'] for star in stars ]
+    snr_list = [ star['snr'] for star in stars ]
+    snr_list2 = [ input.calculateSNR(star.data.image, star.data.orig_weight) for star in stars ]
+    print('snr = ', np.min(snr_list), np.max(snr_list))
+    np.testing.assert_array_equal(chipnum_list, 0)
+    np.testing.assert_array_equal(gain_list, gain_list[0])
+    np.testing.assert_almost_equal(snr_list, snr_list2, decimal=5)
+    print('min_snr = ',np.min(snr_list))
+    print('max_snr = ',np.max(snr_list))
+    assert np.min(snr_list) < 40.0
+    assert np.max(snr_list) > 600.0
+
+    # max_snr increases the noise to achieve a maximum snr
+    config['max_snr'] = 120
+    input = piff.InputFiles(config, logger=logger)
+    stars = input.makeStars(logger=logger)
+    print("number of stars 2: {0}".format(len(stars)))
+    assert len(stars) == 100
+    snr_list = [ star['snr'] for star in stars ]
+    snr_list2 = [ input.calculateSNR(star.data.image, star.data.orig_weight) for star in stars ]
+    print('snr = ', np.min(snr_list), np.max(snr_list))
+    np.testing.assert_almost_equal(snr_list, snr_list2, decimal=5)
+    print('min_snr = ',np.min(snr_list))
+    print('max_snr = ',np.max(snr_list))
+    assert np.min(snr_list) < 40.0
+    assert np.max(snr_list) == 120.0
+
+    # The default is max_snr == 200
+    del config['max_snr']
+    input = piff.InputFiles(config, logger=logger)
+    stars = input.makeStars(logger=logger)
+    print("number of stars 3: {0}".format(len(stars)))
+    assert len(stars) == 100
+    snr_list = np.array([ star['snr'] for star in stars ])
+    snr_list2 = [ input.calculateSNR(star.data.image, star.data.orig_weight) for star in stars ]
+    print('snr = ', np.min(snr_list), np.max(snr_list))
+    np.testing.assert_almost_equal(snr_list, snr_list2, decimal=5)
+    print('min_snr = ',np.min(snr_list))
+    print('max_snr = ',np.max(snr_list))
+    assert np.min(snr_list) < 40.0
+    assert np.max(snr_list) == 200.0
+
+    # min_snr removes stars with a snr < min_snr
+    config['min_snr'] = 50
+    input = piff.InputFiles(config, logger=logger)
+    stars = input.makeStars(logger=logger)
+    print('len should be ',len(snr_list[snr_list >= 50]))
+    print('actual len is ',len(stars))
+    assert len(stars) == len(snr_list[snr_list >= 50])
+    print("number of stars 4: {0}".format(len(stars)))
+    assert len(stars) == 94
+    snr_list = np.array([ star['snr'] for star in stars ])
+    snr_list2 = [ input.calculateSNR(star.data.image, star.data.orig_weight) for star in stars ]
+    print('snr = ', np.min(snr_list), np.max(snr_list))
+    np.testing.assert_almost_equal(snr_list, snr_list2, decimal=5)
+    print('min_snr = ',np.min(snr_list))
+    print('max_snr = ',np.max(snr_list))
+    assert np.min(snr_list) >= 50.0
+    assert np.max(snr_list) == 200.0
+
+    # use_partial=False will skip any stars that are partially off the edge of the image
+    config['use_partial'] = False
+    input = piff.InputFiles(config, logger=logger)
+    stars = input.makeStars(logger=logger)
+    print('new len is ',len(stars))
+    print("number of stars 5: {0}".format(len(stars)))
+    assert len(stars) == 93
+
+    # use_partial=False is the default
+    del config['use_partial']
+    input = piff.InputFiles(config, logger=logger)
+    stars = input.makeStars(logger=logger)
+    print("number of stars 6: {0}".format(len(stars)))
+    assert len(stars) == 93
+
+    # alt_x and alt_y also include some object completely off the image, which are always skipped.
+    # (Don't do the min_snr anymore, since most of these stamps don't actually have any signal.)
+    config['x_col'] = 'alt_x'
+    config['y_col'] = 'alt_y'
+    del config['min_snr']
+    input = piff.InputFiles(config, logger=logger)
+    stars = input.makeStars(logger=logger)
+    print('new len is ',len(stars))
+    print("number of stars 7: {0}".format(len(stars)))
+    assert len(stars) == 38
+
+    # Also skip objects which are all weight=0
+    config['weight_hdu'] = 3
+    input = piff.InputFiles(config, logger=logger)
+    stars = input.makeStars(logger=logger)
+    print('new len is ',len(stars))
+    print("number of stars 8: {0}".format(len(stars)))
+    assert len(stars) == 0
+
+    # Originally, stars that are only partially weight=0 (masked) were not skipped. This has changed since then however as even partially masked stars have trouble getting their shapes measured. For the purposes of this unit test; however, only fully masked stars are cut here
+    config['weight_hdu'] = 8
+    input = piff.InputFiles(config, logger=logger)
+    stars = input.makeStars(logger=logger)
+    print('new len is ',len(stars))
+    print("number of stars 9: {0}".format(len(stars)))
+    assert len(stars) == 38
+
+    # Check that negative snr flux yields 0, not an error (from sqrt(neg))
+    # Negative flux is actually ok, since it gets squared, but if an image has negative weights
+    # (which would be weird of course), then it could get to negative flux = wI^2.
+    star0 = stars[0]
+    star0.data.orig_weight *= -1.
+    snr0 = input.calculateSNR(star0.data.image, star0.data.orig_weight)
+    assert snr0 == 0.0
+
+
+
+@timer
+def test_masked_star_cuts():
+    """Test the deformed star cuts where stars that have either width or height excesively different from the desired stamp_size are cut.
+    """
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(verbose=2)
+    else:
+        logger = piff.config.setup_logger(log_file=os.path.join('output','test_masked_stars.log'))
+    image_file = './input/DECam_00241238_01.fits.fz' # these have to be different than the other tests on cuts because the usual image used in those tests has no masked stars
+    cat_file = './input/DECam_00241238_01_psfcat_tb_maxmag_17.0_magcut_3.0_findstars.fits'
+    config = {
+        'image_file_name' : image_file,
+        'cat_file_name' : cat_file,
+        'image_hdu' : 1,
+        'weight_hdu' : 3,
+        'badpix_hdu' : 2,
+        'cat_file_name' : cat_file,
+        'cat_hdu' : 2,
+        'x_col' : 'XWIN_IMAGE',
+        'y_col' : 'YWIN_IMAGE',
+        'sky_col' : 'BACKGROUND',
+        'stamp_size' : 19,
+        'ra' : 'TELRA',
+        'dec' : 'TELDEC',
+        'gain' : 'GAINA',
+        'min_snr': 40,
+        'max_snr': 100,
+        '_cutoff_deformed_level' : 1000, # effectively lower number of cuts for deformed stars to 0 for the purposes of this test, which tests a different star cut
+        '_cutoff_nuisance_level' : 1000, # effectively lower number of cuts for stars with nuisance stars to 0 for the purposes of this test, which tests a different cut
+        '_cutoff_masked_level' : 1000,  # effectively lower number of cuts for partially masked stars to 0 for the beginning of this test; this will deleted from the config later, allowing the masked star cut to be tested
+        }
+    input = piff.InputFiles(config, logger=logger)
+    stars = input.makeStars(logger=logger)
+    print("number of stars 1: {0}".format(len(stars)))
+    assert len(stars) == 117
+
+    del config['_cutoff_masked_level'] # free up the masked star cut; default is cut stars where even 1 pixel is masked, not 1000
+    input = piff.InputFiles(config, logger=logger)
+    stars = input.makeStars(logger=logger)
+    print("number of stars 2: {0}".format(len(stars)))
+    assert len(stars) == 108
+
+
+
+@timer
+def test_deformed_star_cuts():
+    """Test the deformed star cuts where stars that have either width or height excesively different from the desired stamp_size are cut.
+    """
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(verbose=2)
+    else:
+        logger = piff.config.setup_logger(log_file=os.path.join('output','test_deformed_stars.log'))
+
+    dir = 'input'
+    image_file = 'test_input_image_00.fits'
+    cat_file = 'test_input_cat_00.fits'
+
+    # Turn off two defaults for now (max_snr=200 and use_partial=False)
     config = {
                 'dir' : dir,
                 'image_file_name' : image_file,
@@ -693,118 +881,51 @@ def test_stars():
     input = piff.InputFiles(config, logger=logger)
     stars = input.makeStars(logger=logger)
     print("number of stars 1: {0}".format(len(stars)))
-    #assert len(stars) == 100 #has to be removed because of the stars created for this test, some are removed due to some of my star cuts.
-    chipnum_list = [ star['chipnum'] for star in stars ]
-    gain_list = [ star['gain'] for star in stars ]
-    snr_list = [ star['snr'] for star in stars ]
-    snr_list2 = [ input.calculateSNR(star.data.image, star.data.orig_weight) for star in stars ]
-    print('snr = ', np.min(snr_list), np.max(snr_list))
-    np.testing.assert_array_equal(chipnum_list, 0)
-    np.testing.assert_array_equal(gain_list, gain_list[0])
-    np.testing.assert_almost_equal(snr_list, snr_list2, decimal=5)
-    print('min_snr = ',np.min(snr_list))
-    print('max_snr = ',np.max(snr_list))
-    #assert np.min(snr_list) < 40. #has to be removed because of the stars created for this test, some are removed due to some of my star cuts.
-    #assert np.max(snr_list) > 600. #has to be removed because of the stars created for this test, some are removed due to some of my star cuts.
+    assert len(stars) == 98 # One star is cut due to the deformed star cut and one is cut due to the nuisance star cut.
 
-    # max_snr increases the noise to achieve a maximum snr
-    config['max_snr'] = 120
+
+    config['_cutoff_deformed_level'] = 1000 # this means even stars' postage stamps with width or height different than the stamp_size by 999 pixels will not be cut, effectively lowering the number cut to none
     input = piff.InputFiles(config, logger=logger)
     stars = input.makeStars(logger=logger)
     print("number of stars 2: {0}".format(len(stars)))
-    #assert len(stars) == 100 #has to be removed because of the stars created for this test, some are removed due to some of my star cuts.
-    snr_list = [ star['snr'] for star in stars ]
-    snr_list2 = [ input.calculateSNR(star.data.image, star.data.orig_weight) for star in stars ]
-    print('snr = ', np.min(snr_list), np.max(snr_list))
-    np.testing.assert_almost_equal(snr_list, snr_list2, decimal=5)
-    print('min_snr = ',np.min(snr_list))
-    print('max_snr = ',np.max(snr_list))
-    #assert np.min(snr_list) < 40. #has to be removed because of the stars created for this test, some are removed due to some of my star cuts.
-    #assert np.max(snr_list) == 120. #has to be removed because of the stars created for this test, some are removed due to some of my star cuts.
+    assert len(stars) == 99 # One star is cut due to the nuisance star cut but now no stars are cut due to the deformed star cut.
 
-    # The default is max_snr == 100
-    del config['max_snr']
+
+@timer
+def test_nuisance_star_cuts():
+    """Test the nuisance star cuts where stars that have an extra star in the postage stamp with them are cut. Specifically, if flux on the outer edge of the postage stamp is too many sigma away from the median flux of the stars on the outer edge, the star is cut.
+    """
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(verbose=2)
+    else:
+        logger = piff.config.setup_logger(log_file=os.path.join('output','test_nuisance_stars.log'))
+
+    dir = 'input'
+    image_file = 'test_input_image_00.fits'
+    cat_file = 'test_input_cat_00.fits'
+
+    # Turn off two defaults for now (max_snr=200 and use_partial=False)
+    config = {
+                'dir' : dir,
+                'image_file_name' : image_file,
+                'cat_file_name' : cat_file,
+                'weight_hdu' : 1,
+                'sky_col' : 'sky',
+                'gain_col' : 'gain',
+                'max_snr' : 0,
+                'use_partial' : True,
+             }
     input = piff.InputFiles(config, logger=logger)
     stars = input.makeStars(logger=logger)
-    print("number of stars 3: {0}".format(len(stars)))
-    #assert len(stars) == 100 #has to be removed because of the stars created for this test, some are removed due to some of my star cuts.
-    snr_list = np.array([ star['snr'] for star in stars ])
-    snr_list2 = [ input.calculateSNR(star.data.image, star.data.orig_weight) for star in stars ]
-    print('snr = ', np.min(snr_list), np.max(snr_list))
-    np.testing.assert_almost_equal(snr_list, snr_list2, decimal=5)
-    print('min_snr = ',np.min(snr_list))
-    print('max_snr = ',np.max(snr_list))
-    #assert np.min(snr_list) < 40. #has to be removed because of the stars created for this test, some are removed due to some of my star cuts.
-    #assert np.max(snr_list) == 100. #has to be removed because of the stars created for this test, some are removed due to some of my star cuts.
+    print("number of stars 1: {0}".format(len(stars)))
+    assert len(stars) == 98 # One star is cut due to the deformed star cut and one is cut due to the nuisance star cut.
 
-    # min_snr removes stars with a snr < min_snr
-    config['min_snr'] = 50
+
+    config['_cutoff_nuisance_level'] = 1000 # this means that only stars that are more than 1000 sigma away from the median in terms of how much flux they have on the outer edge of their postage stamp are cut, effectively lowering the number cut to none.
     input = piff.InputFiles(config, logger=logger)
     stars = input.makeStars(logger=logger)
-    print('len should be ',len(snr_list[snr_list >= 50]))
-    print('actual len is ',len(stars))
-    #assert len(stars) == len(snr_list[snr_list >= 50]) #has to be removed because of the stars created for this test, some are removed due to some of my star cuts. In this case, if the min_snr cut changes the median or mad of fluxes on the outer rings of the postage stamps the nuisance star cut may cut a different number of stars.
-    print("number of stars 4: {0}".format(len(stars)))
-    #assert len(stars) == 96  # originally hard-coded for this case, just to make sure but ultimately had to be removed because of the stars created for this test, some are removed due to some of my star cuts.
-    snr_list = np.array([ star['snr'] for star in stars ])
-    snr_list2 = [ input.calculateSNR(star.data.image, star.data.orig_weight) for star in stars ]
-    print('snr = ', np.min(snr_list), np.max(snr_list))
-    np.testing.assert_almost_equal(snr_list, snr_list2, decimal=5)
-    print('min_snr = ',np.min(snr_list))
-    print('max_snr = ',np.max(snr_list))
-    #assert np.min(snr_list) >= 50. #has to be removed because of the stars created for this test, some are removed due to some of my star cuts.
-    #assert np.max(snr_list) == 100. #has to be removed because of the stars created for this test, some are removed due to some of my star cuts.
-
-    # use_partial=False will skip any stars that are partially off the edge of the image
-    config['use_partial'] = False
-    input = piff.InputFiles(config, logger=logger)
-    stars = input.makeStars(logger=logger)
-    print('new len is ',len(stars))
-    print("number of stars 5: {0}".format(len(stars)))
-    #assert len(stars) == 94  # skipped 2 additional stars but ultimately had to be removed because of the stars created for this test, some are removed due to some of my star cuts.
-
-    # use_partial=False is the default
-    del config['use_partial']
-    input = piff.InputFiles(config, logger=logger)
-    stars = input.makeStars(logger=logger)
-    print("number of stars 6: {0}".format(len(stars)))
-    #assert len(stars) == 94  # skipped 2 additional stars but ultimately had to be removed because of the stars created for this test, some are removed due to some of my star cuts.
-
-    # alt_x and alt_y also include some object completely off the image, which are always skipped.
-    # (Don't do the min_snr anymore, since most of these stamps don't actually have any signal.)
-    config['x_col'] = 'alt_x'
-    config['y_col'] = 'alt_y'
-    del config['min_snr']
-    input = piff.InputFiles(config, logger=logger)
-    stars = input.makeStars(logger=logger)
-    print('new len is ',len(stars))
-    print("number of stars 7: {0}".format(len(stars)))
-    #assert len(stars) == 37 #has to be removed because of the stars created for this test, some are removed due to some of my star cuts.
-
-    # Check that negative snr flux yields 0, not an error (from sqrt(neg))
-    # Negative flux is actually ok, since it gets squared, but if an image has negative weights
-    # (which would be weird of course), then it could get to negative flux = wI^2.
-    # Note: this test had to be migrated up here (previously at the end) to ensure that there were stars available to do this test.
-    star0 = stars[0]
-    star0.data.orig_weight *= -1.
-    snr0 = input.calculateSNR(star0.data.image, star0.data.orig_weight)
-    assert snr0 == 0.
-
-    # Also skip objects which are all weight=0
-    config['weight_hdu'] = 3
-    input = piff.InputFiles(config, logger=logger)
-    stars = input.makeStars(logger=logger)
-    print('new len is ',len(stars))
-    print("number of stars 8: {0}".format(len(stars)))
-    #assert len(stars) == 0 #has to be removed because of the stars created for this test, some are removed due to some of my star cuts.
-
-    # Originally, stars that are only partially weight=0 were not skipped. This has changed since then however as even partially masked stars have trouble getting their shapes measured.
-    config['weight_hdu'] = 8
-    input = piff.InputFiles(config, logger=logger)
-    stars = input.makeStars(logger=logger)
-    print('new len is ',len(stars))
-    print("number of stars 9: {0}".format(len(stars)))
-    #assert len(stars) == 37 #has to be removed because of the stars created for this test, some are removed due to some of my star cuts.
+    print("number of stars 2: {0}".format(len(stars)))
+    assert len(stars) == 99 # One star is cut due to the deformed star cut but now no stars are cut due to the nuisance star cut.
 
 
 
@@ -920,13 +1041,16 @@ def test_pointing():
 
 
 if __name__ == '__main__':
-    setup()
-    test_basic()
-    test_invalid()
-    test_cols()
-    test_boolarray()
-    test_chipnum()
-    test_weight()
-    test_lsst_weight()
-    test_stars()
-    test_pointing()
+    #setup()
+    #test_basic()
+    #test_invalid()
+    #test_cols()
+    #test_boolarray()
+    #test_chipnum()
+    #test_weight()
+    #test_lsst_weight()
+    #test_stars()
+    #test_deformed_star_cuts()
+    #test_nuisance_star_cuts()
+    test_masked_star_cuts()
+    #test_pointing()

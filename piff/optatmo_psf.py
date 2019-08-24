@@ -24,6 +24,7 @@ import numpy as np
 import copy
 import os
 from sklearn.ensemble import RandomForestRegressor
+import sklearn
 #import _pickle as cPickle
 import pickle
 from scipy.interpolate import Rbf
@@ -147,7 +148,7 @@ class OptAtmoPSF(PSF):
                                                                 ignored. [default: 0]
         :param fit_optics_mode:                                 Choose ['random_forest', 'shape', 'pixel']
                                                                 for optics fitting mode. [default:
-                                                                'random_forest']
+                                                                'shape']
         :param higher_order_reference_wavefront_file:           A string with the path and filename of the 
                                                                 pickle containing the higher order
                                                                 reference wavefront. Note: the code should
@@ -853,6 +854,7 @@ class OptAtmoPSF(PSF):
         rsqr = np.abs(r) ** 2
         # get [size, g1, g2, z4, z5...]
         #aberrations_pupil = np.array([galsim.utilities.horner2d(rsqr, r, ca, dtype=complex).real
+        #import ipdb; ipdb.set_trace()
         aberrations_pupil = np.array([horner2d_from_galsim1(rsqr, r, ca, dtype=complex).real
                                for ca in self._coef_arrays_field]).T  # (nstars, ncoefs)
 
@@ -935,7 +937,7 @@ class OptAtmoPSF(PSF):
             else:
                 # we have more jmax_pupil than reference wavefront
                 params[:, self.n_params_constant_atmosphere_and_atmosphere:] += aberrations_reference_wavefront[:, :self.jmax_pupil - 3]
-
+        print("loaded reference wavefront")
         # get kolmogorov parameters from atmosphere model, but only if we said so
         if self._enable_atmosphere:
             if self.atmo_interp is None:
@@ -1104,9 +1106,15 @@ class OptAtmoPSF(PSF):
         """
         # get all params at once
         params = self.getParamsList(stars)
-        #print("params[0]: {0}".format(params[0]))
         # now step through to make the stars
-        stars_drawn = [self.drawProfile(star, self.getProfile(param), param, copy_image=copy_image) for param, star in zip(params, stars)]
+        stars_drawn = []
+        for param, star in zip(params, stars):
+            try:
+                stars_drawn.append(self.drawProfile(star, self.getProfile(param), param, copy_image=copy_image))
+            except:
+                stars_draw.append(None)
+        # 
+        # stars_drawn = [self.drawProfile(star, self.getProfile(param), param, copy_image=copy_image) for param, star in zip(params, stars)]
         return stars_drawn
 
     def _update_optatmopsf(self, optatmo_psf_kwargs={}, logger=None):
@@ -1460,22 +1468,27 @@ class OptAtmoPSF(PSF):
 
         # load up random forest model (used only in "random_forest" mode)
         regr_dictionary = {}
-        try:
-            for m, moment in enumerate(np.array(["e0", "e1", "e2", "zeta1", "zeta2", "delta1", "delta2"])):
-                #with open('{0}/random_forest_shapes_model_{1}.cpickle'.format(self.random_forest_shapes_model_pickles_location, moment), 'rb') as f:
-                with open("{0}/random_forest_shapes_model_{1}.pickle".format(self.random_forest_shapes_model_pickles_location, moment), 'rb') as f:
-                    #print('filename: {0}/random_forest_shapes_model_{1}.pickle'.format(self.random_forest_shapes_model_pickles_location, moment))
-                    #regr = cPickle.load(f)  #TODO: find out why this is coming out to be NoneType
+        for m, moment in enumerate(np.array(["e0", "e1", "e2", "zeta1", "zeta2", "delta1", "delta2"])):
+            #with open('{0}/random_forest_shapes_model_{1}.cpickle'.format(self.random_forest_shapes_model_pickles_location, moment), 'rb') as f:
+            with open("{0}/random_forest_shapes_model_{1}.pickle".format(self.random_forest_shapes_model_pickles_location, moment), 'rb') as f:
+                #print('filename: {0}/random_forest_shapes_model_{1}.pickle'.format(self.random_forest_shapes_model_pickles_location, moment))
+                #regr = cPickle.load(f)  #TODO: find out why this is coming out to be NoneType
+                try:
                     regr = pickle.load(f)  #TODO: find out why this is coming out to be NoneType
-                    #print("type(regr): {0}".format(type(regr)))
-                    #print("regr: {0}".format(regr))
-                    regr_dictionary[moment] = regr          
-        except:
-            regr_dictionary = {"e0":None,"e1":None,"e2":None,"zeta1": None,"zeta2":None,"delta1":None,"delta2":None}    
+                except:
+                    raise AttributeError('A random forest model pickle failed to load. This likely means the pickle has not been placed in the correct directory such that the file {0}/random_forest_shapes_model_{1}.pickle does not exist.'.format(self.random_forest_shapes_model_pickles_location, moment))
+                version = regr.__getstate__()['_sklearn_version']
+                #print("sklearn version for random forest {0} model pickle: {1}".format(moment, version))
+                #print("sklearn version currently being used: {0}".format(sklearn.__version__))
+                if version != sklearn.__version__:
+                    raise AttributeError('A random forest model does not have the same sklearn version as the one currently being used. This likely requires you to remake the model from the data using the version of sklearn you currently have')
+                regr_dictionary[moment] = regr             
             
         # do fit!     
         if mode == 'random_forest':
             results = lmfit.minimize(residual, lmparams, args=(stars, shapes, errors, regr_dictionary, logger,), epsfcn=1e-5)
+            #for m, moment in enumerate(np.array(["e0", "e1", "e2", "zeta1", "zeta2", "delta1", "delta2"])):
+            #    print("{0}: {1}".format(moment ,shapes[:,m+3]))
             print("finished random_forest fit")
             logger.info("finished random_forest fit")
         elif mode == 'shape':
@@ -2076,9 +2089,12 @@ class OptAtmoPSF(PSF):
         # generate the stars' moments using random forest model and the fit parameters of the stars
         #note: only up to third moments used for the random forest fit
         shapes_model_list = []
+        #print("param_values_all_stars: {0}".format(param_values_all_stars))
         for m, moment in enumerate(np.array(["e0", "e1", "e2", "zeta1", "zeta2", "delta1", "delta2"])):    
             regr = regr_dictionary[moment]    
             shapes_model_list.append(regr.predict(param_values_all_stars))
+            #print("moment: {0}".format(moment))
+            #print("regr.predict(param_values_all_stars): {0}".format(regr.predict(param_values_all_stars)))
         shapes_model = np.column_stack(tuple(shapes_model_list))
         shape_weights = self._shape_weights[:7]
 

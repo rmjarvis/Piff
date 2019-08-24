@@ -1002,20 +1002,70 @@ def test_realistic_config_for_causing_excessive_shape_measurements():
         galsim.config.ImportModules(config)
     stars, wcs, pointing = piff.input.Input.process(copy.deepcopy(config)['input'], logger=logger)
     psf = piff.psf.PSF.process(config['psf'], logger=logger)
-    import matplotlib.pyplot as plt
-    plt.figure()
-    plt.imshow(stars[0].image.array)
-    plt.colorbar()
-    plt.savefig("/u/ec/aresh/Piff-galsimify_optatmo/tests/large_moment_star.png")
-    plt.figure()
-    plt.imshow(stars[0].weight.array)
-    plt.colorbar()
-    plt.savefig("/u/ec/aresh/Piff-galsimify_optatmo/tests/large_moment_star_weightmap.png")
+    #import matplotlib.pyplot as plt
+    #plt.figure()
+    #plt.imshow(stars[0].image.array)
+    #plt.colorbar()
+    #plt.savefig("/u/ec/aresh/Piff-galsimify_optatmo/tests/large_moment_star.png")
+    #plt.figure()
+    #plt.imshow(stars[0].weight.array)
+    #plt.colorbar()
+    #plt.savefig("/u/ec/aresh/Piff-galsimify_optatmo/tests/large_moment_star_weightmap.png")
     for star_i, star in enumerate(stars):
         shape = psf.measure_shape_orthogonal(star)
         if star_i % 500 == 0:
             print("shape of star {0}: {1}".format(star_i, shape))
         assert not np.any(shape > 1000000.0),'excessive shape measurement found for star {0}: {1}'.format(star_i, shape)
+
+
+@timer
+def test_random_forest():
+    # set up logger
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(verbose=3)
+    else:
+        logger = piff.config.setup_logger(verbose=1)
+    logger.info('Testing random_forest')
+    # fit the test ccd
+    image_file = './input/DECam_00241238_01.fits.fz'
+    cat_file = './input/DECam_00241238_01_psfcat_tb_maxmag_17.0_magcut_3.0_findstars.fits'
+    orig_image = galsim.fits.read(image_file)
+    psf_file = os.path.join('output','optatmo_des_psf.fits')
+    config_psf = return_config()
+    config_psf['atmo_interp'] = 'none'
+    config_psf['fit_optics_mode'] = 'random_forest'
+    # this requires zero padding in the fit random_forest stage, as it expects you to go up to spherical
+    config_psf['jmax_focal'] = 1
+    config_psf['jmax_pupil'] = 4
+    config = {
+        'input': { #Much of the following specifications have changed in more recent iterations of yaml files. However, given the old image files we are testing, this may be necessary. TODO: get new image files and change the specifications below to be more in line with more recent yaml files.
+            'image_file_name' : image_file,
+            'image_hdu' : 1,
+            'weight_hdu' : 3,
+            'badpix_hdu' : 2,
+            'cat_file_name' : cat_file,
+            'cat_hdu' : 2,
+            'x_col' : 'XWIN_IMAGE',
+            'y_col' : 'YWIN_IMAGE',
+            'sky_col' : 'BACKGROUND',
+            'stamp_size' : 19, #this had to be reduced from its previous value due to too many stars being cut by the nuisance star cut and masked star cut; since then these cuts can be adjusted so fewer or no stars are cut but using 19x19 stamps has become standard anyway
+            'ra' : 'TELRA',
+            'dec' : 'TELDEC',
+            'gain' : 'GAINA',
+            'nstars': 117, #even though it is faster, the original (20) stars is not enough considering the nuisance stars and masked stars that get cut; since then these cuts can be adjusted so fewer or no stars are cut; note that the default fitting method has been changed to use the full optical fit rather than just the random forest and fit_size() fits for this test also, although this is not necessarily currently necessary
+            'min_snr': 40,
+            'max_snr': 100,
+            },
+        'output': {'file_name': psf_file,},
+        'psf': config_psf,
+        }
+
+    # run using piffify
+    if os.path.exists(psf_file):
+        os.remove(psf_file)
+    logger.info('Running piffify')
+    piff.piffify(copy.deepcopy(config), logger=logger)
+
 
 @timer
 def test_roundtrip():
@@ -1045,11 +1095,11 @@ def test_roundtrip():
             'x_col' : 'XWIN_IMAGE',
             'y_col' : 'YWIN_IMAGE',
             'sky_col' : 'BACKGROUND',
-            'stamp_size' : 19, #this had to be reduced from its previous value due to too many stars being cut by the nuisance star cut and masked star cut
+            'stamp_size' : 19, #this had to be reduced from its previous value due to too many stars being cut by the nuisance star cut and masked star cut; since then these cuts can be adjusted so fewer or no stars are cut but using 19x19 stamps has become standard anyway
             'ra' : 'TELRA',
             'dec' : 'TELDEC',
             'gain' : 'GAINA',
-            'nstars': 117, #even though it is faster the original (20) stars is not enough considering the nuisance stars and masked stars that get cut (this may become unnecessary if bug in fit_size() is ever fixed, so one can revert the default fitting mode back to random_forest where the size fit would end the optical fit in a, presumably, fool-proof way)
+            'nstars': 117, #even though it is faster, the original (20) stars is not enough considering the nuisance stars and masked stars that get cut; since then these cuts can be adjusted so fewer or no stars are cut; note that the default fitting method has been changed to use the full optical fit rather than just the random forest and fit_size() fits for this test also, although this is not necessarily currently necessary
             'min_snr': 40,
             'max_snr': 100,
             },
@@ -1231,6 +1281,7 @@ if __name__ == '__main__':
     test_aberrations()
     test_reference_wavefront()
     test_jmaxs()
+    test_random_forest()
     test_atmo_model_fit()
     test_atmo_interp_fit()
     test_profile()
