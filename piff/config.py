@@ -133,13 +133,6 @@ def process(config, logger=None):
     stars, wcs, pointing = Input.process(config['input'], logger=logger)
 
     psf = PSF.process(config['psf'], logger=logger)
-    #for star_i, star in enumerate(stars):
-    #    shape = psf.measure_shape_orthogonal(star)
-    #    if star_i % 10 == 0:
-    #        print("from piffify: star_i: {0}".format(star_i))
-    #        print("from piffify: shape: {0}".format(shape))
-    #        import sys
-    #        sys.exit()
     if 'type' in config['psf']:
         if config['psf']['type'] == 'OptAtmo':
             np.random.seed(12345)
@@ -349,26 +342,13 @@ def meanify(config, logger=None):
     coords = np.concatenate(coords, axis=0)
     logger.info('Computing average for {0} params with {1} stars'.format(len(params[0]), len(coords)))
 
-    #print("coord[:,0]: {0}".format(coords[:,0]))
-    #for element in coords[:,0]:
-	##print("element: {0}".format(element))
-	##time.sleep(1)
-	#if element >10000.0:
-	#    print("alert! element was bigger than 10000.0")
-	#    time.sleep(10)
     if params_fitted is None:
         params_fitted = range(len(params[0]))
 
     lu_min, lu_max = np.min(coords[:,0]), np.max(coords[:,0])
     lv_min, lv_max = np.min(coords[:,1]), np.max(coords[:,1])
-    #print("lu_min: {0}".format(lu_min))
-    #print("lu_max: {0}".format(lu_max))
-    #print("lv_min: {0}".format(lv_min))
-    #print("lv_max: {0}".format(lv_max))
     nbin_u = int((lu_max - lu_min) / bin_spacing)
     nbin_v = int((lv_max - lv_min) / bin_spacing)
-    #print("nbin_u: {0}".format(nbin_u))
-    #print("nbin_v: {0}".format(nbin_v))
     binning = [np.linspace(lu_min, lu_max, nbin_u), np.linspace(lv_min, lv_max, nbin_v)]
     nbinning = (len(binning[0]) - 1) * (len(binning[1]) - 1)
     params0 = np.zeros((nbinning, len(params[0])))
