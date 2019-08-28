@@ -228,7 +228,9 @@ class GPInterp2pcf(Interp):
         if len(keys)!=2:
             raise ValueError('the total size of keys can not be something else than 2 using two-point correlation function. Here len(keys) = %i'%(len(keys)))
 
-        if isinstance(kernel,str):
+        if str(type(kernel)) == "<class 'numpy.str_'>":
+            kernel = str(kernel)
+        if type(kernel) is str:
             self.kernel_template = [self._eval_kernel(kernel)]
         else:
             if type(kernel) is not list and type(kernel) is not np.ndarray:
@@ -398,6 +400,7 @@ class GPInterp2pcf(Interp):
         :param y_err: Error of y. (n_samples, n_targets)
         """
         HT = kernel.__call__(X2,Y=X1)
+        #import ipdb; ipdb.set_trace()
         K = kernel.__call__(X1) + np.eye(len(y))*y_err**2
         factor = (cholesky(K, overwrite_a=True, lower=False), False)
         alpha = cho_solve(factor, y, overwrite_b=False)

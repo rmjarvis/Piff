@@ -264,8 +264,16 @@ class Polynomial(Interp):
         # We will want to index things later, so useful
         # to convert these to numpy arrays and transpose
         # them to the order we need.
+
+        #non_transposed_parameters = np.array([s.fit.params for s in stars])
+        #non_transposed_positions = np.array([self.getProperties(s) for s in stars])
+        #print("non_transposed_parameters: {0}".format(non_transposed_parameters))
+        #print("non_transposed_positions: {0}".format(non_transposed_positions))
+
         parameters = np.array([s.fit.params for s in stars]).T
         positions = np.array([self.getProperties(s) for s in stars]).T
+        #print("parameters: {0}".format(parameters))
+        #print("positions: {0}".format(positions))
 
         # We should have the same number of parameters as number of polynomial
         # orders with which we were created here.
@@ -287,6 +295,8 @@ class Polynomial(Interp):
 
         # Loop through the parameters
         for i, parameter in enumerate(parameters):
+            #print("i: {0}".format(i))
+            #print("parameter: {0}".format(parameter))
 
             def model(uv,*coeffs):
                 C = self._unpack_coefficients(i, coeffs)
@@ -307,6 +317,14 @@ class Polynomial(Interp):
             with warnings.catch_warnings():
                 # scipy.optimize has a tendency to emit warnings.  Let's ignore them.
                 warnings.simplefilter("ignore", scipy.optimize.OptimizeWarning)
+                #print("p0: {0}".format(p0))
+                #print("type(p0): {0}".format(p0))
+                #print("parameter: {0}".format(parameter))
+                #print("type(parameter): {0}".format(type(parameter)))
+                #print("positions: {0}".format(positions))
+                #print("type(positions): {0}".format(type(positions)))
+                #print("model: {0}".format(model))
+                #print("type(model): {0}".format(type(model)))
                 p,covmat=scipy.optimize.curve_fit(model, positions, parameter, p0)
 
             # Build up the list of outputs, one for each parameter

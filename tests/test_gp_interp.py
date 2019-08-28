@@ -1109,7 +1109,7 @@ def test_yaml():
                 'sky_col' : 'BACKGROUND',
     
                 # How large should the postage stamp cutouts of the stars be?
-                'stamp_size' : 21,
+                'stamp_size' : 19, #nuisance star and masked star cuts remove too many stars if this is set to its previous value of 21
             },
             'psf' : {
                 'model' : { 'type' : 'GSObjectModel',

@@ -21,6 +21,7 @@ from __future__ import print_function
 import yaml
 import os
 import galsim
+import numpy as np
 
 def setup_logger(verbose=1, log_file=None):
     """Build a logger object to use for logging progress
@@ -132,7 +133,30 @@ def process(config, logger=None):
     stars, wcs, pointing = Input.process(config['input'], logger=logger)
 
     psf = PSF.process(config['psf'], logger=logger)
-    psf.fit(stars, wcs, pointing, logger=logger)
+    #for star_i, star in enumerate(stars):
+    #    shape = psf.measure_shape_orthogonal(star)
+    #    if star_i % 10 == 0:
+    #        print("from piffify: star_i: {0}".format(star_i))
+    #        print("from piffify: shape: {0}".format(shape))
+    #        import sys
+    #        sys.exit()
+    if 'type' in config['psf']:
+        if config['psf']['type'] == 'OptAtmo':
+            np.random.seed(12345)
+            test_fraction = config.get('test_fraction', 0.2)
+            test_indx = np.random.choice(len(stars), int(test_fraction * len(stars)), replace=False)
+            test_stars = []
+            train_stars = []
+            for star_i, star in enumerate(stars):
+                if star_i in test_indx:
+                    test_stars.append(star)
+                else:
+                    train_stars.append(star)
+            psf.fit(train_stars, test_stars, wcs, pointing, logger=logger)
+        else:
+            psf.fit(stars, wcs, pointing, logger=logger)
+    else:
+        psf.fit(stars, wcs, pointing, logger=logger)
 
     return psf
 
@@ -272,11 +296,11 @@ def meanify(config, logger=None):
     if psf_list is not None:
         logger.debug('psf_list = %s',psf_list)
         print('psf_list = %s',psf_list)
-	time.sleep(10)
+        time.sleep(10)
         npsfs = len(psf_list)
         logger.debug('npsfs = %d',npsfs)
         print('npsfs = %d',npsfs)
-	time.sleep(10)
+        time.sleep(10)
         config['output']['file_name'] = psf_list
 
     file_name_in = config['output']['file_name']
@@ -294,21 +318,21 @@ def meanify(config, logger=None):
     for fi, f in enumerate(file_name_in):
         logger.debug('Loading file {0} of {1}'.format(fi, len(file_name_in)))
     #    print('Loading file {0} of {1}'.format(fi, len(file_name_in)))
-	##time.sleep(10)
+    #    #time.sleep(10)
     #    # rewrite takes ~0.02 sec per psf, while previous took 2-3 sec.
     #    star_arr = fitsio.read(f, 'psf_stars')
-	#corrupted=False
-	#for early_element in star_arr['u']:
-	#    if early_element > 10000.0:
-	#        print("alert! early element was bigger than 10000.0!")
-	#        print("star_arr['u']: {0}".format(star_arr['u']))
-	#	time.sleep(10)
-	#	corrupted=True
-	#if corrupted==True:
-	#    continue
+        #corrupted=False
+        #for early_element in star_arr['u']:
+        #    if early_element > 10000.0:
+        #        print("alert! early element was bigger than 10000.0!")
+        #        print("star_arr['u']: {0}".format(star_arr['u']))
+        #	time.sleep(10)
+        #	corrupted=True
+        #if corrupted==True:
+        #    continue
     #    coord = np.array([star_arr['u'], star_arr['v']])
     #    param = star_arr['params']
-	##print("coord: {0}".format(coord))
+    #    #print("coord: {0}".format(coord))
     #    coords.append(coord)
     #    params.append(param)
         try:

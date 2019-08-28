@@ -19,9 +19,14 @@
 from __future__ import print_function
 from past.builtins import basestring
 import numpy as np
+#from coord import AngleUnit
 import glob
 import os
 from scipy.optimize import curve_fit
+
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 
 
 class Input(object):
@@ -163,62 +168,64 @@ class Input(object):
         logger.warning("Read a total of %d stars from %d image%s",len(stars),len(self.images),
                        "s" if len(self.images) > 1 else "")
 
+        # here we remove stars which have a deformed postage stamp
+        if len(stars) > 0:
+            postage_stamp_heights = []
+            postage_stamp_widths = []
+            for star in stars:
+                postage_stamp_heights.append(star.image.array.shape[0])
+                postage_stamp_widths.append(star.image.array.shape[1])
+            postage_stamp_heights = np.array(postage_stamp_heights)
+            postage_stamp_widths = np.array(postage_stamp_widths)
+            conds_height_not_deformed = (    np.abs(postage_stamp_heights - self.stamp_size) < self.cutoff_deformed_level    )
+            conds_width_not_deformed = (    np.abs(postage_stamp_widths - self.stamp_size) < self.cutoff_deformed_level    )
+            stars = np.array(stars)[conds_height_not_deformed*conds_width_not_deformed].tolist()
+        logger.info("There are {0} stars after the deformed star cut".format(len(stars)))
+        print("There are {0} stars after the deformed star cut".format(len(stars)))
+
         # here we remove nuisance stars. We do this by seeing if there is an unusual amount of flux far from the center of the postage stamp
+        if len(stars) > 0:
+            flux_extras = []
+            for star_i, star in enumerate(stars):
+                if star.image.array.shape[0] != self.stamp_size or star.image.array.shape[1] != self.stamp_size:
+                    logger.info("Star {0} unable to be tested for having a nuisance star due to being deformed. Star will stay in.".format(star_i))
+                    print("Star {0} unable to be tested for having a nuisance star due to being deformed. Star will stay in.".format(star_i))
+                    flux_extras.append(np.nan)
+                    continue
+                flux_extra = 0
+                for i in range(0,self.stamp_size):
+                    for j in range(0,self.stamp_size):
+                        if np.sqrt(np.square((self.stamp_size-1.0)/2.0-i)+np.square((self.stamp_size-1.0)/2.0-j))>(self.stamp_size-1.0)*(5.0/12.0):
+                            flux_extra = flux_extra + star.image.array[i][j]
+                flux_extras.append(flux_extra)
 
-        # PF COMMENTS: I understant the goals of doing that but I am not sure of
-        # what it is really hapenning here. For the moment and just in order to go
-        # throught the test of Piff (test_knn_interp.py because ~100 stars are removed
-        # over 125, I will comment this part for the moment and can add it back after
-        # discussions with Ares.
+            flux_extras = np.array(flux_extras)
+            med = np.nanmedian(flux_extras)
+            mad = np.nanmedian(np.abs(flux_extras-med[None]))
+            madx = np.abs(flux_extras - med[None])
 
-	#flux_extras = []
-	#for star in stars:
-	#    flux_extra = 0
-	#    for i in range(0,self.stamp_size):
-	#	for j in range(0,self.stamp_size):
-	#	    if np.sqrt(np.square((self.stamp_size-1.0)/2.0-i)+np.square((self.stamp_size-1.0)/2.0-j))>(self.stamp_size-1.0)/3.0:
-	#	        flux_extra = flux_extra + star.image.array[i][j]
-	#    flux_extras.append(flux_extra)
+            delete_list = []
+            for star_i, star in enumerate(stars):
+                if madx[star_i] > 1.48 * self.cutoff_nuisance_level * mad:
+                    delete_list.append(star_i)
+            stars = np.delete(stars, delete_list)
+            stars = stars.tolist()
 
-	#hist = np.histogram(flux_extras, bins = 1000)
-	#y = hist[0]
-	#increment = (hist[1][1000]-hist[1][0])/1000.0
-	#half_increment = increment/2.0
-	#x_uncut = hist[1] + half_increment
-	#x = np.delete(x_uncut,1000)
-	#gaussian_amplitude = np.amax(y)
-	#guess_sigma = 0.0
-	#for i in range(0,len(y)):
-	#    if y[i]>0.5*gaussian_amplitude:
-	#	guess_sigma = np.abs(x[i])
-	#	break
-
-	#def gaussian_func(x,b):
-	#    return gaussian_amplitude/np.exp(np.square(x)/(2*np.square(b)))
-	#popt,pcov = curve_fit(gaussian_func,x,y,guess_sigma)
-	#sigma = popt[0]
-	#delete_list = []
-	#for star_i, star in enumerate(stars):
-	#    if flux_extras[star_i] > 2*sigma:
-	#	delete_list.append(star_i)
-	#stars = np.delete(stars, delete_list)
-	#stars = stars.tolist()
-
-	#logger.info("There are {0} stars after the nuisance star cut".format(len(stars)))
+        logger.info("There are {0} stars after the nuisance star cut".format(len(stars)))
+        print("There are {0} stars after the nuisance star cut".format(len(stars)))
 
         # here we remove stars that have been at least partially covered by a mask and thus have weight exactly 0 in at least one pixel of their postage stamp
-	#star_weightmaps = []
-	#for star in stars:
-	#	#print("star_weightmap: {0}".format(star.weight.array))
-	#	star_weightmaps.append(star.weight.array)
-	#star_weightmaps = np.array(star_weightmaps)
-	#conds_not_masked = (np.all(star_weightmaps != 0.0,axis=(1,2)))
-	#for s, star_weightmap in enumerate(star_weightmaps):
-	#	if not np.all(star_weightmap != 0.0):
-	#		print("star_weightmap for star {0}: {1}".format(s, star_weightmap))
-	#stars = np.array(stars)[conds_not_masked].tolist()
-	#logger.info("There are {0} stars after the masked star cut".format(len(stars)))
-	return stars
+        if len(stars) > 0:
+            star_weightmaps = []
+            delete_list = []
+            for star_i, star in enumerate(stars):
+                if star.weight.array.shape[0] * star.weight.array.shape[1] - np.count_nonzero(star.weight.array) >= self.cutoff_masked_level:
+                    delete_list.append(star_i)
+            stars = np.delete(stars, delete_list)
+            stars = stars.tolist()
+        logger.info("There are {0} stars after the masked star cut".format(len(stars)))
+        print("There are {0} stars after the masked star cut".format(len(stars)))
+        return stars
 
     @staticmethod
     def calculateSNR(image, weight):
@@ -321,71 +328,81 @@ class InputFiles(Input):
         There are many other optional parameters, which help govern how the input files are
         read or interporeted:
 
-            :chipnum:       The id number of this chip used to reference this image [default:
-                            image_num]
+            :chipnum:                   The id number of this chip used to reference this image [default:
+                                        image_num]
 
-            :image_hdu:     The hdu to use in the image files. [default: None, which means use
-                            either 0 or 1 as typical given the compression sceme of the file]
-            :weight_hdu:    The hdu to use for weight images. [default: None, which means a weight
-                            image with all 1's will be automatically created]
-            :badpix_hdu:    The hdu to use for badpix images. Pixels with badpix != 0 will be given
-                            weight == 0. [default: None]
-            :noise:         Rather than a weight image, provide the noise variance in the image.
-                            (Useful for simulations where this is a known value.) [default: None]
+            :image_hdu:                 The hdu to use in the image files. [default: None, which means use
+                                        either 0 or 1 as typical given the compression sceme of the file]
+            :weight_hdu:                The hdu to use for weight images. [default: None, which means a weight
+                                        image with all 1's will be automatically created]
+            :badpix_hdu:                The hdu to use for badpix images. Pixels with badpix != 0 will be given
+                                        weight == 0. [default: None]
+            :noise:                     Rather than a weight image, provide the noise variance in the image.
+                                        (Useful for simulations where this is a known value.) [default: None]
 
-            :cat_hdu:       The hdu to use in the catalog files. [default: 1]
-            :x_col:         The name of the X column in the input catalogs. [default: 'x']
-            :y_col:         The name of the Y column in the input catalogs. [default: 'y']
-            :ra_col:        (Alternative to x_col, y_col) The name of a right ascension column in
-                            the input catalogs.  Will use the WCS to find (x,y) [default: None]
-            :dec_col:       (Alternative to x_col, y_col) The name of a declination column in
-                            the input catalogs.  Will use the WCS to find (x,y) [default: None]
-            :flag_col:      The name of a flag column in the input catalogs. [default: None]
-                            By default, this will skip any objects with flag != 0, but see
-                            skip_flag and use_flag for other possible meanings for how the
-                            flag column can be used to select stars.
-            :skip_flag:     The flag indicating which items to not use. [default: -1]
-                            Items with flag & skip_flag != 0 will be skipped.
-            :use_flag:      The flag indicating which items to use. [default: None]
-                            Items with flag & use_flag == 0 will be skipped.
-            :sky_col:       The name of a column with sky values. [default: None]
-            :gain_col:      The name of a column with gain values. [default: None]
-            :sky:           The sky level to subtract from the image values. [default: None]
-                            Note: It is an error to specify both sky and sky_col. If both are None,
-                            no sky level will be subtracted off.
-            :gain:          The gain to use for adding Poisson noise to the weight map.  [default:
-                            None] It is an error for both gain and gain_col to be specified.
-                            If both are None, then no additional noise will be added to account
-                            for the Poisson noise from the galaxy flux.
-            :min_snr:       The minimum S/N ratio to use.  If an input star is too faint, it is
-                            removed from the input list of PSF stars.
-            :max_snr:       The maximum S/N ratio to allow for any given star.  If an input star
-                            is too bright, it can have too large an influence on the interpolation,
-                            so this parameter limits the effective S/N of any single star.
-                            Basically, it adds noise to bright stars to lower their S/N down to
-                            this value.  [default: 100]
-            :use_partial:   Whether to use stars whose postage stamps are only partially on the
-                            full image.  [default: False]
-            :nstars:        Stop reading the input file at this many stars.  (This is applied
-                            separately to each input catalog.)  [default: None]
+            :cat_hdu:                   The hdu to use in the catalog files. [default: 1]
+            :x_col:                     The name of the X column in the input catalogs. [default: 'x']
+            :y_col:                     The name of the Y column in the input catalogs. [default: 'y']
+            :ra_col:                    (Alternative to x_col, y_col) The name of a right ascension column in
+                                        the input catalogs.  Will use the WCS to find (x,y) [default: None]
+            :dec_col:                   (Alternative to x_col, y_col) The name of a declination column in
+                                        the input catalogs.  Will use the WCS to find (x,y) [default: None]
+            :flag_col:                  The name of a flag column in the input catalogs. [default: None]
+                                        By default, this will skip any objects with flag != 0, but see
+                                        skip_flag and use_flag for other possible meanings for how the
+                                        flag column can be used to select stars.
+            :skip_flag:                 The flag indicating which items to not use. [default: -1]
+                                        Items with flag & skip_flag != 0 will be skipped.
+            :use_flag:                  The flag indicating which items to use. [default: None]
+                                        Items with flag & use_flag == 0 will be skipped.
+            :sky_col:                   The name of a column with sky values. [default: None]
+            :gain_col:                  The name of a column with gain values. [default: None]
+            :sky:                       The sky level to subtract from the image values. [default: None]
+                                        Note: It is an error to specify both sky and sky_col. If both are None,
+                                        no sky level will be subtracted off.
+            :gain:                      The gain to use for adding Poisson noise to the weight map.  [default:
+                                        None] It is an error for both gain and gain_col to be specified.
+                                        If both are None, then no additional noise will be added to account
+                                        for the Poisson noise from the galaxy flux.
+            :min_snr:                   The minimum S/N ratio to use.  If an input star is too faint, it is
+                                        removed from the input list of PSF stars.
+            :max_snr:                   The maximum S/N ratio to allow for any given star.  If an input star
+                                        is too bright, it can have too large an influence on the interpolation,
+                                        so this parameter limits the effective S/N of any single star.
+                                        Basically, it adds noise to bright stars to lower their S/N down to
+                                        this value.  [default: 100]
+            :_cutoff_deformed_level     The degree to which the width or height of a star's postage stamp is
+                                        allowed to differ from the desired stamp size + 1. This occurs if the
+                                        star is partially cutoff due to being at the edge of an image.
+                                        [default: 1]
+            :_cutoff_nuisance_level     Stars with fluxes on the outer edges of their postage stamps too many
+                                        sigma away from the median outer-edge flux are cut. This specifies how
+                                        many sigma. Note that this is done with a MAD cut. [default: 7.5]
+            :_cutoff_masked_level       Stars that are partially masked to an extent are cut. Specifically,
+                                        stars where at least this many number of pixels have weight 0.0 are
+                                        cut [default: 1]
+            :use_partial:               Whether to use stars whose postage stamps are only partially on the
+                                        full image.  [default: False]
+            :nstars:                    Stop reading the input file at this many stars.  (This is applied
+                                        separately to each input catalog.)  [default: None]
 
-            :wcs:           Normally, the wcs is automatically read in when reading the image.
-                            However, this parameter allows you to optionally provide a different
-                            WCS.  It should be defined using the same style as a wcs object
-                            in GalSim config files. [defulat: None]
+            :wcs:                       Normally, the wcs is automatically read in when reading the image.
+                                        However, this parameter allows you to optionally provide a different
+                                        WCS.  It should be defined using the same style as a wcs object
+                                        in GalSim config files. [defulat: None]
 
         The above values are parsed separately for each input image/catalog.  In addition, there
         are a couple other parameters that are just parsed once:
 
-            :stamp_size:    The size of the postage stamps to use for the cutouts.  Note: some
-                            stamps may be smaller than this if the star is near a chip boundary.
-                            [default: 32]
-            :ra, dec:       The RA, Dec of the telescope pointing. [default: None; See
-                            :setPointing: for details about how this can be specified]
+            :stamp_size:                The size of the postage stamps to use for the cutouts.  Note: some
+                                        stamps may be smaller than this if the star is near a chip boundary.
+                                        [default: 32]
+            :ra, dec:                   The RA, Dec of the telescope pointing. [default: None; See
+                                        :setPointing: for details about how this can be specified]
 
 
-        :param config:      The configuration dict used to define the above parameters.
-        :param logger:      A logger object for logging debug info. [default: None]
+        :param config:                  The configuration dict used to define the above parameters.
+        :param logger:                  A logger object for logging debug info. [default: None]
         """
         import galsim
         import copy
@@ -517,7 +534,7 @@ class InputFiles(Input):
                              'file names')
 
         self.chipnums = list(range(nimages))
-        self.stamp_size = int(config.get('stamp_size', 32))
+        self.stamp_size = int(config.get('stamp_size', 19)) # previous default was 32
         self.images = []
         self.weight = []
         self.image_pos = []
@@ -587,24 +604,7 @@ class InputFiles(Input):
             # Check for objects well off the edge.  We won't use them.
             #big_bounds = image.bounds.expand(self.stamp_size)
             #image_pos = [ pos for pos in image_pos if big_bounds.includes(pos) ]
-#The above two lines cause the following error, so they are commented out:
-#cat_file_name: /nfs/slac/g/ki/ki19/des/cpd/y3_piff/exposures_v29_grizY/510062/psf_cat_510062_1.fits
-#cat_hdu: 2
-#Traceback (most recent call last):
-#  File "fit_psf.py", line 593, in <module>
-#    fit_psf(**kwargs)
-#  File "fit_psf.py", line 261, in fit_psf
-#    stars, wcs, pointing = piff.Input.process(config['input'], logger=logger)
-#  File "/u/ec/aresh/Piff-galsimify_optatmo/piff/input.py", line 54, in process
-#    input_handler = input_handler_class(config_input, logger)
-#  File "/u/ec/aresh/Piff-galsimify_optatmo/piff/input.py", line 583, in __init__
-#    image_pos = [ pos for pos in image_pos if big_bounds.includes(pos) ]
-#Boost.Python.ArgumentError: Python argument types in
-#    BoundsI.includes(BoundsI, PositionD)
-#did not match C++ signature:
-#    includes(galsim::Bounds<int> {lvalue}, galsim::Bounds<int>)
-#    includes(galsim::Bounds<int> {lvalue}, int, int)
-#    includes(galsim::Bounds<int> {lvalue}, galsim::Position<int>)
+            #The above two lines cause an  error, so they are commented out for now:
 
             if config.get('remove_signal_from_weight', False):
                 # Subtract off the mean sky, since this isn't part of the "signal" we want to
@@ -634,6 +634,9 @@ class InputFiles(Input):
 
         self.min_snr = config.get('min_snr', None)
         self.max_snr = config.get('max_snr', 200)
+        self.cutoff_deformed_level = int(config.get('_cutoff_deformed_level', 1))
+        self.cutoff_nuisance_level = config.get('_cutoff_nuisance_level', 7.5)
+        self.cutoff_masked_level = int(config.get('_cutoff_masked_level', 1))
         self.use_partial = config.get('use_partial', False)
 
         # Finally, set the pointing coordinate.
@@ -779,8 +782,8 @@ class InputFiles(Input):
 
         # Read in the star catalog
         logger.warning("Reading star catalog %s.",cat_file_name)
-	print("cat_file_name: {0}".format(cat_file_name))
-	print("cat_hdu: {0}".format(cat_hdu))
+        print("cat_file_name: {0}".format(cat_file_name))
+        print("cat_hdu: {0}".format(cat_hdu))
         cat = fitsio.read(cat_file_name, cat_hdu)
 
         if flag_col is not None:

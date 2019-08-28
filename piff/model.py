@@ -170,7 +170,7 @@ class Model(object):
         assert len(model_type) == 1
         try:
             model_type = str(model_type[0].decode())
-        except AttributeError:
+        except:
             # fitsio 1.0 returns strings
             model_type = model_type[0]
 

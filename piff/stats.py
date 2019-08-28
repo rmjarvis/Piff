@@ -249,60 +249,60 @@ class ShapeHistogramsStats(Stats):
         #logger.warning("Calculating rho statistics for %d stars",len(stars))
         logger.warning("Calculating rho statistics")
 	
-	#the line below is necessary as it will reveal what folder to look into for all the .npy files that contain all the psfs and stars_tests
-	npy_storage_folder = "{0}/npy_storage/".format(core_directory)
+        #the line below is necessary as it will reveal what folder to look into for all the .npy files that contain all the psfs and stars_tests
+        npy_storage_folder = "{0}/npy_storage/".format(core_directory)
 
-	#print("os.walk output: ")
-	#print(os.walk("/nfs/slac/g/ki/ki19/des/aresh/npy_storage/psf/"))
+        #print("os.walk output: ")
+        #print(os.walk("/nfs/slac/g/ki/ki19/des/aresh/npy_storage/psf/"))
 
-	stars_test_npy_filenames = [stars_test_npy_file for stars_test_npy_file in os.walk("{0}/npy_storage/stars_test/".format(core_directory))][0][2]
+        stars_test_npy_filenames = [stars_test_npy_file for stars_test_npy_file in os.walk("{0}/npy_storage/stars_test/".format(core_directory))][0][2]
 
 	
-	#change the line below as needed when looking at different types of psf (besides just combined_pixelgrid with default settings)
-	new_psf_npy_filenames_core = "{0}/config_folders/config_folder".format(core_directory)
-	
-
-
-	new_exposures = [psf_npy_filename.split(".")[0] for psf_npy_filename in psf_npy_filenames]
+        #change the line below as needed when looking at different types of psf (besides just combined_pixelgrid with default settings)
+        new_psf_npy_filenames_core = "{0}/config_folders/config_folder".format(core_directory)
 	
 
 
-	new_psf_npy_filenames = []	
-
-	for i, new_exposure in enumerate(new_exposures):
-		new_psf_npy_filenames.append(new_psf_npy_filenames_core + new_exposure + "/psf.piff")
-
-	#the line below will be run several times (once for each exposure) with each psf and each stars_test taken from a single psfEXPOSURENUMBER.npy and a single stars_testEXPOSURENUMBER.npy file respectively (these files are all inside the npy_storage_folder); after numpy arrays of positions, shapes_truth, and shapes_model are created for each exposure, the numpy arrays are each concatenated so that there is a single numpy array for each of these three (concatenated_positions, concatenated_shapes_truth, and concatenated_shapes_model)
+        new_exposures = [psf_npy_filename.split(".")[0] for psf_npy_filename in psf_npy_filenames]
 	
-	unconcatenated_positions_list = []
-	unconcatenated_shapes_truth_list = []
-	unconcatenated_shapes_model_list = []
 
-	index = 0
-	#print("psf_npy_filenames: ")
-	#print(psf_npy_filenames)
-	for psf_npy_filename in psf_npy_filenames:
-		#print("psf_npy_filename: ")
-		#print(psf_npy_filename)
-		#psf = np.load("/nfs/slac/g/ki/ki19/des/aresh/npy_storage/psf/" + psf_npy_filename)[0][0]
-		psf = piff.read(new_psf_npy_filenames[index])
-		stars_test = np.load("{0}/npy_storage/stars_test/".format(core_directory) + stars_test_npy_filenames[index])[0][0]
-        	positions, shapes_truth, shapes_model = self.measureShapes(psf, stars_test, logger=logger)
-		unconcatenated_positions_list.append(positions)
-		unconcatenated_shapes_truth_list.append(shapes_truth)
-		unconcatenated_shapes_model_list.append(shapes_model)
-		index = index + 1
+
+        new_psf_npy_filenames = []	
+
+        for i, new_exposure in enumerate(new_exposures):
+            new_psf_npy_filenames.append(new_psf_npy_filenames_core + new_exposure + "/psf.piff")
+
+        #the line below will be run several times (once for each exposure) with each psf and each stars_test taken from a single psfEXPOSURENUMBER.npy and a single stars_testEXPOSURENUMBER.npy file respectively (these files are all inside the npy_storage_folder); after numpy arrays of positions, shapes_truth, and shapes_model are created for each exposure, the numpy arrays are each concatenated so that there is a single numpy array for each of these three (concatenated_positions, concatenated_shapes_truth, and concatenated_shapes_model)
 	
-	unconcatenated_positions = np.array(unconcatenated_positions_list)
-	unconcatenated_shapes_truth = np.array(unconcatenated_shapes_truth_list)
-	unconcatenated_shapes_model = np.array(unconcatenated_shapes_model_list) 
+        unconcatenated_positions_list = []
+        unconcatenated_shapes_truth_list = []
+        unconcatenated_shapes_model_list = []
 
-	#TODO: Check to make sure the correct axis is used when concatenating these arrays. 
-	concatenated_positions = np.concatenate(unconcatenated_positions)
-	concatenated_shapes_truth = np.concatenate(unconcatenated_shapes_truth)
-	concatenated_shapes_model = np.concatenate(unconcatenated_shapes_model)
+        index = 0
+        #print("psf_npy_filenames: ")
+        #print(psf_npy_filenames)
+        for psf_npy_filename in psf_npy_filenames:
+            #print("psf_npy_filename: ")
+            #print(psf_npy_filename)
+            #psf = np.load("/nfs/slac/g/ki/ki19/des/aresh/npy_storage/psf/" + psf_npy_filename)[0][0]
+            psf = piff.read(new_psf_npy_filenames[index])
+            stars_test = np.load("{0}/npy_storage/stars_test/".format(core_directory) + stars_test_npy_filenames[index])[0][0]
+            positions, shapes_truth, shapes_model = self.measureShapes(psf, stars_test, logger=logger)
+            unconcatenated_positions_list.append(positions)
+            unconcatenated_shapes_truth_list.append(shapes_truth)
+            unconcatenated_shapes_model_list.append(shapes_model)
+            index = index + 1
+	
+        unconcatenated_positions = np.array(unconcatenated_positions_list)
+        unconcatenated_shapes_truth = np.array(unconcatenated_shapes_truth_list)
+        unconcatenated_shapes_model = np.array(unconcatenated_shapes_model_list) 
 
-	#everywhere in the lines below this comment "positions," "shapes_truth," and "shapes_model" are to be replaced with "concatenated_positions," "concatenated_shapes_truth," and "concatenated_shapes_model"
+        #TODO: Check to make sure the correct axis is used when concatenating these arrays. 
+        concatenated_positions = np.concatenate(unconcatenated_positions)
+        concatenated_shapes_truth = np.concatenate(unconcatenated_shapes_truth)
+        concatenated_shapes_model = np.concatenate(unconcatenated_shapes_model)
+
+        #everywhere in the lines below this comment "positions," "shapes_truth," and "shapes_model" are to be replaced with "concatenated_positions," "concatenated_shapes_truth," and "concatenated_shapes_model"
 
         # Only use stars for which hsm was successful
         flag_truth = concatenated_shapes_truth[:, 6]
