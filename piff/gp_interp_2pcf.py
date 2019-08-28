@@ -168,7 +168,7 @@ class GPInterp2pcf(Interp):
 
     :param keys:         A list of star attributes to interpolate from. Must be 2 attributes
                          using two-point correlation function to estimate hyperparameter(s)
-    :param kernel:       A string that can be `eval`ed to make a
+    :param kernel:       A string that can be evaled to make a
                          sklearn.gaussian_process.kernels.Kernel object.  The reprs of
                          sklearn.gaussian_process.kernels will work, as well as the repr of a
                          custom piff VonKarman object.  [default: 'RBF(1)']

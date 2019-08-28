@@ -42,8 +42,17 @@ GPInterp
 .. autoclass:: piff.GPInterp
    :members:
 
+.. autoclass:: piff.GPInterp2pcf
+   :members:
+
 .. autoclass:: piff.ExplicitKernel
    :members:
 
 .. autoclass:: piff.AnisotropicRBF
+   :members:
+
+.. autoclass:: piff.VonKarman
+   :members:
+
+.. autoclass:: piff.AnisotropicVonKarman
    :members:

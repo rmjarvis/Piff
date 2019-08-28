@@ -188,7 +188,7 @@ class Star(object):
                             [default: None; this overrides stamp_size]
         :param pointing:    The pointing direction to use. [default: None]
         :param flux:        The flux of the target star. [default: 1]
-        :param **kwargs:    Additional properties can also be given as keyword arguments if that
+        :param \*\*kwargs:  Additional properties can also be given as keyword arguments if that
                             is more convenient than populating the properties dict.
 
         :returns:   A Star instance

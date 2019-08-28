@@ -63,24 +63,29 @@ class ExplicitKernel(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
 class AnisotropicRBF(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
     """ A GaussianProcessRegressor Kernel representing a radial basis function (essentially a
     squared exponential or Gaussian) but with arbitrary anisotropic covariance.
+
     While the parameter for this kernel, an inverse covariance matrix, can be specified directly
     with the `invLam` kwarg, it may be more convenient to instead specify a characteristic
     scale-length for each axis using the `scale_length` kwarg.  Note that a list or array is
     required so that the dimensionality of the kernel can be determined from its length.
     For optimization, it's necessary to reparameterize the inverse covariance matrix in such a way
-    as to ensure that it's always positive definite.  To this end, we define `theta` (abbreviated
-    `th` below) such that
-    invLam = L * L.T
-    L = [[exp(th[0])  0              0           ...    0                 0           ]
-         [th[n]       exp(th[1])]    0           ...    0                 0           ]
-         [th[n+1]     th[n+2]        exp(th[3])  ...    0                 0           ]
-         [...         ...            ...         ...    ...               ...         ]
-         [th[]        th[]           th[]        ...    exp(th[n-2])      0           ]
-         [th[]        th[]           th[]        ...    th[n*(n+1)/2-1]   exp(th[n-1])]]
+    as to ensure that it's always positive definite.
+
+    To this end, we define `theta` (abbreviated `th` below) such that::
+
+        invLam = L * L.T
+        L = [[exp(th[0])  0              0           ...    0                 0           ]
+             [th[n]       exp(th[1])]    0           ...    0                 0           ]
+             [th[n+1]     th[n+2]        exp(th[3])  ...    0                 0           ]
+             [...         ...            ...         ...    ...               ...         ]
+             [th[]        th[]           th[]        ...    exp(th[n-2])      0           ]
+             [th[]        th[]           th[]        ...    th[n*(n+1)/2-1]   exp(th[n-1])]]
+
     I.e., the inverse covariance matrix is Cholesky-decomposed, exp(theta[0:n]) lie on the diagonal
     of the Cholesky matrix, and theta[n:n*(n+1)/2] lie in the lower triangular part of the Cholesky
     matrix.  This parameterization invertably maps all valid n x n covariance matrices to
     R^(n*(n+1)/2).  I.e., the range of each theta[i] is -inf...inf.
+
     :param  invLam:  Inverse covariance matrix of radial basis function.  Exactly one of invLam and
                      scale_length must be provided.
     :param  scale_length:  Axes-aligned scale lengths of the kernel.  len(scale_length) must be the
@@ -185,15 +190,14 @@ class AnisotropicRBF(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
 class VonKarman(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
     """VonKarman kernel.
 
-    Parameters
-    -----------
-    length_scale : float or array with shape (n_features,), default: 1.0
-        The length scale of the kernel. If a float, an isotropic kernel is
-        used. If an array, an anisotropic kernel is used where each dimension
-        of l defines the length-scale of the respective feature dimension.
+    Parameters:
+        length_scale : float or array with shape (n_features,), default: 1.0
+            The length scale of the kernel. If a float, an isotropic kernel is
+            used. If an array, an anisotropic kernel is used where each dimension
+            of l defines the length-scale of the respective feature dimension.
 
-    length_scale_bounds : pair of floats >= 0, default: (1e-5, 1e5)
-        The lower and upper bound on length_scale
+        length_scale_bounds : pair of floats >= 0, default: (1e-5, 1e5)
+            The lower and upper bound on length_scale
     """
     def __init__(self, length_scale=1.0, length_scale_bounds=(1e-5, 1e5)):
         self.length_scale = length_scale
@@ -215,28 +219,26 @@ class VonKarman(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
     def __call__(self, X, Y=None, eval_gradient=False):
         """Return the kernel k(X, Y) and optionally its gradient.
 
-        Parameters
-        ----------
-        X : array, shape (n_samples_X, n_features)
-            Left argument of the returned kernel k(X, Y)
+        Parameters:
+            X : array, shape (n_samples_X, n_features)
+                Left argument of the returned kernel k(X, Y)
 
-        Y : array, shape (n_samples_Y, n_features), (optional, default=None)
-            Right argument of the returned kernel k(X, Y). If None, k(X, X)
-            if evaluated instead.
+            Y : array, shape (n_samples_Y, n_features), (optional, default=None)
+                Right argument of the returned kernel k(X, Y). If None, k(X, X)
+                if evaluated instead.
 
-        eval_gradient : bool (optional, default=False)
-            Determines whether the gradient with respect to the kernel
-            hyperparameter is determined. Only supported when Y is None.
+            eval_gradient : bool (optional, default=False)
+                Determines whether the gradient with respect to the kernel
+                hyperparameter is determined. Only supported when Y is None.
 
-        Returns
-        -------
-        K : array, shape (n_samples_X, n_samples_Y)
-            Kernel k(X, Y)
+        Returns:
+            K : array, shape (n_samples_X, n_samples_Y)
+                Kernel k(X, Y)
 
-        K_gradient : array (opt.), shape (n_samples_X, n_samples_X, n_dims)
-            The gradient of the kernel k(X, X) with respect to the
-            hyperparameter of the kernel. Only returned when eval_gradient
-            is True.
+            K_gradient : array (opt.), shape (n_samples_X, n_samples_X, n_dims)
+                The gradient of the kernel k(X, X) with respect to the
+                hyperparameter of the kernel. Only returned when eval_gradient
+                is True.
         """
         from scipy.spatial.distance import pdist, cdist, squareform
         from scipy import special
@@ -293,24 +295,30 @@ class VonKarman(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
 
 class AnisotropicVonKarman(StationaryKernelMixin, NormalizedKernelMixin, Kernel):
     """ A GaussianProcessRegressor Kernel representing a Von-Karman correlation function
-    with an arbitrary anisotropic covariance. While the parameter for this kernel,
-    an inverse covariance matrix, can be specified directly with the `invLam` kwarg,
-    it may be more convenient to instead specify a characteristic scale-length for each axis
-    using the `scale_length` kwarg.  Note that a list or array is required so that the dimensionality
-    of the kernel can be determined from its length. For optimization, it's necessary to reparameterize
-    the inverse covariance matrix in such a way as to ensure that it's always positive definite.
-    To this end, we define `theta` (abbreviated `th` below) such that
-    invLam = L * L.T
-    L = [[exp(th[0])  0              0           ...    0                 0           ]
-         [th[n]       exp(th[1])]    0           ...    0                 0           ]
-         [th[n+1]     th[n+2]        exp(th[3])  ...    0                 0           ]
-         [...         ...            ...         ...    ...               ...         ]
-         [th[]        th[]           th[]        ...    exp(th[n-2])      0           ]
-         [th[]        th[]           th[]        ...    th[n*(n+1)/2-1]   exp(th[n-1])]]
+    with an arbitrary anisotropic covariance.
+
+    While the parameter for this kernel, an inverse covariance matrix, can be specified directly
+    with the `invLam` kwarg, it may be more convenient to instead specify a characteristic
+    scale-length for each axis using the `scale_length` kwarg.  Note that a list or array is
+    required so that the dimensionality of the kernel can be determined from its length. For
+    optimization, it's necessary to reparameterize the inverse covariance matrix in such a way as
+    to ensure that it's always positive definite.
+
+    To this end, we define `theta` (abbreviated `th` below) such that::
+
+        invLam = L * L.T
+        L = [[exp(th[0])  0              0           ...    0                 0           ]
+             [th[n]       exp(th[1])]    0           ...    0                 0           ]
+             [th[n+1]     th[n+2]        exp(th[3])  ...    0                 0           ]
+             [...         ...            ...         ...    ...               ...         ]
+             [th[]        th[]           th[]        ...    exp(th[n-2])      0           ]
+             [th[]        th[]           th[]        ...    th[n*(n+1)/2-1]   exp(th[n-1])]]
+
     I.e., the inverse covariance matrix is Cholesky-decomposed, exp(theta[0:n]) lie on the diagonal
     of the Cholesky matrix, and theta[n:n*(n+1)/2] lie in the lower triangular part of the Cholesky
     matrix.  This parameterization invertably maps all valid n x n covariance matrices to
     R^(n*(n+1)/2).  I.e., the range of each theta[i] is -inf...inf.
+
     :param  invLam:  Inverse covariance matrix of radial basis function.  Exactly one of invLam and
                      scale_length must be provided.
     :param  scale_length:  Axes-aligned scale lengths of the kernel.  len(scale_length) must be the

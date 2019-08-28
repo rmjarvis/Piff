@@ -141,7 +141,7 @@ class StarStats(Stats):
         """Make the plots.
 
         :param logger:      A logger object for logging debug info. [default: None]
-        :params **kwargs:   Any additional kwargs go into the matplotlib pcolor() function.
+        :params \*\*kwargs: Any additional kwargs go into the matplotlib pcolor() function.
 
         :returns: fig, ax
         """
