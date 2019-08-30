@@ -85,8 +85,6 @@ class GPInterp(Interp):
 
         try:
             k = eval(kernel)
-        except (KeyboardInterrupt, SystemExit):
-            raise
         except Exception as e:  # pragma: no cover
             raise RuntimeError("Failed to evaluate kernel string {0!r}.  "
                                "Original exception: {1}".format(kernel, e))

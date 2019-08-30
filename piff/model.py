@@ -20,6 +20,7 @@ from __future__ import print_function
 import numpy as np
 
 from .util import write_kwargs, read_kwargs
+from .star import Star, StarData
 
 
 # Raise this if there's a failure in the Model.fit() method.
@@ -77,12 +78,10 @@ class Model(object):
         kwargs.pop('type', None)
         return kwargs
 
-    def initialize(self, star, mask=True, logger=None):
+    def initialize(self, star, logger=None):
         """Initialize a star to work with the current model.
 
         :param star:    A Star instance with the raw data.
-        :param mask:    If True, set data.weight to zero at pixels that are outside
-                        the range of the model. [default: True]
         :param logger:  A logger object for logging debug info. [default: None]
 
         :returns:       Star instance with the appropriate initial fit values
@@ -93,6 +92,15 @@ class Model(object):
         else:
             star = star.withFlux(np.sum(star.data.image.array))
         return star
+
+    def normalize(self, star):
+        """Make sure star.fit.params are normalized properly.
+
+        Note: This modifies the input star in place.
+        """
+        # This is by default a no op.  Some models may need to do something to noramlize the
+        # parameter values in star.fit.
+        pass
 
     def fit(self, star):
         """Fit the Model to the star's data to yield iterative improvement on
@@ -107,18 +115,24 @@ class Model(object):
         raise NotImplementedError("Derived classes must define the fit function")
 
     def draw(self, star, copy_image=True):
-        """Create new Star instance that has star.data filled with a rendering
-        of the PSF specified by the current StarFit parameters, flux, and center.
-        Coordinate mapping of the current StarData is assumed.
+        """Draw the model on the given image.
 
-        :param star:   A Star instance
-        :param copy_image:          If False, will use the same image object.
-                                    If True, will copy the image and then overwrite it.
-                                    [default: True]
+        :param star:        A Star instance with the fitted parameters to use for drawing and a
+                            data field that acts as a template image for the drawn model.
+        :param copy_image:  If False, will use the same image object.
+                            If True, will copy the image and then overwrite it.
+                            [default: True]
 
-        :returns:      New Star instance with rendered PSF in StarData
+        :returns: a new Star instance with the data field having an image of the drawn model.
         """
-        raise NotImplementedError("Derived classes must define the draw function")
+        prof = self.getProfile(star.fit.params).shift(star.fit.center) * star.fit.flux
+        if copy_image:
+            image = star.image.copy()
+        else:
+            image = star.image
+        prof.drawImage(image, method=self._method, offset=(star.image_pos-image.true_center))
+        data = StarData(image, star.image_pos, star.weight, star.data.pointing)
+        return Star(data, star.fit)
 
     def write(self, fits, extname):
         """Write a Model to a FITS file.

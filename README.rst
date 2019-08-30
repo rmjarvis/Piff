@@ -38,9 +38,31 @@ Features: (Some are aspirational.  We're still working on the code!)
 Installation
 ------------
 
-The current stable version, v0.2.4, is installable with pip::
+The easiest way to install Piff is with pip::
 
-    pip install Piff
+    pip install piff
+
+If you have previously installed Piff and want to uprade to a new released version,
+you should do::
+
+    pip install piff --upgrade
+
+Depending on the write permissions of the python distribution for your specific
+system, you might need to use one of the following variants::
+
+    sudo pip install piff
+    pip install piff --user
+
+The latter installs the Python module into ``~/.local/lib/python3.7/site-packages``,
+which is normally already in your PYTHONPATH, but it puts the executables
+``piffify`` and ``meanify`` into ``~/.local/bin`` which is probably not in your PATH.
+To use these scripts, you should add this directory to your PATH.  If you would
+rather install into a different prefix rather than ~/.local, you can use::
+
+    pip install piff --install-option="--prefix=PREFIX"
+
+This would install the executables into ``PREFIX/bin`` and the Python module
+into ``PREFIX/lib/python3.7/site-packages``.
 
 If you need the bleeding edge version on master, you can download or clone
 the repo and install with::

@@ -168,7 +168,7 @@ class GPInterp2pcf(Interp):
 
     :param keys:         A list of star attributes to interpolate from. Must be 2 attributes
                          using two-point correlation function to estimate hyperparameter(s)
-    :param kernel:       A string that can be `eval`ed to make a
+    :param kernel:       A string that can be evaled to make a
                          sklearn.gaussian_process.kernels.Kernel object.  The reprs of
                          sklearn.gaussian_process.kernels will work, as well as the repr of a
                          custom piff VonKarman object.  [default: 'RBF(1)']
@@ -278,8 +278,6 @@ class GPInterp2pcf(Interp):
 
         try:
             k = eval(kernel)
-        except (KeyboardInterrupt, SystemExit):
-            raise
         except Exception as e:  # pragma: no cover
             raise RuntimeError("Failed to evaluate kernel string {0!r}.  "
                                "Original exception: {1}".format(kernel, e))

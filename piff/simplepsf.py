@@ -120,9 +120,7 @@ class SimplePSF(PSF):
         new_stars = []
         for s in self.stars:
             try:
-                new_star = self.model.initialize(s, mask=True, logger=logger)
-            except (KeyboardInterrupt, SystemExit):
-                raise
+                new_star = self.model.initialize(s, logger=logger)
             except Exception as e:  # pragma: no cover
                 logger.warning("Failed initializing star at %s. Excluding it.", s.image_pos)
                 logger.warning("  -- Caught exception: %s",e)
@@ -161,8 +159,6 @@ class SimplePSF(PSF):
             for s in self.stars:
                 try:
                     new_star = fit_fn(s, logger=logger)
-                except (KeyboardInterrupt, SystemExit):
-                    raise
                 except ModelFitError as e:  # pragma: no cover
                     logger.warning("Failed fitting star at %s.  Excluding it.", s.image_pos)
                     logger.warning("  -- Caught exception: %s", e)
@@ -185,8 +181,6 @@ class SimplePSF(PSF):
                 for s in interpolated_stars:
                     try:
                         new_star = self.model.reflux(s, logger=logger)
-                    except (KeyboardInterrupt, SystemExit):
-                        raise
                     except Exception as e:  # pragma: no cover
                         logger.warning("Failed trying to reflux star at %s.  Excluding it.",
                                        s.image_pos)
@@ -257,6 +251,7 @@ class SimplePSF(PSF):
         """
         # Interpolate parameters to this position/properties:
         star = self.interp.interpolate(star)
+        self.model.normalize(star)
         # Render the image
         return self.model.draw(star, copy_image=copy_image)
 

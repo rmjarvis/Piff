@@ -5,18 +5,20 @@ Piff can also produce some statistics about the PSF model and residuals for the 
 used to build the model.  These are specified in a ``stats`` section of the config file.
 
 .. autoclass:: piff.Stats
-   :members:
+    :members:
 
 .. autoclass:: piff.ShapeHistogramsStats
-   :members:
+    :members:
 
 .. autoclass:: piff.RhoStats
-   :members:
+    :members:
 
 .. autoclass:: piff.TwoDHistStats
-   :members:
+    :members:
 
 .. autoclass:: piff.WhiskerStats
-   :members:
+    :members:
 
+.. autoclass:: piff.StarStats
+    :members:
 

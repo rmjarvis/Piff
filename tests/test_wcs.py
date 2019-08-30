@@ -15,6 +15,7 @@
 from __future__ import print_function
 import galsim
 import numpy as np
+import copy
 import piff
 import fitsio
 import os
@@ -403,8 +404,30 @@ def test_pickle():
         return
     fname = os.path.join('input', 'D00240560_r_c01_r2362p01_piff.fits')
     psf = piff.PSF.read(fname, logger=logger)
-    image = psf.draw(x=103.3, y=592.0)
 
+    print('psf.wcs = ',psf.wcs[0])
+    print('(0,0) -> ',psf.wcs[0].toWorld(galsim.PositionD(0,0)))
+    assert np.isclose(psf.wcs[0].toWorld(galsim.PositionD(0,0)).ra / galsim.degrees, 37.490941423)
+    assert np.isclose(psf.wcs[0].toWorld(galsim.PositionD(0,0)).dec / galsim.degrees, -5.03391729)
+    print('local at 0,0 = ',psf.wcs[0].local(galsim.PositionD(0,0)))
+    print('area at 0,0 = ',psf.wcs[0].pixelArea(galsim.PositionD(0,0)),' = %f**2'%(
+            psf.wcs[0].pixelArea(galsim.PositionD(0,0))**0.5))
+    assert np.isclose(psf.wcs[0].pixelArea(galsim.PositionD(0,0)), 0.2628**2, rtol=1.e-3)
+    image = psf.draw(x=103.3, y=592.0, logger=logger)
+    print('image shape = ',image.array.shape)
+    print('image near center = ',image.array[23:26,23:26])
+    print('image sum = ',image.array.sum())
+    assert np.isclose(image.array.sum(), 1.0, rtol=1.e-2)
+    # The center values should be at least close to the following:
+    regression_array = np.array([[0.02920381, 0.03528429, 0.03267081],
+                                 [0.03597827, 0.04419591, 0.04229439],
+                                 [0.03001573, 0.03743261, 0.03300782]])
+    np.testing.assert_allclose(image.array[23:26,23:26], regression_array, rtol=1.e-5)
+
+    # Also check that it is picklable.
+    psf2 = copy.deepcopy(psf)
+    image2 = psf2.draw(x=103.3, y=592.0)
+    np.testing.assert_equal(image2.array, image.array)
 
 if __name__ == '__main__':
     test_focal()

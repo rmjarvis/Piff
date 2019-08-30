@@ -106,26 +106,6 @@ class GSObjectModel(Model):
             du, dv, scale, g1, g2 = params
         return self.gsobj.dilate(scale).shear(g1=g1, g2=g2).shift(du, dv)
 
-    def draw(self, star, copy_image=True):
-        """Draw the model on the given image.
-
-        :param star:    A Star instance with the fitted parameters to use for drawing and a
-                        data field that acts as a template image for the drawn model.
-        :param copy_image:          If False, will use the same image object.
-                                    If True, will copy the image and then overwrite it.
-                                    [default: True]
-
-        :returns: a new Star instance with the data field having an image of the drawn model.
-        """
-        prof = self.getProfile(star.fit.params).shift(star.fit.center) * star.fit.flux
-        if copy_image:
-            image = star.image.copy()
-        else:
-            image = star.image
-        prof.drawImage(image, method=self._method, offset=(star.image_pos-image.true_center))
-        data = StarData(image, star.image_pos, star.weight, star.data.pointing)
-        return Star(data, star.fit)
-
     def _lmfit_resid(self, lmparams, star):
         """Residual function to use with lmfit.  Essentially `chi` from `chisq`, but not summed
         over pixels yet.
@@ -312,7 +292,7 @@ class GSObjectModel(Model):
         fit = StarFit(params, params_var=params_var, flux=flux, center=center, chisq=chisq, dof=dof)
         return Star(star.data, fit)
 
-    def initialize(self, star, mask=True, logger=None):
+    def initialize(self, star, logger=None):
         """Initialize the given star's fit parameters.
 
         :param star:  The Star to initialize.
@@ -345,7 +325,7 @@ class GSObjectModel(Model):
         :param fit_center:  If False, disable any motion of center
         :param logger:      A logger object for logging debug info. [default: None]
 
-        :returns:           New Star instance, with updated flux, center, chisq, dof, worst
+        :returns:           New Star instance, with updated flux, center, chisq, dof
         """
         logger = galsim.config.LoggerWrapper(logger)
         logger.debug("Reflux for star:")
@@ -367,8 +347,6 @@ class GSObjectModel(Model):
                                                      results.params['dv'].value),
                                            chisq = results.chisqr,
                                            dof = np.count_nonzero(star.data.weight.array) - 3,
-                                           alpha = star.fit.alpha,
-                                           beta = star.fit.beta,
                                            params_var = star.fit.params_var))
         else:
             image, weight, image_pos = star.data.getImage()
@@ -381,8 +359,6 @@ class GSObjectModel(Model):
                                            center = star.fit.center,
                                            chisq = new_chisq,
                                            dof = np.count_nonzero(weight.array) - 1,
-                                           alpha = star.fit.alpha,
-                                           beta = star.fit.beta,
                                            params_var = star.fit.params_var))
 
 

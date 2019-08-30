@@ -32,12 +32,6 @@ PixelGrid
 .. autoclass:: piff.PixelGrid
    :members:
 
-.. autoclass:: piff.Lanczos
-   :members:
-
-.. autoclass:: piff.Bilinear
-   :members:
-
 
 Optical
 -------

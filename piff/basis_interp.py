@@ -49,6 +49,7 @@ class BasisInterp(Interp):
     """
     def __init__(self):
         self.degenerate_points = True  # This Interpolator uses chisq quadratic forms
+        self.use_qr = False  # The default.  May be overridden by subclasses.
         self.q = None
 
     def initialize(self, stars, logger=None):
@@ -63,7 +64,7 @@ class BasisInterp(Interp):
 
         :returns:           A new list of Stars which have their parameters initialized.
         """
-        c = stars[0].fit.params.copy()
+        c = np.mean([s.fit.params for s in stars], axis=0)
         self.q = c[:,np.newaxis] * self.constant(1.)[np.newaxis,:]
         stars = self.interpolateList(stars)
         return stars
@@ -101,42 +102,195 @@ class BasisInterp(Interp):
         if self.q is None:
             raise RuntimeError("Attempt to solve() before initialize() of BasisInterp")
 
-        # Empty A and B
-        A = np.zeros( self.q.shape+self.q.shape, dtype=float)
-        B = np.zeros_like(self.q)
+        # The inputs to this function are for each star i the design equation is
+        #
+        #   A_i p = b_i
+        #
+        # The parameters at each stars location are modeled as
+        #
+        #   p_i = q . K_i(u_i,v_i,...)
+        #
+        # where K is the basis vector for the particular location of this star and q is
+        # our 2d array of fitting parameters.  There is a row in q for each element of p,
+        # and a column in q for each element in K.
+        #
+        # Each star then gives us nparam equations, which become rows of our full design matrix.
+        # Consider the first equation for one star:
+        #
+        #   A[0,:] p = b[0]
+        #   A[0,:] q K = b[0]
+        #
+        # Each element in the A[0,:]T KT outer product is the coefficient of a single element q_mn.
+        # So we can rewrite this as
+        #
+        #   (A[0,:,np.newaxis] * K[np.newaxis,:]).flatten() * q.flatten() = b[0]
+        #
+        # Thus, the equation we want for our big design matrix has rows with
+        #
+        #   (A_i[j,:,np.newaxis] * K_i[np.newaxis,:]).flatten()
+        #
+        # and the b vector has elements
+        #
+        #   b_i[j]
+        #
+        # Now, the typical usage of this class is such that the size of A is
+        #
+        #   (nstars * npixels x nparam * nbasis)
+        #
+        # Typical numbers are:
+        #
+        #   nstars ~ 100
+        #   npixels ~ 500
+        #   nparam ~ 400
+        #   nbasis ~ 6
+        #
+        # So the size of A is ~ 50,000 x 2,400, which for double precision is about 1 GB.
+        # Considering that a particular CCD in a dense field might have up to 10 times this many
+        # stars, this is a very steep memory demand for this function.
+        #
+        # Therefore, we make the default behavior be to construct AT A and solve AT A dq = AT b.
+        # But we have an option to use QR decomposition of A instead, which may have stability
+        # advantages, since the condition of AT A is the square of the condition of A, so the
+        # QR method often has fewer numerical problems than the direct method for large matrices.
+        # It just requires a lot of memory.
+
+        logger = galsim.config.LoggerWrapper(logger)
+        if self.use_qr:
+            self._solve_qr(stars, logger)
+        else:
+            self._solve_direct(stars, logger)
+
+
+    def _solve_qr(self, stars, logger):
+        """The implementation of solve() when use_qr = True.
+        """
+
+        # First, build up one chunk for each star.  We'll stack them later.
+        A_chunks = []
+        b_chunks = []
+        for s in stars:
+            # Get the basis function values at this star
+            K = self.basis(s)
+            b_chunks.append(s.fit.b)
+            A_chunks.append((s.fit.A[:,:,np.newaxis] * K[np.newaxis,:]).reshape(
+                    s.fit.A.shape[0], s.fit.A.shape[1] * len(K)))
+
+        # Now stack the chunks into a single A and b.
+        A = np.vstack(A_chunks)
+        b = np.concatenate(b_chunks)
+
+        if A.shape[0] < A.shape[1]:
+            raise RuntimeError("Too few constraints for solution. (Probably too few stars)")
+
+        # Note: The following snippet is the straightforward way to do this using the
+        #       scipy qr function.  However, it generates the full Q matrix, which is slow.
+        #       Using the lapack functions directly is slightly more obfuscated, but faster.
+        #Q,R = scipy.linalg.qr(A, mode='economic', overwrite_a=True)
+        #dq = Q.T.dot(b)
+        #dq = scipy.linalg.solve_triangular(R, dq, overwrite_b=True, check_finite=False)
+
+        # This computes A -> Q R, where QR are stored in a single matrix along with an
+        # ancillary tau matrix that helps define the Householder matrices used to build
+        # the real Q.
+        QR, tau, work, info = scipy.linalg.lapack.dgeqrf(A)
+        m = A.shape[1]
+
+        # Check the diagonal values of the R matrix.  The following calculation isn't a
+        # real condition number, since the regular QR decomposition isn't actually rank
+        # revealing.  However, we only get problems with the normal QR decomposition if
+        # this number is very small, in which case we should switch to a QRP decomposition.
+        abs_Rdiag = np.abs(np.diag(QR))
+        cond = np.min(abs_Rdiag) / np.max(abs_Rdiag)
+        if cond < 1.e-12:
+            # Note: this calculation is much slower, but it is safe to use even for
+            # singular inputs, so it will always produce a valid answer.
+            logger.info('Nominal condition is %s (min, max = %s, %s)', cond,
+                        np.min(abs_Rdiag), np.max(abs_Rdiag))
+            logger.info('Switching to QRP solution')
+            QR, P, tau, work, info = scipy.linalg.lapack.dgeqp3(A, overwrite_a=True)
+            P[:] -= 1  # Switch to python 0-based indexing.
+            abs_Rdiag = np.abs(np.diag(QR))
+            cond = np.min(abs_Rdiag) / np.max(abs_Rdiag)
+            logger.info('Condition for QRP is %s (min, max = %s, %s)', cond,
+                        np.min(abs_Rdiag), np.max(abs_Rdiag))
+            # Skip any rows of R that have essentially 0 on the diagonal.
+            k = np.sum(abs_Rdiag > 1.e-15 * np.max(abs_Rdiag))
+            logger.debug('k = %d, m = %d',k,m)
+        else:
+            P = None
+            k = m
+
+        # The next steps are the same regardless of whether we pivoted or not.
+        # This computes y = Q.T b
+        dq, work, info = scipy.linalg.lapack.dormqr('L', 'T', QR, tau, b, work)
+        # Cut dq down to the first m elements, since it is still the size of b here.
+        dq = dq[:m]
+        # Solve R dq = y (in place)
+        scipy.linalg.lapack.dtrtrs(QR[:k,:k], dq[:k], overwrite_b=True)
+
+        if P is not None:
+            # Apply the permuation if we have one.
+            dq1 = dq
+            dq1[k:m] = 0.
+            dq = np.empty(m)
+            dq[P] = dq1[:m]
+
+        logger.debug('...finished solution')
+        # Reshape dq back into a 2d array and add it to the current solution.
+        self.q += dq.reshape(self.q.shape)
+
+    def _solve_direct(self, stars, logger):
+        """The implementation of solve() when use_qr = False.
+        """
+
+        # Build ATA and ATb by accumulating the chunks for each star as we go.
+        nq = np.prod(self.q.shape)
+        ATA = np.zeros((nq, nq), dtype=float)
+        ATb = np.zeros(nq, dtype=float)
 
         for s in stars:
             # Get the basis function values at this star
             K = self.basis(s)
-            # Sum contributions into A, B
-            B += s.fit.beta[:,np.newaxis] * K
-            tmp = s.fit.alpha[:,:,np.newaxis] * K
-            A += K[np.newaxis,:,np.newaxis,np.newaxis] * tmp[:,np.newaxis,:,:]
-        # Reshape to have single axis for all q's
-        B = B.flatten()
-        nq = B.shape[0]
-        A = A.reshape(nq,nq)
-        logger.debug('Beginning solution of matrix size %d',A.shape[0])
-        # cf. comments in pixelgrid.py about this function in scipy 1.0.0
+            # Sum contributions into ATA, ATb
+            if True:
+                ATb += (s.fit.beta[:,np.newaxis] * K).flatten()
+                tmp1 = s.fit.alpha[:,:,np.newaxis] * K
+                tmp2 = K[np.newaxis,:,np.newaxis,np.newaxis] * tmp1[:,np.newaxis,:,:]
+                ATA += tmp2.reshape(nq,nq)
+            else:  # pragma: no cover
+                # This is equivalent, but slower.
+                # It is here to make more explicit the connection between this calculation
+                # and the corresponding part of the QR code above.
+                A1 = (s.fit.A[:,:,np.newaxis] * K[np.newaxis,:]).reshape(
+                        s.fit.A.shape[0], s.fit.A.shape[1] * len(K))
+                ATb += A1.T.dot(s.fit.b)
+                ATA += A1.T.dot(A1)
+
+        logger.info('Beginning solution of matrix size %s',ATA.shape)
         try:
             with warnings.catch_warnings(record=True) as w:
                 warnings.simplefilter("always")
-                logger.info('A.shape = %s',A.shape)
-                logger.info('B.shape = %s',B.shape)
-                dq = scipy.linalg.solve(A, B, assume_a='pos', check_finite=False)
+                # Note: It is usually ok to assume positive definite.  It is pretty rare that
+                # assuming just 'sym' instead (which does an LDL decomposition rather than
+                # Cholesky) would help.  If this fails, the matrix is usually high enough
+                # condition that it is functionally singular, and switching to SVD is warranted.
+                dq = scipy.linalg.solve(ATA, ATb, assume_a='pos', check_finite=False)
+
             if len(w) > 0:
-                # Jumping to the svd solution for this turns out to be bad.  It leads to a
-                # a significant increase in the mean size residual in DES data.  We don't have
-                # a unit test that would catch this, so be careful about changing the
-                # behavior of this part of the code!  For now, we just go to the svd solution
-                # when A is fully singular, not just when it has a high condition.
-                logger.warning(w[0].message)
-                logger.debug('norm(A dq - B) = %s',scipy.linalg.norm(A.dot(dq) - B))
+                # scipy likes to warn about high condition.  They aren't actually a problem
+                # though, and in practice, we found in DES data that switching to SVD whenever
+                # scipy thought the condition was high led to a significant increase in the mean
+                # size rediduals.  We don't have a unit test that would catch this, so be careful
+                # about changing the behavior of this part of the code!  For now, we just go to
+                # the svd solution when ATA is fully singular.
+                logger.info(w[0].message)
+                logger.debug('norm(ATA dq - ATb) = %s',scipy.linalg.norm(ATA.dot(dq) - ATb))
                 logger.debug('norm(dq) = %s',scipy.linalg.norm(dq))
+
         except (np.linalg.LinAlgError, scipy.linalg.LinAlgError) as e:
-            logger.warning('Caught %s',str(e))
-            logger.warning('Switching to svd solution')
-            Sd,U = scipy.linalg.eigh(A)
+            logger.info('Caught %s',str(e))
+            logger.info('Switching to svd solution')
+            Sd,U = scipy.linalg.eigh(ATA)
             nsvd = np.sum(np.abs(Sd) > 1.e-15 * np.abs(Sd[-1]))
             logger.info('2-condition is %e',np.abs(Sd[-1]/Sd[0]))
             logger.info('nsvd = %d of %d',nsvd,len(Sd))
@@ -144,12 +298,13 @@ class BasisInterp(Interp):
             Sd[-nsvd:] = 1./Sd[-nsvd:]
             Sd[:-nsvd] = 0.
             S = np.diag(Sd)
-            dq = U.dot(S.dot(U.T.dot(B)))
-            logger.info('norm(A dq - B) = %s',scipy.linalg.norm(A.dot(dq) - B))
+            dq = U.dot(S.dot(U.T.dot(ATb)))
+            logger.info('norm(ATA dq - ATb) = %s',scipy.linalg.norm(ATA.dot(dq) - ATb))
             logger.info('norm(dq) = %s',scipy.linalg.norm(dq))
             logger.info('norm(q) = %s',scipy.linalg.norm(self.q))
 
         logger.debug('...finished solution')
+        # Reshape dq back into a 2d array and add it to the current solution.
         self.q += dq.reshape(self.q.shape)
 
     def interpolate(self, star, logger=None):
@@ -188,9 +343,14 @@ class BasisPolynomial(BasisInterp):
                         [default: ('u','v')]
     :param max_order:   The maximum total order to use for cross terms between keys.
                         [default: None, which uses the maximum value of any individual key's order]
+    :param use_qr:      Use QR decomposition for the solution rather than the more direct least
+                        squares solution.  QR decomposition requires more memory than the default
+                        and is somewhat slower (nearly a factor of 2); however, it is significantly
+                        less susceptible to numerical errors from high condition matrices.
+                        Therefore, it may be preferred for some use cases. [default: False]
     :param logger:      A logger object for logging debug info. [default: None]
     """
-    def __init__(self, order, keys=('u','v'), max_order=None, logger=None):
+    def __init__(self, order, keys=('u','v'), max_order=None, use_qr=False, logger=None):
         super(BasisPolynomial, self).__init__()
 
         self._keys = keys
@@ -205,6 +365,7 @@ class BasisPolynomial(BasisInterp):
             self._max_order = np.max(self._orders)
         else:
             self._max_order = max_order
+        self.use_qr = use_qr
 
         if self._max_order<0 or np.any(np.array(self._orders) < 0):
             # Exception if we have any requests for negative orders
@@ -214,6 +375,7 @@ class BasisPolynomial(BasisInterp):
         #       Or write a custom BasisPolynomial.write function.
         self.kwargs = {
             'order' : order,
+            'use_qr' : use_qr
         }
 
         # Now build a mask that picks the desired polynomial products

@@ -18,6 +18,7 @@ import piff
 import galsim
 import yaml
 import subprocess
+import time
 
 from piff_test_helper import get_script_name, timer
 
@@ -64,7 +65,7 @@ def test_simplest():
 
     # Pixelized model with Lanczos 3 interp
     interp = piff.Lanczos(3)
-    mod = piff.PixelGrid(du, 32, interp, start_sigma=1.5, force_model_center=False)
+    mod = piff.PixelGrid(du, 32, interp, force_model_center=False)
     star = mod.initialize(s).withFlux(flux=np.sum(s.image.array))
 
     # Check that fitting the star can recover the right flux.
@@ -102,11 +103,8 @@ def test_oversample():
 
     # Pixelized model with Lanczos 3 interp, coarser pix scale
     interp = 'Lanczos(3)'  # eval the string
-    mod = piff.PixelGrid(2*du, nside//2, interp, start_sigma=1.5, force_model_center=False)
-    # mask=False isn't required here. It's an option that we don't really test anywhere, but
-    # doing it here at least gets that branch covered.
-    # TODO: Either remove this option, which apparently isn't very useful, or add a real test.
-    star = mod.initialize(s, mask=False).withFlux(flux=np.sum(s.image.array))
+    mod = piff.PixelGrid(2*du, nside//2, interp, force_model_center=False)
+    star = mod.initialize(s).withFlux(flux=np.sum(s.image.array))
 
     for i in range(2):
         star = mod.fit(star)
@@ -131,26 +129,68 @@ def test_center():
     """Fit with centroid free and PSF center constrained to an initially mis-registered PSF.
     """
     influx = 150.
-    s = make_gaussian_data(2.0, 0.6, -0.4, influx, du=0.5)
 
-    # Pixelized model with Lanczos 3 interp, coarser pix scale, smaller
-    # than the data
-    interp = None  # Default is Lanczos(3)
+    # Start with the centroid shift being an exact integer number of pixels, so the solution should
+    # work out quite precisely.
+    x0 = 1.0  # 2 pixels off from center.
+    y0 = -1.0
+    du = 0.5
+    s = make_gaussian_data(1.7, x0, y0, influx, du=du)
+
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(2)
+    else:
+        logger = None
     # Want an odd-sized model when center=True
-    mod = piff.PixelGrid(0.5, 29, interp, force_model_center=True, start_sigma=1.5)
-    star = mod.initialize(s)
-    print('Flux, ctr after reflux:',star.fit.flux,star.fit.center)
-    for i in range(3):
-        star = mod.fit(star)
-        star = mod.reflux(star)
+    mod = piff.PixelGrid(0.5, 21, force_model_center=True, logger=logger)
+    star = mod.initialize(s, logger=logger)
+    print('Flux, ctr after init:',star.fit.flux,star.fit.center)
+    for i in range(4):
+        star = mod.fit(star, logger=logger)
         print('Flux, ctr, chisq after fit {:d}:'.format(i),
               star.fit.flux, star.fit.center, star.fit.chisq)
-        # These fluxes are not at all close to influx.  Not sure why...
-        #np.testing.assert_almost_equal(star.fit.flux/influx, 1.0, decimal=2)
+        star = mod.reflux(star, logger=logger)
+        print('Flux, ctr, chisq after reflux {:d}:'.format(i),
+              star.fit.flux, star.fit.center, star.fit.chisq)
+
+    np.testing.assert_allclose(star.fit.flux, influx, rtol=1.e-2)
+    np.testing.assert_allclose(star.fit.center[0], x0, rtol=5.e-3)
+    np.testing.assert_allclose(star.fit.center[1], y0, rtol=5.e-3)
 
     # Residual image when done should be dominated by structure off the edge of the fitted region.
     mask = star.weight.array > 0
     # This comes out fairly close, but only 2 dp of accuracy, compared to 3 above.
+    star2 = mod.draw(star)
+    print('max image abs diff = ',np.max(np.abs(star2.image.array-s.image.array)))
+    print('max image abs value = ',np.max(np.abs(s.image.array)))
+    peak = np.max(np.abs(s.image.array[mask]))
+    np.testing.assert_almost_equal(star2.image.array[mask]/peak, s.image.array[mask]/peak,
+                                   decimal=2)
+
+    # Repeat with the centroid shift not an integer number of pixels.
+    # be more exact.
+    x0 = 0.6
+    y0 = -0.4
+    du = 0.7
+    s = make_gaussian_data(2.0, x0, y0, influx, du=du)
+
+    mod = piff.PixelGrid(0.8, 29, force_model_center=True)
+    star = mod.initialize(s)
+    print('Flux, ctr after reflux:',star.fit.flux,star.fit.center)
+    for i in range(3):
+        star = mod.fit(star)
+        print('Flux, ctr, chisq after fit {:d}:'.format(i),
+              star.fit.flux, star.fit.center, star.fit.chisq)
+        star = mod.reflux(star)
+        print('Flux, ctr, chisq after reflux {:d}:'.format(i),
+              star.fit.flux, star.fit.center, star.fit.chisq)
+
+    np.testing.assert_allclose(star.fit.flux, influx, rtol=5.e-3)
+    np.testing.assert_allclose(star.fit.center[0], x0, rtol=5.e-3)
+    np.testing.assert_allclose(star.fit.center[1], y0, rtol=5.e-3)
+
+    # Residual image when done should be dominated by structure off the edge of the fitted region.
+    mask = star.weight.array > 0
     star2 = mod.draw(star)
     print('max image abs diff = ',np.max(np.abs(star2.image.array-s.image.array)))
     print('max image abs value = ',np.max(np.abs(s.image.array)))
@@ -175,7 +215,7 @@ def test_interp():
     # Pixelized model with Lanczos 3 interpolation, slightly smaller than data
     # than the data
     pixinterp = piff.Lanczos(3)
-    mod = piff.PixelGrid(0.5, size, pixinterp, start_sigma=1.5, degenerate=False)
+    mod = piff.PixelGrid(0.5, size, pixinterp)
 
     # Interpolator will be simple mean
     interp = piff.Polynomial(order=0)
@@ -248,7 +288,7 @@ def test_missing():
     # Pixelized model with Lanczos 3 interpolation, slightly smaller than data
     # than the data
     pixinterp = piff.Lanczos(3)
-    mod = piff.PixelGrid(0.5, size, pixinterp, start_sigma=1.5, force_model_center=False)
+    mod = piff.PixelGrid(0.5, size, pixinterp, force_model_center=False)
 
     # Draw stars on a 2d grid of "focal plane" with 0<=u,v<=1
     positions = np.linspace(0.,1.,4)
@@ -328,8 +368,7 @@ def test_gradient():
     # Pixelized model with Lanczos 3 interpolation, slightly smaller than data
     # than the data
     pixinterp = piff.Lanczos(3)
-    mod = piff.PixelGrid(0.5, size, pixinterp, start_sigma=1.5,
-                         degenerate=False, force_model_center=False)
+    mod = piff.PixelGrid(0.5, size, pixinterp, force_model_center=False)
 
     # Interpolator will be linear
     interp = piff.Polynomial(order=1)
@@ -408,7 +447,7 @@ def test_undersamp():
     # than the data
     pixinterp = piff.Lanczos(3)
     du = 0.5
-    mod = piff.PixelGrid(0.25, size, pixinterp, start_sigma=1.01)
+    mod = piff.PixelGrid(0.25, size, pixinterp)
     ##,force_model_center=True)
 
     # Interpolator will be constant
@@ -441,7 +480,7 @@ def test_undersamp():
 
     oldchisq = 0.
     # Iterate solution using interpolator
-    for iteration in range(1): ###
+    for iteration in range(1):
         # Refit PSFs star by star:
         stars = [mod.fit(s) for s in stars]
         # Run the interpolator
@@ -492,7 +531,7 @@ def test_undersamp_shift():
     pixinterp = piff.Lanczos(3)
     influx = 150.
     du = 0.5
-    mod = piff.PixelGrid(0.3, size, pixinterp, start_sigma=1.3, force_model_center=True)
+    mod = piff.PixelGrid(0.3, size, pixinterp, force_model_center=True)
 
     # Make a sample star just so we can pass the initial PSF into interpolator
     # Also store away a noiseless copy of the PSF, origin of focal plane
@@ -571,7 +610,7 @@ def do_undersamp_drift(fit_centers=False):
     pixinterp = piff.Lanczos(3)
     influx = 150.
     du = 0.5
-    mod = piff.PixelGrid(0.3, size, pixinterp, start_sigma=1.3, force_model_center=fit_centers)
+    mod = piff.PixelGrid(0.3, size, pixinterp, force_model_center=fit_centers)
 
     # Make a sample star just so we can pass the initial PSF into interpolator
     # Also store away a noiseless copy of the PSF, origin of focal plane
@@ -760,7 +799,7 @@ def test_single_image():
     psf_file = os.path.join('output','pixel_psf.fits')
     if __name__ == '__main__':
         # Process the star data
-        model = piff.PixelGrid(0.2, 16, start_sigma=0.9/2.355)
+        model = piff.PixelGrid(0.2, 16)
         interp = piff.BasisPolynomial(order=order)
         pointing = None     # wcs is not Celestial here, so pointing needs to be None.
         psf = piff.SimplePSF(model, interp)
@@ -808,7 +847,6 @@ def test_single_image():
                 'type' : 'PixelGrid',
                 'scale' : 0.2,
                 'size' : 16,  # Much smaller than the input stamps, but this is plenty here.
-                'start_sigma' : 0.9/2.355
             },
             'interp' : {
                 'type' : 'BasisPolynomial',
@@ -891,7 +929,6 @@ def test_des_image():
     stamp_size = 25
 
     # The configuration dict with the right input fields for the file we're using.
-    start_sigma = 1.0/2.355  # TODO: Need to make this automatic somehow.
     config = {
         'input' : {
             'nstars': nstars,
@@ -924,7 +961,6 @@ def test_des_image():
                 'scale' : scale,
                 'size' : size,
                 'interp' : 'Lanczos(5)',
-                'start_sigma' : start_sigma,
             },
             'interp' : {
                 'type' : 'BasisPolynomial',
@@ -956,8 +992,7 @@ def test_des_image():
 
         # Make model, force PSF centering
         model = piff.PixelGrid(scale=scale, size=size, interp=piff.Lanczos(3),
-                               force_model_center=True, start_sigma=start_sigma,
-                               logger=logger)
+                               force_model_center=True, logger=logger)
 
         # Interpolator will be zero-order polynomial.
         # Find u, v ranges
@@ -992,12 +1027,15 @@ def test_des_image():
             weight = s.weight  # These should be 1/var_pix
             resid = fit_stamp - orig_stamp
             chisq = np.sum(resid.array**2 * weight.array)
-            print('chisq = ',chisq)
+            dof = np.sum(weight.array != 0)
+            print('chisq, dof = ',chisq,dof)
             print('cf. star.chisq, dof = ',s.fit.chisq, s.fit.dof)
-            assert abs(chisq - s.fit.chisq) < 1.e-3 * chisq
-            if chisq > 2. * s.fit.dof:
+            # These don't match up, since we have the full image now, not just the part that
+            # overlaps the model. However, they should more or less match when chisq > dof.
+            # And in both cases most of the solutions should have chisq < dof or so.
+            if chisq > 2. * dof:
                 n_bad += 1
-            elif chisq > 1.1 * s.fit.dof:
+            elif chisq > 1.1 * dof:
                 n_marginal += 1
             else:
                 n_good += 1
@@ -1052,6 +1090,139 @@ def test_des_image():
         orig_stamp = orig_image[stars[0].image.bounds] - stars[0]['sky']
         np.testing.assert_almost_equal(fit_stamp.array/flux, orig_stamp.array/flux, decimal=2)
 
+@timer
+def test_des2():
+    """Test a troublesome DES Y3 image that was producing bad results originally.
+    """
+    import os
+    import fitsio
+
+    image_file = 'input/D00362921_r_c57_r2331p02_immasked.fits.fz'
+    cat_file = 'input/D00362921_r_c57_r2331p02_use_stars.fits'
+    orig_image = galsim.fits.read(image_file)
+    psf_file = os.path.join('output','pixel_des2_psf.fits')
+
+    # The configuration dict corresponding to y3a1-v21, which originally had problems with this.
+    config = {
+        'input' : {
+            'image_file_name' : image_file,
+            'image_hdu' : 1,
+            'badpix_hdu' : 2,
+            'weight_hdu' : 3,
+            'cat_file_name' : cat_file,
+            'cat_hdu' : 1,
+            'x_col' : 'x',
+            'y_col' : 'y',
+            'sky_col' : 'sky',
+            'ra' : 'TELRA',
+            'dec' : 'TELDEC',
+            'gain' : 1.0,
+            # Real version uses pixmappy WCS, but that's not important for this test, so skip it
+
+            'max_snr' : 100,
+            'min_snr' : 20,
+            'stamp_size' : 25
+        },
+        'output' : {
+            'file_name' : psf_file,
+        },
+        'psf' : {
+            'model' : {
+                'type' : 'PixelGrid',
+                'scale' : 0.26,
+                'size' : 17,
+            },
+            'interp' : {
+                'type' : 'BasisPolynomial',
+                'order' : 3,
+            },
+            'outliers' : {
+                'type' : 'Chisq',
+                'nsigma' : 4,
+                'max_remove' : 0.01
+            }
+        },
+    }
+    if __name__ == '__main__':
+        config['verbose'] = 2
+    else:
+        config['verbose'] = 0
+
+    t0 = time.time()
+    piff.piffify(config)
+    t1 = time.time()
+    print('Time for direct ATA solution = ',t1-t0)
+    stars, wcs, pointing = piff.Input.process(config['input'])
+    psf = piff.read(psf_file)
+    stars = [psf.model.initialize(s) for s in stars]
+
+    # Check the first star is basically identical
+    flux = stars[0].fit.flux
+    offset = stars[0].center_to_offset(stars[0].fit.center)
+    fit_stamp = psf.draw(x=stars[0]['x'], y=stars[0]['y'], stamp_size=25, flux=flux, offset=offset)
+    orig_stamp = orig_image[stars[0].image.bounds] - stars[0]['sky']
+    np.testing.assert_almost_equal(fit_stamp.array/flux, orig_stamp.array/flux, decimal=2)
+
+    # Now check a location far from any input stars where this used to get a checkerboard pattern.
+    test_x = 2200
+    test_y = 0
+    test_stamp = psf.draw(x=test_x, y=test_y, stamp_size=25)
+    # This is a regression test to compare to the result at commit 8b15bab.
+    # This commit involved a significant refactoring of the PixelGrid class, which fixed
+    # the checkerboard failure mode, at least for this specific test.
+    check_stamp = galsim.fits.read('input/des2_8b15bab.fits')
+    np.testing.assert_almost_equal(test_stamp.array, check_stamp.array, decimal=2)
+
+    # For comparison, this is the result for the prior commit, before the fix, which fails.
+    # And if you open both images in ds9, you can see the checkerboard pattern I'm talking about.
+    bad_stamp = galsim.fits.read('input/des2_a9e0969.fits')
+    with np.testing.assert_raises(AssertionError):
+        np.testing.assert_almost_equal(bad_stamp.array, check_stamp.array, decimal=2)
+
+    # Repeat with QR solution
+    config['psf']['interp']['use_qr'] = True
+    t2 = time.time()
+    piff.piffify(config)
+    t3 = time.time()
+    print('Time for QR solution = ',t3-t2)
+    psf = piff.read(psf_file)
+    test_stamp = psf.draw(x=test_x, y=test_y, stamp_size=25)
+    np.testing.assert_almost_equal(test_stamp.array, check_stamp.array, decimal=2)
+
+    # With only 10 stars (or fewer), there are not enough constraints for a 3rd order solution
+    config['input']['nstars'] = 10
+    with np.testing.assert_raises(RuntimeError):
+        piff.piffify(config)
+
+    # A contrived example to hit the QRP option
+    # I manually duplicated some of the entries in the catalog, so the solution is singular.
+    # Also, reduce the order to only 2 and nstars to 6 so it doesn't take too long.
+    config['input']['cat_file_name'] = 'input/des2_qrp_cat.fits'
+    config['psf']['interp']['order'] = 2
+    config['input']['nstars'] = 6
+    t4 = time.time()
+    piff.piffify(config)
+    t5 = time.time()
+    print('Time for QRP solution (with order=2 and nstars=6) = ',t5-t4)
+    psf = piff.read(psf_file)
+    test_stamp = psf.draw(x=test_x, y=test_y, stamp_size=25)
+    # This wouldn't be expected to match precisely anymore, but at 1 d.p. it still does.
+    # Basically saying the solution doesn't go completely haywire.
+    np.testing.assert_almost_equal(test_stamp.array, check_stamp.array, decimal=1)
+
+    # Also exercise the SVD fallback to the non-QR method.
+    config['psf']['interp']['use_qr'] = False
+    t6 = time.time()
+    piff.piffify(config)
+    t7 = time.time()
+    print('Time for SVD solution (with order=2 and nstars=6) = ',t7-t6)
+    psf = piff.read(psf_file)
+    test_stamp = psf.draw(x=test_x, y=test_y, stamp_size=25)
+    # This wouldn't be expected to match precisely anymore, but at 1 d.p. it still does.
+    # Basically saying the solution doesn't go completely haywire.
+    np.testing.assert_almost_equal(test_stamp.array, check_stamp.array, decimal=1)
+
+
 if __name__ == '__main__':
     #import cProfile, pstats
     #pr = cProfile.Profile()
@@ -1067,6 +1238,7 @@ if __name__ == '__main__':
     test_undersamp_drift()
     test_single_image()
     test_des_image()
+    test_des2()
     #pr.disable()
     #ps = pstats.Stats(pr).sort_stats('tottime')
     #ps.print_stats(20)

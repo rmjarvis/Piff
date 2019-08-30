@@ -120,8 +120,7 @@ class StarStats(Stats):
         chisq = results.chisqr
         fit = StarFit(star.fit.params, params_var=star.fit.params_var,
                 flux=flux, center=center, chisq=chisq, dof=star.fit.dof,
-                alpha=star.fit.alpha, beta=star.fit.beta,
-                worst_chisq=star.fit.worst_chisq)
+                A=star.fit.A, b=star.fit.b)
         star_fit = Star(star.data, fit)
 
         return star_fit
@@ -209,7 +208,7 @@ class StarStats(Stats):
         """Make the plots.
 
         :param logger:      A logger object for logging debug info. [default: None]
-        :params **kwargs:   Any additional kwargs go into the matplotlib pcolor() function.
+        :params \*\*kwargs: Any additional kwargs go into the matplotlib pcolor() function.
 
         :returns: fig, ax
         """

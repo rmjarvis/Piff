@@ -188,7 +188,7 @@ class Star(object):
                             [default: None; this overrides stamp_size]
         :param pointing:    The pointing direction to use. [default: None]
         :param flux:        The flux of the target star. [default: 1]
-        :param **kwargs:    Additional properties can also be given as keyword arguments if that
+        :param \*\*kwargs:  Additional properties can also be given as keyword arguments if that
                             is more convenient than populating the properties dict.
 
         :returns:   A Star instance
@@ -494,7 +494,6 @@ class Star(object):
                                        weight=weight[star.data.image.bounds],
                                        pointing= (pointing if pointing is not None
                                                   else star.data.pointing),
-                                       values_are_sb=star.data.values_are_sb,
                                        properties=star.data.properties,
                                        _xyuv_set=True),
                        fit = star.fit)
@@ -606,11 +605,9 @@ class StarData(object):
 
     Different use cases may prefer the data in one of these forms or the other.
 
-    A StarData object also must have these two properties:
-      :property values_are_sb: True (False) if pixel values are in surface
-      brightness (flux) units.
+    A StarData object also has this property:
       :property pixel_area:    Solid angle on sky subtended by each pixel,
-      in units of the uv system.
+                               in units of the uv system.
 
     The other information is stored in a dict.  This dict will include at least the following
     items:
@@ -651,20 +648,17 @@ class StarData(object):
                         the wcs and a pointing. [default: None]
     :param properties:  A dict containing other properties about the star that might be of
                         interest. [default: None]
-    :param values_are_sb: True if pixel data give surface brightness, False if they're flux
-                        [default: False]
     :param orig_weight: The original weight map prior to any additional Poisson variance being
                         added.  [default: None, which means use orig_weight=weight]
     :param logger:      A logger object for logging debug info. [default: None]
     """
     def __init__(self, image, image_pos, weight=None, pointing=None, field_pos=None,
-                 properties=None, values_are_sb=False, orig_weight=None, logger=None,
+                 properties=None, orig_weight=None, logger=None,
                  _xyuv_set=False):
         import galsim
         # Save all of these as attributes.
         self.image = image
         self.image_pos = image_pos
-        self.values_are_sb = values_are_sb
         # Make sure we have a local wcs in case the provided image is more complex.
         try:
             self.local_wcs = image.wcs.jacobian(image_pos).withOrigin(image.wcs.origin, image.wcs.world_origin)
@@ -853,7 +847,6 @@ class StarData(object):
                         orig_weight=self.orig_weight,
                         pointing=self.pointing,
                         field_pos=self.field_pos,
-                        values_are_sb=self.values_are_sb,
                         properties=self.properties,
                         _xyuv_set=True)
 
@@ -905,7 +898,6 @@ class StarData(object):
                         weight=newweight,
                         orig_weight=self.orig_weight,
                         pointing=self.pointing,
-                        values_are_sb=self.values_are_sb,
                         properties=dict(self.properties, gain=gain),
                         _xyuv_set = True)
 
@@ -948,7 +940,6 @@ class StarData(object):
                         weight=weight,
                         orig_weight=orig_weight,
                         pointing=self.pointing,
-                        values_are_sb=self.values_are_sb,
                         properties=self.properties,
                         _xyuv_set=True)
 
@@ -971,15 +962,12 @@ class StarFit(object):
     :chisq:       Chi-squared of  fit to the data (if any) with current params
     :dof:         Degrees of freedom in the fit (will depend on whether last fit had
                   parameters free or just the flux/center).
-    :alpha, beta: matrix, vector, giving Taylor expansion of chisq wrt params about
-                  their current values. The alpha matrix also is the inverse covariance
-                  matrix of the params.
-
-    The params and alpha,beta,chisq are assumed to be marginalized over flux (and over center,
-    if it is free to vary).
+    :A, b:        matrix, vector, giving design matrix equation for the Taylor expansion of chisq
+                  wrt params about their current values. The alpha matrix, AT A, is also the
+                  inverse covariance matrix of the params.
     """
-    def __init__(self, params, flux=1., center=(0.,0.), params_var=None, alpha=None, beta=None,
-                 chisq=None, dof=None, worst_chisq=None):
+    def __init__(self, params, flux=1., center=(0.,0.), params_var=None, A=None, b=None,
+                 chisq=None, dof=None):
         """Constructor for base version of StarFit
 
         :param params: A 1d numpy array holding estimated PSF parameters
@@ -987,10 +975,11 @@ class StarFit(object):
         :param flux:   Estimated flux for this star
         :param center: Estimated or fixed center position (u,v) of this star relative to
                        the StarData.image_pos reference point.
-        :param alpha:  Quadratic dependence of chi-squared on params about current values
-        :param beta:   Linear dependence of chi-squared on params about current values
+        :param A:      Design matrix for the quadratic dependence of chi-squared on params about
+                       current values.  Quatratic terms is dpT AT A dp.
+        :param b:      Vector portion of design equation. Linear term of chi-squared dependence
+                       on params about current values is -2 AT b.
         :param chisq:  chi-squared value at current parameters.
-        :param worst_chisq:  highest chi-squared in any single pixel, after reflux()
         """
         # center might be a galsim.PositionD.  That's fine, but we'll convert to a tuple here.
         try:
@@ -1002,12 +991,19 @@ class StarFit(object):
         self.params_var = params_var
         self.flux = flux
         self.center = center
-        self.alpha = alpha
-        self.beta = beta
+        self.A = A
+        self.b = b
         self.chisq = chisq
         self.dof = dof
-        self.worst_chisq = worst_chisq
         return
+
+    @property
+    def alpha(self):
+        return self.A.T.dot(self.A)
+
+    @property
+    def beta(self):
+        return self.A.T.dot(self.b)
 
     def newParams(self, params, **kwargs):
         """Return new StarFit that has the array params installed as new parameters.
@@ -1026,8 +1022,8 @@ class StarFit(object):
         return StarFit(npp, flux=flux, center=center, **kwargs)
 
     def copy(self):
-        return StarFit(self.params, self.flux, self.center, self.alpha, self.beta,
-                       self.chisq, self.dof, self.worst_chisq)
+        return StarFit(self.params, self.flux, self.center, self.A, self.b,
+                       self.chisq, self.dof)
 
     def __getitem__(self, key):
         """Get a property of the star fit.
