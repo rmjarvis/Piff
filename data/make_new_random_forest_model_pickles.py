@@ -69,15 +69,11 @@ core_directory = core_directory.split("/{0}".format(program_name))[0]
 exposures = glob.glob("{0}/data_for_random_forest/*".format(core_directory))
 
 
-print("len(exposures): {0}".format(len(exposures)))
-
 for exposure_i, exposure in enumerate(exposures):
-    print("exposure_i: {0}".format(exposure_i))
     filename = "{0}/shapes_test_psf_optatmo_const_gpvonkarman.h5".format(exposure)       
     try:
         shapes = pd.read_hdf(filename)
     except:
-        print("failed to read")
         continue
 
     model_e0 = np.array(shapes['model_e0'].tolist())
@@ -142,7 +138,7 @@ param_values_all_stars = np.concatenate(param_values_all_stars_list, axis=0)
 
 
 for m, moment in enumerate(np.array(["e0", "e1", "e2", "zeta1", "zeta2", "delta1", "delta2"])):
-    print("m: {0}".format(m))
+    print("moment: {0}".format(moment))
     regr = RandomForestRegressor(n_estimators=10)
     X_train, X_test, y_train, y_test = train_test_split(param_values_all_stars, shapes_all_stars[:,m], test_size=0.25)
     regr.fit(X_train, y_train)
