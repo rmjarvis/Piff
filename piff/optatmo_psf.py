@@ -733,7 +733,7 @@ class OptAtmoPSF(PSF):
             if s == 0:
                 logger.info("now prepping pull cuts for self.stars; in other words the train stars")
             if s == 1:
-                loggger.info("now prepping pull cuts for self.test_stars")
+                logger.info("now prepping pull cuts for self.test_stars")
             if s == 2:
                 logger.info("now prepping pull cuts for self.fit_optics_stars; in other words the subset train stars specifically used in the optical fit")
             data_shapes_all_stars = []
@@ -1001,7 +1001,6 @@ class OptAtmoPSF(PSF):
                         weight=star.data.weight,
                         pointing=star.data.pointing,
                         field_pos=star.data.field_pos,
-                        values_are_sb=star.data.values_are_sb,
                         orig_weight=star.data.orig_weight,
                         properties=properties)
         fit = StarFit(params,

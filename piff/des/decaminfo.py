@@ -326,7 +326,6 @@ class DECamInfo(object):
                         weight=stardata.weight,
                         pointing=stardata.pointing,
                         field_pos=stardata.field_pos,
-                        values_are_sb=stardata.values_are_sb,
                         properties=properties)
 
     def pixel_to_focal(self, star):
