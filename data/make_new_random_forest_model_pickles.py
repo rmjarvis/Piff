@@ -73,19 +73,12 @@ print("len(exposures): {0}".format(len(exposures)))
 
 for exposure_i, exposure in enumerate(exposures):
     print("exposure_i: {0}".format(exposure_i))
-    filename = "{0}/shapes_test_psf_optatmo_const_gpvonkarman.h5".format(exposure) 
-    #test_filename = "/nfs/slac/kipac/fs1/g/des/aresh/old_fit_checks_and_other_stuff/fit_checks_round3/multi_exposure_fit_check_third_moments_weight_40_hundredths_by_fit_psf_all_bands_together_old_fit_analytic/00510800/shapes_test_psf_optatmo_const_gpvonkarman.h5"
-    #if test_filename != filename:
-    #    continue
-    #else:
-    #    print("filename: {0}".format(filename))
-    #    print("test_filename: {0}".format(test_filename))        
+    filename = "{0}/shapes_test_psf_optatmo_const_gpvonkarman.h5".format(exposure)       
     try:
         shapes = pd.read_hdf(filename)
     except:
         print("failed to read")
         continue
-    #print(shapes.columns)
 
     model_e0 = np.array(shapes['model_e0'].tolist())
     number_of_stars = len(model_e0)
@@ -95,31 +88,20 @@ for exposure_i, exposure in enumerate(exposures):
     model_zeta2 = np.array(shapes['model_zeta2'].tolist())
     model_delta1 = np.array(shapes['model_delta1'].tolist())
     model_delta2 = np.array(shapes['model_delta2'].tolist())
-    #print("model_e0: {0}".format(model_e0))
-    #print("type(model_e0): {0}".format(type(model_e0)))    
-    #print(np.shape(model_delta2))
 
     shapes_all_stars = np.column_stack((model_e0, model_e1, model_e2, model_zeta1, model_zeta2, model_delta1, model_delta2))
-    #print(np.shape(shapes_all_stars))
 
     param_values_all_stars = np.ones((number_of_stars, 11))
     optatmo_params = np.array(["size", "g1", "g2", "z04", "z05", "z06", "z07", "z08", "z09", "z10", "z11"])
     for optatmo_param_i, optatmo_param in enumerate(optatmo_params):
         if optatmo_param=="size":
             param_values_all_stars[:,0] = np.array(shapes['optics_size'].tolist()) + np.array(shapes['atmo_size'].tolist())
-            #print(np.array(shapes['optics_size'].tolist()) + np.array(shapes['atmo_size'].tolist()))
         elif optatmo_param=="g1":
             param_values_all_stars[:,1] = np.array(shapes['optics_g1'].tolist()) + np.array(shapes['atmo_g1'].tolist())  
-            #print(np.array(shapes['optics_g1'].tolist()) + np.array(shapes['atmo_g1'].tolist()))
         elif optatmo_param=="g2":
             param_values_all_stars[:,2] = np.array(shapes['optics_g2'].tolist()) + np.array(shapes['atmo_g2'].tolist()) 
-            #print(np.array(shapes['optics_g2'].tolist()) + np.array(shapes['atmo_g2'].tolist()))
         else:
             param_values_all_stars[:,optatmo_param_i] = np.array(shapes[optatmo_param].tolist())
-            #print(np.array(shapes[optatmo_param].tolist()))
-
-    #print("shapes_all_stars: {0}".format(shapes_all_stars))            
-    #print("param_values_all_stars: {0}".format(param_values_all_stars))
 
     delete_list = []
     for index in range(0,len(model_e0)):
@@ -127,9 +109,6 @@ for exposure_i, exposure in enumerate(exposures):
             delete_list.append(index)     
     shapes_all_stars = np.delete(shapes_all_stars, delete_list, axis=0)
     param_values_all_stars = np.delete(param_values_all_stars, delete_list, axis=0)
-    
-    #print("shapes_all_stars: {0}".format(shapes_all_stars))            
-    #print("param_values_all_stars: {0}".format(param_values_all_stars))
     
     model_moment_dictionary = {"model_e0":shapes_all_stars[:,0], "model_e1":shapes_all_stars[:,1], "model_e2":shapes_all_stars[:,2], "model_zeta1":shapes_all_stars[:,3], "model_zeta2":shapes_all_stars[:,4], "model_delta1":shapes_all_stars[:,5], "model_delta2":shapes_all_stars[:,6]}
     moment_med_dictionary = {"e0_med":None, "e1_med":None, "e2_med":None, "zeta1_med":None, "zeta2_med":None, "delta1_med":None, "delta2_med":None}
@@ -152,19 +131,11 @@ for exposure_i, exposure in enumerate(exposures):
             delete_list.append(d)
     shapes_all_stars = np.delete(shapes_all_stars, delete_list, axis=0)
     param_values_all_stars = np.delete(param_values_all_stars, delete_list, axis=0)
-    
-    #print("shapes_all_stars: {0}".format(shapes_all_stars))            
-    #print("param_values_all_stars: {0}".format(param_values_all_stars))
 
     shapes_all_stars_list.append(shapes_all_stars)
     param_values_all_stars_list.append(param_values_all_stars)
 shapes_all_stars = np.concatenate(shapes_all_stars_list, axis=0)
 param_values_all_stars = np.concatenate(param_values_all_stars_list, axis=0)
-
-
-
-
-
 
 
 

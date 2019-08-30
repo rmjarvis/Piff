@@ -117,7 +117,7 @@ class Outliers(object):
         assert len(outliers_type) == 1
         try:
             outliers_type = str(outliers_type[0].decode())
-        except:
+        except AttributeError:
             # fitsio 1.0 returns strings
             outliers_type = outliers_type[0]
 

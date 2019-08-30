@@ -97,17 +97,11 @@ def test_config():
         'input' : {
             'image_file_name' : 'input/DECam_00241238_01.fits.fz',
             'cat_file_name' : 'input/DECam_00241238_01_psfcat_tb_maxmag_17.0_magcut_3.0_findstars.fits',
-            #'image_file_name' : '/nfs/slac/kipac/fs1/g/des/aresh/large_testbed_y1/228724/psf_im_228724_01.fits.fz',
-            #'cat_file_name' : '/nfs/slac/kipac/fs1/g/des/aresh/large_testbed_y1/228724/psf_cat_228724_01.fits',
             # What hdu is everything in?
             'image_hdu': 1,
             'badpix_hdu': 2,
             'weight_hdu': 3,
             'cat_hdu': 2,
-            #'image_hdu': 1,
-            #'badpix_hdu': 2,
-            #'weight_hdu': 3,
-            #'cat_hdu': 1,
 
             # What columns in the catalog have things we need?
             'x_col': 'XWIN_IMAGE',
@@ -116,15 +110,9 @@ def test_config():
             'dec': 'TELDEC',
             'gain': 'GAINA',
             'sky_col': 'BACKGROUND',
-            #'x_col': 'x',
-            #'y_col': 'y',
-            #'ra': 'ra',
-            #'dec': 'dec',
-            #'gain': '1.0',
-            #'sky_col': 'sky',
 
             # How large should the postage stamp cutouts of the stars be?
-            'stamp_size': 19, # this had to be lowered from 31 to avoid encountering too many nuisance stars or masked stars
+            'stamp_size': 19,
         },
         'psf' : {
             'model' : { 'type': 'GSObjectModel',
@@ -148,12 +136,12 @@ def test_config():
 
     # by using n_neighbors = 115, when there are only 117 stars in the catalog, we should expect
     # that the standard deviation of the interpolated parameters should be small, since almost the
-    # same set of stars are being averaged in every case. Note this number had to be lowered from 115 to 106 due to my nuisance star and masked star cuts
+    # same set of stars are being averaged in every case. Note this number was lowered from 115 to 106 due to new star cuts added
     nstars = len(psf.stars)
     np.testing.assert_array_less(
             np.std([s.fit.params for s in psf.stars], axis=0),
             test_factor*np.mean([s.fit.params for s in psf.stars], axis=0),
-            err_msg="Interpolated parameters show too much variation.") #this interpoltion comparison will not work so long as this exposure is used with a high number of nuisance stars
+            err_msg="Interpolated parameters show too much variation.")
 
 @timer
 def test_disk():
@@ -175,9 +163,6 @@ def test_disk():
 
 @timer
 def test_decam_wavefront():
-    #file_name = 'input/Science-20121120s1-v20i2.fits'
-    #extname = 'Science-20121120s1-v20i2'
-    #file_name = 'input/Science-20140212s2-v22i2.fits'
     file_name = '/nfs/slac/kipac/fs1/g/des/aresh/lower_order_reference_wavefront_folder/Science-20140212s2-v22i2.fits'
     extname = 1
 
@@ -185,7 +170,6 @@ def test_decam_wavefront():
         logger = piff.config.setup_logger(verbose=2)
     else:
         logger = None
-    print("file_name 1: {0}".format(file_name))
     knn = piff.des.DECamWavefront(file_name, extname, logger=logger)
 
     n_samples = 2000
@@ -232,9 +216,6 @@ def test_decam_wavefront():
 
 @timer
 def test_decam_disk():
-    #file_name = 'input/Science-20121120s1-v20i2.fits'
-    #extname = 'Science-20121120s1-v20i2'
-    #file_name = 'input/Science-20140212s2-v22i2.fits'
     file_name = '/nfs/slac/kipac/fs1/g/des/aresh/lower_order_reference_wavefront_folder/Science-20140212s2-v22i2.fits'
     extname = 1
     knn = piff.des.DECamWavefront(file_name, extname, n_neighbors=30)

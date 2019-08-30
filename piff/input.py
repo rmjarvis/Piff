@@ -19,14 +19,8 @@
 from __future__ import print_function
 from past.builtins import basestring
 import numpy as np
-#from coord import AngleUnit
 import glob
 import os
-from scipy.optimize import curve_fit
-
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
 
 
 class Input(object):
@@ -146,8 +140,6 @@ class Input(object):
                     logger.info("Skipping star at position %f,%f with snr=%f."%(x,y,snr))
                     continue
                 if self.max_snr > 0 and snr > self.max_snr:
-                    #logger.info("Skipping star at position %f,%f with snr=%f."%(x,y,snr))
-                    #continue
                     factor = (self.max_snr / snr)**2
                     logger.debug("Scaling noise by factor of %f to achieve snr=%f",
                                  factor, self.max_snr)
@@ -181,7 +173,6 @@ class Input(object):
             conds_width_not_deformed = (    np.abs(postage_stamp_widths - self.stamp_size) < self.cutoff_deformed_level    )
             stars = np.array(stars)[conds_height_not_deformed*conds_width_not_deformed].tolist()
         logger.info("There are {0} stars after the deformed star cut".format(len(stars)))
-        print("There are {0} stars after the deformed star cut".format(len(stars)))
 
         # here we remove nuisance stars. We do this by seeing if there is an unusual amount of flux far from the center of the postage stamp
         if len(stars) > 0:
@@ -212,7 +203,6 @@ class Input(object):
             stars = stars.tolist()
 
         logger.info("There are {0} stars after the nuisance star cut".format(len(stars)))
-        print("There are {0} stars after the nuisance star cut".format(len(stars)))
 
         # here we remove stars that have been at least partially covered by a mask and thus have weight exactly 0 in at least one pixel of their postage stamp
         if len(stars) > 0:
@@ -224,7 +214,6 @@ class Input(object):
             stars = np.delete(stars, delete_list)
             stars = stars.tolist()
         logger.info("There are {0} stars after the masked star cut".format(len(stars)))
-        print("There are {0} stars after the masked star cut".format(len(stars)))
         return stars
 
     @staticmethod
@@ -534,7 +523,7 @@ class InputFiles(Input):
                              'file names')
 
         self.chipnums = list(range(nimages))
-        self.stamp_size = int(config.get('stamp_size', 19)) # previous default was 32
+        self.stamp_size = int(config.get('stamp_size', 19))
         self.images = []
         self.weight = []
         self.image_pos = []
@@ -602,9 +591,8 @@ class InputFiles(Input):
                     flag_col, skip_flag, use_flag, sky_col, gain_col,
                     sky, gain, nstars, image_file_name, logger)
             # Check for objects well off the edge.  We won't use them.
-            #big_bounds = image.bounds.expand(self.stamp_size)
-            #image_pos = [ pos for pos in image_pos if big_bounds.includes(pos) ]
-            #The above two lines cause an  error, so they are commented out for now:
+            big_bounds = image.bounds.expand(self.stamp_size)
+            image_pos = [ pos for pos in image_pos if big_bounds.includes(pos) ]
 
             if config.get('remove_signal_from_weight', False):
                 # Subtract off the mean sky, since this isn't part of the "signal" we want to
@@ -782,8 +770,6 @@ class InputFiles(Input):
 
         # Read in the star catalog
         logger.warning("Reading star catalog %s.",cat_file_name)
-        print("cat_file_name: {0}".format(cat_file_name))
-        print("cat_hdu: {0}".format(cat_hdu))
         cat = fitsio.read(cat_file_name, cat_hdu)
 
         if flag_col is not None:

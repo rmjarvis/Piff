@@ -731,9 +731,7 @@ def test_single_image():
 
     # Make stars
     orig_stars = input.makeStars()
-    print("len(orig_stars): {0}".format(len(orig_stars)))
-    print("len(x_list): {0}".format(len(x_list)))
-    #assert len(orig_stars) == len(x_list) #has to be removed because of the stars created for this test, some are removed due to some of my star cuts.
+    #assert len(orig_stars) == len(x_list) # some stars are removed due to some new star cuts.
     assert orig_stars[0].image.array.shape == (32,32)
 
     # Make a test star, not at the location of any of the model stars to use for each of the

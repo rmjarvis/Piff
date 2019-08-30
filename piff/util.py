@@ -382,8 +382,6 @@ def hsm_error(star, logger=None, return_debug=False, return_error=True):
         if logger:
             logger.debug('Star hsm_error. Value of flux, u0, v0, e0, e1, e2 are:')
             logger.debug('{0:.2e} {1:.2e} {2:.2e} {3:.2e} {4:.2e} {5:.2e}'.format(flux_calc, u0_calc, v0_calc, e0_calc, e1_calc, e2_calc))
-            # logger.debug('Star hsm_error. Value of Gaussian model flux, u0, v0, e0, e1, e2 are:')
-            # logger.debug('{0:.2e} {1:.2e} {2:.2e} {3:.2e} {4:.2e} {5:.2e}'.format(flux, u0, v0, e0, e1, e2))
             logger.debug('Star hsm_error. Value of errors for flux, u0, v0, e0, e1, e2 are:')
             logger.debug('{0:.2e} {1:.2e} {2:.2e} {3:.2e} {4:.2e} {5:.2e}'.format(sigma_flux, sigma_u0, sigma_v0, sigma_e0, sigma_e1, sigma_e2))
             logger.debug('Star hsm_error. Relative un-fudged contributions for u0 from data and flux are (in sigma2):')
@@ -536,8 +534,6 @@ def hsm_error_third_moments(star, logger=None):
     delta1_calc = Muuu - 3 * Muvv
     delta2_calc = -(Mvvv - 3 * Muuv)
 
-    #return flux_calc, u0_calc, v0_calc, e0_calc, e1_calc, e2_calc, zeta1_calc, zeta2_calc, delta1_calc, delta2_calc
-
 
     # normalization for the various sums over pixels
     normalization2 = normalization * normalization
@@ -632,24 +628,8 @@ def hsm_error_third_moments(star, logger=None):
     sigma_e1 = sigma_e1 * 2.3
     sigma_e2 = sigma_e2 * 2.3
 
-    #sigma_zeta1 = sigma_zeta1 * 0.523
-    #sigma_zeta2 = sigma_zeta2 * 0.545
     sigma_zeta1 = sigma_zeta1 * 0.52
     sigma_zeta2 = sigma_zeta2 * 0.55
-
-#below are the numbers gleaned when looking for fudge factors using simulated stars of different snr and location
-#snr 90, location (500, 500, 25), 1000 runs
-#[ 1.12804519  1.07293111  1.07145898  1.13775826  1.10059309  1.10546455  1.05268536  0.99594863  0.9396108   0.93940038]
-#snr 90, location (500, 500, 25), 100 runs
-#[ 1.13037156  1.07224726  1.07309272  1.14044123  1.09669306  1.10661247  1.04602584  0.99712779  0.94301216  0.93644381]
-#snr 70, location (500, 500, 25), 100 runs
-#[ 1.12649224  1.07171045  1.07870498  1.14094039  1.09996217  1.10760745  1.04477721  0.99593876  0.93987085  0.94086416]
-#snr 50, location (500, 500, 25), 100 runs
-#[ 1.12264633  1.07698594  1.06969354  1.13584159  1.09865871  1.09636084  1.0537384   0.99585817  0.92885245  0.93264428]
-#snr 90, location (100, 100, 55), 100 runs
-#[ 1.13083505  1.08115786  1.06882666  1.14116332  1.0969551   1.10358841  1.04876238  0.99314536  0.94111276  0.94455409]
-#snr 90, location (300, 200, 5), 100 runs
-#[ 1.13755535  1.07547336  1.07685751  1.13319619  1.09941079  1.10964125  1.0472514   0.99847778  0.94133408  0.94094472]
 
     return sigma_flux, sigma_u0, sigma_v0, sigma_e0, sigma_e1, sigma_e2, sigma_zeta1, sigma_zeta2, sigma_delta1, sigma_delta2
 
@@ -818,8 +798,6 @@ def hsm_error_fourth_moments(star, logger=None):
     lambda1_calc = Muuuu - 6 * Muuvv + Mvvvv
     lambda2_calc = 4 * Muuuv - 4 * Muvvv 
 
-    #return flux_calc, u0_calc, v0_calc, e0_calc, e1_calc, e2_calc, zeta1_calc, zeta2_calc, delta1_calc, delta2_calc, xi_calc, eta1_calc, eta2_calc, lambda1_calc, lambda2_calc
-
 
     # normalization for the various sums over pixels
     normalization2 = normalization * normalization
@@ -943,40 +921,14 @@ def hsm_error_fourth_moments(star, logger=None):
     sigma_e1 = sigma_e1 * 2.3
     sigma_e2 = sigma_e2 * 2.3
 
-    #sigma_zeta1 = sigma_zeta1 * 0.523
-    #sigma_zeta2 = sigma_zeta2 * 0.545
     sigma_zeta1 = sigma_zeta1 * 0.52
     sigma_zeta2 = sigma_zeta2 * 0.55
-#below are the numbers gleaned when looking for fudge factors using simulated stars of different snr and location
-#snr 90, location (500, 500, 25), 1000 runs
-#[ 1.12804519  1.07293111  1.07145898  1.13775826  1.10059309  1.10546455  1.05268536  0.99594863  0.9396108   0.93940038]
-#snr 90, location (500, 500, 25), 100 runs
-#[ 1.13037156  1.07224726  1.07309272  1.14044123  1.09669306  1.10661247  1.04602584  0.99712779  0.94301216  0.93644381]
-#snr 70, location (500, 500, 25), 100 runs
-#[ 1.12649224  1.07171045  1.07870498  1.14094039  1.09996217  1.10760745  1.04477721  0.99593876  0.93987085  0.94086416]
-#snr 50, location (500, 500, 25), 100 runs
-#[ 1.12264633  1.07698594  1.06969354  1.13584159  1.09865871  1.09636084  1.0537384   0.99585817  0.92885245  0.93264428]
-#snr 90, location (100, 100, 55), 100 runs
-#[ 1.13083505  1.08115786  1.06882666  1.14116332  1.0969551   1.10358841  1.04876238  0.99314536  0.94111276  0.94455409]
-#snr 90, location (300, 200, 5), 100 runs
-#[ 1.13755535  1.07547336  1.07685751  1.13319619  1.09941079  1.10964125  1.0472514   0.99847778  0.94133408  0.94094472]
 
     sigma_xi = sigma_xi * 2.4
     sigma_eta1 = sigma_eta1 * 2.6
     sigma_eta2 = sigma_eta2 * 2.6
     sigma_lambda1 = sigma_lambda1 * 1.1
     sigma_lambda2 = sigma_lambda2 * 1.1
-#below are the numbers gleaned when looking for fudge factors using simulated stars of different snr and location
-#snr 90, location (500, 500, 25), 100 runs
-#[ 1.12781393  1.07440408  1.07547636  1.13551989  1.09799606  1.106043 1.04924972  0.99272887  0.93874354  0.94343509  0.99765259  0.9923932 1.0064688   1.03260727  1.03864627]
-#snr 70, location (500, 500, 25), 100 runs
-#[ 1.12131667  1.07808312  1.07338833  1.14472137  1.10117143  1.10211635 1.05297964  0.99333467  0.94037372  0.938079    1.00528673  0.9960066 1.00318868  1.04309171  1.04164243]
-#snr 50, location (500, 500, 25), 100 runs
-#[ 1.11280269  1.07289472  1.07523513  1.13778037  1.09686648  1.10188804 1.05146489  0.99525581  0.93859345  0.93938414  0.99820261  0.99002694 1.00116629  1.03686934  1.04992096]
-#snr 90, location (100, 100, 55), 100 runs
-#[ 1.12708727  1.07834415  1.07967473  1.13646662  1.0983406   1.10894742 1.05298616  0.99330377  0.94068533  0.942428    0.99922724  0.99681427 1.00924441  1.04122951  1.03503203]
-#snr 90, location (300, 200, 5), 100 runs
-#[ 1.12930729  1.07552532  1.07740932  1.14049254  1.10198351  1.10707529 1.047431    0.99691908  0.94090114  0.93752018  1.00435191  0.99778555 1.00900593  1.03330217  1.0272572 ]
 
     return sigma_flux, sigma_u0, sigma_v0, sigma_e0, sigma_e1, sigma_e2, sigma_zeta1, sigma_zeta2, sigma_delta1, sigma_delta2, sigma_xi, sigma_eta1, sigma_eta2, sigma_lambda1, sigma_lambda2
 
@@ -1171,8 +1123,6 @@ def hsm_error_orthogonal(star, logger=None):
 
     orth8_calc = Muuuuuuuu + 4 * Muuuuuuvv + 6 * Muuuuvvvv + 4 * Muuvvvvvv + Mvvvvvvvv - 15 * Muuuuuu - 45 * Muuuuvv - 45 * Muuvvvv - 15 * Mvvvvvv + 60 * Muuuu + 120 * Muuvv + 60 * Mvvvv - 60 * Muu - 60 * Mvv
 
-    #return flux_calc, u0_calc, v0_calc, e0_calc, e1_calc, e2_calc, zeta1_calc, zeta2_calc, delta1_calc, delta2_calc, orth4_calc, orth6_calc, orth8_calc
-
 
     # normalization for the various sums over pixels
     normalization2 = normalization * normalization
@@ -1286,39 +1236,12 @@ def hsm_error_orthogonal(star, logger=None):
     sigma_e1 = sigma_e1 * 2.3
     sigma_e2 = sigma_e2 * 2.3
 
-    #sigma_zeta1 = sigma_zeta1 * 0.523
-    #sigma_zeta2 = sigma_zeta2 * 0.545
     sigma_zeta1 = sigma_zeta1 * 0.52
     sigma_zeta2 = sigma_zeta2 * 0.55
-#below are the numbers gleaned when looking for fudge factors using simulated stars of different snr and location
-#snr 90, location (500, 500, 25), 1000 runs
-#[ 1.12804519  1.07293111  1.07145898  1.13775826  1.10059309  1.10546455  1.05268536  0.99594863  0.9396108   0.93940038]
-#snr 90, location (500, 500, 25), 100 runs
-#[ 1.13037156  1.07224726  1.07309272  1.14044123  1.09669306  1.10661247  1.04602584  0.99712779  0.94301216  0.93644381]
-#snr 70, location (500, 500, 25), 100 runs
-#[ 1.12649224  1.07171045  1.07870498  1.14094039  1.09996217  1.10760745  1.04477721  0.99593876  0.93987085  0.94086416]
-#snr 50, location (500, 500, 25), 100 runs
-#[ 1.12264633  1.07698594  1.06969354  1.13584159  1.09865871  1.09636084  1.0537384   0.99585817  0.92885245  0.93264428]
-#snr 90, location (100, 100, 55), 100 runs
-#[ 1.13083505  1.08115786  1.06882666  1.14116332  1.0969551   1.10358841  1.04876238  0.99314536  0.94111276  0.94455409]
-#snr 90, location (300, 200, 5), 100 runs
-#[ 1.13755535  1.07547336  1.07685751  1.13319619  1.09941079  1.10964125  1.0472514   0.99847778  0.94133408  0.94094472]
 
     sigma_orth4 = sigma_orth4 * 0.81
     sigma_orth6 = sigma_orth6 * 0.34
     sigma_orth8 = sigma_orth8 * 0.51
-
-#below are the numbers gleaned when looking for fudge factors using simulated stars of different snr and location
-#snr 90, location (500, 500, 25), 100 runs
-#[ 1.12789052  1.07122627  1.06982721  1.13227852  1.09539538  1.10986738  1.04771268  0.99706737  0.94505238  0.93642648  1.00655573  0.98794674  1.00433152]
-#snr 70, location (500, 500, 25), 100 runs
-#[ 1.12344854  1.07633325  1.06860993  1.13521836  1.09878291  1.10046831  1.04950393  0.99606344  0.94287758  0.93499364  1.00639701  0.98828998  1.01541212]
-#snr 50, location (500, 500, 25), 100 runs
-#[ 1.1212639   1.07459546  1.06945939  1.13630079  1.09015453  1.10127791  1.05054545  0.9942339   0.93318318  0.93788705  1.0088255   1.0159012  1.01427021]
-#snr 90, location (100, 100, 55), 100 runs
-#[ 1.12570676  1.08156327  1.070862    1.13791974  1.09911585  1.10877175  1.05393651  0.99409229  0.93941998  0.93760337  1.04351291  1.01206492  0.94363708]
-#snr 90, location (300, 200, 5), 100 runs
-#[ 1.14066351  1.07267757  1.0784058   1.14219614  1.09935112  1.10944844  1.05163579  0.99635155  0.93856219  0.93551787  1.04409945  1.01764776  0.95906311]
 
     return sigma_flux, sigma_u0, sigma_v0, sigma_e0, sigma_e1, sigma_e2, sigma_zeta1, sigma_zeta2, sigma_delta1, sigma_delta2, sigma_orth4, sigma_orth6, sigma_orth8
 

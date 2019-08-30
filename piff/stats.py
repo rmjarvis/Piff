@@ -246,14 +246,10 @@ class ShapeHistogramsStats(Stats):
         """
         logger = galsim.config.LoggerWrapper(logger)
         # get the shapes
-        #logger.warning("Calculating rho statistics for %d stars",len(stars))
         logger.warning("Calculating rho statistics")
 	
         #the line below is necessary as it will reveal what folder to look into for all the .npy files that contain all the psfs and stars_tests
         npy_storage_folder = "{0}/npy_storage/".format(core_directory)
-
-        #print("os.walk output: ")
-        #print(os.walk("/nfs/slac/g/ki/ki19/des/aresh/npy_storage/psf/"))
 
         stars_test_npy_filenames = [stars_test_npy_file for stars_test_npy_file in os.walk("{0}/npy_storage/stars_test/".format(core_directory))][0][2]
 
@@ -279,12 +275,7 @@ class ShapeHistogramsStats(Stats):
         unconcatenated_shapes_model_list = []
 
         index = 0
-        #print("psf_npy_filenames: ")
-        #print(psf_npy_filenames)
         for psf_npy_filename in psf_npy_filenames:
-            #print("psf_npy_filename: ")
-            #print(psf_npy_filename)
-            #psf = np.load("/nfs/slac/g/ki/ki19/des/aresh/npy_storage/psf/" + psf_npy_filename)[0][0]
             psf = piff.read(new_psf_npy_filenames[index])
             stars_test = np.load("{0}/npy_storage/stars_test/".format(core_directory) + stars_test_npy_filenames[index])[0][0]
             positions, shapes_truth, shapes_model = self.measureShapes(psf, stars_test, logger=logger)

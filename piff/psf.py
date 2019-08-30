@@ -264,7 +264,7 @@ class PSF(object):
         assert len(psf_type) == 1
         try:
             psf_type = str(psf_type[0].decode())
-        except:
+        except AttributeError:
             # fitsio 1.0 returns strings
             psf_type = psf_type[0]
 
@@ -408,7 +408,7 @@ class PSF(object):
         wcs_str = [ data[key] for key in wcs_keys ] # Get all wcs_str columns
         try:
             wcs_str = [ b''.join(s) for s in zip(*wcs_str) ]  # Rejoint into single string each
-        except:
+        except TypeError:
             # fitsio 1.0 returns strings
             wcs_str = [ ''.join(s) for s in zip(*wcs_str) ]
         wcs_str = [ base64.b64decode(s) for s in wcs_str ] # Convert back from b64 encoding

@@ -43,7 +43,6 @@ def setup_logger(verbose=1, log_file=None):
                        3: logging.DEBUG }
     logging_level = logging_levels[verbose]
 
-    # formatter = logging.Formatter('%(message)s')  # Simple text output
     # make formatter print time
     formatter = logging.Formatter(fmt='%(asctime)s.%(msecs)03d %(levelname)-8s %(message)s',
                                   datefmt='%Y-%m-%d %H:%M:%S')
@@ -252,7 +251,6 @@ def meanify(config, logger=None):
         bin_spacing = config['hyper']['bin_spacing'] #in arcsec
     else:
         bin_spacing = 120. #default bin_spacing: 120 arcsec
-    print("bin_spacing: {0}".format(bin_spacing))
 
     if 'statistic' in config['hyper']:
         if config['hyper']['statistic'] not in ['mean', 'median']:
@@ -285,21 +283,14 @@ def meanify(config, logger=None):
     elif not isinstance(config['file_name'], dict):
         raise ValueError("file_name should be either a dict or a string")
 
-    import time
     if psf_list is not None:
         logger.debug('psf_list = %s',psf_list)
-        print('psf_list = %s',psf_list)
-        time.sleep(10)
         npsfs = len(psf_list)
         logger.debug('npsfs = %d',npsfs)
-        print('npsfs = %d',npsfs)
-        time.sleep(10)
         config['output']['file_name'] = psf_list
 
     file_name_in = config['output']['file_name']
     logger.info("Looking for PSF at %s", file_name_in)
-    print("Looking for PSF at %s", file_name_in)
-    time.sleep(10)
 
     file_name_out = config['hyper']['file_name']
     if 'dir' in config['hyper']:
@@ -310,24 +301,6 @@ def meanify(config, logger=None):
 
     for fi, f in enumerate(file_name_in):
         logger.debug('Loading file {0} of {1}'.format(fi, len(file_name_in)))
-    #    print('Loading file {0} of {1}'.format(fi, len(file_name_in)))
-    #    #time.sleep(10)
-    #    # rewrite takes ~0.02 sec per psf, while previous took 2-3 sec.
-    #    star_arr = fitsio.read(f, 'psf_stars')
-        #corrupted=False
-        #for early_element in star_arr['u']:
-        #    if early_element > 10000.0:
-        #        print("alert! early element was bigger than 10000.0!")
-        #        print("star_arr['u']: {0}".format(star_arr['u']))
-        #	time.sleep(10)
-        #	corrupted=True
-        #if corrupted==True:
-        #    continue
-    #    coord = np.array([star_arr['u'], star_arr['v']])
-    #    param = star_arr['params']
-    #    #print("coord: {0}".format(coord))
-    #    coords.append(coord)
-    #    params.append(param)
         try:
             fits = fitsio.FITS(f)
             coord, param = Star.read_coords_params(fits, 'psf_stars')

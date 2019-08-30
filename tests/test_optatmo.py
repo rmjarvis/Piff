@@ -44,7 +44,7 @@ def plot_star(star, filename='test_optatmo.png', **kwargs):
     plt.close('All')
     plt.close()
 
-# default config
+# realistic config
 def return_config_realistic():
     config = {  'optical_psf_kwargs':
                 {
@@ -53,8 +53,6 @@ def return_config_realistic():
                 },
             'reference_wavefront':
                 {
-                    #'file_name': './input/Science-20121120s1-v20i2.fits',
-                    #'file_name': '/nfs/slac/kipac/fs1/g/des/aresh/lower_order_reference_wavefront_folder/Science-20140212s2-v22i2.fits',
                     'file_name': '/nfs/slac/kipac/fs1/g/des/aresh/lower_order_reference_wavefront_folder/Science-20140212s2-v22i2.fits',  #This file is too big to fit inside of the PIFF test area, so I put the path to where I have them in my directory. Also note this is an i-band reference wavefront but I should have the reference wavefront of whatever band exposure 00241238 is. #TODO: resolve theses issues
                     'extname': 1,
                     'n_neighbors': 10,
@@ -176,7 +174,6 @@ def return_config_realistic():
                     'fix_zPupil037_zFocal002': True,  
                     'fix_zPupil037_zFocal003': True,
                 },
-            #'analytic_coefs': '/nfs/slac/g/ki/ki18/cpd/Projects/DES/Piff/piff/des/analytic_hsm_coefs.npy',
             'atmo_interp': 'none',
             'type': 'OptAtmo',
             'shape_weights': [0.2, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4],
@@ -192,8 +189,6 @@ def return_config():
                 },
             'reference_wavefront':
                 {
-                    #'file_name': './input/Science-20121120s1-v20i2.fits',
-                    #'file_name': '/nfs/slac/kipac/fs1/g/des/aresh/lower_order_reference_wavefront_folder/Science-20140212s2-v22i2.fits',
                     'file_name': '/nfs/slac/kipac/fs1/g/des/aresh/lower_order_reference_wavefront_folder/Science-20140212s2-v22i2.fits',  #This file is too big to fit inside of the PIFF test area, so I put the path to where I have them in my directory. Also note this is an i-band reference wavefront but I should have the reference wavefront of whatever band exposure 00241238 is. #TODO: resolve theses issues
                     'extname': 1,
                     'n_neighbors': 40,
@@ -213,7 +208,6 @@ def return_config():
                 {
                     'fix_zPupil011': True
                 },
-            #'analytic_coefs': '/nfs/slac/g/ki/ki18/cpd/Projects/DES/Piff/piff/des/analytic_hsm_coefs.npy',
             'atmo_interp':
                 {
                     'type': 'Polynomial',
@@ -267,7 +261,6 @@ def test_aberrations():
     for j in range(4, config['jmax_pupil']):
         params = np.zeros(config['jmax_pupil'] + 4)
         params[0] = 1 #leave r0 at 0.15 here
-        #params[3] = 25.0 #Note that this file does not test vonkarman atmosphere; if it did it would leave L0 at 25.0 here.
         params[4 - 1 + 3] = 1. #leave defocus at 1.0 here
         params[j - 1 + 3] = 1.
         prof = psf.getProfile(params)
@@ -422,26 +415,18 @@ def test_fit():
 
     config = return_config()
     config['atmo_interp'] = 'None'
-    # config['reference_wavefront'] = 'None'
     config['jmax_focal'] = 1
     config['jmax_pupil'] = 11
 
     optatmo_psf_kwargs = {'size': 1.0, 'g1': 0, 'g2': 0,
                           'fix_size': False, 'fix_g1': True, 'fix_g2': True,
                           'zPupil004_zFocal001': -0.15,
-                          # 'fix_zPupil004_zFocal001': True,
                           'zPupil005_zFocal001': 0.1,
-                          # 'fix_zPupil005_zFocal001': True,
                           'zPupil006_zFocal001': 0.25,
-                          # 'fix_zPupil006_zFocal001': True,
                           'zPupil007_zFocal001': -0.1,
-                          # 'fix_zPupil007_zFocal001': True,
                           'zPupil008_zFocal001': 0.1,
-                          # 'fix_zPupil008_zFocal001': True,
                           'zPupil009_zFocal001': 0.3,
-                          # 'fix_zPupil009_zFocal001': True,
                           'zPupil010_zFocal001': -0.4,
-                          # 'fix_zPupil010_zFocal001': True,
                           'zPupil011_zFocal001': 0.2,
                           'fix_zPupil011_zFocal001': True,
                         }  # avoid the defocus,astig,spherical -> negatives degeneracy by fixing spherical
@@ -482,19 +467,11 @@ def test_fit():
         stars_to_fit.append(star.clean())
 
     # do fit
-    #for fit_optics_mode in ['pixel', 'shape']:
-    for fit_optics_mode in ['shape']: # pixel mode too slow, so it has not been used for a while; uncertain if it would pass a unit test
+    for fit_optics_mode in ['shape']: # pixel mode too slow, so it has not been used for a while; not known if it would pass a unit test
         psf_train = piff.PSF.process(copy.deepcopy(config))
-        #for star_i, star in enumerate(stars_to_fit):
-        #    shape = psf_train.measure_shape_orthogonal(star)
-        #    if star_i % 10 == 0:
-        #        print("from test_fit: star_i: {0}".format(star_i))
-        #        print("from test_fit: shape: {0}".format(shape))
         logger.info('Test fitting optics mode {0}'.format(fit_optics_mode))
         psf_train.fit_optics_mode = fit_optics_mode
 
-        #if 'type' in config['psf']:
-        #    if config['psf']['type'] == 'OptAtmo':
         np.random.seed(12345)
         test_fraction = config.get('test_fraction', 0.2)
         test_indx = np.random.choice(len(stars_to_fit), int(test_fraction * len(stars_to_fit)), replace=False)
@@ -505,11 +482,6 @@ def test_fit():
                 test_stars.append(star)
             else:
                 train_stars.append(star)
-        #psf.fit(train_stars, test_stars, wcs, pointing, logger=logger)
-        #    else:
-        #        psf.fit(stars, wcs, pointing, logger=logger)
-        #else:
-        #    psf.fit(stars, wcs, pointing, logger=logger)
 
         psf_train.fit(train_stars, test_stars, wcs, pointing, logger=logger) #, Ns=5, maxfev=10)  # using this shortcut here, which should not be ever used in a serious fit in order to go faster on size triggers an error, so this has been removed
         #Note: test only done on train_stars; no test for test_stars planned and it is not certain it is necessary
@@ -531,7 +503,7 @@ def test_fit():
             assert diff <= tol,'failed to fit {0} to tolerance {4}: {1:+.3f}, {2:+.3f}, {3:+.3f}'.format(key, train, fit, train - fit, tol)
 
 @timer
-def test_atmo_model_fit(): #Note: this test is likely using the default L0 of 25.0. The unit test is still passing, though, so this might not be an issue.
+def test_atmo_model_fit(): #Note: this test is likely using the default L0 of 25.0.
     # set up logger
     if __name__ == '__main__':
         logger = piff.config.setup_logger(verbose=3)
@@ -647,14 +619,6 @@ def test_atmo_model_fit(): #Note: this test is likely using the default L0 of 25
     star_reflux = psf.reflux(star_to_fit)
     star_adjust = psf.adjustStar(star_to_fit)
     star_fitted, results = psf.fit_model(star_to_fit, params, vary_shape=False, vary_optics=False)
-    print("star.fit.center: {0}".format(star.fit.center))
-    print("star_reflux.fit.center: {0}".format(star_reflux.fit.center))
-    print("star_adjust.fit.center: {0}".format(star_adjust.fit.center))
-    print("star_fitted.fit.center: {0}".format(star_fitted.fit.center))
-    print("star.fit.flux: {0}".format(star.fit.flux))
-    print("star_reflux.fit.flux: {0}".format(star_reflux.fit.flux))
-    print("star_adjust.fit.flux: {0}".format(star_adjust.fit.flux))
-    print("star_fitted.fit.flux: {0}".format(star_fitted.fit.flux))
     np.testing.assert_allclose(star.fit.center, star_reflux.fit.center, rtol=1e-5) #Note: this and the five below it had to be loosened to this from rtol=1e-7.
     np.testing.assert_allclose(star.fit.center, star_adjust.fit.center, rtol=1e-5)
     np.testing.assert_allclose(star.fit.center, star_fitted.fit.center, rtol=1e-5)
@@ -676,12 +640,7 @@ def test_jmaxs():
     config['jmax_focal'] = 45
     psf = piff.PSF.process(config)
     stars = [make_star(100, 100, 1), make_star(100, 100, 60), make_star(100, 100, 3)]  # 0 and 1 share u, 0 and 2 share v
-    #np.save("/u/ec/aresh/Piff-galsimify_optatmo/tests/stars.npy",stars)
-    #print("succeeded")
-    #import sys
-    #sys.exit()
     aberrations_pupil = psf._getParamsList_aberrations_field(stars)
-    #print("aberrations_pupil 1: {0}".format(aberrations_pupil))
 
     assert psf.jmax_pupil == config['jmax_pupil']
     assert psf.jmax_focal == config['jmax_focal']
@@ -693,7 +652,6 @@ def test_jmaxs():
     optatmo_psf_kwargs = {'size': 0.2, 'g1': 0.3, 'zPupil004_zFocal001': -1.0}
     psf._update_optatmopsf(optatmo_psf_kwargs, logger=logger)
     aberrations_pupil = psf._getParamsList_aberrations_field(stars)
-    #print("aberrations_pupil 2: {0}".format(aberrations_pupil))
     assert aberrations_pupil[0][3] == optatmo_psf_kwargs['zPupil004_zFocal001']
     assert aberrations_pupil[1][3] == aberrations_pupil[0][3]
     assert aberrations_pupil[2][3] == aberrations_pupil[0][3]
@@ -709,42 +667,19 @@ def test_jmaxs():
     # we can also test that the linear terms are proportional
     us = np.array([star.u for star in stars])
     vs = np.array([star.v for star in stars])
-    #print("psf._noll_coef_field 1: {0}".format(psf._noll_coef_field))
-    #print("psf.aberrations_field: {0}".format(psf.aberrations_field))
-    #print("psf._coef_arrays_field: {0}".format(psf._coef_arrays_field))
     optatmo_psf_kwargs = {'zPupil006_zFocal002': -2}
-    #optatmo_psf_kwargs = {'zPupil007_zFocal002': -2}
     psf._update_optatmopsf(optatmo_psf_kwargs, logger=logger)
-    #print("psf._noll_coef_field 2: {0}".format(psf._noll_coef_field))
-    #print("psf.aberrations_field: {0}".format(psf.aberrations_field))
-    #print("psf._coef_arrays_field: {0}".format(psf._coef_arrays_field))
     aberrations_pupil = psf._getParamsList_aberrations_field(stars)
-    #print("aberrations_pupil 3: {0}".format(aberrations_pupil))
     zs = aberrations_pupil[:,5]
-    #print("us: {0}".format(us))
-    #print("vs: {0}".format(vs))
-    #print("zs: {0}".format(zs))
     # zFocal002 and the u coordinate are the same, so same u should lead to same z
     assert us[0] == us[1]  # the next assert doesn't make sense to check if this isn't true
     assert zs[0] == zs[1]
     assert us[0] != us[2]
     assert zs[0] != zs[2]
-    #import sys
-    #sys.exit()
-    #print("psf._noll_coef_field 3: {0}".format(psf._noll_coef_field))
-    #print("psf.aberrations_field: {0}".format(psf.aberrations_field))
-    #print("psf._coef_arrays_field: {0}".format(psf._coef_arrays_field))
     optatmo_psf_kwargs = {'zPupil007_zFocal003': -2}
     psf._update_optatmopsf(optatmo_psf_kwargs, logger=logger)
-    #print("psf._noll_coef_field 4: {0}".format(psf._noll_coef_field))
-    #print("psf.aberrations_field: {0}".format(psf.aberrations_field))
-    #print("psf._coef_arrays_field: {0}".format(psf._coef_arrays_field))
     aberrations_pupil = psf._getParamsList_aberrations_field(stars)
-    #print("aberrations_pupil 4: {0}".format(aberrations_pupil))
     zs = aberrations_pupil[:,6]
-    #print("us: {0}".format(us))
-    #print("vs: {0}".format(vs))
-    #print("zs: {0}".format(zs))
     # zFocal003 and the v coordinate are the same, so same u should lead to same z
     assert vs[0] == vs[2]  # the next assert doesn't make sense to check if this isn't true
     assert zs[0] == zs[2]
@@ -759,74 +694,6 @@ def test_jmaxs():
     assert psf.aberrations_field[2, 0] == optatmo_psf_kwargs['g2']
     assert psf.aberrations_field[21-1, 45-1] == optatmo_psf_kwargs['zPupil021_zFocal045']
     assert psf.aberrations_field[4-1, 1-1] == optatmo_psf_kwargs['zPupil004_zFocal001']
-
-"""
-@timer
-def test_analytic_coefs():
-    # set up logger
-    if __name__ == '__main__':
-        logger = piff.config.setup_logger(verbose=3)
-    else:
-        logger = piff.config.setup_logger(verbose=1)
-    config = return_config()
-    psf = piff.PSF.process(config)
-    # generate fake star params
-    stars = [make_star(0, 0, i + 1) for i in range(1, 30)]
-    params = psf.getParamsList(stars)
-    # make sure the analytic shapes we loaded at least give something
-    shapes = psf.analytic_shapes(params, psf.analytic_coefs)
-
-    # put in fake params and coefs
-    params = np.array([[0, 0], [0, 1], [10, 10]])
-    indices = [np.array([[0, 0, 0], [0, 0, 1], [0, 0, 2], [0, 1, 2]]),
-               np.array([[2, 2, 2]])]
-    coefs = [np.array([10, 100, 1000, 10000]), np.array([3])]
-    afterburner = np.array([[0, 1], [0, 1]])
-    analytic_coefs = [coefs, indices, afterburner]
-    shapes = psf.analytic_shapes(params, analytic_coefs)
-    shapes_shouldbe = np.array([[10, 0], [10 + 1000, 3], [10 + 10 * 100 + 10 * 1000 + 10 * 10 * 10000, 10 ** 3 * 3]])
-    np.testing.assert_equal(shapes, shapes_shouldbe)
-
-    # # test afterburner
-    # for afterburner in [np.array([[1, 0], [10, 0]]),
-    #                     np.array([[0, 2], [0, 3]])]:
-    #     analytic_coefs = [coefs, indices, afterburner]
-    #     shapes = psf.analytic_shapes(params, analytic_coefs)
-    #     shapes_shouldbe_afterburn = afterburner[:, 0] + afterburner[:, 1] * shapes_shouldbe
-    #     np.testing.assert_equal(shapes, shapes_shouldbe_afterburn)
-
-    # make an analytic with jmax_pupil small, and make sure no indices above it make it in
-    config = return_config()
-    config['jmax_pupil'] = 4
-    psf = piff.PSF.process(config)
-    for i in psf.analytic_coefs[1]:
-        assert not np.any(i > config['jmax_pupil'])
-
-    # replace analytic coefs with 'None'
-    config = return_config()
-    config['analytic_coefs'] = None
-    psf = piff.PSF.process(config)
-    assert psf.analytic_coefs == None
-    config = return_config()
-    config['analytic_coefs'] = 'none'
-    psf = piff.PSF.process(config)
-    assert psf.analytic_coefs == None
-
-    # make a psf without analytic coefs in the config
-    config = return_config()
-    config.pop('analytic_coefs')
-    config.pop('atmo_interp', None)
-    psf = piff.PSF.process(config)
-    assert psf.analytic_coefs == None
-
-    # test that we can read and write with no analytic coefs
-    psf_file = os.path.join('output','optatmo_des_psf.fits')
-    if os.path.exists(psf_file):
-        os.remove(psf_file)
-    psf.write(psf_file, logger=logger)
-    psf_read = piff.read(psf_file, logger=logger)
-    assert psf.analytic_coefs == psf_read.analytic_coefs
-"""
 
 @timer
 def test_snr_and_shapes():
@@ -863,7 +730,6 @@ def test_snr_and_shapes():
             image_obs = image + noise
             star_model.image.array[:] = image_obs
             # any stars with -ve image are considered masked
-            # star_model.weight.array[:] = np.where(image_obs < 0, 0, weight)
             star_model.weight.array[:] = weight
 
             shape, error = psf.measure_shape(star_model, return_error=True, logger=logger)
@@ -919,11 +785,6 @@ def test_profile():
 
     # NOTE: Not sure if I want to keep this functionality
     # # also make sure that if the aberrations are all 0, then doesn't even bother convolving opticalpsf
-    # params_zeroed = params.copy()
-    # params_zeroed[3:] = 0
-    # prof_zero = psf.getProfile(params_zeroed)
-    # prof = psf.atmo_model.dilate(params_zeroed[0]).shear(g1=params_zeroed[1], g2=params_zeroed[2])
-    # assert prof == prof_zero
 
 @timer
 def test_realistic_config_for_causing_excessive_shape_measurements():
@@ -996,25 +857,12 @@ def test_realistic_config_for_causing_excessive_shape_measurements():
         }
     if os.path.exists(psf_file):
         os.remove(psf_file)
-    #yaml_file_name = ""
-    #config = piff.read_config(yaml_file_name)
     if 'modules' in config:
         galsim.config.ImportModules(config)
     stars, wcs, pointing = piff.input.Input.process(copy.deepcopy(config)['input'], logger=logger)
     psf = piff.psf.PSF.process(config['psf'], logger=logger)
-    #import matplotlib.pyplot as plt
-    #plt.figure()
-    #plt.imshow(stars[0].image.array)
-    #plt.colorbar()
-    #plt.savefig("/u/ec/aresh/Piff-galsimify_optatmo/tests/large_moment_star.png")
-    #plt.figure()
-    #plt.imshow(stars[0].weight.array)
-    #plt.colorbar()
-    #plt.savefig("/u/ec/aresh/Piff-galsimify_optatmo/tests/large_moment_star_weightmap.png")
     for star_i, star in enumerate(stars):
         shape = psf.measure_shape_orthogonal(star)
-        if star_i % 500 == 0:
-            print("shape of star {0}: {1}".format(star_i, shape))
         assert not np.any(shape > 1000000.0),'excessive shape measurement found for star {0}: {1}'.format(star_i, shape)
 
 
@@ -1048,11 +896,11 @@ def test_random_forest():
             'x_col' : 'XWIN_IMAGE',
             'y_col' : 'YWIN_IMAGE',
             'sky_col' : 'BACKGROUND',
-            'stamp_size' : 19, #this had to be reduced from its previous value due to too many stars being cut by the nuisance star cut and masked star cut; since then these cuts can be adjusted so fewer or no stars are cut but using 19x19 stamps has become standard anyway
+            'stamp_size' : 19, #this had to be reduced from its previous value due to too many stars being cut due to new star cuts; since then these cuts can be adjusted so fewer or no stars are cut but using 19x19 stamps has become standard anyway
             'ra' : 'TELRA',
             'dec' : 'TELDEC',
             'gain' : 'GAINA',
-            'nstars': 117, #even though it is faster, the original (20) stars is not enough considering the nuisance stars and masked stars that get cut; since then these cuts can be adjusted so fewer or no stars are cut; note that the default fitting method has been changed to use the full optical fit rather than just the random forest and fit_size() fits for this test also, although this is not necessarily currently necessary
+            'nstars': 117, #even though it is faster, the original (20) stars is not enough considering new stars that get removed due to new cuts; since then these cuts can be adjusted so fewer or no stars are cut; note that the default fitting method has been changed to use the full optical fit rather than just the random forest and fit_size() fits for this test also, although this is not necessarily currently necessary
             'min_snr': 40,
             'max_snr': 100,
             },
@@ -1095,11 +943,11 @@ def test_roundtrip():
             'x_col' : 'XWIN_IMAGE',
             'y_col' : 'YWIN_IMAGE',
             'sky_col' : 'BACKGROUND',
-            'stamp_size' : 19, #this had to be reduced from its previous value due to too many stars being cut by the nuisance star cut and masked star cut; since then these cuts can be adjusted so fewer or no stars are cut but using 19x19 stamps has become standard anyway
+            'stamp_size' : 19, #this had to be reduced from its previous value due to too many stars being cut due to new star cuts; since then these cuts can be adjusted so fewer or no stars are cut but using 19x19 stamps has become standard anyway
             'ra' : 'TELRA',
             'dec' : 'TELDEC',
             'gain' : 'GAINA',
-            'nstars': 117, #even though it is faster, the original (20) stars is not enough considering the nuisance stars and masked stars that get cut; since then these cuts can be adjusted so fewer or no stars are cut; note that the default fitting method has been changed to use the full optical fit rather than just the random forest and fit_size() fits for this test also, although this is not necessarily currently necessary
+            'nstars': 117, #even though it is faster, the original (20) stars is not enough considering new stars that get removed due to new cuts; since then these cuts can be adjusted so fewer or no stars are cut; note that the default fitting method has been changed to use the full optical fit rather than just the random forest and fit_size() fits for this test also, although this is not necessarily currently necessary
             'min_snr': 40,
             'max_snr': 100,
             },
@@ -1218,7 +1066,6 @@ def test_lmparams():
     # check a_key_not_used is not in the keys
     assert 'a_key_not_used' not in lmparams.valuesdict().keys()
     assert len(lmparams) == len(keys)
-    #assert lmparams.valuesdict().keys() == keys
     print("lmparams.valuesdict().keys(): {0}".format(lmparams.valuesdict().keys()))
     print("keys: {0}".format(keys))
     print("type(lmparams.valuesdict().keys()): {0}".format(type(lmparams.valuesdict().keys())))

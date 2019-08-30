@@ -193,28 +193,21 @@ class Interp(object):
         # interp_type = fits[extname].read_column('type')
         interp_type = fits[extname].read()['type']
         assert len(interp_type) == 1
-        #print("interp_type[0]: {0}".format(interp_type[0]))
-        #print("type(interp_type[0]): {0}".format(type(interp_type[0])))
         try:
             interp_type = str(interp_type[0].decode())
-        except:
+        except AttributeError:
             # fitsio 1.0 returns strings
             interp_type = interp_type[0]
-        #print("interp_type: {0}".format(interp_type))
-        #print("type(interp_type): {0}".format(type(interp_type)))
 
         # Check that interp_type is a valid Interp type.
         interp_classes = piff.util.get_all_subclasses(piff.Interp)
         valid_interp_types = dict([ (kls.__name__, kls) for kls in interp_classes ])
         if interp_type not in valid_interp_types:
             raise ValueError("interpolator type %s is not a valid Piff Interpolator"%interp_type)
-        #print("valid_interp_types: {0}".format(valid_interp_types))
         interp_cls = valid_interp_types[interp_type]
 
         kwargs = read_kwargs(fits, extname)
         kwargs.pop('type',None)
-        #print("kwargs: {0}".format(kwargs))
-        #print("interp_cls: {0}".format(interp_cls))
         interp = interp_cls(**kwargs)
         interp._finish_read(fits, extname)
         return interp

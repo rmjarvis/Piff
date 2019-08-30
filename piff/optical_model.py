@@ -142,8 +142,6 @@ class Optical(Model):
 
         kolmogorov_keys = ('lam', 'r0', 'lam_over_r0', 'scale_unit',
                            'fwhm', 'half_light_radius', 'r0_500', 'L0')
-        #kolmogorov_keys = ('lam', 'r0', 'lam_over_r0', 'scale_unit',
-        #                   'fwhm', 'half_light_radius', 'r0_500')
         self.kolmogorov_kwargs = { key : self.kwargs[key] for key in self.kwargs
                                                           if key in kolmogorov_keys }
         # If lam is the only one, then remove it -- we don't have a Kolmogorov component then.
@@ -157,22 +155,11 @@ class Optical(Model):
         #It turns out, not using the below is too slow.
         self.gsparams = galsim.GSParams(
             minimum_fft_size=32,  # 128
-            # maximum_fft_size=4096,  # 4096
-            # stepk_minimum_hlr=5,  # 5
-            # folding_threshold=5e-3,  # 5e-3
-            # maxk_threshold=1e-3,  # 1e-3
-            # kvalue_accuracy=1e-5,  # 1e-5
-            # xvalue_accuracy=1e-5,  # 1e-5
-            # table_spacing=1.,  # 1
             )
         if 'pad_factor' not in self.optical_psf_kwargs:
             self.optical_psf_kwargs['pad_factor'] = 0.5
-            # self.optical_psf_kwargs['pad_factor'] = 1.1  # does work
-            # self.optical_psf_kwargs['pad_factor'] = 1.0
         if 'oversampling' not in self.optical_psf_kwargs:
             self.optical_psf_kwargs['oversampling'] = 0.5
-            # self.optical_psf_kwargs['oversampling'] = 1.1  # does work
-            # self.optical_psf_kwargs['oversampling'] = 1.0
 
         if len(self.kolmogorov_kwargs) > 0 and 'L0' in self.kolmogorov_kwargs:
             logger.debug('Creating VonKarman Atmosphere')

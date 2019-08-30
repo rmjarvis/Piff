@@ -400,7 +400,6 @@ class GPInterp2pcf(Interp):
         :param y_err: Error of y. (n_samples, n_targets)
         """
         HT = kernel.__call__(X2,Y=X1)
-        #import ipdb; ipdb.set_trace()
         K = kernel.__call__(X1) + np.eye(len(y))*y_err**2
         factor = (cholesky(K, overwrite_a=True, lower=False), False)
         alpha = cho_solve(factor, y, overwrite_b=False)
