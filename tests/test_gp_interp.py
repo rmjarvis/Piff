@@ -1109,7 +1109,7 @@ def test_yaml():
                 'sky_col' : 'BACKGROUND',
     
                 # How large should the postage stamp cutouts of the stars be?
-                'stamp_size' : 19,
+                'stamp_size' : 21,
             },
             'psf' : {
                 'model' : { 'type' : 'GSObjectModel',

@@ -363,13 +363,13 @@ class InputFiles(Input):
             :_cutoff_deformed_level     The degree to which the width or height of a star's postage stamp is
                                         allowed to differ from the desired stamp size + 1. This occurs if the
                                         star is partially cutoff due to being at the edge of an image.
-                                        [default: 1]
+                                        [default: 1000]
             :_cutoff_nuisance_level     Stars with fluxes on the outer edges of their postage stamps too many
                                         sigma away from the median outer-edge flux are cut. This specifies how
-                                        many sigma. Note that this is done with a MAD cut. [default: 7.5]
+                                        many sigma. Note that this is done with a MAD cut. [default: 1000.0]
             :_cutoff_masked_level       Stars that are partially masked to an extent are cut. Specifically,
                                         stars where at least this many number of pixels have weight 0.0 are
-                                        cut [default: 1]
+                                        cut [default: 1000]
             :use_partial:               Whether to use stars whose postage stamps are only partially on the
                                         full image.  [default: False]
             :nstars:                    Stop reading the input file at this many stars.  (This is applied
@@ -523,7 +523,7 @@ class InputFiles(Input):
                              'file names')
 
         self.chipnums = list(range(nimages))
-        self.stamp_size = int(config.get('stamp_size', 19))
+        self.stamp_size = int(config.get('stamp_size', 32))
         self.images = []
         self.weight = []
         self.image_pos = []
@@ -621,10 +621,10 @@ class InputFiles(Input):
             self.gain.append(gain)
 
         self.min_snr = config.get('min_snr', None)
-        self.max_snr = config.get('max_snr', 200)
-        self.cutoff_deformed_level = int(config.get('_cutoff_deformed_level', 1))
-        self.cutoff_nuisance_level = config.get('_cutoff_nuisance_level', 7.5)
-        self.cutoff_masked_level = int(config.get('_cutoff_masked_level', 1))
+        self.max_snr = config.get('max_snr', 100)
+        self.cutoff_deformed_level = int(config.get('_cutoff_deformed_level', 1000))
+        self.cutoff_nuisance_level = config.get('_cutoff_nuisance_level', 1000.0)
+        self.cutoff_masked_level = int(config.get('_cutoff_masked_level', 1000))
         self.use_partial = config.get('use_partial', False)
 
         # Finally, set the pointing coordinate.

@@ -112,7 +112,7 @@ def test_config():
             'sky_col': 'BACKGROUND',
 
             # How large should the postage stamp cutouts of the stars be?
-            'stamp_size': 19,
+            'stamp_size': 31,
         },
         'psf' : {
             'model' : { 'type': 'GSObjectModel',
@@ -120,7 +120,7 @@ def test_config():
                         'gsobj': 'galsim.Gaussian(sigma=1.0)' },
             'interp' : { 'type': 'kNNInterp',
                          'keys': ['u', 'v'],
-                         'n_neighbors': 106,} 
+                         'n_neighbors': 115,} 
         },
         'output' : { 'file_name' : psf_file },
     }
@@ -136,7 +136,7 @@ def test_config():
 
     # by using n_neighbors = 115, when there are only 117 stars in the catalog, we should expect
     # that the standard deviation of the interpolated parameters should be small, since almost the
-    # same set of stars are being averaged in every case. Note this number was lowered from 115 to 106 due to new star cuts added
+    # same set of stars are being averaged in every case.
     nstars = len(psf.stars)
     np.testing.assert_array_less(
             np.std([s.fit.params for s in psf.stars], axis=0),
@@ -163,8 +163,8 @@ def test_disk():
 
 @timer
 def test_decam_wavefront():
-    file_name = '/nfs/slac/kipac/fs1/g/des/aresh/lower_order_reference_wavefront_folder/Science-20140212s2-v22i2.fits'
-    extname = 1
+    file_name = 'input/Science-20121120s1-v20i2.fits'
+    extname = 'Science-20121120s1-v20i2'
 
     if __name__ == '__main__':
         logger = piff.config.setup_logger(verbose=2)
@@ -188,7 +188,7 @@ def test_decam_wavefront():
         image.setCenter(icen, jcen)
         image_pos = image.center
 
-        stardata = piff.StarData(image, image_pos, properties={'chipnum': ccdnum})
+        stardata = piff.StarData(image, image_pos, properties={'ccdnum': ccdnum})
 
         star = piff.Star(stardata, None)
         star_list.append(star)
@@ -216,8 +216,8 @@ def test_decam_wavefront():
 
 @timer
 def test_decam_disk():
-    file_name = '/nfs/slac/kipac/fs1/g/des/aresh/lower_order_reference_wavefront_folder/Science-20140212s2-v22i2.fits'
-    extname = 1
+    file_name = 'input/Science-20121120s1-v20i2.fits'
+    extname = 'Science-20121120s1-v20i2'
     knn = piff.des.DECamWavefront(file_name, extname, n_neighbors=30)
 
     misalignment = {'z04d': 10, 'z10x': 10, 'z09y': -10}

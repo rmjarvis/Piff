@@ -752,9 +752,6 @@ def test_single_image():
                'cat_file_name': cat_file,
                'stamp_size': 32,
                'noise' : noise_sigma**2,
-               '_cutoff_deformed_level' : 1000, # effectively lower number of cuts for deformed stars to 0 for the purposes of this test, which tests other cuts
-               '_cutoff_nuisance_level' : 1000, # effectively lower number of cuts for stars with nuisance stars to 0 for the purposes of this test, which tests other cuts
-               '_cutoff_masked_level' : 1000,  # effectively lower number of cuts for partially masked stars to 0 for the purposes of this test, which tests other cuts
                'sky' : sky_level,
              }
     input = piff.InputFiles(config)
@@ -1124,9 +1121,6 @@ def test_des2():
 
             'max_snr' : 100,
             'min_snr' : 20,
-            '_cutoff_deformed_level' : 1000, # effectively lower number of cuts for deformed stars to 0 for the purposes of this test, which tests other cuts
-            '_cutoff_nuisance_level' : 1000, # effectively lower number of cuts for stars with nuisance stars to 0 for the purposes of this test, which tests other cuts
-            '_cutoff_masked_level' : 1000,  # effectively lower number of cuts for partially masked stars to 0 for the purposes of this test, which tests other cuts
             'stamp_size' : 25
         },
         'output' : {
