@@ -132,6 +132,7 @@ def process(config, logger=None):
     stars, wcs, pointing = Input.process(config['input'], logger=logger)
 
     psf = PSF.process(config['psf'], logger=logger)
+    # If OptAtmo, make sure to separate stars into test and train stars
     if 'type' in config['psf']:
         if config['psf']['type'] == 'OptAtmo':
             np.random.seed(12345)
@@ -307,9 +308,8 @@ def meanify(config, logger=None):
             fits.close()
             coords.append(coord)
             params.append(param)
-        except IOError:
-            logger.warning('Failed to load file {0}! Ignoring'.format(f))
-            continue
+        except:
+            raise IOError('Failed to load file {0}!'.format(f))
 
     params = np.concatenate(params, axis=0)
     coords = np.concatenate(coords, axis=0)
@@ -320,6 +320,7 @@ def meanify(config, logger=None):
 
     lu_min, lu_max = np.min(coords[:,0]), np.max(coords[:,0])
     lv_min, lv_max = np.min(coords[:,1]), np.max(coords[:,1])
+
     nbin_u = int((lu_max - lu_min) / bin_spacing)
     nbin_v = int((lv_max - lv_min) / bin_spacing)
     binning = [np.linspace(lu_min, lu_max, nbin_u), np.linspace(lv_min, lv_max, nbin_v)]

@@ -660,6 +660,8 @@ class StarData(object):
         self.image = image
         self.image_pos = image_pos
         # Make sure we have a local wcs in case the provided image is more complex.
+
+        # this try-except statement is necessary as not having an origin when loocing for the local wcs is common
         try:
             self.local_wcs = image.wcs.jacobian(image_pos).withOrigin(image.wcs.origin, image.wcs.world_origin)
         except AttributeError:
@@ -791,14 +793,9 @@ class StarData(object):
         y -= self.image_pos.y
 
         # Convert to u,v coords
-        try:
-            # depending on your version of Galsim, you may or may not need to pass a "color" parameter
-            u = self.local_wcs._u(x,y)
-            v = self.local_wcs._v(x,y)
-        except TypeError:
-            # newer version of galsim has a color command that needs to be specified?
-            u = self.local_wcs._u(x,y, color=None)
-            v = self.local_wcs._v(x,y, color=None)
+        # Newer version of galsim has a color command that needs to be specified?
+        u = self.local_wcs._u(x,y, color=None)
+        v = self.local_wcs._v(x,y, color=None)
 
         # Get flat versions of everything
         u = u.flatten()

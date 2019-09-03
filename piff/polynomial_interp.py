@@ -264,7 +264,6 @@ class Polynomial(Interp):
         # We will want to index things later, so useful
         # to convert these to numpy arrays and transpose
         # them to the order we need.
-
         parameters = np.array([s.fit.params for s in stars]).T
         positions = np.array([self.getProperties(s) for s in stars]).T
 

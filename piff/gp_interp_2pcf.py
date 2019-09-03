@@ -467,10 +467,6 @@ class GPInterp2pcf(Interp):
             self._X0 = np.zeros_like(self._X)
             self._y0 = np.zeros_like(self._y)
         self._spatial_average = self._build_average_meanify(X)
-        if np.shape(self._spatial_average)[1] > np.shape(self._y)[1]:
-            logger.warning('Found {0} dimensions in the spatial average, but only {1} in the fit params. Cutting to {1}'.format(np.shape(self._spatial_average)[1], np.shape(self._y)[1]))
-            ncut = np.shape(self._y)[1]
-            self._spatial_average = self._spatial_average[:, :ncut]
 
         if self.white_noise > 0:
             y_err = np.sqrt(y_err**2 + self.white_noise**2)
@@ -572,9 +568,6 @@ class GPInterp2pcf(Interp):
         self._X0 = np.atleast_1d(data['X0'][0])
         self._y0 = np.atleast_1d(data['Y0'][0])
         self._spatial_average = self._build_average_meanify(self._X)
-        if np.shape(self._spatial_average)[1] > np.shape(self._y)[1]:
-            ncut = np.shape(self._y)[1]
-            self._spatial_average = self._spatial_average[:, :ncut]
 
         if self.normalize:
             self._mean = np.mean(self._y - self._spatial_average, axis=0)

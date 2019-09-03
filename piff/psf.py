@@ -221,13 +221,13 @@ class PSF(object):
         try:
             Star.write(self.stars, fits, extname=extname + '_stars')
             logger.info("Wrote the PSF stars to extname %s", extname + '_stars')
-        except AttributeError:
-            logger.warning("Attempted to write PSF stars, but found no stars")
+        except:
+            raise AttributeError("Attempted to write PSF stars, but found no stars")
         try:
             self.writeWCS(fits, extname=extname + '_wcs', logger=logger)
             logger.info("Wrote the PSF WCS to extname %s", extname + '_wcs')
-        except AttributeError:
-            logger.warning("Attempted to write PSF wcs, but found no stars")
+        except:
+            raise AttributeError("Attempted to write PSF wcs, but found no stars")
         self._finish_write(fits, extname=extname, logger=logger)
 
     @classmethod
@@ -287,15 +287,15 @@ class PSF(object):
             stars = Star.read(fits, extname + '_stars')
             logger.debug("stars = %s",stars)
             psf.stars = stars
-        except AssertionError:
-            logger.warning('No stars found in PSF file!')
+        except:
+            raise AssertionError('No stars found in PSF file!')
         try:
             wcs, pointing = cls.readWCS(fits, extname + '_wcs', logger=logger)
             logger.debug("wcs = %s, pointing = %s",wcs,pointing)
             psf.wcs = wcs
             psf.pointing = pointing
-        except AssertionError:
-            logger.warning('No wcs found in PSF file!')
+        except:
+            raise AssertionError('No wcs found in PSF file!')
 
         # Just in case the class needs to do something else at the end.
         psf._finish_read(fits, extname, logger)
@@ -410,7 +410,8 @@ class PSF(object):
             wcs_str = [ b''.join(s) for s in zip(*wcs_str) ]  # Rejoint into single string each
         except TypeError:
             # fitsio 1.0 returns strings
-            wcs_str = [ ''.join(s) for s in zip(*wcs_str) ]
+            wcs_str = [ ''.join(s) for s in zip(*wcs_str) ]  # Rejoint into single string each
+
         wcs_str = [ base64.b64decode(s) for s in wcs_str ] # Convert back from b64 encoding
         # Convert back into wcs objects
         if sys.version_info > (3,0):

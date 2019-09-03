@@ -245,8 +245,8 @@ class StarStats(Stats):
             star_image = star.image
             model_image = model.image
             # share color range between star and model images
-            vmin = np.percentile([star_image.array, model_image.array], q=5)
-            vmax = np.percentile([star_image.array, model_image.array], q=95)
+            vmin = np.percentile([star_image.array, model_image.array], q=10)
+            vmax = np.percentile([star_image.array, model_image.array], q=90)
 
             axs[i][0].imshow(star_image.array, vmin=vmin, vmax=vmax, **kwargs)
             im = axs[i][1].imshow(model_image.array, vmin=vmin, vmax=vmax, **kwargs)

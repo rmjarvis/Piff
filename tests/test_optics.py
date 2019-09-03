@@ -25,26 +25,25 @@ from piff_test_helper import timer
 def test_init():
     print('test init')
     # make sure we can init with defaults
-    model = piff.Optical(template='des_kolmogorov')
+    model = piff.Optical(template='des')
     return model
 
 
 @timer
 def test_optical(model=None):
-    if __name__ == '__main__':
-        logger = piff.config.setup_logger(verbose=3)
-    else:
-        logger = piff.config.setup_logger(verbose=1)
-    logger.info('test_optical: Started')
-    params = np.array([0] * (11 - 4 + 1 + 3))
-    params[0] = 1.
+    params = np.array([0] * (11 - 4 + 1))
     # add defocus
-    params[3] = 0.5
+    params[0] = 0.5
     star = make_empty_star(params=params)
     if not model:
-        model = piff.Optical(template='des_kolmogorov')
+        model = piff.Optical(template='des')
     # given zernikes, make sure we can:
     star = model.draw(star)
+    star_fitted = model.fit(star)
+
+    np.testing.assert_almost_equal(star_fitted.fit.chisq, 0)
+    np.testing.assert_almost_equal(star_fitted.fit.flux, star.fit.flux)
+    np.testing.assert_almost_equal(star_fitted.fit.params, star.fit.params)
 
     # test copy_image
     star_copy = model.draw(star, copy_image=True)
@@ -84,18 +83,14 @@ def test_pupil_im(pupil_plane_file='input/DECam_pupil_128.fits'):
 
 @timer
 def test_kolmogorov():
-    if __name__ == '__main__':
-        logger = piff.config.setup_logger(verbose=3)
-    else:
-        logger = piff.config.setup_logger(verbose=1)
-    logger.info('test_kolmogorov')
+    print('test kolmogorov')
     # make sure if we put in different kolmogorov things that things change
     star = make_empty_star()
 
-    model = piff.Optical(r0=0.1, template='des_kolmogorov')
+    model = piff.Optical(r0=0.1, template='des')
     star = model.draw(star)
 
-    model2 = piff.Optical(r0=0.2, template='des_kolmogorov')
+    model2 = piff.Optical(r0=0.2, template='des')
     star2 = model2.draw(star)
 
     chi2 = np.std((star.image - star2.image).array)
@@ -104,18 +99,14 @@ def test_kolmogorov():
 
 @timer
 def test_shearing():
-    if __name__ == '__main__':
-        logger = piff.config.setup_logger(verbose=3)
-    else:
-        logger = piff.config.setup_logger(verbose=1)
-    logger.info('test_shearing')
+    print('test shearing')
     # make sure if we put in common mode ellipticities that things change
-    g1 = -0.015
-    g2 = 0.02
-    star = make_empty_star(params=np.array([1.0, g1, g2]))
-    model = piff.Optical(r0=0, sigma=1.0, template='des_kolmogorov', logger=logger)
+    star = make_empty_star()
+    g1 = 0
+    g2 = 0.05
+    model = piff.Optical(r0=0.1, g1=g1, g2=g2, template='des')
     star = model.draw(star)
-    gaussian = piff.Gaussian()
+    gaussian = piff.Gaussian(include_pixel=False)
     star_gaussian = gaussian.fit(star)
     np.testing.assert_almost_equal(star_gaussian.fit.params[1], g1, 5)
     np.testing.assert_almost_equal(star_gaussian.fit.params[2], g2, 5)
@@ -123,30 +114,20 @@ def test_shearing():
 
 @timer
 def test_gaussian():
-    sigma = 0.7
-    r0 = 0.14
-    size = 0.7
-    g1 = -0.2
-    g2 = 0.24
-    import galsim
-    if __name__ == '__main__':
-        logger = piff.config.setup_logger(verbose=3)
-        r0s = [0, r0, 0, r0]
-    else:
-        logger = piff.config.setup_logger(verbose=1)
-        r0s = [0, r0]
-    logger.info('test_gaussian')
-    gaussian = piff.Gaussian()
+    gaussian = piff.Gaussian(include_pixel=False)
+    print('test gaussian')
+    star = make_empty_star()
     # test gaussian alone
-    fit_kwargs = {'flux': 123, 'center': (-0.1, 0.3)}
-    star = make_empty_star(params=np.array([1, g1, g2]), fit_kwargs=fit_kwargs)
-    model = piff.Optical(r0=0, sigma=sigma, template='des_kolmogorov', logger=logger)
+    sigma = 1
+    g1 = -0.1
+    g2 = 0.05
+    model = piff.Optical(r0=0, sigma=sigma, template='des')
     star = model.draw(star)
     # insert assert statement about sigma
     np.testing.assert_almost_equal(gaussian.fit(star).fit.params[0], sigma, 5)
 
     # gaussian and shear
-    model = piff.Optical(r0=0, sigma=sigma, template='des_kolmogorov')
+    model = piff.Optical(r0=0, sigma=sigma, g1=g1, g2=g2, template='des')
     star = model.draw(star)
     params = gaussian.fit(star).fit.params
     np.testing.assert_almost_equal(params[0], sigma, 5)
@@ -154,58 +135,9 @@ def test_gaussian():
     np.testing.assert_almost_equal(params[2], g2, 5)
 
     # now gaussian, shear, aberration, r0
-    fit_kwargs = {'flux': 123, 'center': (0, 0)}
-    star = make_empty_star(params=np.array([0.7, 0.1, -0.1, 0.8, 0.3, 0.4, 0.6, -0.6, 0.4, 0.8, 1.0]), fit_kwargs=fit_kwargs)
-    model_r0 = piff.Optical(r0=r0, template='des_kolmogorov')
-    model_sigma = piff.Optical(r0=0, sigma=sigma, template='des_kolmogorov')
-
-    # check that model_r0.atmo is Kolmogorov, and model_sigma.atmo is Gaussian
-    assert type(model_r0.atmo) is galsim.Kolmogorov
-    assert type(model_sigma.atmo) is galsim.Gaussian
-
-    for r0 in r0s:
-        # atmo and optics terms are highly degenerate so don't bother testing together
-        for vary_atmo, vary_optics in zip([True, False, False], [False, True, False]):
-            logger.info('r0, vary_atmo, vary_optics')
-            logger.info('{0}, {1}, {2}'.format(r0, vary_atmo, vary_optics))
-            model = piff.Optical(r0=r0, sigma=sigma, template='des_kolmogorov', vary_atmosphere=vary_atmo, vary_optics=vary_optics)
-            drawn_star = model.draw(star)
-            # create stripped star
-            empty_star = piff.Star(drawn_star.data, None)
-
-            params0 = star.fit.params.copy()
-            if vary_atmo:
-                params0[:3] = np.array([1, 0, 0])
-            if vary_optics:
-                # seed with some starting z4
-                params0[3] = 0.2
-                params0[4:] = 0
-
-            # run fit
-            fit_star = model.fit(empty_star, params0=params0, logger=logger) #Note: this function is not being used anymore.
-            # plot_stars(drawn_star, model.draw(fit_star))
-
-            # check the vary params pieces
-            if not vary_atmo:
-                np.testing.assert_array_equal(fit_star.fit.params[:3], star.fit.params[:3])
-            if not vary_optics:
-                np.testing.assert_array_equal(fit_star.fit.params[3:], star.fit.params[3:])
-
-            # assert fit parameters work
-            assert len(fit_star.fit.params) == len(star.fit.params)
-            np.testing.assert_almost_equal(fit_star.fit.flux, star.fit.flux, decimal=-1) #Note: this had to be loosened to this from decimal=0. This is more than a small loosening but model.fit() is not being used anymore anyway.
-            # np.testing.assert_almost_equal(fit_star.fit.center[0], star.fit.center[0], decimal=2)
-            # np.testing.assert_almost_equal(fit_star.fit.center[1], star.fit.center[1], decimal=2)
-            try:
-                np.testing.assert_allclose(fit_star.fit.params[:len(star.fit.params)], star.fit.params, rtol=1e-3, atol=1e-1)
-            except AssertionError:
-                # there is a degeneracy in defocus and astigmatism and spherical in that minus sign to all of them yields the same image
-                params = fit_star.fit.params
-                params[3] *= -1
-                params[4] *= -1
-                params[5] *= -1
-                params[10] *= -1
-                np.testing.assert_allclose(params[:len(star.fit.params)], star.fit.params, rtol=1e1, atol=1e-1) #Note: this had to be loosened to this from rtol=-3. This is more than a small loosening but model.fit() is not being used anymore anyway.
+    star = make_empty_star(params=[0.5, 0.8, -0.7, 0.5, -0.2, 0.9, -1, 2.0])
+    model = piff.Optical(r0=0.1, sigma=sigma, g1=g1, g2=g2, template='des')
+    star = model.draw(star)
 
 
 @timer
@@ -213,7 +145,10 @@ def test_disk():
     print('test read/write')
     # save and load
     r0 = 0.1
-    model = piff.Optical(r0=r0, lam=700.0, template='des_kolmogorov')
+    sigma = 1.2
+    g1 = -0.1
+    g2 = 0.05
+    model = piff.Optical(r0=r0, sigma=sigma, g1=g1, g2=g2, lam=700.0, template='des')
     model_file = os.path.join('output','optics.fits')
     with fitsio.FITS(model_file, 'rw', clobber=True) as f:
         model.write(f, 'optics')
@@ -228,8 +163,9 @@ def test_disk():
     for key in model.kolmogorov_kwargs:
         assert key in model2.kolmogorov_kwargs, 'key %r missing from model2 kolmogorov_kwargs'%key
         assert model.kolmogorov_kwargs[key] == model2.kolmogorov_kwargs[key], 'key %r mismatch'%key
-    assert model.vary_atmosphere == model2.vary_atmosphere,'vary_atmosphere mismatch'
-    assert model.vary_optics == model2.vary_optics,'vary_optics mismatch'
+    assert model.sigma == model2.sigma,'sigma mismatch'
+    assert model.g1 == model2.g1,'g1 mismatch'
+    assert model.g2 == model2.g2,'g2 mismatch'
 
 #####
 # convenience functions
@@ -239,23 +175,13 @@ def plot_star(star):
     # convenience function
     import matplotlib.pyplot as plt
     plt.figure()
-    plt.imshow(star.image.array)
+    plt.imshow(star.data.data)
     plt.colorbar()
     plt.show()
-def plot_stars(star1, star2):
+
+def plot_param(r0=0.1, params=[], g1=0, g2=0, sigma=0):
     # convenience function
-    import matplotlib.pyplot as plt
-
-    fig, axs = plt.subplots(figsize=(6*3, 4), ncols=3)
-
-    for ax, arr in zip(axs, [star1.image.array, star2.image.array, star1.image.array - star2.image.array]):
-        im = ax.imshow(arr)
-        fig.colorbar(im, ax=ax)
-    plt.show()
-
-def plot_param(r0=0.1, params=[], sigma=0):
-    # convenience function
-    model = piff.Optical(r0=r0, sigma=sigma, template='des_kolmogorov')
+    model = piff.Optical(r0=r0, g1=g1, g2=g2, sigma=sigma, template='des')
     star = make_empty_star(params=params)
     star = model.draw(star)
     plot_star(star)
@@ -268,7 +194,7 @@ def make_empty_star(icen=500, jcen=700, ccdnum=28, params=None,
     properties['ccdnum'] = ccdnum
     # setting scale is crucial
     star = piff.Star.makeTarget(x=icen, y=jcen, properties=properties,
-                                scale=0.263, stamp_size=24)
+                                scale=0.263)
 
     if params is None:
         starfit = None
