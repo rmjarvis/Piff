@@ -44,143 +44,6 @@ def plot_star(star, filename='test_optatmo.png', **kwargs):
     plt.close('All')
     plt.close()
 
-# realistic config
-def return_config_realistic():
-    config = {  'optical_psf_kwargs':
-                {
-                    'lam': 782.1,
-                    'template': 'des',
-                },
-            'reference_wavefront':
-                {
-                    'file_name': '/nfs/slac/kipac/fs1/g/des/aresh/lower_order_reference_wavefront_folder/Science-20140212s2-v22i2.fits',  #This file is too big to fit inside of the PIFF test area, so I put the path to where I have them in my directory. Also note this is an i-band reference wavefront but I should have the reference wavefront of whatever band exposure 00241238 is. #TODO: resolve theses issues
-                    'extname': 1,
-                    'n_neighbors': 10,
-                    'weights': 'distance',
-                    'algorithm': 'auto',
-                    'p': 2,
-                    'type': 'DECamWavefront',
-                },
-            'n_optfit_stars': 0,
-            'fov_radius': 4500.,
-            'jmax_pupil': 37,
-            'jmax_focal': 3,
-            'min_optfit_snr': 40,
-            'fit_optics_mode': 'shape',
-            'higher_order_reference_wavefront_file': '/nfs/slac/kipac/fs1/g/des/aresh/higher_order_reference_wavefront_pickle/decam_2012-nominalzernike-protocol2.pickle',
-            'random_forest_shapes_model_pickles_location': '/nfs/slac/kipac/fs1/g/des/aresh/random_forest_shapes_model_pickles', #the random forest model pickles are too big to fit inside of the PIFF test area, so I put the path to where I have them in my directory #TODO: resolve this issue somehow so this is not necessary
-            'optatmo_psf_kwargs':
-                {
-                    'fix_zPupil004_zFocal001': False,  
-                    'fix_zPupil004_zFocal002': True,  
-                    'fix_zPupil004_zFocal003': True,  
-                    'fix_zPupil005_zFocal001': False,  
-                    'fix_zPupil005_zFocal002': False,  
-                    'fix_zPupil005_zFocal003': False,
-                    'fix_zPupil006_zFocal001': False,  
-                    'fix_zPupil006_zFocal002': False,  
-                    'fix_zPupil006_zFocal003': False,  
-                    'fix_zPupil007_zFocal001': False,  
-                    'fix_zPupil007_zFocal002': False,  
-                    'fix_zPupil007_zFocal003': False,  
-                    'fix_zPupil008_zFocal001': False,  
-                    'fix_zPupil008_zFocal002': False,  
-                    'fix_zPupil008_zFocal003': False,  
-                    'fix_zPupil009_zFocal001': False,  
-                    'fix_zPupil009_zFocal002': True, 
-                    'fix_zPupil009_zFocal003': True,  
-                    'fix_zPupil010_zFocal001': False,  
-                    'fix_zPupil010_zFocal002': True,  
-                    'fix_zPupil010_zFocal003': True,  
-                    'fix_zPupil011_zFocal001': False,  
-                    'fix_zPupil011_zFocal002': True,  
-                    'fix_zPupil011_zFocal003': True,  
-                    'fix_zPupil012_zFocal001': True,  
-                    'fix_zPupil012_zFocal002': True,  
-                    'fix_zPupil012_zFocal003': True,  
-                    'fix_zPupil013_zFocal001': True,  
-                    'fix_zPupil013_zFocal002': True,  
-                    'fix_zPupil013_zFocal003': True,  
-                    'fix_zPupil014_zFocal001': False,  
-                    'fix_zPupil014_zFocal002': True,  
-                    'fix_zPupil014_zFocal003': True,  
-                    'fix_zPupil015_zFocal001': False,  
-                    'fix_zPupil015_zFocal002': True,  
-                    'fix_zPupil015_zFocal003': True, 
-                    'fix_zPupil016_zFocal001': True,  
-                    'fix_zPupil016_zFocal002': True,  
-                    'fix_zPupil016_zFocal003': True,
-                    'fix_zPupil017_zFocal001': True,  
-                    'fix_zPupil017_zFocal002': True,  
-                    'fix_zPupil017_zFocal003': True,
-                    'fix_zPupil018_zFocal001': True,  
-                    'fix_zPupil018_zFocal002': True,  
-                    'fix_zPupil018_zFocal003': True,
-                    'fix_zPupil019_zFocal001': True,  
-                    'fix_zPupil019_zFocal002': True,  
-                    'fix_zPupil019_zFocal003': True,
-                    'fix_zPupil020_zFocal001': True,  
-                    'fix_zPupil020_zFocal002': True,  
-                    'fix_zPupil020_zFocal003': True,
-                    'fix_zPupil021_zFocal001': True,  
-                    'fix_zPupil021_zFocal002': True,  
-                    'fix_zPupil021_zFocal003': True,
-                    'fix_zPupil022_zFocal001': True,
-                    'fix_zPupil022_zFocal002': True,  
-                    'fix_zPupil022_zFocal003': True,
-                    'fix_zPupil023_zFocal001': True,  
-                    'fix_zPupil023_zFocal002': True,  
-                    'fix_zPupil023_zFocal003': True,
-                    'fix_zPupil024_zFocal001': True,  
-                    'fix_zPupil024_zFocal002': True,  
-                    'fix_zPupil024_zFocal003': True,
-                    'fix_zPupil025_zFocal001': True,  
-                    'fix_zPupil025_zFocal002': True,  
-                    'fix_zPupil025_zFocal003': True,
-                    'fix_zPupil026_zFocal001': True,  
-                    'fix_zPupil026_zFocal002': True,  
-                    'fix_zPupil026_zFocal003': True,
-                    'fix_zPupil027_zFocal001': True,  
-                    'fix_zPupil027_zFocal002': True,  
-                    'fix_zPupil027_zFocal003': True,
-                    'fix_zPupil028_zFocal001': True,  
-                    'fix_zPupil028_zFocal002': True,  
-                    'fix_zPupil028_zFocal003': True,
-                    'fix_zPupil029_zFocal001': True,  
-                    'fix_zPupil029_zFocal002': True,  
-                    'fix_zPupil029_zFocal003': True,
-                    'fix_zPupil030_zFocal001': True,  
-                    'fix_zPupil030_zFocal002': True,  
-                    'fix_zPupil030_zFocal003': True,
-                    'fix_zPupil031_zFocal001': True,  
-                    'fix_zPupil031_zFocal002': True,  
-                    'fix_zPupil031_zFocal003': True,
-                    'fix_zPupil032_zFocal001': True,  
-                    'fix_zPupil032_zFocal002': True,  
-                    'fix_zPupil032_zFocal003': True,
-                    'fix_zPupil033_zFocal001': True,  
-                    'fix_zPupil033_zFocal002': True,  
-                    'fix_zPupil033_zFocal003': True,
-                    'fix_zPupil034_zFocal001': True,  
-                    'fix_zPupil034_zFocal002': True,  
-                    'fix_zPupil034_zFocal003': True,
-                    'fix_zPupil035_zFocal001': True,  
-                    'fix_zPupil035_zFocal002': True,  
-                    'fix_zPupil035_zFocal003': True,
-                    'fix_zPupil036_zFocal001': True,  
-                    'fix_zPupil036_zFocal002': True,  
-                    'fix_zPupil036_zFocal003': True,
-                    'fix_zPupil037_zFocal001': True,
-                    'fix_zPupil037_zFocal002': True,  
-                    'fix_zPupil037_zFocal003': True,
-                },
-            'atmo_interp': 'none',
-            'type': 'OptAtmo',
-            'shape_weights': [0.2, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4],
-            'atmosphere_model': 'vonkarman',
-         }
-    return copy.deepcopy(config)
-
 # default config
 def return_config():
     config = {  'optical_psf_kwargs':
@@ -189,7 +52,7 @@ def return_config():
                 },
             'reference_wavefront':
                 {
-                    'file_name': '/nfs/slac/kipac/fs1/g/des/aresh/lower_order_reference_wavefront_folder/Science-20140212s2-v22i2.fits',  #This file is too big to fit inside of the PIFF test area, so I put the path to where I have them in my directory. Also note this is an i-band reference wavefront but I should have the reference wavefront of whatever band exposure 00241238 is. #TODO: resolve theses issues
+                    'file_name': './input/Science-20121120s1-v20i2.fits',
                     'extname': 1,
                     'n_neighbors': 40,
                     'weights': 'distance',
@@ -203,7 +66,7 @@ def return_config():
             'jmax_focal': 11,
             'min_optfit_snr': 0,
             'higher_order_reference_wavefront_file': './input/decam_2012-nominalzernike-protocol2.pickle',
-            'random_forest_shapes_model_pickles_location': '/nfs/slac/kipac/fs1/g/des/aresh/random_forest_shapes_model_pickles', #the random forest model pickles are too big to fit inside of the PIFF test area, so I put the path to where I have them in my directory #TODO: resolve this issue somehow so this is not necessary
+            'random_forest_shapes_model_pickles_location': './input', #the random forest model pickles are too big to fit inside of the PIFF test area, so I put the path to where I have them in my directory #TODO: resolve this issue somehow so this is not necessary
             'optatmo_psf_kwargs':
                 {
                     'fix_zPupil011': True
@@ -785,85 +648,6 @@ def test_profile():
 
     # NOTE: Not sure if I want to keep this functionality
     # # also make sure that if the aberrations are all 0, then doesn't even bother convolving opticalpsf
-
-@timer
-def test_realistic_config_for_causing_excessive_shape_measurements():
-    # set up logger
-    if __name__ == '__main__':
-        logger = piff.config.setup_logger(verbose=3)
-    else:
-        logger = piff.config.setup_logger(verbose=1)
-    logger.info('Testing realistic config for causing excessive shape measurements')
-    psf_file = os.path.join('output','optatmo_des_psf.fits')
-    config_psf = return_config_realistic()
-    # this requires zero padding in the fit random_forest stage, as it expects you to go up to spherical
-    config = {
-        'input': {
-            'image_file_name' : '/nfs/slac/kipac/fs1/g/des/aresh/old_fit_checks_and_other_stuff/old_large_testbed_y1_first_exposure/228724/*.fits.fz', #the image files, cat files, etc. used in this unit test are too big to fit inside of the PIFF test area, so I put the path to where I have them in my directory #TODO: resolve this issue somehow so this is not necessary
-            'image_hdu' : 1,
-            'weight_hdu' : 3,
-            'badpix_hdu' : 2,
-            'cat_file_name':
-                {
-                    'simage_file_name':'@input.image_file_name',
-                    'str':'image_file_name.replace("psf_im", "psf_cat").replace(".fits.fz", ".fits")',
-                    'type':'Eval',
-                },
-            'cat_hdu' : 1,
-            'chipnum':
-                {
-                    'simage_file_name':'@input.image_file_name',
-                    'str':"image_file_name.split('_')[-1].split('.fits')[0]",
-                    'type':'Eval',
-                },
-            'x_col' : "x",
-            'y_col' : "y",
-            'sky_col' : 'sky',
-            'stamp_size' : 19,
-            'wcs':
-                {
-                    'ccdnum':
-                        {
-                            'simage_file_name':'@input.image_file_name',
-                            'str':"image_file_name.split('_')[-1].split('.fits')[0]",
-                            'type':'Eval',
-                        },
-                    'dir': '/nfs/slac/g/ki/ki19/des/cpd/y3_piff/astro/',
-                    'exp': 228724,
-                    'file_name': 'zone176.astro', #the astro zone files are too big to fit inside of the PIFF test area, so I put the path to where they are in Chris's directory #TODO: resolve this issue somehow so this is not necessary
-                    'type': 'Pixmappy',
-                },
-            'ra' : 'ra',
-            'dec' : 'dec',
-            'gain' : 1.0,
-            'min_snr': 20,
-            'max_snr': 100,
-            },
-        'output': {'file_name': psf_file,},
-        'psf': config_psf,
-        'test_fraction': 0.2,
-        'verbose': 2,
-        'modules': ['galsim_extra'],
-        'time': 7000,
-        'memory': 2,
-        'interps':
-            {
-                'const_gpvonkarman':
-                    {
-                        'type': 'GPInterp2pcf',
-                        'kernel': '1e-6 + 1e-2 * VonKarman(1e2, (1e-8, 1e5))',
-                    },
-            },
-        }
-    if os.path.exists(psf_file):
-        os.remove(psf_file)
-    if 'modules' in config:
-        galsim.config.ImportModules(config)
-    stars, wcs, pointing = piff.input.Input.process(copy.deepcopy(config)['input'], logger=logger)
-    psf = piff.psf.PSF.process(config['psf'], logger=logger)
-    for star_i, star in enumerate(stars):
-        shape = psf.measure_shape_orthogonal(star)
-        assert not np.any(shape > 1000000.0),'excessive shape measurement found for star {0}: {1}'.format(star_i, shape)
 
 
 @timer

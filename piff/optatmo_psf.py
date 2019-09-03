@@ -227,7 +227,12 @@ class OptAtmoPSF(PSF):
         self.kolmogorov_kwargs = kolmogorov_kwargs
         self.reference_wavefront = reference_wavefront
         self.higher_order_reference_wavefront_file = higher_order_reference_wavefront_file
-        self.higher_order_reference_wavefront = wavefrontmap(file=self.higher_order_reference_wavefront_file)
+        try:
+            self.higher_order_reference_wavefront = wavefrontmap(file=self.higher_order_reference_wavefront_file)
+        except:
+            ZernikeFirst = 12
+            ZernikeLast = 37
+            self.higher_order_reference_wavefront = np.zeros((ZernikeLast-ZernikeFirst+1))
 
         self.min_optfit_snr = min_optfit_snr
         self.n_optfit_stars = n_optfit_stars
@@ -555,7 +560,12 @@ class OptAtmoPSF(PSF):
         """
         logger = LoggerWrapper(logger)
 
-        self.higher_order_reference_wavefront = wavefrontmap(file=self.higher_order_reference_wavefront_file) #here we save the specified higher order reference wavefront as an instance of the wavefrontmap class. The non-higher order reference wavefront goes up to z11 and this one goes from z12 to z37
+        try: #here we save the specified higher order reference wavefront as an instance of the wavefrontmap class. The non-higher order reference wavefront goes up to z11 and this one goes from z12 to z37
+            self.higher_order_reference_wavefront = wavefrontmap(file=self.higher_order_reference_wavefront_file)
+        except:
+            ZernikeFirst = 12
+            ZernikeLast = 37
+            self.higher_order_reference_wavefront = np.zeros((ZernikeLast-ZernikeFirst+1))
         self.wcs = wcs
         self.pointing = pointing
 
@@ -1360,7 +1370,7 @@ class OptAtmoPSF(PSF):
                     raise AttributeError('A random forest model pickle failed to load. This likely means the pickle has not been placed in the correct directory such that the file {0}/random_forest_shapes_model_{1}.pickle does not exist.'.format(self.random_forest_shapes_model_pickles_location, moment))
                 version = regr.__getstate__()['_sklearn_version']
                 if version != sklearn.__version__:
-                    raise AttributeError('A random forest model does not have the same sklearn version as the one currently being used. This likely requires you to remake the model from the data using the version of sklearn you currently have. This can be done by going to the data directory inside PIFF and running: python make_new_random_forest_model_pickles.py')
+                    raise AttributeError('A random forest model does not have the same sklearn version as the one currently being used. This likely requires you to remake the model from the data using the version of sklearn you currently have. This can be done by going to the data directory inside PIFF and running: python make_new_random_forest_model_pickles.py. If this error occured doing unit tests, go to the tests/input directory instead and run: python make_new_random_forest_model_pickles_for_unit_tests.py.')
                 regr_dictionary[moment] = regr             
             
         # do fit!     
