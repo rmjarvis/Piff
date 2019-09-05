@@ -47,6 +47,15 @@ optical_templates = {
              'strut_angle': 45 * galsim.degrees,
              'r0': 0.1,
            },
+    'des_big_r0': { 'obscuration': 0.301 / 0.7174,
+             'nstruts': 4,
+             'diam': 4.274419,  # meters
+             'lam': 700, # nm
+             # aaron plays between 19 mm thick and 50 mm thick
+             'strut_thick': 0.050 * (1462.526 / 4010.) / 2.0, # conversion factor is nebulous?!
+             'strut_angle': 45 * galsim.degrees,
+             'r0': 0.15,
+           },
 }
 
 class Optical(Model):

@@ -1,5 +1,3 @@
-# Note: this file only tests kolmogorov atmosphere. In addition to not testing vonkarman atmosphere, it also does not test higher order moments, random_forest fit, etc.
-
 # Copyright (c) 2016 by Mike Jarvis and the other collaborators on GitHub at
 # https://github.com/rmjarvis/Piff  All rights reserved.
 #
@@ -66,7 +64,47 @@ def return_config():
             'jmax_focal': 11,
             'min_optfit_snr': 0,
             'higher_order_reference_wavefront_file': './input/decam_2012-nominalzernike-protocol2.pickle',
-            'random_forest_shapes_model_pickles_location': './input', #the random forest model pickles are too big to fit inside of the PIFF test area, so I put the path to where I have them in my directory #TODO: resolve this issue somehow so this is not necessary
+            'random_forest_shapes_model_pickles_location': './input',
+            'optatmo_psf_kwargs':
+                {
+                    'fix_zPupil011': True
+                },
+            'atmo_interp':
+                {
+                    'type': 'Polynomial',
+                    'order': 2,
+                },
+
+            'type': 'OptAtmo',
+            'reference_wavefront_zernikes_list': [4, 5, 6, 7, 8, 9, 10, 11],
+            'higher_order_reference_wavefront_zernikes_list': [12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37],
+            'atmosphere_model': 'kolmogorov',
+         }
+    return copy.deepcopy(config)
+
+# default config, big r0
+def return_config_big_r0():
+    config = {  'optical_psf_kwargs':
+                {
+                    'template': 'des_big_r0',
+                },
+            'reference_wavefront':
+                {
+                    'file_name': './input/Science-20121120s1-v20i2.fits',
+                    'extname': 1,
+                    'n_neighbors': 40,
+                    'weights': 'distance',
+                    'algorithm': 'auto',
+                    'p': 2,
+                    'type': 'DECamWavefront',
+                },
+            'n_optfit_stars': 0,
+            'fov_radius': 4500.,
+            'jmax_pupil': 11,
+            'jmax_focal': 11,
+            'min_optfit_snr': 0,
+            'higher_order_reference_wavefront_file': './input/decam_2012-nominalzernike-protocol2.pickle',
+            'random_forest_shapes_model_pickles_location': './input',
             'optatmo_psf_kwargs':
                 {
                     'fix_zPupil011': True
@@ -127,7 +165,7 @@ def test_aberrations():
     star = make_star(100, 100, 1)
     for j in range(4, config['jmax_pupil']):
         params = np.zeros(config['jmax_pupil'] + 4)
-        params[0] = 1 #leave r0 at 0.15 here
+        params[0] = 1 #leave r0 at 0.1 here
         params[4 - 1 + 3] = 1. #leave defocus at 1.0 here
         params[j - 1 + 3] = 1.
         prof = psf.getProfile(params)
@@ -219,7 +257,7 @@ def test_atmo_interp_fit():
                         }
     psf._update_optatmopsf(optatmo_psf_kwargs, logger=logger)
     # make star
-    nstars = 117 #This had to be raised from 10 because too few stars to do atmospheric interpolation otherwise due to parameter uncertainties failing to be calculated occuring too often and reducing number of stars too much
+    nstars = 117
     chipnums = np.random.choice(range(1,63), nstars)
     icens = np.random.randint(100, 1024, nstars)
     jcens = np.random.randint(100, 1024, nstars)
@@ -334,7 +372,7 @@ def test_fit():
         stars_to_fit.append(star.clean())
 
     # do fit
-    for fit_optics_mode in ['shape']: # pixel mode too slow, so it has not been used for a while; not known if it would pass a unit test
+    for fit_optics_mode in ['shape']:
         psf_train = piff.PSF.process(copy.deepcopy(config))
         logger.info('Test fitting optics mode {0}'.format(fit_optics_mode))
         psf_train.fit_optics_mode = fit_optics_mode
@@ -350,8 +388,7 @@ def test_fit():
             else:
                 train_stars.append(star)
 
-        psf_train.fit(train_stars, test_stars, wcs, pointing, logger=logger) #, Ns=5, maxfev=10)  # using this shortcut here, which should not be ever used in a serious fit in order to go faster on size triggers an error, so this has been removed
-        #Note: test only done on train_stars; no test for test_stars planned and it is not certain it is necessary
+        psf_train.fit(train_stars, test_stars, wcs, pointing, logger=logger)
         logger.info('Fit results for mode {0}'.format(fit_optics_mode))
         logger.info('Parameter: Input, Fit, Input - Fit')
         for key in sorted(optatmo_psf_kwargs_values):
@@ -370,14 +407,14 @@ def test_fit():
             assert diff <= tol,'failed to fit {0} to tolerance {4}: {1:+.3f}, {2:+.3f}, {3:+.3f}'.format(key, train, fit, train - fit, tol)
 
 @timer
-def test_atmo_model_fit(): #Note: this test is likely using the default L0 of 25.0.
+def test_atmo_model_fit():
     # set up logger
     if __name__ == '__main__':
         logger = piff.config.setup_logger(verbose=3)
     else:
         logger = piff.config.setup_logger(verbose=1)
     logger.info('Entering test_atmo_model_fit')
-    config = return_config()
+    config = return_config_big_r0()
     psf = piff.PSF.process(config)
     optatmo_psf_kwargs = {'size': 0.8, 'g1': 0.01, 'g2': -0.01,
                         'zPupil004_zFocal001': -1.0,
@@ -435,7 +472,7 @@ def test_atmo_model_fit(): #Note: this test is likely using the default L0 of 25
     np.testing.assert_allclose(shape, shape_drawn, rtol=1e-4)
     np.testing.assert_allclose(error, error_drawn, rtol=1e-4)
 
-    for vary_shape, vary_optics in zip([True, True], [False, True]): #zip([True],[False]): 
+    for vary_shape, vary_optics in zip([True, True], [False, True]): 
         star = make_star(0, 0, 1)
         star.fit.flux = atmo_flux
         star.fit.center = (atmo_du, atmo_dv)
@@ -486,7 +523,7 @@ def test_atmo_model_fit(): #Note: this test is likely using the default L0 of 25
     star_reflux = psf.reflux(star_to_fit)
     star_adjust = psf.adjustStar(star_to_fit)
     star_fitted, results = psf.fit_model(star_to_fit, params, vary_shape=False, vary_optics=False)
-    np.testing.assert_allclose(star.fit.center, star_reflux.fit.center, rtol=1e-5) #Note: this and the five below it had to be loosened to this from rtol=1e-7.
+    np.testing.assert_allclose(star.fit.center, star_reflux.fit.center, rtol=1e-5)
     np.testing.assert_allclose(star.fit.center, star_adjust.fit.center, rtol=1e-5)
     np.testing.assert_allclose(star.fit.center, star_fitted.fit.center, rtol=1e-5)
     np.testing.assert_allclose(star.fit.flux, star_reflux.fit.flux, rtol=1e-3) 
@@ -616,9 +653,8 @@ def test_snr_and_shapes():
         mean_errors = errors.mean(axis=0)
         # let's get the SNR back to within 10
         np.testing.assert_allclose(snrs, snr, atol=10)
-        # let our errors be say within 20 percent
         # Note: the above goal had to be loosened to 30 percent
-        np.testing.assert_allclose(std_shapes, mean_errors, rtol=0.3) # this had to be loosened from rtol=0.2
+        np.testing.assert_allclose(std_shapes, mean_errors, rtol=0.3)
 
 
 @timer
@@ -671,11 +707,10 @@ def test_random_forest():
     config_psf['atmo_interp'] = 'none'
     config_psf['fit_optics_mode'] = 'random_forest'
     config_psf['n_fit_size_steps'] = 15
-    # this requires zero padding in the fit random_forest stage, as it expects you to go up to spherical
     config_psf['jmax_focal'] = 1
     config_psf['jmax_pupil'] = 4
     config = {
-        'input': { #Much of the following specifications have changed in more recent iterations of yaml files. However, given the old image files we are testing, this may be necessary. TODO: get new image files and change the specifications below to be more in line with more recent yaml files.
+        'input': {
             'image_file_name' : image_file,
             'image_hdu' : 1,
             'weight_hdu' : 3,
@@ -685,11 +720,11 @@ def test_random_forest():
             'x_col' : 'XWIN_IMAGE',
             'y_col' : 'YWIN_IMAGE',
             'sky_col' : 'BACKGROUND',
-            'stamp_size' : 19, #this had to be reduced from its previous value due to too many stars being cut due to new star cuts; since then these cuts can be adjusted so fewer or no stars are cut but using 19x19 stamps has become standard anyway
+            'stamp_size' : 19,
             'ra' : 'TELRA',
             'dec' : 'TELDEC',
             'gain' : 'GAINA',
-            'nstars': 117, #even though it is faster, the original (20) stars is not enough considering new stars that get removed due to new cuts; since then these cuts can be adjusted so fewer or no stars are cut; note that the default fitting method has been changed to use the full optical fit rather than just the random forest and fit_size() fits for this test also, although this is not necessarily currently necessary
+            'nstars': 117,
             'min_snr': 40,
             'max_snr': 100,
             },
@@ -718,12 +753,11 @@ def test_roundtrip():
     orig_image = galsim.fits.read(image_file)
     psf_file = os.path.join('output','optatmo_des_psf.fits')
     config_psf = return_config()
-    # this requires zero padding in the fit random_forest stage, as it expects you to go up to spherical
     config_psf['jmax_focal'] = 1
     config_psf['n_fit_size_steps'] = 15
     config_psf['jmax_pupil'] = 4
     config = {
-        'input': { #Much of the following specifications have changed in more recent iterations of yaml files. However, given the old image files we are testing, this may be necessary. TODO: get new image files and change the specifications below to be more in line with more recent yaml files.
+        'input': {
             'image_file_name' : image_file,
             'image_hdu' : 1,
             'weight_hdu' : 3,
@@ -733,11 +767,11 @@ def test_roundtrip():
             'x_col' : 'XWIN_IMAGE',
             'y_col' : 'YWIN_IMAGE',
             'sky_col' : 'BACKGROUND',
-            'stamp_size' : 19, #this had to be reduced from its previous value due to too many stars being cut due to new star cuts; since then these cuts can be adjusted so fewer or no stars are cut but using 19x19 stamps has become standard anyway
+            'stamp_size' : 19,
             'ra' : 'TELRA',
             'dec' : 'TELDEC',
             'gain' : 'GAINA',
-            'nstars': 117, #even though it is faster, the original (20) stars is not enough considering new stars that get removed due to new cuts; since then these cuts can be adjusted so fewer or no stars are cut; note that the default fitting method has been changed to use the full optical fit rather than just the random forest and fit_size() fits for this test also, although this is not necessarily currently necessary
+            'nstars': 117,
             'min_snr': 40,
             'max_snr': 100,
             },
@@ -749,7 +783,7 @@ def test_roundtrip():
     if os.path.exists(psf_file):
         os.remove(psf_file)
     logger.info('Running piffify')
-    piff.piffify(copy.deepcopy(config), logger=logger) #Also: note that this test tests the fit_atmosphere function, which is no longer being used; instead, a more advanced form of this function does atmospheric fitting in fit_psf.py from the PIFF fitting pipeline. TODO: make a test for atmospheric fits as seen in the PIFF fitting pipeline (replace fit atmosphere() wherever it is used in this file not just here).
+    piff.piffify(copy.deepcopy(config), logger=logger)
 
     # load results and compare with initial params
     psf_original = piff.PSF.process(copy.deepcopy(config_psf), logger=logger)
@@ -769,7 +803,7 @@ def test_roundtrip():
         print("key: {0}".format(key))
         print("psf_original.kwargs[key]: {0}".format(psf_original.kwargs[key]))
         print("psf.kwargs[key]: {0}".format(psf.kwargs[key]))
-        assert np.all(psf_original.kwargs[key] == psf.kwargs[key]) #np.all needed to be added here and other places
+        assert np.all(psf_original.kwargs[key] == psf.kwargs[key])
 
     # check the other named attributes
     np.testing.assert_allclose(psf_original._shape_weights, psf._shape_weights)
