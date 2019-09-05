@@ -48,7 +48,7 @@ def plot_star(star, filename='test_optatmo.png', **kwargs):
 def return_config():
     config = {  'optical_psf_kwargs':
                 {
-                    'template': 'des_kolmogorov',
+                    'template': 'des',
                 },
             'reference_wavefront':
                 {
@@ -78,6 +78,8 @@ def return_config():
                 },
 
             'type': 'OptAtmo',
+            'reference_wavefront_zernikes_list': [4, 5, 6, 7, 8, 9, 10, 11],
+            'higher_order_reference_wavefront_zernikes_list': [12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37],
             'atmosphere_model': 'kolmogorov',
          }
     return copy.deepcopy(config)
@@ -102,10 +104,12 @@ def test_init():
     config['kolmogorov_kwargs'] = {'r0': 0}
     config['atmo_interp'] = 'None'
     config['reference_wavefront'] = 'none'
+    config['higher_order_reference_wavefront_file'] = 'None'
     psf = piff.PSF.process(config, logger=logger)
 
     assert psf.atmo_interp == None
     assert psf.reference_wavefront == None
+    assert psf.higher_order_reference_wavefront == None
     assert 'r0' not in psf.kolmogorov_kwargs
     assert psf.optical_psf_kwargs['pad_factor'] == optical_psf_kwargs['pad_factor']
     assert psf.optical_psf_kwargs['oversampling'] == optical_psf_kwargs['oversampling']
@@ -431,7 +435,7 @@ def test_atmo_model_fit(): #Note: this test is likely using the default L0 of 25
     np.testing.assert_allclose(shape, shape_drawn, rtol=1e-4)
     np.testing.assert_allclose(error, error_drawn, rtol=1e-4)
 
-    for vary_shape, vary_optics in zip([True, True], [False, True]):
+    for vary_shape, vary_optics in zip([True, True], [False, True]): #zip([True],[False]): 
         star = make_star(0, 0, 1)
         star.fit.flux = atmo_flux
         star.fit.center = (atmo_du, atmo_dv)
@@ -666,6 +670,7 @@ def test_random_forest():
     config_psf = return_config()
     config_psf['atmo_interp'] = 'none'
     config_psf['fit_optics_mode'] = 'random_forest'
+    config_psf['n_fit_size_steps'] = 15
     # this requires zero padding in the fit random_forest stage, as it expects you to go up to spherical
     config_psf['jmax_focal'] = 1
     config_psf['jmax_pupil'] = 4
@@ -715,6 +720,7 @@ def test_roundtrip():
     config_psf = return_config()
     # this requires zero padding in the fit random_forest stage, as it expects you to go up to spherical
     config_psf['jmax_focal'] = 1
+    config_psf['n_fit_size_steps'] = 15
     config_psf['jmax_pupil'] = 4
     config = {
         'input': { #Much of the following specifications have changed in more recent iterations of yaml files. However, given the old image files we are testing, this may be necessary. TODO: get new image files and change the specifications below to be more in line with more recent yaml files.
@@ -755,8 +761,8 @@ def test_roundtrip():
     assert not psf_original._enable_atmosphere
 
     # check that the cache is gone
-    assert not psf._cache
-    assert not psf_original._cache
+    assert not psf._caches
+    assert not psf_original._caches
 
     # go through kwargs and check
     for key in psf_original.kwargs:
@@ -810,8 +816,9 @@ def test_roundtrip():
     assert psf.atmo_interp == None
     assert psf._enable_atmosphere == False
 
-    # test saving with no reference_wavefront
+    # test saving with no reference_wavefronts
     config_psf.pop('reference_wavefront')
+    config_psf.pop('higher_order_reference_wavefront_file')
     psf_original = piff.PSF.process(copy.deepcopy(config_psf), logger=logger)
     psf_original.stars = stars
     psf_original.wcs = wcs
@@ -822,11 +829,13 @@ def test_roundtrip():
     for key in psf_original.kwargs:
         assert np.all(psf_original.kwargs[key] == psf.kwargs[key])
     assert psf_original.reference_wavefront == None
+    assert psf_original.higher_order_reference_wavefront == None
     assert psf.reference_wavefront == psf_original.reference_wavefront
+    assert psf.higher_order_reference_wavefront == psf_original.higher_order_reference_wavefront
     # check that this psf does nothing when we create cache
-    psf._create_cache([], logger=logger)
-    assert psf._cache == False
-    assert psf._aberrations_reference_wavefront == None #TODO: create a unit test for higher order reference wavefront
+    psf._create_caches([], logger=logger)
+    assert psf._caches == False
+    assert psf._aberrations_reference_wavefronts == None
 
 @timer
 def test_lmparams():
@@ -920,4 +929,3 @@ if __name__ == '__main__':
     test_roundtrip()
     test_lmparams()
     test_fit()
-    test_realistic_config_for_causing_excessive_shape_measurements()
