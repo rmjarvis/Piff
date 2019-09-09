@@ -138,7 +138,7 @@ class StarStats(Stats):
         return chi
 
     def plot(self, logger=None, **kwargs):
-        """Make the plots.
+        r"""Make the plots.
 
         :param logger:      A logger object for logging debug info. [default: None]
         :params \*\*kwargs: Any additional kwargs go into the matplotlib pcolor() function.

@@ -160,7 +160,7 @@ class Star(object):
     @classmethod
     def makeTarget(cls, x=None, y=None, u=None, v=None, properties={}, wcs=None, scale=None,
                    stamp_size=48, image=None, pointing=None, flux=1.0, **kwargs):
-        """
+        r"""
         Make a target Star object with the requested properties.
 
         The image will be blank (all zeros), and the properties field will match the given
