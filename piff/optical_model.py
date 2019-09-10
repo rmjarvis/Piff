@@ -61,7 +61,7 @@ optical_templates = {
 
 class Optical(Model):
 
-    _method = 'no_pixel'
+    _method = 'auto'
 
     def __init__(self, template=None, logger=None, **kwargs):
         """Initialize the Optical Model
