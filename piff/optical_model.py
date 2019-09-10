@@ -26,37 +26,38 @@ import numpy as np
 from .model import Model
 from .star import Star, StarFit, StarData
 
-# The only one here by default is 'des', but this allows people to easily add another template
+# Some templates people can use rather than provide all their own parameters.
 optical_templates = {
-    'des_vonkarman': { 'obscuration': 0.301 / 0.7174,
-             'nstruts': 4,
-             'diam': 4.274419,  # meters
-             'lam': 700, # nm
-             # aaron plays between 19 mm thick and 50 mm thick
-             'strut_thick': 0.050 * (1462.526 / 4010.) / 2.0, # conversion factor is nebulous?!
-             'strut_angle': 45 * galsim.degrees,
-             'r0': 0.15,
-             'L0': 25.0, #Note: in an actual fit this will appear in the kolmogorov_kwargs but likely not change; however, it will also appear in the optatmo_psf_kwargs and it necessarily will change there as opt_L0 is being fit. This will make L0 unique in that it is the only member of optatmo_psf_kwargs that changes for the fit. In a sense, this happens with r0 also since r0 from kolmogorov_kwargs doesn't change, but in that case you vary the "size" parameter in the fit and then use r0 = 0.15/size during the fit, rather than have an r0 that varies in optatmo_psf_kwargs.
-           },
-    'des': { 'obscuration': 0.301 / 0.7174,
-             'nstruts': 4,
-             'diam': 4.274419,  # meters
-             'lam': 700, # nm
-             # aaron plays between 19 mm thick and 50 mm thick
-             'strut_thick': 0.050 * (1462.526 / 4010.) / 2.0, # conversion factor is nebulous?!
-             'strut_angle': 45 * galsim.degrees,
-             'r0': 0.1,
-           },
-    'des_big_r0': { 'obscuration': 0.301 / 0.7174,
-             'nstruts': 4,
-             'diam': 4.274419,  # meters
-             'lam': 700, # nm
-             # aaron plays between 19 mm thick and 50 mm thick
-             'strut_thick': 0.050 * (1462.526 / 4010.) / 2.0, # conversion factor is nebulous?!
-             'strut_angle': 45 * galsim.degrees,
-             'r0': 0.15,
-           },
-}
+    'des': {
+        'obscuration': 0.301 / 0.7174,
+        'nstruts': 4,
+        'diam': 4.274419,  # meters
+        'lam': 700, # nm
+        # aaron plays between 19 mm thick and 50 mm thick
+        'strut_thick': 0.050 * (1462.526 / 4010.) / 2.0, # conversion factor is nebulous?!
+        'strut_angle': 45 * galsim.degrees,
+        'r0': 0.1,
+    },
+    'des_big_r0': {  # Same as des, but r0 = 0.15
+        'obscuration': 0.301 / 0.7174,
+        'nstruts': 4,
+        'diam': 4.274419,
+        'lam': 700,
+        'strut_thick': 0.050 * (1462.526 / 4010.) / 2.0,
+        'strut_angle': 45 * galsim.degrees,
+        'r0': 0.15,
+    },
+    'des_vonkarman': {  # Same as des, but with L0.
+        'obscuration': 0.301 / 0.7174,
+        'nstruts': 4,
+        'diam': 4.274419,
+        'lam': 700,
+        'strut_thick': 0.050 * (1462.526 / 4010.) / 2.0,
+        'strut_angle': 45 * galsim.degrees,
+        'r0': 0.15,
+        'L0': 25.0,
+    },
+ }
 
 class Optical(Model):
 
@@ -149,60 +150,23 @@ class Optical(Model):
                 pupil_plane_im = galsim.fits.read(pupil_plane_im)
             self.optical_psf_kwargs['pupil_plane_im'] = pupil_plane_im
 
-        if template == 'des_vonkarman':
-            kolmogorov_keys = ('lam', 'r0', 'lam_over_r0', 'scale_unit',
+        # If L0 is present, then this is really Von Karman.
+        kolmogorov_keys = ('lam', 'r0', 'lam_over_r0', 'scale_unit',
                            'fwhm', 'half_light_radius', 'r0_500', 'L0')
-        else:
-            kolmogorov_keys = ('lam', 'r0', 'lam_over_r0', 'scale_unit',
-                           'fwhm', 'half_light_radius', 'r0_500')
         self.kolmogorov_kwargs = { key : self.kwargs[key] for key in self.kwargs
                                                           if key in kolmogorov_keys }
-        # If lam is the only one, then remove it -- we don't have a Kolmogorov (or VonKarman) component then.
+        # If lam is the only one, then remove it -- we don't have a Kolmogorov (or VonKarman)
+        # component then.
         if self.kolmogorov_kwargs.keys() == ['lam']:
             self.kolmogorov_kwargs = {}
         # Also, let r0=0 or None indicate that there is no kolmogorov (or vonkarman) component
         if 'r0' in self.kolmogorov_kwargs and not self.kolmogorov_kwargs['r0']:
             self.kolmogorov_kwargs = {}
 
-
-        #It turns out, not using the below is too slow.
-        self.gsparams = galsim.GSParams(
-            minimum_fft_size=32,  # 128
-            )
-        if 'pad_factor' not in self.optical_psf_kwargs:
-            self.optical_psf_kwargs['pad_factor'] = 0.5
-        if 'oversampling' not in self.optical_psf_kwargs:
-            self.optical_psf_kwargs['oversampling'] = 0.5
-
-        if len(self.kolmogorov_kwargs) > 0 and 'L0' in self.kolmogorov_kwargs:
-            logger.debug('Creating VonKarman Atmosphere')
-            self.atmo = galsim.VonKarman(**self.kolmogorov_kwargs)
-            sigma = kwargs.pop('sigma',None)
-            self.sigma = sigma
-            self.g1 = kwargs.pop('g1',None)
-            self.g2 = kwargs.pop('g2',None)
-            if sigma is not None:
-                logger.debug('Found extra sigma = {0}. It will be unused'.format(sigma))
-        elif len(self.kolmogorov_kwargs) > 0:
-            logger.debug('Creating Kolmogorov Atmosphere')
-            self.atmo = galsim.Kolmogorov(**self.kolmogorov_kwargs)
-            sigma = kwargs.pop('sigma',None)
-            self.sigma = sigma
-            self.g1 = kwargs.pop('g1',None)
-            self.g2 = kwargs.pop('g2',None)
-            if sigma is not None:
-                logger.debug('Found extra sigma = {0}. It will be unused'.format(sigma))
-        else:
-            logger.debug('No kolmogorov (or vonkarman) atmosphere found.')
-            sigma = kwargs.pop('sigma',None)
-            logger.debug('Filling with gaussian sigma = {0}'.format(sigma))
-            self.sigma = sigma
-            self.g1 = kwargs.pop('g1',None)
-            self.g2 = kwargs.pop('g2',None)
-            if sigma is not None:
-                self.atmo = galsim.Gaussian(sigma=sigma)
-            else:
-                self.atmo = None
+        # Store the Gaussian and shear parts
+        self.sigma = kwargs.pop('sigma',None)
+        self.g1 = kwargs.pop('g1',None)
+        self.g2 = kwargs.pop('g2',None)
 
         # Check that no unexpected parameters were passed in:
         extra_kwargs = [k for k in kwargs if k not in optical_psf_keys and k not in kolmogorov_keys]
@@ -222,7 +186,9 @@ class Optical(Model):
 
     def fit(self, star):
         """Warning: This method just updates the fit with the chisq and dof!
+
         :param star:    A Star instance
+
         :returns: a new Star with the fitted parameters in star.fit
         """
         image = star.image
@@ -241,7 +207,9 @@ class Optical(Model):
 
     def getProfile(self, params):
         """Get a version of the model as a GalSim GSObject
+
         :param params:      A np array with [z4, z5, z6...z11]
+
         :returns: a galsim.GSObject instance
         """
         import galsim
@@ -252,7 +220,10 @@ class Optical(Model):
             prof.append(gaussian)
         # atmosphere
         if len(self.kolmogorov_kwargs) > 0:
-            atm = galsim.Kolmogorov(**self.kolmogorov_kwargs)
+            if 'L0' in self.kolmogorov_kwargs:
+                atm = galsim.VonKarman(**self.kolmogorov_kwargs)
+            else:
+                atm = galsim.Kolmogorov(**self.kolmogorov_kwargs)
             prof.append(atm)
         # optics
         if params is None or len(params) == 0:
