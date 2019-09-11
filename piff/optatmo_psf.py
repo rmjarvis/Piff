@@ -1549,6 +1549,26 @@ class OptAtmoPSF(PSF):
 
         return error
 
+    @property
+    def regr_dict(self):
+        if not hasattr(self, '_regr_dict'):
+            # load up random forest model (used only in "random_forest" mode)
+            self._regr_dict = {}
+            for m, moment in enumerate(np.array(
+                    ["e0", "e1", "e2", "zeta1", "zeta2", "delta1", "delta2"])):
+                with open("{0}/random_forest_shapes_model_{1}.pickle".format(
+                        self.random_forest_shapes_model_pickles_location, moment), 'rb') as f:
+                    try:
+                        regr = pickle.load(f)
+                    except:
+                        raise OSError('Random forest model pickle failed to load.')
+                    version = regr.__getstate__()['_sklearn_version']
+                    if version != sklearn.__version__:
+                        logger.error('sklearn version changed from the one used to make the '
+                                     'random forest file.  This might not work.')
+                    self._regr_dict[moment] = regr
+        return self._regr_dict
+
     def fit_optics(self, stars, shapes, errors, mode, logger=None, ftol=1.e-7, **kwargs):
         """Fit interpolated PSF model to star shapes.
 
@@ -1617,36 +1637,10 @@ class OptAtmoPSF(PSF):
         else:
             raise KeyError('Unrecognized fit mode: {0}'.format(mode))
 
-        # load up random forest model (used only in "random_forest" mode)
-        regr_dictionary = {}
-        for m, moment in enumerate(np.array(
-                ["e0", "e1", "e2", "zeta1", "zeta2", "delta1", "delta2"])):
-            with open("{0}/random_forest_shapes_model_{1}.pickle".format(
-                    self.random_forest_shapes_model_pickles_location, moment), 'rb') as f:
-                try:
-                    regr = pickle.load(f)
-                except:
-                    raise AttributeError(
-                        'A random forest model pickle failed to load. This likely means the '
-                        'pickle has not been placed in the correct directory such that the file '
-                        '{0}/random_forest_shapes_model_{1}.pickle does not exist.'.format(
-                                self.random_forest_shapes_model_pickles_location, moment))
-                version = regr.__getstate__()['_sklearn_version']
-                if version != sklearn.__version__:
-                    raise AttributeError(
-                        'A random forest model does not have the same sklearn version as the one '
-                        'currently being used. This likely requires you to remake the model from '
-                        'the data using the version of sklearn you currently have. This can be '
-                        'done by going to the data directory inside PIFF and running: '
-                        'python make_new_random_forest_model_pickles.py. If this error occured '
-                        'doing unit tests, go to the tests/input directory instead and run: '
-                        'python make_new_random_forest_model_pickles_for_unit_tests.py.')
-                regr_dictionary[moment] = regr
-
         # do fit!
         if mode == 'random_forest':
             results = lmfit.minimize(residual, lmparams, args=(stars, shapes, errors,
-                                     regr_dictionary, logger,), epsfcn=1e-5)
+                                     self.regr_dict, logger,), epsfcn=1e-5)
             logger.info("finished random_forest fit")
         elif mode == 'shape':
             results = lmfit.minimize(residual, lmparams, args=(stars, shapes, errors, logger,),
