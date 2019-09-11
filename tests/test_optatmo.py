@@ -16,7 +16,7 @@ from __future__ import print_function
 import galsim
 import piff
 import numpy as np
-import os
+import os, sys
 import fitsio
 import copy
 import unittest
