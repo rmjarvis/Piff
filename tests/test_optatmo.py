@@ -689,6 +689,10 @@ def test_profile():
 
 @timer
 def test_random_forest():
+    if sys.version_info < (3,0):
+        print('Cannot use random forest on python2.7.  Skip this test')
+        return
+
     # set up logger
     if __name__ == '__main__':
         logger = piff.config.setup_logger(verbose=3)
@@ -948,6 +952,9 @@ def test_lmparams():
     assert lmparams['size'].value == kwargs['min_size']
 
 if __name__ == '__main__':
+    import cProfile, pstats
+    pr = cProfile.Profile()
+    pr.enable()
     test_init()
     test_aberrations()
     test_reference_wavefront()
@@ -960,3 +967,6 @@ if __name__ == '__main__':
     test_roundtrip()
     test_lmparams()
     test_fit()
+    pr.disable()
+    ps = pstats.Stats(pr).sort_stats('tottime')
+    ps.print_stats(20)
