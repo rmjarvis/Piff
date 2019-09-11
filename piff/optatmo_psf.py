@@ -626,7 +626,7 @@ class OptAtmoPSF(PSF):
                 star = Star(star.data, StarFit(None, flux=shape[0], center=(shape[1], shape[2])))
                 star.data.properties['shape'] = shape
                 star.data.properties['shape_error'] = error
-                snr = self.measure_snr(star)
+                snr = measure_snr(star)
 
                 self.stars.append(star)
                 self.star_shapes.append(shape)
@@ -654,7 +654,7 @@ class OptAtmoPSF(PSF):
                 star = Star(star.data, StarFit(None, flux=shape[0], center=(shape[1], shape[2])))
                 star.data.properties['shape'] = shape
                 star.data.properties['shape_error'] = error
-                snr = self.measure_snr(star)
+                snr = measure_snr(star)
 
                 self.test_stars.append(star)
                 self.test_star_shapes.append(shape)
@@ -738,7 +738,7 @@ class OptAtmoPSF(PSF):
             bright_train_star_errors = []
             snrs = []
             for fit_optics_star in self.fit_optics_stars:
-                snrs.append(-self.measure_snr(fit_optics_star))
+                snrs.append(-measure_snr(fit_optics_star))
             snrs = np.array(snrs)
             order = np.argsort(snrs)
 
@@ -1349,15 +1349,6 @@ class OptAtmoPSF(PSF):
         error = np.array(values)
 
         return error
-
-    @staticmethod
-    def measure_snr(star):
-        """Calculate the signal-to-noise of a given star. Calls util
-        measure_snr function
-        :param star:    Input star, with stamp, weight
-        :returns:       signal to noise ratio
-        """
-        return measure_snr(star)
 
     def fit_optics(self, stars, shapes, errors, mode, logger=None, ftol=1.e-7, **kwargs):
         """Fit interpolated PSF model to star shapes. It is important to note that although this fit is referred to as

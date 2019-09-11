@@ -218,16 +218,10 @@ class PSF(object):
         psf_type = self.__class__.__name__
         write_kwargs(fits, extname, dict(self.kwargs, type=psf_type))
         logger.info("Wrote the basic PSF information to extname %s", extname)
-        try:
-            Star.write(self.stars, fits, extname=extname + '_stars')
-            logger.info("Wrote the PSF stars to extname %s", extname + '_stars')
-        except:
-            raise AttributeError("Attempted to write PSF stars, but found no stars")
-        try:
-            self.writeWCS(fits, extname=extname + '_wcs', logger=logger)
-            logger.info("Wrote the PSF WCS to extname %s", extname + '_wcs')
-        except:
-            raise AttributeError("Attempted to write PSF wcs, but found no stars")
+        Star.write(self.stars, fits, extname=extname + '_stars')
+        logger.info("Wrote the PSF stars to extname %s", extname + '_stars')
+        self.writeWCS(fits, extname=extname + '_wcs', logger=logger)
+        logger.info("Wrote the PSF WCS to extname %s", extname + '_wcs')
         self._finish_write(fits, extname=extname, logger=logger)
 
     @classmethod
@@ -275,27 +269,21 @@ class PSF(object):
             raise ValueError("psf type %s is not a valid Piff PSF"%psf_type)
         psf_cls = valid_psf_types[psf_type]
 
+        # Read the stars, wcs, pointing values
+        stars = Star.read(fits, extname + '_stars')
+        logger.debug("stars = %s",stars)
+        wcs, pointing = cls.readWCS(fits, extname + '_wcs', logger=logger)
+        logger.debug("wcs = %s, pointing = %s",wcs,pointing)
+
         # Get any other kwargs we need for this PSF type
         kwargs = read_kwargs(fits, extname)
         kwargs.pop('type',None)
 
         # Make the PSF instance
         psf = psf_cls(**kwargs)
-
-        # Read the stars, wcs, pointing values
-        try:
-            stars = Star.read(fits, extname + '_stars')
-            logger.debug("stars = %s",stars)
-            psf.stars = stars
-        except:
-            raise AssertionError('No stars found in PSF file!')
-        try:
-            wcs, pointing = cls.readWCS(fits, extname + '_wcs', logger=logger)
-            logger.debug("wcs = %s, pointing = %s",wcs,pointing)
-            psf.wcs = wcs
-            psf.pointing = pointing
-        except:
-            raise AssertionError('No wcs found in PSF file!')
+        psf.stars = stars
+        psf.wcs = wcs
+        psf.pointing = pointing
 
         # Just in case the class needs to do something else at the end.
         psf._finish_read(fits, extname, logger)

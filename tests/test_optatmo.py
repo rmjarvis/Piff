@@ -644,7 +644,7 @@ def test_snr_and_shapes():
             shapes.append(shape)
             errors.append(error)
 
-            snrs.append(psf.measure_snr(star_model))
+            snrs.append(piff.util.measure_snr(star_model))
 
         # not particularly concerned with flux, du, dv
         snrs = np.array(snrs)
