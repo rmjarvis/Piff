@@ -35,7 +35,7 @@ from .outliers import Outliers
 from .model import ModelFitError
 from .star import Star, StarFit, StarData
 from .util import hsm_error, hsm_third_moments, hsm_error_third_moments, hsm_fourth_moments, hsm_error_fourth_moments, hsm_orthogonal, hsm_error_orthogonal, measure_snr, write_kwargs, read_kwargs
-from .config import LoggerWrapper
+from galsim.config import LoggerWrapper
 
 def horner_from_galsim1(x, coef, dtype=None):
     """Evaluate univariate polynomial using Horner's method.

@@ -43,10 +43,6 @@ def setup_logger(verbose=1, log_file=None):
                        3: logging.DEBUG }
     logging_level = logging_levels[verbose]
 
-    # make formatter print time
-    formatter = logging.Formatter(fmt='%(asctime)s.%(msecs)03d %(levelname)-8s %(message)s',
-                                  datefmt='%Y-%m-%d %H:%M:%S')
-
     # Setup logging to go to sys.stdout or (if requested) to an output file
     logger = logging.getLogger('piff')
     logger.handlers = []  # Remove any existing handlers
@@ -54,15 +50,13 @@ def setup_logger(verbose=1, log_file=None):
         handle = logging.StreamHandler()
     else:
         handle = logging.FileHandler(log_file)
+    formatter = logging.Formatter('%(message)s')  # Simple text output
     handle.setFormatter(formatter)
     logger.addHandler(handle)
     logger.setLevel(logging_level)
 
     return logger
 
-def LoggerWrapper(logger, *args, **kwargs):
-    # shorthand this
-    return galsim.config.LoggerWrapper(logger, *args, **kwargs)
 
 def parse_variables(config, variables, logger):
     """Parse configuration variables and add them to the config dict
@@ -302,14 +296,12 @@ def meanify(config, logger=None):
 
     for fi, f in enumerate(file_name_in):
         logger.debug('Loading file {0} of {1}'.format(fi, len(file_name_in)))
-        try:
-            fits = fitsio.FITS(f)
-            coord, param = Star.read_coords_params(fits, 'psf_stars')
-            fits.close()
-            coords.append(coord)
-            params.append(param)
-        except:
-            raise IOError('Failed to load file {0}!'.format(f))
+        fits = fitsio.FITS(f)
+        coord, param = Star.read_coords_params(fits, 'psf_stars')
+        fits.close()
+
+        coords.append(coord)
+        params.append(param)
 
     params = np.concatenate(params, axis=0)
     coords = np.concatenate(coords, axis=0)
