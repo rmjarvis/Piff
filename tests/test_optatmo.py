@@ -44,7 +44,8 @@ def plot_star(star, filename='test_optatmo.png', **kwargs):
 
 # default config
 def return_config():
-    config = {  'optical_psf_kwargs':
+    config = {
+        'optical_psf_kwargs':
                 {
                     'template': 'des',
                 },

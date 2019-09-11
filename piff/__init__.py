@@ -110,12 +110,9 @@ from .star_stats import StarStats
 
 # Optics
 from .optical_model import Optical, optical_templates
-
 from .optatmo_psf import OptAtmoPSF
+from .des import DECamWavefront  # Need this in piff namespace, so it works as a type.
 
 # Leave these in their own namespaces
 from . import util
 from . import des
-
-# above didn't work, so try this
-from .des import DECamWavefront
