@@ -382,6 +382,7 @@ class OptAtmoPSF(PSF):
             self.n_params_constant_atmosphere_and_atmosphere = 7
 
         self.atmo_mad_outlier = atmo_mad_outlier
+        self.test_fraction = test_fraction
 
         # kwargs
         self.kwargs = {'fov_radius': self.fov_radius,
@@ -400,6 +401,7 @@ class OptAtmoPSF(PSF):
                        'fit_atmosphere_mode': self.fit_atmosphere_mode,
                        'atmosphere_model': self.atmosphere_model,
                        'atmo_mad_outlier': self.atmo_mad_outlier,
+                       'test_fraction': self.test_fraction,
                        # junk entries to be overwritten in _finish_read function
                        'optatmo_psf_kwargs': 0,
                        'atmo_interp': 0,
@@ -571,7 +573,7 @@ class OptAtmoPSF(PSF):
             logger.info('Skipping outliers')
             self.outliers = None
 
-    def fit(self, train_stars, test_stars, wcs, pointing,
+    def fit(self, stars, wcs, pointing,
             chisq_threshold=0.1, max_iterations=30, logger=None, **kwargs):
         """Fit interpolated PSF model to star data using standard sequence of operations.
         :param stars:           A list of Star instances.
@@ -590,6 +592,16 @@ class OptAtmoPSF(PSF):
                                 [default: None]
         """
         logger = LoggerWrapper(logger)
+        np.random.seed(12345)
+        ntest = int(self.test_fraction * len(stars))
+        test_indx = np.random.choice(len(stars), ntest, replace=False)
+        test_stars = []
+        train_stars = []
+        for star_i, star in enumerate(stars):
+            if star_i in test_indx:
+                test_stars.append(star)
+            else:
+                train_stars.append(star)
 
         if self.higher_order_reference_wavefront_file in [None, 'none', 'None', 'NONE']: # here we save the specified higher order reference wavefront as an instance of the wavefrontmap class. Note that this step is necessary here in case fit() is called by itself and the creation of the higher order reference wavefront was not done elsewhere.
             self.higher_order_reference_wavefront = None
