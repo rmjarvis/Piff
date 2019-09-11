@@ -409,6 +409,7 @@ def test_olddes():
         logger = piff.config.setup_logger(verbose=2)
     else:
         logger = piff.config.setup_logger(log_file='output/test_pickle.log')
+
     fname = os.path.join('input', 'D00240560_r_c01_r2362p01_piff.fits')
     psf = piff.PSF.read(fname, logger=logger)
 

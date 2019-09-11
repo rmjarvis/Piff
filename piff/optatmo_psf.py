@@ -86,7 +86,6 @@ class wavefrontmap(object):
     def __init__(self,file):
         # init contains all initializations which are done only once for all fits
 
-        
         self.file = file
         mapdict = pickle.load(open(self.file,'rb'))
         self.x = mapdict['x']
@@ -96,7 +95,7 @@ class wavefrontmap(object):
 
         self.interpDict = {}
         for iZ in range(3,self.nZernikeLast):    # numbering is such that iZ=3 is zern4
-            self.interpDict[iZ] = Rbf(self.x, self.y, self.zcoeff[:,iZ])        
+            self.interpDict[iZ] = Rbf(self.x, self.y, self.zcoeff[:,iZ])
 
     def get(self,x,y,nZernikeFirst=4): # start with defocus (zern4) and go up to the highest zernike found in the higher order reference wavefront here
         # fill an array with Zernike coefficients for this x,y in the Map
@@ -109,100 +108,108 @@ class wavefrontmap(object):
         return zout
 
 class OptAtmoPSF(PSF):
-
     """Combine Optical and Atmospheric PSFs together
-    """
 
-    def __init__(self, atmo_interp=None, outliers=None, optatmo_psf_kwargs={}, optical_psf_kwargs={}, kolmogorov_kwargs={}, reference_wavefront=None, n_optfit_stars=0, n_fit_size_steps = 0, fov_radius=4500., jmax_pupil=11, jmax_focal=10, min_optfit_snr=0, fit_optics_mode='shape', higher_order_reference_wavefront_file=None, random_forest_shapes_model_pickles_location=None, fit_atmosphere_mode='pixel', atmosphere_model='vonkarman', atmo_mad_outlier=False, max_shapes = [], shape_weights=[], reference_wavefront_zernikes_list = [], higher_order_reference_wavefront_zernikes_list = [], logger=None, **kwargs):
-        """
-        Fit Combined Atmosphere and Optical PSF in two stage process.
-        :param atmo_interp:                                     Piff Interpolant object that represents
-                                                                the atmospheric interpolation
-        :param outliers:                                        Optionally, an Outliers instance used
-                                                                to remove outliers during atmosphere
-                                                                fit.  [default: None]
-        :param optatmo_psf_kwargs:                              Terms that set the state of the PSF,
-                                                                excepting the atmospheric interpolant
-        :param optical_psf_kwargs:                              Arguments to pass into galsim
-                                                                opticalpsf object
-        :param kolmogorov_kwargs:                               Arguments to pass into galsim
-                                                                kolmogorov or vonkarman object
-        :param reference_wavefront:                             Reference interpolator for the optical
-                                                                wavefront. Takes in stars, returns
-                                                                aberrations. Default is to not include.
-        :param n_optfit_stars:                                  [default: 0] If > 0, randomly sample
-                                                                only n_optfit_stars for the optical fit.
-                                                                Only use n_optfit_stars if doing a test run,
-                                                                not a serious fit.
-        :param fov_radius:                                      [Default: 1.] Radius of telescope in
-                                                                u,v coordinates
-        :param jmax_pupil:                                      Number of pupil-basis zernikes in
-                                                                Optical model. Inclusive and in Noll
-                                                                convention. [default: 11]
-        :param jmax_focal:                                      Number of focal-basis zernikes in
-                                                                Optical model. Inclusive and in Noll
-                                                                convention. [default: 11]
-        :param min_optfit_snr:                                  minimum snr from star property required
-                                                                for optical portion of fit. If 0,
-                                                                ignored. [default: 0]
-        :param fit_optics_mode:                                 Choose ['random_forest', 'shape', 'pixel']
-                                                                for optics fitting mode. [default:
-                                                                'shape']
-        :param higher_order_reference_wavefront_file:           A string with the path and filename of the 
-                                                                pickle containing the higher order
-                                                                reference wavefront. Default is to not include.
-        :random_forest_shapes_model_pickles_location:           A string with the path to the folder
-                                                                containing the random forest model pickles
-                                                                for the random_forest fit. Note: the code
-                                                                should not work if this file is not
-                                                                specified.
-        :param fit_atmosphere_mode:                             Choose ['shape', 'pixel']
-                                                                for atmosphere fitting mode. [default:
-                                                                'pixel']
-        :param atmosphere_model:                                Choose ['kolmogorov', 'vonkarman']. Selects the galsim object used for the atmospheric piece.
-                                                                Note that the default is vonkarman and to use kolmogorov would require some changes to input.py.
-        :param atmo_mad_outlier:                                Boolean. If true, when computing atmosphere interps remove 5 sigma outliers from a MAD cut
-        :shape_weights:                                         A list of weights for the different moments to be used in the chisq fit
-        :param logger:                                          A logger object for logging debug info.
-                                                                [default: None]
-        Notes
-        -----
-        Our model of the PSF is the convolution of a sheared Kolmogorov/VonKarman
-        with an optics model. If Vonkarman, also have L0, the VonKarman outer scale:
-            PSF = convolve(Vonkarman(size, g1, g2, L0), Optics(defocus, etc))
-        Call [size, g1, g2, defocus, astigmatism-y, astigmatism-x, ...] a_k,
-        with k starting at 1 so that the Zernike terms like defocus can keep
-        the noll convention. Thus, we call the size a_1, g1 (confusingly) a_2,
-        and so on. The goal of this PSF model is to return a_k given focal
-        plane coordinates u, v. So, for the i-th star:
-        a_{ik} (u_i, v_i) = \sum^{jmax_focal}_{\ell=1} b_{k \ell} Z_{\ell} (u_i, v_i)
-                            + a^{reference}_{k} (u_i, v_i) [if k >= 4]
-                            + atmo_interp(u_i, v_i) [if k < 4]
-        We note that b_{k \ell} = 0 if k in [1, 2, 3] and \ell > 1, which is to
-        say that we fit a constant atmosphere and let the atmo_interp deal with
-        differences from constant. b_{k \ell} is called a Double Zernike
-        Decomposition. Note that L0 is considered separately and only has a constant
-        piece. The fitting process can be broken down into three major steps:
-        1. Fit b_{k \ell} by looking at the field pattern of the shapes.
-            -   First, we use a random forest model to find this approximately:
-                This is very fast. This random forest model may need to be
-                recalculated for different telescopes.
-            -   The random forest model may misestimate the
-                size. To account for this, we do a second fit: simply
-                take a few stars, grid search b_{1 1} (ie constant size), and
-                adjust accordingly.
-            -   Finally we do the full optical fit, including using L0.
-        2. Do individual star fit to atmospheric parameters.
-            -   a_{ik} = a^{optics}_{ik} + a^{atmosphere}_{ik} for k < 4, where
-                a^{optics}_{ik} = \sum_{\ell} b_{k \ell} Z_{\ell} (u_i, v_i).
-                We directly find a^{atmosphere}_{ik} for each star by
-                minimizing the chi2 of the pixels of the observed star and the
-                model as drawn here.
-        2. Fit atmo_interp.
-            -   After finding a^{atmosphere}_{ik}, we fit the atmo_interp to
-                interpolate those parameters as a function of focal plane
-                position (u_i, v_i).
-        """
+    Fit Combined Atmosphere and Optical PSF in two stage process.
+
+    :param atmo_interp:                                     Piff Interpolant object that represents
+                                                            the atmospheric interpolation
+    :param outliers:                                        Optionally, an Outliers instance used
+                                                            to remove outliers during atmosphere
+                                                            fit.  [default: None]
+    :param optatmo_psf_kwargs:                              Terms that set the state of the PSF,
+                                                            excepting the atmospheric interpolant
+    :param optical_psf_kwargs:                              Arguments to pass into galsim
+                                                            opticalpsf object
+    :param kolmogorov_kwargs:                               Arguments to pass into galsim
+                                                            kolmogorov or vonkarman object
+    :param reference_wavefront:                             Reference interpolator for the optical
+                                                            wavefront. Takes in stars, returns
+                                                            aberrations. Default is to not include.
+    :param n_optfit_stars:                                  [default: 0] If > 0, randomly sample
+                                                            only n_optfit_stars for the optical fit.
+                                                            Only use n_optfit_stars if doing a test run,
+                                                            not a serious fit.
+    :param fov_radius:                                      [Default: 1.] Radius of telescope in
+                                                            u,v coordinates
+    :param jmax_pupil:                                      Number of pupil-basis zernikes in
+                                                            Optical model. Inclusive and in Noll
+                                                            convention. [default: 11]
+    :param jmax_focal:                                      Number of focal-basis zernikes in
+                                                            Optical model. Inclusive and in Noll
+                                                            convention. [default: 11]
+    :param min_optfit_snr:                                  minimum snr from star property required
+                                                            for optical portion of fit. If 0,
+                                                            ignored. [default: 0]
+    :param fit_optics_mode:                                 Choose ['random_forest', 'shape', 'pixel']
+                                                            for optics fitting mode. [default:
+                                                            'shape']
+    :param higher_order_reference_wavefront_file:           A string with the path and filename of the
+                                                            pickle containing the higher order
+                                                            reference wavefront. Default is to not include.
+    :param random_forest_shapes_model_pickles_location:     A string with the path to the folder
+                                                            containing the random forest model pickles
+                                                            for the random_forest fit. Note: the code
+                                                            should not work if this file is not
+                                                            specified.
+    :param fit_atmosphere_mode:                             Choose ['shape', 'pixel']
+                                                            for atmosphere fitting mode. [default:
+                                                            'pixel']
+    :param atmosphere_model:                                Choose ['kolmogorov', 'vonkarman']. Selects the galsim object used for the atmospheric piece.
+                                                            Note that the default is vonkarman and to use kolmogorov would require some changes to input.py.
+    :param atmo_mad_outlier:                                Boolean. If true, when computing atmosphere interps remove 5 sigma outliers from a MAD cut
+    :param shape_weights:                                   A list of weights for the different moments to be used in the chisq fit
+    :param test_fraction:                                   The fraction of stars to reserve for testing. [default: 0.2]
+    :param logger:                                          A logger object for logging debug info.
+                                                            [default: None]
+    Notes
+    -----
+    Our model of the PSF is the convolution of a sheared Kolmogorov/VonKarman
+    with an optics model. If Vonkarman, also have L0, the VonKarman outer scale:
+        PSF = convolve(Vonkarman(size, g1, g2, L0), Optics(defocus, etc))
+    Call [size, g1, g2, defocus, astigmatism-y, astigmatism-x, ...] a_k,
+    with k starting at 1 so that the Zernike terms like defocus can keep
+    the noll convention. Thus, we call the size a_1, g1 (confusingly) a_2,
+    and so on. The goal of this PSF model is to return a_k given focal
+    plane coordinates u, v. So, for the i-th star:
+    a_{ik} (u_i, v_i) = \sum^{jmax_focal}_{\ell=1} b_{k \ell} Z_{\ell} (u_i, v_i)
+                        + a^{reference}_{k} (u_i, v_i) [if k >= 4]
+                        + atmo_interp(u_i, v_i) [if k < 4]
+    We note that b_{k \ell} = 0 if k in [1, 2, 3] and \ell > 1, which is to
+    say that we fit a constant atmosphere and let the atmo_interp deal with
+    differences from constant. b_{k \ell} is called a Double Zernike
+    Decomposition. Note that L0 is considered separately and only has a constant
+    piece. The fitting process can be broken down into three major steps:
+    1. Fit b_{k \ell} by looking at the field pattern of the shapes.
+        -   First, we use a random forest model to find this approximately:
+            This is very fast. This random forest model may need to be
+            recalculated for different telescopes.
+        -   The random forest model may misestimate the
+            size. To account for this, we do a second fit: simply
+            take a few stars, grid search b_{1 1} (ie constant size), and
+            adjust accordingly.
+        -   Finally we do the full optical fit, including using L0.
+    2. Do individual star fit to atmospheric parameters.
+        -   a_{ik} = a^{optics}_{ik} + a^{atmosphere}_{ik} for k < 4, where
+            a^{optics}_{ik} = \sum_{\ell} b_{k \ell} Z_{\ell} (u_i, v_i).
+            We directly find a^{atmosphere}_{ik} for each star by
+            minimizing the chi2 of the pixels of the observed star and the
+            model as drawn here.
+    2. Fit atmo_interp.
+        -   After finding a^{atmosphere}_{ik}, we fit the atmo_interp to
+            interpolate those parameters as a function of focal plane
+            position (u_i, v_i).
+    """
+    def __init__(self, atmo_interp=None, outliers=None, optatmo_psf_kwargs={},
+                 optical_psf_kwargs={}, kolmogorov_kwargs={}, reference_wavefront=None,
+                 n_optfit_stars=0, n_fit_size_steps = 0, fov_radius=4500., jmax_pupil=11,
+                 jmax_focal=10, min_optfit_snr=0, fit_optics_mode='shape',
+                 higher_order_reference_wavefront_file=None,
+                 random_forest_shapes_model_pickles_location=None, fit_atmosphere_mode='pixel',
+                 atmosphere_model='vonkarman', atmo_mad_outlier=False, max_shapes = [],
+                 shape_weights=[], reference_wavefront_zernikes_list=[],
+                 higher_order_reference_wavefront_zernikes_list=[], test_fraction=0.2,
+                 logger=None, **kwargs):
         logger = LoggerWrapper(logger)
 
         # If pupil_angle and strut angle are provided as strings, eval them.
@@ -357,7 +364,7 @@ class OptAtmoPSF(PSF):
         if len(higher_order_reference_wavefront_zernikes_list) > 0:
             self._higher_order_reference_wavefront_zernikes_list = higher_order_reference_wavefront_zernikes_list
             self._higher_order_reference_wavefront_zernikes_list = [int(higher_order_reference_wavefront_zernike) for higher_order_reference_wavefront_zernike in self._higher_order_reference_wavefront_zernikes_list]
-            
+
 
         self.fit_optics_mode = fit_optics_mode
         self.random_forest_shapes_model_pickles_location = random_forest_shapes_model_pickles_location
@@ -436,8 +443,8 @@ class OptAtmoPSF(PSF):
         if kolmogorov_kwargs.keys() == ['lam'] or ('r0' in kolmogorov_kwargs and not kolmogorov_kwargs['r0']):
             kolmogorov_kwargs = {'fwhm': 1.0}
         kwargs['kolmogorov_kwargs'] = kolmogorov_kwargs
-       
-       #custom shape weights for the moments used in fitting     
+
+        #custom shape weights for the moments used in fitting
         if 'optatmo_psf_kwargs' in config_psf:
             kwargs['optatmo_psf_kwargs'] = config_psf['optatmo_psf_kwargs']
 
@@ -713,7 +720,7 @@ class OptAtmoPSF(PSF):
         self.fit_optics_star_errors = self.star_errors[self.fit_optics_indices]
 
         # cut down to 500 highest SNR stars for fit if have more than that remaining.
-        if len(self.fit_optics_stars) > 500: 
+        if len(self.fit_optics_stars) > 500:
             bright_train_stars = []
             bright_train_star_shapes = []
             bright_train_star_errors = []
@@ -738,7 +745,7 @@ class OptAtmoPSF(PSF):
         self.fit_optics(self.fit_optics_stars, self.fit_optics_star_shapes, self.fit_optics_star_errors, mode='random_forest', logger=logger, **kwargs)
 
         # first just fit the optical size parameter to correct size offset
-        # the size parameter is proportional to 1/r0, where r0 is the Fried parameter         
+        # the size parameter is proportional to 1/r0, where r0 is the Fried parameter
         # the "optics" size is the average of this across the focal plane, whereas
         # the "atmospheric" size is the deviation from this average at different points in the focal plane.
         # only use the e0 moment to fit
@@ -801,7 +808,7 @@ class OptAtmoPSF(PSF):
                 self.pull_all_stars_optical = pull_all_stars
 
 
-        number_of_stars_used_in_optical_chi = len(self.final_optical_chi)//self.length_of_moments_list 
+        number_of_stars_used_in_optical_chi = len(self.final_optical_chi)//self.length_of_moments_list
         logger.info("total chisq for optical chi: {0}".format(np.sum(np.square(self.final_optical_chi))))
         for tm, test_moment in enumerate(moments_list):
             logger.info("total chisq for optical chi for {0}: {1}".format(test_moment,np.sum(np.square(self.final_optical_chi)[tm::self.length_of_moments_list])))
@@ -815,7 +822,7 @@ class OptAtmoPSF(PSF):
         logger.info("len(self.stars): {0}".format(len(self.stars)))
 
         # this is the "atmospheric" fit.
-        # we start here with the optical fit parameters and the average values of the atmospheric parameters found in the optical fit and hold those fixed. 
+        # we start here with the optical fit parameters and the average values of the atmospheric parameters found in the optical fit and hold those fixed.
         # we float only the deviation of these atmospheric parameters from the average here.
         # this fit can be skipped and usually is in order to do the atmospheric fit with the PIFF fitting pipeline
         if self.atmo_interp in ['skip', 'Skip', None, 'none', 'None', 0]:
@@ -962,11 +969,11 @@ class OptAtmoPSF(PSF):
 
     def getProfile(self, params, logger=None):
         """Get galsim profile for a given params
-        :param params:      [atm_size, atm_g1, atm_g2, opt_L0, opt_size, opt_g1, opt_g2, z4, z5...]. 
+        :param params:      [atm_size, atm_g1, atm_g2, opt_L0, opt_size, opt_g1, opt_g2, z4, z5...].
                             where all params that are not "z_number" are atmospheric params. Those labelled
                             "opt_something" are the averages of these atmospheric params across the focal plane
                             and those labelled "atm_something" are the deviations from these averages for stars
-                            at different points in the focal plane. Note how this means that, for example, 
+                            at different points in the focal plane. Note how this means that, for example,
                             atm_size and opt_size are added together for the Kolmogorov model
         :returns:           Galsim profile
         """
@@ -1096,8 +1103,8 @@ class OptAtmoPSF(PSF):
         :param optatmo_psf_kwargs:      A dictionary containing the keys we are
                                         updating, like "zPupil004_zFocal001" or
                                         "size" (in this example "size" is
-                                        proportional to the average of 1/r0 
-                                        across the focal plane, r0 being the 
+                                        proportional to the average of 1/r0
+                                        across the focal plane, r0 being the
                                         Fried parameter)
         :param logger:                  A logger object for logging debug info
         """
@@ -1149,7 +1156,7 @@ class OptAtmoPSF(PSF):
                 old_value = self.aberrations_field[pupil_index - 1, focal_index - 1]
             else:
                 old_value = self.optatmo_psf_kwargs['L0']
-            new_value = optatmo_psf_kwargs[key]           
+            new_value = optatmo_psf_kwargs[key]
 
             # figure out if we really need to recompute the coef arrays
             if old_value != new_value:
@@ -1157,11 +1164,11 @@ class OptAtmoPSF(PSF):
                     if optatmo_psf_kwargs['fix_' + key]:
                         logger.warning('Warning! Changing key {0} which is designated as fixed from {1} to {2}!'.format(key, old_value, new_value))
                 logger.debug('Updating Zernike parameter {0} from {1:+.4e} + {3:+.4e} = {2:+.4e}'.format(key, old_value, new_value, new_value - old_value))
-                if key != 'L0': 
+                if key != 'L0':
                     self.aberrations_field[pupil_index - 1, focal_index - 1] = new_value
                     aberrations_changed = True
-                else:                  
-                    self.optatmo_psf_kwargs['L0'] = new_value                                      
+                else:
+                    self.optatmo_psf_kwargs['L0'] = new_value
 
         if aberrations_changed:
             logger.debug('---------- Recomputing field zernike coefficients')
@@ -1238,7 +1245,7 @@ class OptAtmoPSF(PSF):
         return error
 
     def get_aberrations_higher_order_reference_wavefront_for_one_star(self, star):
-        """Gets higher order reference wavefront zernike values for star. Then, converts 
+        """Gets higher order reference wavefront zernike values for star. Then, converts
         them from zout_camera (AOS system) coordinates to zout_sky (Galsim) coordinates,
         inspired by thesis of Chris Davis.
         :param star:            Star instance to find higher order reference wavefront zernike values
@@ -1249,7 +1256,7 @@ class OptAtmoPSF(PSF):
         x_value = star_data.local_wcs._x(star_data['u'], star_data['v'])
         y_value = star_data.local_wcs._y(star_data['u'], star_data['v'])
         x_value = x_value * (15.0/1000.0)
-        y_value = y_value * (15.0/1000.0)  
+        y_value = y_value * (15.0/1000.0)
         zout_camera = self.higher_order_reference_wavefront.get(x=x_value, y=y_value)
         if len(zout_camera) < 34:
             zout_camera_zeros = np.zeros(34)
@@ -1341,10 +1348,10 @@ class OptAtmoPSF(PSF):
         return measure_snr(star)
 
     def fit_optics(self, stars, shapes, errors, mode, logger=None, ftol=1.e-7, **kwargs):
-        """Fit interpolated PSF model to star shapes. It is important to note that although this fit is referred to as 
-        the "optical" fit we still fit the average of the atmospheric parameters across the focal plane here. Finding 
-        the deviation of these atmospheric parameters from the average is then done later in the fit_atmosphere() 
-        function. For example, there is an atmospheric parameter known as the "size" parameter (which is proportional 
+        """Fit interpolated PSF model to star shapes. It is important to note that although this fit is referred to as
+        the "optical" fit we still fit the average of the atmospheric parameters across the focal plane here. Finding
+        the deviation of these atmospheric parameters from the average is then done later in the fit_atmosphere()
+        function. For example, there is an atmospheric parameter known as the "size" parameter (which is proportional
         to 1/r0 with r0 being the Fried parameter) whose average we fit in this function. Finding the deviation of this
         size parameter from the average is then done later in the fit_atmosphere() function.
         :param stars:       A list of Stars
@@ -1353,8 +1360,8 @@ class OptAtmoPSF(PSF):
         :param mode:        Parameter mode ['random_forest', 'shape', 'pixel']. Dictates which residual function we use.
         :param logger:      A logger object for logging debug info.
                             [default: None]
-        :param ftol:        One of the convergence criteria for the optical fit. Based on relative change in the 
-                            chi after an iteration. Smaller ftol is stricter and takes longer to converge. Not 
+        :param ftol:        One of the convergence criteria for the optical fit. Based on relative change in the
+                            chi after an iteration. Smaller ftol is stricter and takes longer to converge. Not
                             used in "random_forest" or "pixel" mode.
                             [default: 1.e-7]
         Notes
@@ -1415,15 +1422,15 @@ class OptAtmoPSF(PSF):
                 version = regr.__getstate__()['_sklearn_version']
                 if version != sklearn.__version__:
                     raise AttributeError('A random forest model does not have the same sklearn version as the one currently being used. This likely requires you to remake the model from the data using the version of sklearn you currently have. This can be done by going to the data directory inside PIFF and running: python make_new_random_forest_model_pickles.py. If this error occured doing unit tests, go to the tests/input directory instead and run: python make_new_random_forest_model_pickles_for_unit_tests.py.')
-                regr_dictionary[moment] = regr             
-            
-        # do fit!     
+                regr_dictionary[moment] = regr
+
+        # do fit!
         if mode == 'random_forest':
             results = lmfit.minimize(residual, lmparams, args=(stars, shapes, errors, regr_dictionary, logger,), epsfcn=1e-5)
             logger.info("finished random_forest fit")
         elif mode == 'shape':
             results = lmfit.minimize(residual, lmparams, args=(stars, shapes, errors, logger,), epsfcn=1e-5, ftol=ftol)
-            logger.info("finished full optics fit")         
+            logger.info("finished full optics fit")
         else:
             results = lmfit.minimize(residual, lmparams, args=(stars, shapes, errors, logger,), epsfcn=1e-5)
         nfev = results.nfev
@@ -1501,8 +1508,8 @@ class OptAtmoPSF(PSF):
 
     def fit_size(self, stars, shapes, shape_errors, logger=None, **kwargs):
         """Adjusts the optics size parameter found in the random forest fit by doing forced search of 501 steps +-
-        0.1 about the result found in the random forest fit. The size parameter is proportional to 1/r0, r0 
-        being the Fried parameter. The "optics" size is the average of this across the focal plane, whereas 
+        0.1 about the result found in the random forest fit. The size parameter is proportional to 1/r0, r0
+        being the Fried parameter. The "optics" size is the average of this across the focal plane, whereas
         "atmospheric" size is the deviation from this average at different points in the focal plane.
         :param stars:           A list of Star instances.
         :param shapes:          A list of premeasured Star shapes
@@ -1537,7 +1544,7 @@ class OptAtmoPSF(PSF):
 
         # do fit
         results = lmfit.minimize(self._fit_size_residual, lmparams, args=(stars, shapes, shape_errors, logger,), method='brute', Ns=Ns)  # 1e-3 steps
-        logger.info("finished optics size fit")   
+        logger.info("finished optics size fit")
         nfev = results.nfev
         nvarys = results.nvarys
         maxfev = 2000*(nvarys+1)
@@ -1570,7 +1577,7 @@ class OptAtmoPSF(PSF):
                        chisq_threshold=0.1, max_iterations=30, logger=None): # Note: This is not currently being used. Instead, the atmospheric fitting is currently being done in the PIFF fitting pipeline itself. As a result, it has not been updated in a while and it is not known if it is compatible with the current version of the PIFF fitting pipeline.
         """Fit interpolated PSF model to star data using standard sequence of
         operations (will also reject with outliers). We start here with the
-        optical fit parameters and the average values of the atmospheric 
+        optical fit parameters and the average values of the atmospheric
         parameters found in the optical fit and hold those fixed. We float only
         the deviation of these atmospheric parameters from the average here.
         :param stars:           A list of Star instances.
@@ -1741,7 +1748,7 @@ class OptAtmoPSF(PSF):
         else:
             optical_profile = None
 
-        # measure the shape and shape error of the data star 
+        # measure the shape and shape error of the data star
         shape = self.measure_shape_orthogonal(star)
         error = self.measure_error_orthogonal(star)
 
@@ -1770,7 +1777,7 @@ class OptAtmoPSF(PSF):
             opt_L0 = params[3]
         opt_size = params[self.n_params_constant_atmosphere + 0]
         opt_g1 = params[self.n_params_constant_atmosphere + 1]
-        opt_g2 = params[self.n_params_constant_atmosphere + 2]      
+        opt_g2 = params[self.n_params_constant_atmosphere + 2]
 
         # finish putting in atmo_size, atmo_g1, and atmo_g2 terms
         lmparams.add('atmo_size', value=fit_size, vary=vary_shape, min=min_size - opt_size, max=max_size - opt_size)
@@ -1928,8 +1935,8 @@ class OptAtmoPSF(PSF):
                                     fix_size [do not allow parameter to vary],
                                     min_,max_size [min and maximum values
                                     allowed for size during fit] (in this example
-                                    "size" is proportional to the average of 1/r0 
-                                    across the focal plane, r0 being the Fried 
+                                    "size" is proportional to the average of 1/r0
+                                    across the focal plane, r0 being the Fried
                                     these are specified, will fill with guessed
                                     values.
         :param keys:                List of keys we want to add to the lmfit
@@ -1961,7 +1968,7 @@ class OptAtmoPSF(PSF):
         return lmparams
 
     def _fit_random_forest_residual(self, lmparams, stars, shapes, shape_errors, regr_dictionary, logger=None):
-        """Residual function for fitting optics via random forest model. 
+        """Residual function for fitting optics via random forest model.
         This is what is done in "random_forest" mode.
         :param lmparams:        LMFit Parameters object
         :param stars:           A list of Stars
@@ -1989,8 +1996,8 @@ class OptAtmoPSF(PSF):
         # generate the stars' moments using random forest model and the fit parameters of the stars
         #note: only up to third moments used for the random forest fit
         shapes_model_list = []
-        for m, moment in enumerate(np.array(["e0", "e1", "e2", "zeta1", "zeta2", "delta1", "delta2"])):    
-            regr = regr_dictionary[moment]    
+        for m, moment in enumerate(np.array(["e0", "e1", "e2", "zeta1", "zeta2", "delta1", "delta2"])):
+            regr = regr_dictionary[moment]
             shapes_model_list.append(regr.predict(param_values_all_stars))
         shapes_model = np.column_stack(tuple(shapes_model_list))
         shape_weights = self._shape_weights[:7]
@@ -2007,11 +2014,11 @@ class OptAtmoPSF(PSF):
 
     def _fit_size_residual(self, lmparams, stars, shapes, shape_errors, logger=None):
         """Residual function for fitting the optics size parameter to the
-        observed e0 moment. The size parameter is proportional to 1/r0, r0 
+        observed e0 moment. The size parameter is proportional to 1/r0, r0
         being the Fried parameter. The "optics" size is the average of this
         across the focal plane, whereas "atmospheric" size is the deviation
-        from this average at different points in the focal plane. This 
-        function calls _fit_optics_residual and then limits the chi to only 
+        from this average at different points in the focal plane. This
+        function calls _fit_optics_residual and then limits the chi to only
         use the e0 moment.
         :param lmparams:        LMFit Parameters object
         :param stars:           A list of Stars
@@ -2044,7 +2051,7 @@ class OptAtmoPSF(PSF):
                                   [default: None]
         :param only_size:         Boolean. If False, record the reduced
                                   chisq at each iteration
-                                  [default: False]                                  
+                                  [default: False]
         :returns chi:             Chi of observed shapes to model shapes
         Notes
         -----
@@ -2055,7 +2062,7 @@ class OptAtmoPSF(PSF):
         self._update_optatmopsf(lmparams.valuesdict(), logger)
 
         # get optical params
-        opt_params = self.getParamsList(stars)      
+        opt_params = self.getParamsList(stars)
 
         # measure their shapes and calculate chi
         chi = np.array([])
@@ -2088,7 +2095,7 @@ class OptAtmoPSF(PSF):
             # don't care about flux, du, dv here
             chi_i = self._shape_weights * (((shape_model - shape) / error)[3:])
             chi = np.hstack((chi, chi_i))
-        
+
         if only_size == False:
             logger.debug('Current Total Chi2 / dof is {0:.4e} / {1}'.format(np.sum(np.square(chi)), len(chi)))
             self.total_redchi_across_iterations.append(np.sum(np.square(chi))/len(chi))
@@ -2097,7 +2104,7 @@ class OptAtmoPSF(PSF):
         return chi
 
     def _fit_optics_pixel_residual(self, lmparams, stars, shapes, errors, logger=None): #not necessarily set up to work with vonkarman atmosphere; also not currently used because too slow
-        """Residual function for fitting all stars. The only difference between this 
+        """Residual function for fitting all stars. The only difference between this
         function and _fit_optics_residual is that pixels instead of shapes are used here.
         :param lmparams:    LMFit Parameters object
         :param stars:       A list of Stars
@@ -2162,7 +2169,7 @@ class OptAtmoPSF(PSF):
 
         return chi
 
-    def _fit_model_shape_residual(self, lmparams, star, optical_profile, shape, error, logger=None): 
+    def _fit_model_shape_residual(self, lmparams, star, optical_profile, shape, error, logger=None):
         # Note: Indications are that this alternative to _fit_model_residual() is slower. As a result, it has not been updated in a while and it is not known if it is compatible with the current version of the PIFF fitting pipeline.
         """Residual function for fitting individual profile parameters to observed shapes.
         :param lmparams:    lmfit Parameters object
@@ -2259,7 +2266,7 @@ class OptAtmoPSF(PSF):
     def _create_caches(self, stars, logger=None):
         """Save aberrations from reference wavefronts. This is useful if we want
         to keep calling getParams but we aren't changing the positions of the
-        stars. We save the results, so we can call up the same aberrations from 
+        stars. We save the results, so we can call up the same aberrations from
         the reference wavefronts quickly.
         :param stars:   A list of stars
         :param logger:  A logger object for logging debug info [default: None]

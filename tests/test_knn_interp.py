@@ -120,7 +120,7 @@ def test_config():
                         'gsobj': 'galsim.Gaussian(sigma=1.0)' },
             'interp' : { 'type': 'kNNInterp',
                          'keys': ['u', 'v'],
-                         'n_neighbors': 115,} 
+                         'n_neighbors': 115,}
         },
         'output' : { 'file_name' : psf_file },
     }
