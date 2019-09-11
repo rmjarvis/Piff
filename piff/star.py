@@ -160,7 +160,7 @@ class Star(object):
     @classmethod
     def makeTarget(cls, x=None, y=None, u=None, v=None, properties={}, wcs=None, scale=None,
                    stamp_size=48, image=None, pointing=None, flux=1.0, **kwargs):
-        """
+        r"""
         Make a target Star object with the requested properties.
 
         The image will be blank (all zeros), and the properties field will match the given
@@ -251,13 +251,12 @@ class Star(object):
         return cls(data, fit)
 
     @classmethod
-    def write(self, stars, fits, extname, logger=None):
+    def write(self, stars, fits, extname):
         """Write a list of stars to a FITS file.
 
         :param stars:       A list of stars to write
         :param fits:        An open fitsio.FITS object
         :param extname:     The name of the extension to write to
-        :param logger:      A logger object for logging debug info.
         """
         import galsim
         # TODO This doesn't write everything out.  Probably want image as an optional I/O.
@@ -343,12 +342,11 @@ class Star(object):
         return coords, params
 
     @classmethod
-    def read(cls, fits, extname, logger=None):
+    def read(cls, fits, extname):
         """Read stars from a FITS file.
 
         :param fits:        An open fitsio.FITS object
         :param extname:     The name of the extension to read from
-        :param logger:      A logger object for logging debug info.
 
         :returns: a list of Star instances
         """
@@ -500,23 +498,6 @@ class Star(object):
                   for star in stars ]
         return stars
 
-    def save_image(self, path):
-        """Save image of star and weight
-
-        :param path:    Location to save image
-        """
-        from matplotlib.backends.backend_agg import FigureCanvasAgg
-        from matplotlib.figure import Figure
-
-        fig = Figure(figsize=(8, 3))
-        axs = [fig.add_subplot(2, 2, 1), fig.add_subplot(2, 2, 2)]
-        im = axs[0].imshow(self.image.array)
-        fig.colorbar(im, ax=axs[0])
-        im = axs[1].imshow(self.weight.array)
-        fig.colorbar(im, ax=axs[1])
-
-        canvas = FigureCanvasAgg(fig)
-        canvas.print_figure(path, dpi=100)
 
     def offset_to_center(self, offset):
         """A utility routine to convert from an offset in image coordinates to the corresponding
@@ -569,20 +550,6 @@ class Star(object):
         # So just pass this task on to that and recast the return value as a Star instance.
         return Star(self.data.addPoisson(signal=signal, gain=gain), self.fit)
 
-    def copy(self):
-        """Create another Star instance
-
-        :returns: a new Star instance with copied data and fit parameters
-        """
-        return Star(self.data.copy(), self.fit.copy())
-
-    def clean(self):
-        """Returns a copied Star instance with no Fit parameter
-
-        :returns: Returns a copied Star instance with no Fit parameter
-        """
-        # return star without its fit
-        return Star(self.data.copy(), None)
 
 class StarData(object):
     """A class that encapsulates all the relevant information about an observed star.
@@ -660,13 +627,7 @@ class StarData(object):
         self.image = image
         self.image_pos = image_pos
         # Make sure we have a local wcs in case the provided image is more complex.
-
-        # this try-except statement is necessary as not having an origin when loocing for the local wcs is common
-        try:
-            self.local_wcs = image.wcs.jacobian(image_pos).withOrigin(image.wcs.origin, image.wcs.world_origin)
-        except AttributeError:
-            # no origin, which is fine
-            self.local_wcs = image.wcs.jacobian(image_pos)
+        self.local_wcs = image.wcs.local(image_pos)
 
         if weight is None:
             self.weight = galsim.Image(image.bounds, init_value=1, wcs=image.wcs, dtype=float)
@@ -682,9 +643,6 @@ class StarData(object):
             self.orig_weight = self.weight
         else:
             self.orig_weight = orig_weight
-
-        if self.weight.array.shape != self.image.array.shape:
-            raise ValueError('Weight and image array shapes not the same!')
 
         if properties is None:
             self.properties = {}
@@ -793,9 +751,8 @@ class StarData(object):
         y -= self.image_pos.y
 
         # Convert to u,v coords
-        # Newer version of galsim has a color command that needs to be specified?
-        u = self.local_wcs._u(x,y, color=None)
-        v = self.local_wcs._v(x,y, color=None)
+        u = self.local_wcs._u(x,y)
+        v = self.local_wcs._v(x,y)
 
         # Get flat versions of everything
         u = u.flatten()

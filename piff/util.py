@@ -257,8 +257,6 @@ def hsm_error(star, logger=None, return_debug=False, return_error=True):
     from .gsobject_model import Gaussian
     from .star import Star
 
-    star = star.copy()
-
     # get vectors for data, weight and u, v
     data_i, weight_i, u_i, v_i = star.data.getDataVector(include_zero_weight=True)
     # also get the values for the HSM kernel, which is just the fitted hsm model
@@ -415,8 +413,6 @@ def hsm_third_moments(star, logger=None):
     from .gsobject_model import Gaussian
     from .star import Star
 
-    star = star.copy()
-
     # get vectors for data, weight and u, v
     data_i, weight_i, u_i, v_i = star.data.getDataVector(include_zero_weight=True)
     # also get the values for the HSM kernel, which is just the fitted hsm model
@@ -483,8 +479,6 @@ def hsm_error_third_moments(star, logger=None):
     """
     from .gsobject_model import Gaussian
     from .star import Star
-
-    star = star.copy()
 
     # get vectors for data, weight and u, v
     data_i, weight_i, u_i, v_i = star.data.getDataVector(include_zero_weight=True)
@@ -652,8 +646,6 @@ def hsm_fourth_moments(star, logger=None):
     from .gsobject_model import Gaussian
     from .star import Star
 
-    star = star.copy()
-
     # get vectors for data, weight and u, v
     data_i, weight_i, u_i, v_i = star.data.getDataVector(include_zero_weight=True)
     # also get the values for the HSM kernel, which is just the fitted hsm model
@@ -734,8 +726,6 @@ def hsm_error_fourth_moments(star, logger=None):
     """
     from .gsobject_model import Gaussian
     from .star import Star
-
-    star = star.copy()
 
     # get vectors for data, weight and u, v
     data_i, weight_i, u_i, v_i = star.data.getDataVector(include_zero_weight=True)
@@ -951,8 +941,6 @@ def hsm_orthogonal(star, logger=None):
     from .gsobject_model import Gaussian
     from .star import Star
 
-    star = star.copy()
-
     # get vectors for data, weight and u, v
     data_i, weight_i, u_i, v_i = star.data.getDataVector(include_zero_weight=True)
     # also get the values for the HSM kernel, which is just the fitted hsm model
@@ -1046,8 +1034,6 @@ def hsm_error_orthogonal(star, logger=None):
     """
     from .gsobject_model import Gaussian
     from .star import Star
-
-    star = star.copy()
 
     # get vectors for data, weight and u, v
     data_i, weight_i, u_i, v_i = star.data.getDataVector(include_zero_weight=True)

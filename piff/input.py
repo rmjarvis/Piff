@@ -317,81 +317,81 @@ class InputFiles(Input):
         There are many other optional parameters, which help govern how the input files are
         read or interporeted:
 
-            :chipnum:                   The id number of this chip used to reference this image [default:
-                                        image_num]
+            :chipnum:       The id number of this chip used to reference this image [default:
+                            image_num]
 
-            :image_hdu:                 The hdu to use in the image files. [default: None, which means use
-                                        either 0 or 1 as typical given the compression sceme of the file]
-            :weight_hdu:                The hdu to use for weight images. [default: None, which means a weight
-                                        image with all 1's will be automatically created]
-            :badpix_hdu:                The hdu to use for badpix images. Pixels with badpix != 0 will be given
-                                        weight == 0. [default: None]
-            :noise:                     Rather than a weight image, provide the noise variance in the image.
-                                        (Useful for simulations where this is a known value.) [default: None]
+            :image_hdu:     The hdu to use in the image files. [default: None, which means use
+                            either 0 or 1 as typical given the compression sceme of the file]
+            :weight_hdu:    The hdu to use for weight images. [default: None, which means a weight
+                            image with all 1's will be automatically created]
+            :badpix_hdu:    The hdu to use for badpix images. Pixels with badpix != 0 will be given
+                            weight == 0. [default: None]
+            :noise:         Rather than a weight image, provide the noise variance in the image.
+                            (Useful for simulations where this is a known value.) [default: None]
 
-            :cat_hdu:                   The hdu to use in the catalog files. [default: 1]
-            :x_col:                     The name of the X column in the input catalogs. [default: 'x']
-            :y_col:                     The name of the Y column in the input catalogs. [default: 'y']
-            :ra_col:                    (Alternative to x_col, y_col) The name of a right ascension column in
-                                        the input catalogs.  Will use the WCS to find (x,y) [default: None]
-            :dec_col:                   (Alternative to x_col, y_col) The name of a declination column in
-                                        the input catalogs.  Will use the WCS to find (x,y) [default: None]
-            :flag_col:                  The name of a flag column in the input catalogs. [default: None]
-                                        By default, this will skip any objects with flag != 0, but see
-                                        skip_flag and use_flag for other possible meanings for how the
-                                        flag column can be used to select stars.
-            :skip_flag:                 The flag indicating which items to not use. [default: -1]
-                                        Items with flag & skip_flag != 0 will be skipped.
-            :use_flag:                  The flag indicating which items to use. [default: None]
-                                        Items with flag & use_flag == 0 will be skipped.
-            :sky_col:                   The name of a column with sky values. [default: None]
-            :gain_col:                  The name of a column with gain values. [default: None]
-            :sky:                       The sky level to subtract from the image values. [default: None]
-                                        Note: It is an error to specify both sky and sky_col. If both are None,
-                                        no sky level will be subtracted off.
-            :gain:                      The gain to use for adding Poisson noise to the weight map.  [default:
-                                        None] It is an error for both gain and gain_col to be specified.
-                                        If both are None, then no additional noise will be added to account
-                                        for the Poisson noise from the galaxy flux.
-            :min_snr:                   The minimum S/N ratio to use.  If an input star is too faint, it is
-                                        removed from the input list of PSF stars.
-            :max_snr:                   The maximum S/N ratio to allow for any given star.  If an input star
-                                        is too bright, it can have too large an influence on the interpolation,
-                                        so this parameter limits the effective S/N of any single star.
-                                        Basically, it adds noise to bright stars to lower their S/N down to
-                                        this value.  [default: 100]
+            :cat_hdu:       The hdu to use in the catalog files. [default: 1]
+            :x_col:         The name of the X column in the input catalogs. [default: 'x']
+            :y_col:         The name of the Y column in the input catalogs. [default: 'y']
+            :ra_col:        (Alternative to x_col, y_col) The name of a right ascension column in
+                            the input catalogs.  Will use the WCS to find (x,y) [default: None]
+            :dec_col:       (Alternative to x_col, y_col) The name of a declination column in
+                            the input catalogs.  Will use the WCS to find (x,y) [default: None]
+            :flag_col:      The name of a flag column in the input catalogs. [default: None]
+                            By default, this will skip any objects with flag != 0, but see
+                            skip_flag and use_flag for other possible meanings for how the
+                            flag column can be used to select stars.
+            :skip_flag:     The flag indicating which items to not use. [default: -1]
+                            Items with flag & skip_flag != 0 will be skipped.
+            :use_flag:      The flag indicating which items to use. [default: None]
+                            Items with flag & use_flag == 0 will be skipped.
+            :sky_col:       The name of a column with sky values. [default: None]
+            :gain_col:      The name of a column with gain values. [default: None]
+            :sky:           The sky level to subtract from the image values. [default: None]
+                            Note: It is an error to specify both sky and sky_col. If both are None,
+                            no sky level will be subtracted off.
+            :gain:          The gain to use for adding Poisson noise to the weight map.  [default:
+                            None] It is an error for both gain and gain_col to be specified.
+                            If both are None, then no additional noise will be added to account
+                            for the Poisson noise from the galaxy flux.
+            :min_snr:       The minimum S/N ratio to use.  If an input star is too faint, it is
+                            removed from the input list of PSF stars.
+            :max_snr:       The maximum S/N ratio to allow for any given star.  If an input star
+                            is too bright, it can have too large an influence on the interpolation,
+                            so this parameter limits the effective S/N of any single star.
+                            Basically, it adds noise to bright stars to lower their S/N down to
+                            this value.  [default: 100]
             :_cutoff_deformed_level     The degree to which the width or height of a star's postage stamp is
-                                        allowed to differ from the desired stamp size + 1. This occurs if the
-                                        star is partially cutoff due to being at the edge of an image.
-                                        [default: 1000]
+                            allowed to differ from the desired stamp size + 1. This occurs if the
+                            star is partially cutoff due to being at the edge of an image.
+                            [default: 1000]
             :_cutoff_nuisance_level     Stars with fluxes on the outer edges of their postage stamps too many
-                                        sigma away from the median outer-edge flux are cut. This specifies how
-                                        many sigma. Note that this is done with a MAD cut. [default: 1000.0]
+                            sigma away from the median outer-edge flux are cut. This specifies how
+                            many sigma. Note that this is done with a MAD cut. [default: 1000.0]
             :_cutoff_masked_level       Stars that are partially masked to an extent are cut. Specifically,
-                                        stars where at least this many number of pixels have weight 0.0 are
-                                        cut [default: 1000]
-            :use_partial:               Whether to use stars whose postage stamps are only partially on the
-                                        full image.  [default: False]
-            :nstars:                    Stop reading the input file at this many stars.  (This is applied
-                                        separately to each input catalog.)  [default: None]
+                            stars where at least this many number of pixels have weight 0.0 are
+                            cut [default: 1000]
+            :use_partial:   Whether to use stars whose postage stamps are only partially on the
+                            full image.  [default: False]
+            :nstars:        Stop reading the input file at this many stars.  (This is applied
+                            separately to each input catalog.)  [default: None]
 
-            :wcs:                       Normally, the wcs is automatically read in when reading the image.
-                                        However, this parameter allows you to optionally provide a different
-                                        WCS.  It should be defined using the same style as a wcs object
-                                        in GalSim config files. [defulat: None]
+            :wcs:           Normally, the wcs is automatically read in when reading the image.
+                            However, this parameter allows you to optionally provide a different
+                            WCS.  It should be defined using the same style as a wcs object
+                            in GalSim config files. [defulat: None]
 
         The above values are parsed separately for each input image/catalog.  In addition, there
         are a couple other parameters that are just parsed once:
 
-            :stamp_size:                The size of the postage stamps to use for the cutouts.  Note: some
-                                        stamps may be smaller than this if the star is near a chip boundary.
-                                        [default: 32]
-            :ra, dec:                   The RA, Dec of the telescope pointing. [default: None; See
-                                        :setPointing: for details about how this can be specified]
+            :stamp_size:    The size of the postage stamps to use for the cutouts.  Note: some
+                            stamps may be smaller than this if the star is near a chip boundary.
+                            [default: 32]
+            :ra, dec:       The RA, Dec of the telescope pointing. [default: None; See
+                            :setPointing: for details about how this can be specified]
 
 
-        :param config:                  The configuration dict used to define the above parameters.
-        :param logger:                  A logger object for logging debug info. [default: None]
+        :param config:      The configuration dict used to define the above parameters.
+        :param logger:      A logger object for logging debug info. [default: None]
         """
         import galsim
         import copy

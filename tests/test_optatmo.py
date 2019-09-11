@@ -284,8 +284,7 @@ def test_atmo_interp_fit():
         # draw the star
         star = psf.drawProfile(star, prof, param)
         stars.append(star)
-        star_to_fit = piff.Star(star.data, None)
-        stars_to_fit.append(star_to_fit)
+        stars_to_fit.append(star)
 
     # fit model with atmo_interp
     psf.fit_atmosphere(stars_to_fit, logger=logger)
@@ -370,7 +369,7 @@ def test_fit():
         prof = psf_draw.getProfile(param) * 1e6
         star = psf_draw.drawProfile(star, prof, param)
         stars.append(star)
-        stars_to_fit.append(star.clean())
+        stars_to_fit.append(star)
 
     # do fit
     for fit_optics_mode in ['shape']:
@@ -445,11 +444,10 @@ def test_atmo_model_fit():
 
     # draw the star
     star = psf.drawProfile(star, prof, params)
-    star_to_fit = piff.Star(star.data, None)
 
     # fit star
     params_in = psf.getParams(star)
-    star_fit, results = psf.fit_model(star_to_fit, params=params_in, vary_shape=True, vary_optics=False, logger=logger)
+    star_fit, results = psf.fit_model(star, params=params_in, vary_shape=True, vary_optics=False, logger=logger)
 
     # check fitted params, centers, flux
     fit_flux = star_fit.fit.flux
@@ -461,7 +459,7 @@ def test_atmo_model_fit():
     assert len(star_fit.fit.params) == len(params_in)
 
     # also compare the shapes of the drawn fitted star and the original star
-    shape, error = psf.measure_shape(star_to_fit, logger=logger)
+    shape, error = psf.measure_shape(star, logger=logger)
     # can't just draw with drawStar because we added the extra params outside of the getParams
     params_fit = psf.getParams(star_fit)
     params_fit[0] = star_fit.fit.params[0]
@@ -486,13 +484,12 @@ def test_atmo_model_fit():
         # draw the star
         star = psf.drawProfile(star, prof, params, use_fit=True)
 
-        star_to_fit = star.clean()
         params_fit = params.copy()
         if vary_shape:
             params_fit[0:3] = 0
         if vary_optics:
             params_fit[6:] = 0
-        star_fitted, results = psf.fit_model(star_to_fit, params_fit, vary_shape=vary_shape, vary_optics=vary_optics)
+        star_fitted, results = psf.fit_model(star, params_fit, vary_shape=vary_shape, vary_optics=vary_optics)
         fit_flux = star_fitted.fit.flux
         fit_du = star_fitted.fit.center[0]
         fit_dv = star_fitted.fit.center[1]
@@ -520,10 +517,9 @@ def test_atmo_model_fit():
     prof = psf.getProfile(params)
     # draw the star
     star = psf.drawProfile(star, prof, params, use_fit=True)
-    star_to_fit = star.clean()
-    star_reflux = psf.reflux(star_to_fit)
-    star_adjust = psf.adjustStar(star_to_fit)
-    star_fitted, results = psf.fit_model(star_to_fit, params, vary_shape=False, vary_optics=False)
+    star_reflux = psf.reflux(star)
+    star_adjust = psf.adjustStar(star)
+    star_fitted, results = psf.fit_model(star, params, vary_shape=False, vary_optics=False)
     np.testing.assert_allclose(star.fit.center, star_reflux.fit.center, rtol=1e-5)
     np.testing.assert_allclose(star.fit.center, star_adjust.fit.center, rtol=1e-5)
     np.testing.assert_allclose(star.fit.center, star_fitted.fit.center, rtol=1e-5)
