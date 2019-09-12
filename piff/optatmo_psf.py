@@ -839,8 +839,8 @@ class OptAtmoPSF(PSF):
         # is trained to return shapes based on what fit parameters you give it)
         # the fit parameters here are the optical fit parameters and the average of the atmospheric
         # fit parameters
-        self.fit_optics(self.fit_optics_stars, self.fit_optics_star_shapes,
-                        self.fit_optics_star_errors, mode='random_forest', logger=logger, **kwargs)
+        #self.fit_optics(self.fit_optics_stars, self.fit_optics_star_shapes,
+                        #self.fit_optics_star_errors, mode='random_forest', logger=logger, **kwargs)
 
         # first just fit the optical size parameter to correct size offset
         # the size parameter is proportional to 1/r0, where r0 is the Fried parameter
@@ -861,7 +861,8 @@ class OptAtmoPSF(PSF):
         # optical fit parameters and the across-the-focal-plane average of the atmospheric fit
         # parameters
         self.total_redchi_across_iterations = []
-        if self.fit_optics_mode in ['shape', 'pixel']:
+        #if self.fit_optics_mode in ['shape', 'pixel']:
+        if True:
             self.fit_optics(self.fit_optics_stars, self.fit_optics_star_shapes,
                             self.fit_optics_star_errors, mode=self.fit_optics_mode, logger=logger,
                             ftol=1.e-3, **kwargs)
