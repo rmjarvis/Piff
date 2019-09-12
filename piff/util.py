@@ -225,7 +225,7 @@ def hsm(star):
 
 
 
-def hsm_error(star, logger=None, return_debug=False, return_error=True):
+def hsm_error(star, logger=None, return_error=True):
     r"""Use python implementation of HSM to measure moments of star image to get errors.
 
     Does not go beyond second moments.
@@ -251,8 +251,6 @@ def hsm_error(star, logger=None, return_debug=False, return_error=True):
     :param star:            Input star, with stamp, weight
     :param logger:          A logger object for logging debug info.
                             [default: None]
-    :param return_debug:    Boolean. If true, will return debug.
-                            [default: False]
     :param return_error:    Boolean. If true, will also return the shape error.
                             [default: True]
 
@@ -391,39 +389,8 @@ def hsm_error(star, logger=None, return_debug=False, return_error=True):
     sigma_e1 = sigma_e1 * 2.3
     sigma_e2 = sigma_e2 * 2.3
 
-    if return_debug:
-        if logger:
-            logger.debug('Star hsm_error. Value of flux, u0, v0, e0, e1, e2 are:')
-            logger.debug('{0:.2e} {1:.2e} {2:.2e} {3:.2e} {4:.2e} {5:.2e}'.format(
-                         flux_calc, u0_calc, v0_calc, e0_calc, e1_calc, e2_calc))
-            logger.debug('Star hsm_error. Value of errors for flux, u0, v0, e0, e1, e2 are:')
-            logger.debug('{0:.2e} {1:.2e} {2:.2e} {3:.2e} {4:.2e} {5:.2e}'.format(
-                         sigma_flux, sigma_u0, sigma_v0, sigma_e0, sigma_e1, sigma_e2))
-            logger.debug('Star hsm_error. Relative un-fudged contributions for u0 from data and '
-                         'flux are (in sigma2):')
-            logger.debug('{0:.2e} {1:.2e}'.format(sigma2_u0_data, sigma2_u0_flux))
-            logger.debug('Star hsm_error. Relative un-fudged contributions for v0 from data and '                            'flux are (in sigma2):')
-            logger.debug('{0:.2e} {1:.2e}'.format(sigma2_v0_data, sigma2_v0_flux))
-            logger.debug('Star hsm_error. Relative un-fudged contributions for e0 from data, flux, '
-                         'u0, and v0 are (in sigma2):')
-            logger.debug('{0:.2e} {1:.2e} {2:.2e} {3:.2e}'.format(
-                         sigma2_e0_data, sigma2_e0_flux, sigma2_e0_u0, sigma2_e0_v0))
-            logger.debug('Star hsm_error. Relative un-fudged contributions for e1 from data, flux, '
-                         'u0, and v0 are (in sigma2):')
-            logger.debug('{0:.2e} {1:.2e} {2:.2e} {3:.2e}'.format(
-                         sigma2_e1_data, sigma2_e1_flux, sigma2_e1_u0, sigma2_e1_v0))
-            logger.debug('Star hsm_error. Relative un-fudged contributions for e2 from data, flux, '
-                         'u0, and v0 are (in sigma2):')
-            logger.debug('{0:.2e} {1:.2e} {2:.2e} {3:.2e}'.format(
-                         sigma2_e2_data, sigma2_e2_flux, sigma2_e2_u0, sigma2_e2_v0))
-        return (sigma_flux, sigma_u0, sigma_v0, sigma_e0, sigma_e1, sigma_e2,
-                flux_calc, u0_calc, v0_calc, e0_calc, e1_calc, e2_calc,
-                sigma2_e0_data, sigma2_e0_u0, sigma2_e0_v0, sigma2_e0_flux,
-                sigma2_e1_data, sigma2_e1_u0, sigma2_e1_v0, sigma2_e1_flux,
-                sigma2_e2_data, sigma2_e2_u0, sigma2_e2_v0, sigma2_e2_flux)
-    else:
-        return (flux_calc, u0_calc, v0_calc, e0_calc, e1_calc, e2_calc,
-                sigma_flux, sigma_u0, sigma_v0, sigma_e0, sigma_e1, sigma_e2)
+    return (flux_calc, u0_calc, v0_calc, e0_calc, e1_calc, e2_calc,
+            sigma_flux, sigma_u0, sigma_v0, sigma_e0, sigma_e1, sigma_e2)
 
 
 def hsm_third_moments(star, logger=None):

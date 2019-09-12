@@ -1367,7 +1367,7 @@ class OptAtmoPSF(PSF):
 
         # values = flux, u0, v0, e0, e1, e2,
         #          sigma_flux, sigma_u0, sigma_v0, sigma_e0, sigma_e1, sigma_e2
-        values = hsm_error(star, return_debug=False, logger=logger, return_error=return_error)
+        values = hsm_error(star, logger=logger, return_error=return_error)
 
         shape = np.array(values[:6])
         if np.any(shape != shape):
