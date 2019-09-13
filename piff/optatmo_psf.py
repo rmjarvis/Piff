@@ -136,10 +136,12 @@ class OptAtmoPSF(PSF):
     :param min_optfit_snr:          Minimum snr from star property required for optical portion of
                                     fit. If 0, ignored. [default: 0]
     :param fit_optics_mode:         Choose ['random_forest', 'shape', 'pixel'] for optics fitting
-                                    mode. [default: 'shape']
+                                    mode. [default: 'shape'; random_forest is invalid in py2.7]
     :param higher_order_reference_wavefront_file: A string with the path and filename of the
                                     pickle containing the higher order reference wavefront.
                                     [default: None]
+    :param init_with_rf:            Initialize the fit with the random_forest? [default: False;
+                                    invalid for py2.7]
     :param random_forest_shapes_model_pickles_location: A string with the path to the folder
                                     containing the random forest model pickles for the random_forest
                                     fit. Note: the code should not work if this file is not
@@ -199,7 +201,7 @@ class OptAtmoPSF(PSF):
                  optical_psf_kwargs={}, kolmogorov_kwargs={}, reference_wavefront=None,
                  n_optfit_stars=0, n_fit_size_steps = 0, fov_radius=4500., jmax_pupil=11,
                  jmax_focal=10, min_optfit_snr=0, fit_optics_mode='shape',
-                 higher_order_reference_wavefront_file=None,
+                 higher_order_reference_wavefront_file=None, init_with_rf=False,
                  random_forest_shapes_model_pickles_location=None, fit_atmosphere_mode='pixel',
                  atmosphere_model='vonkarman', atmo_mad_outlier=False, max_shapes = [],
                  shape_weights=[], reference_wavefront_zernikes_list=[],
@@ -425,6 +427,7 @@ class OptAtmoPSF(PSF):
 
         self.atmo_mad_outlier = atmo_mad_outlier
         self.test_fraction = test_fraction
+        self.init_with_rf = init_with_rf
 
         # kwargs
         self.kwargs = {
@@ -441,6 +444,7 @@ class OptAtmoPSF(PSF):
             'n_fit_size_steps': self.n_fit_size_steps,
             'fit_optics_mode': self.fit_optics_mode,
             'higher_order_reference_wavefront_file': self.higher_order_reference_wavefront_file,
+            'init_with_rf': self.init_with_rf,
             'random_forest_shapes_model_pickles_location':
                 self.random_forest_shapes_model_pickles_location,
             'fit_atmosphere_mode': self.fit_atmosphere_mode,
@@ -839,8 +843,10 @@ class OptAtmoPSF(PSF):
         # is trained to return shapes based on what fit parameters you give it)
         # the fit parameters here are the optical fit parameters and the average of the atmospheric
         # fit parameters
-        #self.fit_optics(self.fit_optics_stars, self.fit_optics_star_shapes,
-                        #self.fit_optics_star_errors, mode='random_forest', logger=logger, **kwargs)
+        if self.init_with_rf:
+            self.fit_optics(self.fit_optics_stars, self.fit_optics_star_shapes,
+                            self.fit_optics_star_errors, mode='random_forest',
+                            logger=logger, **kwargs)
 
         # first just fit the optical size parameter to correct size offset
         # the size parameter is proportional to 1/r0, where r0 is the Fried parameter
@@ -861,15 +867,14 @@ class OptAtmoPSF(PSF):
         # optical fit parameters and the across-the-focal-plane average of the atmospheric fit
         # parameters
         self.total_redchi_across_iterations = []
-        #if self.fit_optics_mode in ['shape', 'pixel']:
-        if True:
+        if self.fit_optics_mode == 'random_forest' and self.init_with_rf:
+            # already did it, so can pass
+            pass
+        elif self.fit_optics_mode in ['shape', 'pixel', 'random_forest']:
             self.fit_optics(self.fit_optics_stars, self.fit_optics_star_shapes,
                             self.fit_optics_star_errors, mode=self.fit_optics_mode, logger=logger,
                             ftol=1.e-3, **kwargs)
                             #looser convergence criteria used than default of ftol=1.e-7
-        elif self.fit_optics_mode == 'random_forest':
-            # already did it, so can pass
-            pass
         else:
             # an unrecognized mode is simply ignored
             logger.warning('Found unrecognized fit_optics_mode {0}. Ignoring'.format(

@@ -105,6 +105,7 @@ def return_config_big_r0():
             'jmax_focal': 11,
             'min_optfit_snr': 0,
             'higher_order_reference_wavefront_file': './input/decam_2012-nominalzernike-protocol2.pickle',
+            'init_with_rf' : (sys.version_info > (3,0)),
             'random_forest_shapes_model_pickles_location': './input',
             'optatmo_psf_kwargs':
                 {
