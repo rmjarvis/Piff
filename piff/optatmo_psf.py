@@ -39,46 +39,6 @@ from .util import hsm_error_fourth_moments, hsm_orthogonal, hsm_error_orthogonal
 from .util import measure_snr, write_kwargs, read_kwargs
 from galsim.config import LoggerWrapper
 
-def horner_from_galsim1(x, coef, dtype=None):
-    """Evaluate univariate polynomial using Horner's method.
-
-    I.e., take A + Bx + Cx^2 + Dx^3 and evaluate it as
-    A + x(B + x(C + x(D)))
-
-    @param x        A numpy array of values at which to evaluate the polynomial.
-    @param coef     Polynomial coefficients of increasing powers of x.
-    @param dtype    Optionally specify the dtype of the return array. [default: None]
-
-    @returns a numpy array of the evaluated polynomial.  Will be the same shape as x.
-    """
-    coef = np.trim_zeros(coef, trim='b')
-    result = np.zeros_like(x, dtype=dtype)
-    if len(coef) == 0: return result
-    result += coef[-1]
-    for c in coef[-2::-1]:
-        result *= x
-        if c != 0: result += c
-    return result
-
-def horner2d_from_galsim1(x, y, coefs, dtype=None):
-    """Evaluate bivariate polynomial using nested Horner's method.
-
-    @param x        A numpy array of the x values at which to evaluate the polynomial.
-    @param y        A numpy array of the y values at which to evaluate the polynomial.
-    @param coefs    2D array-like of coefficients in increasing powers of x and y.
-                    The first axis corresponds to increasing the power of y, and the second to
-                    increasing the power of x.
-    @param dtype    Optionally specify the dtype of the return array. [default: None]
-
-    @returns a numpy array of the evaluated polynomial.  Will be the same shape as x and y.
-    """
-    result = horner_from_galsim1(y, coefs[-1], dtype=dtype)
-    for coef in coefs[-2::-1]:
-        result *= x
-        result += horner_from_galsim1(y, coef, dtype=dtype)
-    # Useful when working on this... (Numpy method is much slower, btw.)
-    return result
-
 class wavefrontmap(object):
     """a class used to build and access a Wavefront map - zernike coefficients vs. X,Y
 
@@ -993,10 +953,18 @@ class OptAtmoPSF(PSF):
         r = (u + 1j * v) / self.fov_radius
         rsqr = np.abs(r) ** 2
         # get [size, g1, g2, z4, z5...]
-        aberrations_pupil = np.array([horner2d_from_galsim1(rsqr, r, ca, dtype=complex).real
-                               for ca in self._coef_arrays_field]).T  # (nstars, ncoefs)
 
-        return aberrations_pupil
+        # There is a bug in GalSim 2.2 with dtype=complex, so the below doesn't work.
+        #return np.array([galsim.utilities.horner2d(rsqr, r, ca, dtype=complex).real
+        #                 for ca in self._coef_arrays_field]).T  # (nstars, ncoefs)
+        # However, using the _horner2d function does work.  (Plus, it's probably slightly faster.)
+        aberrations_pupil = np.empty((len(self._coef_arrays_field), len(stars)), dtype=float)
+        res = np.empty_like(rsqr, dtype=complex)
+        temp = np.empty_like(rsqr, dtype=complex)
+        for i, ca in enumerate(self._coef_arrays_field):
+            galsim.utilities._horner2d(rsqr, r, ca, res, temp)
+            aberrations_pupil[i,:] = res.real
+        return aberrations_pupil.T
 
     def getParamsList(self, stars, logger=None):
         """Get params for a list of stars.
