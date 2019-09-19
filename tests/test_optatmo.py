@@ -29,7 +29,8 @@ def make_star(x, y, chipnum, properties={}, **kwargs):
     wcs = decaminfo.get_nominal_wcs(chipnum)
     properties_in = {'chipnum': chipnum}
     properties_in.update(properties)
-    star = piff.Star.makeTarget(x=x, y=y, wcs=wcs, stamp_size=25, properties=properties_in, **kwargs)
+    star = piff.Star.makeTarget(x=x, y=y, wcs=wcs, stamp_size=25, properties=properties_in,
+                                **kwargs)
     return star
 
 def plot_star(star, filename='test_optatmo.png', **kwargs):
@@ -44,85 +45,76 @@ def plot_star(star, filename='test_optatmo.png', **kwargs):
 
 # default config
 def return_config():
-    config = {
-        'optical_psf_kwargs':
-                {
-                    'template': 'des',
-                },
-            'reference_wavefront':
-                {
-                    'file_name': './input/Science-20121120s1-v20i2.fits',
-                    'extname': 1,
-                    'n_neighbors': 40,
-                    'weights': 'distance',
-                    'algorithm': 'auto',
-                    'p': 2,
-                    'type': 'DECamWavefront',
-                },
-            'n_optfit_stars': 0,
-            'fov_radius': 4500.,
-            'jmax_pupil': 11,
-            'jmax_focal': 11,
-            'min_optfit_snr': 0,
-            'higher_order_reference_wavefront_file': './input/decam_2012-nominalzernike-protocol2.pickle',
-            'random_forest_shapes_model_pickles_location': './input',
-            'optatmo_psf_kwargs':
-                {
-                    'fix_zPupil011': True
-                },
-            'atmo_interp':
-                {
-                    'type': 'Polynomial',
-                    'order': 2,
-                },
-
-            'type': 'OptAtmo',
-            'reference_wavefront_zernikes_list': [4, 5, 6, 7, 8, 9, 10, 11],
-            'higher_order_reference_wavefront_zernikes_list': [12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37],
-            'atmosphere_model': 'kolmogorov',
-         }
-    return copy.deepcopy(config)
+    return {
+        'type': 'OptAtmo',
+        'optical_psf_kwargs': {
+            'template': 'des',
+        },
+        'reference_wavefront': {
+            'type': 'DECamWavefront',
+            'file_name': './input/Science-20121120s1-v20i2.fits',
+            'extname': 1,
+            'n_neighbors': 40,
+            'weights': 'distance',
+            'algorithm': 'auto',
+            'p': 2,
+        },
+        'n_optfit_stars': 0,
+        'fov_radius': 4500.,
+        'jmax_pupil': 11,
+        'jmax_focal': 11,
+        'min_optfit_snr': 0,
+        'higher_order_reference_wavefront_file':
+            './input/decam_2012-nominalzernike-protocol2.pickle',
+        'random_forest_shapes_model_pickles_location': './input',
+        'optatmo_psf_kwargs': {
+            'fix_zPupil011': True
+        },
+        'atmo_interp': {
+            'type': 'Polynomial',
+            'order': 2,
+        },
+        'reference_wavefront_zernikes_list': list(range(4,12)),
+        'higher_order_reference_wavefront_zernikes_list': list(range(12,38)),
+        'atmosphere_model': 'kolmogorov',
+    }
 
 # default config, big r0
 def return_config_big_r0():
-    config = {  'optical_psf_kwargs':
-                {
-                    'template': 'des_big_r0',
-                },
-            'reference_wavefront':
-                {
-                    'file_name': './input/Science-20121120s1-v20i2.fits',
-                    'extname': 1,
-                    'n_neighbors': 40,
-                    'weights': 'distance',
-                    'algorithm': 'auto',
-                    'p': 2,
-                    'type': 'DECamWavefront',
-                },
-            'n_optfit_stars': 0,
-            'fov_radius': 4500.,
-            'jmax_pupil': 11,
-            'jmax_focal': 11,
-            'min_optfit_snr': 0,
-            'higher_order_reference_wavefront_file': './input/decam_2012-nominalzernike-protocol2.pickle',
-            'init_with_rf' : (sys.version_info > (3,0)),
-            'random_forest_shapes_model_pickles_location': './input',
-            'optatmo_psf_kwargs':
-                {
-                    'fix_zPupil011': True
-                },
-            'atmo_interp':
-                {
-                    'type': 'Polynomial',
-                    'order': 2,
-                },
-
-            'type': 'OptAtmo',
-            'reference_wavefront_zernikes_list': [4, 5, 6, 7, 8, 9, 10, 11],
-            'higher_order_reference_wavefront_zernikes_list': [12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37],
-            'atmosphere_model': 'kolmogorov',
-         }
-    return copy.deepcopy(config)
+    return {
+        'type': 'OptAtmo',
+        'optical_psf_kwargs': {
+            'template': 'des_big_r0',
+        },
+        'reference_wavefront': {
+            'file_name': './input/Science-20121120s1-v20i2.fits',
+            'extname': 1,
+            'n_neighbors': 40,
+            'weights': 'distance',
+            'algorithm': 'auto',
+            'p': 2,
+            'type': 'DECamWavefront',
+        },
+        'n_optfit_stars': 0,
+        'fov_radius': 4500.,
+        'jmax_pupil': 11,
+        'jmax_focal': 11,
+        'min_optfit_snr': 0,
+        'higher_order_reference_wavefront_file':
+            './input/decam_2012-nominalzernike-protocol2.pickle',
+        'init_with_rf' : (sys.version_info > (3,0)),
+        'random_forest_shapes_model_pickles_location': './input',
+        'optatmo_psf_kwargs': {
+            'fix_zPupil011': True
+        },
+        'atmo_interp': {
+            'type': 'Polynomial',
+            'order': 2,
+        },
+        'reference_wavefront_zernikes_list': list(range(4,12)),
+        'higher_order_reference_wavefront_zernikes_list': list(range(12,38)),
+        'atmosphere_model': 'kolmogorov',
+    }
 
 @timer
 def test_init():
@@ -139,7 +131,16 @@ def test_init():
 
     # test init with different optical template
     config = return_config()
-    optical_psf_kwargs = {'obscuration': 0, 'pupil_angle': '45 * galsim.degrees', 'lam': 700, 'diam': 4, 'r0': 0.1, 'strut_angle': '10 * galsim.degrees', 'pad_factor': 0.2, 'oversampling': 1.0}
+    optical_psf_kwargs = {
+        'obscuration': 0,
+        'pupil_angle': '45 * galsim.degrees',
+        'lam': 700,
+        'diam': 4,
+        'r0': 0.1,
+        'strut_angle': '10 * galsim.degrees',
+        'pad_factor': 0.2,
+        'oversampling': 1.0
+    }
     config['optical_psf_kwargs'] = optical_psf_kwargs
     config['kolmogorov_kwargs'] = {'r0': 0}
     config['atmo_interp'] = 'None'
@@ -175,7 +176,8 @@ def test_aberrations():
         # check the new_star fit params
         np.testing.assert_array_equal(params, new_star.fit.params)
         # make sure the image arrays changed
-        np.testing.assert_raises(AssertionError, np.testing.assert_array_equal, star.image.array, new_star.image.array)
+        np.testing.assert_raises(AssertionError, np.testing.assert_array_equal, star.image.array,
+                                 new_star.image.array)
 
 @timer
 def test_reference_wavefront():
@@ -190,7 +192,8 @@ def test_reference_wavefront():
 
     star = make_star(0, 0, 1)
 
-    # check that each gives aberrations, and that they give the same aberrations up to their max order
+    # check that each gives aberrations, and that they give the same aberrations up to their max
+    # order
     params_psfs = []
     for jmax_pupil in jmaxs:
         config = return_config()
@@ -199,7 +202,8 @@ def test_reference_wavefront():
         params_psfs.append(psf.getParams(star))
     for i, jmax in enumerate(jmaxs[:-1]):
         np.testing.assert_equal(params_psfs[i], params_psfs[i + 1][:jmax + 3])
-    # the reference wavefront does 6 to 40, or zernikes 4 to 37, so make sure that the beyond 40 there are no terms
+    # the reference wavefront does 6 to 40, or zernikes 4 to 37, so make sure that the beyond 40
+    # there are no terms
     np.testing.assert_equal(0, params_psfs[-1][40:])
     # nor below 4, except for the optical size we put in (1.0 by default)
     np.testing.assert_equal(1., params_psfs[-1][3])
@@ -254,9 +258,11 @@ def test_atmo_interp_fit():
     config['jmax_pupil'] = jmax_pupil
 
     psf = piff.PSF.process(config)
-    optatmo_psf_kwargs = {'size': 1.3, 'g1': 0.02, 'g2': -0.03,
-                        'zPupil004_zFocal001': -1.0,
-                        }
+    optatmo_psf_kwargs = {
+        'size': 1.3,
+        'g1': 0.02, 'g2': -0.03,
+        'zPupil004_zFocal001': -1.0,
+    }
     psf._update_optatmopsf(optatmo_psf_kwargs, logger=logger)
     # make star
     nstars = 117
@@ -324,28 +330,33 @@ def test_fit():
     config['jmax_focal'] = 1
     config['jmax_pupil'] = 11
 
-    optatmo_psf_kwargs = {'size': 1.0, 'g1': 0, 'g2': 0,
-                          'fix_size': False, 'fix_g1': True, 'fix_g2': True,
-                          'zPupil004_zFocal001': -0.15,
-                          'zPupil005_zFocal001': 0.1,
-                          'zPupil006_zFocal001': 0.25,
-                          'zPupil007_zFocal001': -0.1,
-                          'zPupil008_zFocal001': 0.1,
-                          'zPupil009_zFocal001': 0.3,
-                          'zPupil010_zFocal001': -0.4,
-                          'zPupil011_zFocal001': 0.2,
-                          'fix_zPupil011_zFocal001': True,
-                        }  # avoid the defocus,astig,spherical -> negatives degeneracy by fixing spherical
+    optatmo_psf_kwargs = {
+        'size': 1.0,
+        'g1': 0, 'g2': 0,
+        'fix_size': False,
+        'fix_g1': True, 'fix_g2': True,
+        'zPupil004_zFocal001': -0.15,
+        'zPupil005_zFocal001': 0.1,
+        'zPupil006_zFocal001': 0.25,
+        'zPupil007_zFocal001': -0.1,
+        'zPupil008_zFocal001': 0.1,
+        'zPupil009_zFocal001': 0.3,
+        'zPupil010_zFocal001': -0.4,
+        'zPupil011_zFocal001': 0.2,
+        'fix_zPupil011_zFocal001': True,
+    }  # avoid the defocus,astig,spherical -> negatives degeneracy by fixing spherical
     config['optatmo_psf_kwargs'] = copy.deepcopy(optatmo_psf_kwargs)
     config_draw = copy.deepcopy(config)
-    optatmo_psf_kwargs_values = {'size': 0.8,
-            'zPupil004_zFocal001': 0.2,
-            'zPupil005_zFocal001': 0.3,
-            'zPupil006_zFocal001': -0.2,
-            'zPupil007_zFocal001': 0.2,
-            'zPupil008_zFocal001': 0.4,
-            'zPupil009_zFocal001': -0.25,
-            'zPupil010_zFocal001': 0.2}
+    optatmo_psf_kwargs_values = {
+        'size': 0.8,
+        'zPupil004_zFocal001': 0.2,
+        'zPupil005_zFocal001': 0.3,
+        'zPupil006_zFocal001': -0.2,
+        'zPupil007_zFocal001': 0.2,
+        'zPupil008_zFocal001': 0.4,
+        'zPupil009_zFocal001': -0.25,
+        'zPupil010_zFocal001': 0.2
+    }
     config_draw['optatmo_psf_kwargs'].update(optatmo_psf_kwargs_values)
     psf_draw = piff.PSF.process(config_draw)
     psf_train = piff.PSF.process(copy.deepcopy(config))
@@ -380,7 +391,8 @@ def test_fit():
 
         np.random.seed(12345)
         test_fraction = config.get('test_fraction', 0.2)
-        test_indx = np.random.choice(len(stars_to_fit), int(test_fraction * len(stars_to_fit)), replace=False)
+        num_test = int(test_fraction * len(stars_to_fit))
+        test_indx = np.random.choice(len(stars_to_fit), num_test, replace=False)
         test_stars = []
         train_stars = []
         for star_i, star in enumerate(stars_to_fit):
@@ -405,7 +417,9 @@ def test_fit():
                 tol = 0.1  # lower expectations with the random_forest mode
             else:
                 tol = 0.01
-            assert diff <= tol,'failed to fit {0} to tolerance {4}: {1:+.3f}, {2:+.3f}, {3:+.3f}'.format(key, train, fit, train - fit, tol)
+            assert diff <= tol,\
+                    'failed to fit {0} to tolerance {4}: {1:+.3f}, {2:+.3f}, {3:+.3f}'.format(
+                            key, train, fit, train - fit, tol)
 
 @timer
 def test_atmo_model_fit():
@@ -417,11 +431,13 @@ def test_atmo_model_fit():
     logger.info('Entering test_atmo_model_fit')
     config = return_config_big_r0()
     psf = piff.PSF.process(config)
-    optatmo_psf_kwargs = {'size': 0.8, 'g1': 0.01, 'g2': -0.01,
-                        'zPupil004_zFocal001': -1.0,
-                        'zPupil005_zFocal001': 1.0,
-                        'zPupil006_zFocal001': -1.0,
-                        }
+    optatmo_psf_kwargs = {
+        'size': 0.8,
+        'g1': 0.01, 'g2': -0.01,
+        'zPupil004_zFocal001': -1.0,
+        'zPupil005_zFocal001': 1.0,
+        'zPupil006_zFocal001': -1.0,
+    }
     psf._update_optatmopsf(optatmo_psf_kwargs, logger=logger)
 
     # make star
@@ -448,14 +464,16 @@ def test_atmo_model_fit():
 
     # fit star
     params_in = psf.getParams(star)
-    star_fit, results = psf.fit_model(star, params=params_in, vary_shape=True, vary_optics=False, logger=logger)
+    star_fit, results = psf.fit_model(star, params=params_in, vary_shape=True, vary_optics=False,
+                                      logger=logger)
 
     # check fitted params, centers, flux
     fit_flux = star_fit.fit.flux
     fit_du = star_fit.fit.center[0]
     fit_dv = star_fit.fit.center[1]
     arr_atmo = np.array([atmo_flux, atmo_du, atmo_dv, atmo_size, atmo_g1, atmo_g2])
-    arr_fit = np.array([fit_flux, fit_du, fit_dv, star_fit.fit.params[0], star_fit.fit.params[1], star_fit.fit.params[2]])
+    arr_fit = np.array([fit_flux, fit_du, fit_dv,
+                        star_fit.fit.params[0], star_fit.fit.params[1], star_fit.fit.params[2]])
     np.testing.assert_allclose(arr_atmo, arr_fit, rtol=1e-5)
     assert len(star_fit.fit.params) == len(params_in)
 
@@ -490,7 +508,8 @@ def test_atmo_model_fit():
             params_fit[0:3] = 0
         if vary_optics:
             params_fit[6:] = 0
-        star_fitted, results = psf.fit_model(star, params_fit, vary_shape=vary_shape, vary_optics=vary_optics)
+        star_fitted, results = psf.fit_model(star, params_fit, vary_shape=vary_shape,
+                                             vary_optics=vary_optics)
         fit_flux = star_fitted.fit.flux
         fit_du = star_fitted.fit.center[0]
         fit_dv = star_fitted.fit.center[1]
@@ -541,7 +560,8 @@ def test_jmaxs():
     config['jmax_pupil'] = 21
     config['jmax_focal'] = 45
     psf = piff.PSF.process(config)
-    stars = [make_star(100, 100, 1), make_star(100, 100, 60), make_star(100, 100, 3)]  # 0 and 1 share u, 0 and 2 share v
+    # 0 and 1 share u, 0 and 2 share v
+    stars = [make_star(100, 100, 1), make_star(100, 100, 60), make_star(100, 100, 3)]
     aberrations_pupil = psf._getParamsList_aberrations_field(stars)
 
     assert psf.jmax_pupil == config['jmax_pupil']
@@ -589,7 +609,12 @@ def test_jmaxs():
     assert zs[0] != zs[1]
 
     # test that modifying a specific key ...actually modifies it
-    optatmo_psf_kwargs = {'size': 0.2, 'g1': 0.3, 'g2': 0.4, 'zPupil021_zFocal045': 0.5, 'zPupil004_zFocal001': 1.0}
+    optatmo_psf_kwargs = {
+        'size': 0.2,
+        'g1': 0.3, 'g2': 0.4,
+        'zPupil021_zFocal045': 0.5,
+        'zPupil004_zFocal001': 1.0
+    }
     psf._update_optatmopsf(optatmo_psf_kwargs, logger=logger)
     assert psf.aberrations_field[0, 0] == optatmo_psf_kwargs['size']
     assert psf.aberrations_field[1, 0] == optatmo_psf_kwargs['g1']
@@ -649,6 +674,9 @@ def test_snr_and_shapes():
         errors = np.array(errors)
         std_shapes = shapes.std(axis=0)
         mean_errors = errors.mean(axis=0)
+        print('std_shapes = ',std_shapes)
+        print('mean_errors = ',mean_errors)
+        print('ratio = ',mean_errors/std_shapes)
         # let's get the SNR back to within 10
         np.testing.assert_allclose(snrs, snr, atol=10)
         # Note: the above goal had to be loosened to 30 percent
@@ -685,7 +713,8 @@ def test_profile():
     assert image == image_drawstarlist
 
     # NOTE: Not sure if I want to keep this functionality
-    # # also make sure that if the aberrations are all 0, then doesn't even bother convolving opticalpsf
+    # also make sure that if the aberrations are all 0, then doesn't even bother convolving
+    # opticalpsf
 
 
 @timer
@@ -729,10 +758,10 @@ def test_random_forest():
             'nstars': 117,
             'min_snr': 40,
             'max_snr': 100,
-            },
+        },
         'output': {'file_name': psf_file,},
         'psf': config_psf,
-        }
+    }
 
     # run using piffify
     if os.path.exists(psf_file):
@@ -776,10 +805,10 @@ def test_roundtrip():
             'nstars': 117,
             'min_snr': 40,
             'max_snr': 100,
-            },
+        },
         'output': {'file_name': psf_file,},
         'psf': config_psf,
-        }
+    }
 
     # run using piffify
     if os.path.exists(psf_file):
@@ -885,12 +914,18 @@ def test_lmparams():
     # test value, fix, min, max, all together
     config = return_config()
     psf = piff.PSF.process(config)
-    optatmo_psf_kwargs = {'size': 1.3, 'zPupil006_zFocal002': 0.2,
-                          'fix_zPupil009_zFocal001': True,
-                          'min_zPupil010_zFocal003': -20,
-                          'max_zPupil008_zFocal001': 20,
-                          'min_size': 0.61, 'a_key_not_used': 5}
-    keys = ['size', 'zPupil006_zFocal002', 'zPupil009_zFocal001', 'zPupil010_zFocal003', 'zPupil008_zFocal001']
+    optatmo_psf_kwargs = {
+        'size': 1.3,
+        'zPupil006_zFocal002': 0.2,
+        'fix_zPupil009_zFocal001': True,
+        'min_zPupil010_zFocal003': -20,
+        'max_zPupil008_zFocal001': 20,
+        'min_size': 0.61,
+        'a_key_not_used': 5
+    }
+    keys = ['size',
+            'zPupil006_zFocal002', 'zPupil009_zFocal001',
+            'zPupil010_zFocal003', 'zPupil008_zFocal001']
     lmparams = psf._fit_optics_lmparams(optatmo_psf_kwargs, keys)
     # check a_key_not_used is not in the keys
     assert 'a_key_not_used' not in lmparams.valuesdict().keys()
