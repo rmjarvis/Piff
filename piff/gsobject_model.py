@@ -106,20 +106,19 @@ class GSObjectModel(Model):
             du, dv, scale, g1, g2 = params
         return self.gsobj.dilate(scale).shear(g1=g1, g2=g2).shift(du, dv)
 
-    def _lmfit_resid(self, lmparams, star):
-        """Residual function to use with lmfit.  Essentially `chi` from `chisq`, but not summed
-        over pixels yet.
+    def _resid(self, params, star):
+        """Residual function to use with least_squares.
 
-        :param lmparams:  An lmfit.Parameters() instance.  The model.
-        :param star:    A Star instance.  The data.
+        Essentially `chi` from `chisq`, but not summed over pixels yet.
+
+        :param params:      A numpy array of model parameters.
+        :param star:        A Star instance.
 
         :returns: `chi` as a flattened numpy array.
         """
         import galsim
         image, weight, image_pos = star.data.getImage()
-        flux, du, dv, scale, g1, g2 = lmparams.valuesdict().values()
-        # Fit du and dv regardless of force_model_center.  The difference is whether the fit
-        # value is recorded (force_model_center=False) or discarded (force_model_center=True).
+        flux, du, dv, scale, g1, g2 = params
 
         # We shear/dilate/shift the profile as follows.
         #    prof = self.gsobj.dilate(scale).shear(g1=g1, g2=g2).shift(du, dv) * flux
@@ -128,12 +127,8 @@ class GSObjectModel(Model):
         jac = galsim._Shear(g1 + 1j*g2).getMatrix()
         jac[:,:] *= scale
         flux /= scale**2
-        if galsim.__version__ >= '2.0':
-            prof = galsim._Transform(self.gsobj, jac.ravel(), offset=galsim.PositionD(du,dv),
-                                     flux_ratio=flux)
-        else:
-            prof = galsim._Transform(self.gsobj, *jac.ravel(), offset=galsim.PositionD(du,dv),
-                                     flux_ratio=flux)
+        prof = galsim._Transform(self.gsobj, jac.ravel(), offset=galsim.PositionD(du,dv),
+                                 flux_ratio=flux)
 
         # Equivalent to galsim.Image(image, dtype=float), but without the sanity checks.
         model_image = galsim._Image(np.empty_like(image.array, dtype=float),
@@ -146,18 +141,13 @@ class GSObjectModel(Model):
         model_image.array[:,:] *= np.sqrt(weight.array)
         return model_image.array.ravel()
 
-    def _lmfit_params(self, star, vary_params=True, vary_flux=True, vary_center=True):
-        """Generate an lmfit.Parameters() instance from arguments.
+    def _get_params(self, star):
+        """Generate an array of model parameters.
 
         :param star:         A Star from which to initialize parameter values.
-        :param vary_params:  Allow non-flux and non-center params to vary?
-        :param vary_flux:    Allow flux to vary?
-        :param vary_center:  Allow center to vary?
 
-        :returns: lmfit.Parameters() instance.
+        :returns: a numpy array
         """
-        import lmfit
-
         # Get initial parameter values.  Either use values currently in star.fit, or if those are
         # absent, run HSM to get initial values.
         if star.fit.params is None:
@@ -172,57 +162,42 @@ class GSObjectModel(Model):
             else:
                 du, dv, scale, g1, g2 = star.fit.params
 
-        params = lmfit.Parameters()
-        # Order of params is important!
-        params.add('flux', value=flux, vary=vary_flux, min=0.0)
-        params.add('du', value=du, vary=vary_center)
-        params.add('dv', value=dv, vary=vary_center)
-        params.add('scale', value=scale, vary=vary_params, min=0.0)
-        # Limits of +/- 0.7 is definitely a hack to avoid |g| > 1, but if the PSF is ever actually
-        # this elliptical then we have more serious problems to worry about than hacky code!
-        params.add('g1', value=g1, vary=vary_params, min=-0.7, max=0.7)
-        params.add('g2', value=g2, vary=vary_params, min=-0.7, max=0.7)
-        return params
+        return np.array([flux, du, dv, scale, g1, g2])
 
-    def _lmfit_minimize(self, params, star, logger=None):
-        """ Run lmfit.minimize with given lmfit.Parameters() and on given star data.
+    def _minimize(self, params, star, logger=None):
+        """Find the least-squares best fit solution.
 
-        :param params: lmfit.Parameters() instance (holds initial guess and which params to let
-                       float or hold fixed).
+        :param params: numpy array of initial guess
         :param star:   Star to fit.
 
-        :returns: lmfit.MinimizerResult instance containing fit results.
+        :returns: scipy.optimize.OptimizeResults instance containing fit results.
         """
-        import lmfit
+        import scipy
         import time
         logger = galsim.config.LoggerWrapper(logger)
         t0 = time.time()
-        logger.debug("Start lmfit minimize.")
+        logger.debug("Start least_squares")
 
-        results = lmfit.minimize(self._lmfit_resid, params, args=(star,))
-        flux, du, dv, scale, g1, g2 = results.params.valuesdict().values()
-
-        logger.debug("End lmfit minimize.  Elapsed time: {0}".format(time.time() - t0))
+        results = scipy.optimize.least_squares(self._resid, params, args=(star,))
+        logger.debug("Done.  Elapsed time: {0}".format(time.time() - t0))
         return results
 
-    def lmfit(self, star, logger=None):
-        """Fit parameters of the given star using lmfit (Levenberg-Marquardt minimization
-        algorithm).
+    def least_squares_fit(self, star, logger=None):
+        """Fit parameters of the given star using least-squares minimization.
 
         :param star:    A Star to fit.
         :param logger:  A logger object for logging debug info. [default: None]
 
         :returns: (flux, dx, dy, scale, g1, g2, flag)
         """
-        import lmfit
         logger = galsim.config.LoggerWrapper(logger)
-        params = self._lmfit_params(star)
-        results = self._lmfit_minimize(params, star, logger=logger)
+        params = self._get_params(star)
+        results = self._minimize(params, star, logger=logger)
         if logger:
-            logger.debug(lmfit.fit_report(results))
-        flux, du, dv, scale, g1, g2 = results.params.valuesdict().values()
+            logger.debug(results)
+        flux, du, dv, scale, g1, g2 = results.x
         if not results.success:
-            raise RuntimeError("Error fitting with lmfit.")
+            raise RuntimeError("Error finding the full nonlinear solution")
 
         try:
             params_var = np.diag(results.covar)
@@ -246,7 +221,7 @@ class GSObjectModel(Model):
         return star
 
     def fit(self, star, fastfit=None, logger=None):
-        """Fit the image either using HSM or lmfit.
+        """Fit the image either using HSM or least-squares minimization.
 
         If `fastfit` is True, then the galsim.hsm module will be used to estimate the transformation
         parameters that take the fiducial moments into the data moments.  If `fastfit` is False,
@@ -271,7 +246,7 @@ class GSObjectModel(Model):
             flux, du, dv, scale, g1, g2 = self.moment_fit(star, logger=logger)
             var = np.zeros(6)
         else:
-            flux, du, dv, scale, g1, g2, var = self.lmfit(star, logger=logger)
+            flux, du, dv, scale, g1, g2, var = self.least_squares_fit(star, logger=logger)
         # Make a StarFit object with these parameters
         if self._force_model_center:
             params = np.array([ scale, g1, g2 ])
