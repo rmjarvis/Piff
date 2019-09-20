@@ -212,7 +212,7 @@ def test_center():
             star = mod.reflux(star)
             print('Flux, ctr, chisq after fit {:d}:'.format(i),
                   star.fit.flux, star.fit.center, star.fit.chisq)
-            np.testing.assert_almost_equal(star.fit.flux/influx, 1.0, decimal=14)
+            np.testing.assert_almost_equal(star.fit.flux/influx, 1.0, decimal=8)
 
         # Residual image when done should be dominated by structure off the edge of the fitted
         # region.
@@ -223,7 +223,7 @@ def test_center():
         print('max image abs value = ',np.max(np.abs(s.image.array)))
         peak = np.max(np.abs(s.image.array[mask]))
         np.testing.assert_almost_equal(star2.image.array[mask]/peak, s.image.array[mask]/peak,
-                                       decimal=14)
+                                       decimal=8)
 
         # test copy_image
         star_copy = mod.draw(star, copy_image=True)
