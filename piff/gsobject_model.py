@@ -337,29 +337,34 @@ class GSObjectModel(Model):
         #logger.debug("    weight = %s",star.data.weight.array)
         logger.debug("    image center = %s",star.data.image(star.data.image.center))
         logger.debug("    weight center = %s",star.data.weight(star.data.weight.center))
-        do_center = fit_center and self._force_model_center
-        if do_center:
-            params = self._lmfit_params(star, vary_params=False)
-            results = self._lmfit_minimize(params, star, logger=logger)
-            return Star(star.data, StarFit(star.fit.params,
-                                           flux = results.params['flux'].value,
-                                           center = (results.params['du'].value,
-                                                     results.params['dv'].value),
-                                           chisq = results.chisqr,
-                                           dof = np.count_nonzero(star.data.weight.array) - 3,
-                                           params_var = star.fit.params_var))
+
+        image, weight, u, v = star.data.getDataVector(include_zero_weight=True)
+        model = self.draw(star).image.array.flatten()
+
+        WIM = weight * image * model
+        WMM = weight * model**2
+
+        f_data = np.sum(WIM)
+        f_model = np.sum(WMM)
+        flux_ratio = f_data / f_model
+
+        if fit_center and self._force_model_center:
+            ushift = np.sum(WIM * u)/f_data - np.sum(WMM * u)/f_model
+            vshift = np.sum(WIM * v)/f_data - np.sum(WMM * v)/f_model
+            new_center = (star.fit.center[0] + ushift,
+                          star.fit.center[1] + vshift)
         else:
-            image, weight, image_pos = star.data.getImage()
-            model_image = self.draw(star).image
-            flux_ratio = (np.sum(weight.array * image.array * model_image.array)
-                          / np.sum(weight.array * model_image.array**2))
-            new_chisq = np.sum(weight.array * (image.array - flux_ratio*model_image.array)**2)
-            return Star(star.data, StarFit(star.fit.params,
-                                           flux = star.flux*flux_ratio,
-                                           center = star.fit.center,
-                                           chisq = new_chisq,
-                                           dof = np.count_nonzero(weight.array) - 1,
-                                           params_var = star.fit.params_var))
+            new_center = star.fit.center
+
+        # new_chisq ignores centroid shift, but close enough.
+        new_chisq = np.sum(weight * (image - flux_ratio*model)**2)
+
+        return Star(star.data, StarFit(star.fit.params,
+                                       flux = star.fit.flux * flux_ratio,
+                                       center = new_center,
+                                       chisq = new_chisq,
+                                       dof = np.count_nonzero(weight) - 1,
+                                       params_var = star.fit.params_var))
 
 
 class Gaussian(GSObjectModel):
