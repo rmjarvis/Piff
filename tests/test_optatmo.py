@@ -529,23 +529,14 @@ def test_atmo_model_fit():
             params_flip[13] *= -1  # spherical
             np.testing.assert_allclose(params_flip, star_fitted.fit.params, rtol=1e-5)
 
-    # adjust star and reflux should give the same results as fit_model
+    # Check reflux
     star = make_star(0, 0, 1)
     star.fit.flux = atmo_flux
     star.fit.center = (atmo_du, atmo_dv)
-    params = psf.getParams(star)
-    prof = psf.getProfile(params)
-    # draw the star
-    star = psf.drawProfile(star, prof, params, use_fit=True)
+    star = psf.drawStar(star)
     star_reflux = psf.reflux(star)
-    star_adjust = psf.adjustStar(star)
-    star_fitted, results = psf.fit_model(star, params, vary_shape=False, vary_optics=False)
-    np.testing.assert_allclose(star.fit.center, star_reflux.fit.center, rtol=1e-5)
-    np.testing.assert_allclose(star.fit.center, star_adjust.fit.center, rtol=1e-5)
-    np.testing.assert_allclose(star.fit.center, star_fitted.fit.center, rtol=1e-5)
-    np.testing.assert_allclose(star.fit.flux, star_reflux.fit.flux, rtol=1e-3) 
-    np.testing.assert_allclose(star.fit.flux, star_adjust.fit.flux, rtol=1e-3)
-    np.testing.assert_allclose(star.fit.flux, star_fitted.fit.flux, rtol=1e-3)
+    np.testing.assert_allclose(star_reflux.fit.center, star.fit.center, rtol=1e-5)
+    np.testing.assert_allclose(star_reflux.fit.flux, star.fit.flux, rtol=1e-3)
 
 @timer
 def test_jmaxs():

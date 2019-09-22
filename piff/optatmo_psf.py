@@ -1210,7 +1210,6 @@ class OptAtmoPSF(PSF):
 
         :returns:   Star instance with its image filled with rendered PSF
         """
-
         params = self.getParams(star)
         prof = self.getProfile(params)
         star = self.drawProfile(star, prof, params, copy_image=copy_image)
@@ -1874,11 +1873,8 @@ class OptAtmoPSF(PSF):
                 params[:, 0:self.n_params_atmosphere] += aberrations_atmo_star
 
                 # refluxing star and get chisq
-                refluxed_stars = []
-                for param, star in zip(params, stars_interp):
-                    refluxed_star, res = self.fit_model(star, param, vary_shape=False,
-                                                        vary_optics=False, logger=logger)
-                    refluxed_stars.append(refluxed_star)
+                refluxed_stars = [self.reflux(star, param, logger=logger)
+                                  for param, star in zip(params,stars_interp)]
 
                 # put back into the refluxed stars the fitted model params. This way when outliers
                 # returns the new list, we won't have to refit those parameters (which will be the
@@ -2140,48 +2136,24 @@ class OptAtmoPSF(PSF):
             new_stars.append(new_star)
         return new_stars
 
-    def adjustStarList(self, stars, logger=None):
-        """Fit the Model to the star's data, varying only the flux and center.
-
-        :param stars:       A list of Stars
-        :param logger:      A logger object for logging debug info. [default: None]
-
-        :returns:           New Star instances, with updated flux, center, chisq, dof
-        """
-        logger = LoggerWrapper(logger)
-        params = self.getParamsList(stars)
-        stars_adjusted = []
-        for star, param in zip(stars, params):
-            star_adjusted, results = self.fit_model(star, param, vary_shape=False,
-                                                    vary_optics=False, logger=logger)
-            stars_adjusted.append(star_adjusted)
-        return stars_adjusted
-
-    def adjustStar(self, star, logger=None):
-        """Fit the Model to the star's data, varying only the flux and center.
-
-        :param star:        A Star instance
-        :param logger:      A logger object for logging debug info. [default: None]
-
-        :returns:           New Star instance, with updated flux, center, chisq, dof
-        """
-        return self.adjustStarList([star], logger=logger)[0]
-
-    def reflux(self, star, logger=None):
+    def reflux(self, star, params=None, logger=None):
         """Fit the Model to the star's data, varying only the flux and center.
 
         This puts one of the options for fit_model into the regular Piff syntax.
 
         :param star:        A Star instance
+        :param params:      If already known, the parameters for this star. [default: None,
+                            in which case getParams(star) will be called.]
         :param logger:      A logger object for logging debug info. [default: None]
 
         :returns:           New Star instance, with updated flux, center, chisq, dof
-
-        Notes
-        -----
-        This is just adjustStar but with a name more like other Piff models
         """
-        return self.adjustStar(star, logger=logger)
+        logger = LoggerWrapper(logger)
+        if params is None:
+            params = self.getParams(star)
+        star_adjusted, results = self.fit_model(star, params, vary_shape=False,
+                                                vary_optics=False, logger=logger)
+        return star_adjusted
 
     def _fit_optics_lmparams(self, optatmo_psf_kwargs, keys):
         """turns optatmo_psf_kwargs and set of keys to fit into an lmparams object
