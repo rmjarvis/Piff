@@ -1812,7 +1812,7 @@ class OptAtmoPSF(PSF):
         for star_i, star in zip(range(len(stars)), stars):
             try:
                 model_fitted_star, results = self.fit_model(
-                        star, params=params[star_i], vary_shape=True, vary_optics=False,
+                        star, params=params[star_i],
                         mode=self.fit_atmosphere_mode, logger=logger)
                 model_fitted_stars.append(model_fitted_star)
             except (KeyboardInterrupt, SystemExit):
@@ -1921,21 +1921,13 @@ class OptAtmoPSF(PSF):
 
         return model_fitted_stars, stars
 
-    def fit_model(self, star, params, vary_shape=True, vary_optics=False, mode='pixel',
+    def fit_model(self, star, params, mode='pixel',
                   minimize_kwargs={}, logger=None, estimated_errorbars_not_required=False):
         """Fit model to star's pixel data.
-
-        Always vary flux and center, but also can selectively vary atmospheric terms and Zernike
-        coefficients
 
         :param star:        A Star instance
         :param params:      An array of initial star parameters like one would
                             get from getParams
-        :param vary_shape:  Boolean. If true, will vary Kolmogorov size and
-                            ellipticity in fit [default: True]
-        :param vary_optics: Boolean. If true, will vary Zernike coefficients
-                            during fit [default: False]. This is only
-                            moderately useful in most in focus cases.
         :param mode:        Parameter mode ['shape', 'pixel']. Dictates which residual function
                             we use. Default is pixel
         :param minimize_kwargs: A set of parameters to pass in for changing the
@@ -1965,46 +1957,35 @@ class OptAtmoPSF(PSF):
         max_size = self.optatmo_psf_kwargs['max_size']
         max_g = self.optatmo_psf_kwargs['max_g1']
 
-        # cache optical profile if vary_optics is set to False
-        if vary_optics == False:
-            aberrations = np.zeros(4+len(params[self.n_params_constant_atmosphere_and_atmosphere:]))
-            # fill piston etc with 0
-            aberrations[4:] = params[self.n_params_constant_atmosphere_and_atmosphere:]
-            aberrations = aberrations * (700.0/self.optical_psf_kwargs['lam'])
-            optical_profile = galsim.OpticalPSF(aberrations=aberrations,
-                                gsparams=self.gsparams,
-                                **self.optical_psf_kwargs)
-        else:
-            optical_profile = None
+        aberrations = np.zeros(4+len(params[self.n_params_constant_atmosphere_and_atmosphere:]))
+        # fill piston etc with 0
+        aberrations[4:] = params[self.n_params_constant_atmosphere_and_atmosphere:]
+        aberrations = aberrations * (700.0/self.optical_psf_kwargs['lam'])
+        optical_profile = galsim.OpticalPSF(aberrations=aberrations,
+                            gsparams=self.gsparams,
+                            **self.optical_psf_kwargs)
 
         # measure the shape and shape error of the data star
         shape = self.measure_shape_orthogonal(star)
         error = self.measure_error_orthogonal(star)
 
         # optical residuals are used to get the initial starting values for atmo_size, atmo_g1,
-        # and atmo_g2 if vary_optics is set to False
-        if vary_optics == False:
-            # calculate the second moment residuals for a model star made only with values from an
-            # optical fit
-            full_profile = self.getProfile(params)
-            star_model = self.drawProfile(star, full_profile, params)
-            shape_model = self.measure_shape_orthogonal(star_model)
-            shape_difference = shape - shape_model
-            optical_de0 = shape_difference[3]
-            optical_de1 = shape_difference[4]
-            optical_de2 = shape_difference[5]
-            # linear relations between between the optical residals of the second moments and
-            # atmo_size/atmo_g1/atmo_g2 taken by comparing the two against each other for a
-            # couple dozen exposures
-            fit_size = 1.143 * optical_de0 + 0.001
-            fit_g1 = 1.075 * optical_de1 + 0.001
-            fit_g2 = 1.033 * optical_de2
-        else:
-            # getParams is used to get the initial starting values for atmo_size, atmo_g1,
-            # and atmo_g2 if vary_optics is set to True
-            fit_size = params[0]
-            fit_g1 = params[1]
-            fit_g2 = params[2]
+        # and atmo_g2
+        # calculate the second moment residuals for a model star made only with values from an
+        # optical fit
+        full_profile = self.getProfile(params)
+        star_model = self.drawProfile(star, full_profile, params)
+        shape_model = self.measure_shape_orthogonal(star_model)
+        shape_difference = shape - shape_model
+        optical_de0 = shape_difference[3]
+        optical_de1 = shape_difference[4]
+        optical_de2 = shape_difference[5]
+        # linear relations between between the optical residals of the second moments and
+        # atmo_size/atmo_g1/atmo_g2 taken by comparing the two against each other for a
+        # couple dozen exposures
+        fit_size = 1.143 * optical_de0 + 0.001
+        fit_g1 = 1.075 * optical_de1 + 0.001
+        fit_g2 = 1.033 * optical_de2
 
         # acquire the values of opt_size, opt_g1, opt_g2, and, possibly, opt_L0 if using vonkarman
         # atmosphere
@@ -2015,11 +1996,11 @@ class OptAtmoPSF(PSF):
         opt_g2 = params[self.n_params_constant_atmosphere + 2]
 
         # finish putting in atmo_size, atmo_g1, and atmo_g2 terms
-        lmparams.add('atmo_size', value=fit_size, vary=vary_shape,
+        lmparams.add('atmo_size', value=fit_size, vary=True,
                      min=min_size - opt_size, max=max_size - opt_size)
-        lmparams.add('atmo_g1', value=fit_g1, vary=vary_shape,
+        lmparams.add('atmo_g1', value=fit_g1, vary=True,
                      min=-max_g - opt_g1, max=max_g - opt_g1)
-        lmparams.add('atmo_g2', value=fit_g2, vary=vary_shape,
+        lmparams.add('atmo_g2', value=fit_g2, vary=True,
                      min=-max_g - opt_g2, max=max_g - opt_g2)
 
         # put in the other params to the params model
@@ -2030,9 +2011,8 @@ class OptAtmoPSF(PSF):
         lmparams.add('optics_g1', value=opt_g1, vary=False)
         lmparams.add('optics_g2', value=opt_g2, vary=False)
         for i, pi in enumerate(params[self.n_params_constant_atmosphere_and_atmosphere:]):
-            lmparams.add('optics_zernike_{0}'.format(i + 4), value=pi, vary=vary_optics,
+            lmparams.add('optics_zernike_{0}'.format(i + 4), value=pi, vary=False,
                          min=-5, max=5)
-            # we do allow zernikes to vary if vary_optics is set to True
 
         # set up the residual to either use moments or pixels, as desired
         if mode == 'shape':
@@ -2421,8 +2401,7 @@ class OptAtmoPSF(PSF):
                 #       was, if we do vonkarman
 
                 # do fit marginalizing over the atmosphere shape
-                fitted_star, fitted_results = self.fit_model(star, params, vary_shape=True,
-                                                             vary_optics=False, mode='pixel',
+                fitted_star, fitted_results = self.fit_model(star, params, mode='pixel',
                                                              logger=logger)
 
                 # draw star for evaluating the chi2

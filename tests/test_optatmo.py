@@ -464,8 +464,7 @@ def test_atmo_model_fit():
 
     # fit star
     params_in = psf.getParams(star)
-    star_fit, results = psf.fit_model(star, params=params_in, vary_shape=True, vary_optics=False,
-                                      logger=logger)
+    star_fit, results = psf.fit_model(star, params=params_in, logger=logger)
 
     # check fitted params, centers, flux
     fit_flux = star_fit.fit.flux
@@ -489,45 +488,6 @@ def test_atmo_model_fit():
     shape_drawn, error_drawn = psf.measure_shape(star_fit_drawn, logger=logger)
     np.testing.assert_allclose(shape, shape_drawn, rtol=1e-4)
     np.testing.assert_allclose(error, error_drawn, rtol=1e-4)
-
-    for vary_shape, vary_optics in zip([True, True], [False, True]): 
-        star = make_star(0, 0, 1)
-        star.fit.flux = atmo_flux
-        star.fit.center = (atmo_du, atmo_dv)
-        params = psf.getParams(star)
-        params[0] = atmo_size
-        params[1] = atmo_g1
-        params[2] = atmo_g2
-        prof = psf.getProfile(params)
-
-        # draw the star
-        star = psf.drawProfile(star, prof, params, use_fit=True)
-
-        params_fit = params.copy()
-        if vary_shape:
-            params_fit[0:3] = 0
-        if vary_optics:
-            params_fit[6:] = 0
-        star_fitted, results = psf.fit_model(star, params_fit, vary_shape=vary_shape,
-                                             vary_optics=vary_optics)
-        fit_flux = star_fitted.fit.flux
-        fit_du = star_fitted.fit.center[0]
-        fit_dv = star_fitted.fit.center[1]
-        arr_atmo = np.array([atmo_flux, atmo_du, atmo_dv])
-        arr_fit = np.array([fit_flux, fit_du, fit_dv])
-        np.testing.assert_allclose(arr_atmo, arr_fit, rtol=1e-5)
-        try:
-            np.testing.assert_allclose(params, star_fitted.fit.params, rtol=1e-5)
-        except AssertionError:
-            # PSF is symmetric under shift of defocus spherical and astigmatism
-            # parameters -> negatives. This is a failure of the model, not the
-            # code, so grant the possibility.
-            params_flip = params.copy()
-            params_flip[6] *= -1  # defocus
-            params_flip[7] *= -1  # astig
-            params_flip[8] *= -1
-            params_flip[13] *= -1  # spherical
-            np.testing.assert_allclose(params_flip, star_fitted.fit.params, rtol=1e-5)
 
     # Check reflux
     star = make_star(0, 0, 1)
