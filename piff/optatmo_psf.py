@@ -1201,16 +1201,19 @@ class OptAtmoPSF(PSF):
         star = Star.makeTarget(x=x, y=y, image=fitted_image, pointing=pointing, flux=flux)
         return star
 
-    def drawStar(self, star, copy_image=True):
+    def drawStar(self, star, params=None, copy_image=True):
         """Generate PSF image for a given star.
 
         :param star:        Star instance holding information needed for
                             interpolation as well as an image/WCS into which
                             PSF will be rendered.
+        :param params:      If already known, the parameters for this star. [default: None,
+                            in which case getParams(star) will be called.]
 
         :returns:   Star instance with its image filled with rendered PSF
         """
-        params = self.getParams(star)
+        if params is None:
+            params = self.getParams(star)
         prof = self.getProfile(params)
         star = self.drawProfile(star, prof, params, copy_image=copy_image)
         return star
@@ -2139,8 +2142,6 @@ class OptAtmoPSF(PSF):
     def reflux(self, star, params=None, logger=None):
         """Fit the Model to the star's data, varying only the flux and center.
 
-        This puts one of the options for fit_model into the regular Piff syntax.
-
         :param star:        A Star instance
         :param params:      If already known, the parameters for this star. [default: None,
                             in which case getParams(star) will be called.]
@@ -2148,12 +2149,35 @@ class OptAtmoPSF(PSF):
 
         :returns:           New Star instance, with updated flux, center, chisq, dof
         """
+        import scipy
+
+        def _resid(x, psf, star, params):
+            # residual as a function of x = (flux, du, dv)
+            star.fit.flux = x[0]
+            star.fit.center = x[1:]
+            image_model = psf.drawStar(star, params).image
+            image, weight, image_pos = star.data.getImage()
+            return (np.sqrt(weight.array) * (image_model.array - image.array)).flatten()
+
         logger = LoggerWrapper(logger)
         if params is None:
             params = self.getParams(star)
-        star_adjusted, results = self.fit_model(star, params, vary_shape=False,
-                                                vary_optics=False, logger=logger)
-        return star_adjusted
+
+        # Make a new Star to use as a temp value in _resid.
+        # We'll also use this as the return value, but it's ok to modify in the resid function.
+        star = Star(star.data, star.fit.copy())
+
+        # Use current flux, center as initial guess for x0.
+        flux = star.fit.flux
+        du, dv = star.fit.center
+        results = scipy.optimize.least_squares(_resid, x0=[flux, du, dv], args=(self, star, params),
+                                               diff_step=1.e-4)
+
+        # Update return value with fit results
+        star.fit.flux = results.x[0]
+        star.fit.center = results.x[1:]
+        star.fit.chisq = results.cost*2
+        return star
 
     def _fit_optics_lmparams(self, optatmo_psf_kwargs, keys):
         """turns optatmo_psf_kwargs and set of keys to fit into an lmparams object
