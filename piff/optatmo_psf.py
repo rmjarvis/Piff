@@ -921,7 +921,6 @@ class OptAtmoPSF(PSF):
         if self.atmo_interp in ['skip', 'Skip', None, 'none', 'None', 0]:
             pass
         else:
-            print("len(self.stars): {0}".format(len(self.stars)))
             stars_fit_atmosphere, stars_fit_atmosphere_stripped = self.fit_atmosphere(
                 self.stars, chisq_threshold=chisq_threshold, max_iterations=max_iterations,
                 logger=logger, **kwargs)
@@ -1811,9 +1810,7 @@ class OptAtmoPSF(PSF):
         model_fitted_stars = []
         for star_i, star in zip(range(len(stars)), stars):
             try:
-                model_fitted_star, results = self.fit_model(
-                        star, params=params[star_i],
-                        mode=self.fit_atmosphere_mode, logger=logger)
+                model_fitted_star, _ = self.fit_model(star, params=params[star_i], logger=logger)
                 model_fitted_stars.append(model_fitted_star)
             except (KeyboardInterrupt, SystemExit):
                 raise
@@ -1921,18 +1918,17 @@ class OptAtmoPSF(PSF):
 
         return model_fitted_stars, stars
 
-    def fit_model(self, star, params, mode='pixel',
+    def fit_model(self, star, params,
                   minimize_kwargs={}, logger=None, estimated_errorbars_not_required=False):
         """Fit model to star's pixel data.
 
         :param star:        A Star instance
         :param params:      An array of initial star parameters like one would
                             get from getParams
-        :param mode:        Parameter mode ['shape', 'pixel']. Dictates which residual function
-                            we use. Default is pixel
         :param minimize_kwargs: A set of parameters to pass in for changing the
                             way lmfit does the minimization.
         :param logger:      A logger object for logging debug info. [default: None]
+
         :returns:           New Star instance and results, with updated flux,
                             center, chisq, dof, and fit params and params_var
         """
@@ -1967,7 +1963,6 @@ class OptAtmoPSF(PSF):
 
         # measure the shape and shape error of the data star
         shape = self.measure_shape_orthogonal(star)
-        error = self.measure_error_orthogonal(star)
 
         # optical residuals are used to get the initial starting values for atmo_size, atmo_g1,
         # and atmo_g2
@@ -2014,25 +2009,16 @@ class OptAtmoPSF(PSF):
             lmparams.add('optics_zernike_{0}'.format(i + 4), value=pi, vary=False,
                          min=-5, max=5)
 
-        # set up the residual to either use moments or pixels, as desired
-        if mode == 'shape':
-            residual = self._fit_model_shape_residual
-        elif mode == 'pixel':
-            residual = self._fit_model_residual
+        # set up the residual function using pixels
+        residual = self._fit_model_residual
 
         # prepare minimize_kwargs_in for fit
         minimize_kwargs_in = {'method': 'leastsq', 'epsfcn': 1e-5, 'maxfev': 1000}
         minimize_kwargs_in.update(minimize_kwargs)
 
-        # do fit
-        if mode == 'shape':
-            results = lmfit.minimize(residual, lmparams,
-                                     args=(star, optical_profile, shape, error, logger,),
-                                     **minimize_kwargs_in)
-        else:
-            results = lmfit.minimize(residual, lmparams,
-                                     args=(star, optical_profile, logger,),
-                                     **minimize_kwargs_in)
+        results = lmfit.minimize(residual, lmparams,
+                                 args=(star, optical_profile, logger,),
+                                 **minimize_kwargs_in)
         nfev = results.nfev
         nvarys = results.nvarys
         maxfev = 2000*(nvarys+1)
@@ -2401,8 +2387,7 @@ class OptAtmoPSF(PSF):
                 #       was, if we do vonkarman
 
                 # do fit marginalizing over the atmosphere shape
-                fitted_star, fitted_results = self.fit_model(star, params, mode='pixel',
-                                                             logger=logger)
+                fitted_star, fitted_results = self.fit_model(star, params, logger=logger)
 
                 # draw star for evaluating the chi2
                 prof = self.getProfile(fitted_star.fit.params)
@@ -2437,65 +2422,11 @@ class OptAtmoPSF(PSF):
 
         return chi
 
-    def _fit_model_shape_residual(self, lmparams, star, optical_profile, shape, error, logger=None):
-        # Note: Indications are that this alternative to _fit_model_residual() is slower.
-        # As a result, it has not been updated in a while and it is not known if it is compatible
-        # with the current version of the PIFF fitting pipeline.
-        """Residual function for fitting individual profile parameters to observed shapes.
-
-        :param lmparams:    lmfit Parameters object
-        :param star:        A Star instance.
-        :param logger:      A logger object for logging debug info.
-                            [default: None]
-
-        :returns chi:       Chi of observed shape params to model params
-        """
-        logger = LoggerWrapper(logger)
-
-        all_params = np.array(list(lmparams.valuesdict().values()))
-        flux, du, dv = all_params[:3]
-        params = all_params[3:]
-        if optical_profile == None:
-            # if no optical profile, make the entire profile from scratch
-            profile = self.getProfile(params).shift(du, dv) * flux
-        else:
-            # if there is an optical profile, just make the atmospheric profile
-            # add stochastic (labelled "atm") and constant (labelled "opt") pieces together
-            if self.atmosphere_model == 'kolmogorov':
-                size = params[0] + params[3]
-                g1 = params[1] + params[4]
-                g2 = params[2] + params[5]
-                atmo = galsim.Kolmogorov(gsparams=self.gsparams,
-                                         **self.kolmogorov_kwargs
-                                         ).dilate(size).shear(g1=g1, g2=g2)
-            elif self.atmosphere_model == 'vonkarman':
-                size = params[0] + params[4]
-                g1 = params[1] + params[5]
-                g2 = params[2] + params[6]
-                L0 = params[3]
-                kolmogorov_kwargs = {'lam': self.kolmogorov_kwargs['lam'],
-                                     'r0': self.kolmogorov_kwargs['r0'] / size,
-                                     'L0': L0,}
-                atmo = galsim.VonKarman(gsparams=self.gsparams,
-                                        **kolmogorov_kwargs).shear(g1=g1, g2=g2)
-
-            # convolve together
-            profile = galsim.Convolve([optical_profile, atmo], gsparams=self.gsparams)
-            profile = profile.shift(du, dv) * flux
-
-        star_model = self.drawProfile(star, profile, params, use_fit=False)
-        shape_model = self.measure_shape_orthogonal(star_model)
-        # maybe don't include flux and center in the chi?;
-        # maybe don't even float flux and center if using shape mode for fit_model()
-
-        chi = (shape_model - shape) / error
-
-        return chi
-
     def _fit_model_residual(self, lmparams, star, optical_profile, logger=None):
         """Residual function for fitting individual profile parameters to observed pixels.
         :param lmparams:    lmfit Parameters object
         :param star:        A Star instance.
+        :param optical_profile: The optical part of the profile.
         :param logger:      A logger object for logging debug info.
                             [default: None]
         :returns chi:       Chi of observed pixels to model pixels
