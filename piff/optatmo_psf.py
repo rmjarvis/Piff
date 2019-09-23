@@ -1890,8 +1890,7 @@ class OptAtmoPSF(PSF):
 
         return model_fitted_stars, stars
 
-    def fit_model(self, star, params,
-                  minimize_kwargs={}, logger=None, estimated_errorbars_not_required=False):
+    def fit_model(self, star, params, minimize_kwargs={}, logger=None):
         """Fit model to star's pixel data.
 
         :param star:        A Star instance
@@ -1993,13 +1992,6 @@ class OptAtmoPSF(PSF):
         if not results.success:
             raise AttributeError('Not successful fit')
 
-        # errors can be zero if the chisq is close to perfect
-        if ((not results.errorbars) * (results.chisqr > 1e-8)):
-            if estimated_errorbars_not_required:
-                logger.info('Warning: No estimated errorbars')
-            else:
-                raise AttributeError('No estimated errorbars')
-
         # subtract 3 for the flux, du, dv
         fit_params = np.zeros(len(results.params) - 3 + len(const_params))
         params_var = np.zeros(len(fit_params))
@@ -2011,17 +2003,10 @@ class OptAtmoPSF(PSF):
             fit_params[indx] = param.value
             if param.vary:
                 var = 0.0
-                if hasattr(param, 'stderr'):
-                    if param.stderr is None:
-                        if estimated_errorbars_not_required:
-                            # if estimated errorbars not required param variances likely also not
-                            # required; this is likely if you are using fit_model() just to do a
-                            # refluxing for a star
-                            logger.info('Warning: param.stderr is None')
-                        else:
-                            raise AttributeError('param.stderr is None')
-                    else:
-                        var = param.stderr ** 2
+                try:
+                    var = param.stderr ** 2
+                except (TypeError, AttributeError):
+                    var = 0
                 params_var[indx] = var
         fit_params[-len(const_params):] = const_params
 
