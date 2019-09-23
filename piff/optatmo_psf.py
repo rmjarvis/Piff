@@ -1782,7 +1782,7 @@ class OptAtmoPSF(PSF):
         model_fitted_stars = []
         for star_i, star in zip(range(len(stars)), stars):
             try:
-                model_fitted_star, _ = self.fit_model(star, params=params[star_i], logger=logger)
+                model_fitted_star = self.fit_model(star, params=params[star_i], logger=logger)
                 model_fitted_stars.append(model_fitted_star)
             except (KeyboardInterrupt, SystemExit):
                 raise
@@ -1890,55 +1890,34 @@ class OptAtmoPSF(PSF):
 
         return model_fitted_stars, stars
 
-    def fit_model(self, star, params, minimize_kwargs={}, logger=None):
+    def fit_model(self, star, params, logger=None):
         """Fit model to star's pixel data.
 
         :param star:        A Star instance
         :param params:      An array of initial star parameters like one would
                             get from getParams
-        :param minimize_kwargs: A set of parameters to pass in for changing the
-                            way lmfit does the minimization.
         :param logger:      A logger object for logging debug info. [default: None]
 
         :returns:           New Star instance and results, with updated flux,
                             center, chisq, dof, and fit params and params_var
         """
+        from .util import estimate_cov_from_jac
+
         logger = LoggerWrapper(logger)
-        import lmfit
-        # create lmparameters
-        # put in initial guesses for flux, du, dv if they exist
-        flux = star.fit.flux
-        if flux == 1.:
-            # a pretty reasonable first guess is to just take the sum of the pixels
-            flux = star.image.array.sum()
-        du, dv = star.fit.center
-        lmparams = lmfit.Parameters()
-        # Order of params is important!
-        lmparams.add('logflux', value=np.log(flux), vary=True)
-        lmparams.add('du', value=du, vary=True, min=-1, max=1)
-        lmparams.add('dv', value=dv, vary=True, min=-1, max=1)
 
-        # we must also cut the min and max based on opt_params to avoid things
-        # like large ellipticities or small sizes
-        min_size = self.optatmo_psf_kwargs['min_size']
-        max_size = self.optatmo_psf_kwargs['max_size']
-        max_g = self.optatmo_psf_kwargs['max_g1']
-
+        # Make the optical profile, constant for this part of the fit.
         aberrations = np.zeros(4+len(params[7:]))
-        # fill piston etc with 0
         aberrations[4:] = params[7:]
         aberrations = aberrations * (700.0/self.optical_psf_kwargs['lam'])
         optical_profile = galsim.OpticalPSF(aberrations=aberrations,
                             gsparams=self.gsparams,
                             **self.optical_psf_kwargs)
 
-        # measure the shape and shape error of the data star
-        shape = self.measure_shape_orthogonal(star)
-
         # optical residuals are used to get the initial starting values for atmo_size, atmo_g1,
         # and atmo_g2
         # calculate the second moment residuals for a model star made only with values from an
         # optical fit
+        shape = self.measure_shape_orthogonal(star)
         full_profile = self.getProfile(params)
         star_model = self.drawProfile(star, full_profile, params)
         shape_model = self.measure_shape_orthogonal(star_model)
@@ -1953,76 +1932,59 @@ class OptAtmoPSF(PSF):
         fit_g1 = 1.075 * optical_de1 + 0.001
         fit_g2 = 1.033 * optical_de2
 
-        # acquire the values of opt_size, opt_g1, opt_g2, and, possibly, opt_L0 if using vonkarman
-        # atmosphere
+        # Start with the current parameters
+        flux = star.fit.flux
+        if flux == 1.:
+            # a pretty reasonable first guess is to just take the sum of the pixels
+            flux = star.image.array.sum()
+        du, dv = star.fit.center
+
+        # acquire the values of opt_size, opt_g1, opt_g2, and opt_L0
         opt_L0, opt_size, opt_g1, opt_g2 = params[3:7]
         fit_size += opt_size  # Do fits with full size, g1, g2
         fit_g1 += opt_g1
         fit_g2 += opt_g2
 
-        # finish putting in atmo_size, atmo_g1, and atmo_g2 terms
-        lmparams.add('log_atmo_size', value=np.log(fit_size), vary=True,
-                     min=np.log(min_size), max=np.log(max_size))
-        lmparams.add('atmo_g1', value=fit_g1, vary=True,
-                     min=-max_g, max=max_g)
-        lmparams.add('atmo_g2', value=fit_g2, vary=True,
-                     min=-max_g, max=max_g)
+        # parameters to fit:
+        # Use log(flux) and log(size), so we don't have to worry about going negative
+        fit_params = [np.log(flux), du, dv, np.log(fit_size), fit_g1, fit_g2]
 
-        # set up the residual function using pixels
-        residual = self._fit_model_residual
+        # Find the solution
+        results = scipy.optimize.least_squares(
+                self._fit_model_residual, fit_params,
+                args=(star, optical_profile, opt_L0, logger,),
+                ftol=1.e-5)
 
-        # prepare minimize_kwargs_in for fit
-        minimize_kwargs_in = {'method': 'leastsq', 'epsfcn': 1e-5, 'maxfev': 1000}
-        minimize_kwargs_in.update(minimize_kwargs)
-
-        results = lmfit.minimize(residual, lmparams,
-                                 args=(star, optical_profile, opt_L0, logger,),
-                                 **minimize_kwargs_in)
-        nfev = results.nfev
-        nvarys = results.nvarys
-        maxfev = 2000*(nvarys+1)
-        if nfev >=maxfev:
-            logger.info("nfev: {0}".format(nfev))
-            logger.info("nvarys: {0}".format(nvarys))
-            logger.info("maxfev: {0}".format(maxfev))
-            logger.info("nfev >=maxfev; fit likely failed; aborting")
-            raise RuntimeError("nfev >=maxfev; fit likely failed; aborting")
-
-        logger.debug(lmfit.fit_report(results, min_correl=0.5))
+        logger.debug(results)
         if not results.success:
             raise RuntimeError('Not successful fit')
 
-        # subtract 3 for the flux, du, dv
-        fit_params = np.zeros_like(params)
-        params_var = np.zeros_like(params)
-        for i, key in enumerate(results.params):
-            indx = i - 3
-            if key in ['logflux', 'du', 'dv']:
-                continue
-            param = results.params[key]
-            fit_params[indx] = param.value
-            if param.vary:
-                var = 0.0
-                try:
-                    var = param.stderr ** 2
-                except (TypeError, AttributeError):
-                    var = 0
-                params_var[indx] = var
-        fit_params[4:] = params[4:]
-        fit_params[0] = np.exp(fit_params[0]) # size = exp(logsize)
-        params_var[0] *= fit_params[0]**2     # var(size) = size**2 * var(logsize)
-        fit_params[0:3] -= params[4:7]        # subtract off opt_* part
+        g1, g2 = results.x[4:6]
+        if np.abs(g1) > 0.4 or np.abs(g2) > 0.4:
+            raise RuntimeError('Bad fit.  g1,g2 = %f,%f is probably unphysical'%(g1,g2))
 
-        flux = np.exp(results.params['logflux'].value)
-        du = results.params['du'].value
-        dv = results.params['dv'].value
+        fit_params = np.zeros_like(params)
+        fit_params[0] = np.exp(results.x[3])  # size = exp(logsize)
+        fit_params[1:3] = results.x[4:6]      # g1, g2
+        fit_params[0:3] -= params[4:7]        # subtract off opt_* part
+        fit_params[4:] = params[4:]           # fill in the other params that were constant here
+
+        # Estimate covariance matrix from jacobian
+        cov = estimate_cov_from_jac(results.jac)
+        params_var = np.zeros_like(fit_params)
+        params_var[0:3] = cov.diagonal()[3:6]
+        params_var[0] *= fit_params[0]**2     # var(size) = size**2 * var(logsize)
+
+        # Return results as a new Star instance
+        logflux, du, dv = results.x[0:3]
+        flux = np.exp(logflux)
         center = (du, dv)
-        chisq = results.chisqr
-        dof = results.nfree
+        chisq = results.cost * 2
+        dof = len(results.fun) - len(results.x)
         fit = StarFit(fit_params, params_var=params_var, flux=flux, center=center,
                       chisq=chisq, dof=dof)
         star_fit = Star(star.data, fit)
-        return star_fit, results
+        return star_fit
 
     def stripStarList(self, stars, logger=None):
         """take star fits and strip fit params to just the first three
@@ -2333,7 +2295,7 @@ class OptAtmoPSF(PSF):
                 #       was, if we do vonkarman
 
                 # do fit marginalizing over the atmosphere shape
-                fitted_star, fitted_results = self.fit_model(star, params, logger=logger)
+                fitted_star = self.fit_model(star, params, logger=logger)
 
                 # draw star for evaluating the chi2
                 prof = self.getProfile(fitted_star.fit.params)
@@ -2368,20 +2330,20 @@ class OptAtmoPSF(PSF):
 
         return chi
 
-    def _fit_model_residual(self, lmparams, star, optical_profile, L0, logger=None):
+    def _fit_model_residual(self, params, star, optical_profile, L0, logger=None):
         """Residual function for fitting individual profile parameters to observed pixels.
-        :param lmparams:    lmfit Parameters object
-        :param star:        A Star instance.
+
+        :param params:          numpy array of fit parameters: [logflux, du, dv, logsize, g1, g2]
+        :param star:            A Star instance.
         :param optical_profile: The optical part of the profile.
-        :param L0           L0 (== -1 for Kolmogorov)
-        :param logger:      A logger object for logging debug info.
-                            [default: None]
-        :returns chi:       Chi of observed pixels to model pixels
+        :param L0               L0 (== -1 for Kolmogorov)
+        :param logger:          A logger object for logging debug info.  [default: None]
+
+        :returns chi: Chi of observed pixels to model pixels
         """
         logger = LoggerWrapper(logger)
 
-        all_params = np.array(list(lmparams.valuesdict().values()))
-        logflux, du, dv, logsize, g1, g2 = all_params
+        logflux, du, dv, logsize, g1, g2 = params
         flux = np.exp(logflux)
         size = np.exp(logsize)
 

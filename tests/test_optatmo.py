@@ -299,9 +299,9 @@ def test_atmo_interp_fit():
     psf.fit_atmosphere(stars_to_fit, logger=logger)
 
     # compare inputs work
-    np.testing.assert_allclose(atmo_size, psf.atmo_interp.coeffs[0][0,0])
-    np.testing.assert_allclose(atmo_g1, psf.atmo_interp.coeffs[1][0,0])
-    np.testing.assert_allclose(atmo_g2, psf.atmo_interp.coeffs[2][0,0])
+    np.testing.assert_allclose(atmo_size, psf.atmo_interp.coeffs[0][0,0], rtol=1.e-5)
+    np.testing.assert_allclose(atmo_g1, psf.atmo_interp.coeffs[1][0,0], rtol=1.e-5)
+    np.testing.assert_allclose(atmo_g2, psf.atmo_interp.coeffs[2][0,0], rtol=1.e-5)
 
     # check that the others are 0
     np.testing.assert_allclose(0, psf.atmo_interp.coeffs[0].flatten()[1:], atol=1e-16)
@@ -315,8 +315,8 @@ def test_atmo_interp_fit():
     star_index = 3
     star = stars_to_fit[star_index]
     star_fit = psf.drawStar(star)
-    np.testing.assert_allclose(star_fit.fit.params, params[star_index])
-    np.testing.assert_allclose(star_fit.image.array, star.image.array)
+    np.testing.assert_allclose(star_fit.fit.params, params[star_index], rtol=1.e-5)
+    np.testing.assert_allclose(star_fit.image.array, star.image.array, rtol=1.e-5)
 
 @timer
 def test_fit():
@@ -466,7 +466,7 @@ def test_atmo_model_fit():
 
     # fit star
     params_in = psf.getParams(star)
-    star_fit, results = psf.fit_model(star, params=params_in, logger=logger)
+    star_fit = psf.fit_model(star, params=params_in, logger=logger)
 
     # check fitted params, centers, flux
     fit_flux = star_fit.fit.flux
