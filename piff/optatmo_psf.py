@@ -21,12 +21,11 @@ from __future__ import print_function
 import galsim
 import coord
 import numpy as np
+import scipy
 import copy
 import os
-from sklearn.ensemble import RandomForestRegressor
 import sklearn
 import pickle
-from scipy.interpolate import Rbf
 
 from .psf import PSF
 from .optical_model import Optical
@@ -45,6 +44,7 @@ class wavefrontmap(object):
     Aaron Roodman (C) SLAC National Accelerator Laboratory, Stanford University 2018.
     """
     def __init__(self,file):
+        from scipy.interpolate import Rbf
         # init contains all initializations which are done only once for all fits
 
         self.file = file
@@ -1604,7 +1604,7 @@ class OptAtmoPSF(PSF):
         logger.info("maxfev: {0}".format(maxfev))
         if nfev >=maxfev:
             logger.info("nfev >=maxfev; fit likely failed; aborting")
-            raise AttributeError("nfev >=maxfev; fit likely failed; aborting")
+            raise RuntimeError("nfev >=maxfev; fit likely failed; aborting")
 
         if mode == 'pixel':
             # fitting optics in pixel mode not necessarily set up to work with code since vonkarman
@@ -1729,7 +1729,7 @@ class OptAtmoPSF(PSF):
         logger.info("maxfev: {0}".format(maxfev))
         if nfev >=maxfev:
             logger.info("nfev >=maxfev; fit likely failed; aborting")
-            raise AttributeError("nfev >=maxfev; fit likely failed; aborting")
+            raise RuntimeError("nfev >=maxfev; fit likely failed; aborting")
 
         # set final fit
         logger.info('Optical fit from lmfit parameters:')
@@ -1986,11 +1986,11 @@ class OptAtmoPSF(PSF):
             logger.info("nvarys: {0}".format(nvarys))
             logger.info("maxfev: {0}".format(maxfev))
             logger.info("nfev >=maxfev; fit likely failed; aborting")
-            raise AttributeError("nfev >=maxfev; fit likely failed; aborting")
+            raise RuntimeError("nfev >=maxfev; fit likely failed; aborting")
 
         logger.debug(lmfit.fit_report(results, min_correl=0.5))
         if not results.success:
-            raise AttributeError('Not successful fit')
+            raise RuntimeError('Not successful fit')
 
         # subtract 3 for the flux, du, dv
         fit_params = np.zeros_like(params)
@@ -2039,13 +2039,13 @@ class OptAtmoPSF(PSF):
             try:
                 fit_params = star.fit.params
                 new_fit_params = fit_params[:num_keep]
-            except AttributeError:
+            except RuntimeError:
                 logger.debug("Star {0} has no fit params".format(star_i))
                 new_fit_params = None
             try:
                 fit_params_var = star.fit.params_var
                 new_fit_params_var = fit_params_var[:num_keep]
-            except AttributeError:
+            except RuntimeError:
                 logger.debug("Star {0} has no fit params_var".format(star_i))
                 new_fit_params_var = None
             new_fit = StarFit(new_fit_params, params_var=new_fit_params_var,
@@ -2064,8 +2064,6 @@ class OptAtmoPSF(PSF):
 
         :returns:           New Star instance, with updated flux, center, chisq, dof
         """
-        import scipy
-
         def _resid(x, psf, star, params):
             # residual as a function of x = (flux, du, dv)
             star.fit.flux = np.exp(x[0])
