@@ -1979,14 +1979,7 @@ class OptAtmoPSF(PSF):
                      min=-max_g - opt_g2, max=max_g - opt_g2)
 
         # put in the other params to the params model
-        # we NEVER vary the opt_size, opt_g1, opt_g2, or, if we use it, opt_L0
-        lmparams.add('optics_L0', value=opt_L0, vary=False)
-        lmparams.add('optics_size', value=opt_size, vary=False)
-        lmparams.add('optics_g1', value=opt_g1, vary=False)
-        lmparams.add('optics_g2', value=opt_g2, vary=False)
-        for i, pi in enumerate(params[self.n_params_constant_atmosphere_and_atmosphere:]):
-            lmparams.add('optics_zernike_{0}'.format(i + 4), value=pi, vary=False,
-                         min=-5, max=5)
+        const_params = params[3:]
 
         # set up the residual function using pixels
         residual = self._fit_model_residual
@@ -1996,7 +1989,7 @@ class OptAtmoPSF(PSF):
         minimize_kwargs_in.update(minimize_kwargs)
 
         results = lmfit.minimize(residual, lmparams,
-                                 args=(star, optical_profile, logger,),
+                                 args=(star, optical_profile, const_params, logger,),
                                  **minimize_kwargs_in)
         nfev = results.nfev
         nvarys = results.nvarys
@@ -2020,7 +2013,7 @@ class OptAtmoPSF(PSF):
                 raise AttributeError('No estimated errorbars')
 
         # subtract 3 for the flux, du, dv
-        fit_params = np.zeros(len(results.params) - 3)
+        fit_params = np.zeros(len(results.params) - 3 + len(const_params))
         params_var = np.zeros(len(fit_params))
         for i, key in enumerate(results.params):
             indx = i - 3
@@ -2042,6 +2035,7 @@ class OptAtmoPSF(PSF):
                     else:
                         var = param.stderr ** 2
                 params_var[indx] = var
+        fit_params[-len(const_params):] = const_params
 
         flux = results.params['flux'].value
         du = results.params['du'].value
@@ -2401,11 +2395,12 @@ class OptAtmoPSF(PSF):
 
         return chi
 
-    def _fit_model_residual(self, lmparams, star, optical_profile, logger=None):
+    def _fit_model_residual(self, lmparams, star, optical_profile, const_params, logger=None):
         """Residual function for fitting individual profile parameters to observed pixels.
         :param lmparams:    lmfit Parameters object
         :param star:        A Star instance.
         :param optical_profile: The optical part of the profile.
+        :param const_params: Some fixed parameters: (opt_L0, opt_size, opt_g1, opt_g2)
         :param logger:      A logger object for logging debug info.
                             [default: None]
         :returns chi:       Chi of observed pixels to model pixels
@@ -2416,23 +2411,20 @@ class OptAtmoPSF(PSF):
         flux, du, dv = all_params[:3]
         params = all_params[3:]
 
-        if self.atmosphere_model == 'kolmogorov':
-            size = params[0] + params[4]
-            g1 = params[1] + params[5]
-            g2 = params[2] + params[6]
-            atmo = galsim.Kolmogorov(gsparams=self.gsparams,
-                                        **self.kolmogorov_kwargs
-                                        ).dilate(size).shear(g1=g1, g2=g2)
+        opt_L0, opt_size, opt_g1, opt_g2 = const_params[:4]
+
+        size = params[0] + opt_size
+        g1 = params[1] + opt_g1
+        g2 = params[2] + opt_g2
+        if opt_L0 < 0:
+            atmo = galsim.Kolmogorov(gsparams=self.gsparams, **self.kolmogorov_kwargs)
+            atmo = atmo.dilate(size)
         else:
-            size = params[0] + params[4]
-            g1 = params[1] + params[5]
-            g2 = params[2] + params[6]
-            L0 = params[3]
             kolmogorov_kwargs = {'lam': self.kolmogorov_kwargs['lam'],
-                                    'r0': self.kolmogorov_kwargs['r0'] / size,
-                                    'L0': L0,}
-            atmo = galsim.VonKarman(gsparams=self.gsparams,
-                                    **kolmogorov_kwargs).shear(g1=g1, g2=g2)
+                                 'r0': self.kolmogorov_kwargs['r0'] / size,
+                                 'L0': opt_L0,}
+            atmo = galsim.VonKarman(gsparams=self.gsparams, **kolmogorov_kwargs)
+        atmo = atmo.shear(g1=g1, g2=g2)
 
         # convolve together
         prof = galsim.Convolve([optical_profile, atmo], gsparams=self.gsparams)
