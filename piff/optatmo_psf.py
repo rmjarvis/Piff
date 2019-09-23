@@ -1914,7 +1914,7 @@ class OptAtmoPSF(PSF):
         du, dv = star.fit.center
         lmparams = lmfit.Parameters()
         # Order of params is important!
-        lmparams.add('flux', value=flux, vary=True, min=0.0)
+        lmparams.add('logflux', value=np.log(flux), vary=True)
         lmparams.add('du', value=du, vary=True, min=-1, max=1)
         lmparams.add('dv', value=dv, vary=True, min=-1, max=1)
 
@@ -1956,17 +1956,17 @@ class OptAtmoPSF(PSF):
         # acquire the values of opt_size, opt_g1, opt_g2, and, possibly, opt_L0 if using vonkarman
         # atmosphere
         opt_L0, opt_size, opt_g1, opt_g2 = params[3:7]
+        fit_size += opt_size  # Do fits with full size, g1, g2
+        fit_g1 += opt_g1
+        fit_g2 += opt_g2
 
         # finish putting in atmo_size, atmo_g1, and atmo_g2 terms
-        lmparams.add('atmo_size', value=fit_size, vary=True,
-                     min=min_size - opt_size, max=max_size - opt_size)
+        lmparams.add('log_atmo_size', value=np.log(fit_size), vary=True,
+                     min=np.log(min_size), max=np.log(max_size))
         lmparams.add('atmo_g1', value=fit_g1, vary=True,
-                     min=-max_g - opt_g1, max=max_g - opt_g1)
+                     min=-max_g, max=max_g)
         lmparams.add('atmo_g2', value=fit_g2, vary=True,
-                     min=-max_g - opt_g2, max=max_g - opt_g2)
-
-        # put in the other params to the params model
-        const_params = params[3:]
+                     min=-max_g, max=max_g)
 
         # set up the residual function using pixels
         residual = self._fit_model_residual
@@ -1976,7 +1976,7 @@ class OptAtmoPSF(PSF):
         minimize_kwargs_in.update(minimize_kwargs)
 
         results = lmfit.minimize(residual, lmparams,
-                                 args=(star, optical_profile, const_params, logger,),
+                                 args=(star, optical_profile, opt_L0, logger,),
                                  **minimize_kwargs_in)
         nfev = results.nfev
         nvarys = results.nvarys
@@ -1993,11 +1993,11 @@ class OptAtmoPSF(PSF):
             raise AttributeError('Not successful fit')
 
         # subtract 3 for the flux, du, dv
-        fit_params = np.zeros(len(results.params) - 3 + len(const_params))
-        params_var = np.zeros(len(fit_params))
+        fit_params = np.zeros_like(params)
+        params_var = np.zeros_like(params)
         for i, key in enumerate(results.params):
             indx = i - 3
-            if key in ['flux', 'du', 'dv']:
+            if key in ['logflux', 'du', 'dv']:
                 continue
             param = results.params[key]
             fit_params[indx] = param.value
@@ -2008,9 +2008,12 @@ class OptAtmoPSF(PSF):
                 except (TypeError, AttributeError):
                     var = 0
                 params_var[indx] = var
-        fit_params[-len(const_params):] = const_params
+        fit_params[4:] = params[4:]
+        fit_params[0] = np.exp(fit_params[0]) # size = exp(logsize)
+        params_var[0] *= fit_params[0]**2     # var(size) = size**2 * var(logsize)
+        fit_params[0:3] -= params[4:7]        # subtract off opt_* part
 
-        flux = results.params['flux'].value
+        flux = np.exp(results.params['logflux'].value)
         du = results.params['du'].value
         dv = results.params['dv'].value
         center = (du, dv)
@@ -2065,7 +2068,7 @@ class OptAtmoPSF(PSF):
 
         def _resid(x, psf, star, params):
             # residual as a function of x = (flux, du, dv)
-            star.fit.flux = x[0]
+            star.fit.flux = np.exp(x[0])
             star.fit.center = x[1:]
             image_model = psf.drawStar(star, params).image
             image, weight, image_pos = star.data.getImage()
@@ -2080,13 +2083,13 @@ class OptAtmoPSF(PSF):
         star = Star(star.data, star.fit.copy())
 
         # Use current flux, center as initial guess for x0.
-        flux = star.fit.flux
+        flux = np.log(star.fit.flux)
         du, dv = star.fit.center
         results = scipy.optimize.least_squares(_resid, x0=[flux, du, dv], args=(self, star, params),
                                                diff_step=1.e-4)
 
         # Update return value with fit results
-        star.fit.flux = results.x[0]
+        star.fit.flux = np.exp(results.x[0])
         star.fit.center = results.x[1:]
         star.fit.chisq = results.cost*2
         return star
@@ -2367,12 +2370,12 @@ class OptAtmoPSF(PSF):
 
         return chi
 
-    def _fit_model_residual(self, lmparams, star, optical_profile, const_params, logger=None):
+    def _fit_model_residual(self, lmparams, star, optical_profile, L0, logger=None):
         """Residual function for fitting individual profile parameters to observed pixels.
         :param lmparams:    lmfit Parameters object
         :param star:        A Star instance.
         :param optical_profile: The optical part of the profile.
-        :param const_params: Some fixed parameters: (opt_L0, opt_size, opt_g1, opt_g2)
+        :param L0           L0 (== -1 for Kolmogorov)
         :param logger:      A logger object for logging debug info.
                             [default: None]
         :returns chi:       Chi of observed pixels to model pixels
@@ -2380,21 +2383,17 @@ class OptAtmoPSF(PSF):
         logger = LoggerWrapper(logger)
 
         all_params = np.array(list(lmparams.valuesdict().values()))
-        flux, du, dv = all_params[:3]
-        params = all_params[3:]
+        logflux, du, dv, logsize, g1, g2 = all_params
+        flux = np.exp(logflux)
+        size = np.exp(logsize)
 
-        opt_L0, opt_size, opt_g1, opt_g2 = const_params[:4]
-
-        size = params[0] + opt_size
-        g1 = params[1] + opt_g1
-        g2 = params[2] + opt_g2
-        if opt_L0 < 0:
+        if L0 < 0:
             atmo = galsim.Kolmogorov(gsparams=self.gsparams, **self.kolmogorov_kwargs)
             atmo = atmo.dilate(size)
         else:
             kolmogorov_kwargs = {'lam': self.kolmogorov_kwargs['lam'],
                                  'r0': self.kolmogorov_kwargs['r0'] / size,
-                                 'L0': opt_L0,}
+                                 'L0': L0,}
             atmo = galsim.VonKarman(gsparams=self.gsparams, **kolmogorov_kwargs)
         atmo = atmo.shear(g1=g1, g2=g2)
 
@@ -2404,7 +2403,7 @@ class OptAtmoPSF(PSF):
 
         # calculate chi
         image, weight, image_pos = star.data.getImage()
-        image_model = self.drawProfile(star, prof, params, use_fit=False).image
+        image_model = prof.drawImage(image.copy(), method='auto', center=star.image_pos)
         chi = (np.sqrt(weight.array) * (image_model.array - image.array)).flatten()
         return chi
 
