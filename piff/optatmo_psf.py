@@ -106,8 +106,6 @@ class OptAtmoPSF(PSF):
                                     containing the random forest model pickles for the random_forest
                                     fit. Note: the code should not work if this file is not
                                     specified.
-    :param fit_atmosphere_mode:     Choose ['shape', 'pixel'] for atmosphere fitting mode.
-                                    [default: 'pixel']
     :param atmosphere_model:        Choose ['kolmogorov', 'vonkarman']. Selects the galsim object
                                     used for the atmospheric piece.  Note that the default is
                                     vonkarman and to use kolmogorov would require some changes to
@@ -162,7 +160,7 @@ class OptAtmoPSF(PSF):
                  n_optfit_stars=0, n_fit_size_steps = 0, fov_radius=4500., jmax_pupil=11,
                  jmax_focal=10, min_optfit_snr=0, fit_optics_mode='shape',
                  higher_order_reference_wavefront_file=None, init_with_rf=False,
-                 random_forest_shapes_model_pickles_location=None, fit_atmosphere_mode='pixel',
+                 random_forest_shapes_model_pickles_location=None,
                  atmosphere_model='vonkarman', atmo_mad_outlier=False, max_shapes = [],
                  shape_weights=[], reference_wavefront_zernikes_list=[],
                  higher_order_reference_wavefront_zernikes_list=[], test_fraction=0.2,
@@ -355,7 +353,6 @@ class OptAtmoPSF(PSF):
         self.fit_optics_mode = fit_optics_mode
         self.random_forest_shapes_model_pickles_location = \
             random_forest_shapes_model_pickles_location
-        self.fit_atmosphere_mode = fit_atmosphere_mode
         if atmosphere_model not in ['kolmogorov', 'vonkarman']:
             raise KeyError('Atmosphere model {0} not allowed! '
                            'choose either kolmogorov or vonkarman'.format(atmosphere_model))
@@ -383,7 +380,6 @@ class OptAtmoPSF(PSF):
             'init_with_rf': self.init_with_rf,
             'random_forest_shapes_model_pickles_location':
                 self.random_forest_shapes_model_pickles_location,
-            'fit_atmosphere_mode': self.fit_atmosphere_mode,
             'atmosphere_model': self.atmosphere_model,
             'atmo_mad_outlier': self.atmo_mad_outlier,
             'test_fraction': self.test_fraction,
