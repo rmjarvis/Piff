@@ -1108,10 +1108,10 @@ class OptAtmoPSF(PSF):
             atmo = galsim.Kolmogorov(gsparams=self.gsparams, **self.kolmogorov_kwargs)
             atmo = atmo.dilate(size)
         else:
-            kolmogorov_kwargs = {'lam': self.kolmogorov_kwargs['lam'],
-                                 'r0': self.kolmogorov_kwargs['r0'] / size,
-                                 'L0': L0,}
-            atmo = galsim.VonKarman(gsparams=self.gsparams, **kolmogorov_kwargs)
+            kwargs = {'lam': self.kolmogorov_kwargs['lam'],
+                      'r0': self.kolmogorov_kwargs['r0'] / size,
+                      'L0': L0,}
+            atmo = galsim.VonKarman(gsparams=self.gsparams, **kwargs)
         atmo = atmo.shear(g1=g1, g2=g2)
 
         # convolve together
@@ -1913,31 +1913,13 @@ class OptAtmoPSF(PSF):
                             gsparams=self.gsparams,
                             **self.optical_psf_kwargs)
 
-        # optical residuals are used to get the initial starting values for atmo_size, atmo_g1,
-        # and atmo_g2
-        # calculate the second moment residuals for a model star made only with values from an
-        # optical fit
-        shape = self.measure_shape_orthogonal(star)
-        full_profile = self.getProfile(params)
-        star_model = self.drawProfile(star, full_profile, params)
-        shape_model = self.measure_shape_orthogonal(star_model)
-        shape_difference = shape - shape_model
-        optical_de0 = shape_difference[3]
-        optical_de1 = shape_difference[4]
-        optical_de2 = shape_difference[5]
-        # linear relations between between the optical residals of the second moments and
-        # atmo_size/atmo_g1/atmo_g2 taken by comparing the two against each other for a
-        # couple dozen exposures
-        fit_size = 1.143 * optical_de0 + 0.001
-        fit_g1 = 1.075 * optical_de1 + 0.001
-        fit_g2 = 1.033 * optical_de2
-
         # Start with the current parameters
         flux = star.fit.flux
         if flux == 1.:
             # a pretty reasonable first guess is to just take the sum of the pixels
             flux = star.image.array.sum()
         du, dv = star.fit.center
+        fit_size, fit_g1, fit_g2 = params[0:3]
 
         # acquire the values of opt_size, opt_g1, opt_g2, and opt_L0
         opt_L0, opt_size, opt_g1, opt_g2 = params[3:7]
@@ -1967,7 +1949,7 @@ class OptAtmoPSF(PSF):
         fit_params[0] = np.exp(results.x[3])  # size = exp(logsize)
         fit_params[1:3] = results.x[4:6]      # g1, g2
         fit_params[0:3] -= params[4:7]        # subtract off opt_* part
-        fit_params[4:] = params[4:]           # fill in the other params that were constant here
+        fit_params[3:] = params[3:]           # fill in the other params that were constant here
 
         # Estimate covariance matrix from jacobian
         cov = estimate_cov_from_jac(results.jac)
@@ -2351,10 +2333,10 @@ class OptAtmoPSF(PSF):
             atmo = galsim.Kolmogorov(gsparams=self.gsparams, **self.kolmogorov_kwargs)
             atmo = atmo.dilate(size)
         else:
-            kolmogorov_kwargs = {'lam': self.kolmogorov_kwargs['lam'],
-                                 'r0': self.kolmogorov_kwargs['r0'] / size,
-                                 'L0': L0,}
-            atmo = galsim.VonKarman(gsparams=self.gsparams, **kolmogorov_kwargs)
+            kwargs = {'lam': self.kolmogorov_kwargs['lam'],
+                      'r0': self.kolmogorov_kwargs['r0'] / size,
+                      'L0': L0,}
+            atmo = galsim.VonKarman(gsparams=self.gsparams, **kwargs)
         atmo = atmo.shear(g1=g1, g2=g2)
 
         # convolve together
