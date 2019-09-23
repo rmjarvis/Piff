@@ -223,42 +223,26 @@ class OptAtmoPSF(PSF):
         self._noll_coef_field = galsim.zernike._noll_coef_array(self.jmax_focal, 0.0)
 
         min_sizes = {'kolmogorov': 0.45, 'vonkarman': 0.7}
-        if atmosphere_model == 'vonkarman':
-            self.optatmo_psf_kwargs = {
-                'L0':   25.0,
-                'fix_L0':   False,
-                'min_L0': 5.0,
-                'max_L0': 100.0,
-                'size': 1.0,
-                'fix_size': False,
-                'min_size': min_sizes[atmosphere_model],
-                'max_size': 3.0,
-                'g1':   0,
-                'fix_g1':   False,
-                'min_g1': -0.4,
-                'max_g1': 0.4,
-                'g2':   0,
-                'fix_g2':   False,
-                'min_g2': -0.4,
-                'max_g2': 0.4,
-            }
-            self.keys = [ 'size', 'g1', 'g2', 'L0', ]
-        else:
-            self.optatmo_psf_kwargs = {
-                'size': 1.0,
-                'fix_size': False,
-                'min_size': min_sizes[atmosphere_model],
-                'max_size': 3.0,
-                'g1':   0,
-                'fix_g1':   False,
-                'min_g1': -0.4,
-                'max_g1': 0.4,
-                'g2':   0,
-                'fix_g2':   False,
-                'min_g2': -0.4,
-                'max_g2': 0.4,
-            }
-            self.keys = [ 'size', 'g1', 'g2',]
+        self.optatmo_psf_kwargs = {
+            'L0' : 25.0 if atmosphere_model == 'vonkarman' else -1.,
+            'fix_L0':   atmosphere_model == 'kolmogorov',
+            'min_L0': 5.0,
+            'max_L0': 100.0,
+            'size': 1.0,
+            'fix_size': False,
+            'min_size': min_sizes[atmosphere_model],
+            'max_size': 3.0,
+            'g1':   0,
+            'fix_g1':   False,
+            'min_g1': -0.4,
+            'max_g1': 0.4,
+            'g2':   0,
+            'fix_g2':   False,
+            'min_g2': -0.4,
+            'max_g2': 0.4,
+        }
+        self.keys = ['size', 'g1', 'g2', 'L0']
+
         # throw in default zernike parameters
         # only fit zernikes starting at 4 / defocus
         for zi in range(4, self.jmax_pupil + 1):
@@ -377,9 +361,8 @@ class OptAtmoPSF(PSF):
                            'choose either kolmogorov or vonkarman'.format(atmosphere_model))
         self.atmosphere_model = atmosphere_model
         self.n_params_atmosphere = 3
-        self.n_params_constant_atmosphere = 3 if atmosphere_model == 'kolmogorov' else 4
-        self.n_params_constant_atmosphere_and_atmosphere = (
-            self.n_params_atmosphere + self.n_params_constant_atmosphere)
+        self.n_params_constant_atmosphere = 4
+        self.n_params_constant_atmosphere_and_atmosphere = 7
 
         self.atmo_mad_outlier = atmo_mad_outlier
         self.test_fraction = test_fraction
@@ -1072,10 +1055,12 @@ class OptAtmoPSF(PSF):
                 stars = [Star(star.data, None) for star in stars]
                 stars = self.atmo_interp.interpolateList(stars)
                 aberrations_atmo_star = np.array([star.fit.params for star in stars])
-                params[:, 0:self.n_params_atmosphere] += aberrations_atmo_star
+                params[:, 0:3] += aberrations_atmo_star
         if self.atmosphere_model == 'vonkarman':
             # set the vonkarman outer scale, L0
             params[:, 3] = self.optatmo_psf_kwargs['L0']
+        else:
+            params[:, 3] = -1.
 
         return params
 
@@ -1122,9 +1107,9 @@ class OptAtmoPSF(PSF):
         # atmosphere
         # add stochastic (labelled "atm") and constant (labelled "opt") pieces together
         if self.atmosphere_model == 'kolmogorov':
-            size = params[0] + params[3]
-            g1 = params[1] + params[4]
-            g2 = params[2] + params[5]
+            size = params[0] + params[4]
+            g1 = params[1] + params[5]
+            g2 = params[2] + params[6]
             atmo = galsim.Kolmogorov(gsparams=self.gsparams, **self.kolmogorov_kwargs)
             atmo = atmo.dilate(size).shear(g1=g1, g2=g2)
         else:
@@ -1980,8 +1965,7 @@ class OptAtmoPSF(PSF):
 
         # acquire the values of opt_size, opt_g1, opt_g2, and, possibly, opt_L0 if using vonkarman
         # atmosphere
-        if self.atmosphere_model == 'vonkarman':
-            opt_L0 = params[3]
+        opt_L0 = params[3]
         opt_size = params[self.n_params_constant_atmosphere + 0]
         opt_g1 = params[self.n_params_constant_atmosphere + 1]
         opt_g2 = params[self.n_params_constant_atmosphere + 2]
@@ -1995,9 +1979,8 @@ class OptAtmoPSF(PSF):
                      min=-max_g - opt_g2, max=max_g - opt_g2)
 
         # put in the other params to the params model
-        if self.atmosphere_model == 'vonkarman':
-            lmparams.add('optics_L0', value=opt_L0, vary=False)
-            # we NEVER vary the opt_size, opt_g1, opt_g2, or, if we use it, opt_L0
+        # we NEVER vary the opt_size, opt_g1, opt_g2, or, if we use it, opt_L0
+        lmparams.add('optics_L0', value=opt_L0, vary=False)
         lmparams.add('optics_size', value=opt_size, vary=False)
         lmparams.add('optics_g1', value=opt_g1, vary=False)
         lmparams.add('optics_g2', value=opt_g2, vary=False)
@@ -2434,9 +2417,9 @@ class OptAtmoPSF(PSF):
         params = all_params[3:]
 
         if self.atmosphere_model == 'kolmogorov':
-            size = params[0] + params[3]
-            g1 = params[1] + params[4]
-            g2 = params[2] + params[5]
+            size = params[0] + params[4]
+            g1 = params[1] + params[5]
+            g2 = params[2] + params[6]
             atmo = galsim.Kolmogorov(gsparams=self.gsparams,
                                         **self.kolmogorov_kwargs
                                         ).dilate(size).shear(g1=g1, g2=g2)

@@ -169,8 +169,9 @@ def test_aberrations():
     for j in range(4, config['jmax_pupil']):
         params = np.zeros(config['jmax_pupil'] + 4)
         params[0] = 1 #leave r0 at 0.1 here
-        params[4 - 1 + 3] = 1. #leave defocus at 1.0 here
-        params[j - 1 + 3] = 1.
+        params[3] = -1 #leave L0 at -1 here
+        params[4 - 1 + 4] = 1. #leave defocus at 1.0 here
+        params[j - 1 + 4] = 1.
         prof = psf.getProfile(params)
         new_star = psf.drawProfile(star, prof, params)
         # check the new_star fit params
@@ -201,14 +202,15 @@ def test_reference_wavefront():
         psf = piff.PSF.process(config)
         params_psfs.append(psf.getParams(star))
     for i, jmax in enumerate(jmaxs[:-1]):
-        np.testing.assert_equal(params_psfs[i], params_psfs[i + 1][:jmax + 3])
-    # the reference wavefront does 6 to 40, or zernikes 4 to 37, so make sure that the beyond 40
+        np.testing.assert_equal(params_psfs[i], params_psfs[i + 1][:jmax + 4])
+    # the reference wavefront does 7 to 40, or zernikes 4 to 37, so make sure that the beyond 40
     # there are no terms
-    np.testing.assert_equal(0, params_psfs[-1][40:])
-    # nor below 4, except for the optical size we put in (1.0 by default)
-    np.testing.assert_equal(1., params_psfs[-1][3])
+    np.testing.assert_equal(0, params_psfs[-1][41:])
+    # nor below 4, except for the optical size we put in (1.0 by default) and L0 (-1)
+    np.testing.assert_equal(-1., params_psfs[-1][3])
+    np.testing.assert_equal(1., params_psfs[-1][4])
     np.testing.assert_equal(0, params_psfs[-1][:3])
-    np.testing.assert_equal(0, params_psfs[-1][4:6])
+    np.testing.assert_equal(0, params_psfs[-1][5:7])
 
     # test that jmax_pupil < 4 throws error
     try:
