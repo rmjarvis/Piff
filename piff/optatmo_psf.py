@@ -360,9 +360,6 @@ class OptAtmoPSF(PSF):
             raise KeyError('Atmosphere model {0} not allowed! '
                            'choose either kolmogorov or vonkarman'.format(atmosphere_model))
         self.atmosphere_model = atmosphere_model
-        self.n_params_atmosphere = 3
-        self.n_params_constant_atmosphere = 4
-        self.n_params_constant_atmosphere_and_atmosphere = 7
 
         self.atmo_mad_outlier = atmo_mad_outlier
         self.test_fraction = test_fraction
@@ -968,12 +965,11 @@ class OptAtmoPSF(PSF):
         finally fitted.
         """
         logger = LoggerWrapper(logger)
-        params = np.zeros((len(stars), self.jmax_pupil + self.n_params_constant_atmosphere),
-                          dtype=np.float64)
+        params = np.zeros((len(stars), self.jmax_pupil + 4), dtype=np.float64)
 
         logger.debug('Getting aberrations from optical / mean system')
         aberrations_pupil = self._getParamsList_aberrations_field(stars)
-        params[:, self.n_params_constant_atmosphere:] += aberrations_pupil
+        params[:, 4:] += aberrations_pupil
 
         if self.reference_wavefront or self.higher_order_reference_wavefront:
             if self._caches:
@@ -1037,12 +1033,10 @@ class OptAtmoPSF(PSF):
             n_reference_aberrations = aberrations_reference_wavefronts.shape[1]
             if n_reference_aberrations + 3 < self.jmax_pupil:
                 # the 3 is here because we start with defocus (z4)
-                p1 = self.n_params_constant_atmosphere_and_atmosphere
-                params[:, p1:p1+n_reference_aberrations] += aberrations_reference_wavefronts
+                params[:, 7:7+n_reference_aberrations] += aberrations_reference_wavefronts
             else:
                 # we have more jmax_pupil than reference wavefront
-                p1 = self.n_params_constant_atmosphere_and_atmosphere
-                params[:, p1:] += aberrations_reference_wavefronts[:, :self.jmax_pupil - 3]
+                params[:, 7:] += aberrations_reference_wavefronts[:, :self.jmax_pupil - 3]
                 # the 3 is here because we start with defocus (z4)
         # get kolmogorov parameters from atmosphere model, but only if we said so
         if self._enable_atmosphere:
@@ -1095,9 +1089,9 @@ class OptAtmoPSF(PSF):
         logger = LoggerWrapper(logger)
 
         # optics
-        aberrations = np.zeros(4 + len(params[self.n_params_constant_atmosphere_and_atmosphere:]))
+        aberrations = np.zeros(4 + len(params[7:]))
         # fill piston etc with 0
-        aberrations[4:] = params[self.n_params_constant_atmosphere_and_atmosphere:]
+        aberrations[4:] = params[7:]
         aberrations = aberrations * (700.0/self.optical_psf_kwargs['lam'])
         # aberrations are scaled according to the wavelength
         opt = galsim.OpticalPSF(aberrations=aberrations,
@@ -1106,22 +1100,19 @@ class OptAtmoPSF(PSF):
 
         # atmosphere
         # add stochastic (labelled "atm") and constant (labelled "opt") pieces together
-        if self.atmosphere_model == 'kolmogorov':
-            size = params[0] + params[4]
-            g1 = params[1] + params[5]
-            g2 = params[2] + params[6]
+        size = params[0] + params[4]
+        g1 = params[1] + params[5]
+        g2 = params[2] + params[6]
+        L0 = params[3]
+        if L0 < 0:
             atmo = galsim.Kolmogorov(gsparams=self.gsparams, **self.kolmogorov_kwargs)
-            atmo = atmo.dilate(size).shear(g1=g1, g2=g2)
+            atmo = atmo.dilate(size)
         else:
-            size = params[0] + params[4]
-            g1 = params[1] + params[5]
-            g2 = params[2] + params[6]
-            L0 = params[3]
             kolmogorov_kwargs = {'lam': self.kolmogorov_kwargs['lam'],
                                  'r0': self.kolmogorov_kwargs['r0'] / size,
                                  'L0': L0,}
             atmo = galsim.VonKarman(gsparams=self.gsparams, **kolmogorov_kwargs)
-            atmo = atmo.shear(g1=g1, g2=g2)
+        atmo = atmo.shear(g1=g1, g2=g2)
 
         # convolve together
         prof = galsim.Convolve([opt, atmo], gsparams=self.gsparams)
@@ -1851,7 +1842,7 @@ class OptAtmoPSF(PSF):
                 params = self.getParamsList(stars)
                 stars_interp = self.atmo_interp.interpolateList(stars)
                 aberrations_atmo_star = np.array([star.fit.params for star in stars_interp])
-                params[:, 0:self.n_params_atmosphere] += aberrations_atmo_star
+                params[:, 0:3] += aberrations_atmo_star
 
                 # refluxing star and get chisq
                 refluxed_stars = [self.reflux(star, param, logger=logger)
@@ -1934,9 +1925,9 @@ class OptAtmoPSF(PSF):
         max_size = self.optatmo_psf_kwargs['max_size']
         max_g = self.optatmo_psf_kwargs['max_g1']
 
-        aberrations = np.zeros(4+len(params[self.n_params_constant_atmosphere_and_atmosphere:]))
+        aberrations = np.zeros(4+len(params[7:]))
         # fill piston etc with 0
-        aberrations[4:] = params[self.n_params_constant_atmosphere_and_atmosphere:]
+        aberrations[4:] = params[7:]
         aberrations = aberrations * (700.0/self.optical_psf_kwargs['lam'])
         optical_profile = galsim.OpticalPSF(aberrations=aberrations,
                             gsparams=self.gsparams,
@@ -1965,10 +1956,7 @@ class OptAtmoPSF(PSF):
 
         # acquire the values of opt_size, opt_g1, opt_g2, and, possibly, opt_L0 if using vonkarman
         # atmosphere
-        opt_L0 = params[3]
-        opt_size = params[self.n_params_constant_atmosphere + 0]
-        opt_g1 = params[self.n_params_constant_atmosphere + 1]
-        opt_g2 = params[self.n_params_constant_atmosphere + 2]
+        opt_L0, opt_size, opt_g1, opt_g2 = params[3:7]
 
         # finish putting in atmo_size, atmo_g1, and atmo_g2 terms
         lmparams.add('atmo_size', value=fit_size, vary=True,
@@ -2057,7 +2045,7 @@ class OptAtmoPSF(PSF):
                                 [default: None]
         :returns:               A list of stars with only num_keep fit params
         """
-        num_keep = self.n_params_atmosphere
+        num_keep = 3
         new_stars = []
         for star_i, star in enumerate(stars):
             try:
@@ -2182,8 +2170,7 @@ class OptAtmoPSF(PSF):
 
         # get star params
         params_all = self.getParamsList(stars)
-        p1 = self.n_params_constant_atmosphere
-        param_values_all_stars = params_all[:,p1:p1+11]
+        param_values_all_stars = params_all[:,4:4+11]
         number_of_rows, number_of_columns = param_values_all_stars.shape
         if number_of_columns < 11:
             param_values_all_stars_copy = copy.deepcopy(param_values_all_stars)
