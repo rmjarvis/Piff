@@ -376,14 +376,10 @@ class OptAtmoPSF(PSF):
             raise KeyError('Atmosphere model {0} not allowed! '
                            'choose either kolmogorov or vonkarman'.format(atmosphere_model))
         self.atmosphere_model = atmosphere_model
-        if self.atmosphere_model == 'kolmogorov':
-            self.n_params_atmosphere = 3
-            self.n_params_constant_atmosphere = 3
-            self.n_params_constant_atmosphere_and_atmosphere = 6
-        elif self.atmosphere_model == 'vonkarman':
-            self.n_params_atmosphere = 3
-            self.n_params_constant_atmosphere = 4
-            self.n_params_constant_atmosphere_and_atmosphere = 7
+        self.n_params_atmosphere = 3
+        self.n_params_constant_atmosphere = 3 if atmosphere_model == 'kolmogorov' else 4
+        self.n_params_constant_atmosphere_and_atmosphere = (
+            self.n_params_atmosphere + self.n_params_constant_atmosphere)
 
         self.atmo_mad_outlier = atmo_mad_outlier
         self.test_fraction = test_fraction
@@ -1131,7 +1127,7 @@ class OptAtmoPSF(PSF):
             g2 = params[2] + params[5]
             atmo = galsim.Kolmogorov(gsparams=self.gsparams, **self.kolmogorov_kwargs)
             atmo = atmo.dilate(size).shear(g1=g1, g2=g2)
-        elif self.atmosphere_model == 'vonkarman':
+        else:
             size = params[0] + params[4]
             g1 = params[1] + params[5]
             g2 = params[2] + params[6]
@@ -2436,33 +2432,28 @@ class OptAtmoPSF(PSF):
         all_params = np.array(list(lmparams.valuesdict().values()))
         flux, du, dv = all_params[:3]
         params = all_params[3:]
-        if optical_profile == None:
-            # if no optical profile, make the entire profile from scratch
-            prof = self.getProfile(params).shift(du, dv) * flux
-        else:
-            # if there is an optical profile, just make the atmospheric profile
-            # add stochastic (labelled "atm") and constant (labelled "opt") pieces together
-            if self.atmosphere_model == 'kolmogorov':
-                size = params[0] + params[3]
-                g1 = params[1] + params[4]
-                g2 = params[2] + params[5]
-                atmo = galsim.Kolmogorov(gsparams=self.gsparams,
-                                         **self.kolmogorov_kwargs
-                                         ).dilate(size).shear(g1=g1, g2=g2)
-            elif self.atmosphere_model == 'vonkarman':
-                size = params[0] + params[4]
-                g1 = params[1] + params[5]
-                g2 = params[2] + params[6]
-                L0 = params[3]
-                kolmogorov_kwargs = {'lam': self.kolmogorov_kwargs['lam'],
-                                     'r0': self.kolmogorov_kwargs['r0'] / size,
-                                     'L0': L0,}
-                atmo = galsim.VonKarman(gsparams=self.gsparams,
-                                        **kolmogorov_kwargs).shear(g1=g1, g2=g2)
 
-            # convolve together
-            prof = galsim.Convolve([optical_profile, atmo], gsparams=self.gsparams)
-            prof = prof.shift(du, dv) * flux
+        if self.atmosphere_model == 'kolmogorov':
+            size = params[0] + params[3]
+            g1 = params[1] + params[4]
+            g2 = params[2] + params[5]
+            atmo = galsim.Kolmogorov(gsparams=self.gsparams,
+                                        **self.kolmogorov_kwargs
+                                        ).dilate(size).shear(g1=g1, g2=g2)
+        else:
+            size = params[0] + params[4]
+            g1 = params[1] + params[5]
+            g2 = params[2] + params[6]
+            L0 = params[3]
+            kolmogorov_kwargs = {'lam': self.kolmogorov_kwargs['lam'],
+                                    'r0': self.kolmogorov_kwargs['r0'] / size,
+                                    'L0': L0,}
+            atmo = galsim.VonKarman(gsparams=self.gsparams,
+                                    **kolmogorov_kwargs).shear(g1=g1, g2=g2)
+
+        # convolve together
+        prof = galsim.Convolve([optical_profile, atmo], gsparams=self.gsparams)
+        prof = prof.shift(du, dv) * flux
 
         # calculate chi
         image, weight, image_pos = star.data.getImage()
