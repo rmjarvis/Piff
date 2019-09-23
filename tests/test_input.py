@@ -799,8 +799,7 @@ def test_masked_star_cuts():
     if __name__ == '__main__':
         logger = piff.config.setup_logger(verbose=2)
     else:
-        #logger = piff.config.setup_logger(log_file=os.path.join('output','test_masked_stars.log'))
-        logger = piff.config.setup_logger(verbose=3)
+        logger = piff.config.setup_logger(log_file=os.path.join('output','test_masked_stars.log'))
     image_file = './input/DECam_00241238_01.fits.fz' # these have to be different than the other tests on cuts because the usual image used in those tests has no masked stars
     cat_file = './input/DECam_00241238_01_psfcat_tb_maxmag_17.0_magcut_3.0_findstars.fits'
     config = {
@@ -818,7 +817,7 @@ def test_masked_star_cuts():
         'ra' : 'TELRA',
         'dec' : 'TELDEC',
         'gain' : 'GAINA',
-        'min_snr': 40,
+        'min_snr': 20,
         'max_snr': 100,
         }
     input = piff.InputFiles(config, logger=logger)

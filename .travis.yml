@@ -49,7 +49,6 @@ install:
 script:
     - python setup.py install --prefix=$PYHOME
     - cd tests
-    - nosetests -s test_input.py:test_masked_star_cuts
     - nosetests --with-coverage --cover-package=piff --with-doctest
 
 after_success:
