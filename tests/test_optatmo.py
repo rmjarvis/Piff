@@ -682,7 +682,7 @@ def test_random_forest():
     if __name__ == '__main__':
         logger = piff.config.setup_logger(verbose=3)
     else:
-        logger = piff.config.setup_logger(verbose=1)
+        logger = piff.config.setup_logger(verbose=0)
     logger.info('Testing random_forest')
     # fit the test ccd
     image_file = './input/DECam_00241238_01.fits.fz'
@@ -731,7 +731,7 @@ def test_roundtrip():
     if __name__ == '__main__':
         logger = piff.config.setup_logger(verbose=3)
     else:
-        logger = piff.config.setup_logger(verbose=1)
+        logger = piff.config.setup_logger(verbose=0)
     logger.info('Testing roundtrip')
     # fit the test ccd
     image_file = './input/DECam_00241238_01.fits.fz'
