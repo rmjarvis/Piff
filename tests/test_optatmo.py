@@ -332,6 +332,7 @@ def test_fit():
     config['atmo_interp'] = 'None'
     config['jmax_focal'] = 1
     config['jmax_pupil'] = 11
+    config['higher_order_reference_wavefront_file'] = None
 
     optatmo_psf_kwargs = {
         'size': 1.0,
