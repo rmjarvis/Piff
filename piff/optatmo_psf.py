@@ -157,7 +157,7 @@ class OptAtmoPSF(PSF):
     """
     def __init__(self, atmo_interp=None, outliers=None, optatmo_psf_kwargs={},
                  optical_psf_kwargs={}, kolmogorov_kwargs={}, reference_wavefront=None,
-                 n_optfit_stars=0, n_fit_size_steps = 0, fov_radius=4500., jmax_pupil=11,
+                 n_optfit_stars=0, fov_radius=4500., jmax_pupil=11,
                  jmax_focal=10, min_optfit_snr=0, fit_optics_mode='shape',
                  higher_order_reference_wavefront_file=None, init_with_rf=False,
                  random_forest_shapes_model_pickles_location=None,
@@ -199,7 +199,6 @@ class OptAtmoPSF(PSF):
             self.higher_order_reference_wavefront = wavefrontmap(
                 file=self.higher_order_reference_wavefront_file)
         self.min_optfit_snr = min_optfit_snr
-        self.n_fit_size_steps = int(n_fit_size_steps)
         self.n_optfit_stars = n_optfit_stars
 
         #####
@@ -374,7 +373,6 @@ class OptAtmoPSF(PSF):
             'jmax_focal': self.jmax_focal,
             'min_optfit_snr': self.min_optfit_snr,
             'n_optfit_stars': self.n_optfit_stars,
-            'n_fit_size_steps': self.n_fit_size_steps,
             'fit_optics_mode': self.fit_optics_mode,
             'higher_order_reference_wavefront_file': self.higher_order_reference_wavefront_file,
             'init_with_rf': self.init_with_rf,
@@ -790,8 +788,7 @@ class OptAtmoPSF(PSF):
         moments_list = ["e0", "e1", "e2", "zeta1", "zeta2", "delta1", "delta2",
                         "orth4", "orth6", "orth8"]
         self.length_of_moments_list = len(moments_list)
-        self.fit_size(self.fit_optics_stars, self.fit_optics_star_shapes,
-                      self.fit_optics_star_errors, logger=logger, **kwargs)
+        self.fit_size(self.fit_optics_stars, logger=logger, **kwargs)
 
         # do a fit to moments ("shape" mode) or pixels ("pixel" mode), whichever is specified in
         # the yaml file. Nothing happens here if "random_forest" mode is chosen
@@ -815,73 +812,74 @@ class OptAtmoPSF(PSF):
         logger.info("len(self.stars): {0}".format(len(self.stars)))
         # one extra round of outlier rejection using the pull from the moments (only up to third
         # moments)
-        for s, stars in enumerate([self.stars, self.test_stars, self.fit_optics_stars]):
-            if s == 0:
-                logger.info("now prepping pull cuts for self.stars; in other words the train stars")
-            if s == 1:
-                logger.info("now prepping pull cuts for self.test_stars")
-            if s == 2:
-                logger.info("now prepping pull cuts for self.fit_optics_stars; in other words the "
-                            "subset train stars specifically used in the optical fit")
-            data_shapes_all_stars = []
-            data_errors_all_stars = []
-            model_shapes_all_stars = []
-            for star in stars:
-                data_shapes_all_stars.append(self.measure_shape_third_moments(star))
-                data_errors_all_stars.append(self.measure_error_third_moments(star))
-                model_shapes_all_stars.append(self.measure_shape_third_moments(self.drawStar(star)))
-            data_shapes_all_stars = np.array(data_shapes_all_stars)[:,3:]
-            data_errors_all_stars = np.array(data_errors_all_stars)[:,3:]
-            model_shapes_all_stars = np.array(model_shapes_all_stars)[:,3:]
-            pull_all_stars = ((data_shapes_all_stars - model_shapes_all_stars) /
-                                data_errors_all_stars)
-            # pull is (data-model)/error
-            logger.info("data_shapes_all_stars: {0}".format(data_shapes_all_stars))
-            logger.info("model_shapes_all_stars: {0}".format(model_shapes_all_stars))
-            logger.info("data_errors_all_stars: {0}".format(data_errors_all_stars))
-            logger.info("pull_all_stars: {0}".format(pull_all_stars))
-            conds_pull = (np.all(np.abs(pull_all_stars) <= 4.0, axis=1))
-            # all stars with more than 4.0 pull are thrown out
-            conds_pull_e0 = (np.abs(pull_all_stars[:,0]) <= 4.0)
-            conds_pull_e1 = (np.abs(pull_all_stars[:,1]) <= 4.0)
-            conds_pull_e2 = (np.abs(pull_all_stars[:,2]) <= 4.0)
-            if s == 0:
-                self.stars = np.array(self.stars)[conds_pull].tolist()
-            if s == 1:
-                self.test_stars = np.array(self.test_stars)[conds_pull].tolist()
-            if s == 2:
-                self.number_of_outliers_optical = np.array(
-                    [len(self.fit_optics_stars) - np.sum(conds_pull_e0),
-                     len(self.fit_optics_stars) - np.sum(conds_pull_e1),
-                     len(self.fit_optics_stars) - np.sum(conds_pull_e2)])
-                self.number_of_stars_pre_cut_optical = len(self.fit_optics_stars)
-                self.fit_optics_stars = np.array(self.fit_optics_stars)[conds_pull].tolist()
-                self.number_of_stars_post_cut_optical = len(self.fit_optics_stars)
-                self.pull_mean_optical = np.nanmean(pull_all_stars[:,:3], axis=0)
-                # the mean pull (only second moments) for stars used in the fit is later used to
-                # find outliers among exposures
-                self.pull_rms_optical = np.sqrt(np.nanmean(np.square(pull_all_stars[:,:3]),axis=0))
-                self.pull_all_stars_optical = pull_all_stars
+        if self.fit_optics_mode == 'shape':
+            for s, stars in enumerate([self.stars, self.test_stars, self.fit_optics_stars]):
+                if s == 0:
+                    logger.info("now prepping pull cuts for self.stars; in other words the train stars")
+                if s == 1:
+                    logger.info("now prepping pull cuts for self.test_stars")
+                if s == 2:
+                    logger.info("now prepping pull cuts for self.fit_optics_stars; in other words the "
+                                "subset train stars specifically used in the optical fit")
+                data_shapes_all_stars = []
+                data_errors_all_stars = []
+                model_shapes_all_stars = []
+                for star in stars:
+                    data_shapes_all_stars.append(self.measure_shape_third_moments(star))
+                    data_errors_all_stars.append(self.measure_error_third_moments(star))
+                    model_shapes_all_stars.append(self.measure_shape_third_moments(self.drawStar(star)))
+                data_shapes_all_stars = np.array(data_shapes_all_stars)[:,3:]
+                data_errors_all_stars = np.array(data_errors_all_stars)[:,3:]
+                model_shapes_all_stars = np.array(model_shapes_all_stars)[:,3:]
+                pull_all_stars = ((data_shapes_all_stars - model_shapes_all_stars) /
+                                    data_errors_all_stars)
+                # pull is (data-model)/error
+                logger.info("data_shapes_all_stars: {0}".format(data_shapes_all_stars))
+                logger.info("model_shapes_all_stars: {0}".format(model_shapes_all_stars))
+                logger.info("data_errors_all_stars: {0}".format(data_errors_all_stars))
+                logger.info("pull_all_stars: {0}".format(pull_all_stars))
+                conds_pull = (np.all(np.abs(pull_all_stars) <= 4.0, axis=1))
+                # all stars with more than 4.0 pull are thrown out
+                conds_pull_e0 = (np.abs(pull_all_stars[:,0]) <= 4.0)
+                conds_pull_e1 = (np.abs(pull_all_stars[:,1]) <= 4.0)
+                conds_pull_e2 = (np.abs(pull_all_stars[:,2]) <= 4.0)
+                if s == 0:
+                    self.stars = np.array(self.stars)[conds_pull].tolist()
+                if s == 1:
+                    self.test_stars = np.array(self.test_stars)[conds_pull].tolist()
+                if s == 2:
+                    self.number_of_outliers_optical = np.array(
+                        [len(self.fit_optics_stars) - np.sum(conds_pull_e0),
+                         len(self.fit_optics_stars) - np.sum(conds_pull_e1),
+                         len(self.fit_optics_stars) - np.sum(conds_pull_e2)])
+                    self.number_of_stars_pre_cut_optical = len(self.fit_optics_stars)
+                    self.fit_optics_stars = np.array(self.fit_optics_stars)[conds_pull].tolist()
+                    self.number_of_stars_post_cut_optical = len(self.fit_optics_stars)
+                    self.pull_mean_optical = np.nanmean(pull_all_stars[:,:3], axis=0)
+                    # the mean pull (only second moments) for stars used in the fit is later used to
+                    # find outliers among exposures
+                    self.pull_rms_optical = np.sqrt(np.nanmean(np.square(pull_all_stars[:,:3]),axis=0))
+                    self.pull_all_stars_optical = pull_all_stars
 
 
-        number_of_stars_used_in_optical_chi = \
-            len(self.final_optical_chi)//self.length_of_moments_list
-        logger.info("total chisq for optical chi: {0}".format(
-            np.sum(np.square(self.final_optical_chi))))
-        for tm, test_moment in enumerate(moments_list):
-            logger.info("total chisq for optical chi for {0}: {1}".format(
-                test_moment,
-                np.sum(np.square(self.final_optical_chi)[tm::self.length_of_moments_list])))
-        logger.info("total dof for optical chi: {0}".format(len(self.final_optical_chi)))
-        logger.info("number_of_stars_used_in_optical_chi: {0}".format(
-                    number_of_stars_used_in_optical_chi))
+            number_of_stars_used_in_optical_chi = \
+                len(self.final_optical_chi)//self.length_of_moments_list
+            logger.info("total chisq for optical chi: {0}".format(
+                np.sum(np.square(self.final_optical_chi))))
+            for tm, test_moment in enumerate(moments_list):
+                logger.info("total chisq for optical chi for {0}: {1}".format(
+                    test_moment,
+                    np.sum(np.square(self.final_optical_chi)[tm::self.length_of_moments_list])))
+            logger.info("total dof for optical chi: {0}".format(len(self.final_optical_chi)))
+            logger.info("number_of_stars_used_in_optical_chi: {0}".format(
+                        number_of_stars_used_in_optical_chi))
 
-        # record the chi
-        self.chisq_all_stars_optical = np.empty(number_of_stars_used_in_optical_chi)
-        for s in range(0,number_of_stars_used_in_optical_chi):
-            self.chisq_all_stars_optical[s] = np.sum(np.square(
-                self.final_optical_chi[s*self.length_of_moments_list :
-                                       s*self.length_of_moments_list+self.length_of_moments_list]))
+            # record the chi
+            self.chisq_all_stars_optical = np.empty(number_of_stars_used_in_optical_chi)
+            for s in range(0,number_of_stars_used_in_optical_chi):
+                self.chisq_all_stars_optical[s] = np.sum(np.square(
+                    self.final_optical_chi[s*self.length_of_moments_list :
+                                           s*self.length_of_moments_list+self.length_of_moments_list]))
         logger.info("len(self.stars): {0}".format(len(self.stars)))
 
         # this is the "atmospheric" fit.
@@ -1673,77 +1671,58 @@ class OptAtmoPSF(PSF):
         # remove saved values from the reference wavefronts' caches when we are done with the fit
         if self.reference_wavefront: self._delete_caches(logger=logger)
 
-    def fit_size(self, stars, shapes, shape_errors, logger=None, **kwargs):
+    def fit_size(self, stars, logger=None, **kwargs):
         """Adjusts the optics size parameter found in the random forest fit.
-
-        Does a forced search of 501 steps +- 0.1 about the result found in the random forest fit.
-        The size parameter is proportional to 1/r0, r0 being the Fried parameter.
 
         The "optics" size is the average of this across the focal plane, whereas "atmospheric"
         size is the deviation from this average at different points in the focal plane.
 
         :param stars:           A list of Star instances.
-        :param shapes:          A list of premeasured Star shapes
-        :param shape_errors:    A list of premeasured Star shape errors
         :param logger:          A logger object for logging debug info.
                                 [default: None]
         """
         logger = LoggerWrapper(logger)
         import lmfit
         logger.info("Start fitting Optical fit of size alone")
-        # fit_size() is used before the full optical fit and makes that fit faster
 
-        # save reference wavefronts' values so we don't keep calling it during fit
-        if self.reference_wavefront: self._create_caches(stars, logger=logger)
+        # Get the current parameters.  Everything but opt_size is constant here.
+        opt_params = self.getParamsList(stars)
 
-        # make kwargs with only size
-        Ns = kwargs.pop('Ns', 501)
-        if self.n_fit_size_steps > 0:
-            Ns = self.n_fit_size_steps
-        dparam = kwargs.pop('dparam', 0.3)  # search +- this range
-        param = self.optatmo_psf_kwargs['size']
-        fit_size_kwargs = {'size': param, 'min_size': param - dparam, 'max_size': param + dparam}
-        # make sure we don't go too crazy
-        min_size = self.optatmo_psf_kwargs['min_size']
-        if fit_size_kwargs['min_size'] < min_size:
-            fit_size_kwargs['min_size'] = min_size
-        max_size = self.optatmo_psf_kwargs['max_size']
-        if fit_size_kwargs['max_size'] < max_size:
-            fit_size_kwargs['max_size'] = max_size
+        # Make sure the stars have a decent flux, centroid estimate
+        stars = [self.reflux(star, param, logger=logger)
+                 for param, star in zip(opt_params,stars)]
 
-        lmparams = self._fit_optics_lmparams(fit_size_kwargs, ['size'])
+        # get the optical parts of the profiles
+        optical_profiles = []
+        for i, star in enumerate(stars):
+            params = opt_params[i]
 
-        # do fit (1e-3 steps)
+            aberrations = np.zeros(4 + len(params[7:]))
+            # fill piston etc with 0
+            aberrations[4:] = params[7:]
+            aberrations = aberrations * (700.0/self.optical_psf_kwargs['lam'])
+            # aberrations are scaled according to the wavelength
+            opt = galsim.OpticalPSF(aberrations=aberrations,
+                                    gsparams=self.gsparams,
+                                    **self.optical_psf_kwargs)
+            optical_profiles.append(opt)
+
+        # create lmparameters
+        lmparams = lmfit.Parameters()
+        lmparams.add('logsize', value=np.log(self.optatmo_psf_kwargs['size']), vary=True,
+                     min=np.log(self.optatmo_psf_kwargs['min_size']),
+                     max=np.log(self.optatmo_psf_kwargs['max_size']))
+
+        # do size fit
         results = lmfit.minimize(self._fit_size_residual, lmparams,
-                                 args=(stars, shapes, shape_errors, logger,), method='brute', Ns=Ns)
-        logger.info("finished optics size fit")
-        nfev = results.nfev
-        nvarys = results.nvarys
-        maxfev = 2000*(nvarys+1)
-        logger.info("nfev: {0}".format(nfev))
-        logger.info("nvarys: {0}".format(nvarys))
-        logger.info("maxfev: {0}".format(maxfev))
-        if nfev >=maxfev:
-            logger.info("nfev >=maxfev; fit likely failed; aborting")
-            raise RuntimeError("nfev >=maxfev; fit likely failed; aborting")
+                                 args=(stars, opt_params, optical_profiles, logger,),
+                                 epsfcn=1.e-5)
 
-        # set final fit
-        logger.info('Optical fit from lmfit parameters:')
-        logger.info(lmfit.fit_report(results, min_correl=0.5))
-
-        self.optatmo_psf_kwargs['size'] = results.params.valuesdict()['size']
-        if results.errorbars:
-            err = np.sqrt(results.covar[0, 0])
-            self.optatmo_psf_kwargs['error_size'] = err
-        else:
-            logger.warning('No error calculated for size in fit_size')
+        size = np.exp(results.params.valuesdict()['logsize'])
+        logger.info("finished optics size fit: size = %s",size)
+        self.optatmo_psf_kwargs['size'] = size
         self._update_optatmopsf(self.optatmo_psf_kwargs, logger=logger)
 
-        # save this for debugging purposes
-        self._fit_size_results = results
-
-        # remove saved values from the reference wavefronts caches when we are done with the fit
-        if self.reference_wavefront: self._delete_caches(logger=logger)
 
     # Note: This is not currently being used. Instead, the atmospheric fitting is currently being
     # done in the PIFF fitting pipeline itself. As a result, it has not been updated in a while
@@ -2126,7 +2105,7 @@ class OptAtmoPSF(PSF):
         # returns for a model star with a given set of fit parameters
         return chi
 
-    def _fit_size_residual(self, lmparams, stars, shapes, shape_errors, logger=None):
+    def _fit_size_residual(self, lmparams, stars, opt_params, optical_profiles, logger=None):
         """Residual function for fitting the optics size parameter to the
         observed e0 moment. The size parameter is proportional to 1/r0, r0
         being the Fried parameter. The "optics" size is the average of this
@@ -2137,8 +2116,8 @@ class OptAtmoPSF(PSF):
 
         :param lmparams:        LMFit Parameters object
         :param stars:           A list of Stars
-        :param shapes:          A list of premeasured Star shapes
-        :param shape_errors:    A list of premeasured Star shape errors
+        :param opt_params:      The full parameter list
+        :param optical_profiles:    A list of optical profiels, constant during this fit
         :param logger:          A logger object for logging debug info.
                                 [default: None]
 
@@ -2149,16 +2128,43 @@ class OptAtmoPSF(PSF):
         This is done by forward modeling the PSF and measuring its shape via HSM
         """
         logger = LoggerWrapper(logger)
-        # this residual is only used to find the optics size offset when using fit_size()
-        # fit_size() is used before the full optical fit and makes that fit faster
-        chi = self._fit_optics_residual(lmparams, stars, shapes, shape_errors, logger,
-                                        only_size=True)
-        chi = (chi[0::self.length_of_moments_list] /
-                    self._shape_weights[0::self.length_of_moments_list])
-        logger.debug('Current Total Chi2 / dof is {0:.4e} / {1}'.format(
-                     np.sum(np.square(chi)), len(chi)))
-        # chi is a one-dimensional numpy array, containing e0_weight*((e0_model-e0)/e0_error)
-        # for all stars
+        logger.info('start size residual: current params = %s',lmparams)
+
+        opt_size = np.exp(lmparams['logsize'])
+
+        chis = []
+        for i, star in enumerate(stars):
+
+            # Finish making the profile using optical_profile and the given opt_params
+            # for this star
+            params = opt_params[i]
+            size = params[0] + opt_size
+            g1 = params[1] + params[5]
+            g2 = params[2] + params[6]
+            L0 = params[3]
+            if L0 < 0:
+                atmo = galsim.Kolmogorov(gsparams=self.gsparams, **self.kolmogorov_kwargs)
+                atmo = atmo.dilate(size)
+            else:
+                kwargs = {'lam': self.kolmogorov_kwargs['lam'],
+                          'r0': self.kolmogorov_kwargs['r0'] / size,
+                          'L0': L0,}
+                atmo = galsim.VonKarman(gsparams=self.gsparams, **kwargs)
+            atmo = atmo.shear(g1=g1, g2=g2)
+
+            prof = galsim.Convolve([optical_profiles[i], atmo], gsparams=self.gsparams)
+
+            # measure final shape
+            model = self.drawProfile(star, prof, params).image
+
+            # Calculate chi for this star
+            image, weight, image_pos = star.data.getImage()
+            chi = (np.sqrt(weight.array) * (model.array - image.array)).flatten()
+            chis.append(chi)
+
+        chi = np.concatenate(chis)
+        chisq = np.sum(chi**2)
+        logger.info("chisq = %s",chisq)
         return chi
 
     def _fit_optics_residual(self, lmparams, stars, shapes, shape_errors, logger=None,
