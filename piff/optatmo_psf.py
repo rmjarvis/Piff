@@ -1552,37 +1552,33 @@ class OptAtmoPSF(PSF):
         Having measured the shapes of stars, with errors \sigma_{ij}, we
         then find the optimal b_{k \ell}
         """
+        import scipy
+        from .util import estimate_cov_from_jac
+
         logger = LoggerWrapper(logger)
         logger.info("Start fitting Optical in {0} mode for {1} stars".format(mode, len(stars)))
 
         # save reference wavefronts' values so we don't keep calling it during fit
         if self.reference_wavefront: self._create_caches(stars, logger=logger)
 
+        fit_keys = [key for key in self.keys
+                    if not self.optatmo_psf_kwargs.get('fix_'+key,True)]
+        params = [self.optatmo_psf_kwargs[key] for key in fit_keys]
+
         if mode == 'random_forest':
-            import lmfit
-            use_lmfit = True
-            lmparams = self._fit_optics_lmparams(self.optatmo_psf_kwargs, self.keys)
-            residual = self._fit_random_forest_residual
-            results = lmfit.minimize(residual, lmparams, args=(stars, shapes, errors,
-                                     self.regr_dict, logger,), epsfcn=1e-5)
-            logger.info("finished random_forest fit")
+            results = scipy.optimize.least_squares(
+                    self._fit_random_forest_residual, params,
+                    args=(stars, fit_keys, shapes, errors, self.regr_dict, logger,),
+                    diff_step=1e-5, ftol=1.e-3, xtol=1.e-4)
         elif mode == 'shape':
-            import lmfit
-            use_lmfit = True
-            lmparams = self._fit_optics_lmparams(self.optatmo_psf_kwargs, self.keys)
-            residual = self._fit_optics_residual
-            results = lmfit.minimize(residual, lmparams, args=(stars, shapes, errors, logger,),
-                                     epsfcn=1e-5, ftol=ftol)
-            logger.info("finished full optics fit")
+            results = scipy.optimize.least_squares(
+                    self._fit_optics_residual, params,
+                    args=(stars, fit_keys, shapes, errors, logger,),
+                    diff_step=1e-5, ftol=1.e-3, xtol=1.e-4)
         elif mode == 'pixel':
-            import scipy
-            use_lmfit = False
             opt_params = self.getParamsList(stars)
             stars = [self.reflux(star, param, logger=logger)
                      for param, star in zip(opt_params,stars)]
-            fit_keys = [key for key in self.keys
-                        if not self.optatmo_psf_kwargs.get('fix_'+key,True)]
-            params = [self.optatmo_psf_kwargs[key] for key in fit_keys]
             for i in range(len(stars)):
                 params.append(stars[i].center[0])
                 params.append(stars[i].center[1])
@@ -1594,54 +1590,15 @@ class OptAtmoPSF(PSF):
         else:
             raise KeyError('Unrecognized fit mode: {0}'.format(mode))
 
-        if use_lmfit:
-            nfev = results.nfev
-            nvarys = results.nvarys
-            maxfev = 2000*(nvarys+1)
-            logger.info("nfev: {0}".format(nfev))
-            logger.info("nvarys: {0}".format(nvarys))
-            logger.info("maxfev: {0}".format(maxfev))
-            if nfev >=maxfev:
-                logger.info("nfev >=maxfev; fit likely failed; aborting")
-                raise RuntimeError("nfev >=maxfev; fit likely failed; aborting")
-
-            # update PSF parameters with fit results
-            # TODO: can I go through this for loop from lmparams directly without blindly hoping key_i
-            #       lines up?
-            key_i = 0
-            for key in self.keys:
-                if not self.optatmo_psf_kwargs['fix_' + key]:
-                    val = results.params.valuesdict()[key]
-                    self.optatmo_psf_kwargs[key] = val
-
-                    try:
-                        err = np.sqrt(results.covar[key_i, key_i])
-                        self.optatmo_psf_kwargs['error_' + key] = err
-                    except (TypeError, AttributeError):
-                        # covar is None for Reasons.
-                        placeholder_error = 10000
-                        logger.warning('No Error calculated for parameter {0}! Replacing with large '
-                                    'number {1}!'.format(key, placeholder_error))
-                        self.optatmo_psf_kwargs['error_' + key] = placeholder_error
-                    key_i += 1
-
-            logger.info('{0} optical fit from lmfit parameters:'.format(mode))
-            logger.info(lmfit.fit_report(results, min_correl=0.5))
-
-            # save results for debugging purposes
-            self._fit_optics_results = results
-
-        else:
-            from .util import estimate_cov_from_jac
-            logger.info('Results from {0} optical fit:'.format(mode))
-            logger.info(results)
-            if not results.success:
-                raise RuntimeError("fit failed")
-            # Estimate covariance matrix from jacobian
-            cov = estimate_cov_from_jac(results.jac)
-            for i, key in enumerate(fit_keys):
-                self.optatmo_psf_kwargs[key] = results.x[i]
-                self.optatmo_psf_kwargs['error_' + key] = cov[i,i]
+        logger.info('Results from {0} optical fit:'.format(mode))
+        logger.info(results)
+        if not results.success:
+            raise RuntimeError("fit failed")
+        # Estimate covariance matrix from jacobian
+        cov = estimate_cov_from_jac(results.jac)
+        for i, key in enumerate(fit_keys):
+            self.optatmo_psf_kwargs[key] = results.x[i]
+            self.optatmo_psf_kwargs['error_' + key] = cov[i,i]
 
         self._update_optatmopsf(self.optatmo_psf_kwargs, logger=logger)
 
@@ -1985,55 +1942,16 @@ class OptAtmoPSF(PSF):
         star.fit.chisq = results.cost*2
         return star
 
-    def _fit_optics_lmparams(self, optatmo_psf_kwargs, keys):
-        """turns optatmo_psf_kwargs and set of keys to fit into an lmparams object
-
-        :param optatmo_psf_kwargs:  Dictionary with keys like (for parameter
-                                    "size") size [value to start fit at],
-                                    fix_size [do not allow parameter to vary],
-                                    min_,max_size [min and maximum values
-                                    allowed for size during fit] (in this example
-                                    "size" is proportional to the average of 1/r0
-                                    across the focal plane, r0 being the Fried
-                                    these are specified, will fill with guessed
-                                    values.
-        :param keys:                List of keys we want to add to the lmfit
-                                    parameters.
-
-        :returns lmparams:          An lmfit Parameters object
-        """
-        import lmfit
-        # create lmparameters
-        lmparams = lmfit.Parameters()
-        # step through keys
-        for key in keys:
-            if key in optatmo_psf_kwargs:
-                value = optatmo_psf_kwargs[key]
-            else:
-                value = 0
-            if 'fix_' + key in optatmo_psf_kwargs:
-                vary = not optatmo_psf_kwargs['fix_' + key]
-            else:
-                vary = True
-            if 'min_' + key in optatmo_psf_kwargs:
-                min = optatmo_psf_kwargs['min_' + key]
-            else:
-                min = None
-            if 'max_' + key in optatmo_psf_kwargs:
-                max = optatmo_psf_kwargs['max_' + key]
-            else:
-                max = None
-            lmparams.add(key, value=value, vary=vary, min=min, max=max)
-        return lmparams
-
-    def _fit_random_forest_residual(self, lmparams, stars, shapes, shape_errors, regr_dictionary,
-                                    logger=None):
+    def _fit_random_forest_residual(self, params, stars, fit_keys, shapes, shape_errors,
+                                    regr_dictionary, logger=None):
         """Residual function for fitting optics via random forest model.
 
         This is what is done in "random_forest" mode.
 
-        :param lmparams:        LMFit Parameters object
+        :param params:          Numpy array with parameters to fit.  First parameters for each
+                                key in fit_keys, then (u,v) for each star.
         :param stars:           A list of Stars
+        :param fit_keys:        Key names for the initial values in params array.
         :param shapes:          A list of premeasured Star shapes
         :param errors:          A list of premeasured Star shape errors
         :param regr_dictionary: A dictionary containing the random forest
@@ -2045,7 +1963,8 @@ class OptAtmoPSF(PSF):
         """
         logger = LoggerWrapper(logger)
         # update psf
-        self._update_optatmopsf(lmparams.valuesdict(), logger)
+        n_opt = len(fit_keys)
+        self._update_optatmopsf(dict(zip(fit_keys, params[:n_opt])), logger=logger)
 
         # get star params
         params_all = self.getParamsList(stars)
@@ -2139,22 +2058,17 @@ class OptAtmoPSF(PSF):
         logger.info("size = %s: chisq = %s",opt_size, chisq)
         return chi
 
-    def _fit_optics_residual(self, lmparams, stars, shapes, shape_errors, logger=None,
-                             only_size=False):
+    def _fit_optics_residual(self, params, stars, fit_keys, shapes, shape_errors, logger=None):
         """Residual function for fitting the optical fit parameters and the average values of the
         atmospheric fit parameters to the observed shapes.
 
-        Fitting is done via lmfit.
-
-        :param lmparams:          LMFit Parameters object
-        :param stars:             A list of Stars
-        :param shapes:            A list of premeasured Star shapes
-        :param shape_errors:      A list of premeasured Star shape errors
-        :param logger:            A logger object for logging debug info.
-                                  [default: None]
-        :param only_size:         Boolean. If False, record the reduced
-                                  chisq at each iteration
-                                  [default: False]
+        :param params:          Numpy array with parameters to fit.  First parameters for each
+                                key in fit_keys, then (u,v) for each star.
+        :param stars:           A list of Stars
+        :param fit_keys:        Key names for the initial values in params array.
+        :param shapes:          A list of premeasured Star shapes
+        :param shape_errors:    A list of premeasured Star shape errors
+        :param logger:          A logger object for logging debug info.  [default: None]
 
         :returns chi:             Chi of observed shapes to model shapes
 
@@ -2163,9 +2077,10 @@ class OptAtmoPSF(PSF):
         This is done by forward modeling the PSF and measuring its shape via HSM
         """
         logger = LoggerWrapper(logger)
-        logger.debug('start residual: current params = %s',lmparams)
+        logger.debug('start residual: current params = %s',params)
         # update psf
-        self._update_optatmopsf(lmparams.valuesdict(), logger)
+        n_opt = len(fit_keys)
+        self._update_optatmopsf(dict(zip(fit_keys, params[:n_opt])), logger=logger)
 
         # get optical params
         opt_params = self.getParamsList(stars)
@@ -2187,14 +2102,14 @@ class OptAtmoPSF(PSF):
                 if np.any(shape_model != shape_model):
                     logger.warning('Star {0} returned nan shape'.format(i))
                     logger.warning('Parameters are {0}'.format(str(params)))
-                    logger.warning('Input parameters are {0}'.format(str(lmparams.valuesdict())))
+                    logger.warning('Input parameters are {0}'.format(str(params)))
                     logger.warning('Filling with zero chi')
                     shape_model = shape
             except (ModelFitError, RuntimeError) as e:
                 logger.warning(str(e))
                 logger.warning('Star {0}\'s model failed to be drawn and measured.'.format(i))
                 logger.warning('Parameters are {0}'.format(str(params)))
-                logger.warning('Input parameters are {0}'.format(str(lmparams.valuesdict())))
+                logger.warning('Input parameters are {0}'.format(str(params)))
                 logger.warning('Filling with zero chi')
                 shape_model = shape
 
@@ -2202,10 +2117,6 @@ class OptAtmoPSF(PSF):
             chi_i = self._shape_weights * (((shape_model - shape) / error)[3:])
             chi = np.hstack((chi, chi_i))
 
-        if only_size == False:
-            logger.debug('Current Total Chi2 / dof is {0:.4e} / {1}'.format(
-                         np.sum(np.square(chi)), len(chi)))
-            self.total_redchi_across_iterations.append(np.sum(np.square(chi))/len(chi))
         self.final_optical_chi = chi
         # chi is a one-dimensional numpy array, containing
         # moment_weight*((moment_model-moment)/moment_error)

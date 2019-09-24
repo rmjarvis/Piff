@@ -857,91 +857,6 @@ def test_roundtrip():
     assert psf._caches == False
     assert psf._aberrations_reference_wavefronts == None
 
-@timer
-def test_lmparams():
-    # set up logger
-    if __name__ == '__main__':
-        logger = piff.config.setup_logger(verbose=3)
-    else:
-        logger = piff.config.setup_logger(verbose=1)
-    logger.info('Entering test_lmparams')
-
-    # test value, fix, min, max, all together
-    config = return_config()
-    psf = piff.PSF.process(config)
-    optatmo_psf_kwargs = {
-        'size': 1.3,
-        'zPupil006_zFocal002': 0.2,
-        'fix_zPupil009_zFocal001': True,
-        'min_zPupil010_zFocal003': -20,
-        'max_zPupil008_zFocal001': 20,
-        'min_size': 0.61,
-        'a_key_not_used': 5
-    }
-    keys = ['size',
-            'zPupil006_zFocal002', 'zPupil009_zFocal001',
-            'zPupil010_zFocal003', 'zPupil008_zFocal001']
-    lmparams = psf._fit_optics_lmparams(optatmo_psf_kwargs, keys)
-    # check a_key_not_used is not in the keys
-    assert 'a_key_not_used' not in lmparams.valuesdict().keys()
-    assert len(lmparams) == len(keys)
-    print("lmparams.valuesdict().keys(): {0}".format(lmparams.valuesdict().keys()))
-    print("keys: {0}".format(keys))
-    print("type(lmparams.valuesdict().keys()): {0}".format(type(lmparams.valuesdict().keys())))
-    print("keys: {0}".format(keys))
-    print("type(keys): {0}".format(type(keys)))
-    assert list(lmparams.valuesdict().keys()) == keys
-    for key in keys:
-        if key in optatmo_psf_kwargs:
-            assert lmparams.valuesdict()[key] == optatmo_psf_kwargs[key]
-        else:
-            assert lmparams.valuesdict()[key] == 0
-
-        if 'min_' + key in optatmo_psf_kwargs:
-            assert lmparams[key].min == optatmo_psf_kwargs['min_' + key]
-        else:
-            assert lmparams[key].min == -np.inf
-
-        if 'max_' + key in optatmo_psf_kwargs:
-            assert lmparams[key].max == optatmo_psf_kwargs['max_' + key]
-        else:
-            assert lmparams[key].max == np.inf
-
-        if 'fix_' + key in optatmo_psf_kwargs:
-            assert lmparams[key].vary == (not optatmo_psf_kwargs['fix_' + key])
-        else:
-            assert lmparams[key].vary == True
-
-
-    # test fixing of particular pupil
-    config = return_config()
-    config['optatmo_psf_kwargs'] = {'fix_zPupil010': True, 'zPupil010_zFocal003': 0.52}
-    psf = piff.PSF.process(config)
-    lmparams = psf._fit_optics_lmparams(psf.optatmo_psf_kwargs, psf.keys)
-    assert lmparams['zPupil010_zFocal003'].value == config['optatmo_psf_kwargs']['zPupil010_zFocal003']
-    assert lmparams['zPupil010_zFocal002'].value == 0
-    assert lmparams['zPupil010_zFocal003'].vary == False
-    assert lmparams['zPupil010_zFocal002'].vary == False
-    assert lmparams['zPupil009_zFocal002'].vary == True
-    assert lmparams['zPupil011_zFocal002'].vary == True
-
-    # test fixing of particular field
-    config['optatmo_psf_kwargs'] = {'fix_zFocal003': True, 'zPupil010_zFocal003': 0.52}
-    psf = piff.PSF.process(config)
-    lmparams = psf._fit_optics_lmparams(psf.optatmo_psf_kwargs, psf.keys)
-    assert lmparams['zPupil010_zFocal003'].value == config['optatmo_psf_kwargs']['zPupil010_zFocal003']
-    assert lmparams['zPupil010_zFocal002'].value == 0
-    assert lmparams['zPupil010_zFocal003'].vary == False
-    assert lmparams['zPupil010_zFocal002'].vary == True
-    assert lmparams['zPupil009_zFocal003'].vary == False
-    assert lmparams['zPupil011_zFocal002'].vary == True
-
-    # if we put in a value outside of min max, expect it to be that value instead
-    kwargs = {'size': 0.2, 'min_size': 0.3}
-    keys = ['size']
-    lmparams = psf._fit_optics_lmparams(kwargs, keys)
-    assert lmparams['size'].value == kwargs['min_size']
-
 if __name__ == '__main__':
     import cProfile, pstats
     pr = cProfile.Profile()
@@ -956,7 +871,6 @@ if __name__ == '__main__':
     test_profile()
     test_snr_and_shapes()
     test_roundtrip()
-    test_lmparams()
     test_fit()
     pr.disable()
     ps = pstats.Stats(pr).sort_stats('tottime')
