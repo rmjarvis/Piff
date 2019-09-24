@@ -1236,6 +1236,8 @@ class OptAtmoPSF(PSF):
                 continue
             elif 'max_' in key:
                 continue
+            elif 'starcenter_' in key:
+                continue
 
             # size, g1, g2, L0 mean constant atmospheric terms. These are called "opt_size", etc.
             # elsewhere as opposed to "atm_size," etc. which are the deviations from these means.
@@ -1549,28 +1551,31 @@ class OptAtmoPSF(PSF):
         # save reference wavefronts' values so we don't keep calling it during fit
         if self.reference_wavefront: self._create_caches(stars, logger=logger)
 
-        lmparams = self._fit_optics_lmparams(self.optatmo_psf_kwargs, self.keys)
         if mode == 'random_forest':
+            lmparams = self._fit_optics_lmparams(self.optatmo_psf_kwargs, self.keys)
             residual = self._fit_random_forest_residual
-        elif mode == 'shape':
-            residual = self._fit_optics_residual
-        elif mode == 'pixel':
-            residual = self._fit_optics_pixel_residual
-        else:
-            raise KeyError('Unrecognized fit mode: {0}'.format(mode))
-
-        # do fit!
-        if mode == 'random_forest':
             results = lmfit.minimize(residual, lmparams, args=(stars, shapes, errors,
                                      self.regr_dict, logger,), epsfcn=1e-5)
             logger.info("finished random_forest fit")
         elif mode == 'shape':
+            lmparams = self._fit_optics_lmparams(self.optatmo_psf_kwargs, self.keys)
+            residual = self._fit_optics_residual
             results = lmfit.minimize(residual, lmparams, args=(stars, shapes, errors, logger,),
                                      epsfcn=1e-5, ftol=ftol)
             logger.info("finished full optics fit")
-        else:
+        elif mode == 'pixel':
+            opt_params = self.getParamsList(stars)
+            stars = [self.reflux(star, param, logger=logger)
+                     for param, star in zip(opt_params,stars)]
+            lmparams = self._fit_optics_lmparams(self.optatmo_psf_kwargs, self.keys)
+            for i in range(len(stars)):
+                lmparams.add('starcenter_u_%d'%i, value=stars[i].center[0], vary=True)
+                lmparams.add('starcenter_v_%d'%i, value=stars[i].center[1], vary=True)
+            residual = self._fit_optics_pixel_residual
             results = lmfit.minimize(residual, lmparams, args=(stars, logger,),
                                      epsfcn=1e-5, ftol=ftol)
+        else:
+            raise KeyError('Unrecognized fit mode: {0}'.format(mode))
 
         nfev = results.nfev
         nvarys = results.nvarys
@@ -2207,15 +2212,14 @@ class OptAtmoPSF(PSF):
             # get profile; modify based on flux and shifts
             prof = self.getProfile(params)
 
-            ref_star = self.reflux(star)
-            star.fit.flux = ref_star.fit.flux
-            star.fit.center = ref_star.fit.center
+            star.fit.center = (lmparams['starcenter_u_%d'%i], lmparams['starcenter_v_%d'%i])
 
             # measure final shape
-            model = self.drawProfile(ref_star, prof, params).image
+            model = self.drawProfile(star, prof, params).image
 
             # Calculate chi for this star
             image, weight, image_pos = star.data.getImage()
+            model *= image.array.sum() / model.array.sum()  # Don't worry about flux differences
             chi = (np.sqrt(weight.array) * (model.array - image.array)).flatten()
             chis.append(chi)
 
