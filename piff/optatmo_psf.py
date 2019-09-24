@@ -1682,7 +1682,7 @@ class OptAtmoPSF(PSF):
                                 [default: None]
         """
         logger = LoggerWrapper(logger)
-        import lmfit
+        import scipy
         logger.info("Start fitting Optical fit of size alone")
 
         # Get the current parameters.  Everything but opt_size is constant here.
@@ -1707,19 +1707,16 @@ class OptAtmoPSF(PSF):
                                     **self.optical_psf_kwargs)
             optical_profiles.append(opt)
 
-        # create lmparameters
-        lmparams = lmfit.Parameters()
-        lmparams.add('logsize', value=np.log(self.optatmo_psf_kwargs['size']), vary=True,
-                     min=np.log(self.optatmo_psf_kwargs['min_size']),
-                     max=np.log(self.optatmo_psf_kwargs['max_size']))
-
         # do size fit
-        results = lmfit.minimize(self._fit_size_residual, lmparams,
-                                 args=(stars, opt_params, optical_profiles, logger,),
-                                 epsfcn=1.e-5)
+        results = scipy.optimize.least_squares(
+                self._fit_size_residual,
+                [np.log(self.optatmo_psf_kwargs['size'])],
+                args=(stars, opt_params, optical_profiles, logger,),
+                diff_step=1.e-5, ftol=1.e-5)
 
-        size = np.exp(results.params.valuesdict()['logsize'])
+        size = np.exp(results.x[0])
         logger.info("finished optics size fit: size = %s",size)
+        logger.debug(results)
         self.optatmo_psf_kwargs['size'] = size
         self._update_optatmopsf(self.optatmo_psf_kwargs, logger=logger)
 
@@ -2105,7 +2102,7 @@ class OptAtmoPSF(PSF):
         # returns for a model star with a given set of fit parameters
         return chi
 
-    def _fit_size_residual(self, lmparams, stars, opt_params, optical_profiles, logger=None):
+    def _fit_size_residual(self, x, stars, opt_params, optical_profiles, logger=None):
         """Residual function for fitting the optics size parameter to the
         observed e0 moment. The size parameter is proportional to 1/r0, r0
         being the Fried parameter. The "optics" size is the average of this
@@ -2114,7 +2111,7 @@ class OptAtmoPSF(PSF):
         function calls _fit_optics_residual and then limits the chi to only
         use the e0 moment.
 
-        :param lmparams:        LMFit Parameters object
+        :param x:               numpy array with [logsize]
         :param stars:           A list of Stars
         :param opt_params:      The full parameter list
         :param optical_profiles:    A list of optical profiels, constant during this fit
@@ -2128,9 +2125,7 @@ class OptAtmoPSF(PSF):
         This is done by forward modeling the PSF and measuring its shape via HSM
         """
         logger = LoggerWrapper(logger)
-        logger.info('start size residual: current params = %s',lmparams)
-
-        opt_size = np.exp(lmparams['logsize'])
+        opt_size = np.exp(x[0])
 
         chis = []
         for i, star in enumerate(stars):
@@ -2164,7 +2159,7 @@ class OptAtmoPSF(PSF):
 
         chi = np.concatenate(chis)
         chisq = np.sum(chi**2)
-        logger.info("chisq = %s",chisq)
+        logger.info("size = %s: chisq = %s",opt_size, chisq)
         return chi
 
     def _fit_optics_residual(self, lmparams, stars, shapes, shape_errors, logger=None,
