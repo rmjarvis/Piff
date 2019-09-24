@@ -327,6 +327,7 @@ def test_fit():
         logger = piff.config.setup_logger(verbose=1)
     logger.debug('Entering test_fit')
 
+    np.random.seed(12345)
     config = return_config()
     config['atmo_interp'] = 'None'
     config['jmax_focal'] = 1
@@ -386,12 +387,12 @@ def test_fit():
         stars_to_fit.append(star)
 
     # do fit
-    for fit_optics_mode in ['shape']:
+    #for fit_optics_mode in ['shape']:
+    for fit_optics_mode in ['pixel']:
         psf_train = piff.PSF.process(copy.deepcopy(config))
         logger.info('Test fitting optics mode {0}'.format(fit_optics_mode))
         psf_train.fit_optics_mode = fit_optics_mode
 
-        np.random.seed(12345)
         test_fraction = config.get('test_fraction', 0.2)
         num_test = int(test_fraction * len(stars_to_fit))
         test_indx = np.random.choice(len(stars_to_fit), num_test, replace=False)
