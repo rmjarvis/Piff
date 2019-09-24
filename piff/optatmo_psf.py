@@ -1580,6 +1580,7 @@ class OptAtmoPSF(PSF):
                 params.append(stars[i].center[1])
             results = scipy.optimize.least_squares(
                     self._fit_optics_pixel_residual, params,
+                    jac=self._fit_optics_pixel_jac,
                     args=(stars, fit_keys, logger,),
                     diff_step=1e-5, ftol=1.e-3, xtol=1.e-4)
         else:
@@ -2249,9 +2250,82 @@ class OptAtmoPSF(PSF):
             chis.append(chi)
 
         chi = np.concatenate(chis)
+
+        # Save some things for possible use by jacobian
+        self._fit_optical_cache_params = params
+        self._fit_optical_cache_optparams = opt_params
+        self._fit_optical_cache_chis = chis
+        self._fit_optical_cache_chi0 = chi
+
         chisq = np.sum(chi**2)
         logger.info("chisq = %s",chisq)
         return chi
+
+    def _fit_optics_pixel_jac(self, params, stars, fit_keys, logger=None):
+        """Find jacobian corresponding to _fit_optics_pixel_jac.
+
+        :param params:      Numpy array with parameters to fit.  First parameters for each
+                            key in fit_keys, then (u,v) for each star.
+        :param stars:       A list of Stars
+        :param fit_keys:    Key names for the initial values in params array.
+        :param logger:      A logger object for logging debug info.
+                            [default: None]
+
+        :returns jac:   Jacobian array, d(chi)/d(params)
+        """
+        logger = LoggerWrapper(logger)
+        logger.debug('start jacobian: current params = %s',params)
+        # update psf
+        n_opt = len(fit_keys)
+
+        if not np.array_equal(params, self._fit_optical_cache_params):
+            # This sets the cache items if they aren't already correct
+            self._fit_optics_pixel_residual(params, stars, fit_keys)
+
+        opt_params = self._fit_optical_cache_optparams
+        chis = self._fit_optical_cache_chis
+        chi0 = self._fit_optical_cache_chi0
+
+        jac = np.zeros((len(chi0), (len(params))), dtype=float)
+
+        # Array of the start/stop indices in chi0 for each star:
+        indx = np.zeros(len(chis)+1, dtype=int)
+        indx[1:] = np.cumsum([len(c) for c in chis])
+
+        # First the ones that don't require updating opt_params
+        for i, star in enumerate(stars):
+            opt_param_i = opt_params[i]
+
+            # get profile; modify based on flux and shifts
+            prof = self.getProfile(opt_param_i)
+
+            j_u = n_opt + 2*i
+            j_v = n_opt + 2*i + 1
+
+            # Do derivatives for each of u and v params:
+            duv = 1.e-5
+            image, weight, image_pos = star.data.getImage()
+
+            star.fit.center = (params[j_u] + duv, params[j_v])
+            model = self.drawProfile(star, prof, opt_param_i).image
+            model *= image.array.sum() / model.array.sum()
+            chi = (np.sqrt(weight.array) * (model.array - image.array)).flatten()
+            jac[indx[i]:indx[i+1],j_u] = (chi-chi0[indx[i]:indx[i+1]]) / duv
+
+            star.fit.center = (params[j_u], params[j_v] + duv)
+            model = self.drawProfile(star, prof, opt_param_i).image
+            model *= image.array.sum() / model.array.sum()
+            chi = (np.sqrt(weight.array) * (model.array - image.array)).flatten()
+            jac[indx[i]:indx[i+1],j_v] = (chi-chi0[indx[i]:indx[i+1]]) / duv
+
+        # For the rest, just call the residual function, since all of opt_params will change
+        dp = 1.e-5
+        for j in range(n_opt):
+            p = params.copy()
+            p[j] += dp
+            jac[:,j] = (self._fit_optics_pixel_residual(p, stars, fit_keys) - chi0) / dp
+        return jac
+
 
     def _fit_model_residual(self, params, star, optical_profile, L0, logger=None):
         """Residual function for fitting individual profile parameters to observed pixels.
