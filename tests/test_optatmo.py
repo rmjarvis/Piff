@@ -387,8 +387,8 @@ def test_fit():
         stars_to_fit.append(star)
 
     # do fit
-    #for fit_optics_mode in ['shape']:
-    for fit_optics_mode in ['pixel']:
+    test_modes = ['pixel', 'shape']
+    for fit_optics_mode in test_modes:
         psf_train = piff.PSF.process(copy.deepcopy(config))
         logger.info('Test fitting optics mode {0}'.format(fit_optics_mode))
         psf_train.fit_optics_mode = fit_optics_mode

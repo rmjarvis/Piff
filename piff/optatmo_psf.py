@@ -600,6 +600,8 @@ class OptAtmoPSF(PSF):
         self.wcs = wcs
         self.pointing = pointing
 
+        do_shapes = True
+        do_errors = self.init_with_rf or self.fit_optics_mode in ['shape', 'random_forest']
 
         # do first pass of flux, centers, and shapes for the train stars
         # train stars that fail this step are going to constantly fail the fit, so
@@ -611,13 +613,21 @@ class OptAtmoPSF(PSF):
         for star_i, star in enumerate(train_stars):
             logger.debug('Measuring shape of train star {0}'.format(star_i))
             try:
-                shape = self.measure_shape_orthogonal(star, logger=logger)
+                star = Star(star.data, StarFit(None))
+                if do_shapes:
+                    shape = self.measure_shape_orthogonal(star, logger=logger)
+                    star.fit.flux = shape[0]
+                    star.fit.center = shape[1], shape[2]
+                else:
+                    shape = None
                 # shapes measured here include flux, center, 2nd, 3rd, and orthogonal radial
                 # moments up to eighth moments
-                error = self.measure_error_orthogonal(star, logger=logger)
+                if do_errors:
+                    error = self.measure_error_orthogonal(star, logger=logger)
+                else:
+                    error = None
                 # errors measured here include flux, center, 2nd, 3rd, and orthogonal radial
                 # moments up to eighth moments
-                star = Star(star.data, StarFit(None, flux=shape[0], center=(shape[1], shape[2])))
                 star.data.properties['shape'] = shape
                 star.data.properties['shape_error'] = error
                 snr = measure_snr(star)
@@ -880,8 +890,6 @@ class OptAtmoPSF(PSF):
                 self.chisq_all_stars_optical[s] = np.sum(np.square(
                     self.final_optical_chi[s*self.length_of_moments_list :
                                            s*self.length_of_moments_list+self.length_of_moments_list]))
-        logger.info("len(self.stars): {0}".format(len(self.stars)))
-
         # this is the "atmospheric" fit.
         # we start here with the optical fit parameters and the average values of the atmospheric
         # parameters found in the optical fit and hold those fixed.
