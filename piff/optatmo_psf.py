@@ -1582,9 +1582,6 @@ class OptAtmoPSF(PSF):
                     args=(stars, fit_keys, shapes, errors, logger,),
                     diff_step=1e-5, ftol=1.e-3, xtol=1.e-4)
         elif mode == 'pixel':
-            opt_params = self.getParamsList(stars)
-            stars = [self.reflux(star, param, logger=logger)
-                     for param, star in zip(opt_params,stars)]
             for i in range(len(stars)):
                 params.append(stars[i].center[0])
                 params.append(stars[i].center[1])
@@ -2189,7 +2186,7 @@ class OptAtmoPSF(PSF):
         return chi
 
     def _fit_optics_pixel_jac(self, params, stars, fit_keys, logger=None):
-        """Find jacobian corresponding to _fit_optics_pixel_jac.
+        """Find jacobian corresponding to _fit_optics_pixel_residual.
 
         :param params:      Numpy array with parameters to fit.  First parameters for each
                             key in fit_keys, then (u,v) for each star.
@@ -2213,7 +2210,7 @@ class OptAtmoPSF(PSF):
         chis = self._fit_optical_cache_chis
         chi0 = self._fit_optical_cache_chi0
 
-        jac = np.zeros((len(chi0), (len(params))), dtype=float)
+        jac = np.zeros((len(chi0), len(params)), dtype=float)
 
         # Array of the start/stop indices in chi0 for each star:
         indx = np.zeros(len(chis)+1, dtype=int)
