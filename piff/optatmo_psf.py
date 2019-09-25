@@ -43,20 +43,26 @@ class wavefrontmap(object):
 
     Aaron Roodman (C) SLAC National Accelerator Laboratory, Stanford University 2018.
     """
-    def __init__(self,file):
-        from scipy.interpolate import Rbf
-        # init contains all initializations which are done only once for all fits
+    _cache = {}
 
-        self.file = file
-        mapdict = pickle.load(open(self.file,'rb'))
-        self.x = mapdict['x']
-        self.y = mapdict['y']
-        self.zcoeff = mapdict['zcoeff']
-        self.nZernikeLast = self.zcoeff.shape[1]
+    def __init__(self, fname):
+        self.fname = fname
+        if fname in self._cache:
+            self.x, self.y, self.zcoeff, self.nZernikeLast, self.interpDict = self._cache[fname]
+        else:
+            from scipy.interpolate import Rbf
+            # init contains all initializations which are done only once for all fits
 
-        self.interpDict = {}
-        for iZ in range(3,self.nZernikeLast):    # numbering is such that iZ=3 is zern4
-            self.interpDict[iZ] = Rbf(self.x, self.y, self.zcoeff[:,iZ])
+            mapdict = pickle.load(open(fname,'rb'))
+            self.x = mapdict['x']
+            self.y = mapdict['y']
+            self.zcoeff = mapdict['zcoeff']
+            self.nZernikeLast = self.zcoeff.shape[1]
+
+            self.interpDict = {}
+            for iZ in range(3,self.nZernikeLast):    # numbering is such that iZ=3 is zern4
+                self.interpDict[iZ] = Rbf(self.x, self.y, self.zcoeff[:,iZ])
+            self._cache[fname] = (self.x, self.y, self.zcoeff, self.nZernikeLast, self.interpDict)
 
     def get(self,x,y,nZernikeFirst=4):
         # start with defocus (zern4) and go up to the highest zernike found in the higher order
@@ -197,7 +203,7 @@ class OptAtmoPSF(PSF):
             self.higher_order_reference_wavefront = None
         else:
             self.higher_order_reference_wavefront = wavefrontmap(
-                file=self.higher_order_reference_wavefront_file)
+                self.higher_order_reference_wavefront_file)
         self.min_optfit_snr = min_optfit_snr
         self.n_optfit_stars = n_optfit_stars
 
@@ -596,7 +602,7 @@ class OptAtmoPSF(PSF):
             self.higher_order_reference_wavefront = None
         else:
             self.higher_order_reference_wavefront = wavefrontmap(
-                file=self.higher_order_reference_wavefront_file)
+                self.higher_order_reference_wavefront_file)
         self.wcs = wcs
         self.pointing = pointing
 
