@@ -1920,11 +1920,11 @@ class OptAtmoPSF(PSF):
 
         :returns:           New Star instance, with updated flux, center, chisq, dof
         """
-        def _resid(x, psf, star, params):
+        def _resid(x, psf, star, prof, params):
             # residual as a function of x = (flux, du, dv)
             star.fit.flux = np.exp(x[0])
             star.fit.center = x[1:]
-            image_model = psf.drawStar(star, params).image
+            image_model = psf.drawProfile(star, prof, params).image
             image, weight, image_pos = star.data.getImage()
             return (np.sqrt(weight.array) * (image_model.array - image.array)).flatten()
 
@@ -1939,7 +1939,9 @@ class OptAtmoPSF(PSF):
         # Use current flux, center as initial guess for x0.
         flux = np.log(star.fit.flux)
         du, dv = star.fit.center
-        results = scipy.optimize.least_squares(_resid, x0=[flux, du, dv], args=(self, star, params),
+        prof = self.getProfile(params, logger=logger)
+        results = scipy.optimize.least_squares(_resid, x0=[flux, du, dv],
+                                               args=(self, star, prof, params),
                                                diff_step=1.e-4, ftol=1.e-3, xtol=1.e-4)
 
         # Update return value with fit results
