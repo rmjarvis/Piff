@@ -2166,7 +2166,9 @@ class OptAtmoPSF(PSF):
 
             # Calculate chi for this star
             image, weight, image_pos = star.data.getImage()
-            model *= image.array.sum() / model.array.sum()  # Don't worry about flux differences
+            image_flux = np.sum(image.array * weight.array)
+            model_flux = np.sum(model.array * weight.array)
+            model *= image_flux/model_flux  # Don't worry about flux differences
             chi = (np.sqrt(weight.array) * (model.array - image.array)).flatten()
             chis.append(chi)
 
@@ -2229,13 +2231,16 @@ class OptAtmoPSF(PSF):
 
             star.fit.center = (params[j_u] + duv, params[j_v])
             model = self.drawProfile(star, prof, opt_param_i).image
-            model *= image.array.sum() / model.array.sum()
+            image_flux = np.sum(image.array * weight.array)
+            model_flux = np.sum(model.array * weight.array)
+            model *= image_flux/model_flux
             chi = (np.sqrt(weight.array) * (model.array - image.array)).flatten()
             jac[indx[i]:indx[i+1],j_u] = (chi-chi0[indx[i]:indx[i+1]]) / duv
 
             star.fit.center = (params[j_u], params[j_v] + duv)
             model = self.drawProfile(star, prof, opt_param_i).image
-            model *= image.array.sum() / model.array.sum()
+            model_flux = np.sum(model.array * weight.array)
+            model *= image_flux/model_flux
             chi = (np.sqrt(weight.array) * (model.array - image.array)).flatten()
             jac[indx[i]:indx[i+1],j_v] = (chi-chi0[indx[i]:indx[i+1]]) / duv
 
