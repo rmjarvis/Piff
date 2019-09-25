@@ -1652,7 +1652,7 @@ class OptAtmoPSF(PSF):
                 self._fit_size_residual,
                 [np.log(self.optatmo_psf_kwargs['size'])],
                 args=(stars, opt_params, optical_profiles, logger,),
-                diff_step=1.e-5, ftol=1.e-5)
+                diff_step=1.e-4, ftol=1.e-3, xtol=1.e-4)
 
         size = np.exp(results.x[0])
         logger.info("finished optics size fit: size = %s",size)
@@ -1847,7 +1847,7 @@ class OptAtmoPSF(PSF):
         results = scipy.optimize.least_squares(
                 self._fit_model_residual, fit_params,
                 args=(star, optical_profile, opt_L0, logger,),
-                ftol=1.e-5)
+                ftol=1.e-3, xtol=1.e-4)
 
         logger.debug(results.message)
         if not results.success:
@@ -1940,7 +1940,7 @@ class OptAtmoPSF(PSF):
         flux = np.log(star.fit.flux)
         du, dv = star.fit.center
         results = scipy.optimize.least_squares(_resid, x0=[flux, du, dv], args=(self, star, params),
-                                               diff_step=1.e-4)
+                                               diff_step=1.e-4, ftol=1.e-3, xtol=1.e-4)
 
         # Update return value with fit results
         star.fit.flux = np.exp(results.x[0])
