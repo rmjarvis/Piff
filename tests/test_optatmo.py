@@ -120,7 +120,7 @@ def return_config_big_r0():
 def test_init():
     # set up logger
     if __name__ == '__main__':
-        logger = piff.config.setup_logger(verbose=3)
+        logger = piff.config.setup_logger(verbose=2)
     else:
         logger = piff.config.setup_logger(verbose=1)
     logger.info('test_init: Started')
@@ -159,7 +159,7 @@ def test_init():
 def test_aberrations():
     # set up logger
     if __name__ == '__main__':
-        logger = piff.config.setup_logger(verbose=3)
+        logger = piff.config.setup_logger(verbose=2)
     else:
         logger = piff.config.setup_logger(verbose=1)
     logger.info('test_aberrations: Started')
@@ -184,7 +184,7 @@ def test_aberrations():
 def test_reference_wavefront():
     # set up logger
     if __name__ == '__main__':
-        logger = piff.config.setup_logger(verbose=3)
+        logger = piff.config.setup_logger(verbose=2)
         jmaxs = list(range(4, 14)) + [41]
     else:
         logger = piff.config.setup_logger(verbose=1)
@@ -249,7 +249,7 @@ def test_reference_wavefront():
 def test_atmo_interp_fit():
     # set up logger
     if __name__ == '__main__':
-        logger = piff.config.setup_logger(verbose=3)
+        logger = piff.config.setup_logger(verbose=2)
     else:
         logger = piff.config.setup_logger(verbose=1)
     logger.info('Entering test_atmo_interp_fit')
@@ -429,7 +429,7 @@ def test_fit():
 def test_atmo_model_fit():
     # set up logger
     if __name__ == '__main__':
-        logger = piff.config.setup_logger(verbose=3)
+        logger = piff.config.setup_logger(verbose=2)
     else:
         logger = piff.config.setup_logger(verbose=1)
     logger.info('Entering test_atmo_model_fit')
@@ -506,7 +506,7 @@ def test_atmo_model_fit():
 def test_jmaxs():
     # set up logger
     if __name__ == '__main__':
-        logger = piff.config.setup_logger(verbose=3)
+        logger = piff.config.setup_logger(verbose=2)
     else:
         logger = piff.config.setup_logger(verbose=1)
     logger.info('test_jmaxs: Started')
@@ -581,7 +581,7 @@ def test_jmaxs():
 def test_snr_and_shapes():
     # set up logger
     if __name__ == '__main__':
-        logger = piff.config.setup_logger(verbose=3)
+        logger = piff.config.setup_logger(verbose=2)
     else:
         logger = piff.config.setup_logger(verbose=1)
     logger.info('Entering test_snr_and_shapes')
@@ -642,7 +642,7 @@ def test_snr_and_shapes():
 def test_profile():
     # set up logger
     if __name__ == '__main__':
-        logger = piff.config.setup_logger(verbose=3)
+        logger = piff.config.setup_logger(verbose=2)
     else:
         logger = piff.config.setup_logger(verbose=1)
     config = return_config()
@@ -680,7 +680,7 @@ def test_random_forest():
 
     # set up logger
     if __name__ == '__main__':
-        logger = piff.config.setup_logger(verbose=3)
+        logger = piff.config.setup_logger(verbose=2)
     else:
         logger = piff.config.setup_logger(verbose=0)
     logger.info('Testing random_forest')
@@ -729,7 +729,7 @@ def test_random_forest():
 def test_roundtrip():
     # set up logger
     if __name__ == '__main__':
-        logger = piff.config.setup_logger(verbose=3)
+        logger = piff.config.setup_logger(verbose=2)
     else:
         logger = piff.config.setup_logger(verbose=0)
     logger.info('Testing roundtrip')
@@ -786,9 +786,9 @@ def test_roundtrip():
 
     # go through kwargs and check
     for key in psf_original.kwargs:
-        print("key: {0}".format(key))
-        print("psf_original.kwargs[key]: {0}".format(psf_original.kwargs[key]))
-        print("psf.kwargs[key]: {0}".format(psf.kwargs[key]))
+        #print("key: {0}".format(key))
+        #print("psf_original.kwargs[key]: {0}".format(psf_original.kwargs[key]))
+        #print("psf.kwargs[key]: {0}".format(psf.kwargs[key]))
         assert np.all(psf_original.kwargs[key] == psf.kwargs[key])
 
     # check the other named attributes

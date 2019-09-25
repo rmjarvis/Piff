@@ -850,10 +850,10 @@ class OptAtmoPSF(PSF):
                 pull_all_stars = ((data_shapes_all_stars - model_shapes_all_stars) /
                                     data_errors_all_stars)
                 # pull is (data-model)/error
-                logger.info("data_shapes_all_stars: {0}".format(data_shapes_all_stars))
-                logger.info("model_shapes_all_stars: {0}".format(model_shapes_all_stars))
-                logger.info("data_errors_all_stars: {0}".format(data_errors_all_stars))
-                logger.info("pull_all_stars: {0}".format(pull_all_stars))
+                logger.debug("data_shapes_all_stars: {0}".format(data_shapes_all_stars))
+                logger.debug("model_shapes_all_stars: {0}".format(model_shapes_all_stars))
+                logger.debug("data_errors_all_stars: {0}".format(data_errors_all_stars))
+                logger.debug("pull_all_stars: {0}".format(pull_all_stars))
                 conds_pull = (np.all(np.abs(pull_all_stars) <= 4.0, axis=1))
                 # all stars with more than 4.0 pull are thrown out
                 conds_pull_e0 = (np.abs(pull_all_stars[:,0]) <= 4.0)
@@ -883,7 +883,7 @@ class OptAtmoPSF(PSF):
             logger.info("total chisq for optical chi: {0}".format(
                 np.sum(np.square(self.final_optical_chi))))
             for tm, test_moment in enumerate(moments_list):
-                logger.info("total chisq for optical chi for {0}: {1}".format(
+                logger.debug("total chisq for optical chi for {0}: {1}".format(
                     test_moment,
                     np.sum(np.square(self.final_optical_chi)[tm::self.length_of_moments_list])))
             logger.info("total dof for optical chi: {0}".format(len(self.final_optical_chi)))
@@ -1597,7 +1597,7 @@ class OptAtmoPSF(PSF):
             raise KeyError('Unrecognized fit mode: {0}'.format(mode))
 
         logger.info('Results from {0} optical fit:'.format(mode))
-        logger.info(results)
+        logger.info(results.message)
         if not results.success:
             raise RuntimeError("fit failed")
         # Estimate covariance matrix from jacobian
@@ -1656,7 +1656,7 @@ class OptAtmoPSF(PSF):
 
         size = np.exp(results.x[0])
         logger.info("finished optics size fit: size = %s",size)
-        logger.debug(results)
+        logger.info(results.message)
         self.optatmo_psf_kwargs['size'] = size
         self._update_optatmopsf(self.optatmo_psf_kwargs, logger=logger)
 
@@ -1849,7 +1849,7 @@ class OptAtmoPSF(PSF):
                 args=(star, optical_profile, opt_L0, logger,),
                 ftol=1.e-5)
 
-        logger.debug(results)
+        logger.debug(results.message)
         if not results.success:
             raise RuntimeError('Not successful fit')
 
