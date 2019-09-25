@@ -102,7 +102,7 @@ class OptAtmoPSF(PSF):
     :param min_optfit_snr:          Minimum snr from star property required for optical portion of
                                     fit. If 0, ignored. [default: 0]
     :param fit_optics_mode:         Choose ['random_forest', 'shape', 'pixel'] for optics fitting
-                                    mode. [default: 'shape'; random_forest is invalid in py2.7]
+                                    mode. [default: 'pixel'; random_forest is invalid in py2.7]
     :param higher_order_reference_wavefront_file: A string with the path and filename of the
                                     pickle containing the higher order reference wavefront.
                                     [default: None]
@@ -164,7 +164,7 @@ class OptAtmoPSF(PSF):
     def __init__(self, atmo_interp=None, outliers=None, optatmo_psf_kwargs={},
                  optical_psf_kwargs={}, kolmogorov_kwargs={}, reference_wavefront=None,
                  n_optfit_stars=0, fov_radius=4500., jmax_pupil=11,
-                 jmax_focal=10, min_optfit_snr=0, fit_optics_mode='shape',
+                 jmax_focal=10, min_optfit_snr=0, fit_optics_mode='pixel',
                  higher_order_reference_wavefront_file=None, init_with_rf=False,
                  random_forest_shapes_model_pickles_location=None,
                  atmosphere_model='vonkarman', atmo_mad_outlier=False, max_shapes = [],
@@ -2008,9 +2008,7 @@ class OptAtmoPSF(PSF):
         observed e0 moment. The size parameter is proportional to 1/r0, r0
         being the Fried parameter. The "optics" size is the average of this
         across the focal plane, whereas "atmospheric" size is the deviation
-        from this average at different points in the focal plane. This
-        function calls _fit_optics_residual and then limits the chi to only
-        use the e0 moment.
+        from this average at different points in the focal plane.
 
         :param x:               numpy array with [logsize]
         :param stars:           A list of Stars
@@ -2133,8 +2131,7 @@ class OptAtmoPSF(PSF):
     # not necessarily set up to work with vonkarman atmosphere; also not currently used
     # because too slow
     def _fit_optics_pixel_residual(self, params, stars, fit_keys, logger=None):
-        """Residual function for fitting all stars. The only difference between this
-        function and _fit_optics_residual is that pixels instead of shapes are used here.
+        """Residual function for fitting all stars using pixel-based residuals.
 
         :param params:      Numpy array with parameters to fit.  First parameters for each
                             key in fit_keys, then (u,v) for each star.
