@@ -871,5 +871,6 @@ if __name__ == '__main__':
     test_roundtrip()
     test_fit()
     pr.disable()
+    pr.dump_stats('prof.out')
     ps = pstats.Stats(pr).sort_stats('tottime')
     ps.print_stats(20)

@@ -73,3 +73,6 @@ target/
 # for instructions about how to set this up.  (Although now that it's been set up once,
 # just do `git checkout gh-pages` in that directory, not --orphan.)
 gh-pages
+
+# Profile output
+prof.out
