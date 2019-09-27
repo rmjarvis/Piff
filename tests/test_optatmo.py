@@ -126,8 +126,6 @@ def test_init():
     logger.info('test_init: Started')
     config = return_config()
     psf = piff.PSF.process(config, logger=logger)
-    assert psf.optical_psf_kwargs['pad_factor'] == 0.5
-    assert psf.optical_psf_kwargs['oversampling'] == 0.5
 
     # test init with different optical template
     config = return_config()

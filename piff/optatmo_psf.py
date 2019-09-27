@@ -295,17 +295,17 @@ class OptAtmoPSF(PSF):
         # since we haven't fit the interpolator, yet, disable atmosphere
         self._enable_atmosphere = False
 
-        # Set up hardcoded gsparams for _considerable_ speedup. This is likely not necessary
-        # because optical_model.py already does this but this is here just in case.
+        # We don't actually need the OpticalPSF rendering to be super accurate.
+        # So dial down the default GalSim accuracy settings somewhat to get improved speed.
         self.gsparams = galsim.GSParams(
-            minimum_fft_size=32,  # 128
-            )
-        # Decrease pad_factor and oversampling for speedup in optical modeling. This is likely not
-        # necessary because optical_model.py already does this but this is here just in case.
+            minimum_fft_size=32,            # default 128
+            folding_threshold=0.02,         # default 0.005
+            maxk_threshold=0.01,            # default 0.001
+        )
         if 'pad_factor' not in self.optical_psf_kwargs:
-            self.optical_psf_kwargs['pad_factor'] = 0.5
+            self.optical_psf_kwargs['pad_factor'] = 1.0    # defautl 1.5
         if 'oversampling' not in self.optical_psf_kwargs:
-            self.optical_psf_kwargs['oversampling'] = 0.5
+            self.optical_psf_kwargs['oversampling'] = 1.0  # defautl 1.5
 
         # max size of shapes allowed
         self._max_shapes = np.array([1.5, 0.12, 0.12, 0.15, 0.15, 0.15, 0.15, 1.5, 5.0, 50.0])
