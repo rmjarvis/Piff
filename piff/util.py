@@ -338,7 +338,7 @@ def hsm_error(star, logger=None, return_error=True):
     normalization2 = normalization * normalization
 
     sigma2_data_i = 1. / weight_i
-    sigma2_normalization = np.sum((weight_i ** 2 * kernel_i ** 2)**2 * sigma2_data_i)
+    sigma2_normalization = np.sum((weight_i * kernel_i)**2 * sigma2_data_i)
     sigma_normalization = np.sqrt(sigma2_normalization)
     # flux is 2x normalization in hsm.cpp, so probably a factor of 2 here
     sigma_flux = 2 * sigma_normalization
@@ -380,15 +380,15 @@ def hsm_error(star, logger=None, return_error=True):
 
     # add sigma_u0, sigma_v0. This is ignoring the kernel!
     sigma2_e0_u0 = np.sum(
-        (2 * 2 * du_i * weight_i * kernel_i * data_i / normalization * sigma_u0)**2)
+        (2 * 2 * du_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
     sigma2_e0_v0 = np.sum(
-        (2 * 2 * dv_i * weight_i * kernel_i * data_i / normalization * sigma_v0)**2)
+        (2 * 2 * dv_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
     sigma2_e1_u0 = sigma2_e0_u0
     sigma2_e1_v0 = sigma2_e0_v0
     sigma2_e2_u0 = np.sum(
-        (2 * 2 * dv_i * weight_i * kernel_i * data_i / normalization * sigma_u0)**2)
+        (2 * 2 * dv_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
     sigma2_e2_v0 = np.sum(
-        (2 * 2 * du_i * weight_i * kernel_i * data_i / normalization * sigma_v0)**2)
+        (2 * 2 * du_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
 
     # add sigma_normalization
     sigma2_e0_flux = (e0_calc * sigma_normalization / normalization)**2
@@ -408,9 +408,14 @@ def hsm_error(star, logger=None, return_error=True):
     # the errors need these fudge factors.
     #####
 
-    sigma_e0 = sigma_e0 * 1.8
-    sigma_e1 = sigma_e1 * 2.3
-    sigma_e2 = sigma_e2 * 2.3
+    #sigma_e0 = sigma_e0 * 1.8
+    #sigma_e1 = sigma_e1 * 2.3
+    #sigma_e2 = sigma_e2 * 2.3
+    # MJ: After fixing the above calculation of sigma2_*_u0/v0, these don't need to be as large.
+    #     These fudge factors seem to work a bit better for test_snr_and_shapes.
+    sigma_e0 = sigma_e0 * 0.8
+    sigma_e1 = sigma_e1 * 0.8
+    sigma_e2 = sigma_e2 * 0.8
 
     return (flux_calc, u0_calc, v0_calc, e0_calc, e1_calc, e2_calc,
             sigma_flux, sigma_u0, sigma_v0, sigma_e0, sigma_e1, sigma_e2)
@@ -548,7 +553,7 @@ def hsm_error_third_moments(star, logger=None):
     normalization2 = normalization * normalization
 
     sigma2_data_i = 1. / weight_i
-    sigma2_normalization = np.sum((weight_i**2 * kernel_i**2)**2 * sigma2_data_i)
+    sigma2_normalization = np.sum((weight_i * kernel_i)**2 * sigma2_data_i)
     sigma_normalization = np.sqrt(sigma2_normalization)
     # flux is 2x normalization in hsm.cpp, so probably a factor of 2 here
     sigma_flux = 2 * sigma_normalization
@@ -599,33 +604,33 @@ def hsm_error_third_moments(star, logger=None):
 
     # add sigma_u0, sigma_v0. This is ignoring the kernel!
     sigma2_e0_u0 = np.sum(
-        (4 * du_i * weight_i * kernel_i * data_i / normalization * sigma_u0)**2)
+        (4 * du_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
     sigma2_e0_v0 = np.sum(
-        (4 * dv_i * weight_i * kernel_i * data_i / normalization * sigma_v0)**2)
+        (4 * dv_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
     sigma2_e1_u0 = sigma2_e0_u0
     sigma2_e1_v0 = sigma2_e0_v0
     sigma2_e2_u0 = np.sum(
-        (4 * dv_i * weight_i * kernel_i * data_i / normalization * sigma_u0)**2)
+        (4 * dv_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
     sigma2_e2_v0 = np.sum(
-        (4 * du_i * weight_i * kernel_i * data_i / normalization * sigma_v0)**2)
+        (4 * du_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
 
     sigma2_zeta1_u0 = np.sum(
-        (2 * (3*du_i**2 + dv_i**2) * weight_i * kernel_i * data_i / normalization * sigma_u0)**2)
+        (2 * (3*du_i**2 + dv_i**2))**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
     sigma2_zeta1_v0 = np.sum(
-        (4 * du_i * dv_i * weight_i * kernel_i * data_i / normalization * sigma_v0)**2)
+        (4 * du_i * dv_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
     sigma2_zeta2_u0 = np.sum(
-        (4 * du_i * dv_i * weight_i * kernel_i * data_i / normalization * sigma_u0)**2)
+        (4 * du_i * dv_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
     sigma2_zeta2_v0 = np.sum(
-        (2 * (du_i**2 + 3*dv_i**2) * weight_i * kernel_i * data_i / normalization * sigma_v0)**2)
+        (2 * (du_i**2 + 3*dv_i**2))**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
 
     sigma2_delta1_u0 = np.sum(
-        (6 * (du_i**2 - dv_i**2) * weight_i * kernel_i * data_i / normalization * sigma_u0)**2)
+        (6 * (du_i**2 - dv_i**2))**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
     sigma2_delta1_v0 = np.sum(
-        (-12 * du_i * dv_i * weight_i * kernel_i * data_i / normalization * sigma_v0)**2)
+        (-12 * du_i * dv_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
     sigma2_delta2_u0 = np.sum(
-        (12 * du_i * dv_i * weight_i * kernel_i * data_i / normalization * sigma_u0)**2)
+        (12 * du_i * dv_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
     sigma2_delta2_v0 = np.sum(
-        (6 * (du_i**2 - dv_i**2) * weight_i * kernel_i * data_i / normalization * sigma_v0)**2)
+        (6 * (du_i**2 - dv_i**2))**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
 
     # add sigma_normalization
     sigma2_e0_flux = (e0_calc * sigma_normalization / normalization)**2
@@ -657,9 +662,9 @@ def hsm_error_third_moments(star, logger=None):
     # the errors need these fudge factors.
     #####
 
-    sigma_e0 = sigma_e0 * 1.8
-    sigma_e1 = sigma_e1 * 2.3
-    sigma_e2 = sigma_e2 * 2.3
+    sigma_e0 = sigma_e0 * 0.8
+    sigma_e1 = sigma_e1 * 0.8
+    sigma_e2 = sigma_e2 * 0.8
 
     sigma_zeta1 = sigma_zeta1 * 0.52
     sigma_zeta2 = sigma_zeta2 * 0.55
@@ -826,7 +831,7 @@ def hsm_error_fourth_moments(star, logger=None):
     normalization2 = normalization * normalization
 
     sigma2_data_i = 1. / weight_i
-    sigma2_normalization = np.sum((weight_i ** 2 * kernel_i ** 2)**2 * sigma2_data_i)
+    sigma2_normalization = np.sum((weight_i * kernel_i)**2 * sigma2_data_i)
     sigma_normalization = np.sqrt(sigma2_normalization)
     # flux is 2x normalization in hsm.cpp, so probably a factor of 2 here
     sigma_flux = 2 * sigma_normalization
@@ -892,54 +897,54 @@ def hsm_error_fourth_moments(star, logger=None):
 
     # add sigma_u0, sigma_v0. This is ignoring the kernel!
     sigma2_e0_u0 = np.sum(
-        (4 * du_i * weight_i * kernel_i * data_i / normalization * sigma_u0)**2)
+        (4 * du_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
     sigma2_e0_v0 = np.sum(
-        (4 * dv_i * weight_i * kernel_i * data_i / normalization * sigma_v0)**2)
+        (4 * dv_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
     sigma2_e1_u0 = sigma2_e0_u0
     sigma2_e1_v0 = sigma2_e0_v0
     sigma2_e2_u0 = np.sum(
-        (4 * dv_i * weight_i * kernel_i * data_i / normalization * sigma_u0)**2)
+        (4 * dv_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
     sigma2_e2_v0 = np.sum(
-        (4 * du_i * weight_i * kernel_i * data_i / normalization * sigma_v0)**2)
+        (4 * du_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
 
     sigma2_zeta1_u0 = np.sum(
-        (2 * (3*du_i**2 + dv_i**2) * weight_i * kernel_i * data_i / normalization * sigma_u0)**2)
+        (2 * (3*du_i**2)**2 + dv_i**2) * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
     sigma2_zeta1_v0 = np.sum(
-        (4 * du_i * dv_i * weight_i * kernel_i * data_i / normalization * sigma_v0)**2)
+        (4 * du_i * dv_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
     sigma2_zeta2_u0 = np.sum(
-        (4 * du_i * dv_i * weight_i * kernel_i * data_i / normalization * sigma_u0)**2)
+        (4 * du_i * dv_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
     sigma2_zeta2_v0 = np.sum(
-        (2 * (du_i**2 + 3*dv_i**2) * weight_i * kernel_i * data_i / normalization * sigma_v0)**2)
+        (2 * (du_i**2 + 3*dv_i**2))**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
     sigma2_delta1_u0 = np.sum(
-        (6 * (du_i**2 - dv_i**2) * weight_i * kernel_i * data_i / normalization * sigma_u0)**2)
+        (6 * (du_i**2 - dv_i**2))**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
     sigma2_delta1_v0 = np.sum(
-        (-12 * du_i * dv_i * weight_i * kernel_i * data_i / normalization * sigma_v0)**2)
+        (-12 * du_i * dv_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
     sigma2_delta2_u0 = np.sum(
-        (12 * du_i * dv_i * weight_i * kernel_i * data_i / normalization * sigma_u0)**2)
+        (12 * du_i * dv_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
     sigma2_delta2_v0 = np.sum(
-        (6 * (du_i**2 - dv_i**2) * weight_i * kernel_i * data_i / normalization * sigma_v0)**2)
+        (6 * (du_i**2 - dv_i**2))**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
 
     sigma2_xi_u0 = np.sum(
-        (8 * du_i * (du_i**2 + dv_i**2) * weight_i * kernel_i * data_i / normalization * sigma_u0)**2)
+        (8 * du_i * (du_i**2 + dv_i**2))**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
     sigma2_xi_v0 = np.sum(
-        (8 * dv_i * (du_i**2 + dv_i**2) * weight_i * kernel_i * data_i / normalization * sigma_v0)**2)
+        (8 * dv_i * (du_i**2 + dv_i**2))**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
     sigma2_eta1_u0 = np.sum(
-        (8 * du_i**3 * weight_i * kernel_i * data_i / normalization * sigma_u0)**2)
+        (8 * du_i**3)**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
     sigma2_eta1_v0 = np.sum(
-        (-8 * dv_i**3 * weight_i * kernel_i * data_i / normalization * sigma_v0)**2)
+        (-8 * dv_i**3)**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
     sigma2_eta2_u0 = np.sum(
-        (4 * dv_i * (3*du_i**2 + dv_i**2) * weight_i * kernel_i * data_i / normalization * sigma_u0)**2)
+        (4 * dv_i * (3*du_i**2 + dv_i**2))**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
     sigma2_eta2_v0 = np.sum(
-        (4 * du_i * (du_i**2 + 3*dv_i**2) * weight_i * kernel_i * data_i / normalization * sigma_v0)**2)
+        (4 * du_i * (du_i**2 + 3*dv_i**2))**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
 
     sigma2_lambda1_u0 = np.sum(
-        (8 * du_i * (du_i**2 - 3*dv_i**2) * weight_i * kernel_i * data_i / normalization * sigma_u0)**2)
+        (8 * du_i * (du_i**2 - 3*dv_i**2))**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
     sigma2_lambda1_v0 = np.sum(
-        (8 * dv_i * (dv_i**2 - 3*du_i**2) * weight_i * kernel_i * data_i / normalization * sigma_v0)**2)
+        (8 * dv_i * (dv_i**2 - 3*du_i**2))**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
     sigma2_lambda2_u0 = np.sum(
-        (8 * dv_i * (3*du_i**2 - dv_i**2) * weight_i * kernel_i * data_i / normalization * sigma_u0)**2)
+        (8 * dv_i * (3*du_i**2 - dv_i**2))**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
     sigma2_lambda2_v0 = np.sum(
-        (8 * du_i * (du_i**2 - 3*dv_i**2) * weight_i * kernel_i * data_i / normalization * sigma_v0)**2)
+        (8 * du_i * (du_i**2 - 3*dv_i**2))**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
 
     # add sigma_normalization
     sigma2_e0_flux = (e0_calc * sigma_normalization / normalization)**2
@@ -985,9 +990,9 @@ def hsm_error_fourth_moments(star, logger=None):
     # the errors need these fudge factors.
     #####
 
-    sigma_e0 = sigma_e0 * 1.8
-    sigma_e1 = sigma_e1 * 2.3
-    sigma_e2 = sigma_e2 * 2.3
+    sigma_e0 = sigma_e0 * 0.8
+    sigma_e1 = sigma_e1 * 0.8
+    sigma_e2 = sigma_e2 * 0.8
 
     sigma_zeta1 = sigma_zeta1 * 0.52
     sigma_zeta2 = sigma_zeta2 * 0.55
@@ -1202,7 +1207,7 @@ def hsm_error_orthogonal(star, logger=None):
     normalization2 = normalization * normalization
 
     sigma2_data_i = 1. / weight_i
-    sigma2_normalization = np.sum((weight_i ** 2 * kernel_i ** 2)**2 * sigma2_data_i)
+    sigma2_normalization = np.sum((weight_i * kernel_i)**2 * sigma2_data_i)
     sigma_normalization = np.sqrt(sigma2_normalization)
     # flux is 2x normalization in hsm.cpp, so probably a factor of 2 here
     sigma_flux = 2 * sigma_normalization
@@ -1260,45 +1265,45 @@ def hsm_error_orthogonal(star, logger=None):
 
     # add sigma_u0, sigma_v0. This is ignoring the kernel!
     sigma2_e0_u0 = np.sum(
-        (4 * du_i * weight_i * kernel_i * data_i / normalization * sigma_u0)**2)
+        (4 * du_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
     sigma2_e0_v0 = np.sum(
-        (4 * dv_i * weight_i * kernel_i * data_i / normalization * sigma_v0)**2)
+        (4 * dv_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
     sigma2_e1_u0 = sigma2_e0_u0
     sigma2_e1_v0 = sigma2_e0_v0
     sigma2_e2_u0 = np.sum(
-        (4 * dv_i * weight_i * kernel_i * data_i / normalization * sigma_u0)**2)
+        (4 * dv_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
     sigma2_e2_v0 = np.sum(
-        (4 * du_i * weight_i * kernel_i * data_i / normalization * sigma_v0)**2)
+        (4 * du_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
 
     sigma2_zeta1_u0 = np.sum(
-        (2 * (3*du_i**2 + dv_i**2) * weight_i * kernel_i * data_i / normalization * sigma_u0)**2)
+        (2 * (3*du_i**2 + dv_i**2))**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
     sigma2_zeta1_v0 = np.sum(
-        (4 * du_i * dv_i * weight_i * kernel_i * data_i / normalization * sigma_v0)**2)
+        (4 * du_i * dv_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
     sigma2_zeta2_u0 = np.sum(
-        (4 * du_i * dv_i * weight_i * kernel_i * data_i / normalization * sigma_u0)**2)
+        (4 * du_i * dv_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
     sigma2_zeta2_v0 = np.sum(
-        (2 * (du_i**2 + 3*dv_i**2) * weight_i * kernel_i * data_i / normalization * sigma_v0)**2)
+        (2 * (du_i**2 + 3*dv_i**2))**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
     sigma2_delta1_u0 = np.sum(
-        (6 * (du_i**2 - dv_i**2) * weight_i * kernel_i * data_i / normalization * sigma_u0)**2)
+        (6 * (du_i**2 - dv_i**2))**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
     sigma2_delta1_v0 = np.sum(
-        (-12 * du_i * dv_i * weight_i * kernel_i * data_i / normalization * sigma_v0)**2)
+        (-12 * du_i * dv_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
     sigma2_delta2_u0 = np.sum(
-        (12 * du_i * dv_i * weight_i * kernel_i * data_i / normalization * sigma_u0)**2)
+        (12 * du_i * dv_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
     sigma2_delta2_v0 = np.sum(
-        (6 * (du_i**2 - dv_i**2) * weight_i * kernel_i * data_i / normalization * sigma_v0)**2)
+        (6 * (du_i**2 - dv_i**2))**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
 
     sigma2_orth4_u0 = np.sum(
-        (4 * du_i * (2 * du_i**2 + 2 * dv_i**2 - 3) * weight_i * kernel_i * data_i / normalization * sigma_u0)**2)
+        (4 * du_i * (2 * du_i**2 + 2 * dv_i**2 - 3))**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
     sigma2_orth4_v0 = np.sum(
-        (4 * dv_i * (2 * du_i**2 + 2 * dv_i**2 - 3) * weight_i * kernel_i * data_i / normalization * sigma_v0)**2)
+        (4 * dv_i * (2 * du_i**2 + 2 * dv_i**2 - 3))**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
     sigma2_orth6_u0 = np.sum(
-        (4 * du_i * (3 * (du_i**2 + dv_i**2)**2 - 16 * (du_i**2 + dv_i**2) + 12) * weight_i * kernel_i * data_i / normalization * sigma_u0)**2)
+        (4 * du_i * (3 * (du_i**2 + dv_i**2)**2 - 16 * (du_i**2 + dv_i**2) + 12))**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
     sigma2_orth6_v0 = np.sum(
-        (4 * dv_i * (3 * (du_i**2 + dv_i**2)**2 - 16 * (du_i**2 + dv_i**2) + 12) * weight_i * kernel_i * data_i / normalization * sigma_v0)**2)
+        (4 * dv_i * (3 * (du_i**2 + dv_i**2)**2 - 16 * (du_i**2 + dv_i**2) + 12))**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
     sigma2_orth8_u0 = np.sum(
-        (4 * du_i * (4 * (du_i**2 + dv_i**2)**3 - 45 * (du_i**2 + dv_i**2)**2 + 120 * (du_i**2 + dv_i**2) - 60) * weight_i * kernel_i * data_i / normalization * sigma_u0)**2)
+        (4 * du_i * (4 * (du_i**2 + dv_i**2)**3 - 45 * (du_i**2 + dv_i**2)**2 + 120 * (du_i**2 + dv_i**2) - 60))**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
     sigma2_orth8_v0 = np.sum(
-        (4 * dv_i * (4 * (du_i**2 + dv_i**2)**3 - 45 * (du_i**2 + dv_i**2)**2 + 120 * (du_i**2 + dv_i**2) - 60) * weight_i * kernel_i * data_i / normalization * sigma_v0)**2)
+        (4 * dv_i * (4 * (du_i**2 + dv_i**2)**3 - 45 * (du_i**2 + dv_i**2)**2 + 120 * (du_i**2 + dv_i**2) - 60))**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
 
     # add sigma_normalization
     sigma2_e0_flux = (e0_calc * sigma_normalization / normalization)**2
@@ -1338,9 +1343,9 @@ def hsm_error_orthogonal(star, logger=None):
     # the errors need these fudge factors.
     #####
 
-    sigma_e0 = sigma_e0 * 1.8
-    sigma_e1 = sigma_e1 * 2.3
-    sigma_e2 = sigma_e2 * 2.3
+    sigma_e0 = sigma_e0 * 0.8
+    sigma_e1 = sigma_e1 * 0.8
+    sigma_e2 = sigma_e2 * 0.8
 
     sigma_zeta1 = sigma_zeta1 * 0.52
     sigma_zeta2 = sigma_zeta2 * 0.55
