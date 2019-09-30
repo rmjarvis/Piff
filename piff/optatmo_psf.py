@@ -33,8 +33,6 @@ from .interp import Interp
 from .outliers import Outliers
 from .model import ModelFitError
 from .star import Star, StarFit, StarData
-from .util import hsm_error, hsm_third_moments, hsm_error_third_moments, hsm_fourth_moments
-from .util import hsm_error_fourth_moments, hsm_orthogonal, hsm_error_orthogonal
 from .util import measure_snr, write_kwargs, read_kwargs
 from galsim.config import LoggerWrapper
 
@@ -1324,22 +1322,29 @@ class OptAtmoPSF(PSF):
 
         # values = flux, u0, v0, e0, e1, e2,
         #          sigma_flux, sigma_u0, sigma_v0, sigma_e0, sigma_e1, sigma_e2
-        values = hsm_error(star, logger=logger, return_error=return_error)
+        values = star.calculate_moments(logger=logger, errors=return_error)
+        errors = np.array(values[6:])
+        values = np.array(values[:6])
+        logger.debug('Measured Shape is {0}'.format(str(values)))
 
-        shape = np.array(values[:6])
-        if np.any(shape != shape):
-            raise ModelFitError
+        if True:
+            from .util import hsm
+            hsm = hsm(star)
+            pix_area = star.data.image.wcs.local(star.data.image.center).pixelArea()
+            values[0] *= hsm[0] * pix_area * star.data.weight.array.mean()
+            values[1] += hsm[1]
+            values[2] += hsm[2]
+            values[3:] *= 2
 
-        # flux is underestimated empirically
-        shape[0] = shape[0] / 0.92
-
-        logger.debug('Measured Shape is {0}'.format(str(shape)))
         if return_error:
-            error = np.array(values[6:])
-            logger.debug('Measured Error is {0}'.format(str(error)))
-            return shape, error
+            if True:
+                errors[0] *= (hsm[0] * pix_area * star.data.weight.array.mean())**2
+                errors[3:] *= 4
+
+            logger.debug('Measured Error is {0}'.format(str(errors)))
+            return values, np.sqrt(errors)
         else:
-            return shape
+            return values
 
     def measure_shape_third_moments(self, star, logger=None):
         """Measure the shape of a star using the HSM algorithm. Goes up to third moments.
@@ -1355,14 +1360,23 @@ class OptAtmoPSF(PSF):
         logger = LoggerWrapper(logger)
 
         # values = flux, u0, v0, e0, e1, e2, zeta1, zeta2, delta1, delta2
-        values = hsm_third_moments(star, logger=logger)
+        values = star.calculate_moments(logger=logger, third_order=True)
+        values = np.array(values)
 
-        shape = np.array(values)
+        if True:
+            # This converts from natural moments to the version Ares had
+            # The tests pass without this, but I think that just means they weren't really
+            # sufficiently robust.  Probably should just disable this and redo the RF with the
+            # new moment definitions.
+            from .util import hsm
+            hsm = hsm(star)
+            pix_area = star.data.image.wcs.local(star.data.image.center).pixelArea()
+            values[0] *= hsm[0] * pix_area * star.data.weight.array.mean()
+            values[1] += hsm[1]
+            values[2] += hsm[2]
+            values[3:] *= 2
 
-        # flux is underestimated empirically
-        shape[0] = shape[0] / 0.92
-
-        return shape
+        return values
 
     def measure_error_third_moments(self, star, logger=None):
         """Measure the shape error of a star using the HSM algorithm. Goes up to third moments.
@@ -1377,11 +1391,17 @@ class OptAtmoPSF(PSF):
 
         # values = sigma_flux, sigma_u0, sigma_v0, sigma_e0, sigma_e1, sigma_e2,
         #          sigma_zeta1, sigma_zeta2, sigma_delta1, sigma_delta2
-        values = hsm_error_third_moments(star, logger=logger)
+        values = star.calculate_moments(logger=logger, third_order=True, errors=True)
+        errors = np.array(values[10:])
 
-        error = np.array(values)
+        if True:
+            from .util import hsm
+            hsm = hsm(star)
+            pix_area = star.data.image.wcs.pixelArea(star.image_pos)
+            errors[0] *= (hsm[0] * pix_area * star.data.weight.array.mean())**2
+            errors[3:] *= 4
 
-        return error
+        return np.sqrt(errors)
 
     def get_aberrations_higher_order_reference_wavefront_for_one_star(self, star):
         """Gets higher order reference wavefront zernike values for star. Then, converts
@@ -1416,50 +1436,6 @@ class OptAtmoPSF(PSF):
             -zout_camera[31], zout_camera[33]])
         return zout_sky
 
-    def measure_shape_fourth_moments(self, star, logger=None):
-        """Measure the shape of a star using the HSM algorithm.
-
-        Goes up to fourth moments. Does not return error.
-
-        :param star:                Star we want to measure
-        :param logger:              A logger object for logging debug info
-
-        :returns:                   Shape in unnormalized basis. Goes up
-                                    to fourth moments.
-        """
-        logger = LoggerWrapper(logger)
-
-        # values = flux, u0, v0, e0, e1, e2,
-        #          zeta1, zeta2, delta1, delta2, xi,
-        #          eta1, eta2, lambda1, lambda2
-        values = hsm_fourth_moments(star, logger=logger)
-
-        shape = np.array(values)
-
-        # flux is underestimated empirically
-        shape[0] = shape[0] / 0.92
-
-        return shape
-
-    def measure_error_fourth_moments(self, star, logger=None):
-        """Measure the shape of a star using the HSM algorithm.  Goes up to fourth moments.
-
-        :param star:                Star we want to measure
-        :param logger:              A logger object for logging debug info
-        :returns:                   Shape Error in unnormalized basis. Goes up
-                                    to fourth moments.
-        """
-        logger = LoggerWrapper(logger)
-
-        # values = sigma_flux, sigma_u0, sigma_v0, sigma_e0, sigma_e1, sigma_e2,
-        #          sigma_zeta1, sigma_zeta2, sigma_delta1, sigma_delta2, sigma_xi,
-        #          sigma_eta1, sigma_eta2, sigma_lambda1, sigma_lambda2
-        values = hsm_error_fourth_moments(star, logger=logger)
-
-        error = np.array(values)
-
-        return error
-
     def measure_shape_orthogonal(self, star, logger=None):
         """Measure the shape of a star using the HSM algorithm.
 
@@ -1474,15 +1450,31 @@ class OptAtmoPSF(PSF):
         """
         logger = LoggerWrapper(logger)
 
-        # values = flux, u0, v0, e0, e1, e2, zeta1, zeta2, delta1, delta2, orth4, orth6, orth8
-        values = hsm_orthogonal(star, logger=logger)
+        # values = flux, u0, v0, e0, e1, e2, zeta1, zeta2, delta1, delta2, xi4, xi6, xi8
+        values = star.calculate_moments(logger=logger, third_order=True, radial=True)
+        values = np.array(values)
 
-        shape = np.array(values)
+        if True:
+            # This converts from natural moments to the version Ares had
+            # The tests pass without this, but I think that just means they weren't really
+            # sufficiently robust.  Probably should just disable this and redo the RF with the
+            # new moment definitions.
+            from .util import hsm
+            hsm = hsm(star)
+            pix_area = star.data.image.wcs.pixelArea(star.image_pos)
+            values[0] *= hsm[0] * pix_area * star.data.weight.array.mean()
+            values[1] += hsm[1]
+            values[2] += hsm[2]
+            values[3:] *= 2
 
         # flux is underestimated empirically
-        shape[0] = shape[0] / 0.92
+        # MJ: I don't think this ^ is true.  But then, it isn't expected to return the real flux.
+        #     For a Gaussian, M00 is flux / (4 pi sigma^2).
+        #     Or for your version, it is flux^2 pixel_scale^2 mean(w) / (4 pi sigma^2).
+        #     So probably that just happened to come out as 0.92 for whatever test you did.
+        #values[0] = values[0] / 0.92
 
-        return shape
+        return values
 
     def measure_error_orthogonal(self, star, logger=None):
         """Measure the shape of a star using the HSM algorithm.
@@ -1500,11 +1492,17 @@ class OptAtmoPSF(PSF):
         # values = sigma_flux, sigma_u0, sigma_v0, sigma_e0, sigma_e1, sigma_e2,
         #          sigma_zeta1, sigma_zeta2, sigma_delta1, sigma_delta2,
         #          sigma_orth4, sigma_orth6, sigma_orth8
-        values = hsm_error_orthogonal(star, logger=logger)
+        values = star.calculate_moments(logger=logger, third_order=True, radial=True, errors=True)
+        errors = np.array(values[13:])
 
-        error = np.array(values)
+        if True:
+            from .util import hsm
+            hsm = hsm(star)
+            pix_area = star.data.image.wcs.local(star.data.image.center).pixelArea()
+            errors[0] *= (hsm[0] * pix_area * star.data.weight.array.mean())**2
+            errors[3:] *= 4
 
-        return error
+        return np.sqrt(errors)
 
     @property
     def regr_dict(self):

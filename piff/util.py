@@ -21,6 +21,8 @@ import numpy as np
 import os
 import galsim
 
+from .star import Star
+
 # Courtesy of
 # http://stackoverflow.com/questions/3862310/how-can-i-find-all-subclasses-of-a-given-class-in-python
 def get_all_subclasses(cls):
@@ -247,1113 +249,332 @@ def estimate_cov_from_jac(jac):
     cov = np.dot(VT.T / s**2, VT)
     return cov
 
+def calculate_moments(star, third_order=False, fourth_order=False, radial=False, errors=False,
+                      logger=None):
+    r"""Calculate a bunch of moments using HSM for the weight function.
 
-def hsm_error(star, logger=None, return_error=True):
-    r"""Use python implementation of HSM to measure moments of star image to get errors.
-
-    Does not go beyond second moments.
-
-    Slow since it's python, not C, but we should only have to do this once per star.
-
-    calculate the error on our e0,e1,e2
+    The flux, 1st, and 2nd order moments are always calculated:
 
     .. math::
 
-        e_0 = \sum \left[ (x-x_0)^2 + (y-y_0)^2  \right] K(x,y) I(x,y)
+        M_00 &= \sum W(u,v) I(u,v) \\
+        M_10 &= \sum W(u,v) I(u,v) du \\
+        M_01 &= \sum W(u,v) I(u,v) dv \\
+        M_11 &= \sum W(u,v) I(u,v) (du^2 + dv^2) \\
+        M_20 &= \sum W(u,v) I(u,v) (du^2 - dv^2) \\
+        M_02 &= \sum W(u,v) I(u,v) (2 du dv)
 
-    where K(x,y) is the HSM kernel, I(x,y) is the image, s(x,y) is the shot noise per pixel
-    so
+    where W(u,v) is the weight from the HSM fit and du,dv are the positions relative to the
+    HSM measured centroid.
+
+    If ``third_order`` is set to True, then 3rd order moments are also calculated and returned:
 
     .. math::
 
-        \sigma^2(e_0) = \sum \left\( \left[ (x-x_0)^2 + (y-y_0)^2 \right] K(x,y) \right\)^2 s^2(x,y)
+        M_21 &= \sum W(u,v) I(u,v) du (du^2 + dv^2) \\
+        M_12 &= \sum W(u,v) I(u,v) dv (du^2 + dv^2) \\
+        M_30 &= \sum W(u,v) I(u,v) du (du^2 - 3 dv^2) \\
+        M_03 &= \sum W(u,v) I(u,v) dv (3 du^2 - dv^2)
 
-    TODO: might be a factor of 2 missing still?
-    TODO: what do the _i subscripts indicate? can I cut that and keep clarity?
+    If ``fourth_order`` is set to True, then 4th order moments are also calculated and returned:
 
-    :param star:            Input star, with stamp, weight
-    :param logger:          A logger object for logging debug info.
-                            [default: None]
-    :param return_error:    Boolean. If true, will also return the shape error.
-                            [default: True]
+    .. math::
 
-    :returns:               The shape (and error if return_error).
-    """
-    from .gsobject_model import Gaussian
-    from .star import Star
+        M_22 &= \sum W(u,v) I(u,v) (du^2 + dv^2)^2 \\
+        M_31 &= \sum W(u,v) I(u,v) (du^2 + dv^2) (du^2 - dv^2) \\
+        M_13 &= \sum W(u,v) I(u,v) (du^2 + dv^2) (2 du dv) \\
+        M_40 &= \sum W(u,v) I(u,v) (du^4 - 6 du^2 dv^2 + dv^4) \\
+        M_04 &= \sum W(u,v) I(u,v) (du^2 - dv^2) (4 du dv) \\
 
-    # get vectors for data, weight and u, v
-    data_i, weight_i, u_i, v_i = star.data.getDataVector(include_zero_weight=True)
-    # also get the values for the HSM kernel, which is just the fitted hsm model
-    flux, cenu, cenv, size, g1, g2, flag = hsm(star)
-    profile = galsim.Gaussian(sigma=1.0).dilate(size).shear(g1=g1, g2=g2).shift(cenu, cenv) * flux
-    image = star.image.copy()
-    profile.drawImage(image, method='no_pixel', offset=(star.image_pos-image.true_center))
-    # convert image into kernel
-    kernel_i = image.array.flatten()
+    Higher order "orthogonal" radial moments (4th through 8th, even) are calculated if ``radial``
+    is set to True:
 
-    # now apply mask
-    mask = weight_i != 0.
-    data_i = data_i[mask]
-    weight_i = weight_i[mask]
-    kernel_i = kernel_i[mask]
-    u_i = u_i[mask]
-    v_i = v_i[mask]
+    .. math::
 
-    # with HSM as our starting guess, and kernel, let's use the weights for a final step.
-    # This makes everything a lot simpler, conceptually. We place all these results here,
-    # and then work through the errors later
-    flux_calc = np.sum(weight_i * data_i * kernel_i)
-    normalization = flux_calc
+        r^2 &\equiv du^2 + dv^2 \\
+        M*_22 &= \sum W(u,v) I(u,v) (r^4 - 3r^2)
+        M*_33 &= \sum W(u,v) I(u,v) (r^6 - 8r^4 + 12r^2)
+        M*_44 &= \sum W(u,v) I(u,v) (r^8 - 15r^6 + 60r^4 - 60r^2)
 
-    u0_calc = np.sum(data_i * weight_i * kernel_i * u_i) / normalization
-    v0_calc = np.sum(data_i * weight_i * kernel_i * v_i) / normalization
-    # calculate moments
-    du_i = u_i - u0_calc
-    dv_i = v_i - v0_calc
-    Muu = 2 * np.sum(data_i * weight_i * kernel_i * du_i * du_i) / normalization
-    Mvv = 2 * np.sum(data_i * weight_i * kernel_i * dv_i * dv_i) / normalization
-    Muv = 2 * np.sum(data_i * weight_i * kernel_i * du_i * dv_i) / normalization
-
-    """
-
-    Muu_true = 2 * Muu
-    e0_true = Muu_true + Mvv_true
-    e1_true = Muu_true - Mvv_true
-    e0_calc = Muu + Mvv = 0.5 e0_true
-    e1_calc = (Muu - Mvv) / 2 = 0.25 e1_true
-
-
-    Q: if kernel above is actually K^2, not K, how does above change?
-    """
-    # now e0,e1,e2
-    # also note that this defintion for e1 and e2 is /2 compared to previous definitions
-    e0_calc = Muu + Mvv
-    e1_calc = Muu - Mvv
-    e2_calc = 2 * Muv
-    if not return_error:
-        return flux_calc, u0_calc, v0_calc, e0_calc, e1_calc, e2_calc
-
-    # normalization for the various sums over pixels
-    normalization2 = normalization * normalization
-
-    sigma2_data_i = 1. / weight_i
-    sigma2_normalization = np.sum((weight_i * kernel_i)**2 * sigma2_data_i)
-    sigma_normalization = np.sqrt(sigma2_normalization)
-    # flux is 2x normalization in hsm.cpp, so probably a factor of 2 here
-    sigma_flux = 2 * sigma_normalization
-
-    # flux fudge factors?
-    flux_fudge_factor = 1.
-    sigma_flux = sigma_flux * np.sqrt(flux_fudge_factor)
-    sigma_normalization = 1. * sigma_normalization
-
-    #####
-    # u0, v0
-    #####
-
-    sigma2_u0_data = np.sum((weight_i * kernel_i * u_i / normalization)**2 * sigma2_data_i)
-    sigma2_v0_data = np.sum((weight_i * kernel_i * v_i / normalization)**2 * sigma2_data_i)
-
-    # add sigma_normalization
-    sigma2_u0_flux = (u0_calc * sigma_normalization / normalization)**2
-    sigma2_v0_flux = (v0_calc * sigma_normalization / normalization)**2
-
-    # technically we also need the contribution to the kernel!
-
-    sigma_u0 = np.sqrt(sigma2_u0_data + sigma2_u0_flux)
-    sigma_v0 = np.sqrt(sigma2_v0_data + sigma2_v0_flux)
-
-    # u0, v0 fudge factors
-    sigma_u0 = sigma_u0 * 2.1
-    sigma_v0 = sigma_v0 * 2.1
-
-    # now calculate errors: ie. shot and read noise per pixel
-
-    # three terms: those proportional to: sdata_i, sigma_u0 and sigma_v0, and sigma_normalization
-    sigma2_e0_data = np.sum(
-        (2 * weight_i * kernel_i * (du_i**2 + dv_i**2) / normalization)**2 * sigma2_data_i)
-    sigma2_e1_data = np.sum(
-        (2 * weight_i * kernel_i * (du_i**2 - dv_i**2) / normalization)**2 * sigma2_data_i)
-    sigma2_e2_data = np.sum(
-        (2 * weight_i * kernel_i * 2*du_i*dv_i / normalization)**2 * sigma2_data_i)
-
-    # add sigma_u0, sigma_v0. This is ignoring the kernel!
-    sigma2_e0_u0 = np.sum(
-        (2 * 2 * du_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
-    sigma2_e0_v0 = np.sum(
-        (2 * 2 * dv_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
-    sigma2_e1_u0 = sigma2_e0_u0
-    sigma2_e1_v0 = sigma2_e0_v0
-    sigma2_e2_u0 = np.sum(
-        (2 * 2 * dv_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
-    sigma2_e2_v0 = np.sum(
-        (2 * 2 * du_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
-
-    # add sigma_normalization
-    sigma2_e0_flux = (e0_calc * sigma_normalization / normalization)**2
-    sigma2_e1_flux = (e1_calc * sigma_normalization / normalization)**2
-    sigma2_e2_flux = (e2_calc * sigma_normalization / normalization)**2
-
-    # taking out the flux - e0 errors for now. lmfit finds that these two variables are highly
-    # correlated, so I'm probably missing a negative covariance term from the kernel that would
-    # bring this back in line. As it is, including sigma2_e0_flux leads to overestimated errors
-    sigma_e0 = np.sqrt(sigma2_e0_data + sigma2_e0_u0 + sigma2_e0_v0)# + sigma2_e0_flux)
-    sigma_e1 = np.sqrt(sigma2_e1_data + sigma2_e1_u0 + sigma2_e1_v0 + sigma2_e1_flux)
-    sigma_e2 = np.sqrt(sigma2_e2_data + sigma2_e2_u0 + sigma2_e2_v0 + sigma2_e2_flux)
-
-    #####
-    # FUDGE VALUES
-    # in my experience (based on creating these for fixed noise level and measuring variance)
-    # the errors need these fudge factors.
-    #####
-
-    #sigma_e0 = sigma_e0 * 1.8
-    #sigma_e1 = sigma_e1 * 2.3
-    #sigma_e2 = sigma_e2 * 2.3
-    # MJ: After fixing the above calculation of sigma2_*_u0/v0, these don't need to be as large.
-    #     These fudge factors seem to work a bit better for test_snr_and_shapes.
-    sigma_e0 = sigma_e0 * 0.8
-    sigma_e1 = sigma_e1 * 0.8
-    sigma_e2 = sigma_e2 * 0.8
-
-    return (flux_calc, u0_calc, v0_calc, e0_calc, e1_calc, e2_calc,
-            sigma_flux, sigma_u0, sigma_v0, sigma_e0, sigma_e1, sigma_e2)
-
-
-def hsm_third_moments(star, logger=None):
-    """ Use python implementation of HSM to measure up to third moments of star image.
+    For all of these, one can also have error estimates returned if ``errors`` is set to True.
 
     :param star:            Input star, with stamp, weight
-    :param logger:          A logger object for logging debug info.
-                            [default: None]
+    :param third_order:     Return the 3rd order moments? [default: False]
+    :param fourth_order:    Return the 4th order moments? [default: False]
+    :param raidal:          Return the higher order radial moments? [default: False]
+    :param errors:          Return the variance estimates of other returned values? [default: False]
+    :param logger:          A logger object for logging debug info.  [default: None]
 
-    :returns:               The shape. Goes up to third moments.
+    :returns: A tuple of the calculated moments:
+
+        * M_00, M_10, M_01, M_11, M_20, M_02
+        * M_21, M_12, M_30, M_03                          if ``third_order`` = True
+        * M_22, M_31, M_13, M_40, M_04                    if ``fourth_order`` = True
+        * M*_22, M*_33, M*_44                             if ``radial`` = True
+        * variance of all previous values (in same order) if ``errors`` = True
     """
-    from .gsobject_model import Gaussian
-    from .star import Star
-
     # get vectors for data, weight and u, v
-    data_i, weight_i, u_i, v_i = star.data.getDataVector(include_zero_weight=True)
+    data, weight, u, v = star.data.getDataVector(include_zero_weight=True)
     # also get the values for the HSM kernel, which is just the fitted hsm model
-    flux, cenu, cenv, size, g1, g2, flag = hsm(star)
-    profile = galsim.Gaussian(sigma=1.0).dilate(size).shear(g1=g1, g2=g2).shift(cenu, cenv) * flux
-    image = star.image.copy()
-    profile.drawImage(image, method='no_pixel', offset=(star.image_pos-image.true_center))
+    f, u0, v0, sigma, g1, g2, flag = hsm(star)
+    if flag:
+        raise RuntimeError("flag = %d from hsm"%flag)
+    profile = galsim.Gaussian(sigma=sigma, flux=1.0).shear(g1=g1, g2=g2).shift(u0, v0)
+    image = galsim.Image(star.image.copy(), dtype=float)
+    profile.drawImage(image, method='sb', center=star.image_pos)
     # convert image into kernel
-    kernel_i = image.array.flatten()
+    kernel = image.array.flatten()
 
     # now apply mask
-    mask = weight_i != 0.
-    data_i = data_i[mask]
-    weight_i = weight_i[mask]
-    kernel_i = kernel_i[mask]
-    u_i = u_i[mask]
-    v_i = v_i[mask]
-
-    # with HSM as our starting guess, and kernel, let's use the weights for a final step.
-    # This makes everything a lot simpler, conceptually. We place all these results here,
-    # and then work through the errors later
-    flux_calc = np.sum(weight_i * data_i * kernel_i)
-    normalization = flux_calc
-
-    u0_calc = np.sum(data_i * weight_i * kernel_i * u_i) / normalization
-    v0_calc = np.sum(data_i * weight_i * kernel_i * v_i) / normalization
-    # calculate moments
-    du_i = u_i - u0_calc
-    dv_i = v_i - v0_calc
-    Muu = 2 * np.sum(data_i * weight_i * kernel_i * du_i * du_i) / normalization
-    Mvv = 2 * np.sum(data_i * weight_i * kernel_i * dv_i * dv_i) / normalization
-    Muv = 2 * np.sum(data_i * weight_i * kernel_i * du_i * dv_i) / normalization
-
-    # now e0,e1,e2
-    # also note that this defintion for e1 and e2 is /2 compared to previous definitions
-    e0_calc = Muu + Mvv
-    e1_calc = Muu - Mvv
-    e2_calc = 2 * Muv
-
-    # calculate third moments
-    Muuu = 2 * np.sum(data_i * weight_i * kernel_i * du_i * du_i * du_i) / normalization
-    Muuv = 2 * np.sum(data_i * weight_i * kernel_i * du_i * du_i * dv_i) / normalization
-    Muvv = 2 * np.sum(data_i * weight_i * kernel_i * du_i * dv_i * dv_i) / normalization
-    Mvvv = 2 * np.sum(data_i * weight_i * kernel_i * dv_i * dv_i * dv_i) / normalization
-
-    zeta1_calc = Muuu + Muvv
-    zeta2_calc = Mvvv + Muuv
-    delta1_calc = Muuu - 3 * Muvv
-    delta2_calc = -(Mvvv - 3 * Muuv)
-
-    return (flux_calc, u0_calc, v0_calc, e0_calc, e1_calc, e2_calc,
-            zeta1_calc, zeta2_calc, delta1_calc, delta2_calc)
-
-def hsm_error_third_moments(star, logger=None):
-    """ Use python implementation of HSM to measure up to third moments of star image to get errors.
-
-    :param star:            Input star, with stamp, weight
-    :param logger:          A logger object for logging debug info.
-                            [default: None]
-
-    :returns:               The shape error. Goes up to third moments.
-    """
-    from .gsobject_model import Gaussian
-    from .star import Star
-
-    # get vectors for data, weight and u, v
-    data_i, weight_i, u_i, v_i = star.data.getDataVector(include_zero_weight=True)
-    # also get the values for the HSM kernel, which is just the fitted hsm model
-    flux, cenu, cenv, size, g1, g2, flag = hsm(star)
-    profile = galsim.Gaussian(sigma=1.0).dilate(size).shear(g1=g1, g2=g2).shift(cenu, cenv) * flux
-    image = star.image.copy()
-    profile.drawImage(image, method='no_pixel', offset=(star.image_pos-image.true_center))
-    # convert image into kernel
-    kernel_i = image.array.flatten()
-
-    # now apply mask
-    mask = weight_i != 0.
-    data_i = data_i[mask]
-    weight_i = weight_i[mask]
-    kernel_i = kernel_i[mask]
-    u_i = u_i[mask]
-    v_i = v_i[mask]
-
-    # with HSM as our starting guess, and kernel, let's use the weights for a final step.
-    # This makes everything a lot simpler, conceptually. We place all these results here,
-    # and then work through the errors later
-    flux_calc = np.sum(weight_i * data_i * kernel_i)
-    normalization = flux_calc
-
-    u0_calc = np.sum(data_i * weight_i * kernel_i * u_i) / normalization
-    v0_calc = np.sum(data_i * weight_i * kernel_i * v_i) / normalization
-    # calculate moments
-    du_i = u_i - u0_calc
-    dv_i = v_i - v0_calc
-    Muu = 2 * np.sum(data_i * weight_i * kernel_i * du_i * du_i) / normalization
-    Mvv = 2 * np.sum(data_i * weight_i * kernel_i * dv_i * dv_i) / normalization
-    Muv = 2 * np.sum(data_i * weight_i * kernel_i * du_i * dv_i) / normalization
-
-    # now e0,e1,e2
-    # also note that this defintion for e1 and e2 is /2 compared to previous definitions
-    e0_calc = Muu + Mvv
-    e1_calc = Muu - Mvv
-    e2_calc = 2 * Muv
-
-    # calculate third moments
-    Muuu = 2 * np.sum(data_i * weight_i * kernel_i * du_i * du_i * du_i) / normalization
-    Muuv = 2 * np.sum(data_i * weight_i * kernel_i * du_i * du_i * dv_i) / normalization
-    Muvv = 2 * np.sum(data_i * weight_i * kernel_i * du_i * dv_i * dv_i) / normalization
-    Mvvv = 2 * np.sum(data_i * weight_i * kernel_i * dv_i * dv_i * dv_i) / normalization
-
-    zeta1_calc = Muuu + Muvv
-    zeta2_calc = Mvvv + Muuv
-    delta1_calc = Muuu - 3 * Muvv
-    delta2_calc = -(Mvvv - 3 * Muuv)
-
-
-    # normalization for the various sums over pixels
-    normalization2 = normalization * normalization
-
-    sigma2_data_i = 1. / weight_i
-    sigma2_normalization = np.sum((weight_i * kernel_i)**2 * sigma2_data_i)
-    sigma_normalization = np.sqrt(sigma2_normalization)
-    # flux is 2x normalization in hsm.cpp, so probably a factor of 2 here
-    sigma_flux = 2 * sigma_normalization
-
-    # flux fudge factors?
-    flux_fudge_factor = 1.
-    sigma_flux = sigma_flux * np.sqrt(flux_fudge_factor)
-    sigma_normalization = 1. * sigma_normalization
-
-    #####
-    # u0, v0
-    #####
-
-    sigma2_u0_data = np.sum((weight_i * kernel_i * u_i / normalization)**2 * sigma2_data_i)
-    sigma2_v0_data = np.sum((weight_i * kernel_i * v_i / normalization)**2 * sigma2_data_i)
-
-    # add sigma_normalization
-    sigma2_u0_flux = (u0_calc * sigma_normalization / normalization)**2
-    sigma2_v0_flux = (v0_calc * sigma_normalization / normalization)**2
-
-    # technically we also need the contribution to the kernel!
-
-    sigma_u0 = np.sqrt(sigma2_u0_data + sigma2_u0_flux)
-    sigma_v0 = np.sqrt(sigma2_v0_data + sigma2_v0_flux)
-
-    # u0, v0 fudge factors
-    sigma_u0 = sigma_u0 * 2.1
-    sigma_v0 = sigma_v0 * 2.1
-
-    # now calculate errors: ie. shot and read noise per pixel
-
-    # three terms: those proportional to: sdata_i, sigma_u0 and sigma_v0, and sigma_normalization
-    sigma2_e0_data = np.sum(
-        (2 * weight_i * kernel_i * (du_i**2 + dv_i**2) / normalization)**2 * sigma2_data_i)
-    sigma2_e1_data = np.sum(
-        (2 * weight_i * kernel_i * (du_i**2 - dv_i**2) / normalization)**2 * sigma2_data_i)
-    sigma2_e2_data = np.sum(
-        (2 * weight_i * kernel_i * 2*du_i*dv_i / normalization)**2 * sigma2_data_i)
-
-    sigma2_zeta1_data = np.sum(
-        (2 * weight_i * kernel_i * du_i * (du_i**2 + dv_i**2) / normalization)**2 * sigma2_data_i)
-    sigma2_zeta2_data = np.sum(
-        (2 * weight_i * kernel_i * dv_i * (du_i**2 + dv_i**2) / normalization)**2 * sigma2_data_i)
-    sigma2_delta1_data = np.sum(
-        (2 * weight_i * kernel_i * du_i * (du_i**2 - 3*dv_i**2) / normalization)**2 * sigma2_data_i)
-    sigma2_delta2_data = np.sum(
-        (2 * weight_i * kernel_i * dv_i * (3*du_i**2 - dv_i**2) / normalization)**2 * sigma2_data_i)
-
-    # add sigma_u0, sigma_v0. This is ignoring the kernel!
-    sigma2_e0_u0 = np.sum(
-        (4 * du_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
-    sigma2_e0_v0 = np.sum(
-        (4 * dv_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
-    sigma2_e1_u0 = sigma2_e0_u0
-    sigma2_e1_v0 = sigma2_e0_v0
-    sigma2_e2_u0 = np.sum(
-        (4 * dv_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
-    sigma2_e2_v0 = np.sum(
-        (4 * du_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
-
-    sigma2_zeta1_u0 = np.sum(
-        (2 * (3*du_i**2 + dv_i**2))**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
-    sigma2_zeta1_v0 = np.sum(
-        (4 * du_i * dv_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
-    sigma2_zeta2_u0 = np.sum(
-        (4 * du_i * dv_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
-    sigma2_zeta2_v0 = np.sum(
-        (2 * (du_i**2 + 3*dv_i**2))**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
-
-    sigma2_delta1_u0 = np.sum(
-        (6 * (du_i**2 - dv_i**2))**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
-    sigma2_delta1_v0 = np.sum(
-        (-12 * du_i * dv_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
-    sigma2_delta2_u0 = np.sum(
-        (12 * du_i * dv_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
-    sigma2_delta2_v0 = np.sum(
-        (6 * (du_i**2 - dv_i**2))**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
-
-    # add sigma_normalization
-    sigma2_e0_flux = (e0_calc * sigma_normalization / normalization)**2
-    sigma2_e1_flux = (e1_calc * sigma_normalization / normalization)**2
-    sigma2_e2_flux = (e2_calc * sigma_normalization / normalization)**2
-
-    sigma2_zeta1_flux = (zeta1_calc * sigma_normalization / normalization)**2
-    sigma2_zeta2_flux = (zeta2_calc * sigma_normalization / normalization)**2
-    sigma2_delta1_flux = (delta1_calc * sigma_normalization / normalization)**2
-    sigma2_delta2_flux = (delta2_calc * sigma_normalization / normalization)**2
-
-    # taking out the flux - e0 errors for now. lmfit finds that these two variables are highly
-    # correlated, so I'm probably missing a negative covariance term from the kernel that would
-    # bring this back in line. As it is, including sigma2_e0_flux leads to overestimated errors
-    sigma_e0 = np.sqrt(sigma2_e0_data + sigma2_e0_u0 + sigma2_e0_v0)# + sigma2_e0_flux)
-    sigma_e1 = np.sqrt(sigma2_e1_data + sigma2_e1_u0 + sigma2_e1_v0 + sigma2_e1_flux)
-    sigma_e2 = np.sqrt(sigma2_e2_data + sigma2_e2_u0 + sigma2_e2_v0 + sigma2_e2_flux)
-
-    sigma_zeta1 = np.sqrt(sigma2_zeta1_data + sigma2_zeta1_u0 + sigma2_zeta1_v0 + sigma2_zeta1_flux)
-    sigma_zeta2 = np.sqrt(sigma2_zeta2_data + sigma2_zeta2_u0 + sigma2_zeta2_v0 + sigma2_zeta2_flux)
-    sigma_delta1 = np.sqrt(
-        sigma2_delta1_data + sigma2_delta1_u0 + sigma2_delta1_v0 + sigma2_delta1_flux)
-    sigma_delta2 = np.sqrt(
-        sigma2_delta2_data + sigma2_delta2_u0 + sigma2_delta2_v0 + sigma2_delta2_flux)
-
-    #####
-    # FUDGE VALUES
-    # in my experience (based on creating these for fixed noise level and measuring variance)
-    # the errors need these fudge factors.
-    #####
-
-    sigma_e0 = sigma_e0 * 0.8
-    sigma_e1 = sigma_e1 * 0.8
-    sigma_e2 = sigma_e2 * 0.8
-
-    sigma_zeta1 = sigma_zeta1 * 0.52
-    sigma_zeta2 = sigma_zeta2 * 0.55
-
-    return (sigma_flux, sigma_u0, sigma_v0, sigma_e0, sigma_e1, sigma_e2,
-            sigma_zeta1, sigma_zeta2, sigma_delta1, sigma_delta2)
-
-def hsm_fourth_moments(star, logger=None):
-    """ Use python implementation of HSM to measure up to fourth moments of star image.
-
-
-    :param star:            Input star, with stamp, weight
-    :param logger:          A logger object for logging debug info.
-                            [default: None]
-
-    :returns:               The shape. Goes up to fourth moments.
-    """
-    from .gsobject_model import Gaussian
-    from .star import Star
-
-    # get vectors for data, weight and u, v
-    data_i, weight_i, u_i, v_i = star.data.getDataVector(include_zero_weight=True)
-    # also get the values for the HSM kernel, which is just the fitted hsm model
-    flux, cenu, cenv, size, g1, g2, flag = hsm(star)
-    profile = galsim.Gaussian(sigma=1.0).dilate(size).shear(g1=g1, g2=g2).shift(cenu, cenv) * flux
-    image = star.image.copy()
-    profile.drawImage(image, method='no_pixel', offset=(star.image_pos-image.true_center))
-    # convert image into kernel
-    kernel_i = image.array.flatten()
-
-    # now apply mask
-    mask = weight_i != 0.
-    data_i = data_i[mask]
-    weight_i = weight_i[mask]
-    kernel_i = kernel_i[mask]
-    u_i = u_i[mask]
-    v_i = v_i[mask]
-
-    # with HSM as our starting guess, and kernel, let's use the weights for a final step.
-    # This makes everything a lot simpler, conceptually. We place all these results here,
-    # and then work through the errors later
-    flux_calc = np.sum(weight_i * data_i * kernel_i)
-    normalization = flux_calc
-
-    u0_calc = np.sum(data_i * weight_i * kernel_i * u_i) / normalization
-    v0_calc = np.sum(data_i * weight_i * kernel_i * v_i) / normalization
-    # calculate moments
-    du_i = u_i - u0_calc
-    dv_i = v_i - v0_calc
-    Muu = 2 * np.sum(data_i * weight_i * kernel_i * du_i * du_i) / normalization
-    Mvv = 2 * np.sum(data_i * weight_i * kernel_i * dv_i * dv_i) / normalization
-    Muv = 2 * np.sum(data_i * weight_i * kernel_i * du_i * dv_i) / normalization
-
-    # now e0,e1,e2
-    # also note that this defintion for e1 and e2 is /2 compared to previous definitions
-    e0_calc = Muu + Mvv
-    e1_calc = Muu - Mvv
-    e2_calc = 2 * Muv
-
-    # calculate third moments
-    Muuu = 2 * np.sum(data_i * weight_i * kernel_i * du_i * du_i * du_i) / normalization
-    Muuv = 2 * np.sum(data_i * weight_i * kernel_i * du_i * du_i * dv_i) / normalization
-    Muvv = 2 * np.sum(data_i * weight_i * kernel_i * du_i * dv_i * dv_i) / normalization
-    Mvvv = 2 * np.sum(data_i * weight_i * kernel_i * dv_i * dv_i * dv_i) / normalization
-
-    zeta1_calc = Muuu + Muvv
-    zeta2_calc = Mvvv + Muuv
-    delta1_calc = Muuu - 3 * Muvv
-    delta2_calc = -(Mvvv - 3 * Muuv)
-
-    # calculate fourth moments
-    Muuuu = 2 * np.sum(data_i * weight_i * kernel_i * du_i * du_i * du_i * du_i) / normalization
-    Muuuv = 2 * np.sum(data_i * weight_i * kernel_i * du_i * du_i * du_i * dv_i) / normalization
-    Muuvv = 2 * np.sum(data_i * weight_i * kernel_i * du_i * du_i * dv_i * dv_i) / normalization
-    Muvvv = 2 * np.sum(data_i * weight_i * kernel_i * du_i * dv_i * dv_i * dv_i) / normalization
-    Mvvvv = 2 * np.sum(data_i * weight_i * kernel_i * dv_i * dv_i * dv_i * dv_i) / normalization
-
-    xi_calc = Muuuu + 2 * Muuvv + Mvvvv
-    eta1_calc = Muuuu - Mvvvv
-    eta2_calc = 2 * Muuuv + 2 * Muvvv
-    lambda1_calc = Muuuu - 6 * Muuvv + Mvvvv
-    lambda2_calc = 4 * Muuuv - 4 * Muvvv
-
-    return (flux_calc, u0_calc, v0_calc, e0_calc, e1_calc, e2_calc,
-            zeta1_calc, zeta2_calc, delta1_calc, delta2_calc, xi_calc,
-            eta1_calc, eta2_calc, lambda1_calc, lambda2_calc)
-
-def hsm_error_fourth_moments(star, logger=None):
-    """Use python implementation of HSM to measure up to fourth moments of star image to get errors.
-
-    :param star:            Input star, with stamp, weight
-    :param logger:          A logger object for logging debug info.
-                            [default: None]
-
-    :returns:               The shape error. Goes up to fourth moments.
-    """
-    from .gsobject_model import Gaussian
-    from .star import Star
-
-    # get vectors for data, weight and u, v
-    data_i, weight_i, u_i, v_i = star.data.getDataVector(include_zero_weight=True)
-    # also get the values for the HSM kernel, which is just the fitted hsm model
-    flux, cenu, cenv, size, g1, g2, flag = hsm(star)
-    profile = galsim.Gaussian(sigma=1.0).dilate(size).shear(g1=g1, g2=g2).shift(cenu, cenv) * flux
-    image = star.image.copy()
-    profile.drawImage(image, method='no_pixel', offset=(star.image_pos-image.true_center))
-    # convert image into kernel
-    kernel_i = image.array.flatten()
-
-    # now apply mask
-    mask = weight_i != 0.
-    data_i = data_i[mask]
-    weight_i = weight_i[mask]
-    kernel_i = kernel_i[mask]
-    u_i = u_i[mask]
-    v_i = v_i[mask]
-
-    # with HSM as our starting guess, and kernel, let's use the weights for a final step.
-    # This makes everything a lot simpler, conceptually. We place all these results here,
-    # and then work through the errors later
-    flux_calc = np.sum(weight_i * data_i * kernel_i)
-    normalization = flux_calc
-
-    u0_calc = np.sum(data_i * weight_i * kernel_i * u_i) / normalization
-    v0_calc = np.sum(data_i * weight_i * kernel_i * v_i) / normalization
-    # calculate moments
-    du_i = u_i - u0_calc
-    dv_i = v_i - v0_calc
-    Muu = 2 * np.sum(data_i * weight_i * kernel_i * du_i * du_i) / normalization
-    Mvv = 2 * np.sum(data_i * weight_i * kernel_i * dv_i * dv_i) / normalization
-    Muv = 2 * np.sum(data_i * weight_i * kernel_i * du_i * dv_i) / normalization
-
-    # now e0,e1,e2
-    # also note that this defintion for e1 and e2 is /2 compared to previous definitions
-    e0_calc = Muu + Mvv
-    e1_calc = Muu - Mvv
-    e2_calc = 2 * Muv
-
-    # calculate third moments
-    Muuu = 2 * np.sum(data_i * weight_i * kernel_i * du_i * du_i * du_i) / normalization
-    Muuv = 2 * np.sum(data_i * weight_i * kernel_i * du_i * du_i * dv_i) / normalization
-    Muvv = 2 * np.sum(data_i * weight_i * kernel_i * du_i * dv_i * dv_i) / normalization
-    Mvvv = 2 * np.sum(data_i * weight_i * kernel_i * dv_i * dv_i * dv_i) / normalization
-
-    zeta1_calc = Muuu + Muvv
-    zeta2_calc = Mvvv + Muuv
-    delta1_calc = Muuu - 3 * Muvv
-    delta2_calc = -(Mvvv - 3 * Muuv)
-
-    # calculate fourth moments
-    Muuuu = 2 * np.sum(data_i * weight_i * kernel_i * du_i * du_i * du_i * du_i) / normalization
-    Muuuv = 2 * np.sum(data_i * weight_i * kernel_i * du_i * du_i * du_i * dv_i) / normalization
-    Muuvv = 2 * np.sum(data_i * weight_i * kernel_i * du_i * du_i * dv_i * dv_i) / normalization
-    Muvvv = 2 * np.sum(data_i * weight_i * kernel_i * du_i * dv_i * dv_i * dv_i) / normalization
-    Mvvvv = 2 * np.sum(data_i * weight_i * kernel_i * dv_i * dv_i * dv_i * dv_i) / normalization
-
-    xi_calc = Muuuu + 2 * Muuvv + Mvvvv
-    eta1_calc = Muuuu - Mvvvv
-    eta2_calc = 2 * Muuuv + 2 * Muvvv
-    lambda1_calc = Muuuu - 6 * Muuvv + Mvvvv
-    lambda2_calc = 4 * Muuuv - 4 * Muvvv
-
-    # normalization for the various sums over pixels
-    normalization2 = normalization * normalization
-
-    sigma2_data_i = 1. / weight_i
-    sigma2_normalization = np.sum((weight_i * kernel_i)**2 * sigma2_data_i)
-    sigma_normalization = np.sqrt(sigma2_normalization)
-    # flux is 2x normalization in hsm.cpp, so probably a factor of 2 here
-    sigma_flux = 2 * sigma_normalization
-
-    # flux fudge factors?
-    flux_fudge_factor = 1.
-    sigma_flux = sigma_flux * np.sqrt(flux_fudge_factor)
-    sigma_normalization = 1. * sigma_normalization
-
-    #####
-    # u0, v0
-    #####
-
-    sigma2_u0_data = np.sum((weight_i * kernel_i * u_i / normalization)**2 * sigma2_data_i)
-    sigma2_v0_data = np.sum((weight_i * kernel_i * v_i / normalization)**2 * sigma2_data_i)
-
-    # add sigma_normalization
-    sigma2_u0_flux = (u0_calc * sigma_normalization / normalization)**2
-    sigma2_v0_flux = (v0_calc * sigma_normalization / normalization)**2
-
-    # technically we also need the contribution to the kernel!
-
-    sigma_u0 = np.sqrt(sigma2_u0_data + sigma2_u0_flux)
-    sigma_v0 = np.sqrt(sigma2_v0_data + sigma2_v0_flux)
-
-    # u0, v0 fudge factors
-    sigma_u0 = sigma_u0 * 2.1
-    sigma_v0 = sigma_v0 * 2.1
-
-    # now calculate errors: ie. shot and read noise per pixel
-
-    # three terms: those proportional to: sdata_i, sigma_u0 and sigma_v0, and sigma_normalization
-    sigma2_e0_data = np.sum(
-        (2 * weight_i * kernel_i * (du_i**2 + dv_i**2) / normalization)**2 * sigma2_data_i)
-    sigma2_e1_data = np.sum(
-        (2 * weight_i * kernel_i * (du_i**2 - dv_i**2) / normalization)**2 * sigma2_data_i)
-    sigma2_e2_data = np.sum(
-        (2 * weight_i * kernel_i * 2*du_i*dv_i / normalization)**2 * sigma2_data_i)
-
-    sigma2_zeta1_data = np.sum(
-        (2 * weight_i * kernel_i * du_i * (du_i**2 + dv_i**2) / normalization)**2 * sigma2_data_i)
-    sigma2_zeta2_data = np.sum(
-        (2 * weight_i * kernel_i * dv_i * (dv_i**2 + du_i**2) / normalization)**2 * sigma2_data_i)
-    sigma2_delta1_data = np.sum(
-        (2 * weight_i * kernel_i * du_i * (du_i**2 - 3*dv_i**2) / normalization)**2 * sigma2_data_i)
-    sigma2_delta2_data = np.sum(
-        (2 * weight_i * kernel_i * dv_i * (3*du_i**2 - dv_i**2) / normalization)**2 * sigma2_data_i)
-
-    sigma2_xi_data = np.sum(
-        (2 * weight_i * kernel_i * (du_i**2 + dv_i**2)**2 / normalization)**2 * sigma2_data_i)
-    sigma2_eta1_data = np.sum(
-        (2 * weight_i * kernel_i * (du_i**4 - dv_i**4) / normalization)**2 * sigma2_data_i)
-    sigma2_eta2_data = np.sum(
-        (2 * weight_i * kernel_i * 2*du_i*dv_i * (du_i**2 + dv_i**2) / normalization)**2
-        * sigma2_data_i)
-
-    sigma2_lambda1_data = np.sum(
-        (2 * weight_i * kernel_i * (du_i**4 - 6 * du_i**2 * dv_i**2 + dv_i**4) / normalization)**2
-        * sigma2_data_i)
-    sigma2_lambda2_data = np.sum(
-        (2 * weight_i * kernel_i * 4 * du_i * dv_i * (du_i**2 - dv_i**2) / normalization)**2
-        * sigma2_data_i)
-
-    # add sigma_u0, sigma_v0. This is ignoring the kernel!
-    sigma2_e0_u0 = np.sum(
-        (4 * du_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
-    sigma2_e0_v0 = np.sum(
-        (4 * dv_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
-    sigma2_e1_u0 = sigma2_e0_u0
-    sigma2_e1_v0 = sigma2_e0_v0
-    sigma2_e2_u0 = np.sum(
-        (4 * dv_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
-    sigma2_e2_v0 = np.sum(
-        (4 * du_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
-
-    sigma2_zeta1_u0 = np.sum(
-        (2 * (3*du_i**2)**2 + dv_i**2) * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
-    sigma2_zeta1_v0 = np.sum(
-        (4 * du_i * dv_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
-    sigma2_zeta2_u0 = np.sum(
-        (4 * du_i * dv_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
-    sigma2_zeta2_v0 = np.sum(
-        (2 * (du_i**2 + 3*dv_i**2))**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
-    sigma2_delta1_u0 = np.sum(
-        (6 * (du_i**2 - dv_i**2))**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
-    sigma2_delta1_v0 = np.sum(
-        (-12 * du_i * dv_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
-    sigma2_delta2_u0 = np.sum(
-        (12 * du_i * dv_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
-    sigma2_delta2_v0 = np.sum(
-        (6 * (du_i**2 - dv_i**2))**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
-
-    sigma2_xi_u0 = np.sum(
-        (8 * du_i * (du_i**2 + dv_i**2))**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
-    sigma2_xi_v0 = np.sum(
-        (8 * dv_i * (du_i**2 + dv_i**2))**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
-    sigma2_eta1_u0 = np.sum(
-        (8 * du_i**3)**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
-    sigma2_eta1_v0 = np.sum(
-        (-8 * dv_i**3)**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
-    sigma2_eta2_u0 = np.sum(
-        (4 * dv_i * (3*du_i**2 + dv_i**2))**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
-    sigma2_eta2_v0 = np.sum(
-        (4 * du_i * (du_i**2 + 3*dv_i**2))**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
-
-    sigma2_lambda1_u0 = np.sum(
-        (8 * du_i * (du_i**2 - 3*dv_i**2))**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
-    sigma2_lambda1_v0 = np.sum(
-        (8 * dv_i * (dv_i**2 - 3*du_i**2))**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
-    sigma2_lambda2_u0 = np.sum(
-        (8 * dv_i * (3*du_i**2 - dv_i**2))**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
-    sigma2_lambda2_v0 = np.sum(
-        (8 * du_i * (du_i**2 - 3*dv_i**2))**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
-
-    # add sigma_normalization
-    sigma2_e0_flux = (e0_calc * sigma_normalization / normalization)**2
-    sigma2_e1_flux = (e1_calc * sigma_normalization / normalization)**2
-    sigma2_e2_flux = (e2_calc * sigma_normalization / normalization)**2
-
-    sigma2_zeta1_flux = (zeta1_calc * sigma_normalization / normalization)**2
-    sigma2_zeta2_flux = (zeta2_calc * sigma_normalization / normalization)**2
-    sigma2_delta1_flux = (delta1_calc * sigma_normalization / normalization)**2
-    sigma2_delta2_flux = (delta2_calc * sigma_normalization / normalization)**2
-
-    sigma2_xi_flux = (xi_calc * sigma_normalization / normalization)**2
-    sigma2_eta1_flux = (eta1_calc * sigma_normalization / normalization)**2
-    sigma2_eta2_flux = (eta2_calc * sigma_normalization / normalization)**2
-    sigma2_lambda1_flux = (lambda1_calc * sigma_normalization / normalization)**2
-    sigma2_lambda2_flux = (lambda2_calc * sigma_normalization / normalization)**2
-
-    # taking out the flux - e0 errors for now. lmfit finds that these two variables are highly
-    # correlated, so I'm probably missing a negative covariance term from the kernel that would
-    # bring this back in line. As it is, including sigma2_e0_flux leads to overestimated errors
-    sigma_e0 = np.sqrt(sigma2_e0_data + sigma2_e0_u0 + sigma2_e0_v0)# + sigma2_e0_flux)
-    sigma_e1 = np.sqrt(sigma2_e1_data + sigma2_e1_u0 + sigma2_e1_v0 + sigma2_e1_flux)
-    sigma_e2 = np.sqrt(sigma2_e2_data + sigma2_e2_u0 + sigma2_e2_v0 + sigma2_e2_flux)
-
-    sigma_zeta1 = np.sqrt(sigma2_zeta1_data + sigma2_zeta1_u0 + sigma2_zeta1_v0 + sigma2_zeta1_flux)
-    sigma_zeta2 = np.sqrt(sigma2_zeta2_data + sigma2_zeta2_u0 + sigma2_zeta2_v0 + sigma2_zeta2_flux)
-    sigma_delta1 = np.sqrt(
-        sigma2_delta1_data + sigma2_delta1_u0 + sigma2_delta1_v0 + sigma2_delta1_flux)
-    sigma_delta2 = np.sqrt(
-        sigma2_delta2_data + sigma2_delta2_u0 + sigma2_delta2_v0 + sigma2_delta2_flux)
-
-    sigma_xi = np.sqrt(sigma2_xi_data + sigma2_xi_u0 + sigma2_xi_v0 + sigma2_xi_flux)
-    sigma_eta1 = np.sqrt(sigma2_eta1_data + sigma2_eta1_u0 + sigma2_eta1_v0 + sigma2_eta1_flux)
-    sigma_eta2 = np.sqrt(sigma2_eta2_data + sigma2_eta2_u0 + sigma2_eta2_v0 + sigma2_eta2_flux)
-    sigma_lambda1 = np.sqrt(
-        sigma2_lambda1_data + sigma2_lambda1_u0 + sigma2_lambda1_v0 + sigma2_lambda1_flux)
-    sigma_lambda2 = np.sqrt(
-        sigma2_lambda2_data + sigma2_lambda2_u0 + sigma2_lambda2_v0 + sigma2_lambda2_flux)
-
-    #####
-    # FUDGE VALUES
-    # in my experience (based on creating these for fixed noise level and measuring variance)
-    # the errors need these fudge factors.
-    #####
-
-    sigma_e0 = sigma_e0 * 0.8
-    sigma_e1 = sigma_e1 * 0.8
-    sigma_e2 = sigma_e2 * 0.8
-
-    sigma_zeta1 = sigma_zeta1 * 0.52
-    sigma_zeta2 = sigma_zeta2 * 0.55
-
-    sigma_xi = sigma_xi * 2.4
-    sigma_eta1 = sigma_eta1 * 2.6
-    sigma_eta2 = sigma_eta2 * 2.6
-    sigma_lambda1 = sigma_lambda1 * 1.1
-    sigma_lambda2 = sigma_lambda2 * 1.1
-
-    return (sigma_flux, sigma_u0, sigma_v0, sigma_e0, sigma_e1, sigma_e2,
-            sigma_zeta1, sigma_zeta2, sigma_delta1, sigma_delta2, sigma_xi,
-            sigma_eta1, sigma_eta2, sigma_lambda1, sigma_lambda2)
-
-
-def hsm_orthogonal(star, logger=None):
-    """ Use python implementation of HSM to measure up to third moments plus orthogonal radial moments up to eighth moments of star image.
-
-
-    :param star:            Input star, with stamp, weight
-    :param logger:          A logger object for logging debug info.
-                            [default: None]
-
-    :returns:   The shape. Goes up to third moments plus orthogonal radial moments up to eighth
-                moments.
-    """
-    from .gsobject_model import Gaussian
-    from .star import Star
-
-    # get vectors for data, weight and u, v
-    data_i, weight_i, u_i, v_i = star.data.getDataVector(include_zero_weight=True)
-    # also get the values for the HSM kernel, which is just the fitted hsm model
-    flux, cenu, cenv, size, g1, g2, flag = hsm(star)
-    profile = galsim.Gaussian(sigma=1.0).dilate(size).shear(g1=g1, g2=g2).shift(cenu, cenv) * flux
-    image = star.image.copy()
-    profile.drawImage(image, method='no_pixel', offset=(star.image_pos-image.true_center))
-    # convert image into kernel
-    kernel_i = image.array.flatten()
-
-    # now apply mask
-    mask = weight_i != 0.
-    data_i = data_i[mask]
-    weight_i = weight_i[mask]
-    kernel_i = kernel_i[mask]
-    u_i = u_i[mask]
-    v_i = v_i[mask]
-
-    # with HSM as our starting guess, and kernel, let's use the weights for a final step.
-    # This makes everything a lot simpler, conceptually. We place all these results here,
-    # and then work through the errors later
-    flux_calc = np.sum(weight_i * data_i * kernel_i)
-    normalization = flux_calc
-
-    u0_calc = np.sum(data_i * weight_i * kernel_i * u_i) / normalization
-    v0_calc = np.sum(data_i * weight_i * kernel_i * v_i) / normalization
-    # calculate moments
-    du_i = u_i - u0_calc
-    dv_i = v_i - v0_calc
-    Muu = 2 * np.sum(data_i * weight_i * kernel_i * du_i * du_i) / normalization
-    Mvv = 2 * np.sum(data_i * weight_i * kernel_i * dv_i * dv_i) / normalization
-    Muv = 2 * np.sum(data_i * weight_i * kernel_i * du_i * dv_i) / normalization
-
-    # now e0,e1,e2
-    # also note that this defintion for e1 and e2 is /2 compared to previous definitions
-    e0_calc = Muu + Mvv
-    e1_calc = Muu - Mvv
-    e2_calc = 2 * Muv
-
-    # calculate third moments
-    Muuu = 2 * np.sum(data_i * weight_i * kernel_i * du_i * du_i * du_i) / normalization
-    Muuv = 2 * np.sum(data_i * weight_i * kernel_i * du_i * du_i * dv_i) / normalization
-    Muvv = 2 * np.sum(data_i * weight_i * kernel_i * du_i * dv_i * dv_i) / normalization
-    Mvvv = 2 * np.sum(data_i * weight_i * kernel_i * dv_i * dv_i * dv_i) / normalization
-
-    zeta1_calc = Muuu + Muvv
-    zeta2_calc = Mvvv + Muuv
-    delta1_calc = Muuu - 3 * Muvv
-    delta2_calc = -(Mvvv - 3 * Muuv)
-
-    # calculate fourth moments
-    Muuuu = 2 * np.sum(data_i * weight_i * kernel_i * du_i * du_i * du_i * du_i) / normalization
-    Muuuv = 2 * np.sum(data_i * weight_i * kernel_i * du_i * du_i * du_i * dv_i) / normalization
-    Muuvv = 2 * np.sum(data_i * weight_i * kernel_i * du_i * du_i * dv_i * dv_i) / normalization
-    Muvvv = 2 * np.sum(data_i * weight_i * kernel_i * du_i * dv_i * dv_i * dv_i) / normalization
-    Mvvvv = 2 * np.sum(data_i * weight_i * kernel_i * dv_i * dv_i * dv_i * dv_i) / normalization
-
-    orth4_calc = Muuuu + 2 * Muuvv + Mvvvv - 3 * Muu - 3 * Mvv
-
-    # calculate sixth moments
-    Muuuuuu = 2 * np.sum(
-        data_i * weight_i * kernel_i * du_i * du_i * du_i * du_i * du_i * du_i) / normalization
-    Muuuuvv = 2 * np.sum(
-        data_i * weight_i * kernel_i * du_i * du_i * du_i * du_i * dv_i * dv_i) / normalization
-    Muuvvvv = 2 * np.sum(
-        data_i * weight_i * kernel_i * du_i * du_i * dv_i * dv_i * dv_i * dv_i) / normalization
-    Mvvvvvv = 2 * np.sum(
-        data_i * weight_i * kernel_i * dv_i * dv_i * dv_i * dv_i * dv_i * dv_i) / normalization
-
-    orth6_calc = (Muuuuuu + 3 * Muuuuvv + 3 * Muuvvvv + Mvvvvvv
-                  - 8 * Muuuu - 16 * Muuvv - 8 * Mvvvv + 12 * Muu + 12 * Mvv)
-
-    # calculate eighth moments
-    Muuuuuuuu = 2 * np.sum(data_i * weight_i * kernel_i * du_i**8) / normalization
-    Muuuuuuvv = 2 * np.sum(data_i * weight_i * kernel_i * du_i**6 * dv_i**2) / normalization
-    Muuuuvvvv = 2 * np.sum(data_i * weight_i * kernel_i * du_i**4 * dv_i**4) / normalization
-    Muuvvvvvv = 2 * np.sum(data_i * weight_i * kernel_i * du_i**2 * dv_i**6) / normalization
-    Mvvvvvvvv = 2 * np.sum(data_i * weight_i * kernel_i * dv_i**8) / normalization
-
-    orth8_calc = (Muuuuuuuu + 4 * Muuuuuuvv + 6 * Muuuuvvvv + 4 * Muuvvvvvv + Mvvvvvvvv
-                  - 15 * Muuuuuu - 45 * Muuuuvv - 45 * Muuvvvv - 15 * Mvvvvvv
-                  + 60 * Muuuu + 120 * Muuvv + 60 * Mvvvv - 60 * Muu - 60 * Mvv)
-
-    return (flux_calc, u0_calc, v0_calc, e0_calc, e1_calc, e2_calc,
-            zeta1_calc, zeta2_calc, delta1_calc, delta2_calc,
-            orth4_calc, orth6_calc, orth8_calc)
-
-
-def hsm_error_orthogonal(star, logger=None):
-    """Use python implementation of HSM to measure up to fourth moments plus orthogonal radial
-    moments up to eighth moments of star image to get errors.
-
-    :param star:            Input star, with stamp, weight
-    :param logger:          A logger object for logging debug info.
-                            [default: None]
-
-    :returns:   The shape error.
-                Goes up to third moments plus orthogonal radial moments up to eighth moments.
-    """
-    from .gsobject_model import Gaussian
-    from .star import Star
-
-    # get vectors for data, weight and u, v
-    data_i, weight_i, u_i, v_i = star.data.getDataVector(include_zero_weight=True)
-    # also get the values for the HSM kernel, which is just the fitted hsm model
-    flux, cenu, cenv, size, g1, g2, flag = hsm(star)
-    profile = galsim.Gaussian(sigma=1.0).dilate(size).shear(g1=g1, g2=g2).shift(cenu, cenv) * flux
-    image = star.image.copy()
-    profile.drawImage(image, method='no_pixel', offset=(star.image_pos-image.true_center))
-    # convert image into kernel
-    kernel_i = image.array.flatten()
-
-    # now apply mask
-    mask = weight_i != 0.
-    data_i = data_i[mask]
-    weight_i = weight_i[mask]
-    kernel_i = kernel_i[mask]
-    u_i = u_i[mask]
-    v_i = v_i[mask]
-
-    # with HSM as our starting guess, and kernel, let's use the weights for a final step.
-    # This makes everything a lot simpler, conceptually. We place all these results here,
-    # and then work through the errors later
-    flux_calc = np.sum(weight_i * data_i * kernel_i)
-    normalization = flux_calc
-
-    u0_calc = np.sum(data_i * weight_i * kernel_i * u_i) / normalization
-    v0_calc = np.sum(data_i * weight_i * kernel_i * v_i) / normalization
-    # calculate moments
-    du_i = u_i - u0_calc
-    dv_i = v_i - v0_calc
-    Muu = 2 * np.sum(data_i * weight_i * kernel_i * du_i * du_i) / normalization
-    Mvv = 2 * np.sum(data_i * weight_i * kernel_i * dv_i * dv_i) / normalization
-    Muv = 2 * np.sum(data_i * weight_i * kernel_i * du_i * dv_i) / normalization
-
-    # now e0,e1,e2
-    # also note that this defintion for e1 and e2 is /2 compared to previous definitions
-    e0_calc = Muu + Mvv
-    e1_calc = Muu - Mvv
-    e2_calc = 2 * Muv
-
-    # calculate third moments
-    Muuu = 2 * np.sum(data_i * weight_i * kernel_i * du_i**3) / normalization
-    Muuv = 2 * np.sum(data_i * weight_i * kernel_i * du_i**2 * dv_i) / normalization
-    Muvv = 2 * np.sum(data_i * weight_i * kernel_i * du_i * dv_i**2) / normalization
-    Mvvv = 2 * np.sum(data_i * weight_i * kernel_i * dv_i**3) / normalization
-
-    zeta1_calc = Muuu + Muvv
-    zeta2_calc = Mvvv + Muuv
-    delta1_calc = Muuu - 3 * Muvv
-    delta2_calc = -(Mvvv - 3 * Muuv)
-
-    # calculate fourth moments
-    Muuuu = 2 * np.sum(data_i * weight_i * kernel_i * du_i**4) / normalization
-    Muuuv = 2 * np.sum(data_i * weight_i * kernel_i * du_i**3 * dv_i) / normalization
-    Muuvv = 2 * np.sum(data_i * weight_i * kernel_i * du_i**2 * dv_i**2) / normalization
-    Muvvv = 2 * np.sum(data_i * weight_i * kernel_i * du_i * dv_i**3) / normalization
-    Mvvvv = 2 * np.sum(data_i * weight_i * kernel_i * dv_i**4) / normalization
-
-    orth4_calc = Muuuu + 2 * Muuvv + Mvvvv - 3 * Muu - 3 * Mvv
-
-    # calculate sixth moments
-    Muuuuuu = 2 * np.sum(data_i * weight_i * kernel_i * du_i**6) / normalization
-    Muuuuvv = 2 * np.sum(data_i * weight_i * kernel_i * du_i**4 * dv_i**2) / normalization
-    Muuvvvv = 2 * np.sum(data_i * weight_i * kernel_i * du_i**2 * dv_i**4) / normalization
-    Mvvvvvv = 2 * np.sum(data_i * weight_i * kernel_i * dv_i**6) / normalization
-
-    orth6_calc = (Muuuuuu + 3 * Muuuuvv + 3 * Muuvvvv + Mvvvvvv
-                  - 8 * Muuuu - 16 * Muuvv - 8 * Mvvvv + 12 * Muu + 12 * Mvv)
-
-    # calculate eighth moments
-    Muuuuuuuu = 2 * np.sum(data_i * weight_i * kernel_i * du_i**8) / normalization
-    Muuuuuuvv = 2 * np.sum(data_i * weight_i * kernel_i * du_i**6 * dv_i**2) / normalization
-    Muuuuvvvv = 2 * np.sum(data_i * weight_i * kernel_i * du_i**4 * dv_i**4) / normalization
-    Muuvvvvvv = 2 * np.sum(data_i * weight_i * kernel_i * du_i**2 * dv_i**6) / normalization
-    Mvvvvvvvv = 2 * np.sum(data_i * weight_i * kernel_i * dv_i**8) / normalization
-
-    orth8_calc = (Muuuuuuuu + 4 * Muuuuuuvv + 6 * Muuuuvvvv + 4 * Muuvvvvvv + Mvvvvvvvv
-                  - 15 * Muuuuuu - 45 * Muuuuvv - 45 * Muuvvvv - 15 * Mvvvvvv
-                  + 60 * Muuuu + 120 * Muuvv + 60 * Mvvvv - 60 * Muu - 60 * Mvv)
-
-    # normalization for the various sums over pixels
-    normalization2 = normalization * normalization
-
-    sigma2_data_i = 1. / weight_i
-    sigma2_normalization = np.sum((weight_i * kernel_i)**2 * sigma2_data_i)
-    sigma_normalization = np.sqrt(sigma2_normalization)
-    # flux is 2x normalization in hsm.cpp, so probably a factor of 2 here
-    sigma_flux = 2 * sigma_normalization
-
-    # flux fudge factors?
-    flux_fudge_factor = 1.
-    sigma_flux = sigma_flux * np.sqrt(flux_fudge_factor)
-    sigma_normalization = 1. * sigma_normalization
-
-    #####
-    # u0, v0
-    #####
-
-    sigma2_u0_data = np.sum((weight_i * kernel_i * u_i / normalization)**2 * sigma2_data_i)
-    sigma2_v0_data = np.sum((weight_i * kernel_i * v_i / normalization)**2 * sigma2_data_i)
-
-    # add sigma_normalization
-    sigma2_u0_flux = (u0_calc * sigma_normalization / normalization)**2
-    sigma2_v0_flux = (v0_calc * sigma_normalization / normalization)**2
-
-    # technically we also need the contribution to the kernel!
-
-    sigma_u0 = np.sqrt(sigma2_u0_data + sigma2_u0_flux)
-    sigma_v0 = np.sqrt(sigma2_v0_data + sigma2_v0_flux)
-
-    # u0, v0 fudge factors
-    sigma_u0 = sigma_u0 * 2.1
-    sigma_v0 = sigma_v0 * 2.1
-
-    # now calculate errors: ie. shot and read noise per pixel
-
-    # three terms: those proportional to: sdata_i, sigma_u0 and sigma_v0, and sigma_normalization
-    sigma2_e0_data = np.sum(
-        (2 * weight_i * kernel_i * (du_i**2 + dv_i**2) / normalization)**2 * sigma2_data_i)
-    sigma2_e1_data = np.sum(
-        (2 * weight_i * kernel_i * (du_i**2 - dv_i**2) / normalization)**2 * sigma2_data_i)
-    sigma2_e2_data = np.sum(
-        (2 * weight_i * kernel_i * 2 * du_i * dv_i / normalization)**2 * sigma2_data_i)
-
-    sigma2_zeta1_data = np.sum(
-        (2 * weight_i * kernel_i * du_i * (du_i**2 + dv_i**2) / normalization)**2 * sigma2_data_i)
-    sigma2_zeta2_data = np.sum(
-        (2 * weight_i * kernel_i * dv_i * (du_i**2 + dv_i**2) / normalization)**2 * sigma2_data_i)
-    sigma2_delta1_data = np.sum(
-        (2 * weight_i * kernel_i * du_i * (du_i**2 - 3*dv_i**2) / normalization)**2 * sigma2_data_i)
-    sigma2_delta2_data = np.sum(
-        (2 * weight_i * kernel_i * dv_i * (3*du_i**2 - dv_i**2) / normalization)**2 * sigma2_data_i)
-
-    sigma2_orth4_data = np.sum(
-        (2 * weight_i * kernel_i * ((du_i**2 + dv_i**2)**2 - 3*(du_i**2 - dv_i**2)) / normalization)**2 * sigma2_data_i)
-    sigma2_orth6_data = np.sum(
-        (2 * weight_i * kernel_i * ((du_i**2 + dv_i**2)**3 - 8 * (du_i**2 + dv_i**2)*2 + 12 * (du_i**2 + dv_i**2)) / normalization)**2 * sigma2_data_i)
-    sigma2_orth8_data = np.sum(
-        (2 * weight_i * kernel_i * ((du_i**2 + dv_i**2)**4 - 15 * (du_i**2 + dv_i**2)**3 + 60 * (du_i**2 + dv_i**2)**2 - 60 * (du_i**2 + dv_i**2)) / normalization)**2 * sigma2_data_i)
-
-    # add sigma_u0, sigma_v0. This is ignoring the kernel!
-    sigma2_e0_u0 = np.sum(
-        (4 * du_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
-    sigma2_e0_v0 = np.sum(
-        (4 * dv_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
-    sigma2_e1_u0 = sigma2_e0_u0
-    sigma2_e1_v0 = sigma2_e0_v0
-    sigma2_e2_u0 = np.sum(
-        (4 * dv_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
-    sigma2_e2_v0 = np.sum(
-        (4 * du_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
-
-    sigma2_zeta1_u0 = np.sum(
-        (2 * (3*du_i**2 + dv_i**2))**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
-    sigma2_zeta1_v0 = np.sum(
-        (4 * du_i * dv_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
-    sigma2_zeta2_u0 = np.sum(
-        (4 * du_i * dv_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
-    sigma2_zeta2_v0 = np.sum(
-        (2 * (du_i**2 + 3*dv_i**2))**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
-    sigma2_delta1_u0 = np.sum(
-        (6 * (du_i**2 - dv_i**2))**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
-    sigma2_delta1_v0 = np.sum(
-        (-12 * du_i * dv_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
-    sigma2_delta2_u0 = np.sum(
-        (12 * du_i * dv_i)**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
-    sigma2_delta2_v0 = np.sum(
-        (6 * (du_i**2 - dv_i**2))**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
-
-    sigma2_orth4_u0 = np.sum(
-        (4 * du_i * (2 * du_i**2 + 2 * dv_i**2 - 3))**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
-    sigma2_orth4_v0 = np.sum(
-        (4 * dv_i * (2 * du_i**2 + 2 * dv_i**2 - 3))**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
-    sigma2_orth6_u0 = np.sum(
-        (4 * du_i * (3 * (du_i**2 + dv_i**2)**2 - 16 * (du_i**2 + dv_i**2) + 12))**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
-    sigma2_orth6_v0 = np.sum(
-        (4 * dv_i * (3 * (du_i**2 + dv_i**2)**2 - 16 * (du_i**2 + dv_i**2) + 12))**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
-    sigma2_orth8_u0 = np.sum(
-        (4 * du_i * (4 * (du_i**2 + dv_i**2)**3 - 45 * (du_i**2 + dv_i**2)**2 + 120 * (du_i**2 + dv_i**2) - 60))**2 * weight_i * kernel_i * data_i / normalization * sigma_u0**2)
-    sigma2_orth8_v0 = np.sum(
-        (4 * dv_i * (4 * (du_i**2 + dv_i**2)**3 - 45 * (du_i**2 + dv_i**2)**2 + 120 * (du_i**2 + dv_i**2) - 60))**2 * weight_i * kernel_i * data_i / normalization * sigma_v0**2)
-
-    # add sigma_normalization
-    sigma2_e0_flux = (e0_calc * sigma_normalization / normalization)**2
-    sigma2_e1_flux = (e1_calc * sigma_normalization / normalization)**2
-    sigma2_e2_flux = (e2_calc * sigma_normalization / normalization)**2
-
-    sigma2_zeta1_flux = (zeta1_calc * sigma_normalization / normalization)**2
-    sigma2_zeta2_flux = (zeta2_calc * sigma_normalization / normalization)**2
-    sigma2_delta1_flux = (delta1_calc * sigma_normalization / normalization)**2
-    sigma2_delta2_flux = (delta2_calc * sigma_normalization / normalization)**2
-
-    sigma2_orth4_flux = (orth4_calc * sigma_normalization / normalization)**2
-    sigma2_orth6_flux = (orth6_calc * sigma_normalization / normalization)**2
-    sigma2_orth8_flux = (orth8_calc * sigma_normalization / normalization)**2
-
-    # taking out the flux - e0 errors for now. lmfit finds that these two variables are highly
-    # correlated, so I'm probably missing a negative covariance term from the kernel that would
-    # bring this back in line. As it is, including sigma2_e0_flux leads to overestimated errors
-    sigma_e0 = np.sqrt(sigma2_e0_data + sigma2_e0_u0 + sigma2_e0_v0)# + sigma2_e0_flux)
-    sigma_e1 = np.sqrt(sigma2_e1_data + sigma2_e1_u0 + sigma2_e1_v0 + sigma2_e1_flux)
-    sigma_e2 = np.sqrt(sigma2_e2_data + sigma2_e2_u0 + sigma2_e2_v0 + sigma2_e2_flux)
-
-    sigma_zeta1 = np.sqrt(sigma2_zeta1_data + sigma2_zeta1_u0 + sigma2_zeta1_v0 + sigma2_zeta1_flux)
-    sigma_zeta2 = np.sqrt(sigma2_zeta2_data + sigma2_zeta2_u0 + sigma2_zeta2_v0 + sigma2_zeta2_flux)
-    sigma_delta1 = np.sqrt(
-        sigma2_delta1_data + sigma2_delta1_u0 + sigma2_delta1_v0 + sigma2_delta1_flux)
-    sigma_delta2 = np.sqrt(
-        sigma2_delta2_data + sigma2_delta2_u0 + sigma2_delta2_v0 + sigma2_delta2_flux)
-
-    sigma_orth4 = np.sqrt(sigma2_orth4_data + sigma2_orth4_u0 + sigma2_orth4_v0 + sigma2_orth4_flux)
-    sigma_orth6 = np.sqrt(sigma2_orth6_data + sigma2_orth6_u0 + sigma2_orth6_v0 + sigma2_orth6_flux)
-    sigma_orth8 = np.sqrt(sigma2_orth8_data + sigma2_orth8_u0 + sigma2_orth8_v0 + sigma2_orth8_flux)
-
-    #####
-    # FUDGE VALUES
-    # in my experience (based on creating these for fixed noise level and measuring variance)
-    # the errors need these fudge factors.
-    #####
-
-    sigma_e0 = sigma_e0 * 0.8
-    sigma_e1 = sigma_e1 * 0.8
-    sigma_e2 = sigma_e2 * 0.8
-
-    sigma_zeta1 = sigma_zeta1 * 0.52
-    sigma_zeta2 = sigma_zeta2 * 0.55
-
-    sigma_orth4 = sigma_orth4 * 0.81
-    sigma_orth6 = sigma_orth6 * 0.34
-    sigma_orth8 = sigma_orth8 * 0.51
-
-    return (sigma_flux, sigma_u0, sigma_v0, sigma_e0, sigma_e1, sigma_e2,
-            sigma_zeta1, sigma_zeta2, sigma_delta1, sigma_delta2,
-            sigma_orth4, sigma_orth6, sigma_orth8)
+    mask = weight != 0.
+    data = data[mask]
+    weight = weight[mask]
+    kernel = kernel[mask]
+    u = u[mask] - u0
+    v = v[mask] - v0
+
+    # This is the weighted image values, which we use in all the sums below.
+    # Notation:
+    #   W = weight * kernel
+    #   I = data
+    #   V = var(data) -- used below.
+    WI = weight * kernel * data
+
+    M00 = np.sum(WI)
+    norm = M00            # This is the normalization for all other moments.
+
+    # Normalize M00 to not depend on weight.  I.e. if weight *= 10, answer should be the same.
+    meanw = np.mean(weight)
+    M00 /= meanw
+
+    WI /= norm
+    WIu = WI * u
+    WIv = WI * v
+    M10 = np.sum(WIu)
+    M01 = np.sum(WIv)
+
+    # Subtract off the measured first moments
+    u -= M10
+    v -= M01
+
+    # Store some quantities that we will use repeatedly below.
+    # Note: This could still be sped up more by caching more combinations.
+    usq = u*u
+    vsq = v*v
+    uv = u*v
+    rsq = usq + vsq
+    usqmvsq = usq - vsq
+
+    WIrsq = WI*rsq
+    WIusqmvsq = WI*usqmvsq
+    WIuv = WI*uv
+    M11 = np.sum(WIrsq)
+    M20 = np.sum(WIusqmvsq)
+    M02 = 2 * np.sum(WIuv)
+
+    # Keep track of the tuple to return.  We may add more.
+    ret = (M00, M10, M01, M11, M20, M02)
+
+    if errors:
+        # It we take W, w to be fixed and assume that var(I) = 1/w, then
+
+        # var(M00) = sum W^2 1/w
+        # var(M10) = sum W^2 1/w u^2 / M00^2
+        # var(M01) = sum W^2 1/w v^2 / M00^2
+        # var(M11) = sum W^2 1/w (u^2 + v^2)^2 / M00^2
+        # var(M20) = sum W^2 1/w (u^2 - v^2)^2 / M00^2
+        # var(M02) = sum W^2 1/w (2uv)^2 / M00^2
+
+        WV = weight * kernel**2
+        varM00 = np.sum(WV) / meanw**2
+        WV /= norm**2
+        # MJ: I don't think the +u0 here is justified, but it matches what Aaron did.
+        #     It also don't really matter, since M10, M01, have almost no actual variance.
+        varM10 = np.sum(WV * (u+u0+M10)**2)
+        varM01 = np.sum(WV * (v+v0+M01)**2)
+        varM11 = np.sum(WV * rsq**2)
+        varM20 = np.sum(WV * usqmvsq**2)
+        varM02 = 4 * np.sum(WV * uv**2)
+
+        # However, these variance estimates are too low because there is uncertainty in the
+        # correct kernel as well.  The above formulae assume that there is no uncertainty in W.
+        # For now, we have some slightly ad hoc corrections derived by Aaron and Ares.
+        # They generally start with reasonably well-motivated corrections trying to propagate
+        # the uncertainties in u0, v0, norm into the variances.  But they don't work very well,
+        # so then there are some order unity fudge factors that get applied.
+
+        varnorm = varM00 / M00**2  # Save this for use below.
+
+        # Variance in weighted flux is ~double this due to uncertainty in kernel.
+        varM00 *= 4
+
+        # Add variance due to u0,v0 uncertainties
+        varM10 += varnorm * (M10+u0)**2
+        varM01 += varnorm * (M01+v0)**2
+        # Fudge factors.  See comments below.
+        varM10 *= 2.1**2
+        varM01 *= 2.1**2
+
+        # Add variance due to u0,v0 uncertainties
+        varM11 += varM10 * np.sum(WI * usq) * 4
+        varM11 += varM01 * np.sum(WI * vsq) * 4
+        varM20 += varM10 * np.sum(WI * usq) * 4
+        varM20 += varM01 * np.sum(WI * vsq) * 4
+        varM02 += varM10 * np.sum(WI * vsq) * 4
+        varM02 += varM01 * np.sum(WI * usq) * 4
+
+        # Add variance due to normalization uncertainties
+        #varM11 += varnorm * M11**2  # This is disabled in Aaron's code
+        varM20 += varnorm * M20**2
+        varM02 += varnorm * M02**2
+
+        # Fudge factors, since the above semi-motivated calculation doesn't work all that well.
+        # XXX: These fudge factors are not adequately justified.  They at least need better
+        # justification if a priori dervations are not possible (as seems likely).
+        # Also, the resulting values are not particularly accurate across a range of profiles,
+        # indicating that there might need to be additional terms, e.g. ones related to
+        # the uncertainties in sigma, g1, g2.
+        # Recommend a script in devel/ the runs through a range of profiles and fits for the
+        # appropriate coefficients of the various terms.  I.e. probably separate coefficients
+        # for each of the above expected terms plus g1,g2 terms, rather than just one overall
+        # fudge factor. Then this code can reference that script as justification.
+        varM11 *= 0.8**2
+        varM20 *= 0.8**2
+        varM02 *= 0.8**2
+
+        ret_err = (varM00, varM10, varM01, varM11, varM20, varM02)
+
+    if third_order:
+        M21 = np.sum(WIu * rsq)
+        M12 = np.sum(WIv * rsq)
+        M30 = np.sum(WIu * (usq-3*vsq))
+        M03 = np.sum(WIv * (3*usq-vsq))
+        ret += (M21, M12, M30, M03)
+
+        if errors:
+            WVusq = WV * usq
+            WVvsq = WV * vsq
+            varM21 = np.sum(WVusq * rsq**2)
+            varM12 = np.sum(WVvsq * rsq**2)
+            varM30 = np.sum(WVusq * (usq-3*vsq)**2)
+            varM03 = np.sum(WVvsq * (3*usq-vsq)**2)
+
+            # Add variance due to u0,v0 uncertainties
+            varM21 += varM10 * np.sum(WI * (3*u**2 + v**2)**2)
+            varM21 += varM01 * np.sum(WI * (2*u*v)**2)
+            varM12 += varM10 * np.sum(WI * (2*u*v)**2)
+            varM12 += varM01 * np.sum(WI * (u**2 + 3*v**2)**2)
+            varM30 += varM10 * np.sum(WI * (3*(u**2 - v**2))**2)
+            varM30 += varM01 * np.sum(WI * (6*u*v)**2)
+            varM03 += varM10 * np.sum(WI * (6*u*v)**2)
+            varM03 += varM01 * np.sum(WI * (3*(u**2 - v**2))**2)
+
+            # Add variance due to normalization uncertainties
+            varM21 += varnorm * M21**2
+            varM12 += varnorm * M12**2
+            varM30 += varnorm * M30**2
+            varM03 += varnorm * M03**2
+
+            # XXX: Again, these fudge factors are not adequately justified, nor are they
+            # particularly accurate for varied profiles.
+            varM21 *= 0.52**2
+            varM12 *= 0.55**2
+
+            ret_err += (varM21, varM12, varM30, varM03)
+
+    if fourth_order:
+        M22 = np.sum(WIrsq * rsq)
+        M31 = np.sum(WIusqmvsq * rsq)
+        M13 = 2. * np.sum(WIuv * rsq)
+        M40 = np.sum(WI * (usqmvsq**2 - 4.*uv**2))
+        M04 = 4. * np.sum(WIuv * usqmvsq)
+        ret += (M22, M31, M13, M40, M04)
+
+        if errors:
+            varM22 = np.sum(WV * rsq**4)
+            varM31 = np.sum(WV * usqmvsq**2 * rsq**2)
+            varM13 = 4 * np.sum(WV * uv**2 * rsq**2)
+            varM40 = np.sum(WV * (usqmvsq**2-4.*uv**2)**2)
+            varM04 = 16. * np.sum(WV * uv**2 * usqmvsq**2)
+
+            # Add variance due to u0,v0 uncertainties
+            varM22 += varM10 * np.sum(WI * (4*u*rsq)**2)
+            varM22 += varM01 * np.sum(WI * (4*v*rsq)**2)
+            varM31 += varM10 * np.sum(WI * (4*u**3)**2)
+            varM31 += varM01 * np.sum(WI * (4*v**3)**2)
+            varM13 += varM10 * np.sum(WI * (2*v*(3*u**2 + v**2))**2)
+            varM13 += varM01 * np.sum(WI * (2*u*(u**2 + 3*v**2))**2)
+            varM40 += varM10 * np.sum(WI * (4*u*(u**2 - 3*v**2))**2)
+            varM40 += varM01 * np.sum(WI * (4*v*(3*u**2 - v**2))**2)
+            varM04 += varM10 * np.sum(WI * (4*v*(3*u**2 - v**2))**2)
+            varM04 += varM01 * np.sum(WI * (4*u*(u**2 - 3*v**2))**2)
+
+            # Add variance due to normalization uncertainties
+            varM22 += varnorm * M22**2
+            varM31 += varnorm * M31**2
+            varM13 += varnorm * M13**2
+            varM40 += varnorm * M40**2
+            varM04 += varnorm * M04**2
+
+            # XXX: Ditto re fudge factors
+            varM22 *= 2.4**2
+            varM31 *= 2.6**2
+            varM13 *= 2.6**2
+            varM40 *= 1.1**2
+            varM04 *= 1.1**2
+
+            ret_err += (varM22, varM31, varM13, varM40, varM04)
+
+    if radial:
+        M22 = np.sum(WIrsq * rsq)
+        M33 = np.sum(WIrsq * rsq**2)
+        M44 = np.sum(WIrsq * rsq**3)
+
+        # XXX: Note that I am preserving the definitions you had in the old code, but these
+        #      "orthogonal" radial moments don't make any sense.  You are mixing terms with
+        #      different units.  The u and v values have units here (arcsec), so you are
+        #      adding and subtracting terms with units of arcsec**2, arcsec**4, arcsec**6, etc.
+        #      Maybe you meant to normalize these by powers of M11 or simga?
+        #      But probably better to just not bother with these and simply return the above
+        #      M22, M33, M44.  Surely the random forest can do something equally useful with them.
+        #      Maybe better, since it wouldn't have to disentangle your mixed unit values.
+        #      (The use case where you just use these for the chisq calculation in lieu of the
+        #      pixel-based chisq would be fine, since the only real benefit of that is that you
+        #      let hsm marginalize over the centroid rather than have to do it manually.)
+        altM22 = M22 - 3*M11
+        altM33 = M33 - 8*M22 + 12*M11
+        altM44 = M44 - 15*M33 + 60*M22 - 60*M11
+        ret += (altM22, altM33, altM44)
+
+        if errors:
+            varM22 = np.sum(WV * (rsq**2 - 3*rsq)**2)
+            varM33 = np.sum(WV * (rsq**3 - 8*rsq**2 + 12*rsq)**2)
+            varM44 = np.sum(WV * (rsq**4 - 15*rsq**3 + 60*rsq**2 - 60*rsq)**2)
+
+            # Add variance due to u0,v0 uncertainties
+            varM22 += varM10 * np.sum(WI * (2*u*(2*rsq-3))**2)
+            varM22 += varM01 * np.sum(WI * (2*v*(2*rsq-3))**2)
+            varM33 += varM10 * np.sum(WI * (2*u*(3*rsq**2-16*rsq+12))**2)
+            varM33 += varM01 * np.sum(WI * (2*v*(3*rsq**2-16*rsq+12))**2)
+            varM44 += varM10 * np.sum(WI * (2*u*(4*rsq**3-45*rsq**2+120*rsq-60))**2)
+            varM44 += varM01 * np.sum(WI * (2*v*(4*rsq**3-45*rsq**2+120*rsq-60))**2)
+
+            # Add variance due to normalization uncertainties
+            varM22 += varnorm * altM22**2
+            varM33 += varnorm * altM33**2
+            varM44 += varnorm * altM44**2
+
+            # XXX: Ditto re fudge factors
+            varM22 *= 0.81**2
+            varM33 *= 0.34**2
+            varM44 *= 0.51**2
+
+            ret_err += (varM22, varM33, varM44)
+
+    if errors:
+        return ret + ret_err
+    else:
+        return ret
+
+# Make this also available as a method of Star
+Star.calculate_moments = calculate_moments
