@@ -252,6 +252,7 @@ def test_atmo_interp_fit():
         logger = piff.config.setup_logger(verbose=1)
     logger.info('Entering test_atmo_interp_fit')
 
+    np.random.seed(12345)
     jmax_pupil = 5
     config = return_config()
     config['jmax_focal'] = 1
@@ -583,6 +584,8 @@ def test_snr_and_shapes():
     else:
         logger = piff.config.setup_logger(verbose=1)
     logger.info('Entering test_snr_and_shapes')
+
+    np.random.seed(12345)
     config = return_config()
     config.pop('reference_wavefront')
     psf = piff.PSF.process(config)
@@ -627,6 +630,7 @@ def test_snr_and_shapes():
         errors = np.array(errors)
         std_shapes = shapes.std(axis=0)
         mean_errors = errors.mean(axis=0)
+        print('mean_shapes = ',np.mean(shapes, axis=0))
         print('std_shapes = ',std_shapes)
         print('mean_errors = ',mean_errors)
         print('ratio = ',mean_errors/std_shapes)
