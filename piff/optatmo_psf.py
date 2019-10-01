@@ -2028,10 +2028,6 @@ class OptAtmoPSF(PSF):
                                 [default: None]
 
         :returns chi:           Chi of observed e0 to model e0
-
-        Notes
-        -----
-        This is done by forward modeling the PSF and measuring its shape via HSM
         """
         logger = LoggerWrapper(logger)
         opt_size = np.exp(x[0])
@@ -2063,6 +2059,9 @@ class OptAtmoPSF(PSF):
 
             # Calculate chi for this star
             image, weight, image_pos = star.data.getImage()
+            image_flux = np.sum(image.array * weight.array)
+            model_flux = np.sum(model.array * weight.array)
+            model *= image_flux/model_flux  # Don't worry about flux differences
             chi = (np.sqrt(weight.array) * (model.array - image.array)).flatten()
             chis.append(chi)
 
