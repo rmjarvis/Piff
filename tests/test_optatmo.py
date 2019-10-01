@@ -170,7 +170,7 @@ def test_aberrations():
         params[3] = -1 #leave L0 at -1 here
         params[4 - 1 + 4] = 1. #leave defocus at 1.0 here
         params[j - 1 + 4] = 1.
-        prof = psf.getProfile(params)
+        prof = psf.getProfile(star,params)
         new_star = psf.drawProfile(star, prof, params)
         # check the new_star fit params
         np.testing.assert_array_equal(params, new_star.fit.params)
@@ -288,7 +288,7 @@ def test_atmo_interp_fit():
     stars_to_fit = []
     stars = []
     for star, param in zip(stars_blank, params):
-        prof = psf.getProfile(param)
+        prof = psf.getProfile(star,param)
         # draw the star
         star = psf.drawProfile(star, prof, param)
         stars.append(star)
@@ -381,7 +381,7 @@ def test_fit():
     stars = []
     stars_to_fit = []
     for star, param in zip(stars_blank, params):
-        prof = psf_draw.getProfile(param) * 1e6
+        prof = psf_draw.getProfile(star,param) * 1e6
         star = psf_draw.drawProfile(star, prof, param)
         stars.append(star)
         stars_to_fit.append(star)
@@ -460,7 +460,7 @@ def test_atmo_model_fit():
     params[1] = atmo_g1
     params[2] = atmo_g2
 
-    prof = psf.getProfile(params).shift(atmo_du, atmo_dv) * atmo_flux
+    prof = psf.getProfile(star,params).shift(atmo_du, atmo_dv) * atmo_flux
 
     # draw the star
     star = psf.drawProfile(star, prof, params)
@@ -486,7 +486,7 @@ def test_atmo_model_fit():
     params_fit[0] = star_fit.fit.params[0]
     params_fit[1] = star_fit.fit.params[1]
     params_fit[2] = star_fit.fit.params[2]
-    prof_fit = psf.getProfile(params_fit)
+    prof_fit = psf.getProfile(star,params_fit)
     star_fit_drawn = psf.drawProfile(star_fit, prof_fit, params_fit)
     shape_drawn, error_drawn = psf.measure_shape(star_fit_drawn, logger=logger)
     np.testing.assert_allclose(shape, shape_drawn, rtol=1e-4)
@@ -652,10 +652,10 @@ def test_profile():
     star = make_star(500, 500, 25)
     # get getProfile vs getProfile(params)
     params = psf.getParams(star)
-    prof = psf.getProfile(params)
+    prof = psf.getProfile(star,params)
 
     params_list_0 = psf.getParamsList([star])[0]
-    prof_list = psf.getProfile(params_list_0)
+    prof_list = psf.getProfile(star,params_list_0)
     assert prof == prof_list
 
     star_drawstar = psf.drawStar(star)

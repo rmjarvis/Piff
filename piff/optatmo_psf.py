@@ -1079,9 +1079,38 @@ class OptAtmoPSF(PSF):
         """
         return self.getParamsList([star])[0]
 
-    def getProfile(self, params, logger=None):
+    def getOpticalProfile(self, star, params):
+        """Get the optical part of the profile.
+
+        :param star:    The Star for which to get the optical profile
+        :param params:  The parameters array.  cf. `getProfile`.
+
+        :returns: a galsim.OpticalPSF instance
+        """
+        aberrations = np.zeros(4 + len(params[7:]))
+        # fill piston etc with 0
+        aberrations[4:] = params[7:]
+        aberrations = aberrations * (700.0/self.optical_psf_kwargs['lam'])
+        # aberrations are scaled according to the wavelength
+        if hasattr(star, '_last_opt') and np.array_equal(star._last_opt_aber, aberrations):
+            # It is not uncommon to repeat this with the same aberrations array.
+            # E.g. when fitting something other than the optical part of the profile.
+            # So we save the last values used and the resulting OpticalPSF.  Then various
+            # back-end calculations don't need to be redone by GalSim.
+            opt = star._last_opt
+        else:
+            opt = galsim.OpticalPSF(aberrations=aberrations,
+                                    gsparams=self.gsparams,
+                                    **self.optical_psf_kwargs)
+            star._last_opt = opt
+            star._last_opt_aber = aberrations
+        return opt
+
+
+    def getProfile(self, star, params=None, logger=None):
         """Get galsim profile for a given params
 
+        :param star:    The Star for which to get a profile.
         :param params:  [atm_size, atm_g1, atm_g2, opt_L0, opt_size, opt_g1, opt_g2, z4, z5...].
                         where all params that are not "z_number" are atmospheric params. Those
                         labelled "opt_something" are the averages of these atmospheric params
@@ -1090,19 +1119,15 @@ class OptAtmoPSF(PSF):
                         how this means that, for example, atm_size and opt_size are added together
                         for the Kolmogorov model
 
-        :returns:   Galsim profile
+        :returns: a galsim.GSObject instance
         """
         logger = LoggerWrapper(logger)
 
+        if params is None:
+            params = self.getParams(star)
+
         # optics
-        aberrations = np.zeros(4 + len(params[7:]))
-        # fill piston etc with 0
-        aberrations[4:] = params[7:]
-        aberrations = aberrations * (700.0/self.optical_psf_kwargs['lam'])
-        # aberrations are scaled according to the wavelength
-        opt = galsim.OpticalPSF(aberrations=aberrations,
-                                gsparams=self.gsparams,
-                                **self.optical_psf_kwargs)
+        opt = self.getOpticalProfile(star, params)
 
         # atmosphere
         # add stochastic (labelled "atm") and constant (labelled "opt") pieces together
@@ -1191,7 +1216,7 @@ class OptAtmoPSF(PSF):
         """
         if params is None:
             params = self.getParams(star)
-        prof = self.getProfile(params)
+        prof = self.getProfile(star, params)
         star = self.drawProfile(star, prof, params, copy_image=copy_image)
         return star
 
@@ -1212,7 +1237,7 @@ class OptAtmoPSF(PSF):
         stars_drawn = []
         for param, star in zip(params, stars):
             try:
-                stars_drawn.append(self.drawProfile(star, self.getProfile(param), param,
+                stars_drawn.append(self.drawProfile(star, self.getProfile(star, param), param,
                                                     copy_image=copy_image))
             except:
                 stars_drawn.append(None)
@@ -1631,15 +1656,7 @@ class OptAtmoPSF(PSF):
         optical_profiles = []
         for i, star in enumerate(stars):
             params = opt_params[i]
-
-            aberrations = np.zeros(4 + len(params[7:]))
-            # fill piston etc with 0
-            aberrations[4:] = params[7:]
-            aberrations = aberrations * (700.0/self.optical_psf_kwargs['lam'])
-            # aberrations are scaled according to the wavelength
-            opt = galsim.OpticalPSF(aberrations=aberrations,
-                                    gsparams=self.gsparams,
-                                    **self.optical_psf_kwargs)
+            opt = self.getOpticalProfile(star, params)
             optical_profiles.append(opt)
 
         # do size fit
@@ -1813,12 +1830,7 @@ class OptAtmoPSF(PSF):
         logger = LoggerWrapper(logger)
 
         # Make the optical profile, constant for this part of the fit.
-        aberrations = np.zeros(4+len(params[7:]))
-        aberrations[4:] = params[7:]
-        aberrations = aberrations * (700.0/self.optical_psf_kwargs['lam'])
-        optical_profile = galsim.OpticalPSF(aberrations=aberrations,
-                            gsparams=self.gsparams,
-                            **self.optical_psf_kwargs)
+        optical_profile = self.getOpticalProfile(star, params)
 
         # Start with the current parameters
         flux = star.fit.flux
@@ -1934,7 +1946,7 @@ class OptAtmoPSF(PSF):
         # Use current flux, center as initial guess for x0.
         flux = np.log(star.fit.flux)
         du, dv = star.fit.center
-        prof = self.getProfile(params, logger=logger)
+        prof = self.getProfile(star, params, logger=logger)
         results = scipy.optimize.least_squares(_resid, x0=[flux, du, dv],
                                                args=(self, star, prof, params),
                                                diff_step=1.e-4, ftol=1.e-3, xtol=1.e-4)
@@ -2095,7 +2107,7 @@ class OptAtmoPSF(PSF):
 
             try:
                 # get profile; modify based on flux and shifts
-                profile = self.getProfile(params)
+                profile = self.getProfile(star, params)
 
                 # measure final shape
                 star_model = self.drawProfile(star, profile, params)
@@ -2155,7 +2167,7 @@ class OptAtmoPSF(PSF):
             opt_param_i = opt_params[i]
 
             # get profile; modify based on flux and shifts
-            prof = self.getProfile(opt_param_i)
+            prof = self.getProfile(star, opt_param_i)
 
             star.fit.center = (params[n_opt + 2*i], params[n_opt + 2*i + 1])
 
@@ -2218,7 +2230,7 @@ class OptAtmoPSF(PSF):
             opt_param_i = opt_params[i]
 
             # get profile; modify based on flux and shifts
-            prof = self.getProfile(opt_param_i)
+            prof = self.getProfile(star, opt_param_i)
 
             j_u = n_opt + 2*i
             j_v = n_opt + 2*i + 1
