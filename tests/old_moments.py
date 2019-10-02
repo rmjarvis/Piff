@@ -190,11 +190,11 @@ def hsm_error(star, logger=None, return_error=True):
     #####
 
     # MJ: These used to be 1.8, 2.3, 2.3.  But after fixing the above calculations for
-    #     sigma2_e*_u0 and simga2_e*_v0, lowering these to 0.8 work better for the unit test
-    #     test_snr_and_shapes.
-    sigma_e0 = sigma_e0 * 0.8
-    sigma_e1 = sigma_e1 * 0.8
-    sigma_e2 = sigma_e2 * 0.8
+    #     sigma2_e*_u0 and simga2_e*_v0, lowering these to 0.7,0.6,0.6 work better for the unit
+    #     test test_snr_and_shapes.
+    sigma_e0 = sigma_e0 * 0.7
+    sigma_e1 = sigma_e1 * 0.6
+    sigma_e2 = sigma_e2 * 0.6
 
     return (flux_calc, u0_calc, v0_calc, e0_calc, e1_calc, e2_calc,
             sigma_flux, sigma_u0, sigma_v0, sigma_e0, sigma_e1, sigma_e2)
@@ -441,9 +441,9 @@ def hsm_error_third_moments(star, logger=None):
     # the errors need these fudge factors.
     #####
 
-    sigma_e0 = sigma_e0 * 0.8
-    sigma_e1 = sigma_e1 * 0.8
-    sigma_e2 = sigma_e2 * 0.8
+    sigma_e0 = sigma_e0 * 0.7
+    sigma_e1 = sigma_e1 * 0.6
+    sigma_e2 = sigma_e2 * 0.6
 
     sigma_zeta1 = sigma_zeta1 * 0.52
     sigma_zeta2 = sigma_zeta2 * 0.55
@@ -769,9 +769,9 @@ def hsm_error_fourth_moments(star, logger=None):
     # the errors need these fudge factors.
     #####
 
-    sigma_e0 = sigma_e0 * 0.8
-    sigma_e1 = sigma_e1 * 0.8
-    sigma_e2 = sigma_e2 * 0.8
+    sigma_e0 = sigma_e0 * 0.7
+    sigma_e1 = sigma_e1 * 0.6
+    sigma_e2 = sigma_e2 * 0.6
 
     sigma_zeta1 = sigma_zeta1 * 0.52
     sigma_zeta2 = sigma_zeta2 * 0.55
@@ -1122,9 +1122,9 @@ def hsm_error_orthogonal(star, logger=None):
     # the errors need these fudge factors.
     #####
 
-    sigma_e0 = sigma_e0 * 0.8
-    sigma_e1 = sigma_e1 * 0.8
-    sigma_e2 = sigma_e2 * 0.8
+    sigma_e0 = sigma_e0 * 0.7
+    sigma_e1 = sigma_e1 * 0.6
+    sigma_e2 = sigma_e2 * 0.6
 
     sigma_zeta1 = sigma_zeta1 * 0.52
     sigma_zeta2 = sigma_zeta2 * 0.55

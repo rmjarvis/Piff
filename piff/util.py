@@ -325,33 +325,26 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
     # convert image into kernel
     kernel = image.array.flatten()
 
-    # now apply mask
-    mask = weight != 0.
-    data = data[mask]
-    weight = weight[mask]
-    kernel = kernel[mask]
-    u = u[mask] - u0
-    v = v[mask] - v0
+    # Anywhere the data is masked, fill in with the hsm profile.
+    mask = weight == 0.
+    if np.any(mask):
+        data[mask] = kernel[mask] * np.sum(data[~mask])/np.sum(kernel[~mask])
 
     # This is the weighted image values, which we use in all the sums below.
     # Notation:
     #   W = weight * kernel
     #   I = data
     #   V = var(data) -- used below.
-    WI = weight * kernel * data
+    WI = kernel * data
 
     M00 = np.sum(WI)
     norm = M00            # This is the normalization for all other moments.
 
-    # Normalize M00 to not depend on weight.  I.e. if weight *= 10, answer should be the same.
-    meanw = np.mean(weight)
-    M00 /= meanw
-
+    u -= u0
+    v -= v0
     WI /= norm
-    WIu = WI * u
-    WIv = WI * v
-    M10 = np.sum(WIu)
-    M01 = np.sum(WIv)
+    M10 = np.sum(WI * u)
+    M01 = np.sum(WI * v)
 
     # Subtract off the measured first moments
     u -= M10
@@ -365,6 +358,8 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
     rsq = usq + vsq
     usqmvsq = usq - vsq
 
+    WIu = WI * u
+    WIv = WI * v
     WIrsq = WI*rsq
     WIusqmvsq = WI*usqmvsq
     WIuv = WI*uv
@@ -385,8 +380,11 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
         # var(M20) = sum W^2 1/w (u^2 - v^2)^2 / M00^2
         # var(M02) = sum W^2 1/w (2uv)^2 / M00^2
 
-        WV = weight * kernel**2
-        varM00 = np.sum(WV) / meanw**2
+        WV = kernel**2
+        WV[~mask] /= weight[~mask]  # Only use 1/w where w != 0
+        WV[mask] /= np.mean(weight[~mask])
+
+        varM00 = np.sum(WV)
         WV /= norm**2
         # MJ: I don't think the +u0 here is justified, but it matches what Aaron did.
         #     It also don't really matter, since M10, M01, have almost no actual variance.
@@ -438,9 +436,9 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
         # appropriate coefficients of the various terms.  I.e. probably separate coefficients
         # for each of the above expected terms plus g1,g2 terms, rather than just one overall
         # fudge factor. Then this code can reference that script as justification.
-        varM11 *= 0.8**2
-        varM20 *= 0.8**2
-        varM02 *= 0.8**2
+        varM11 *= 0.7**2
+        varM20 *= 0.6**2
+        varM02 *= 0.6**2
 
         ret_err = (varM00, varM10, varM01, varM11, varM20, varM02)
 
