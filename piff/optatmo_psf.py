@@ -2058,12 +2058,13 @@ class OptAtmoPSF(PSF):
             atmo_profiles.append(atmo)
 
             prof = galsim.Convolve([optical_profiles[i], atmo], gsparams=self.gsparams)
+            prof = prof.shift(star.fit.center)
 
-            # measure final shape
-            model = self.drawProfile(star, prof, params).image
+            # Draw model
+            image, weight, image_pos = star.data.getImage()
+            model = prof.drawImage(image.copy(), method='auto', center=image_pos)
 
             # Calculate chi for this star
-            image, weight, image_pos = star.data.getImage()
             image_flux = np.sum(image.array * weight.array)
             model_flux = np.sum(model.array * weight.array)
             model *= image_flux/model_flux  # Don't worry about flux differences
@@ -2118,12 +2119,13 @@ class OptAtmoPSF(PSF):
             atmo = atmo_profiles[i].dilate(1.+dlogsize)
 
             prof = galsim.Convolve([optical_profiles[i], atmo], gsparams=self.gsparams)
+            prof = prof.shift(star.fit.center)
 
-            # measure final shape
-            model = self.drawProfile(star, prof, opt_params[i]).image
+            # Draw model
+            image, weight, image_pos = star.data.getImage()
+            model = prof.drawImage(image.copy(), method='auto', center=image_pos)
 
             # Calculate chi for this star
-            image, weight, image_pos = star.data.getImage()
             image_flux = np.sum(image.array * weight.array)
             model_flux = np.sum(model.array * weight.array)
             model *= image_flux/model_flux  # Don't worry about flux differences
@@ -2231,13 +2233,13 @@ class OptAtmoPSF(PSF):
             # get profile; modify based on flux and shifts
             prof = self.getProfile(star, opt_param_i)
 
-            star.fit.center = (params[n_opt + 2*i], params[n_opt + 2*i + 1])
+            prof = prof.shift(params[n_opt + 2*i], params[n_opt + 2*i + 1])
 
-            # measure final shape
-            model = self.drawProfile(star, prof, opt_param_i).image
+            # Draw model
+            image, weight, image_pos = star.data.getImage()
+            model = prof.drawImage(image.copy(), method='auto', center=image_pos)
 
             # Calculate chi for this star
-            image, weight, image_pos = star.data.getImage()
             image_flux = np.sum(image.array * weight.array)
             model_flux = np.sum(model.array * weight.array)
             model *= image_flux/model_flux  # Don't worry about flux differences
@@ -2300,17 +2302,19 @@ class OptAtmoPSF(PSF):
             # Do derivatives for each of u and v params:
             duv = 1.e-5
             image, weight, image_pos = star.data.getImage()
-
-            star.fit.center = (params[j_u] + duv, params[j_v])
-            model = self.drawProfile(star, prof, opt_param_i).image
             image_flux = np.sum(image.array * weight.array)
+
+            # dchi/duc
+            cen = (params[j_u] + duv, params[j_v])
+            model = prof.shift(cen).drawImage(image.copy(), method='auto', center=image_pos)
             model_flux = np.sum(model.array * weight.array)
             model *= image_flux/model_flux
             chi = (np.sqrt(weight.array) * (model.array - image.array)).flatten()
             jac[indx[i]:indx[i+1],j_u] = (chi-chi0[indx[i]:indx[i+1]]) / duv
 
-            star.fit.center = (params[j_u], params[j_v] + duv)
-            model = self.drawProfile(star, prof, opt_param_i).image
+            # dchi/dvc
+            cen = (params[j_u], params[j_v] + duv)
+            model = prof.shift(cen).drawImage(model, method='auto', center=image_pos)
             model_flux = np.sum(model.array * weight.array)
             model *= image_flux/model_flux
             chi = (np.sqrt(weight.array) * (model.array - image.array)).flatten()
