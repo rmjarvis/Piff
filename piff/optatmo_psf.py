@@ -1663,6 +1663,7 @@ class OptAtmoPSF(PSF):
         results = scipy.optimize.least_squares(
                 self._fit_size_residual,
                 [np.log(self.optatmo_psf_kwargs['size'])],
+                jac=self._fit_size_jac,
                 args=(stars, opt_params, optical_profiles, logger,),
                 diff_step=1.e-4, ftol=1.e-3, xtol=1.e-4)
 
@@ -2033,6 +2034,7 @@ class OptAtmoPSF(PSF):
         opt_size = np.exp(x[0])
 
         chis = []
+        atmo_profiles = []
         for i, star in enumerate(stars):
 
             # Finish making the profile using optical_profile and the given opt_params
@@ -2051,6 +2053,7 @@ class OptAtmoPSF(PSF):
                           'L0': L0,}
                 atmo = galsim.VonKarman(gsparams=self.gsparams, **kwargs)
             atmo = atmo.shear(g1=g1, g2=g2)
+            atmo_profiles.append(atmo)
 
             prof = galsim.Convolve([optical_profiles[i], atmo], gsparams=self.gsparams)
 
@@ -2066,9 +2069,67 @@ class OptAtmoPSF(PSF):
             chis.append(chi)
 
         chi = np.concatenate(chis)
+
+        # Save some things for possible use by jacobian
+        self._fit_size_cache_params = x
+        self._fit_size_cache_chis = chis
+        self._fit_size_cache_chi0 = chi
+        self._fit_size_cache_atmo_profiles = atmo_profiles
+
         chisq = np.sum(chi**2)
         logger.info("size = %s: chisq = %s",opt_size, chisq)
         return chi
+
+    def _fit_size_jac(self, x, stars, opt_params, optical_profiles, logger=None):
+        """Jacobian calculation for _fit_size_residual.
+
+        :param x:               numpy array with [logsize]
+        :param stars:           A list of Stars
+        :param opt_params:      The full parameter list
+        :param optical_profiles:    A list of optical profiels, constant during this fit
+        :param logger:          A logger object for logging debug info.
+                                [default: None]
+
+        :returns jac:   Jacobian array, d(chi)/d(logsize)
+        """
+        logger = LoggerWrapper(logger)
+        opt_size = np.exp(x[0])
+
+        if not np.array_equal(x, self._fit_size_cache_params):
+            # This sets the cache items if they aren't already correct
+            self._fit_size_residual(x, stars, opt_params, optical_profiles)
+
+        chis = self._fit_size_cache_chis
+        chi0 = self._fit_size_cache_chi0
+        atmo_profiles = self._fit_size_cache_atmo_profiles
+
+        jac = np.zeros((len(chi0), 1), dtype=float)
+
+        # Array of the start/stop indices in chi0 for each star:
+        indx = np.zeros(len(chis)+1, dtype=int)
+        indx[1:] = np.cumsum([len(c) for c in chis])
+
+        dlogsize = 1.e-4
+
+        for i, star in enumerate(stars):
+
+            atmo = atmo_profiles[i].dilate(1.+dlogsize)
+
+            prof = galsim.Convolve([optical_profiles[i], atmo], gsparams=self.gsparams)
+
+            # measure final shape
+            model = self.drawProfile(star, prof, opt_params[i]).image
+
+            # Calculate chi for this star
+            image, weight, image_pos = star.data.getImage()
+            image_flux = np.sum(image.array * weight.array)
+            model_flux = np.sum(model.array * weight.array)
+            model *= image_flux/model_flux  # Don't worry about flux differences
+            chi = (np.sqrt(weight.array) * (model.array - image.array)).flatten()
+
+            jac[indx[i]:indx[i+1],0] = (chi-chi0[indx[i]:indx[i+1]]) / dlogsize
+
+        return jac
 
     def _fit_optics_residual(self, params, stars, fit_keys, shapes, shape_errors, logger=None):
         """Residual function for fitting the optical fit parameters and the average values of the
