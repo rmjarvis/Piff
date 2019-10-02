@@ -285,17 +285,15 @@ def test_atmo_interp_fit():
     params[:, 1] = atmo_g1
     params[:, 2] = atmo_g2
     # draw the stars
-    stars_to_fit = []
     stars = []
     for star, param in zip(stars_blank, params):
         prof = psf.getProfile(star,param)
         # draw the star
         star = psf.drawProfile(star, prof, param)
         stars.append(star)
-        stars_to_fit.append(star)
 
     # fit model with atmo_interp
-    psf.fit_atmosphere(stars_to_fit, logger=logger)
+    psf.fit_atmosphere(stars, logger=logger)
 
     # compare inputs work
     np.testing.assert_allclose(atmo_size, psf.atmo_interp.coeffs[0][0,0], rtol=1.e-5)
@@ -312,7 +310,7 @@ def test_atmo_interp_fit():
 
     # test with drawStar
     star_index = 3
-    star = stars_to_fit[star_index]
+    star = stars[star_index]
     star_fit = psf.drawStar(star)
     np.testing.assert_allclose(star_fit.fit.params, params[star_index], rtol=1.e-5)
     np.testing.assert_allclose(star_fit.image.array, star.image.array, rtol=1.e-5)
@@ -379,26 +377,36 @@ def test_fit():
     params = psf_draw.getParamsList(stars_blank)
 
     stars = []
-    stars_to_fit = []
     for star, param in zip(stars_blank, params):
         prof = psf_draw.getProfile(star,param) * 1e6
         star = psf_draw.drawProfile(star, prof, param)
         stars.append(star)
-        stars_to_fit.append(star)
 
     # do fit
-    test_modes = ['pixel', 'shape']
+    test_modes = ['shape', 'pixel']
     for fit_optics_mode in test_modes:
+
+        if fit_optics_mode == 'shape':
+            mask_frac = 1.e-3  # shape mode can't handle much masking.
+            tol = 0.01 # Even with this mask level, only accurate to half a percent or so.
+        else:
+            mask_frac = 0.05  # Do this second, since modifying weight array.
+            tol = 1.e-3  # The pixel mode is essentially perfect, even with 5% masked.
+        for star in stars:
+            # Mask mask_frac of the pixels.
+            # 1-mask_frac: *= 1, mask_frac: *= 0
+            star.weight.array[:,:] *= np.random.binomial(1,1-mask_frac, star.weight.array.shape)
+
         psf_train = piff.PSF.process(copy.deepcopy(config))
         logger.info('Test fitting optics mode {0}'.format(fit_optics_mode))
         psf_train.fit_optics_mode = fit_optics_mode
 
         test_fraction = config.get('test_fraction', 0.2)
-        num_test = int(test_fraction * len(stars_to_fit))
-        test_indx = np.random.choice(len(stars_to_fit), num_test, replace=False)
+        num_test = int(test_fraction * len(stars))
+        test_indx = np.random.choice(len(stars), num_test, replace=False)
         test_stars = []
         train_stars = []
-        for star_i, star in enumerate(stars_to_fit):
+        for star_i, star in enumerate(stars):
             if star_i in test_indx:
                 test_stars.append(star)
             else:
@@ -411,16 +419,10 @@ def test_fit():
             train = optatmo_psf_kwargs_values[key]
             fit = psf_train.optatmo_psf_kwargs[key]
             logger.info('{0}: {1:+.3f}, {2:+.3f}, {3:+.3f}'.format(key, train, fit, train - fit))
-        # I don't really trust these fits to better than 0.1
         for key in sorted(optatmo_psf_kwargs_values):
             train = optatmo_psf_kwargs_values[key]
             fit = psf_train.optatmo_psf_kwargs[key]
-            diff = np.abs(train - fit)
-            if fit_optics_mode == 'random_forest':
-                tol = 0.1  # lower expectations with the random_forest mode
-            else:
-                tol = 0.01
-            assert diff <= tol,\
+            assert np.isclose(fit, train, rtol=tol),\
                     'failed to fit {0} to tolerance {4}: {1:+.3f}, {2:+.3f}, {3:+.3f}'.format(
                             key, train, fit, train - fit, tol)
 
