@@ -1171,7 +1171,7 @@ class OptAtmoPSF(PSF):
             image_model = image.copy()
         else:
             image_model = image
-        prof.drawImage(image_model, method='auto', offset=(star.image_pos-image_model.true_center))
+        prof.drawImage(image_model, method='auto', center=star.image_pos)
         properties = star.data.properties.copy()
         for key in ['x', 'y', 'u', 'v']:
             # Get rid of keys that constructor doesn't want to see:
@@ -1928,13 +1928,13 @@ class OptAtmoPSF(PSF):
 
         :returns:           New Star instance, with updated flux, center, chisq, dof
         """
-        def _resid(x, psf, star, prof, params):
+        def _resid(x, psf, prof, image, weight, image_pos, model):
             # residual as a function of x = (flux, du, dv)
-            star.fit.flux = np.exp(x[0])
-            star.fit.center = x[1:]
-            image_model = psf.drawProfile(star, prof, params).image
-            image, weight, image_pos = star.data.getImage()
-            return (np.sqrt(weight.array) * (image_model.array - image.array)).flatten()
+            flux = np.exp(x[0])
+            center = x[1:]
+            prof = prof.shift(center) * flux
+            prof.drawImage(model, method='auto', center=image_pos)
+            return (np.sqrt(weight.array) * (model.array - image.array)).flatten()
 
         logger = LoggerWrapper(logger)
         if params is None:
@@ -1948,8 +1948,10 @@ class OptAtmoPSF(PSF):
         flux = np.log(star.fit.flux)
         du, dv = star.fit.center
         prof = self.getProfile(star, params, logger=logger)
+        image, weight, image_pos = star.data.getImage()
+        model = image.copy()  # Temporary image for drawing the model image.
         results = scipy.optimize.least_squares(_resid, x0=[flux, du, dv],
-                                               args=(self, star, prof, params),
+                                               args=(self, prof, image, weight, image_pos, model),
                                                diff_step=1.e-4, ftol=1.e-3, xtol=1.e-4)
 
         # Update return value with fit results
