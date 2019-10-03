@@ -347,6 +347,9 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
     M01 = np.sum(WI * v)
 
     # Subtract off the measured first moments
+    # MJ: The definitions given in the doc string imply that we don't do the following two lines.
+    #     So I'd prefer to remove them.  However, they are required for now at least to maintain
+    #     compatibility with the old definitions.
     u -= M10
     v -= M01
 
