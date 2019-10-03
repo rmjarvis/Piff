@@ -1089,23 +1089,39 @@ class OptAtmoPSF(PSF):
         """
         aberrations = np.zeros(4 + len(params[7:]))
         # fill piston etc with 0
-        aberrations[4:] = params[7:]
-        aberrations = aberrations * (700.0/self.optical_psf_kwargs['lam'])
+        aberrations[4:] = params[7:] * (700.0/self.optical_psf_kwargs['lam'])
         # aberrations are scaled according to the wavelength
+
         if hasattr(star, '_last_opt') and np.array_equal(star._last_opt_aber, aberrations):
             # It is not uncommon to repeat this with the same aberrations array.
             # E.g. when fitting something other than the optical part of the profile.
             # So we save the last values used and the resulting OpticalPSF.  Then various
             # back-end calculations don't need to be redone by GalSim.
             opt = star._last_opt
+        elif hasattr(self, '_optical_psf_aper_kwargs'):
+            # It is more efficient to only make the OpticalPSF aperture once and save it,
+            # so if we have already done so, use the modified kwargs with aper.
+            opt = galsim.OpticalPSF(aberrations=aberrations,
+                                    gsparams=self.gsparams,
+                                    **self._optical_psf_aper_kwargs)
+            star._last_opt = opt
+            star._last_opt_aber = aberrations
         else:
+            # This is the first time into this function.  So make OpticalPSF with the regular
+            # kwargs, but then make the faster aper version.
             opt = galsim.OpticalPSF(aberrations=aberrations,
                                     gsparams=self.gsparams,
                                     **self.optical_psf_kwargs)
             star._last_opt = opt
             star._last_opt_aber = aberrations
-        return opt
+            self._optical_psf_aper_kwargs = self.optical_psf_kwargs.copy()
+            for key in ['obcuration', 'circular_pupil', 'nstruts', 'strut_thick', 'strut_angle',
+                        'oversampling', 'pad_factor', 'pupil_plane_im', 'pupil_angle',
+                        'pupil_plane_scale', 'pupil_plane_size']:
+                self._optical_psf_aper_kwargs.pop(key, None)
+            self._optical_psf_aper_kwargs['aper'] = opt._aper
 
+        return opt
 
     def getProfile(self, star, params=None, logger=None):
         """Get galsim profile for a given params
