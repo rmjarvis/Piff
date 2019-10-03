@@ -703,7 +703,7 @@ def test_stars():
     np.testing.assert_almost_equal(snr_list, snr_list2, decimal=5)
     print('min_snr = ',np.min(snr_list))
     print('max_snr = ',np.max(snr_list))
-    assert np.min(snr_list) < 40.
+    assert np.min(snr_list) < 20.
     assert np.max(snr_list) > 600.
 
     # max_snr increases the noise to achieve a maximum snr
@@ -712,11 +712,19 @@ def test_stars():
     stars = input.makeStars(logger=logger)
     assert len(stars) == 100
     snr_list = [ star['snr'] for star in stars ]
-    snr_list2 = [ input.calculateSNR(star.data.image, star.data.orig_weight) for star in stars ]
     print('snr = ', np.min(snr_list), np.max(snr_list))
-    np.testing.assert_almost_equal(snr_list, snr_list2, decimal=5)
-    assert np.min(snr_list) < 40.
+    assert np.min(snr_list) < 20.
     assert np.max(snr_list) == 120.
+    snr_list2 = [ input.calculateSNR(star.data.image, star.data.orig_weight) for star in stars ]
+    snr_list = np.array(snr_list)
+    snr_list2 = np.array(snr_list2)
+    lo = np.where(snr_list < 120)
+    hi = np.where(snr_list == 120)
+    # Uncorrected stars still have the same snr
+    np.testing.assert_almost_equal(snr_list[lo], snr_list2[lo], decimal=5)
+    # Corrected ones come out a little lower than the target.
+    assert np.all(snr_list2[hi] <= 120.)
+    assert np.all(snr_list2[hi] > 110.)
 
     # The default is max_snr == 100
     del config['max_snr']
@@ -724,11 +732,16 @@ def test_stars():
     stars = input.makeStars(logger=logger)
     assert len(stars) == 100
     snr_list = np.array([ star['snr'] for star in stars ])
-    snr_list2 = [ input.calculateSNR(star.data.image, star.data.orig_weight) for star in stars ]
     print('snr = ', np.min(snr_list), np.max(snr_list))
-    np.testing.assert_almost_equal(snr_list, snr_list2, decimal=5)
-    assert np.min(snr_list) < 40.
+    assert np.min(snr_list) < 20.
     assert np.max(snr_list) == 100.
+    snr_list2 = [ input.calculateSNR(star.data.image, star.data.orig_weight) for star in stars ]
+    snr_list = np.array(snr_list)
+    snr_list2 = np.array(snr_list2)
+    lo = np.where(snr_list < 100)
+    hi = np.where(snr_list == 100)
+    np.testing.assert_almost_equal(snr_list[lo], snr_list2[lo], decimal=5)
+    assert np.all(snr_list2[hi] <= 100.)
 
     # min_snr removes stars with a snr < min_snr
     config['min_snr'] = 50
@@ -737,26 +750,31 @@ def test_stars():
     print('len should be ',len(snr_list[snr_list >= 50]))
     print('actual len is ',len(stars))
     assert len(stars) == len(snr_list[snr_list >= 50])
-    assert len(stars) == 96  # hard-coded for this case, just to make sure
+    assert len(stars) == 93  # hard-coded for this case, just to make sure
     snr_list = np.array([ star['snr'] for star in stars ])
-    snr_list2 = [ input.calculateSNR(star.data.image, star.data.orig_weight) for star in stars ]
     print('snr = ', np.min(snr_list), np.max(snr_list))
-    np.testing.assert_almost_equal(snr_list, snr_list2, decimal=5)
     assert np.min(snr_list) >= 50.
     assert np.max(snr_list) == 100.
+    snr_list2 = [ input.calculateSNR(star.data.image, star.data.orig_weight) for star in stars ]
+    snr_list = np.array(snr_list)
+    snr_list2 = np.array(snr_list2)
+    lo = np.where(snr_list < 100)
+    hi = np.where(snr_list == 100)
+    np.testing.assert_almost_equal(snr_list[lo], snr_list2[lo], decimal=5)
+    assert np.all(snr_list2[hi] <= 100.)
 
     # use_partial=False will skip any stars that are partially off the edge of the image
     config['use_partial'] = False
     input = piff.InputFiles(config, logger=logger)
     stars = input.makeStars(logger=logger)
     print('new len is ',len(stars))
-    assert len(stars) == 94  # skipped 2 additional stars
+    assert len(stars) == 91  # skipped 2 additional stars
 
     # use_partial=False is the default
     del config['use_partial']
     input = piff.InputFiles(config, logger=logger)
     stars = input.makeStars(logger=logger)
-    assert len(stars) == 94  # skipped 2 additional stars
+    assert len(stars) == 91
 
     # alt_x and alt_y also include some object completely off the image, which are always skipped.
     # (Don't do the min_snr anymore, since most of these stamps don't actually have any signal.)

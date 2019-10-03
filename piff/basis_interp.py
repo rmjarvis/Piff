@@ -27,7 +27,7 @@ from .interp import Interp
 from .star import Star, StarFit
 
 class BasisInterp(Interp):
-    """An Interp class that works whenever the interpolating functions are
+    r"""An Interp class that works whenever the interpolating functions are
     linear sums of basis functions.  Does things the "slow way" to be stable to
     degenerate fits to individual stars, instead of fitting to parameter sets
     produced by single stars.
@@ -35,7 +35,10 @@ class BasisInterp(Interp):
     First time coding this we will assume that each element of the PSF parameter
     vector p is a linear combination of the same set of basis functions across the
     focal plane,
-    p_i = \sum_{j} q_{ij} K_j(u,v,other stellar params).
+
+    .. math::
+
+        p_i = \sum_{j} q_{ij} K_j(u,v,other stellar params).
 
     The property degenerate_points is set to True to indicate that this interpolator
     uses the alpha/beta quadratic form of chisq for each sample, rather than assuming

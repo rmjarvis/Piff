@@ -236,14 +236,28 @@ class Input(object):
         #        = Sum_i w_i I_i^2             <--- Assumes var(I_i) = 1/w_i
         #
         # S/N = F / sqrt(var(F))
+        #
+        # Note that if the image is pure noise, this will produce a "signal" of
+        #
+        # F_noise = Sum_i w_i 1/w_i = Npix
+        #
+        # So for a more accurate estimate of the S/N of the actual star itself, one should
+        # subtract off Npix from the measured F.
+        #
+        # The final formula then is:
+        #
+        # F = Sum_i w_i I_i^2
+        # S/N = (F-Npix) / sqrt(F)
+
         I = image.array
         w = weight.array
         mask = np.isfinite(I) & np.isfinite(w)
-        flux = (w[mask]*I[mask]**2).sum(dtype=float)
-        if flux <= 0.:
+        F = (w[mask]*I[mask]**2).sum(dtype=float)
+        Npix = np.sum(mask)
+        if F < Npix:
             return 0.
         else:
-            return flux**0.5
+            return (F - Npix) / np.sqrt(F)
 
     def getWCS(self, logger=None):
         """Get the WCS solutions for all the chips in the field of view.
