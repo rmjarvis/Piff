@@ -1944,6 +1944,7 @@ class OptAtmoPSF(PSF):
 
         :returns:           New Star instance, with updated flux, center, chisq, dof
         """
+
         def _resid(x, psf, prof, image, weight, image_pos, model):
             # residual as a function of x = (flux, du, dv)
             flux = np.exp(x[0])
@@ -1975,6 +1976,36 @@ class OptAtmoPSF(PSF):
         star.fit.center = results.x[1:]
         star.fit.chisq = results.cost*2
         return star
+
+        # Below is the old way of doing reflux:    
+
+        #def _resid(x, psf, star, params):
+        #    # residual as a function of x = (flux, du, dv)
+        #    star.fit.flux = np.exp(x[0])
+        #    star.fit.center = x[1:]
+        #    image_model = psf.drawStar(star, params).image
+        #    image, weight, image_pos = star.data.getImage()
+        #    return (np.sqrt(weight.array) * (image_model.array - image.array)).flatten()
+
+        #logger = LoggerWrapper(logger)
+        #if params is None:
+        #    params = self.getParams(star)
+
+        # Make a new Star to use as a temp value in _resid.
+        # We'll also use this as the return value, but it's ok to modify in the resid function.
+        #star = Star(star.data, star.fit.copy())
+
+        # Use current flux, center as initial guess for x0.
+        #flux = np.log(star.fit.flux)
+        #du, dv = star.fit.center
+        #results = scipy.optimize.least_squares(_resid, x0=[flux, du, dv], args=(self, star, params),
+        #                                       diff_step=1.e-4)
+
+        # Update return value with fit results
+        #star.fit.flux = np.exp(results.x[0])
+        #star.fit.center = results.x[1:]
+        #star.fit.chisq = results.cost*2
+        #return star
 
     def _fit_random_forest_residual(self, params, stars, fit_keys, shapes, shape_errors,
                                     regr_dictionary, logger=None):
