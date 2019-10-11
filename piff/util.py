@@ -387,10 +387,20 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
         WV[~mask] /= weight[~mask]  # Only use 1/w where w != 0
         WV[mask] /= np.mean(weight[~mask])
 
-        varM00 = np.sum(WV)
+        # XXX: This equation doesn't make any sense.  But it matches the old code.
+        #      We do ignore the flux (and centroid) when we actually make the chisq, so in
+        #      itself, it doesn't actually matter for anything.  However, it is used as part
+        #      of varnorm, which does show up in all the other values.  For bright stars, this
+        #      means that the term using varnorm is highly overweighted.  So terms proportional
+        #      to M_ij**2 are too large, which downweights them in the chisq.  Maybe this is a
+        #      clue to why it seems to work better this way?  Maybe it's acting as a kind of
+        #      outlier suppression.
+        pix_area = image.wcs.local(star.image_pos).pixelArea()
+        varM00 = np.sum(WV**2 * weight**3) * f**2 * pix_area**2
+
         WV /= norm**2
         # XXX: I (MJ) don't think the +u0 here is justified, but it matches what Aaron did.
-        #      It also don't really matter, since M10, M01, have almost no actual variance.
+        #      It also don't really matter, since we ignore the centroid values in the chisq.
         varM10 = np.sum(WV * (u+u0+M10)**2)
         varM01 = np.sum(WV * (v+v0+M01)**2)
         varM11 = np.sum(WV * rsq**2)
@@ -405,11 +415,6 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
         # so then there are some order unity fudge factors that get applied.
 
         varnorm = varM00 / M00**2  # Save this for use below.
-
-        # XXX: This f factor doesn't make any sense.  But it's close to what the old code used to
-        # do before commit ee95e38345.  And if we use this, then the test
-        # test_optics_and_test_fit_model in devel/test_realistic_single_star_fits.py works.
-        varnorm *= f
 
         # Variance in weighted flux is ~double this due to uncertainty in kernel.
         varM00 *= 4
@@ -544,7 +549,7 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
         #      "orthogonal" radial moments don't make any sense.  You are mixing terms with
         #      different units.  The u and v values have units here (arcsec), so you are
         #      adding and subtracting terms with units of arcsec**2, arcsec**4, arcsec**6, etc.
-        #      Maybe you meant to normalize these by powers of M11 or simga?
+        #      Maybe you meant to normalize these by powers of M11 or sigma?
         #      But probably better to just not bother with these and simply return the above
         #      M22, M33, M44.  Surely the random forest can do something equally useful with them.
         #      Maybe better, since it wouldn't have to disentangle your mixed unit values.
