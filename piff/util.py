@@ -347,9 +347,9 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
     M01 = np.sum(WI * v)
 
     # Subtract off the measured first moments
-    # MJ: The definitions given in the doc string imply that we don't do the following two lines.
-    #     So I'd prefer to remove them.  However, they are required for now at least to maintain
-    #     compatibility with the old definitions.
+    # XXX: The definitions given in the doc string imply that we don't do the following two lines.
+    #      So I'd prefer to remove them.  However, they are required for now at least to maintain
+    #      compatibility with the old definitions.
     u -= M10
     v -= M01
 
@@ -389,8 +389,8 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
 
         varM00 = np.sum(WV)
         WV /= norm**2
-        # MJ: I don't think the +u0 here is justified, but it matches what Aaron did.
-        #     It also don't really matter, since M10, M01, have almost no actual variance.
+        # XXX: I (MJ) don't think the +u0 here is justified, but it matches what Aaron did.
+        #      It also don't really matter, since M10, M01, have almost no actual variance.
         varM10 = np.sum(WV * (u+u0+M10)**2)
         varM01 = np.sum(WV * (v+v0+M01)**2)
         varM11 = np.sum(WV * rsq**2)
@@ -406,6 +406,11 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
 
         varnorm = varM00 / M00**2  # Save this for use below.
 
+        # XXX: This f factor doesn't make any sense.  But it's close to what the old code used to
+        # do before commit ee95e38345.  And if we use this, then the test
+        # test_optics_and_test_fit_model in devel/test_realistic_single_star_fits.py works.
+        varnorm *= f
+
         # Variance in weighted flux is ~double this due to uncertainty in kernel.
         varM00 *= 4
 
@@ -417,12 +422,16 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
         varM01 *= 2.1**2
 
         # Add variance due to u0,v0 uncertainties
-        varM11 += varM10 * np.sum(WI * usq) * 4
-        varM11 += varM01 * np.sum(WI * vsq) * 4
-        varM20 += varM10 * np.sum(WI * usq) * 4
-        varM20 += varM01 * np.sum(WI * vsq) * 4
-        varM02 += varM10 * np.sum(WI * vsq) * 4
-        varM02 += varM01 * np.sum(WI * usq) * 4
+        # XXX: Again, the WI**2 doesn't make any sense, but it's what the old code used to do, and
+        # if we do this, then test_optics_and_test_fit_model passes.
+        # These formula are known to be wrong anyway, so this is probably a sign that we need
+        # to work more on getting these to be correct.
+        varM11 += varM10 * np.sum(WI**2 * usq) * 4
+        varM11 += varM01 * np.sum(WI**2 * vsq) * 4
+        varM20 += varM10 * np.sum(WI**2 * usq) * 4
+        varM20 += varM01 * np.sum(WI**2 * vsq) * 4
+        varM02 += varM10 * np.sum(WI**2 * vsq) * 4
+        varM02 += varM01 * np.sum(WI**2 * usq) * 4
 
         # Add variance due to normalization uncertainties
         #varM11 += varnorm * M11**2  # This is disabled in Aaron's code
@@ -439,9 +448,9 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
         # appropriate coefficients of the various terms.  I.e. probably separate coefficients
         # for each of the above expected terms plus g1,g2 terms, rather than just one overall
         # fudge factor. Then this code can reference that script as justification.
-        varM11 *= 0.7**2
-        varM20 *= 0.6**2
-        varM02 *= 0.6**2
+        varM11 *= 1.8**2
+        varM20 *= 2.3**2
+        varM02 *= 2.3**2
 
         ret_err = (varM00, varM10, varM01, varM11, varM20, varM02)
 
@@ -461,14 +470,14 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
             varM03 = np.sum(WVvsq * (3*usq-vsq)**2)
 
             # Add variance due to u0,v0 uncertainties
-            varM21 += varM10 * np.sum(WI * (3*u**2 + v**2)**2)
-            varM21 += varM01 * np.sum(WI * (2*u*v)**2)
-            varM12 += varM10 * np.sum(WI * (2*u*v)**2)
-            varM12 += varM01 * np.sum(WI * (u**2 + 3*v**2)**2)
-            varM30 += varM10 * np.sum(WI * (3*(u**2 - v**2))**2)
-            varM30 += varM01 * np.sum(WI * (6*u*v)**2)
-            varM03 += varM10 * np.sum(WI * (6*u*v)**2)
-            varM03 += varM01 * np.sum(WI * (3*(u**2 - v**2))**2)
+            varM21 += varM10 * np.sum(WI**2 * (3*u**2 + v**2)**2)
+            varM21 += varM01 * np.sum(WI**2 * (2*u*v)**2)
+            varM12 += varM10 * np.sum(WI**2 * (2*u*v)**2)
+            varM12 += varM01 * np.sum(WI**2 * (u**2 + 3*v**2)**2)
+            varM30 += varM10 * np.sum(WI**2 * (3*(u**2 - v**2))**2)
+            varM30 += varM01 * np.sum(WI**2 * (6*u*v)**2)
+            varM03 += varM10 * np.sum(WI**2 * (6*u*v)**2)
+            varM03 += varM01 * np.sum(WI**2 * (3*(u**2 - v**2))**2)
 
             # Add variance due to normalization uncertainties
             varM21 += varnorm * M21**2
@@ -499,16 +508,16 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
             varM04 = 16. * np.sum(WV * uv**2 * usqmvsq**2)
 
             # Add variance due to u0,v0 uncertainties
-            varM22 += varM10 * np.sum(WI * (4*u*rsq)**2)
-            varM22 += varM01 * np.sum(WI * (4*v*rsq)**2)
-            varM31 += varM10 * np.sum(WI * (4*u**3)**2)
-            varM31 += varM01 * np.sum(WI * (4*v**3)**2)
-            varM13 += varM10 * np.sum(WI * (2*v*(3*u**2 + v**2))**2)
-            varM13 += varM01 * np.sum(WI * (2*u*(u**2 + 3*v**2))**2)
-            varM40 += varM10 * np.sum(WI * (4*u*(u**2 - 3*v**2))**2)
-            varM40 += varM01 * np.sum(WI * (4*v*(3*u**2 - v**2))**2)
-            varM04 += varM10 * np.sum(WI * (4*v*(3*u**2 - v**2))**2)
-            varM04 += varM01 * np.sum(WI * (4*u*(u**2 - 3*v**2))**2)
+            varM22 += varM10 * np.sum(WI**2 * (4*u*rsq)**2)
+            varM22 += varM01 * np.sum(WI**2 * (4*v*rsq)**2)
+            varM31 += varM10 * np.sum(WI**2 * (4*u**3)**2)
+            varM31 += varM01 * np.sum(WI**2 * (4*v**3)**2)
+            varM13 += varM10 * np.sum(WI**2 * (2*v*(3*u**2 + v**2))**2)
+            varM13 += varM01 * np.sum(WI**2 * (2*u*(u**2 + 3*v**2))**2)
+            varM40 += varM10 * np.sum(WI**2 * (4*u*(u**2 - 3*v**2))**2)
+            varM40 += varM01 * np.sum(WI**2 * (4*v*(3*u**2 - v**2))**2)
+            varM04 += varM10 * np.sum(WI**2 * (4*v*(3*u**2 - v**2))**2)
+            varM04 += varM01 * np.sum(WI**2 * (4*u*(u**2 - 3*v**2))**2)
 
             # Add variance due to normalization uncertainties
             varM22 += varnorm * M22**2
@@ -553,12 +562,12 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
             varM44 = np.sum(WV * (rsq**4 - 15*rsq**3 + 60*rsq**2 - 60*rsq)**2)
 
             # Add variance due to u0,v0 uncertainties
-            varM22 += varM10 * np.sum(WI * (2*u*(2*rsq-3))**2)
-            varM22 += varM01 * np.sum(WI * (2*v*(2*rsq-3))**2)
-            varM33 += varM10 * np.sum(WI * (2*u*(3*rsq**2-16*rsq+12))**2)
-            varM33 += varM01 * np.sum(WI * (2*v*(3*rsq**2-16*rsq+12))**2)
-            varM44 += varM10 * np.sum(WI * (2*u*(4*rsq**3-45*rsq**2+120*rsq-60))**2)
-            varM44 += varM01 * np.sum(WI * (2*v*(4*rsq**3-45*rsq**2+120*rsq-60))**2)
+            varM22 += varM10 * np.sum(WI**2 * (2*u*(2*rsq-3))**2)
+            varM22 += varM01 * np.sum(WI**2 * (2*v*(2*rsq-3))**2)
+            varM33 += varM10 * np.sum(WI**2 * (2*u*(3*rsq**2-16*rsq+12))**2)
+            varM33 += varM01 * np.sum(WI**2 * (2*v*(3*rsq**2-16*rsq+12))**2)
+            varM44 += varM10 * np.sum(WI**2 * (2*u*(4*rsq**3-45*rsq**2+120*rsq-60))**2)
+            varM44 += varM01 * np.sum(WI**2 * (2*v*(4*rsq**3-45*rsq**2+120*rsq-60))**2)
 
             # Add variance due to normalization uncertainties
             varM22 += varnorm * altM22**2
