@@ -77,8 +77,8 @@ def return_config():
             'type': 'Polynomial',
             'order': 2,
         },
-        'reference_wavefront_zernikes_list': list(range(4,12)) + [14,15],
-        'higher_order_reference_wavefront_zernikes_list': [12,13] + list(range(16,38)),
+        'reference_wavefront_zernikes_list': list(range(4,12)),
+        'higher_order_reference_wavefront_zernikes_list': list(range(12,38)),
         'atmosphere_model': 'kolmogorov',
         'init_with_rf': 'True',
     }
@@ -115,8 +115,8 @@ def return_config_big_r0():
             'type': 'Polynomial',
             'order': 2,
         },
-        'reference_wavefront_zernikes_list': list(range(4,12)) + [14,15],
-        'higher_order_reference_wavefront_zernikes_list': [12,13] + list(range(16,38)),
+        'reference_wavefront_zernikes_list': list(range(4,12)),
+        'higher_order_reference_wavefront_zernikes_list': list(range(12,38)),
         'atmosphere_model': 'kolmogorov',
         'init_with_rf': 'True',
     }
