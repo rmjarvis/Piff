@@ -108,8 +108,7 @@ class OptAtmoPSF(PSF):
                                     invalid for py2.7]
     :param random_forest_shapes_model_pickles_location: A string with the path to the folder
                                     containing the random forest model pickles for the random_forest
-                                    fit. Note: the code should not work if this file is not
-                                    specified.
+                                    fit. [default: None]
     :param atmosphere_model:        Choose ['kolmogorov', 'vonkarman']. Selects the galsim object
                                     used for the atmospheric piece.  Note that the default is
                                     vonkarman and to use kolmogorov would require some changes to

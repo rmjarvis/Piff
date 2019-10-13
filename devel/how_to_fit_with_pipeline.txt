@@ -1,0 +1,84 @@
+How to do a single-exposure (228724) fit using the PIFF fitting pipeline.
+
+
+
+Start-Up:
+
+1. Git clone the PIFF fitting pipeline (specifically the "pipeline_plus" branch).
+
+The link for the github page for the PIFF fitting pipeline's pipeline_plus branch:
+
+https://github.com/cpadavis/piffy3pipeline/tree/pipeline_plus
+
+2. Acquire the higher order reference wavefront file, unzip it if necessary, and put it in a directory you know the path to.
+
+This is the name of the file:
+
+decam_2012-nominalzernike-protocol2.pickle
+
+3. Acquire the lower order reference wavefront file, unzip it if necessary, and put it in a directory you know the path to.
+
+This is the name of the file:
+
+Science-20140212s2-v22i2.fits
+
+4. Acquire the folder containing the catalogues, images and other files for exposure 228724 and put it in a directory you know the path to.
+
+This folder is named:
+
+228724
+
+
+
+
+Full Fit (Optics (moments-based chisq), Atmo, Gaussian Process, Everything):
+
+1. Edit the file "config.yaml" in the PIFF fitting pipeline so that the entry "psf_dir" now has the path to the directory where you put the folder (which is named "228724") containing the catalogues, images and other files for exposure 228724.
+
+2. Edit the file "psf_optatmo.yaml" in the PIFF fitting pipeline so that you delete the line that specifies the "random_forest_shapes_model_pickles_location"
+
+3. Edit the file "psf_optatmo.yaml" in the PIFF fitting pipeline so that the sub-entry "file_name" within the entry "reference_wavefront" now has the path to the lower order reference wavefront file where you put it.
+
+4. Edit the file "psf_optatmo.yaml" in the PIFF fitting pipeline so that the entry "higher_order_reference_wavefront_file" now has the path to the higher order reference wavefront file where you put it.
+
+5. Run the command "python call_fit_psf.py --bsub --call config.yaml --band i -n 1" in the command line. Make sure you are in the directory of the PIFF fitting pipeline.
+
+6. A folder called "00228724" should appear within the PIFF fitting pipeline. Several graphs and numbers will be saved here in this folder as the fit proceeds. The logger file will also appear in this folder and is called "psf_optatmo_fit_psf_logger.log" To check if the job crashed read the file "bsub_fit_psf_psf_optatmo.log" which is also in this directory. It will specify the error message of the job when it failed as well as the start and end time for the job. Check out the file "plot_2dhist_shapes_test_psf_optatmo_const_gpvonkarman.pdf" to see the moment-residual-across-the-focal-plane plots for the full fit. Check out the file "plot_2dhist_shapes_test_psf_optatmo_noatmo.pdf" to see the moment-residual-across-the-focal-plane plots for the optics fit only.
+
+
+
+
+
+Optics Fit (moments-based chisq) + Individual Atmo Star Fit (Zero-Order Polynomial Used for Atmospheric Interpolation):
+
+1. Edit the file "config_no_interp.yaml" in the PIFF fitting pipeline so that the entry "psf_dir" now has the path to the directory where you put the folder (which is named "228724") containing the catalogues, images and other files for exposure 228724.
+
+2. Edit the file "psf_optatmo_no_interp.yaml" in the PIFF fitting pipeline so that you delete the line that specifies the "random_forest_shapes_model_pickles_location"
+
+3. Edit the file "psf_optatmo_no_interp.yaml" in the PIFF fitting pipeline so that the sub-entry "file_name" within the entry "reference_wavefront" now has the path to the lower order reference wavefront file where you put it.
+
+4. Edit the file "psf_optatmo_no_interp.yaml" in the PIFF fitting pipeline so that the entry "higher_order_reference_wavefront_file" now has the path to the higher order reference wavefront file where you put it.
+
+5. Run the command "python call_fit_psf.py --bsub --call config_no_interp.yaml --band i -n 1" in the command line. Make sure you are in the directory of the PIFF fitting pipeline.
+
+6. A folder called "00228724" should appear within the PIFF fitting pipeline. Several graphs and numbers will be saved here in this folder as the fit proceeds. The logger file will also appear in this folder and is called "psf_optatmo_no_interp_fit_psf_logger.log" To check if the job crashed read the file "bsub_fit_psf_psf_optatmo_no_interp.log" which is also in this directory. It will specify the error message of the job when it failed as well as the start and end time for the job. Check out the file "plot_2dhist_shapes_test_psf_optatmo_no_interp_zero_poly.pdf" to see the moment-residual-across-the-focal-plane plots for the optics + individual atmo star fit. Check out the file "plot_2dhist_shapes_test_psf_optatmo_noatmo.pdf" to see the moment-residual-across-the-focal-plane plots for the optics fit only.
+
+
+
+
+
+Optics Fit (pixel-based chisq) + Individual Atmo Star Fit (Zero-Order Polynomial Used for Atmospheric Interpolation):
+
+1. Edit the file "config_no_interp.yaml" in the PIFF fitting pipeline so that the entry "psf_dir" now has the path to the directory where you put the folder (which is named "228724") containing the catalogues, images and other files for exposure 228724.
+
+2. Edit the file "psf_optatmo_no_interp.yaml" in the PIFF fitting pipeline so that the entry "fit_optics_mode" now says "pixel" instead of "shape"
+
+3. Edit the file "psf_optatmo_no_interp.yaml" in the PIFF fitting pipeline so that you delete the line that specifies the "random_forest_shapes_model_pickles_location"
+
+4. Edit the file "psf_optatmo_no_interp.yaml" in the PIFF fitting pipeline so that the sub-entry "file_name" within the entry "reference_wavefront" now has the path to the lower order reference wavefront file where you put it.
+
+5. Edit the file "psf_optatmo_no_interp.yaml" in the PIFF fitting pipeline so that the entry "higher_order_reference_wavefront_file" now has the path to the higher order reference wavefront file where you put it.
+
+6. Run the command "python call_fit_psf.py --bsub --call config_no_interp.yaml --band i -n 1" in the command line. Make sure you are in the directory of the PIFF fitting pipeline.
+
+7. A folder called "00228724" should appear within the PIFF fitting pipeline. Several graphs and numbers will be saved here in this folder as the fit proceeds. The logger file will also appear in this folder and is called "psf_optatmo_no_interp_fit_psf_logger.log" To check if the job crashed read the file "bsub_fit_psf_psf_optatmo_no_interp.log" which is also in this directory. It will specify the error message of the job when it failed as well as the start and end time for the job. Check out the file "plot_2dhist_shapes_test_psf_optatmo_no_interp_zero_poly.pdf" to see the moment-residual-across-the-focal-plane plots for the optics + individual atmo star fit. Check out the file "plot_2dhist_shapes_test_psf_optatmo_noatmo.pdf" to see the moment-residual-across-the-focal-plane plots for the optics fit only.
