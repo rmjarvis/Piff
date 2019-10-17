@@ -837,42 +837,64 @@ class OptAtmoPSF(PSF):
                 data_shapes_all_stars = []
                 data_errors_all_stars = []
                 model_shapes_all_stars = []
-                for star in stars:
+                logger.info("1")
+                for star_i, star in enumerate(stars):
                     data_shapes_all_stars.append(self.measure_shape_third_moments(star))
+                    logger.info("2")
                     data_errors_all_stars.append(self.measure_error_third_moments(star))
+                    logger.info("3")
                     model_shapes_all_stars.append(self.measure_shape_third_moments(self.drawStar(star)))
+                    logger.info("4")
+                logger.info("5")
                 data_shapes_all_stars = np.array(data_shapes_all_stars)[:,3:]
+                logger.info("6")
                 data_errors_all_stars = np.array(data_errors_all_stars)[:,3:]
+                logger.info("7")
                 model_shapes_all_stars = np.array(model_shapes_all_stars)[:,3:]
+                logger.info("8")
                 pull_all_stars = ((data_shapes_all_stars - model_shapes_all_stars) /
                                     data_errors_all_stars)
                 # pull is (data-model)/error
+                logger.info("9")
                 logger.debug("data_shapes_all_stars: {0}".format(data_shapes_all_stars))
                 logger.debug("model_shapes_all_stars: {0}".format(model_shapes_all_stars))
                 logger.debug("data_errors_all_stars: {0}".format(data_errors_all_stars))
                 logger.debug("pull_all_stars: {0}".format(pull_all_stars))
                 conds_pull = (np.all(np.abs(pull_all_stars) <= 4.0, axis=1))
+                logger.info("10")
                 # all stars with more than 4.0 pull are thrown out
                 conds_pull_e0 = (np.abs(pull_all_stars[:,0]) <= 4.0)
+                logger.info("11")
                 conds_pull_e1 = (np.abs(pull_all_stars[:,1]) <= 4.0)
+                logger.info("12")
                 conds_pull_e2 = (np.abs(pull_all_stars[:,2]) <= 4.0)
+                logger.info("13")
                 if s == 0:
                     self.stars = np.array(self.stars)[conds_pull].tolist()
+                logger.info("14")
                 if s == 1:
                     self.test_stars = np.array(self.test_stars)[conds_pull].tolist()
+                logger.info("15")
                 if s == 2:
                     self.number_of_outliers_optical = np.array(
                         [len(self.fit_optics_stars) - np.sum(conds_pull_e0),
                          len(self.fit_optics_stars) - np.sum(conds_pull_e1),
                          len(self.fit_optics_stars) - np.sum(conds_pull_e2)])
+                    logger.info("16")
                     self.number_of_stars_pre_cut_optical = len(self.fit_optics_stars)
+                    logger.info("17")
                     self.fit_optics_stars = np.array(self.fit_optics_stars)[conds_pull].tolist()
+                    logger.info("18")
                     self.number_of_stars_post_cut_optical = len(self.fit_optics_stars)
+                    logger.info("19")
                     self.pull_mean_optical = np.nanmean(pull_all_stars[:,:3], axis=0)
+                    logger.info("20")
                     # the mean pull (only second moments) for stars used in the fit is later used to
                     # find outliers among exposures
                     self.pull_rms_optical = np.sqrt(np.nanmean(np.square(pull_all_stars[:,:3]),axis=0))
+                    logger.info("21")
                     self.pull_all_stars_optical = pull_all_stars
+                    logger.info("22")
 
 
             number_of_stars_used_in_optical_chi = \
