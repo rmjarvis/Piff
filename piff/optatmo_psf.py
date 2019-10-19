@@ -2239,6 +2239,14 @@ class OptAtmoPSF(PSF):
         # get optical params
         opt_params = self.getParamsList(stars)
 
+        size = self.optatmo_psf_kwargs['size']
+        if hasattr(self, '_fit_optical_cache_size') and self._fit_optical_cache_size == size:
+            make_mask = False
+            masks = self._fit_optical_cache_masks
+        else:
+            make_mask = True
+            masks = [None] * len(stars)
+
         chis = []
         for i, star in enumerate(stars):
             opt_param_i = opt_params[i]
@@ -2252,12 +2260,34 @@ class OptAtmoPSF(PSF):
             image, weight, image_pos = star.data.getImage()
             model = prof.drawImage(image.copy(), method='auto', center=image_pos)
 
+            # Most of the information about aberrations is on the edge of the profile.
+            # The center is dominated by the Kolmogorov seeing.
+            # So limit our chisq to 2 < r^2 < 4.
+            # TODO: This range is kind of empirical based on test_optics_and_fit_model()
+            #       Should probably do a more systematic test to figure out the optical range.
+            #       Also maybe better to use a weight as a function of r?
+            if make_mask:
+                _, _, u, v = star.data.getDataVector(include_zero_weight=True)
+                rsq = (u**2 + v**2) / size**2
+                mask = (2 < rsq) & (rsq < 4)
+                masks[i] = mask
+            else:
+                mask = masks[i]
+
+            data = image.array.ravel()[mask]
+            weight = weight.array.ravel()[mask]
+            model = model.array.ravel()[mask]
+
             # Calculate chi for this star
-            image_flux = np.sum(image.array * weight.array)
-            model_flux = np.sum(model.array * weight.array)
+            image_flux = np.sum(data * weight)
+            model_flux = np.sum(model * weight)
             model *= image_flux/model_flux  # Don't worry about flux differences
-            chi = (np.sqrt(weight.array) * (model.array - image.array)).flatten()
+            chi = np.sqrt(weight) * (model - data)
             chis.append(chi)
+
+        if make_mask:
+            self._fit_optical_cache_size = size
+            self._fit_optical_cache_masks = masks
 
         chi = np.concatenate(chis)
 
@@ -2295,6 +2325,7 @@ class OptAtmoPSF(PSF):
         opt_params = self._fit_optical_cache_optparams
         chis = self._fit_optical_cache_chis
         chi0 = self._fit_optical_cache_chi0
+        masks = self._fit_optical_cache_masks
 
         jac = np.zeros((len(chi0), len(params)), dtype=float)
 
@@ -2315,22 +2346,27 @@ class OptAtmoPSF(PSF):
             # Do derivatives for each of u and v params:
             duv = 1.e-5
             image, weight, image_pos = star.data.getImage()
-            image_flux = np.sum(image.array * weight.array)
+            mask = masks[i]
+            data = image.array.ravel()[mask]
+            weight = weight.array.ravel()[mask]
+            image_flux = np.sum(data * weight)
 
             # dchi/duc
             cen = (params[j_u] + duv, params[j_v])
-            model = prof.shift(cen).drawImage(image.copy(), method='auto', center=image_pos)
-            model_flux = np.sum(model.array * weight.array)
+            model_image = prof.shift(cen).drawImage(image.copy(), method='auto', center=image_pos)
+            model = model_image.array.ravel()[mask]
+            model_flux = np.sum(model * weight)
             model *= image_flux/model_flux
-            chi = (np.sqrt(weight.array) * (model.array - image.array)).flatten()
+            chi = np.sqrt(weight) * (model - data)
             jac[indx[i]:indx[i+1],j_u] = (chi-chi0[indx[i]:indx[i+1]]) / duv
 
             # dchi/dvc
             cen = (params[j_u], params[j_v] + duv)
-            model = prof.shift(cen).drawImage(model, method='auto', center=image_pos)
-            model_flux = np.sum(model.array * weight.array)
+            prof.shift(cen).drawImage(model_image, method='auto', center=image_pos)
+            model = model_image.array.ravel()[mask]
+            model_flux = np.sum(model * weight)
             model *= image_flux/model_flux
-            chi = (np.sqrt(weight.array) * (model.array - image.array)).flatten()
+            chi = np.sqrt(weight) * (model - data)
             jac[indx[i]:indx[i+1],j_v] = (chi-chi0[indx[i]:indx[i+1]]) / duv
 
         # For the rest, just call the residual function, since all of opt_params will change
