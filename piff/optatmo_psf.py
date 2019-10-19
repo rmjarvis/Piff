@@ -580,7 +580,6 @@ class OptAtmoPSF(PSF):
                                 [default: None]
         """
         logger = LoggerWrapper(logger)
-        np.random.seed(12345)
         ntest = int(self.test_fraction * len(stars))
         test_indx = np.random.choice(len(stars), ntest, replace=False)
         test_stars = []
