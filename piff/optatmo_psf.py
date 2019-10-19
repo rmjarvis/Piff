@@ -1370,7 +1370,7 @@ class OptAtmoPSF(PSF):
         if True:
             from .util import hsm
             hsm = hsm(star)
-            pix_area = star.data.image.wcs.local(star.data.image.center).pixelArea()
+            pix_area = star.data.pixel_area
             values[0] *= hsm[0] * pix_area * star.data.weight.array.mean()
             values[1] += hsm[1]
             values[2] += hsm[2]
@@ -1410,8 +1410,7 @@ class OptAtmoPSF(PSF):
             # new moment definitions.
             from .util import hsm
             hsm = hsm(star)
-            pix_area = star.data.image.wcs.local(star.data.image.center).pixelArea()
-            values[0] *= hsm[0] * pix_area * star.data.weight.array.mean()
+            values[0] *= hsm[0] * star.data.pixel_area * star.data.weight.array.mean()
             values[1] += hsm[1]
             values[2] += hsm[2]
             values[3:] *= 2
@@ -1437,8 +1436,7 @@ class OptAtmoPSF(PSF):
         if True:
             from .util import hsm
             hsm = hsm(star)
-            pix_area = star.data.image.wcs.pixelArea(star.image_pos)
-            errors[0] *= (hsm[0] * pix_area * star.data.weight.array.mean())**2
+            errors[0] *= (hsm[0] * star.data.pixel_area * star.data.weight.array.mean())**2
             errors[3:] *= 4
 
         return np.sqrt(errors)
@@ -1453,10 +1451,8 @@ class OptAtmoPSF(PSF):
 
         :returns:               Zernike values from higher order reference wavefront
         """
-        star_data = star.data
-        star_data.local_wcs = star_data.image.wcs.local(star_data.image_pos)
-        x_value = star_data.local_wcs._x(star_data['u'], star_data['v'])
-        y_value = star_data.local_wcs._y(star_data['u'], star_data['v'])
+        x_value = star.data.local_wcs._x(star.data['u'], star.data['v'])
+        y_value = star.data.local_wcs._y(star.data['u'], star.data['v'])
         x_value = x_value * (15.0/1000.0)
         y_value = y_value * (15.0/1000.0)
         zout_camera = self.higher_order_reference_wavefront.get(x=x_value, y=y_value)
@@ -1501,8 +1497,7 @@ class OptAtmoPSF(PSF):
             # new moment definitions.
             from .util import hsm
             hsm = hsm(star)
-            pix_area = star.data.image.wcs.pixelArea(star.image_pos)
-            values[0] *= hsm[0] * pix_area * star.data.weight.array.mean()
+            values[0] *= hsm[0] * star.data.pixel_area * star.data.weight.array.mean()
             values[1] += hsm[1]
             values[2] += hsm[2]
             values[3:] *= 2
@@ -1538,8 +1533,7 @@ class OptAtmoPSF(PSF):
         if True:
             from .util import hsm
             hsm = hsm(star)
-            pix_area = star.data.image.wcs.local(star.data.image.center).pixelArea()
-            errors[0] *= (hsm[0] * pix_area * star.data.weight.array.mean())**2
+            errors[0] *= (hsm[0] * star.data.pixel_area * star.data.weight.array.mean())**2
             errors[3:] *= 4
 
         return np.sqrt(errors)

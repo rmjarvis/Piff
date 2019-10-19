@@ -204,8 +204,7 @@ def hsm(star):
     sigma = mom.moments_sigma
     shape = mom.observed_shape
     # These are in pixel coordinates.  Need to convert to world coords.
-    jac = image.wcs.jacobian(image_pos=image_pos)
-    scale, shear, theta, flip = jac.getDecomposition()
+    scale, shear, theta, flip = star.data.local_wcs._toJacobian().getDecomposition()
     # Fix sigma
     sigma *= scale
     # Fix shear.  First the flip, if any.
@@ -218,7 +217,7 @@ def hsm(star):
 
     flux = mom.moments_amp
 
-    localwcs = image.wcs.local(image_pos)
+    localwcs = star.data.local_wcs
     center = localwcs.toWorld(mom.moments_centroid) - localwcs.toWorld(image_pos)
     flag = mom.moments_status
 
@@ -395,7 +394,7 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
         #      to M_ij**2 are too large, which downweights them in the chisq.  Maybe this is a
         #      clue to why it seems to work better this way?  Maybe it's acting as a kind of
         #      outlier suppression.
-        pix_area = image.wcs.local(star.image_pos).pixelArea()
+        pix_area = star.data.pixel_area
         varM00 = np.sum(WV**2 * weight**3) * f**2 * pix_area**2
 
         WV /= norm**2
