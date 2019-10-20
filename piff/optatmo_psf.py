@@ -2262,7 +2262,7 @@ class OptAtmoPSF(PSF):
 
             # Most of the information about aberrations is on the edge of the profile.
             # The center is dominated by the Kolmogorov seeing.
-            # So limit our chisq to 2 < r^2 < 4.
+            # So limit our chisq to 1 < r < 2.
             # TODO: This range is kind of empirical based on test_optics_and_fit_model()
             #       Should probably do a more systematic test to figure out the optical range.
             #       Also maybe better to use a weight as a function of r?
