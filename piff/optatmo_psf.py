@@ -602,7 +602,7 @@ class OptAtmoPSF(PSF):
         self.wcs = wcs
         self.pointing = pointing
 
-        do_shapes = True
+        do_shapes = self.init_with_rf or self.fit_optics_mode in ['shape', 'random_forest']
         do_errors = self.init_with_rf or self.fit_optics_mode in ['shape', 'random_forest']
 
         # do first pass of flux, centers, and shapes for the train stars
@@ -678,87 +678,99 @@ class OptAtmoPSF(PSF):
         self.test_star_errors = np.array(self.test_star_errors)
         self.test_star_snrs = np.array(self.test_star_snrs)
 
-        # do a max shapes cut for the train stars
-        conds_shape = (np.all(np.abs(self.star_shapes[:, 3:]) <= self._max_shapes, axis=1))
+        # Ares uses some cuts on the shapes here.  This seems problematic to me (MJ), but it
+        # doesn't lead to any apparent bias for mode = 'shape' though.  At least in the test
+        # test_optics_and_test_fit_model, shapes mode works about equally well over a range
+        # of random number seeds whether cutting or not.
+        # However, pixel mode is noticeably biased when using these cuts, failing this test
+        # for a significant fraction of random number seeds when cutting, but very rarely when
+        # not cutting.  Therefore disable these cuts for pixel mode.
+        if self.fit_optics_mode in ['shape', 'random_forest']:
+            # do a max shapes cut for the train stars
+            conds_shape = (np.all(np.abs(self.star_shapes[:, 3:]) <= self._max_shapes, axis=1))
 
-        # do a max shapes cut for the test stars
-        test_conds_shape = (np.all(
-                np.abs(self.test_star_shapes[:, 3:]) <= self._max_shapes, axis=1))
+            # do a max shapes cut for the test stars
+            test_conds_shape = (np.all(
+                    np.abs(self.test_star_shapes[:, 3:]) <= self._max_shapes, axis=1))
 
-        # also a MAD cut
-        med = np.nanmedian(
-            np.concatenate([self.star_shapes[:, 3:], self.test_star_shapes[:, 3:]], axis=0),
-            axis=0)
-        mad = np.nanmedian(
-            np.abs(np.concatenate([self.star_shapes[:, 3:], self.test_star_shapes[:, 3:]], axis=0)
-                   - med[None]), axis=0)
-        logger.debug('MAD values: {0}'.format(str(mad)))
+            # also a MAD cut
+            med = np.nanmedian(
+                np.concatenate([self.star_shapes[:, 3:], self.test_star_shapes[:, 3:]], axis=0),
+                axis=0)
+            mad = np.nanmedian(
+                np.abs(np.concatenate([self.star_shapes[:, 3:], self.test_star_shapes[:, 3:]], axis=0)
+                    - med[None]), axis=0)
+            logger.debug('MAD values: {0}'.format(str(mad)))
 
-        # do MAD cut for the train stars
-        madx = np.abs(self.star_shapes[:, 3:] - med[None])
-        conds_mad = (np.all(madx <= 1.48 * 5 * mad, axis=1))
+            # do MAD cut for the train stars
+            madx = np.abs(self.star_shapes[:, 3:] - med[None])
+            conds_mad = (np.all(madx <= 1.48 * 5 * mad, axis=1))
 
-        # do MAD cut for the test stars
-        test_madx = np.abs(self.test_star_shapes[:, 3:] - med[None])
-        test_conds_mad = (np.all(test_madx <= 1.48 * 5 * mad, axis=1))
+            # do MAD cut for the test stars
+            test_madx = np.abs(self.test_star_shapes[:, 3:] - med[None])
+            test_conds_mad = (np.all(test_madx <= 1.48 * 5 * mad, axis=1))
 
-        # apply the aforementioned max shapes and MAD cuts for the train stars
-        self.stars_indices = np.arange(len(self.stars))
-        self.stars_indices = self.stars_indices[conds_shape * conds_mad]
-        self.stars = [self.stars[indx] for indx in self.stars_indices]
-        self.star_shapes = self.star_shapes[self.stars_indices]
-        self.star_errors = self.star_errors[self.stars_indices]
-        self.star_snrs = self.star_snrs[self.stars_indices]
+            # apply the aforementioned max shapes and MAD cuts for the train stars
+            self.stars_indices = np.arange(len(self.stars))
+            self.stars_indices = self.stars_indices[conds_shape * conds_mad]
+            self.stars = [self.stars[indx] for indx in self.stars_indices]
+            self.star_shapes = self.star_shapes[self.stars_indices]
+            self.star_errors = self.star_errors[self.stars_indices]
+            self.star_snrs = self.star_snrs[self.stars_indices]
 
-        # apply the aforementioned max shapes and MAD cuts for the test stars
-        self.test_stars_indices = np.arange(len(self.test_stars))
-        self.test_stars_indices = self.test_stars_indices[test_conds_shape * test_conds_mad]
-        self.test_stars = [self.test_stars[indx] for indx in self.test_stars_indices]
-        self.test_star_shapes = self.test_star_shapes[self.test_stars_indices]
-        self.test_star_errors = self.test_star_errors[self.test_stars_indices]
-        self.test_star_snrs = self.test_star_snrs[self.test_stars_indices]
+            # apply the aforementioned max shapes and MAD cuts for the test stars
+            self.test_stars_indices = np.arange(len(self.test_stars))
+            self.test_stars_indices = self.test_stars_indices[test_conds_shape * test_conds_mad]
+            self.test_stars = [self.test_stars[indx] for indx in self.test_stars_indices]
+            self.test_star_shapes = self.test_star_shapes[self.test_stars_indices]
+            self.test_star_errors = self.test_star_errors[self.test_stars_indices]
+            self.test_star_snrs = self.test_star_snrs[self.test_stars_indices]
 
-        # do an snr cut for the stars for the fit and record how many have been cut and why so far
-        # in the logger
-        self.fit_optics_indices = np.arange(len(self.stars))
-        conds_snr = (self.star_snrs >= self.min_optfit_snr)
-        self.fit_optics_indices = self.fit_optics_indices[conds_snr]
-        logger.info('Cutting to {0} stars for fitting the optics based on SNR > {1} ({2} stars) '
-                    'on maximum shapes ({3} stars) and on a 5 sigma outlier cut ({4} stars)'.format(
-                        len(self.fit_optics_indices), self.min_optfit_snr,
-                        len(conds_snr) - np.sum(conds_snr), len(conds_shape) - np.sum(conds_shape),
-                        len(conds_mad) - np.sum(conds_mad)))
+            # do an snr cut for the stars for the fit and record how many have been cut and why so far
+            # in the logger
+            self.fit_optics_indices = np.arange(len(self.stars))
+            conds_snr = (self.star_snrs >= self.min_optfit_snr)
+            self.fit_optics_indices = self.fit_optics_indices[conds_snr]
+            logger.info('Cutting to {0} stars for fitting the optics based on SNR > {1} ({2} stars) '
+                        'on maximum shapes ({3} stars) and on a 5 sigma outlier cut ({4} stars)'.format(
+                            len(self.fit_optics_indices), self.min_optfit_snr,
+                            len(conds_snr) - np.sum(conds_snr), len(conds_shape) - np.sum(conds_shape),
+                            len(conds_mad) - np.sum(conds_mad)))
 
-        # cut further if we have more stars for fit than n_optfit_stars.
-        # Warning: only use n_optfit_stars if doing a test run, not a serious fit. This limits the
-        # ability to get the 500 highest SNR stars for the fit.
-        if (self.n_optfit_stars and self.n_optfit_stars <
-                len(self.fit_optics_indices) and self.n_optfit_stars <= 500):
-            logger.info('Cutting from {0} to {1} stars for the fit, as requested in '
-                        'n_optfit_stars. Warning: at least 500 (highest SNR) stars recommended '
-                        'for the optical fit. Only use n_optfit_stars if doing a test run, not a '
-                        'serious fit.'.format(len(self.fit_optics_indices), self.n_optfit_stars))
-            max_stars = self.n_optfit_stars
-            np.random.shuffle(self.fit_optics_indices)
-            self.fit_optics_indices = self.fit_optics_indices[:max_stars]
-        else:
-            if len(self.fit_optics_indices) < self.n_optfit_stars and self.n_optfit_stars > 0:
-                logger.info('{0} stars remaining after cuts instead of the {1} requested using '
-                            'n_optfit_stars. Of these, the (at most) 500 highest SNR stars will be '
-                            'passed on to the optical fit. Note: only use n_optfit_stars if doing '
-                            'a test run, not a serious fit.'.format(max_stars, self.n_optfit_stars))
+            # cut further if we have more stars for fit than n_optfit_stars.
+            # Warning: only use n_optfit_stars if doing a test run, not a serious fit. This limits the
+            # ability to get the 500 highest SNR stars for the fit.
             if (self.n_optfit_stars and self.n_optfit_stars <
-                    len(self.fit_optics_indices) and self.n_optfit_stars > 500):
-                logger.info('{0} stars remaining after cuts. Of these, the (at most) 500 highest '
-                            'SNR stars will be passed on to the optical fit. Cutting down to {1} '
-                            'stars has been requested using n_optfit_stars; however, since this '
-                            'number is more than 500 this will be ignored. Only use '
-                            'n_optfit_stars if doing a test run, not a serious fit.'.format(
-                                len(self.fit_optics_indices), self.n_optfit_stars))
+                    len(self.fit_optics_indices) and self.n_optfit_stars <= 500):
+                logger.info('Cutting from {0} to {1} stars for the fit, as requested in '
+                            'n_optfit_stars. Warning: at least 500 (highest SNR) stars recommended '
+                            'for the optical fit. Only use n_optfit_stars if doing a test run, not a '
+                            'serious fit.'.format(len(self.fit_optics_indices), self.n_optfit_stars))
+                max_stars = self.n_optfit_stars
+                np.random.shuffle(self.fit_optics_indices)
+                self.fit_optics_indices = self.fit_optics_indices[:max_stars]
+            else:
+                if len(self.fit_optics_indices) < self.n_optfit_stars and self.n_optfit_stars > 0:
+                    logger.info('{0} stars remaining after cuts instead of the {1} requested using '
+                                'n_optfit_stars. Of these, the (at most) 500 highest SNR stars will be '
+                                'passed on to the optical fit. Note: only use n_optfit_stars if doing '
+                                'a test run, not a serious fit.'.format(max_stars, self.n_optfit_stars))
+                if (self.n_optfit_stars and self.n_optfit_stars <
+                        len(self.fit_optics_indices) and self.n_optfit_stars > 500):
+                    logger.info('{0} stars remaining after cuts. Of these, the (at most) 500 highest '
+                                'SNR stars will be passed on to the optical fit. Cutting down to {1} '
+                                'stars has been requested using n_optfit_stars; however, since this '
+                                'number is more than 500 this will be ignored. Only use '
+                                'n_optfit_stars if doing a test run, not a serious fit.'.format(
+                                    len(self.fit_optics_indices), self.n_optfit_stars))
 
-        self.fit_optics_stars = [self.stars[indx] for indx in self.fit_optics_indices]
-        self.fit_optics_star_shapes = self.star_shapes[self.fit_optics_indices]
-        self.fit_optics_star_errors = self.star_errors[self.fit_optics_indices]
+            self.fit_optics_stars = [self.stars[indx] for indx in self.fit_optics_indices]
+            self.fit_optics_star_shapes = self.star_shapes[self.fit_optics_indices]
+            self.fit_optics_star_errors = self.star_errors[self.fit_optics_indices]
+        else:
+            self.fit_optics_stars = self.stars
+            self.fit_optics_star_shapes = self.star_shapes
+            self.fit_optics_star_errors = self.star_errors
 
         # cut down to 500 highest SNR stars for fit if have more than that remaining.
         if len(self.fit_optics_stars) > 500:
