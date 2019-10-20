@@ -2269,7 +2269,7 @@ class OptAtmoPSF(PSF):
             if make_mask:
                 _, _, u, v = star.data.getDataVector(include_zero_weight=True)
                 rsq = (u**2 + v**2) / size**2
-                mask = (2 < rsq) & (rsq < 4)
+                mask = (1 < rsq) & (rsq < 4)
                 masks[i] = mask
             else:
                 mask = masks[i]
