@@ -350,7 +350,7 @@ def test_optics_and_test_fit_model():
     config['jmax_pupil'] = 11
 
     optatmo_psf_kwargs = {'size': 1.0, 'g1': 0, 'g2': 0,
-                          'fix_size': False, 'fix_g1': True, 'fix_g2': True,
+                          'fix_size': False, 'fix_g1': False, 'fix_g2': False,
                           'zPupil004_zFocal001': 0.0,
                           'zPupil005_zFocal001': 0.0,
                           'zPupil006_zFocal001': 0.0,
