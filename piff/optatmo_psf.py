@@ -2271,16 +2271,12 @@ class OptAtmoPSF(PSF):
             image, weight, image_pos = star.data.getImage()
             model = prof.drawImage(image.copy(), method='auto', center=image_pos)
 
-            # Most of the information about aberrations is on the edge of the profile.
-            # The center is dominated by the Kolmogorov seeing.
-            # So limit our chisq to 1 < r < 2.
-            # TODO: This range is kind of empirical based on test_optics_and_fit_model()
-            #       Should probably do a more systematic test to figure out the optical range.
-            #       Also maybe better to use a weight as a function of r?
+            # No need to use all the pixels.  All the information is in the center.
+            # Tak just the pixels within 2 * size
             if make_mask:
                 _, _, u, v = star.data.getDataVector(include_zero_weight=True)
                 rsq = (u**2 + v**2) / size**2
-                mask = (1 < rsq) & (rsq < 4)
+                mask = rsq < 4
                 masks[i] = mask
             else:
                 mask = masks[i]
