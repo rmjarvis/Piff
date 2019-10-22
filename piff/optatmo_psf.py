@@ -1622,6 +1622,13 @@ class OptAtmoPSF(PSF):
                     jac=self._fit_optics_pixel_jac,
                     args=(stars, fit_keys, logger,),
                     diff_step=1e-5, ftol=ftol, xtol=1.e-4)
+            # clean up after ourselves.
+            del self._fit_optical_cache_size
+            del self._fit_optical_cache_masks
+            del self._fit_optical_cache_params
+            del self._fit_optical_cache_optparams
+            del self._fit_optical_cache_chis
+            del self._fit_optical_cache_chi0
         else:
             raise KeyError('Unrecognized fit mode: {0}'.format(mode))
 
@@ -1675,6 +1682,12 @@ class OptAtmoPSF(PSF):
                 jac=self._fit_size_jac,
                 args=(stars, opt_params, optical_profiles, logger,),
                 diff_step=1.e-4, ftol=1.e-3, xtol=1.e-4)
+
+        # clean up after ourselves
+        del self._fit_size_cache_params
+        del self._fit_size_cache_chis
+        del self._fit_size_cache_chi0
+        del self._fit_size_cache_atmo_profiles
 
         size = np.exp(results.x[0])
         logger.info("finished optics size fit: size = %s",size)
@@ -2297,6 +2310,7 @@ class OptAtmoPSF(PSF):
         chisq = np.sum(chi**2)
         logger.info("chisq = %s",chisq)
         return chi
+
 
     def _fit_optics_pixel_jac(self, params, stars, fit_keys, logger=None):
         """Find jacobian corresponding to _fit_optics_pixel_residual.
