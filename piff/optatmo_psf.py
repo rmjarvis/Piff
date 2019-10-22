@@ -826,8 +826,7 @@ class OptAtmoPSF(PSF):
         elif self.fit_optics_mode in ['shape', 'pixel', 'random_forest']:
             self.fit_optics(self.fit_optics_stars, self.fit_optics_star_shapes,
                             self.fit_optics_star_errors, mode=self.fit_optics_mode, logger=logger,
-                            ftol=1.e-3, **kwargs)
-                            #looser convergence criteria used than default of ftol=1.e-7
+                            **kwargs)
         else:
             # an unrecognized mode is simply ignored
             logger.warning('Found unrecognized fit_optics_mode {0}. Ignoring'.format(
@@ -1569,7 +1568,7 @@ class OptAtmoPSF(PSF):
                     self._regr_dict[moment] = regr
         return self._regr_dict
 
-    def fit_optics(self, stars, shapes, errors, mode, logger=None, ftol=1.e-7, **kwargs):
+    def fit_optics(self, stars, shapes, errors, mode, logger=None, ftol=1.e-3, **kwargs):
         """Fit interpolated PSF model to star shapes.
 
         It is important to note that although this fit is referred to as the "optical" fit we
@@ -1589,7 +1588,7 @@ class OptAtmoPSF(PSF):
         :param ftol:        One of the convergence criteria for the optical fit. Based on relative
                             change in the chi after an iteration. Smaller ftol is stricter and
                             takes longer to converge. Not used in "random_forest" mode.
-                            [default: 1.e-7]
+                            [default: 1.e-3]
         Notes
         -----
         This model leverages an initial random forest model fit and
@@ -1618,12 +1617,12 @@ class OptAtmoPSF(PSF):
             results = scipy.optimize.least_squares(
                     self._fit_random_forest_residual, params,
                     args=(stars, fit_keys, shapes, errors, self.regr_dict, logger,),
-                    diff_step=1e-5, ftol=1.e-3, xtol=1.e-4)
+                    diff_step=1e-5, ftol=ftol, xtol=1.e-4)
         elif mode == 'shape':
             results = scipy.optimize.least_squares(
                     self._fit_optics_residual, params,
                     args=(stars, fit_keys, shapes, errors, logger,),
-                    diff_step=1e-5, ftol=1.e-3, xtol=1.e-4)
+                    diff_step=1e-5, ftol=ftol, xtol=1.e-4)
         elif mode == 'pixel':
             for i in range(len(stars)):
                 params.append(stars[i].center[0])
@@ -1632,7 +1631,7 @@ class OptAtmoPSF(PSF):
                     self._fit_optics_pixel_residual, params,
                     jac=self._fit_optics_pixel_jac,
                     args=(stars, fit_keys, logger,),
-                    diff_step=1e-5, ftol=1.e-3, xtol=1.e-4)
+                    diff_step=1e-5, ftol=ftol, xtol=1.e-4)
         else:
             raise KeyError('Unrecognized fit mode: {0}'.format(mode))
 
