@@ -361,29 +361,46 @@ def test_optics_and_test_fit_model():
                           'zPupil011_zFocal001': 0.0,
                           'fix_zPupil011_zFocal001': True,
                         }  # avoid the defocus,astig,spherical -> negatives degeneracy by fixing spherical
-    config['optatmo_psf_kwargs'] = copy.deepcopy(optatmo_psf_kwargs)
-    config_draw = copy.deepcopy(config)
-    optatmo_psf_kwargs_values = {'size': 0.8,
-            'zPupil004_zFocal001': 0.2,
-            'zPupil005_zFocal001': 0.3,
-            'zPupil006_zFocal001': -0.2,
-            'zPupil007_zFocal001': 0.2,
-            'zPupil008_zFocal001': 0.4,
-            'zPupil009_zFocal001': -0.25,
-            'zPupil010_zFocal001': 0.2}
-    config_draw['optatmo_psf_kwargs'].update(optatmo_psf_kwargs_values)
-    psf_draw = piff.PSF.process(config_draw)
-    psf_train = piff.PSF.process(copy.deepcopy(config))
-
     success = { 'pixel' : set(), 'shape' : set() }
     fail = { 'pixel' : set(), 'shape' : set() }
+    err = { 'pixel' : set(), 'shape' : set() }
     times = { 'pixel' : set(), 'shape' : set() }
 
     nstars = 500
     seed0 = 12345
-    nseeds = 1
+    nseeds = 100
     for seed in range(seed0, seed0+nseeds):
         np.random.seed(seed)
+
+        config['optatmo_psf_kwargs'] = copy.deepcopy(optatmo_psf_kwargs)
+        config_draw = copy.deepcopy(config)
+        if True:
+            optatmo_psf_kwargs_values = {
+                'size': np.random.uniform(0.7,0.8),  # shape fails when size > ~0.85
+                'zPupil004_zFocal001': np.random.uniform(-0.4,0.4),
+                'zPupil005_zFocal001': np.random.uniform(-0.4,0.4),
+                'zPupil006_zFocal001': np.random.uniform(-0.4,0.4),
+                'zPupil007_zFocal001': np.random.uniform(-0.4,0.4),
+                'zPupil008_zFocal001': np.random.uniform(-0.4,0.4),
+                'zPupil009_zFocal001': np.random.uniform(-0.4,0.4),
+                'zPupil010_zFocal001': np.random.uniform(-0.4,0.4),
+            }
+        else:
+            # Ares's original values
+            optatmo_psf_kwargs_values = {
+                'size': 0.8,
+                'zPupil004_zFocal001': 0.2,
+                'zPupil005_zFocal001': 0.3,
+                'zPupil006_zFocal001': -0.2,
+                'zPupil007_zFocal001': 0.2,
+                'zPupil008_zFocal001': 0.4,
+                'zPupil009_zFocal001': -0.25,
+                'zPupil010_zFocal001': 0.2
+            }
+        print(optatmo_psf_kwargs_values)
+        config_draw['optatmo_psf_kwargs'].update(optatmo_psf_kwargs_values)
+        psf_draw = piff.PSF.process(config_draw)
+        psf_train = piff.PSF.process(copy.deepcopy(config))
 
         # make stars
         logger.info('Making Stars')
@@ -459,6 +476,8 @@ def test_optics_and_test_fit_model():
 
             except AssertionError:
                 fail[fit_optics_mode].add(seed)
+            except Exception:
+                err[fit_optics_mode].add(seed)
             else:
                 success[fit_optics_mode].add(seed)
             t1 = time.time()
@@ -467,14 +486,14 @@ def test_optics_and_test_fit_model():
         print('After seed ',seed)
         print('N pixel success = ',len(success['pixel']))
         print('N pixel fail = ',len(fail['pixel']))
+        print('N shape err = ',len(err['pixel']))
         print('N shape success = ',len(success['shape']))
         print('N shape fail = ',len(fail['shape']))
+        print('N shape err = ',len(err['shape']))
 
     print('Done')
-    print('pixel success = ',len(success['pixel']), success['pixel'])
-    print('pixel fail = ',len(fail['pixel']), fail['pixel'])
-    print('shape success = ',len(success['shape']), success['shape'])
-    print('shape fail = ',len(fail['shape']), fail['shape'])
+    print('pixel fail seeds = ',sorted(fail['pixel']))
+    print('shape fail seeds = ',sorted(fail['shape']))
     print('Mean time for pixel = ',np.mean(list(times['pixel'])))
     print('Mean time for shape = ',np.mean(list(times['shape'])))
 
