@@ -24,6 +24,7 @@ import fitsio
 import copy
 import unittest
 import itertools
+import time
 
 from piff_test_helper import timer
 
@@ -349,7 +350,7 @@ def test_optics_and_test_fit_model():
     config['jmax_pupil'] = 11
 
     optatmo_psf_kwargs = {'size': 1.0, 'g1': 0, 'g2': 0,
-                          'fix_size': False, 'fix_g1': True, 'fix_g2': True,
+                          'fix_size': False, 'fix_g1': False, 'fix_g2': False,
                           'zPupil004_zFocal001': 0.0,
                           'zPupil005_zFocal001': 0.0,
                           'zPupil006_zFocal001': 0.0,
@@ -360,98 +361,141 @@ def test_optics_and_test_fit_model():
                           'zPupil011_zFocal001': 0.0,
                           'fix_zPupil011_zFocal001': True,
                         }  # avoid the defocus,astig,spherical -> negatives degeneracy by fixing spherical
-    config['optatmo_psf_kwargs'] = copy.deepcopy(optatmo_psf_kwargs)
-    config_draw = copy.deepcopy(config)
-    optatmo_psf_kwargs_values = {'size': 0.8,
-            'zPupil004_zFocal001': 0.2,
-            'zPupil005_zFocal001': 0.3,
-            'zPupil006_zFocal001': -0.2,
-            'zPupil007_zFocal001': 0.2,
-            'zPupil008_zFocal001': 0.4,
-            'zPupil009_zFocal001': -0.25,
-            'zPupil010_zFocal001': 0.2}
-    config_draw['optatmo_psf_kwargs'].update(optatmo_psf_kwargs_values)
-    psf_draw = piff.PSF.process(config_draw)
-    psf_train = piff.PSF.process(copy.deepcopy(config))
+    success = { 'pixel' : set(), 'shape' : set() }
+    fail = { 'pixel' : set(), 'shape' : set() }
+    err = { 'pixel' : set(), 'shape' : set() }
+    times = { 'pixel' : set(), 'shape' : set() }
 
-    # make stars
-    logger.info('Making Stars')
     nstars = 500
-    np.random.seed(12345)
-    chipnums = np.random.choice(range(1,63), nstars)
-    icens = np.random.randint(0, 1024, nstars)
-    jcens = np.random.randint(0, 2048, nstars)
-    stars_blank = [make_star(i, j, chip) for i, j, chip in zip(icens, jcens, chipnums)]
-    wcs = {}
-    for i in np.unique(chipnums):
-        wcs[i] = decaminfo.get_nominal_wcs(i)
-    pointing = None
-    true_optatmo_psf_kwargs = copy.deepcopy(optatmo_psf_kwargs)
-    params = psf_draw.getParamsList(stars_blank)
-    params_including_atmo_params = copy.deepcopy(params)
-    draw_atmo_sizes = np.random.uniform(-0.02,0.02,params.shape[0])
-    draw_atmo_g1s = np.random.uniform(-0.02,0.02,params.shape[0])
-    draw_atmo_g2s = np.random.uniform(-0.02,0.02,params.shape[0])
-    params_including_atmo_params[:,0] = draw_atmo_sizes
-    params_including_atmo_params[:,1] = draw_atmo_g1s
-    params_including_atmo_params[:,2] = draw_atmo_g2s
+    seed0 = 12345
+    nseeds = 100
+    for seed in range(seed0, seed0+nseeds):
+        np.random.seed(seed)
 
-
-    stars = []
-    stars_to_fit = []
-    for star, star_i, param, param_including_atmo_params in zip(stars_blank, list(range(0,len(stars_blank))), params, params_including_atmo_params):
-        prof = psf_draw.getProfile(copy.deepcopy(star), param_including_atmo_params) * 1e6
-        star = psf_draw.drawProfile(star, prof, param_including_atmo_params)
-        stars.append(star)
-        stars_to_fit.append(piff.Star(star.data.copy(), None))
-    key_test_star = copy.deepcopy(stars_to_fit[0])
-    draw_atmo_size = params_including_atmo_params[0][0]
-    draw_atmo_g1 = params_including_atmo_params[0][1]
-    draw_atmo_g2 = params_including_atmo_params[0][2]
-
-    # do fit
-    for fit_optics_mode in ['shape']:
+        config['optatmo_psf_kwargs'] = copy.deepcopy(optatmo_psf_kwargs)
+        config_draw = copy.deepcopy(config)
+        if True:
+            optatmo_psf_kwargs_values = {
+                'size': np.random.uniform(0.7,0.8),  # shape fails when size > ~0.85
+                'zPupil004_zFocal001': np.random.uniform(-0.4,0.4),
+                'zPupil005_zFocal001': np.random.uniform(-0.4,0.4),
+                'zPupil006_zFocal001': np.random.uniform(-0.4,0.4),
+                'zPupil007_zFocal001': np.random.uniform(-0.4,0.4),
+                'zPupil008_zFocal001': np.random.uniform(-0.4,0.4),
+                'zPupil009_zFocal001': np.random.uniform(-0.4,0.4),
+                'zPupil010_zFocal001': np.random.uniform(-0.4,0.4),
+            }
+        else:
+            # Ares's original values
+            optatmo_psf_kwargs_values = {
+                'size': 0.8,
+                'zPupil004_zFocal001': 0.2,
+                'zPupil005_zFocal001': 0.3,
+                'zPupil006_zFocal001': -0.2,
+                'zPupil007_zFocal001': 0.2,
+                'zPupil008_zFocal001': 0.4,
+                'zPupil009_zFocal001': -0.25,
+                'zPupil010_zFocal001': 0.2
+            }
+        print(optatmo_psf_kwargs_values)
+        config_draw['optatmo_psf_kwargs'].update(optatmo_psf_kwargs_values)
+        psf_draw = piff.PSF.process(config_draw)
         psf_train = piff.PSF.process(copy.deepcopy(config))
-        logger.info('Test fitting optics mode {0}'.format(fit_optics_mode))
-        psf_train.fit_optics_mode = fit_optics_mode
 
-        psf_train.fit(stars_to_fit, wcs, pointing, logger=logger)
-        logger.info('Fit results for mode {0}'.format(fit_optics_mode))
-        logger.info('Parameter: Input, Fit, Input - Fit')
-        for key in sorted(optatmo_psf_kwargs_values):
-            train = optatmo_psf_kwargs_values[key]
-            fit = psf_train.optatmo_psf_kwargs[key]
-            logger.info('{0}: {1:+.3f}, {2:+.3f}, {3:+.3f}'.format(key, train, fit, train - fit))
-        # I don't really trust these fits to better than 0.1
-        print("optics fit results")
-        for key in sorted(optatmo_psf_kwargs_values):
-            print("key: {0}".format(key))
-            train = optatmo_psf_kwargs_values[key]
-            print("train: {0}".format(train))
-            fit = psf_train.optatmo_psf_kwargs[key]
-            print("fit: {0}".format(fit))
-            diff = np.abs(train - fit)
-            print("diff: {0}".format(diff))
-            if fit_optics_mode == 'random_forest':
-                tol = 0.5  # lower expectations with the random_forest mode
+        # make stars
+        logger.info('Making Stars')
+        chipnums = np.random.choice(range(1,63), nstars)
+        icens = np.random.randint(0, 1024, nstars)
+        jcens = np.random.randint(0, 2048, nstars)
+        stars_blank = [make_star(i, j, chip) for i, j, chip in zip(icens, jcens, chipnums)]
+        wcs = {}
+        for i in np.unique(chipnums):
+            wcs[i] = decaminfo.get_nominal_wcs(i)
+        pointing = None
+        true_optatmo_psf_kwargs = copy.deepcopy(optatmo_psf_kwargs)
+        params = psf_draw.getParamsList(stars_blank)
+        params_including_atmo_params = copy.deepcopy(params)
+        draw_atmo_sizes = np.random.uniform(-0.02,0.02,params.shape[0])
+        draw_atmo_g1s = np.random.uniform(-0.02,0.02,params.shape[0])
+        draw_atmo_g2s = np.random.uniform(-0.02,0.02,params.shape[0])
+        params_including_atmo_params[:,0] = draw_atmo_sizes
+        params_including_atmo_params[:,1] = draw_atmo_g1s
+        params_including_atmo_params[:,2] = draw_atmo_g2s
+
+        stars = []
+        stars_to_fit = []
+        for star, star_i, param, param_including_atmo_params in zip(stars_blank, list(range(0,len(stars_blank))), params, params_including_atmo_params):
+            prof = psf_draw.getProfile(copy.deepcopy(star), param_including_atmo_params) * 1e6
+            star = psf_draw.drawProfile(star, prof, param_including_atmo_params)
+            stars.append(star)
+            stars_to_fit.append(piff.Star(star.data.copy(), None))
+        key_test_star = copy.deepcopy(stars_to_fit[0])
+        draw_atmo_size = params_including_atmo_params[0][0]
+        draw_atmo_g1 = params_including_atmo_params[0][1]
+        draw_atmo_g2 = params_including_atmo_params[0][2]
+
+        # do fit
+        for fit_optics_mode in ['shape', 'pixel']:
+            t0 = time.time()
+            config['init_with_rf'] = (fit_optics_mode == 'shape')
+            psf_train = piff.PSF.process(copy.deepcopy(config))
+            logger.info('Test fitting optics mode {0}'.format(fit_optics_mode))
+            psf_train.fit_optics_mode = fit_optics_mode
+
+            psf_train.fit(stars_to_fit, wcs, pointing, logger=logger)
+            logger.info('Fit results for mode {0}'.format(fit_optics_mode))
+            logger.info('Parameter: Input, Fit, Input - Fit')
+            for key in sorted(optatmo_psf_kwargs_values):
+                train = optatmo_psf_kwargs_values[key]
+                fit = psf_train.optatmo_psf_kwargs[key]
+                logger.info('{0}: {1:+.3f}, {2:+.3f}, {3:+.3f}'.format(key, train, fit, train - fit))
+            # I don't really trust these fits to better than 0.1
+            try:
+                for key in sorted(optatmo_psf_kwargs_values):
+                    train = optatmo_psf_kwargs_values[key]
+                    fit = psf_train.optatmo_psf_kwargs[key]
+                    diff = np.abs(train - fit)
+                    if fit_optics_mode == 'random_forest':
+                        tol = 0.5  # lower expectations with the random_forest mode
+                    else:
+                        tol = 0.05
+                    assert diff <= tol,'failed to fit {0} to tolerance {4}: {1:+.3f}, {2:+.3f}, {3:+.3f}'.format(key, train, fit, train - fit, tol)
+
+                key_params = psf_train.getParams(key_test_star)
+                key_test_model_star = psf_train.fit_model(key_test_star, key_params)
+                tol = 0.005
+                #print("draw_atmo_size {0}".format(draw_atmo_size))
+                #print("draw_atmo_g1 {0}".format(draw_atmo_g1))
+                #print("draw_atmo_g2 {0}".format(draw_atmo_g2))
+                #print("fit_atmo_size {0}".format(key_test_model_star.fit.params[0]))
+                #print("fit_atmo_g1 {0}".format(key_test_model_star.fit.params[1]))
+                #print("fit_atmo_g2 {0}".format(key_test_model_star.fit.params[2]))
+                assert draw_atmo_size - key_test_model_star.fit.params[0] <= tol,'failed to fit atmo_size to tolerance {0}'.format(tol)
+                assert draw_atmo_g1 - key_test_model_star.fit.params[1] <= tol,'failed to fit atmo_g1 to tolerance {0}'.format(tol)
+                assert draw_atmo_g2 - key_test_model_star.fit.params[2] <= tol,'failed to fit atmo_g2 to tolerance {0}'.format(tol)
+
+            except AssertionError:
+                fail[fit_optics_mode].add(seed)
+            except Exception:
+                err[fit_optics_mode].add(seed)
             else:
-                tol = 0.05
-            assert diff <= tol,'failed to fit {0} to tolerance {4}: {1:+.3f}, {2:+.3f}, {3:+.3f}'.format(key, train, fit, train - fit, tol)
+                success[fit_optics_mode].add(seed)
+            t1 = time.time()
+            print('time = ',t1-t0)
+            times[fit_optics_mode].add(t1-t0)
+        print('After seed ',seed)
+        print('N pixel success = ',len(success['pixel']))
+        print('N pixel fail = ',len(fail['pixel']))
+        print('N shape err = ',len(err['pixel']))
+        print('N shape success = ',len(success['shape']))
+        print('N shape fail = ',len(fail['shape']))
+        print('N shape err = ',len(err['shape']))
 
-        key_params = psf_train.getParams(key_test_star)
-        key_test_model_star = psf_train.fit_model(key_test_star, key_params)
-        tol = 0.005
-        print("draw_atmo_size {0}".format(draw_atmo_size))
-        print("draw_atmo_g1 {0}".format(draw_atmo_g1))
-        print("draw_atmo_g2 {0}".format(draw_atmo_g2))
-        print("fit_atmo_size {0}".format(key_test_model_star.fit.params[0]))
-        print("fit_atmo_g1 {0}".format(key_test_model_star.fit.params[1]))
-        print("fit_atmo_g2 {0}".format(key_test_model_star.fit.params[2]))
-        assert draw_atmo_size - key_test_model_star.fit.params[0] <= tol,'failed to fit atmo_size to tolerance {0}'.format(tol)
-        assert draw_atmo_g1 - key_test_model_star.fit.params[1] <= tol,'failed to fit atmo_g1 to tolerance {0}'.format(tol)
-        assert draw_atmo_g2 - key_test_model_star.fit.params[2] <= tol,'failed to fit atmo_g2 to tolerance {0}'.format(tol)
-
-
+    print('Done')
+    print('pixel fail seeds = ',sorted(fail['pixel']))
+    print('shape fail seeds = ',sorted(fail['shape']))
+    print('Mean time for pixel = ',np.mean(list(times['pixel'])))
+    print('Mean time for shape = ',np.mean(list(times['shape'])))
 
 @timer
 def test_size_fit():
