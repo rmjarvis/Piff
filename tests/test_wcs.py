@@ -437,9 +437,57 @@ def test_olddes():
     image2 = psf2.draw(x=103.3, y=592.0)
     np.testing.assert_equal(image2.array, image.array)
 
+def test_hsm():
+    # Test the hsm function in the presence of a non-trivial WCS.
+
+    gal = galsim.Gaussian(sigma=1.7, flux=1000)
+    shear = galsim.Shear(g1=0.4, g2=0.3)
+    pos = galsim.PositionD(1.2,-0.5)
+    final_gal = gal.shear(shear).shift(pos)
+
+    # A fairly crazy WCS with large rotation and shear.
+    wcs = galsim.JacobianWCS(0.35, -0.13, 0.09, 0.30)
+    print('wcs = ',wcs)
+    print('decomp = ',wcs.getDecomposition())
+
+    image = final_gal.drawImage(nx=128, ny=128, wcs=wcs, method='no_pixel')
+    star = piff.Star(piff.StarData(image, image.true_center),None)
+
+    flux, x, y, sigma, g1, g2, flag = piff.util.hsm(star)
+    print('hsm returns: ',flux,x,y,sigma,g1,g2)
+
+    tol = 1.e-7
+    np.testing.assert_allclose(flux, gal.flux, rtol=tol)
+    np.testing.assert_allclose(sigma, gal.sigma, rtol=tol)
+    np.testing.assert_allclose(g1, shear.g1, rtol=tol)
+    np.testing.assert_allclose(g2, shear.g2, rtol=tol)
+    np.testing.assert_allclose(x, pos.x, rtol=tol)
+    np.testing.assert_allclose(y, pos.y, rtol=tol)
+
+    # Repeat with one with flip=True
+    wcs = galsim.JacobianWCS(0.35, -0.13, 0.09, -0.30)
+    print('wcs = ',wcs)
+    print('decomp = ',wcs.getDecomposition())
+
+    image = final_gal.drawImage(nx=128, ny=128, wcs=wcs, method='no_pixel')
+    image.write('junk.fits')
+    star = piff.Star(piff.StarData(image, image.true_center),None)
+
+    flux, x, y, sigma, g1, g2, flag = piff.util.hsm(star)
+    print('hsm returns: ',flux,x,y,sigma,g1,g2)
+
+    np.testing.assert_allclose(flux, gal.flux, rtol=tol)
+    np.testing.assert_allclose(sigma, gal.sigma, rtol=tol)
+    np.testing.assert_allclose(g1, shear.g1, rtol=tol)
+    np.testing.assert_allclose(g2, shear.g2, rtol=tol)
+    np.testing.assert_allclose(x, pos.x, rtol=tol)
+    np.testing.assert_allclose(y, pos.y, rtol=tol)
+
+
 if __name__ == '__main__':
     test_focal()
     test_wrongwcs()
     test_single()
     test_pickle()
     test_olddes()
+    test_hsm()
