@@ -470,7 +470,6 @@ def test_hsm():
     print('decomp = ',wcs.getDecomposition())
 
     image = final_gal.drawImage(nx=128, ny=128, wcs=wcs, method='no_pixel')
-    image.write('junk.fits')
     star = piff.Star(piff.StarData(image, image.true_center),None)
 
     flux, x, y, sigma, g1, g2, flag = piff.util.hsm(star)
