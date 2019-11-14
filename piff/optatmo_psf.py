@@ -164,7 +164,7 @@ class OptAtmoPSF(PSF):
                  jmax_focal=10, min_optfit_snr=0, fit_optics_mode='pixel',
                  higher_order_reference_wavefront_file=None, init_with_rf=False,
                  random_forest_shapes_model_pickles_location=None,
-                 atmosphere_model='vonkarman', atmo_mad_outlier=False, max_shapes = [],
+                 atmosphere_model='vonkarman', atmo_mad_outlier=False,
                  shape_weights=[], reference_wavefront_zernikes_list=[],
                  higher_order_reference_wavefront_zernikes_list=[], test_fraction=0.2,
                  logger=None, **kwargs):
@@ -304,14 +304,6 @@ class OptAtmoPSF(PSF):
         if 'oversampling' not in self.optical_psf_kwargs:
             self.optical_psf_kwargs['oversampling'] = 1.0  # defautl 1.5
 
-        # max size of shapes allowed
-        self._max_shapes = np.array([1.5, 0.12, 0.12, 0.15, 0.15, 0.15, 0.15, 1.5, 5.0, 50.0])
-        if len(max_shapes) > 0:
-            if len(max_shapes) != len(self._max_shapes):
-                raise ValueError('Specified {0} max shapes, but need to specify {1}!'.format(
-                                 len(max_shapes), len(self._max_shapes)))
-            for i, si in enumerate(max_shapes):
-                self._max_shapes[i] = si
         # weighting of shapes
         self._shape_weights = np.array([0.2, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4])
         if len(shape_weights) > 0:
@@ -367,7 +359,6 @@ class OptAtmoPSF(PSF):
         # kwargs
         self.kwargs = {
             'fov_radius': self.fov_radius,
-            'max_shapes': self._max_shapes,
             'shape_weights': self._shape_weights,
             'reference_wavefront_zernikes_list': self._reference_wavefront_zernikes_list,
             'higher_order_reference_wavefront_zernikes_list':
@@ -686,14 +677,9 @@ class OptAtmoPSF(PSF):
         # for a significant fraction of random number seeds when cutting, but very rarely when
         # not cutting.  Therefore disable these cuts for pixel mode.
         if self.fit_optics_mode in ['shape', 'random_forest']:
-            # do a max shapes cut for the train stars
-            conds_shape = (np.all(np.abs(self.star_shapes[:, 3:]) <= self._max_shapes, axis=1))
+            print("self.star_shapes[0]".format(self.star_shapes[0]))
 
-            # do a max shapes cut for the test stars
-            test_conds_shape = (np.all(
-                    np.abs(self.test_star_shapes[:, 3:]) <= self._max_shapes, axis=1))
-
-            # also a MAD cut
+            # do a MAD cut
             med = np.nanmedian(
                 np.concatenate([self.star_shapes[:, 3:], self.test_star_shapes[:, 3:]], axis=0),
                 axis=0)
@@ -712,7 +698,7 @@ class OptAtmoPSF(PSF):
 
             # apply the aforementioned max shapes and MAD cuts for the train stars
             self.stars_indices = np.arange(len(self.stars))
-            self.stars_indices = self.stars_indices[conds_shape * conds_mad]
+            self.stars_indices = self.stars_indices[conds_mad]
             self.stars = [self.stars[indx] for indx in self.stars_indices]
             self.star_shapes = self.star_shapes[self.stars_indices]
             self.star_errors = self.star_errors[self.stars_indices]
@@ -720,7 +706,7 @@ class OptAtmoPSF(PSF):
 
             # apply the aforementioned max shapes and MAD cuts for the test stars
             self.test_stars_indices = np.arange(len(self.test_stars))
-            self.test_stars_indices = self.test_stars_indices[test_conds_shape * test_conds_mad]
+            self.test_stars_indices = self.test_stars_indices[test_conds_mad]
             self.test_stars = [self.test_stars[indx] for indx in self.test_stars_indices]
             self.test_star_shapes = self.test_star_shapes[self.test_stars_indices]
             self.test_star_errors = self.test_star_errors[self.test_stars_indices]
@@ -732,10 +718,9 @@ class OptAtmoPSF(PSF):
             conds_snr = (self.star_snrs >= self.min_optfit_snr)
             self.fit_optics_indices = self.fit_optics_indices[conds_snr]
             logger.info('Cutting to {0} stars for fitting the optics based on SNR > {1} ({2} stars) '
-                        'on maximum shapes ({3} stars) and on a 5 sigma outlier cut ({4} stars)'.format(
+                        'and on a 5 sigma outlier cut ({3} stars)'.format(
                             len(self.fit_optics_indices), self.min_optfit_snr,
-                            len(conds_snr) - np.sum(conds_snr), len(conds_shape) - np.sum(conds_shape),
-                            len(conds_mad) - np.sum(conds_mad)))
+                            len(conds_snr) - np.sum(conds_snr), len(conds_mad) - np.sum(conds_mad)))
 
             # cut further if we have more stars for fit than n_optfit_stars.
             # Warning: only use n_optfit_stars if doing a test run, not a serious fit. This limits the
@@ -819,11 +804,13 @@ class OptAtmoPSF(PSF):
         # this is the "optical" fit; despite being called that the fit parameters here are the
         # optical fit parameters and the across-the-focal-plane average of the atmospheric fit
         # parameters
-        self.total_redchi_across_iterations = []
         if self.fit_optics_mode == 'random_forest' and self.init_with_rf:
             # already did it, so can pass
             pass
         elif self.fit_optics_mode in ['shape', 'pixel', 'random_forest']:
+            if self.fit_optics_mode != 'random_forest':
+                self.total_redchi_across_iterations = []
+                self.optical_fit_params_across_iterations = []
             self.fit_optics(self.fit_optics_stars, self.fit_optics_star_shapes,
                             self.fit_optics_star_errors, mode=self.fit_optics_mode, logger=logger,
                             **kwargs)
@@ -847,64 +834,45 @@ class OptAtmoPSF(PSF):
                 data_shapes_all_stars = []
                 data_errors_all_stars = []
                 model_shapes_all_stars = []
-                logger.info("1")
                 for star_i, star in enumerate(stars):
                     data_shapes_all_stars.append(self.measure_shape_third_moments(star))
-                    logger.info("2")
                     data_errors_all_stars.append(self.measure_error_third_moments(star))
-                    logger.info("3")
                     model_shapes_all_stars.append(self.measure_shape_third_moments(self.drawStar(star)))
-                    logger.info("4")
-                logger.info("5")
                 data_shapes_all_stars = np.array(data_shapes_all_stars)[:,3:]
-                logger.info("6")
                 data_errors_all_stars = np.array(data_errors_all_stars)[:,3:]
-                logger.info("7")
                 model_shapes_all_stars = np.array(model_shapes_all_stars)[:,3:]
-                logger.info("8")
                 pull_all_stars = ((data_shapes_all_stars - model_shapes_all_stars) /
                                     data_errors_all_stars)
                 # pull is (data-model)/error
-                logger.info("9")
                 logger.debug("data_shapes_all_stars: {0}".format(data_shapes_all_stars))
                 logger.debug("model_shapes_all_stars: {0}".format(model_shapes_all_stars))
                 logger.debug("data_errors_all_stars: {0}".format(data_errors_all_stars))
                 logger.debug("pull_all_stars: {0}".format(pull_all_stars))
-                conds_pull = (np.all(np.abs(pull_all_stars) <= 4.0, axis=1))
-                logger.info("10")
-                # all stars with more than 4.0 pull are thrown out
-                conds_pull_e0 = (np.abs(pull_all_stars[:,0]) <= 4.0)
-                logger.info("11")
-                conds_pull_e1 = (np.abs(pull_all_stars[:,1]) <= 4.0)
-                logger.info("12")
-                conds_pull_e2 = (np.abs(pull_all_stars[:,2]) <= 4.0)
-                logger.info("13")
+                med = np.nanmedian(pull_all_stars, axis=0)
+                mad = np.nanmedian(np.abs(pull_all_stars - med[None]), axis=0)
+                madx = np.abs(pull_all_stars - med[None])
+                # all stars with pull more than 4 sigma equivalent MAD away from the median pull are thrown out
+                conds_pull_mad = (np.all(madx <= 1.48 * 4 * mad, axis=1))
+                conds_pull_mad_e0 = (madx[:,0] <= 1.48 * 4 * mad[0])
+                conds_pull_mad_e1 = (madx[:,1] <= 1.48 * 4 * mad[1])
+                conds_pull_mad_e2 = (madx[:,1] <= 1.48 * 4 * mad[2])
                 if s == 0:
-                    self.stars = np.array(self.stars)[conds_pull].tolist()
-                logger.info("14")
+                    self.stars = np.array(self.stars)[conds_pull_mad].tolist()
                 if s == 1:
-                    self.test_stars = np.array(self.test_stars)[conds_pull].tolist()
-                logger.info("15")
+                    self.test_stars = np.array(self.test_stars)[conds_pull_mad].tolist()
                 if s == 2:
                     self.number_of_outliers_optical = np.array(
-                        [len(self.fit_optics_stars) - np.sum(conds_pull_e0),
-                         len(self.fit_optics_stars) - np.sum(conds_pull_e1),
-                         len(self.fit_optics_stars) - np.sum(conds_pull_e2)])
-                    logger.info("16")
+                        [len(self.fit_optics_stars) - np.sum(conds_pull_mad_e0),
+                         len(self.fit_optics_stars) - np.sum(conds_pull_mad_e1),
+                         len(self.fit_optics_stars) - np.sum(conds_pull_mad_e2)])
                     self.number_of_stars_pre_cut_optical = len(self.fit_optics_stars)
-                    logger.info("17")
-                    self.fit_optics_stars = np.array(self.fit_optics_stars)[conds_pull].tolist()
-                    logger.info("18")
+                    self.fit_optics_stars = np.array(self.fit_optics_stars)[conds_pull_mad].tolist()
                     self.number_of_stars_post_cut_optical = len(self.fit_optics_stars)
-                    logger.info("19")
                     self.pull_mean_optical = np.nanmean(pull_all_stars[:,:3], axis=0)
-                    logger.info("20")
                     # the mean pull (only second moments) for stars used in the fit is later used to
                     # find outliers among exposures
                     self.pull_rms_optical = np.sqrt(np.nanmean(np.square(pull_all_stars[:,:3]),axis=0))
-                    logger.info("21")
                     self.pull_all_stars_optical = pull_all_stars
-                    logger.info("22")
 
 
             number_of_stars_used_in_optical_chi = \
@@ -1019,7 +987,23 @@ class OptAtmoPSF(PSF):
                 # obtain reference wavefront zernike values for all stars
                 if self.reference_wavefront:
                     logger.debug('Getting reference wavefront aberrations')
+                    #print("len(stars): {0}".format(len(stars)))
+                    #stars_no_int = 0
+                    #for star in stars:
+                    #    if type(star.data['chipnum']) != int:
+                    #        stars_no_int = stars_no_int + 1
+                    #        print(star.data['chipnum'])
+                    #        break
+                    #print("stars_no_int: {0}".format(stars_no_int))
                     clean_stars = [Star(star.data, None) for star in stars]
+                    #print("len(clean_stars): {0}".format(len(stars)))
+                    #clean_stars_no_int = 0
+                    #for clean_star in clean_stars:
+                    #    if type(clean_star.data['chipnum']) != int:
+                    #        clean_stars_no_int = clean_stars_no_int + 1
+                    #        print(star.data['chipnum'])
+                    #        break
+                    #print("clean_stars_no_int: {0}".format(clean_stars_no_int))
                     interp_stars = self.reference_wavefront.interpolateList(clean_stars)
                     aberrations_reference_wavefront = np.array(
                         [star_interpolated.fit.params for star_interpolated in interp_stars])
@@ -1623,6 +1607,7 @@ class OptAtmoPSF(PSF):
 
         fit_keys = [key for key in self.keys
                     if not self.optatmo_psf_kwargs.get('fix_'+key,True)]
+        self.optical_fit_keys = fit_keys
         params = [self.optatmo_psf_kwargs[key] for key in fit_keys]
 
         if mode == 'random_forest':
@@ -1943,6 +1928,7 @@ class OptAtmoPSF(PSF):
         """
         num_keep = 3
         new_stars = []
+        number_of_none_fit_params = 0
         for star_i, star in enumerate(stars):
             try:
                 fit_params = star.fit.params
@@ -2206,6 +2192,7 @@ class OptAtmoPSF(PSF):
         logger.debug('start residual: current params = %s',params)
         # update psf
         n_opt = len(fit_keys)
+        self.optical_fit_params_across_iterations.append(params[:n_opt])
         self._update_optatmopsf(dict(zip(fit_keys, params[:n_opt])), logger=logger)
 
         # get optical params
@@ -2249,6 +2236,7 @@ class OptAtmoPSF(PSF):
         # for all moments, for all stars
         chisq = np.sum(chi**2)
         logger.info("chisq = %s",chisq)
+        self.total_redchi_across_iterations.append(chisq/len(chi))
         return chi
 
     # not necessarily set up to work with vonkarman atmosphere; also not currently used
@@ -2270,6 +2258,7 @@ class OptAtmoPSF(PSF):
         logger.debug('start residual: current params = %s',params)
         # update psf
         n_opt = len(fit_keys)
+        self.optical_fit_params_across_iterations.append(params[:n_opt])
         self._update_optatmopsf(dict(zip(fit_keys, params[:n_opt])), logger=logger)
 
         # get optical params
@@ -2329,8 +2318,10 @@ class OptAtmoPSF(PSF):
         self._fit_optical_cache_chis = chis
         self._fit_optical_cache_chi0 = chi
 
+        self.final_optical_chi = chi
         chisq = np.sum(chi**2)
         logger.info("chisq = %s",chisq)
+        self.total_redchi_across_iterations.append(chisq/len(chi))
         return chi
 
 

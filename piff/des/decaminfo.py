@@ -145,6 +145,8 @@ class DECamInfo(object):
         :returns xPos, yPos:    Arrays of x and y coordinates in mm on the focal plane.
         """
         # do getPosition but with chipnum instead
+        if type(chipnums[0]) != int:
+            chipnums = np.array([ int(c) for c in chipnums ])
         xpixHalfSize = 1024. * np.ones(len(chipnums))
         ypixHalfSize = 1024. * np.ones(len(chipnums))
         ypixHalfSize = np.where(np.array(chipnums) > 62, 1024., 2048.)
