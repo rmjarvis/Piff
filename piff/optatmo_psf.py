@@ -1162,7 +1162,9 @@ class OptAtmoPSF(PSF):
         else:
             kwargs = {'lam': self.kolmogorov_kwargs['lam'],
                       'r0': self.kolmogorov_kwargs['r0'] / size,
-                      'L0': L0,}
+                      'L0': L0,
+                      'force_stepk': getattr(self, '_force_stepk', 0.0)
+                     }
             atmo = galsim.VonKarman(gsparams=self.gsparams, **kwargs)
         atmo = atmo.shear(g1=g1, g2=g2)
 
@@ -1690,6 +1692,7 @@ class OptAtmoPSF(PSF):
                 args=(stars, opt_params, optical_profiles, logger,),
                 diff_step=1.e-4, ftol=1.e-3, xtol=1.e-4)
 
+        #
         # clean up after ourselves
         del self._fit_size_cache_params
         del self._fit_size_cache_chis
@@ -1879,6 +1882,17 @@ class OptAtmoPSF(PSF):
         # parameters to fit:
         # Use log(flux) and log(size), so we don't have to worry about going negative
         fit_params = [np.log(flux), du, dv, np.log(fit_size), fit_g1, fit_g2]
+
+        # Set self._force_vk_stepk if not already set
+        if not hasattr(self, '_force_vk_stepk'):
+            vk = galsim.VonKarman(
+                lam=self.kolmogorov_kwargs['lam'],
+                r0=self.kolmogorov_kwargs['r0']/fit_size,
+                L0=opt_L0,
+                gsparams=self.gsparams
+            )
+            slack_factor = 0.8
+            self._force_vk_stepk = vk.stepk * slack_factor
 
         # Find the solution
         results = scipy.optimize.least_squares(
@@ -2087,7 +2101,10 @@ class OptAtmoPSF(PSF):
             else:
                 kwargs = {'lam': self.kolmogorov_kwargs['lam'],
                           'r0': self.kolmogorov_kwargs['r0'] / size,
-                          'L0': L0,}
+                          'L0': L0,
+                         }
+                # Don't force stepk here.  Few iterations anyway, and we can use
+                # results to force later.
                 atmo = galsim.VonKarman(gsparams=self.gsparams, **kwargs)
             atmo = atmo.shear(g1=g1, g2=g2)
             atmo_profiles.append(atmo)
@@ -2425,7 +2442,9 @@ class OptAtmoPSF(PSF):
         else:
             kwargs = {'lam': self.kolmogorov_kwargs['lam'],
                       'r0': self.kolmogorov_kwargs['r0'] / size,
-                      'L0': L0,}
+                      'L0': L0,
+                      'force_stepk': self._force_vk_stepk
+                     }
             atmo = galsim.VonKarman(gsparams=self.gsparams, **kwargs)
         atmo = atmo.shear(g1=g1, g2=g2)
 

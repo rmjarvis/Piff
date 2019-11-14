@@ -150,8 +150,8 @@ class DECamInfo(object):
         xpixHalfSize = 1024. * np.ones(len(chipnums))
         ypixHalfSize = 1024. * np.ones(len(chipnums))
         ypixHalfSize = np.where(np.array(chipnums) > 62, 1024., 2048.)
-        xCenter = self.infoArr[chipnums][:, 0]
-        yCenter = self.infoArr[chipnums][:, 1]
+        xCenter = self.infoArr[chipnums.astype(int)][:, 0]
+        yCenter = self.infoArr[chipnums.astype(int)][:, 1]
 
         xPos = xCenter + (ix - xpixHalfSize + 0.5) * self.mmperpixel
         yPos = yCenter + (iy - ypixHalfSize + 0.5) * self.mmperpixel
@@ -170,8 +170,8 @@ class DECamInfo(object):
         xpixHalfSize = 1024. * np.ones(len(chipnums))
         ypixHalfSize = 1024. * np.ones(len(chipnums))
         ypixHalfSize = np.where(np.array(chipnums) > 62, 1024., 2048.)
-        xCenter = self.infoArr[chipnums][:, 0]
-        yCenter = self.infoArr[chipnums][:, 1]
+        xCenter = self.infoArr[chipnums.astype(int)][:, 0]
+        yCenter = self.infoArr[chipnums.astype(int)][:, 1]
 
         ix = (xPos - xCenter) / self.mmperpixel + xpixHalfSize - 0.5
         iy = (yPos - yCenter) / self.mmperpixel + ypixHalfSize - 0.5
