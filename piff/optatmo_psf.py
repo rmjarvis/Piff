@@ -1162,9 +1162,10 @@ class OptAtmoPSF(PSF):
         else:
             kwargs = {'lam': self.kolmogorov_kwargs['lam'],
                       'r0': self.kolmogorov_kwargs['r0'] / size,
-                      'L0': L0,
-                      'force_stepk': getattr(self, '_force_stepk', 0.0)
-                     }
+                      'L0': L0,}
+                     # 'L0': L0,
+                     # 'force_stepk': getattr(self, '_force_stepk', 0.0)
+                     #}
             atmo = galsim.VonKarman(gsparams=self.gsparams, **kwargs)
         atmo = atmo.shear(g1=g1, g2=g2)
 
@@ -1883,17 +1884,17 @@ class OptAtmoPSF(PSF):
         # Use log(flux) and log(size), so we don't have to worry about going negative
         fit_params = [np.log(flux), du, dv, np.log(fit_size), fit_g1, fit_g2]
 
-        # Set self._force_vk_stepk if not already set
-        if not hasattr(self, '_force_vk_stepk'):
-            vk = galsim.VonKarman(
-                lam=self.kolmogorov_kwargs['lam'],
-                r0=self.kolmogorov_kwargs['r0']/fit_size,
-                L0=opt_L0,
-                gsparams=self.gsparams
-            )
-            slack_factor = 0.8
-            self._force_vk_stepk = vk.stepk * slack_factor
-
+        ## Set self._force_vk_stepk if not already set
+        #if not hasattr(self, '_force_vk_stepk'):
+        #    vk = galsim.VonKarman(
+        #        lam=self.kolmogorov_kwargs['lam'],
+        #        r0=self.kolmogorov_kwargs['r0']/fit_size,
+        #        L0=opt_L0,
+        #        gsparams=self.gsparams
+        #    )
+        #    slack_factor = 0.8
+        #    self._force_vk_stepk = vk.stepk * slack_factor
+        #
         # Find the solution
         results = scipy.optimize.least_squares(
                 self._fit_model_residual, fit_params,
@@ -2442,9 +2443,10 @@ class OptAtmoPSF(PSF):
         else:
             kwargs = {'lam': self.kolmogorov_kwargs['lam'],
                       'r0': self.kolmogorov_kwargs['r0'] / size,
-                      'L0': L0,
-                      'force_stepk': self._force_vk_stepk
-                     }
+                      'L0': L0,}
+                     # 'L0': L0,
+                     # 'force_stepk': self._force_vk_stepk
+                     #}
             atmo = galsim.VonKarman(gsparams=self.gsparams, **kwargs)
         atmo = atmo.shear(g1=g1, g2=g2)
 
