@@ -540,9 +540,6 @@ class InputFiles(Input):
                     ra_col, dec_col, ra_units, dec_units, image,
                     flag_col, skip_flag, use_flag, sky_col, gain_col,
                     sky, gain, nstars, image_file_name, logger)
-            # Check for objects well off the edge.  We won't use them.
-            big_bounds = image.bounds.expand(self.stamp_size)
-            image_pos = [ pos for pos in image_pos if big_bounds.includes(pos) ]
 
             if config.get('remove_signal_from_weight', False):
                 # Subtract off the mean sky, since this isn't part of the "signal" we want to
@@ -775,8 +772,9 @@ class InputFiles(Input):
             max_dec = np.max([c.dec.wrap(cen.dec) for c in corners])
             logger.debug("RA range = %s .. %s",min_ra,max_ra)
             logger.debug("Dec range = %s .. %s",min_dec,max_dec)
-            use = [(ra.wrap(cen.ra) > min_ra) & (ra.wrap(cen.ra) < max_ra) &
-                   (dec.wrap(cen.dec) > min_dec) & (dec.wrap(cen.dec) < max_dec)]
+            use = [(r.wrap(cen.ra) > min_ra) & (r.wrap(cen.ra) < max_ra) &
+                   (d.wrap(cen.dec) > min_dec) & (d.wrap(cen.dec) < max_dec)
+                   for r,d in zip(ra,dec)]
             ra = ra[use]
             dec = dec[use]
             logger.debug("After limiting to image ra,dec range, len = %s",len(ra))
@@ -787,10 +785,11 @@ class InputFiles(Input):
                     return wcs.toImage(galsim.CelestialCoord(ra, dec))
                 except galsim.GalSimError:  # pragma: no cover
                     # If the ra,dec is way off the image, this might fail to converge.
-                    # In this case return something clearly not on an image so it gets
-                    # excluded during the bounds check.
-                    return galsim.PositionD(1.e99, 1.e99)
-            image_pos = [ safe_to_image(iamge.wcs,r,d) for r,d in zip(ra, dec) ]
+                    # In this case return None, which we can get rid of simply.
+                    return None
+            image_pos = [ safe_to_image(image.wcs,r,d) for r,d in zip(ra, dec) ]
+            image_pos = [ pos for pos in image_pos if pos is not None ]
+            logger.debug("Resulting image_pos list has %s positions",len(image_pos))
         else:
             if x_col not in cat.dtype.names:
                 raise ValueError("x_col = %s is not a column in %s"%(x_col,cat_file_name))
@@ -798,7 +797,13 @@ class InputFiles(Input):
                 raise ValueError("y_col = %s is not a column in %s"%(y_col,cat_file_name))
             x_values = cat[x_col]
             y_values = cat[y_col]
+            logger.debug("Initially %d positions",len(x_values))
             image_pos = [ galsim.PositionD(x,y) for x,y in zip(x_values, y_values) ]
+
+        # Check for objects well off the edge.  We won't use them.
+        big_bounds = image.bounds.expand(self.stamp_size)
+        image_pos = [ pos for pos in image_pos if big_bounds.includes(pos) ]
+        logger.debug("After remove those that are off the image, len = %s",len(image_pos))
 
         # Make the list of sky values:
         if sky_col is not None:
