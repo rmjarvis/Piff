@@ -537,7 +537,7 @@ class InputFiles(Input):
 
             image_pos, sky, gain = self.readStarCatalog(
                     cat_file_name, cat_hdu, x_col, y_col,
-                    ra_col, dec_col, ra_units, dec_units, image.wcs,
+                    ra_col, dec_col, ra_units, dec_units, image,
                     flag_col, skip_flag, use_flag, sky_col, gain_col,
                     sky, gain, nstars, image_file_name, logger)
             # Check for objects well off the edge.  We won't use them.
@@ -681,7 +681,7 @@ class InputFiles(Input):
             return mask
 
     def readStarCatalog(self, cat_file_name, cat_hdu, x_col, y_col,
-                        ra_col, dec_col, ra_units, dec_units, wcs,
+                        ra_col, dec_col, ra_units, dec_units, image,
                         flag_col, skip_flag, use_flag, sky_col, gain_col,
                         sky, gain, nstars, image_file_name, logger):
         """Read in the star catalogs and return lists of positions for each star in each image.
@@ -694,7 +694,7 @@ class InputFiles(Input):
         :param dec_col:         The name of a column with Dec values.
         :param ra_units:        The units of the ra column.
         :param dec_units:       The units of the dec column.
-        :param wcs:             The WCS to use to convert from Ra,Dec -> x,y.
+        :param image:           The image that was already read in (mostly for the wcs).
         :param flag_col:        The name of a column with flag values.
         :param skip_flag:       The flag indicating which items to not use. [default: -1]
                                 Items with flag & skip_flag != 0 will be skipped.
@@ -751,19 +751,46 @@ class InputFiles(Input):
         if ra_col is not None or dec_col is not None:
             if ra_col is None or dec_col is None:
                 raise ValueError("ra_col and dec_col are both required if one is provided.")
+            logger.debug("Starting to make a list of positions from ra, dec")
             ra_values = cat[ra_col]
             dec_values = cat[dec_col]
             ra_units = galsim.AngleUnit.from_name(ra_units)
             dec_units = galsim.AngleUnit.from_name(dec_units)
+            ra = ra_values * ra_units
+            dec = dec_values * dec_units
+            logger.debug("Initially %d positions",len(ra))
+
+            # First limit to only those that could possibly be on the image by checking the
+            # min/max ra and dec from the image corners.
+            cen = image.wcs.toWorld(image.center)
+            logger.debug("Center at %s",cen)
+            x_corners = [image.xmin, image.xmin, image.xmax, image.xmax]
+            y_corners = [image.ymin, image.ymax, image.ymax, image.ymin]
+            corners = [image.wcs.toWorld(galsim.PositionD(x,y))
+                       for (x,y) in zip(x_corners, y_corners)]
+            logger.debug("Corners at %s",corners)
+            min_ra = np.min([c.ra.wrap(cen.ra) for c in corners])
+            max_ra = np.max([c.ra.wrap(cen.ra) for c in corners])
+            min_dec = np.min([c.dec.wrap(cen.dec) for c in corners])
+            max_dec = np.max([c.dec.wrap(cen.dec) for c in corners])
+            logger.debug("RA range = %s .. %s",min_ra,max_ra)
+            logger.debug("Dec range = %s .. %s",min_dec,max_dec)
+            use = [(ra.wrap(cen.ra) > min_ra) & (ra.wrap(cen.ra) < max_ra) &
+                   (dec.wrap(cen.dec) > min_dec) & (dec.wrap(cen.dec) < max_dec)]
+            ra = ra[use]
+            dec = dec[use]
+            logger.debug("After limiting to image ra,dec range, len = %s",len(ra))
+
+            # Now convert to x,y
             def safe_to_image(wcs, ra, dec):
                 try:
-                    return wcs.toImage(galsim.CelestialCoord(ra*ra_units, dec*dec_units))
+                    return wcs.toImage(galsim.CelestialCoord(ra, dec))
                 except galsim.GalSimError:  # pragma: no cover
                     # If the ra,dec is way off the image, this might fail to converge.
                     # In this case return something clearly not on an image so it gets
                     # excluded during the bounds check.
                     return galsim.PositionD(1.e99, 1.e99)
-            image_pos = [ safe_to_image(wcs,ra,dec) for ra,dec in zip(ra_values, dec_values) ]
+            image_pos = [ safe_to_image(iamge.wcs,r,d) for r,d in zip(ra, dec) ]
         else:
             if x_col not in cat.dtype.names:
                 raise ValueError("x_col = %s is not a column in %s"%(x_col,cat_file_name))
