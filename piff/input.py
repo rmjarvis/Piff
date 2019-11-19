@@ -19,9 +19,11 @@
 from __future__ import print_function
 from past.builtins import basestring
 import numpy as np
+import scipy
 import glob
 import os
 
+from .util import hsm
 
 class Input(object):
     """The base class for handling inputs for building a Piff model.
@@ -167,6 +169,23 @@ class Input(object):
                     star = star.addPoisson(gain=g)
                 stars.append(star)
                 nstars_in_image += 1
+
+            # TODO: Make this optional, probaby an outlier section of input field.
+            # Calculate the hsm size for each star and throw out extreme outliers.
+            sigma = [hsm(star)[3] for star in stars]
+            med_sigma = np.median(sigma)
+            iqr_sigma = scipy.stats.iqr(sigma)
+            logger.debug("Doing hsm sigma rejection.")
+            while np.max(np.abs(sigma - med_sigma)) > 10 * iqr_sigma:
+                logger.debug("median = %s, iqr = %s, max_diff = %s",
+                             med_sigma, iqr_sigma, np.max(np.abs(sigma-med_sigma)))
+                k = np.argmax(np.abs(sigma-med_sigma))
+                logger.debug("remove k=%d: sigma = %s, pos = %s",k,sigma[k],stars[k].image_pos)
+                del sigma[k]
+                del stars[k]
+                med_sigma = np.median(sigma)
+                iqr_sigma = scipy.stats.iqr(sigma)
+
         logger.warning("Read a total of %d stars from %d image%s",len(stars),len(self.images),
                        "s" if len(self.images) > 1 else "")
 
