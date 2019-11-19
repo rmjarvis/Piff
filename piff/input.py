@@ -87,15 +87,18 @@ class Input(object):
             logger.debug("Making star list")
         else:
             logger.debug("Making star list from %d catalogs", len(self.chipnums))
+
         for image_num in range(len(self.chipnums)):
             image = self.images[image_num]
             wt = self.weight[image_num]
             image_pos = self.image_pos[image_num]
             sky = self.sky[image_num]
             gain = self.gain[image_num]
+            satur = self.satur[image_num]
             chipnum = self.chipnums[image_num]
             logger.info("Processing catalog %s with %d stars",chipnum,len(image_pos))
             nstars_in_image = 0
+
             for k in range(len(image_pos)):
                 x = image_pos[k].x
                 y = image_pos[k].y
@@ -129,7 +132,14 @@ class Input(object):
 
                 # if a star is totally masked, then don't add it!
                 if np.all(wt_stamp.array == 0):
-                    logger.warning("Star at position %f,%f is completely masked."%(x,y))
+                    logger.warning("Star at position %f,%f is completely masked.",x,y)
+                    logger.warning("Skipping this star.")
+                    continue
+
+                # If any pixels are saturated, skip it.
+                if satur is not None and np.max(stamp.array) > satur:
+                    logger.warning("Star at position %f,%f has saturated pixels.",x,y)
+                    logger.warning("Maximum value is %f.",np.max(stamp.array))
                     logger.warning("Skipping this star.")
                     continue
 
@@ -313,6 +323,8 @@ class InputFiles(Input):
                             None] It is an error for both gain and gain_col to be specified.
                             If both are None, then no additional noise will be added to account
                             for the Poisson noise from the galaxy flux.
+            :satur:         The staturation level.  If any pixels for a star exceed this, then
+                            the star is skipped. [default: None]
             :min_snr:       The minimum S/N ratio to use.  If an input star is too faint, it is
                             removed from the input list of PSF stars.
             :max_snr:       The maximum S/N ratio to allow for any given star.  If an input star
@@ -372,6 +384,7 @@ class InputFiles(Input):
                 'remove_signal_from_weight' : bool,
                 'stamp_size' : int,
                 'gain' : str,
+                'satur' : str,
                 'min_snr' : float,
                 'max_snr' : float,
                 'use_partial' : bool,
@@ -479,6 +492,7 @@ class InputFiles(Input):
         self.image_pos = []
         self.sky = []
         self.gain = []
+        self.satur = []
         self.image_file_name = []
         self.cat_file_name = []
 
@@ -533,13 +547,14 @@ class InputFiles(Input):
             gain_col = params.get('gain_col', None)
             sky = params.get('sky', None)
             gain = params.get('gain', None)
+            satur = params.get('satur', None)
             nstars = params.get('nstars', None)
 
-            image_pos, sky, gain = self.readStarCatalog(
+            image_pos, sky, gain, satur = self.readStarCatalog(
                     cat_file_name, cat_hdu, x_col, y_col,
                     ra_col, dec_col, ra_units, dec_units, image,
                     flag_col, skip_flag, use_flag, sky_col, gain_col,
-                    sky, gain, nstars, image_file_name, logger)
+                    sky, gain, satur, nstars, image_file_name, logger)
 
             if config.get('remove_signal_from_weight', False):
                 # Subtract off the mean sky, since this isn't part of the "signal" we want to
@@ -566,6 +581,7 @@ class InputFiles(Input):
             self.image_pos.append(image_pos)
             self.sky.append(sky)
             self.gain.append(gain)
+            self.satur.append(satur)
 
         self.min_snr = config.get('min_snr', None)
         self.max_snr = config.get('max_snr', 100)
@@ -680,7 +696,7 @@ class InputFiles(Input):
     def readStarCatalog(self, cat_file_name, cat_hdu, x_col, y_col,
                         ra_col, dec_col, ra_units, dec_units, image,
                         flag_col, skip_flag, use_flag, sky_col, gain_col,
-                        sky, gain, nstars, image_file_name, logger):
+                        sky, gain, satur, nstars, image_file_name, logger):
         """Read in the star catalogs and return lists of positions for each star in each image.
 
         :param cat_file_name:   The name of the catalog file to read in.
@@ -703,11 +719,13 @@ class InputFiles(Input):
                                 keyword to read a value from the FITS header.
         :param gain:            Either a float value for the gain to use for all objects or a str
                                 keyword to read a value from the FITS header.
+        :param satur:           Either a float value for the saturation level to use or a str
+                                keyword to read a value from the FITS header.
         :param nstars:          Optionally a maximum number of stars to use.
         :param image_file_name: The image file name in case needed for header values.
         :param logger:          A logger object for logging debug info. [default: None]
 
-        :returns: lists image_pos, sky, gain
+        :returns: lists image_pos, sky, gain, satur
         """
         import fitsio
         import galsim
@@ -850,7 +868,21 @@ class InputFiles(Input):
         else:
             gain = [None] * len(cat)
 
-        return image_pos, sky, gain
+        # Get the saturation level
+        if satur is not None:
+            try:
+                satur = float(satur)
+                logger.debug("Using given saturation value: %s",satur)
+            except ValueError:
+                fits = fitsio.FITS(image_file_name)
+                hdu = 1 if image_file_name.endswith('.fz') else 0
+                header = fits[hdu].read_header()
+                if satur not in header:
+                    raise KeyError("Key %s not found in FITS header"%satur)
+                satur = float(header[satur])
+                logger.debug("Using saturation from header: %s",satur)
+
+        return image_pos, sky, gain, satur
 
     def setPointing(self, ra, dec, logger=None):
         """Set the pointing attribute based on the input ra, dec (given in the initializer)
