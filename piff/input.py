@@ -490,6 +490,9 @@ class InputFiles(Input):
 
         if cat_list is not None:
             logger.debug('cat_list = %s',cat_list)
+            if len(cat_list) == 1 and len(image_list) > 1:
+                logger.info("Using the same catlist for all image")
+                cat_list = cat_list * len(image_list)
             if nimages is not None and nimages != len(cat_list):
                 raise ValueError("nimages = %s doesn't match length of cat_file_name list (%d)"%(
                         nimages, len(cat_list)))
