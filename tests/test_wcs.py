@@ -332,11 +332,11 @@ def test_single():
     }
     if __name__ != '__main__':
         config['verbose'] = 0
-    with CaptureLog() as cl:
+    with CaptureLog(level=2) as cl:
         psf = piff.process(config, cl.logger)
     #print('without nproc, log = ',cl.output)
-    assert "props = {'chipnum': 1," in cl.output
-    assert "props = {'chipnum': 2," in cl.output
+    assert "Building solution for chip 1" in cl.output
+    assert "Building solution for chip 2" in cl.output
 
     for chipnum, data, wcs in [(1,data1,wcs1), (2,data2,wcs2)]:
         for k in range(nstars):
@@ -356,6 +356,7 @@ def test_single():
 
     # Do again in parallel
     config['psf']['nproc'] = 2
+    config['input']['nproc'] = -1
     psf = piff.process(config)
 
     for chipnum, data, wcs in [(1,data1,wcs1), (2,data2,wcs2)]:
@@ -372,12 +373,13 @@ def test_single():
             np.testing.assert_almost_equal(star.fit.params, [s,e1,e2], decimal=6)
 
     # Finally, check that the logger properly captures the subprocess logs
-    with CaptureLog() as cl:
+    with CaptureLog(level=2) as cl:
         psf = piff.process(config, cl.logger)
     #print('with nproc=2, log = ',cl.output)
-    assert "props = {'chipnum': 1," in cl.output
-    assert "props = {'chipnum': 2," in cl.output
-
+    assert "Processing catalog 1" in cl.output
+    assert "Processing catalog 2" in cl.output
+    assert "Building solution for chip 1" in cl.output
+    assert "Building solution for chip 2" in cl.output
 
 @timer
 def test_pickle():
@@ -521,9 +523,15 @@ def test_newdes():
     np.testing.assert_equal(image2.array, image.array)
 
 if __name__ == '__main__':
+    #import cProfile, pstats
+    #pr = cProfile.Profile()
+    #pr.enable()
     test_focal()
     test_wrongwcs()
     test_single()
     test_pickle()
     test_olddes()
     test_newdes()
+    #pr.disable()
+    #ps = pstats.Stats(pr).sort_stats('tottime')
+    #ps.print_stats(20)
