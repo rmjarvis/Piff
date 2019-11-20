@@ -193,3 +193,78 @@ def hsm(star):
     flag = mom.moments_status
 
     return flux, center.x, center.y, sigma, shape.g1, shape.g2, flag
+
+def _run_multi_helper(func, i, args, kwargs, logger):
+    from io import StringIO
+    import logging
+    if isinstance(logger, int):
+        # In multiprocessing, we cannot pass in the logger, so log to a string and then
+        # return that back at the end to be logged by the parent process.
+        logger1 = logging.getLogger('logtostring')
+        buf = StringIO()
+        handler = logging.StreamHandler(buf)
+        logger1.addHandler(handler)
+        logger1.setLevel(logger) # Input logger in this case is the level to use.
+        logger1 = galsim.config.LoggerWrapper(logger1)
+    else:
+        logger1 = galsim.config.LoggerWrapper(logger)
+
+    out = func(*args, logger=logger1, **kwargs)
+
+    if isinstance(logger, int):
+        handler.flush()
+        buf.flush()
+        return i, out, buf.getvalue()
+    else:
+        return i, out, None
+
+
+def run_multi(func, nproc, args, kwargs, logger):
+    """Run a function possibly in multiprocessing mode.
+
+    This is basically just doing a Pool.map, but it handles the logger properly (which cannot
+    be pickled, so it cannot be passed to the function being run by the workers).
+
+    :param func:    The function to run.  Signature should be:
+                        func(*args, logger=logger, **kwargs)
+    :param nproc:   How many processes to run.  If nproc=1, no multiprocessing is done.
+                    nproc <= 0 means use all the cores.
+    :param args:    a list of args for func for each job to run.
+    :param kwargs:  a list of kwargs for func for each job to run.
+    :param logger:  The logger you would pass to func in single-processor mode.
+
+    :returns:   The output of func(*args[i], **kwargs[i]) for each item in the args, kwargs lists.
+    """
+    from multiprocessing import Pool
+    njobs = len(args)
+    assert len(args) == len(kwargs)
+    nproc = galsim.config.util.UpdateNProc(nproc, len(args), {}, logger)
+
+    output_list = [None] * njobs
+
+    def log_output(result):
+        i, out, log = result
+        output_list[i] = out
+        if log is not None:
+            logger.info(log)
+
+    if nproc == 1:
+        for i in range(njobs):
+            result = _run_multi_helper(func, i, args[i], kwargs[i], logger)
+            log_output(result)
+    else:
+        with Pool(nproc) as pool:
+            results = []
+            for i in range(njobs):
+                result = pool.apply_async(_run_multi_helper,
+                                          args=(func, i, args[i], kwargs[i], logger.logger.level),
+                                          callback=log_output)
+                results.append(result)
+            # Make sure we get all the results.  Without this, it works fine on success, but
+            # errors seems to be swallowed.
+            [result.get() for result in results]
+            # These are always necessary to close out the pool.
+            pool.close()
+            pool.join()
+
+    return output_list
