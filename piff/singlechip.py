@@ -21,25 +21,12 @@ from __future__ import print_function
 import numpy as np
 import copy
 import galsim
-import logging
-from io import StringIO
 
 from .psf import PSF
-from .util import write_kwargs, read_kwargs, make_dtype, adjust_value
+from .util import write_kwargs, read_kwargs, make_dtype, adjust_value, run_multi
 
 # Used by SingleChipPSF.fit
 def single_chip_run(chipnum, single_psf, stars, wcs, pointing, logger):
-    if isinstance(logger, int):
-        # In multiprocessing, we cannot pass in the logger, so log to a string and then
-        # return that back at the end to be logged by the parent process.
-        logger1 = logging.getLogger('logtostring')
-        buf = StringIO()
-        handler = logging.StreamHandler(buf)
-        logger1.addHandler(handler)
-        logger1.setLevel(logger) # Input logger in this case is the level to use.
-        logger1 = galsim.config.LoggerWrapper(logger1)
-    else:
-        logger1 = galsim.config.LoggerWrapper(logger)
     # Make a copy of single_psf for each chip
     psf_chip = copy.deepcopy(single_psf)
 
@@ -48,15 +35,10 @@ def single_chip_run(chipnum, single_psf, stars, wcs, pointing, logger):
     wcs_chip = { chipnum : wcs[chipnum] }
 
     # Run the psf_chip fit function using this stars and wcs (and the same pointing)
-    logger1.warning("Building solution for chip %s with %d stars", chipnum, len(stars_chip))
-    psf_chip.fit(stars_chip, wcs_chip, pointing, logger=logger1)
-    if isinstance(logger, int):
-        handler.flush()
-        buf.flush()
-        return chipnum, psf_chip, buf.getvalue()
-    else:
-        return chipnum, psf_chip, None
+    logger.warning("Building solution for chip %s with %d stars", chipnum, len(stars_chip))
+    psf_chip.fit(stars_chip, wcs_chip, pointing, logger=logger)
 
+    return psf_chip
 
 class SingleChipPSF(PSF):
     """A PSF class that uses a separate PSF solution for each chip
@@ -117,39 +99,20 @@ class SingleChipPSF(PSF):
                                 [Note: pointing should be None if the WCS is not a CelestialWCS]
         :param logger:          A logger object for logging debug info. [default: None]
         """
-        from itertools import repeat
-        from multiprocessing import Pool
-
         logger = galsim.config.LoggerWrapper(logger)
         self.stars = stars
         self.wcs = wcs
         self.pointing = pointing
         self.psf_by_chip = {}
 
-        nproc = galsim.config.util.UpdateNProc(self.nproc, len(wcs), {}, logger)
-
-        def log_output(output):
-            chipnum, psf, log = output
-            self.psf_by_chip[chipnum] = psf
-            if log is not None:
-                logger.info(log)
-
         chipnums = list(wcs.keys())
-        if nproc == 1:
-            for chipnum in chipnums:
-                args = (chipnum, self.single_psf, stars, wcs, pointing, logger)
-                output = single_chip_run(*args)
-                log_output(output)
-        else:
-            with Pool(nproc) as pool:
-                results = []
-                for chipnum in chipnums:
-                    args = (chipnum, self.single_psf, stars, wcs, pointing, logger.logger.level)
-                    result = pool.apply_async(single_chip_run, args=args, callback=log_output)
-                    results.append(result)
-                [result.get() for result in results]
-                pool.close()
-                pool.join()
+        args = [(chipnum, self.single_psf, stars, wcs, pointing) for chipnum in chipnums]
+        kwargs = [{} for chipnum in chipnums]
+
+        output = run_multi(single_chip_run, self.nproc, args, kwargs, logger)
+
+        for chipnum, psf in zip(chipnums, output):
+            self.psf_by_chip[chipnum] = psf
 
         # update stars from psf outlier rejection
         self.stars = [ star for chipnum in chipnums for star in self.psf_by_chip[chipnum].stars ]
