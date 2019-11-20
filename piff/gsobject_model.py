@@ -202,8 +202,8 @@ class GSObjectModel(Model):
         try:
             params_var = np.diag(results.covar)
         except (ValueError, AttributeError) as e:
-            logger.warning("Failed to get params_var")
-            logger.warning("  -- Caught exception: %s",e)
+            logger.debug("Failed to get params_var")
+            logger.debug("  -- Caught exception: %s",e)
             # results.covar is either None or does not exist
             params_var = np.zeros(6)
 
