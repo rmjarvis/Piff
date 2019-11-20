@@ -20,7 +20,7 @@ import fitsio
 import os
 import warnings
 
-from piff_test_helper import get_script_name, timer
+from piff_test_helper import get_script_name, timer, CaptureLog
 
 # Helper function for drawing an image of a number of Moffat stars
 def drawImage(xsize, ysize, wcs, x, y, e1, e2, s):
@@ -332,7 +332,11 @@ def test_single():
     }
     if __name__ != '__main__':
         config['verbose'] = 0
-    psf = piff.process(config)
+    with CaptureLog() as cl:
+        psf = piff.process(config, cl.logger)
+    #print('without nproc, log = ',cl.output)
+    assert "props = {'chipnum': 1," in cl.output
+    assert "props = {'chipnum': 2," in cl.output
 
     for chipnum, data, wcs in [(1,data1,wcs1), (2,data2,wcs2)]:
         for k in range(nstars):
@@ -349,6 +353,31 @@ def test_single():
             star = psf.drawStar(star)
             #print('  fitted s,e1,e2 = ',star.fit.params)
             np.testing.assert_almost_equal(star.fit.params, [s,e1,e2], decimal=6)
+
+    # Do again in parallel
+    config['psf']['nproc'] = 2
+    psf = piff.process(config)
+
+    for chipnum, data, wcs in [(1,data1,wcs1), (2,data2,wcs2)]:
+        for k in range(nstars):
+            x = data['x'][k]
+            y = data['y'][k]
+            e1 = data['e1'][k]
+            e2 = data['e2'][k]
+            s = data['s'][k]
+            image_pos = galsim.PositionD(x,y)
+            star = piff.Star.makeTarget(x=x, y=y, wcs=wcs, stamp_size=48, pointing=field_center,
+                                        chipnum=chipnum)
+            star = psf.drawStar(star)
+            np.testing.assert_almost_equal(star.fit.params, [s,e1,e2], decimal=6)
+
+    # Finally, check that the logger properly captures the subprocess logs
+    with CaptureLog() as cl:
+        psf = piff.process(config, cl.logger)
+    #print('with nproc=2, log = ',cl.output)
+    assert "props = {'chipnum': 1," in cl.output
+    assert "props = {'chipnum': 2," in cl.output
+
 
 @timer
 def test_pickle():

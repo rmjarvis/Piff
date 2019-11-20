@@ -21,22 +21,58 @@ from __future__ import print_function
 import numpy as np
 import copy
 import galsim
+import logging
+from io import StringIO
 
 from .psf import PSF
 from .util import write_kwargs, read_kwargs, make_dtype, adjust_value
 
+# Used by SingleChipPSF.fit
+def single_chip_run(chipnum, single_psf, stars, wcs, pointing, logger):
+    if isinstance(logger, int):
+        # In multiprocessing, we cannot pass in the logger, so log to a string and then
+        # return that back at the end to be logged by the parent process.
+        logger1 = logging.getLogger('logtostring')
+        buf = StringIO()
+        handler = logging.StreamHandler(buf)
+        logger1.addHandler(handler)
+        logger1.setLevel(logger) # Input logger in this case is the level to use.
+        logger1 = galsim.config.LoggerWrapper(logger1)
+    else:
+        logger1 = galsim.config.LoggerWrapper(logger)
+    # Make a copy of single_psf for each chip
+    psf_chip = copy.deepcopy(single_psf)
+
+    # Break the list of stars up into a list for each chip
+    stars_chip = [ s for s in stars if s['chipnum'] == chipnum ]
+    wcs_chip = { chipnum : wcs[chipnum] }
+
+    # Run the psf_chip fit function using this stars and wcs (and the same pointing)
+    logger1.warning("Building solution for chip %s with %d stars", chipnum, len(stars_chip))
+    psf_chip.fit(stars_chip, wcs_chip, pointing, logger=logger1)
+    if isinstance(logger, int):
+        handler.flush()
+        buf.flush()
+        return chipnum, psf_chip, buf.getvalue()
+    else:
+        return chipnum, psf_chip, None
+
+
 class SingleChipPSF(PSF):
     """A PSF class that uses a separate PSF solution for each chip
     """
-    def __init__(self, single_psf, extra_interp_properties=None):
+    def __init__(self, single_psf, nproc=1, extra_interp_properties=None):
         """
         :param single_psf:  A PSF instance to use for the PSF solution on each chip.
                             (This will be turned into nchips copies of the provided object.)
+        :param nproc:       How many multiprocessing processes to use for running multiple
+                            chips at once. [default: 1]
         :param extra_interp_properties:     A list of any extra properties that will be used for
                                             the interpolation in addition to (u,v).
                                             [default: None]
         """
         self.single_psf = single_psf
+        self.nproc = nproc
         if extra_interp_properties is None:
             self.extra_interp_properties = []
         else:
@@ -44,6 +80,7 @@ class SingleChipPSF(PSF):
 
         self.kwargs = {
             'single_psf': 0,
+            'nproc' : nproc,
         }
 
     @classmethod
@@ -60,6 +97,7 @@ class SingleChipPSF(PSF):
 
         config_psf = config_psf.copy()  # Don't alter the original dict.
         config_psf.pop('type', None)
+        nproc = config_psf.pop('nproc', 1)
 
         # If there is a "single_type" specified, call that the type for now.
         if 'single_type' in config_psf:
@@ -68,7 +106,7 @@ class SingleChipPSF(PSF):
         # Now the regular PSF process function can process the dict.
         single_psf = piff.PSF.process(config_psf, logger)
 
-        return { 'single_psf' : single_psf }
+        return { 'single_psf' : single_psf, 'nproc' : nproc }
 
     def fit(self, stars, wcs, pointing, logger=None):
         """Fit interpolated PSF model to star data using standard sequence of operations.
@@ -79,25 +117,42 @@ class SingleChipPSF(PSF):
                                 [Note: pointing should be None if the WCS is not a CelestialWCS]
         :param logger:          A logger object for logging debug info. [default: None]
         """
+        from itertools import repeat
+        from multiprocessing import Pool
+
         logger = galsim.config.LoggerWrapper(logger)
         self.stars = stars
         self.wcs = wcs
         self.pointing = pointing
         self.psf_by_chip = {}
-        for chipnum in wcs:
-            # Make a copy of single_psf for each chip
-            psf_chip = copy.deepcopy(self.single_psf)
-            self.psf_by_chip[chipnum] = psf_chip
 
-            # Break the list of stars up into a list for each chip
-            stars_chip = [ s for s in stars if s['chipnum'] == chipnum ]
-            wcs_chip = { chipnum : wcs[chipnum] }
+        nproc = galsim.config.util.UpdateNProc(self.nproc, len(wcs), {}, logger)
 
-            # Run the psf_chip fit function using this stars and wcs (and the same pointing)
-            logger.warning("Building solution for chip %s with %d stars", chipnum, len(stars_chip))
-            psf_chip.fit(stars_chip, wcs_chip, pointing, logger=logger)
+        def log_output(output):
+            chipnum, psf, log = output
+            self.psf_by_chip[chipnum] = psf
+            if log is not None:
+                logger.info(log)
+
+        chipnums = list(wcs.keys())
+        if nproc == 1:
+            for chipnum in chipnums:
+                args = (chipnum, self.single_psf, stars, wcs, pointing, logger)
+                output = single_chip_run(*args)
+                log_output(output)
+        else:
+            with Pool(nproc) as pool:
+                results = []
+                for chipnum in chipnums:
+                    args = (chipnum, self.single_psf, stars, wcs, pointing, logger.logger.level)
+                    result = pool.apply_async(single_chip_run, args=args, callback=log_output)
+                    results.append(result)
+                [result.get() for result in results]
+                pool.close()
+                pool.join()
+
         # update stars from psf outlier rejection
-        self.stars = [ star for chipnum in wcs for star in self.psf_by_chip[chipnum].stars ]
+        self.stars = [ star for chipnum in chipnums for star in self.psf_by_chip[chipnum].stars ]
 
     def drawStar(self, star, copy_image=True):
         """Generate PSF image for a given star.
