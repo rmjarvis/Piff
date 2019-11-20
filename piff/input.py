@@ -66,9 +66,12 @@ class Input(object):
         # Get the pointing (the coordinate center of the field of view)
         pointing = input_handler.getPointing(logger)
 
-        return stars, wcs, input_handler.pointing
+        return stars, wcs, pointing
 
-    def _makeStarsFromImage(self, image, wt, image_pos, sky, gain, satur, chipnum, logger):
+    @staticmethod
+    def _makeStarsFromImage(image, wt, image_pos, sky, gain, satur, chipnum,
+                            stamp_size, min_snr, max_snr, pointing, use_partial,
+                            logger):
         """Make stars from a single input image
         """
         logger.info("Processing catalog %s with %d stars",chipnum,len(image_pos))
@@ -80,16 +83,16 @@ class Input(object):
             y = image_pos[k].y
             icen = int(x+0.5)
             jcen = int(y+0.5)
-            half_size = self.stamp_size // 2
-            bounds = galsim.BoundsI(icen+half_size-self.stamp_size+1, icen+half_size,
-                                    jcen+half_size-self.stamp_size+1, jcen+half_size)
+            half_size = stamp_size // 2
+            bounds = galsim.BoundsI(icen+half_size-stamp_size+1, icen+half_size,
+                                    jcen+half_size-stamp_size+1, jcen+half_size)
             if not image.bounds.includes(bounds):
                 bounds = bounds & image.bounds
                 if not bounds.isDefined():
                     logger.warning("Star at position %f,%f is off the edge of the image.  "
                                     "Skipping this star.", x, y)
                     continue
-                if self.use_partial:
+                if use_partial:
                     logger.info("Star at position %f,%f overlaps the edge of the image.  "
                                 "Using smaller than the full stamp size: %s", x, y, bounds)
                 else:
@@ -120,21 +123,21 @@ class Input(object):
                 continue
 
             # Check the snr and limit it if appropriate
-            snr = self.calculateSNR(stamp, wt_stamp)
+            snr = InputFiles.calculateSNR(stamp, wt_stamp)
             logger.debug("SNR = %f",snr)
-            if self.min_snr is not None and snr < self.min_snr:
+            if min_snr is not None and snr < min_snr:
                 logger.info("Skipping star at position %f,%f with snr=%f."%(x,y,snr))
                 continue
-            if self.max_snr > 0 and snr > self.max_snr:
-                factor = (self.max_snr / snr)**2
+            if max_snr > 0 and snr > max_snr:
+                factor = (max_snr / snr)**2
                 logger.debug("Scaling noise by factor of %f to achieve snr=%f",
-                                factor, self.max_snr)
+                                factor, max_snr)
                 wt_stamp = wt_stamp * factor
-                snr = self.max_snr
+                snr = max_snr
             props['snr'] = snr
 
             pos = galsim.PositionD(x,y)
-            data = StarData(stamp, pos, weight=wt_stamp, pointing=self.pointing,
+            data = StarData(stamp, pos, weight=wt_stamp, pointing=pointing,
                             properties=props)
             star = Star(data, None)
             g = gain[k]
@@ -186,7 +189,8 @@ class Input(object):
 
         args = list(zip(self.images, self.weight, self.image_pos, self.sky, self.gain, self.satur,
                         self.chipnums))
-        kwargs = [{}] * len(args)
+        kwargs = [dict(stamp_size=self.stamp_size, min_snr=self.min_snr, max_snr=self.max_snr,
+                       pointing=self.pointing, use_partial=self.use_partial)] * len(args)
 
         stars = run_multi(self._makeStarsFromImage, self.nproc, args, kwargs, logger)
 
