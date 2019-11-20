@@ -22,8 +22,10 @@ import numpy as np
 import scipy
 import glob
 import os
+import galsim
 
-from .util import hsm
+from .util import hsm, run_multi
+from .star import Star, StarData
 
 class Input(object):
     """The base class for handling inputs for building a Piff model.
@@ -31,6 +33,7 @@ class Input(object):
     This is essentially an abstract base class intended to define the methods that should be
     implemented by any derived class.
     """
+    nproc = 1  # Sub-classes can overwrite this as an instance attribute.
 
     @classmethod
     def process(cls, config_input, logger=None):
@@ -65,6 +68,100 @@ class Input(object):
 
         return stars, wcs, input_handler.pointing
 
+    def _makeStarsFromImage(self, image, wt, image_pos, sky, gain, satur, chipnum, logger):
+        """Make stars from a single input image
+        """
+        logger.info("Processing catalog %s with %d stars",chipnum,len(image_pos))
+        nstars_in_image = 0
+
+        stars = []
+        for k in range(len(image_pos)):
+            x = image_pos[k].x
+            y = image_pos[k].y
+            icen = int(x+0.5)
+            jcen = int(y+0.5)
+            half_size = self.stamp_size // 2
+            bounds = galsim.BoundsI(icen+half_size-self.stamp_size+1, icen+half_size,
+                                    jcen+half_size-self.stamp_size+1, jcen+half_size)
+            if not image.bounds.includes(bounds):
+                bounds = bounds & image.bounds
+                if not bounds.isDefined():
+                    logger.warning("Star at position %f,%f is off the edge of the image.  "
+                                    "Skipping this star.", x, y)
+                    continue
+                if self.use_partial:
+                    logger.info("Star at position %f,%f overlaps the edge of the image.  "
+                                "Using smaller than the full stamp size: %s", x, y, bounds)
+                else:
+                    logger.warning("Star at position %f,%f overlaps the edge of the image.  "
+                                    "Skipping this star.", x, y)
+                    continue
+            stamp = image[bounds]
+            props = { 'chipnum' : chipnum,
+                        'gain' : gain[k] }
+            if sky is not None:
+                logger.debug("Subtracting off sky = %f", sky[k])
+                logger.debug("Median pixel value = %f", np.median(stamp.array))
+                stamp = stamp - sky[k]  # Don't change the original!
+                props['sky'] = sky[k]
+            wt_stamp = wt[bounds]
+
+            # if a star is totally masked, then don't add it!
+            if np.all(wt_stamp.array == 0):
+                logger.warning("Star at position %f,%f is completely masked.",x,y)
+                logger.warning("Skipping this star.")
+                continue
+
+            # If any pixels are saturated, skip it.
+            if satur is not None and np.max(stamp.array) > satur:
+                logger.warning("Star at position %f,%f has saturated pixels.",x,y)
+                logger.warning("Maximum value is %f.",np.max(stamp.array))
+                logger.warning("Skipping this star.")
+                continue
+
+            # Check the snr and limit it if appropriate
+            snr = self.calculateSNR(stamp, wt_stamp)
+            logger.debug("SNR = %f",snr)
+            if self.min_snr is not None and snr < self.min_snr:
+                logger.info("Skipping star at position %f,%f with snr=%f."%(x,y,snr))
+                continue
+            if self.max_snr > 0 and snr > self.max_snr:
+                factor = (self.max_snr / snr)**2
+                logger.debug("Scaling noise by factor of %f to achieve snr=%f",
+                                factor, self.max_snr)
+                wt_stamp = wt_stamp * factor
+                snr = self.max_snr
+            props['snr'] = snr
+
+            pos = galsim.PositionD(x,y)
+            data = StarData(stamp, pos, weight=wt_stamp, pointing=self.pointing,
+                            properties=props)
+            star = Star(data, None)
+            g = gain[k]
+            if g is not None:
+                logger.debug("Adding Poisson noise to weight map according to gain=%f",g)
+                star = star.addPoisson(gain=g)
+            stars.append(star)
+            nstars_in_image += 1
+
+        # TODO: Make this optional, probaby an outlier section of input field.
+        # Calculate the hsm size for each star and throw out extreme outliers.
+        sigma = [hsm(star)[3] for star in stars]
+        med_sigma = np.median(sigma)
+        iqr_sigma = scipy.stats.iqr(sigma)
+        logger.debug("Doing hsm sigma rejection.")
+        while np.max(np.abs(sigma - med_sigma)) > 10 * iqr_sigma:
+            logger.debug("median = %s, iqr = %s, max_diff = %s",
+                            med_sigma, iqr_sigma, np.max(np.abs(sigma-med_sigma)))
+            k = np.argmax(np.abs(sigma-med_sigma))
+            logger.debug("remove k=%d: sigma = %s, pos = %s",k,sigma[k],stars[k].image_pos)
+            del sigma[k]
+            del stars[k]
+            med_sigma = np.median(sigma)
+            iqr_sigma = scipy.stats.iqr(sigma)
+
+        return stars
+
     def makeStars(self, logger=None):
         """Process the input images and star data, cutting out stamps for each star along with
         other relevant information.
@@ -80,111 +177,21 @@ class Input(object):
 
         :returns: a list of Star instances
         """
-        import galsim
-        import piff
         logger = galsim.config.LoggerWrapper(logger)
 
-        stars = []
         if len(self.chipnums) == 1:
             logger.debug("Making star list")
         else:
             logger.debug("Making star list from %d catalogs", len(self.chipnums))
 
-        for image_num in range(len(self.chipnums)):
-            image = self.images[image_num]
-            wt = self.weight[image_num]
-            image_pos = self.image_pos[image_num]
-            sky = self.sky[image_num]
-            gain = self.gain[image_num]
-            satur = self.satur[image_num]
-            chipnum = self.chipnums[image_num]
-            logger.info("Processing catalog %s with %d stars",chipnum,len(image_pos))
-            nstars_in_image = 0
+        args = list(zip(self.images, self.weight, self.image_pos, self.sky, self.gain, self.satur,
+                        self.chipnums))
+        kwargs = [{}] * len(args)
 
-            for k in range(len(image_pos)):
-                x = image_pos[k].x
-                y = image_pos[k].y
-                icen = int(x+0.5)
-                jcen = int(y+0.5)
-                half_size = self.stamp_size // 2
-                bounds = galsim.BoundsI(icen+half_size-self.stamp_size+1, icen+half_size,
-                                        jcen+half_size-self.stamp_size+1, jcen+half_size)
-                if not image.bounds.includes(bounds):
-                    bounds = bounds & image.bounds
-                    if not bounds.isDefined():
-                        logger.warning("Star at position %f,%f is off the edge of the image.  "
-                                       "Skipping this star.", x, y)
-                        continue
-                    if self.use_partial:
-                        logger.info("Star at position %f,%f overlaps the edge of the image.  "
-                                    "Using smaller than the full stamp size: %s", x, y, bounds)
-                    else:
-                        logger.warning("Star at position %f,%f overlaps the edge of the image.  "
-                                       "Skipping this star.", x, y)
-                        continue
-                stamp = image[bounds]
-                props = { 'chipnum' : chipnum,
-                          'gain' : gain[k] }
-                if sky is not None:
-                    logger.debug("Subtracting off sky = %f", sky[k])
-                    logger.debug("Median pixel value = %f", np.median(stamp.array))
-                    stamp = stamp - sky[k]  # Don't change the original!
-                    props['sky'] = sky[k]
-                wt_stamp = wt[bounds]
+        stars = run_multi(self._makeStarsFromImage, self.nproc, args, kwargs, logger)
 
-                # if a star is totally masked, then don't add it!
-                if np.all(wt_stamp.array == 0):
-                    logger.warning("Star at position %f,%f is completely masked.",x,y)
-                    logger.warning("Skipping this star.")
-                    continue
-
-                # If any pixels are saturated, skip it.
-                if satur is not None and np.max(stamp.array) > satur:
-                    logger.warning("Star at position %f,%f has saturated pixels.",x,y)
-                    logger.warning("Maximum value is %f.",np.max(stamp.array))
-                    logger.warning("Skipping this star.")
-                    continue
-
-                # Check the snr and limit it if appropriate
-                snr = self.calculateSNR(stamp, wt_stamp)
-                logger.debug("SNR = %f",snr)
-                if self.min_snr is not None and snr < self.min_snr:
-                    logger.info("Skipping star at position %f,%f with snr=%f."%(x,y,snr))
-                    continue
-                if self.max_snr > 0 and snr > self.max_snr:
-                    factor = (self.max_snr / snr)**2
-                    logger.debug("Scaling noise by factor of %f to achieve snr=%f",
-                                 factor, self.max_snr)
-                    wt_stamp = wt_stamp * factor
-                    snr = self.max_snr
-                props['snr'] = snr
-
-                pos = galsim.PositionD(x,y)
-                data = piff.StarData(stamp, pos, weight=wt_stamp, pointing=self.pointing,
-                                     properties=props)
-                star = piff.Star(data, None)
-                g = gain[k]
-                if g is not None:
-                    logger.debug("Adding Poisson noise to weight map according to gain=%f",g)
-                    star = star.addPoisson(gain=g)
-                stars.append(star)
-                nstars_in_image += 1
-
-            # TODO: Make this optional, probaby an outlier section of input field.
-            # Calculate the hsm size for each star and throw out extreme outliers.
-            sigma = [hsm(star)[3] for star in stars]
-            med_sigma = np.median(sigma)
-            iqr_sigma = scipy.stats.iqr(sigma)
-            logger.debug("Doing hsm sigma rejection.")
-            while np.max(np.abs(sigma - med_sigma)) > 10 * iqr_sigma:
-                logger.debug("median = %s, iqr = %s, max_diff = %s",
-                             med_sigma, iqr_sigma, np.max(np.abs(sigma-med_sigma)))
-                k = np.argmax(np.abs(sigma-med_sigma))
-                logger.debug("remove k=%d: sigma = %s, pos = %s",k,sigma[k],stars[k].image_pos)
-                del sigma[k]
-                del stars[k]
-                med_sigma = np.median(sigma)
-                iqr_sigma = scipy.stats.iqr(sigma)
+        # Concatenate the star lists into a single list
+        stars = [s for slist in stars for s in slist]
 
         logger.warning("Read a total of %d stars from %d image%s",len(stars),len(self.images),
                        "s" if len(self.images) > 1 else "")
@@ -355,6 +362,8 @@ class InputFiles(Input):
                             full image.  [default: False]
             :nstars:        Stop reading the input file at this many stars.  (This is applied
                             separately to each input catalog.)  [default: None]
+            :nproc:         How many multiprocessing processes to use for reading in data from
+                            multiple chips at once. [default: 1]
 
             :wcs:           Normally, the wcs is automatically read in when reading the image.
                             However, this parameter allows you to optionally provide a different
@@ -374,7 +383,6 @@ class InputFiles(Input):
         :param config:      The configuration dict used to define the above parameters.
         :param logger:      A logger object for logging debug info. [default: None]
         """
-        import galsim
         import copy
         logger = galsim.config.LoggerWrapper(logger)
 
@@ -411,7 +419,7 @@ class InputFiles(Input):
                 'noise' : float,
                 'nstars' : int,
               }
-        ignore = [ 'nimages', 'ra', 'dec', 'wcs' ]  # These are parsed separately
+        ignore = [ 'nproc', 'nimages', 'ra', 'dec', 'wcs' ]  # These are parsed separately
 
         # We're going to change the config dict a bit. Make a copy so we don't mess up the
         # user's original dict (in case they care).
@@ -428,6 +436,9 @@ class InputFiles(Input):
         image_list = None
         cat_list = None
         dir = None
+
+        if 'nproc' in config:
+            self.nproc = galsim.config.ParseValue(config, 'nproc', base, int)[0]
 
         if 'nimages' in config:
             nimages = galsim.config.ParseValue(config, 'nimages', base, int)[0]
@@ -655,7 +666,6 @@ class InputFiles(Input):
 
         :returns: image, weight
         """
-        import galsim
         # Read in the image
         logger.warning("Reading image file %s",image_file_name)
         image = galsim.fits.read(image_file_name, hdu=image_hdu)
@@ -750,7 +760,6 @@ class InputFiles(Input):
         :returns: lists image_pos, sky, gain, satur
         """
         import fitsio
-        import galsim
 
         # Read in the star catalog
         logger.warning("Reading star catalog %s.",cat_file_name)
@@ -920,7 +929,6 @@ class InputFiles(Input):
            individual WCS functions. [Not implemented currently.]
         """
         import fitsio
-        import galsim
         logger = galsim.config.LoggerWrapper(logger)
 
         if (ra is None) != (dec is None):

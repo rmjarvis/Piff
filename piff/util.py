@@ -200,7 +200,7 @@ def _run_multi_helper(func, i, args, kwargs, logger):
     if isinstance(logger, int):
         # In multiprocessing, we cannot pass in the logger, so log to a string and then
         # return that back at the end to be logged by the parent process.
-        logger1 = logging.getLogger('logtostring')
+        logger1 = logging.getLogger('logtostring_%d'%i)
         buf = StringIO()
         handler = logging.StreamHandler(buf)
         logger1.addHandler(handler)
