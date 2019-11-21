@@ -1,6 +1,7 @@
 branches:
     only:
         - master
+        - optatmo
 
 language: python
 python:
