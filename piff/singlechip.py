@@ -107,9 +107,8 @@ class SingleChipPSF(PSF):
 
         chipnums = list(wcs.keys())
         args = [(chipnum, self.single_psf, stars, wcs, pointing) for chipnum in chipnums]
-        kwargs = [{} for chipnum in chipnums]
 
-        output = run_multi(single_chip_run, self.nproc, args, kwargs, logger)
+        output = run_multi(single_chip_run, self.nproc, args, logger)
 
         for chipnum, psf in zip(chipnums, output):
             self.psf_by_chip[chipnum] = psf

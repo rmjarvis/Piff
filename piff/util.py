@@ -219,7 +219,7 @@ def _run_multi_helper(func, i, args, kwargs, logger):
         return i, out, None
 
 
-def run_multi(func, nproc, args, kwargs, logger):
+def run_multi(func, nproc, args, logger, kwargs=None):
     """Run a function possibly in multiprocessing mode.
 
     This is basically just doing a Pool.map, but it handles the logger properly (which cannot
@@ -230,14 +230,14 @@ def run_multi(func, nproc, args, kwargs, logger):
     :param nproc:   How many processes to run.  If nproc=1, no multiprocessing is done.
                     nproc <= 0 means use all the cores.
     :param args:    a list of args for func for each job to run.
-    :param kwargs:  a list of kwargs for func for each job to run.
     :param logger:  The logger you would pass to func in single-processor mode.
+    :param kwargs:  a list of kwargs for func for each job to run.  May also be a single dict
+                    to use for all jobs. [default: None]
 
     :returns:   The output of func(*args[i], **kwargs[i]) for each item in the args, kwargs lists.
     """
     from multiprocessing import Pool
     njobs = len(args)
-    assert len(args) == len(kwargs)
     nproc = galsim.config.util.UpdateNProc(nproc, len(args), {}, logger)
 
     output_list = [None] * njobs
@@ -250,14 +250,26 @@ def run_multi(func, nproc, args, kwargs, logger):
 
     if nproc == 1:
         for i in range(njobs):
-            result = _run_multi_helper(func, i, args[i], kwargs[i], logger)
+            if isinstance(kwargs, dict):
+                k = kwargs
+            elif kwargs is None:
+                k = {}
+            else:  # pragma: no cover  (We don't use this option currently)
+                k = kwargs[i]
+            result = _run_multi_helper(func, i, args[i], k, logger)
             log_output(result)
     else:
         with Pool(nproc) as pool:
             results = []
             for i in range(njobs):
+                if isinstance(kwargs, dict):
+                    k = kwargs
+                elif kwargs is None:
+                    k = {}
+                else:  # pragma: no cover  (We don't use this option currently)
+                    k = kwargs[i]
                 result = pool.apply_async(_run_multi_helper,
-                                          args=(func, i, args[i], kwargs[i], logger.logger.level),
+                                          args=(func, i, args[i], k, logger.logger.level),
                                           callback=log_output)
                 results.append(result)
             # Make sure we get all the results.  Without this, it works fine on success, but
