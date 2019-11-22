@@ -71,7 +71,7 @@ class Input(object):
     @staticmethod
     def _makeStarsFromImage(image, wt, image_pos, sky, gain, satur, chipnum,
                             stamp_size, min_snr, max_snr, pointing, use_partial,
-                            logger):
+                            hsm_size_reject, logger):
         """Make stars from a single input image
         """
         logger.info("Processing catalog %s with %d stars",chipnum,len(image_pos))
@@ -147,21 +147,21 @@ class Input(object):
             stars.append(star)
             nstars_in_image += 1
 
-        # TODO: Make this optional, probaby an outlier section of input field.
-        # Calculate the hsm size for each star and throw out extreme outliers.
-        sigma = [hsm(star)[3] for star in stars]
-        med_sigma = np.median(sigma)
-        iqr_sigma = scipy.stats.iqr(sigma)
-        logger.debug("Doing hsm sigma rejection.")
-        while np.max(np.abs(sigma - med_sigma)) > 10 * iqr_sigma:
-            logger.debug("median = %s, iqr = %s, max_diff = %s",
-                            med_sigma, iqr_sigma, np.max(np.abs(sigma-med_sigma)))
-            k = np.argmax(np.abs(sigma-med_sigma))
-            logger.debug("remove k=%d: sigma = %s, pos = %s",k,sigma[k],stars[k].image_pos)
-            del sigma[k]
-            del stars[k]
+        if hsm_size_reject != 0:
+            # Calculate the hsm size for each star and throw out extreme outliers.
+            sigma = [hsm(star)[3] for star in stars]
             med_sigma = np.median(sigma)
             iqr_sigma = scipy.stats.iqr(sigma)
+            logger.debug("Doing hsm sigma rejection.")
+            while np.max(np.abs(sigma - med_sigma)) > hsm_size_reject * iqr_sigma:
+                logger.debug("median = %s, iqr = %s, max_diff = %s",
+                                med_sigma, iqr_sigma, np.max(np.abs(sigma-med_sigma)))
+                k = np.argmax(np.abs(sigma-med_sigma))
+                logger.debug("remove k=%d: sigma = %s, pos = %s",k,sigma[k],stars[k].image_pos)
+                del sigma[k]
+                del stars[k]
+                med_sigma = np.median(sigma)
+                iqr_sigma = scipy.stats.iqr(sigma)
 
         return stars
 
@@ -189,10 +189,11 @@ class Input(object):
 
         args = list(zip(self.images, self.weight, self.image_pos, self.sky, self.gain, self.satur,
                         self.chipnums))
-        kwargs = [dict(stamp_size=self.stamp_size, min_snr=self.min_snr, max_snr=self.max_snr,
-                       pointing=self.pointing, use_partial=self.use_partial)] * len(args)
+        kwargs = dict(stamp_size=self.stamp_size, min_snr=self.min_snr, max_snr=self.max_snr,
+                      pointing=self.pointing, use_partial=self.use_partial,
+                      hsm_size_reject=hsm_size_reject)
 
-        stars = run_multi(self._makeStarsFromImage, self.nproc, args, kwargs, logger)
+        stars = run_multi(self._makeStarsFromImage, self.nproc, args, logger, kwargs)
 
         # Concatenate the star lists into a single list
         stars = [s for slist in stars for s in slist]
