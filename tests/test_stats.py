@@ -198,9 +198,14 @@ def generate_starlist(n_samples=500):
 def setup():
     """Build an input image and catalog used by a few tests below.
     """
+    wcs = galsim.TanWCS(
+            galsim.AffineTransform(0.26, 0.05, -0.08, -0.24, galsim.PositionD(1024,1024)),
+            #galsim.AffineTransform(0.26, 0., 0., 0.26, galsim.PositionD(1024,1024)),
+            galsim.CelestialCoord(5 * galsim.arcmin, -25 * galsim.degrees)
+            )
 
     # Make the image (copied from test_single_image in test_simple.py)
-    image = galsim.Image(2048, 2048, scale=0.26)
+    image = galsim.Image(2048, 2048, wcs=wcs)
 
     # Where to put the stars.
     x_list = [ 123.12, 345.98, 567.25, 1094.94, 924.15, 1532.74, 1743.11, 888.39, 1033.29, 1409.31 ]
@@ -210,13 +215,13 @@ def setup():
     sigma = 1.3
     g1 = 0.23
     g2 = -0.17
-    dx = 0.31  # in pixels
-    dy = -0.32
+    du = 0.09  # in arcsec
+    dv = -0.07
     flux = 123.45
-    psf = galsim.Gaussian(sigma=sigma).shear(g1=g1, g2=g2) * flux
+    psf = galsim.Gaussian(sigma=sigma).shear(g1=g1, g2=g2).shift(du,dv) * flux
     for x, y in zip(x_list, y_list):
         bounds = galsim.BoundsI(int(x-31), int(x+32), int(y-31), int(y+32))
-        offset = galsim.PositionD( x-int(x)-0.5 + dx, y-int(y)-0.5 + dy)
+        offset = galsim.PositionD( x-int(x)-0.5, y-int(y)-0.5)
         psf.drawImage(image=image[bounds], method='no_pixel', offset=offset)
     image.addNoise(galsim.GaussianNoise(rng=galsim.BaseDeviate(1234), sigma=1e-6))
 
@@ -539,16 +544,13 @@ def test_starstats_config():
     fluxs_adjust = np.array([s.fit.flux for s in starStats.stars])
     ds_adjust = np.array([s.fit.center for s in starStats.stars])
     # copy the right values from setup()
-    dx = 0.31
-    dy = -0.32
+    du = 0.09
+    dv = -0.07
     flux = 123.45
     # compare fluxes
     np.testing.assert_allclose(fluxs_adjust, flux, rtol=1e-4)
-    # compare dx and dy, keeping in mind that ds_adjust is dx/y * 0.26 (scale)
-    dx_adjust = ds_adjust[:, 0] / 0.26
-    dy_adjust = ds_adjust[:, 1] / 0.26
-    np.testing.assert_allclose(dx_adjust, dx, rtol=1e-4)
-    np.testing.assert_allclose(dy_adjust, dy, rtol=1e-4)
+    np.testing.assert_allclose(ds_adjust[:,0], du, rtol=1e-4)
+    np.testing.assert_allclose(ds_adjust[:,1], dv, rtol=1e-4)
 
     # do once with adjust_stars = False to graphically demonstrate
     config['output']['stats'][0]['file_name'] = star_noadjust_file
