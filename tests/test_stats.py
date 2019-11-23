@@ -221,7 +221,7 @@ def setup():
     psf = galsim.Gaussian(sigma=sigma).shear(g1=g1, g2=g2).shift(du,dv) * flux
     for x, y in zip(x_list, y_list):
         bounds = galsim.BoundsI(int(x-31), int(x+32), int(y-31), int(y+32))
-        offset = galsim.PositionD( x-int(x)-0.5, y-int(y)-0.5)
+        offset = galsim.PositionD(x-int(x)-0.5, y-int(y)-0.5)
         psf.drawImage(image=image[bounds], method='no_pixel', offset=offset)
     image.addNoise(galsim.GaussianNoise(rng=galsim.BaseDeviate(1234), sigma=1e-6))
 
@@ -558,6 +558,77 @@ def test_starstats_config():
     piff.plotify(config, logger)
     assert os.path.isfile(star_noadjust_file)
 
+@timer
+def test_hsmcatalog():
+    """Test HSMCatalog stats type.
+    """
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(verbose=2)
+    else:
+        logger = piff.config.setup_logger(log_file='output/test_hsmcatalog.log')
+
+    image_file = os.path.join('output','test_stats_image.fits')
+    cat_file = os.path.join('output','test_stats_cat.fits')
+    psf_file = os.path.join('output','test_starstats.fits')
+    hsm_file = os.path.join('output', 'test_hsmcatalog.fits')
+    config = {
+        'input' : {
+            'image_file_name' : image_file,
+            'cat_file_name' : cat_file,
+            'stamp_size' : 48
+        },
+        'psf' : {
+            'model' : { 'type' : 'Gaussian',
+                        'fastfit': True,
+                        'include_pixel': False },
+            'interp' : { 'type' : 'Mean' },
+        },
+        'output' : {
+            'file_name' : psf_file,
+            'stats' : [
+                {
+                    'type': 'HSMCatalog',
+                    'file_name': hsm_file,
+                }
+            ]
+        }
+    }
+    piff.piffify(config, logger)
+    assert os.path.isfile(hsm_file)
+
+    data = fitsio.read(hsm_file)
+    for col in ['ra', 'dec', 'x', 'y', 'u', 'v',
+                'T_data', 'g1_data', 'g2_data',
+                'T_model', 'g1_model', 'g2_model',
+                'flux', 'reserve']:
+        assert len(data[col]) == 10
+    true_data = fitsio.read(cat_file)
+
+    np.testing.assert_allclose(data['x'], true_data['x'])
+    np.testing.assert_allclose(data['y'], true_data['y'])
+    np.testing.assert_allclose(data['flux'], 123.45, atol=0.001)
+    np.testing.assert_array_equal(data['reserve'], False)
+    np.testing.assert_allclose(data['T_model'], data['T_data'], rtol=1.e-4)
+    np.testing.assert_allclose(data['g1_model'], data['g1_data'], rtol=1.e-4)
+    np.testing.assert_allclose(data['g2_model'], data['g2_data'], rtol=1.e-4)
+
+    image = galsim.fits.read(image_file)
+    world = [image.wcs.toWorld(galsim.PositionD(x,y)) for x,y in zip(data['x'],data['y'])]
+    np.testing.assert_allclose(data['ra'], [w.ra.deg for w in world], rtol=1.e-4)
+    np.testing.assert_allclose(data['dec'], [w.dec.deg for w in world], rtol=1.e-4)
+
+    # Repeat with non-Celestial WCS
+    wcs = galsim.AffineTransform(0.26, 0.05, -0.08, -0.24, galsim.PositionD(1024,1024))
+    config['input']['wcs'] = wcs
+    piff.piffify(config, logger)
+    data = fitsio.read(hsm_file)
+    np.testing.assert_array_equal(data['ra'], 0.)
+    np.testing.assert_array_equal(data['dec'], 0.)
+    world = [wcs.toWorld(galsim.PositionD(x,y)) for x,y in zip(data['x'],data['y'])]
+    np.testing.assert_allclose(data['u'], [w.x for w in world], rtol=1.e-4)
+    np.testing.assert_allclose(data['v'], [w.y for w in world], rtol=1.e-4)
+
+
 if __name__ == '__main__':
     setup()
     test_twodstats()
@@ -566,3 +637,4 @@ if __name__ == '__main__':
     test_rhostats_config()
     test_shapestats_config()
     test_starstats_config()
+    test_hsmcatalog()
