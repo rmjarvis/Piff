@@ -222,22 +222,19 @@ class Star(object):
         if image is None:
             image = galsim.Image(stamp_size, stamp_size, dtype=float)
 
+        # Make field_pos if we have u,v
+        if u is not None:
+            field_pos = galsim.PositionD(float(u),float(v))
+        else:
+            field_pos = None
+
         # Figure out the image_pos
         if x is None:
-            field_pos = galsim.PositionD(float(u),float(v))
             image_pos = wcs.toImage(field_pos)
             x = image_pos.x
             y = image_pos.y
         else:
             image_pos = galsim.PositionD(float(x),float(y))
-
-        # Make wcs locally accurate affine transformation
-        if x is not None:
-            if u is not None:
-                field_pos = galsim.PositionD(float(u),float(v))
-                wcs = wcs.local(image_pos).withOrigin(image_pos, field_pos)
-            else:
-                field_pos = None
 
         # Make the center of the image (close to) the image_pos
         image.setCenter(int(x+0.5), int(y+0.5))
@@ -509,7 +506,7 @@ class Star(object):
         """
         import galsim
         # The model is in sky coordinates, so figure out what (u,v) corresponds to this offset.
-        jac = self.data.image.wcs.jacobian(self.data.image.true_center)
+        jac = self.data.local_wcs.jacobian()
         dx, dy = offset
         du = jac.dudx * dx + jac.dudy * dy
         dv = jac.dvdx * dx + jac.dvdy * dy
@@ -524,7 +521,7 @@ class Star(object):
         :returns:           The corresponding (dx,dy) in image coordinates.
         """
         import galsim
-        jac = self.data.image.wcs.jacobian(self.data.image.true_center).inverse()
+        jac = self.data.local_wcs.jacobian().inverse()
         du, dv = center
         # The names (u,v) and (x,y) are reversed for jac, since we've taken its inverse,
         # so this looks a little confusing.  e.g. jac.dudx is really (dx/du), etc.
