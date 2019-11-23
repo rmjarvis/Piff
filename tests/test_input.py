@@ -47,6 +47,7 @@ def setup():
     sky = np.mean(data['sky'])
     gain = np.mean(data['gain'])
     print('sky, gain = ',sky,gain)
+    satur = 2000  # Exactly 1 star has a pixel > 2000, so pretend this is the saturation level.
 
     # Add some header values to the first one.
     # Also add some alternate weight and badpix maps to enable some edge-case tests
@@ -54,6 +55,7 @@ def setup():
     with fitsio.FITS(image_file, 'rw') as f:
         f[0].write_key('SKYLEVEL', sky, 'sky level')
         f[0].write_key('GAIN_A', gain, 'gain')
+        f[0].write_key('SATURAT', satur, 'saturation level')
         f[0].write_key('RA', '06:00:00', 'telescope ra')
         f[0].write_key('DEC', '-30:00:00', 'telescope dec')
         wt = f[1].read().copy()
@@ -310,6 +312,32 @@ def test_cols():
     assert len(input.gain[0]) == 100
     np.testing.assert_almost_equal(input.sky[0], sky)
     np.testing.assert_almost_equal(input.gain[0], gain)
+
+    # including satur will skip stars that are over the given saturation value.
+    # (It won't skip them here, just when building the stars list.)
+    config = {
+                'dir' : 'input',
+                'image_file_name' : 'test_input_image_00.fits',
+                'cat_file_name' : 'test_input_cat_00.fits',
+                'sky' : 'SKYLEVEL',
+                'gain' : 'GAIN_A',
+                'satur' : 2000,
+             }
+    input = piff.InputFiles(config, logger=logger)
+    assert input.satur[0] == 2000
+    assert len(input.image_pos[0]) == 100
+
+    config = {
+                'dir' : 'input',
+                'image_file_name' : 'test_input_image_00.fits',
+                'cat_file_name' : 'test_input_cat_00.fits',
+                'sky' : 'SKYLEVEL',
+                'gain' : 'GAIN_A',
+                'satur' : 'SATURAT',
+             }
+    input = piff.InputFiles(config, logger=logger)
+    assert input.satur[0] == 2000
+    assert len(input.image_pos[0]) == 100
 
     # Using flag will skip flagged columns.  Here every 5th item is flagged.
     config = {
@@ -775,6 +803,19 @@ def test_stars():
     input = piff.InputFiles(config, logger=logger)
     stars = input.makeStars(logger=logger)
     assert len(stars) == 91
+
+    # Setting satur will skip any stars with a pixel above that value.
+    # Here there is 1 star with a pixel > 2000.
+    config['satur'] = 'SATURAT'
+    input = piff.InputFiles(config, logger=logger)
+    stars = input.makeStars(logger=logger)
+    assert len(stars) == 90
+    # 7 stars have pixels > 1900
+    config['satur'] = 1900
+    input = piff.InputFiles(config, logger=logger)
+    stars = input.makeStars(logger=logger)
+    assert len(stars) == 84
+    del config['satur']
 
     # hsm_size_reject=True rejects a few of these.
     config['hsm_size_reject'] = True
