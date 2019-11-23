@@ -191,7 +191,7 @@ class Input(object):
                         self.chipnums))
         kwargs = dict(stamp_size=self.stamp_size, min_snr=self.min_snr, max_snr=self.max_snr,
                       pointing=self.pointing, use_partial=self.use_partial,
-                      hsm_size_reject=hsm_size_reject)
+                      hsm_size_reject=self.hsm_size_reject)
 
         stars = run_multi(self._makeStarsFromImage, self.nproc, args, logger, kwargs)
 
@@ -365,6 +365,12 @@ class InputFiles(Input):
                             this value.  [default: 100]
             :use_partial:   Whether to use stars whose postage stamps are only partially on the
                             full image.  [default: False]
+            :hsm_size_reject: Whether to reject stars with a very different hsm-measured size than
+                            the other stars in the input catalog.  (Used to reject objects with
+                            neighbors or other junk in the postage stamp.) [default: False]
+                            If this is a float value, it gives the number of inter-quartile-ranges
+                            to use for rejection relative to the median.  hsm_size_reject=True
+                            is equivalent to hsm_size_reject=10.
             :nstars:        Stop reading the input file at this many stars.  (This is applied
                             separately to each input catalog.)  [default: None]
             :nproc:         How many multiprocessing processes to use for reading in data from
@@ -420,6 +426,7 @@ class InputFiles(Input):
                 'min_snr' : float,
                 'max_snr' : float,
                 'use_partial' : bool,
+                'hsm_size_reject' : float,
                 'sky' : str,
                 'noise' : float,
                 'nstars' : int,
@@ -624,6 +631,11 @@ class InputFiles(Input):
         self.min_snr = config.get('min_snr', None)
         self.max_snr = config.get('max_snr', 100)
         self.use_partial = config.get('use_partial', False)
+        self.hsm_size_reject = config.get('hsm_size_reject', 0.)
+        if self.hsm_size_reject == 1:
+            # Enable True to be equivalent to 10.  True comes in as 1.0, which would be a
+            # silly value to use, so it shouldn't be a problem to turn 1.0 -> 10.0.
+            self.hsm_size_reject = 10.
 
         # Finally, set the pointing coordinate.
         ra = config.get('ra',None)
