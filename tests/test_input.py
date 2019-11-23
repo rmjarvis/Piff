@@ -776,6 +776,27 @@ def test_stars():
     stars = input.makeStars(logger=logger)
     assert len(stars) == 91
 
+    # hsm_size_reject=True rejects a few of these.
+    config['hsm_size_reject'] = True
+    input = piff.InputFiles(config, logger=logger)
+    stars = input.makeStars(logger=logger)
+    assert len(stars) == 88
+
+    # hsm_size_reject can also be a float.  (True is equivalent to 10.)
+    config['hsm_size_reject'] = 100.
+    input = piff.InputFiles(config, logger=logger)
+    stars = input.makeStars(logger=logger)
+    assert len(stars) == 90
+    config['hsm_size_reject'] = 3.
+    input = piff.InputFiles(config, logger=logger)
+    stars = input.makeStars(logger=logger)
+    assert len(stars) == 84
+    config['hsm_size_reject'] = 10.
+    input = piff.InputFiles(config, logger=logger)
+    stars = input.makeStars(logger=logger)
+    assert len(stars) == 88
+    del config['hsm_size_reject']
+
     # alt_x and alt_y also include some object completely off the image, which are always skipped.
     # (Don't do the min_snr anymore, since most of these stamps don't actually have any signal.)
     config['x_col'] = 'alt_x'
