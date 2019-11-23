@@ -100,14 +100,9 @@ class Input(object):
                                     "Skipping this star.", x, y)
                     continue
             stamp = image[bounds]
+            wt_stamp = wt[bounds]
             props = { 'chipnum' : chipnum,
                         'gain' : gain[k] }
-            if sky is not None:
-                logger.debug("Subtracting off sky = %f", sky[k])
-                logger.debug("Median pixel value = %f", np.median(stamp.array))
-                stamp = stamp - sky[k]  # Don't change the original!
-                props['sky'] = sky[k]
-            wt_stamp = wt[bounds]
 
             # if a star is totally masked, then don't add it!
             if np.all(wt_stamp.array == 0):
@@ -121,6 +116,13 @@ class Input(object):
                 logger.warning("Maximum value is %f.",np.max(stamp.array))
                 logger.warning("Skipping this star.")
                 continue
+
+            # Subtract the sky
+            if sky is not None:
+                logger.debug("Subtracting off sky = %f", sky[k])
+                logger.debug("Median pixel value = %f", np.median(stamp.array))
+                stamp = stamp - sky[k]  # Don't change the original!
+                props['sky'] = sky[k]
 
             # Check the snr and limit it if appropriate
             snr = InputFiles.calculateSNR(stamp, wt_stamp)
