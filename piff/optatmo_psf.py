@@ -835,9 +835,18 @@ class OptAtmoPSF(PSF):
                 data_errors_all_stars = []
                 model_shapes_all_stars = []
                 for star_i, star in enumerate(stars):
-                    data_shapes_all_stars.append(self.measure_shape_third_moments(star))
-                    data_errors_all_stars.append(self.measure_error_third_moments(star))
-                    model_shapes_all_stars.append(self.measure_shape_third_moments(self.drawStar(star)))
+                    try:
+                        data_shape = psf.measure_shape_third_moments(star)
+                        data_error = psf.measure_error_third_moments(star)
+                        model_shape = psf.measure_shape_third_moments(psf.drawStar(star))
+                        data_shapes_all_stars.append(data_shape)
+                        data_errors_all_stars.append(data_error)
+                        model_shapes_all_stars.append(model_shape)
+                    except:
+                        logger.info('failed to do third moments analysis for pull cuts for star {0}'.format(star_i))
+                        data_shapes_all_stars.append(np.full(10,1000.0)) # throw out stars where pull cannot be measured
+                        data_errors_all_stars.append(np.full(10,1.0))
+                        model_shapes_all_stars.append(np.full(10,2.0))
                 data_shapes_all_stars = np.array(data_shapes_all_stars)[:,3:]
                 data_errors_all_stars = np.array(data_errors_all_stars)[:,3:]
                 model_shapes_all_stars = np.array(model_shapes_all_stars)[:,3:]
@@ -1156,7 +1165,7 @@ class OptAtmoPSF(PSF):
         g1 = params[1] + params[5]
         g2 = params[2] + params[6]
         L0 = params[3]
-        if L0 < 0:
+        if L0 == -1.0:
             atmo = galsim.Kolmogorov(gsparams=self.gsparams, **self.kolmogorov_kwargs)
             atmo = atmo.dilate(size)
         else:
@@ -1613,6 +1622,12 @@ class OptAtmoPSF(PSF):
         self.optical_fit_keys = fit_keys
         params = [self.optatmo_psf_kwargs[key] for key in fit_keys]
 
+        lower_bounds = np.full(len(params),-np.inf)
+        lower_bounds[3] = 5.0 # shape mode needs bounds placed on L0; otherwise it wanders into negative territory
+        upper_bounds = np.full(len(params),np.inf)
+        upper_bounds[3] = 100.0
+        bounds = (lower_bounds, upper_bounds)
+
         if mode == 'random_forest':
             results = scipy.optimize.least_squares(
                     self._fit_random_forest_residual, params,
@@ -1621,6 +1636,7 @@ class OptAtmoPSF(PSF):
         elif mode == 'shape':
             results = scipy.optimize.least_squares(
                     self._fit_optics_residual, params,
+                    bounds=bounds, # shape mode needs bounds placed on L0; otherwise it wanders into negative territory
                     args=(stars, fit_keys, shapes, errors, logger,),
                     diff_step=1e-5, ftol=ftol, xtol=1.e-4)
         elif mode == 'pixel':
@@ -2068,7 +2084,7 @@ class OptAtmoPSF(PSF):
 
     def _fit_size_residual(self, x, stars, opt_params, optical_profiles, logger=None):
         """Residual function for fitting the optics size parameter to the
-        observed e0 moment. The size parameter is proportional to 1/r0, r0
+        observed pixels. The size parameter is proportional to 1/r0, r0
         being the Fried parameter. The "optics" size is the average of this
         across the focal plane, whereas "atmospheric" size is the deviation
         from this average at different points in the focal plane.
@@ -2080,7 +2096,7 @@ class OptAtmoPSF(PSF):
         :param logger:          A logger object for logging debug info.
                                 [default: None]
 
-        :returns chi:           Chi of observed e0 to model e0
+        :returns chi:           Chi of observed pixels to model pixels
         """
         logger = LoggerWrapper(logger)
         opt_size = np.exp(x[0])
@@ -2096,7 +2112,7 @@ class OptAtmoPSF(PSF):
             g1 = params[1] + params[5]
             g2 = params[2] + params[6]
             L0 = params[3]
-            if L0 < 0:
+            if L0 == -1.0:
                 atmo = galsim.Kolmogorov(gsparams=self.gsparams, **self.kolmogorov_kwargs)
                 atmo = atmo.dilate(size)
             else:
@@ -2437,7 +2453,7 @@ class OptAtmoPSF(PSF):
         flux = np.exp(logflux)
         size = np.exp(logsize)
 
-        if L0 < 0:
+        if L0 == -1.0:
             atmo = galsim.Kolmogorov(gsparams=self.gsparams, **self.kolmogorov_kwargs)
             atmo = atmo.dilate(size)
         else:
