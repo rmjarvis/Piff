@@ -139,7 +139,7 @@ class Input(object):
                 if self.min_snr is not None and snr < self.min_snr:
                     logger.info("Skipping star at position %f,%f with snr=%f."%(x,y,snr))
                     continue
-                if self.max_snr > 0 and snr > self.max_snr:
+                if False: # snr rescaling is disabled
                     factor = (self.max_snr / snr)**2
                     logger.debug("Scaling noise by factor of %f to achieve snr=%f",
                                  factor, self.max_snr)
@@ -160,7 +160,7 @@ class Input(object):
         logger.warning("Read a total of %d stars from %d image%s",len(stars),len(self.images),
                        "s" if len(self.images) > 1 else "")
 
-        # here we remove stars which have a deformed postage stamp
+        # here we remove stars which have a deformed (excessively non-square) postage stamp
         if len(stars) > 0:
             postage_stamp_heights = []
             postage_stamp_widths = []
@@ -204,7 +204,7 @@ class Input(object):
 
         logger.info("There are {0} stars after the nuisance star cut".format(len(stars)))
 
-        # here we remove stars that have been at least partially covered by a mask and thus have weight exactly 0 in at least one pixel of their postage stamp
+        # here we remove stars that have been at least partially covered by a mask and thus have weight exactly 0 in at least a certain number of pixels of their postage stamp
         if len(stars) > 0:
             star_weightmaps = []
             delete_list = []

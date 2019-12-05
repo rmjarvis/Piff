@@ -836,9 +836,9 @@ class OptAtmoPSF(PSF):
                 model_shapes_all_stars = []
                 for star_i, star in enumerate(stars):
                     try:
-                        data_shape = psf.measure_shape_third_moments(star)
-                        data_error = psf.measure_error_third_moments(star)
-                        model_shape = psf.measure_shape_third_moments(psf.drawStar(star))
+                        data_shape = psf.measure_shape_orthogonal(star)[:10]
+                        data_error = psf.measure_error_orthogonal(star)[:10]
+                        model_shape = psf.measure_shape_orthogonal(psf.drawStar(star))[:10]
                         data_shapes_all_stars.append(data_shape)
                         data_errors_all_stars.append(data_error)
                         model_shapes_all_stars.append(model_shape)
@@ -864,7 +864,7 @@ class OptAtmoPSF(PSF):
                 conds_pull_mad = (np.all(madx <= 1.48 * 4 * mad, axis=1))
                 conds_pull_mad_e0 = (madx[:,0] <= 1.48 * 4 * mad[0])
                 conds_pull_mad_e1 = (madx[:,1] <= 1.48 * 4 * mad[1])
-                conds_pull_mad_e2 = (madx[:,1] <= 1.48 * 4 * mad[2])
+                conds_pull_mad_e2 = (madx[:,2] <= 1.48 * 4 * mad[2])
                 if s == 0:
                     self.stars = np.array(self.stars)[conds_pull_mad].tolist()
                 if s == 1:
