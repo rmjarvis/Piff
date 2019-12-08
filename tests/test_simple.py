@@ -183,13 +183,13 @@ def test_single_image():
     assert input.cat_file_name == [ cat_file ]
 
     # Check image
-    assert len(input.images) == 1
-    np.testing.assert_equal(input.images[0].array, image.array)
+    assert input.nimages == 1
+    image1, _, image_pos, _, _, _, _ = input.getRawImageData(0)
+    np.testing.assert_equal(image1.array, image.array)
 
     # Check catalog
-    assert len(input.image_pos) == 1
-    np.testing.assert_equal([pos.x for pos in input.image_pos[0]], x_list)
-    np.testing.assert_equal([pos.y for pos in input.image_pos[0]], y_list)
+    np.testing.assert_equal([pos.x for pos in image_pos], x_list)
+    np.testing.assert_equal([pos.y for pos in image_pos], y_list)
 
     # Repeat, using flag columns this time.
     config = { 'image_file_name' : image_file,
@@ -199,9 +199,9 @@ def test_single_image():
                'skip_flag': '4',
                'stamp_size': 48 }
     input = piff.InputFiles(config, logger=logger)
-    print('pos = ',input.image_pos)
-    print('pos[0] = ',input.image_pos[0])
-    assert len(input.image_pos[0]) == 7
+    assert input.nimages == 1
+    _, _, image_pos, _, _, _, _ = input.getRawImageData(0)
+    assert len(image_pos) == 7
 
     # Make star data
     orig_stars = input.makeStars()

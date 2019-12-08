@@ -758,14 +758,14 @@ def test_single_image():
     assert input.cat_file_name == [cat_file]
 
     # Check image
-    assert len(input.images) == 1
-    np.testing.assert_equal(input.images[0].array, image.array)
+    assert input.nimages == 1
+    image1, _, image_pos, _, _, _, _ = input.getRawImageData(0)
+    np.testing.assert_equal(image1.array, image.array)
 
     # Check catalog
-    assert len(input.image_pos) == 1
-    assert len(input.image_pos[0]) == len(x_list)
-    np.testing.assert_equal([pos.x for pos in input.image_pos[0]], x_list)
-    np.testing.assert_equal([pos.y for pos in input.image_pos[0]], y_list)
+    assert len(image_pos) == len(x_list)
+    np.testing.assert_equal([pos.x for pos in image_pos], x_list)
+    np.testing.assert_equal([pos.y for pos in image_pos], y_list)
 
     # Make stars
     orig_stars = input.makeStars()
@@ -802,7 +802,7 @@ def test_single_image():
         interp = piff.BasisPolynomial(order=order)
         pointing = None     # wcs is not Celestial here, so pointing needs to be None.
         psf = piff.SimplePSF(model, interp)
-        psf.fit(orig_stars, {0:input.images[0].wcs}, pointing, logger=logger)
+        psf.fit(orig_stars, {0:image1.wcs}, pointing, logger=logger)
 
         # Check that the interpolation is what it should be
         print('target.flux = ',target_star.fit.flux)

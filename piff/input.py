@@ -68,15 +68,15 @@ class Input(object):
 
         return stars, wcs, pointing
 
-    @staticmethod
-    def _makeStarsFromImage(image, wt, image_pos, sky, gain, satur, chipnum,
+    def _makeStarsFromImage(self, image_num,
                             stamp_size, min_snr, max_snr, pointing, use_partial,
                             hsm_size_reject, logger):
         """Make stars from a single input image
         """
+        image, wt, image_pos, sky, gain, satur, chipnum = self.getRawImageData(image_num, logger)
         logger.info("Processing catalog %s with %d stars",chipnum,len(image_pos))
-        nstars_in_image = 0
 
+        nstars_in_image = 0
         stars = []
         for k in range(len(image_pos)):
             x = image_pos[k].x
@@ -184,13 +184,12 @@ class Input(object):
         """
         logger = galsim.config.LoggerWrapper(logger)
 
-        if len(self.chipnums) == 1:
+        if self.nimages == 1:
             logger.debug("Making star list")
         else:
-            logger.debug("Making star list from %d catalogs", len(self.chipnums))
+            logger.debug("Making star list from %d catalogs", self.nimages)
 
-        args = list(zip(self.images, self.weight, self.image_pos, self.sky, self.gain, self.satur,
-                        self.chipnums))
+        args = [(k,) for k in range(self.nimages)]
         kwargs = dict(stamp_size=self.stamp_size, min_snr=self.min_snr, max_snr=self.max_snr,
                       pointing=self.pointing, use_partial=self.use_partial,
                       hsm_size_reject=self.hsm_size_reject)
@@ -200,8 +199,8 @@ class Input(object):
         # Concatenate the star lists into a single list
         stars = [s for slist in stars for s in slist]
 
-        logger.warning("Read a total of %d stars from %d image%s",len(stars),len(self.images),
-                       "s" if len(self.images) > 1 else "")
+        logger.warning("Read a total of %d stars from %d image%s",len(stars),self.nimages,
+                       "s" if self.nimages > 1 else "")
 
         return stars
 
@@ -255,7 +254,7 @@ class Input(object):
 
         :returns: a dict of WCS solutions (galsim.BaseWCS instances) indexed by chipnum
         """
-        return { chipnum : im.wcs for im, chipnum in zip(self.images, self.chipnums) }
+        return { chipnum : w for w, chipnum in zip(self.wcs_list, self.chipnums) }
 
     def getPointing(self, logger=None):
         """Get the pointing coordinate of the (noinal) center of the field of view.
@@ -376,7 +375,7 @@ class InputFiles(Input):
             :nstars:        Stop reading the input file at this many stars.  (This is applied
                             separately to each input catalog.)  [default: None]
             :nproc:         How many multiprocessing processes to use for reading in data from
-                            multiple chips at once. [default: 1]
+                            multiple files at once. [default: 1]
 
             :wcs:           Normally, the wcs is automatically read in when reading the image.
                             However, this parameter allows you to optionally provide a different
@@ -532,16 +531,16 @@ class InputFiles(Input):
             raise ValueError('input.nimages is required if not using a list or simple string for ' +
                              'file names')
 
+        self.nimages = nimages
         self.chipnums = list(range(nimages))
         self.stamp_size = int(config.get('stamp_size', 32))
-        self.images = []
-        self.weight = []
-        self.image_pos = []
-        self.sky = []
-        self.gain = []
-        self.satur = []
         self.image_file_name = []
         self.cat_file_name = []
+        self.image_kwargs = []
+        self.cat_kwargs = []
+
+        self.remove_signal_from_weight = config.get('remove_signal_from_weight', False)
+        self.invert_weight = config.get('invert_weight', False)
 
         logger.info("Reading in %d images",nimages)
         for image_num in range(nimages):
@@ -564,19 +563,13 @@ class InputFiles(Input):
             badpix_hdu = params.get('badpix_hdu', None)
             noise = params.get('noise', None)
 
-            image, weight = self.readImage(
-                    image_file_name, image_hdu, weight_hdu, badpix_hdu, noise, logger)
-
-            if config.get('invert_weight', False):
-                weight.invertSelf()
-
-            # Update the wcs if necessary
-            if 'wcs' in config:
-                wcs = galsim.config.BuildWCS(config, 'wcs', base, logger)
-                image.wcs = wcs
-
             self.image_file_name.append(image_file_name)
-            self.images.append(image)
+            self.image_kwargs.append({
+                    'image_file_name' : image_file_name,
+                    'image_hdu' : image_hdu,
+                    'weight_hdu' : weight_hdu,
+                    'badpix_hdu' : badpix_hdu,
+                    'noise' : noise})
 
             # Read the catalog
             cat_file_name = params['cat_file_name']
@@ -597,38 +590,31 @@ class InputFiles(Input):
             satur = params.get('satur', None)
             nstars = params.get('nstars', None)
 
-            image_pos, sky, gain, satur = self.readStarCatalog(
-                    cat_file_name, cat_hdu, x_col, y_col,
-                    ra_col, dec_col, ra_units, dec_units, image,
-                    flag_col, skip_flag, use_flag, sky_col, gain_col,
-                    sky, gain, satur, nstars, image_file_name, logger)
+            if sky_col is not None and sky is not None:
+                raise ValueError("Cannot provide both sky_col and sky.")
+            if gain_col is not None and gain is not None:
+                raise ValueError("Cannot provide both gain_col and gain.")
 
-            if config.get('remove_signal_from_weight', False):
-                # Subtract off the mean sky, since this isn't part of the "signal" we want to
-                # remove from the weights.
-                if sky is None:
-                    signal = image
-                else:
-                    signal = image - np.mean(sky)
-                # For the gain, either all are None or all are values.
-                if gain[0] is None:
-                    # If None, then we want to estimate the gain from the weight image.
-                    weight, g = self._removeSignalFromWeight(signal, weight)
-                    gain = [g for _ in gain]
-                    logger.warning("Empirically determined gain = %f",g)
-                else:
-                    # If given, use the mean gain when removing the signal.
-                    # This isn't quite right, but hopefully the gain won't vary too much for
-                    # different objects, so it should be close.
-                    weight, _ = self._removeSignalFromWeight(signal, weight, gain=np.mean(gain))
-                logger.info("Removed signal from weight image.")
-
-            self.weight.append(weight)
             self.cat_file_name.append(cat_file_name)
-            self.image_pos.append(image_pos)
-            self.sky.append(sky)
-            self.gain.append(gain)
-            self.satur.append(satur)
+            self.cat_kwargs.append({
+                    'cat_file_name' : cat_file_name,
+                    'cat_hdu' : cat_hdu,
+                    'x_col' : x_col,
+                    'y_col' : y_col,
+                    'ra_col' : ra_col,
+                    'dec_col' : dec_col,
+                    'ra_units' : ra_units,
+                    'dec_units' : dec_units,
+                    'flag_col' : flag_col,
+                    'skip_flag' : skip_flag,
+                    'use_flag' : use_flag,
+                    'sky_col' : sky_col,
+                    'gain_col' : gain_col,
+                    'sky' : sky,
+                    'gain' : gain,
+                    'satur' : satur,
+                    'nstars' : nstars,
+                    'image_file_name' : image_file_name})
 
         self.min_snr = config.get('min_snr', None)
         self.max_snr = config.get('max_snr', 100)
@@ -639,11 +625,68 @@ class InputFiles(Input):
             # silly value to use, so it shouldn't be a problem to turn 1.0 -> 10.0.
             self.hsm_size_reject = 10.
 
+        # Read all the wcs's, since we'll need this for the pointing, which in turn we'll
+        # need for when we make the stars.
+        self.setWCS(config, logger)
+
         # Finally, set the pointing coordinate.
         ra = config.get('ra',None)
         dec = config.get('dec',None)
         self.setPointing(ra, dec, logger)
 
+    def getRawImageData(self, image_num, logger=None):
+        logger = galsim.config.LoggerWrapper(logger)
+        image, weight = self.readImage(logger=logger, **self.image_kwargs[image_num])
+
+        if self.invert_weight:
+            weight.invertSelf()
+
+        # Update the wcs if necessary
+        image.wcs = self.wcs_list[image_num]
+
+        image_pos, sky, gain, satur = self.readStarCatalog(
+                logger=logger, image=image, **self.cat_kwargs[image_num])
+
+        if self.remove_signal_from_weight:
+            # Subtract off the mean sky, since this isn't part of the "signal" we want to
+            # remove from the weights.
+            if sky is None:
+                signal = image
+            else:
+                signal = image - np.mean(sky)
+            # For the gain, either all are None or all are values.
+            if gain[0] is None:
+                # If None, then we want to estimate the gain from the weight image.
+                weight, g = self._removeSignalFromWeight(signal, weight)
+                gain = [g for _ in gain]
+                logger.warning("Empirically determined gain = %f",g)
+            else:
+                # If given, use the mean gain when removing the signal.
+                # This isn't quite right, but hopefully the gain won't vary too much for
+                # different objects, so it should be close.
+                weight, _ = self._removeSignalFromWeight(signal, weight, gain=np.mean(gain))
+            logger.info("Removed signal from weight image.")
+
+        chipnum = self.chipnums[image_num]
+
+        return image, weight, image_pos, sky, gain, satur, chipnum
+
+    def setWCS(self, config, logger):
+        self.wcs_list = []
+        self.center_list = []
+        for image_num, kwargs in enumerate(self.image_kwargs):
+            image_file_name = kwargs['image_file_name']
+            image_hdu = kwargs['image_hdu']
+            image = galsim.fits.read(image_file_name, hdu=image_hdu)
+            if 'wcs' in config:
+                logger.warning("Using custom wcs from config for %s",image_file_name)
+                base = { 'input' : config, 'index_key' : 'image_num', 'image_num' : image_num }
+                wcs = galsim.config.BuildWCS(config, 'wcs', base, logger)
+            else:
+                logger.warning("Getting wcs from image file %s",image_file_name)
+                wcs = image.wcs
+            self.wcs_list.append(wcs)
+            self.center_list.append(image.true_center)
 
     @staticmethod
     def _removeSignalFromWeight(image, weight, gain=None):
@@ -671,7 +714,6 @@ class InputFiles(Input):
         newweight = weight.copy()
         newweight.array[use] = 1. / variance[use]
         return newweight, gain
-
 
     def readImage(self, image_file_name, image_hdu, weight_hdu, badpix_hdu, noise, logger):
         """Read in the image and weight map (or make one if no weight information is given
@@ -875,8 +917,6 @@ class InputFiles(Input):
 
         # Make the list of sky values:
         if sky_col is not None:
-            if sky is not None:
-                raise ValueError("Cannot provide both sky_col and sky.")
             if sky_col not in cat.dtype.names:
                 raise ValueError("sky_col = %s is not a column in %s"%(sky_col,cat_file_name))
             sky = cat[sky_col]
@@ -899,8 +939,6 @@ class InputFiles(Input):
         #       could get the right one properly.  OTOH, Y3+ will be in electrons, so gain=1 will
         #       the right value for all images.  So maybe not worth worrying about.
         if gain_col is not None:
-            if gain is not None:
-                raise ValueError("Cannot provide both gain_col and gain.")
             if gain_col not in cat.dtype.names:
                 raise ValueError("gain_col = %s is not a column in %s"%(gain_col,cat_file_name))
             gain = cat[gain_col]
@@ -954,17 +992,19 @@ class InputFiles(Input):
             raise ValueError("Only one of ra, dec was specified")
 
         if ra is None:
-            if self.images[0].wcs.isCelestial():
-                if len(self.images) == 1:
+            if self.wcs_list[0].isCelestial():
+                if self.nimages == 1:
                     # Here we can just use the image center.
-                    im = self.images[0]
-                    self.pointing = im.wcs.toWorld(im.true_center)
+                    wcs = self.wcs_list[0]
+                    center = self.center_list[0]
+                    self.pointing = wcs.toWorld(center)
                     logger.info("Setting pointing to image center: %.3f h, %.3f d",
                                 self.pointing.ra / galsim.hours,
                                 self.pointing.dec / galsim.degrees)
                 else:
                     # Use the mean of all the image centers
-                    plist = [im.wcs.toWorld(im.true_center) for im in self.images]
+                    plist = [wcs.toWorld(center)
+                             for wcs,center in zip(self.wcs_list,self.center_list)]
                     # Do this in x,y,z coords, not ra, dec so we don't mess up near ra=0.
                     xlist, ylist, zlist = zip(*[p.get_xyz() for p in plist])
                     x = np.mean(xlist)
