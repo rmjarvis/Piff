@@ -403,8 +403,12 @@ class PSF(object):
         wcs_str = [ base64.b64decode(s) for s in wcs_str ] # Convert back from b64 encoding
         # Convert back into wcs objects
         if sys.version_info > (3,0):
-            wcs_list = [ pickle.loads(s, encoding='bytes') for s in wcs_str ]
-
+            try:
+                wcs_list = [ pickle.loads(s, encoding='bytes') for s in wcs_str ]
+            except Exception:
+                # If the file was written by py2, the bytes encoding might raise here,
+                # or it might not until we try to use it.
+                wcs_list = [ pickle.loads(s, encoding='latin1') for s in wcs_str ]
         else:
             wcs_list = [ pickle.loads(s) for s in wcs_str ]
 
