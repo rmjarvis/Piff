@@ -209,7 +209,10 @@ def _run_multi_helper(func, i, args, kwargs, logger):
     else:
         logger1 = galsim.config.LoggerWrapper(logger)
 
-    out = func(*args, logger=logger1, **kwargs)
+    try:
+        out = func(*args, logger=logger1, **kwargs)
+    except Exception as e:
+        out = e
 
     if isinstance(logger, int):
         handler.flush()
@@ -244,7 +247,10 @@ def run_multi(func, nproc, args, logger, kwargs=None):
 
     def log_output(result):
         i, out, log = result
-        output_list[i] = out
+        if isinstance(out, Exception):
+            logger.warning("Caught exception in proc: %r",out)
+        else:
+            output_list[i] = out
         if log is not None:
             logger.info(log)
 
