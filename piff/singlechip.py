@@ -113,6 +113,13 @@ class SingleChipPSF(PSF):
         for chipnum, psf in zip(chipnums, output):
             self.psf_by_chip[chipnum] = psf
 
+        # If any chips failed their solution, remove them.
+        if any([self.psf_by_chip[c] is None for c in chipnums]):
+            logger.warning("Solutions failed for chipnums: %s",
+                           [c for c in chipnums if self.psf_by_chip[c] is None])
+            logger.warning("Removing these chips from the output")
+            chipnums = [c for c in chipnums if self.psf_by_chip[c] is not None]
+
         # update stars from psf outlier rejection
         self.stars = [ star for chipnum in chipnums for star in self.psf_by_chip[chipnum].stars ]
 
@@ -141,6 +148,7 @@ class SingleChipPSF(PSF):
         """
         # Write the colnums to an extension.
         chipnums = list(self.psf_by_chip.keys())
+        chipnums = [c for c in chipnums if self.psf_by_chip[c] is not None]
         dt = make_dtype('chipnums', chipnums[0])
         chipnums = [ adjust_value(c,dt) for c in chipnums ]
         cols = [ chipnums ]
@@ -149,7 +157,7 @@ class SingleChipPSF(PSF):
         fits.write_table(data, extname=extname + '_chipnums')
 
         # Add _1, _2, etc. to the extname for the psf model of each chip.
-        for chipnum in self.psf_by_chip:
+        for chipnum in chipnums:
             self.psf_by_chip[chipnum]._write(fits, extname + '_%s'%chipnum, logger)
 
     def _finish_read(self, fits, extname, logger):
