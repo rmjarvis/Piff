@@ -19,6 +19,7 @@
 from __future__ import print_function
 import numpy as np
 import os
+import sys
 import galsim
 
 # Courtesy of
@@ -195,7 +196,11 @@ def hsm(star):
     return flux, center.x, center.y, sigma, shape.g1, shape.g2, flag
 
 def _run_multi_helper(func, i, args, kwargs, logger):
-    from io import StringIO
+    if sys.version_info < (3,0):
+        from io import BytesIO as StringIO
+    else:
+        from io import StringIO
+
     import logging
     if isinstance(logger, int):
         # In multiprocessing, we cannot pass in the logger, so log to a string and then
@@ -265,24 +270,25 @@ def run_multi(func, nproc, args, logger, kwargs=None):
             result = _run_multi_helper(func, i, args[i], k, logger)
             log_output(result)
     else:
-        with Pool(nproc) as pool:
-            results = []
-            for i in range(njobs):
-                if isinstance(kwargs, dict):
-                    k = kwargs
-                elif kwargs is None:
-                    k = {}
-                else:  # pragma: no cover  (We don't use this option currently)
-                    k = kwargs[i]
-                result = pool.apply_async(_run_multi_helper,
-                                          args=(func, i, args[i], k, logger.logger.level),
-                                          callback=log_output)
-                results.append(result)
-            # Make sure we get all the results.  Without this, it works fine on success, but
-            # errors seems to be swallowed.
-            [result.get() for result in results]
-            # These are always necessary to close out the pool.
-            pool.close()
-            pool.join()
+        pool = Pool(nproc)
+        results = []
+        for i in range(njobs):
+            if isinstance(kwargs, dict):
+                k = kwargs
+            elif kwargs is None:
+                k = {}
+            else:  # pragma: no cover  (We don't use this option currently)
+                k = kwargs[i]
+            result = pool.apply_async(_run_multi_helper,
+                                        args=(func, i, args[i], k, logger.logger.level),
+                                        callback=log_output)
+            results.append(result)
+        # Make sure we get all the results.  Without this, it works fine on success, but
+        # errors seems to be swallowed.
+        [result.get() for result in results]
+        # These are always necessary to close out the pool.
+        pool.close()
+        pool.join()
+        pool.terminate()
 
     return output_list
