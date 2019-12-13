@@ -819,71 +819,7 @@ class OptAtmoPSF(PSF):
             logger.warning('Found unrecognized fit_optics_mode {0}. Ignoring'.format(
                            self.fit_optics_mode))
 
-        logger.info("len(self.stars): {0}".format(len(self.stars)))
-        # one extra round of outlier rejection using the pull from the moments (only up to third
-        # moments)
         if self.fit_optics_mode == 'shape':
-            for s, stars in enumerate([self.stars, self.test_stars, self.fit_optics_stars]):
-                if s == 0:
-                    logger.info("now prepping pull cuts for self.stars; in other words the train stars")
-                if s == 1:
-                    logger.info("now prepping pull cuts for self.test_stars")
-                if s == 2:
-                    logger.info("now prepping pull cuts for self.fit_optics_stars; in other words the "
-                                "subset train stars specifically used in the optical fit")
-                data_shapes_all_stars = []
-                data_errors_all_stars = []
-                model_shapes_all_stars = []
-                for star_i, star in enumerate(stars):
-                    try:
-                        data_shape = psf.measure_shape_orthogonal(star)[:10]
-                        data_error = psf.measure_error_orthogonal(star)[:10]
-                        model_shape = psf.measure_shape_orthogonal(psf.drawStar(star))[:10]
-                        data_shapes_all_stars.append(data_shape)
-                        data_errors_all_stars.append(data_error)
-                        model_shapes_all_stars.append(model_shape)
-                    except:
-                        logger.info('failed to do third moments analysis for pull cuts for star {0}'.format(star_i))
-                        data_shapes_all_stars.append(np.full(10,1000.0)) # throw out stars where pull cannot be measured
-                        data_errors_all_stars.append(np.full(10,1.0))
-                        model_shapes_all_stars.append(np.full(10,2.0))
-                data_shapes_all_stars = np.array(data_shapes_all_stars)[:,3:]
-                data_errors_all_stars = np.array(data_errors_all_stars)[:,3:]
-                model_shapes_all_stars = np.array(model_shapes_all_stars)[:,3:]
-                pull_all_stars = ((data_shapes_all_stars - model_shapes_all_stars) /
-                                    data_errors_all_stars)
-                # pull is (data-model)/error
-                logger.debug("data_shapes_all_stars: {0}".format(data_shapes_all_stars))
-                logger.debug("model_shapes_all_stars: {0}".format(model_shapes_all_stars))
-                logger.debug("data_errors_all_stars: {0}".format(data_errors_all_stars))
-                logger.debug("pull_all_stars: {0}".format(pull_all_stars))
-                med = np.nanmedian(pull_all_stars, axis=0)
-                mad = np.nanmedian(np.abs(pull_all_stars - med[None]), axis=0)
-                madx = np.abs(pull_all_stars - med[None])
-                # all stars with pull more than 4 sigma equivalent MAD away from the median pull are thrown out
-                conds_pull_mad = (np.all(madx <= 1.48 * 4 * mad, axis=1))
-                conds_pull_mad_e0 = (madx[:,0] <= 1.48 * 4 * mad[0])
-                conds_pull_mad_e1 = (madx[:,1] <= 1.48 * 4 * mad[1])
-                conds_pull_mad_e2 = (madx[:,2] <= 1.48 * 4 * mad[2])
-                if s == 0:
-                    self.stars = np.array(self.stars)[conds_pull_mad].tolist()
-                if s == 1:
-                    self.test_stars = np.array(self.test_stars)[conds_pull_mad].tolist()
-                if s == 2:
-                    self.number_of_outliers_optical = np.array(
-                        [len(self.fit_optics_stars) - np.sum(conds_pull_mad_e0),
-                         len(self.fit_optics_stars) - np.sum(conds_pull_mad_e1),
-                         len(self.fit_optics_stars) - np.sum(conds_pull_mad_e2)])
-                    self.number_of_stars_pre_cut_optical = len(self.fit_optics_stars)
-                    self.fit_optics_stars = np.array(self.fit_optics_stars)[conds_pull_mad].tolist()
-                    self.number_of_stars_post_cut_optical = len(self.fit_optics_stars)
-                    self.pull_mean_optical = np.nanmean(pull_all_stars[:,:3], axis=0)
-                    # the mean pull (only second moments) for stars used in the fit is later used to
-                    # find outliers among exposures
-                    self.pull_rms_optical = np.sqrt(np.nanmean(np.square(pull_all_stars[:,:3]),axis=0))
-                    self.pull_all_stars_optical = pull_all_stars
-
-
             number_of_stars_used_in_optical_chi = \
                 len(self.final_optical_chi)//self.length_of_moments_list
             logger.info("total chisq for optical chi: {0}".format(
@@ -1171,10 +1107,10 @@ class OptAtmoPSF(PSF):
         else:
             kwargs = {'lam': self.kolmogorov_kwargs['lam'],
                       'r0': self.kolmogorov_kwargs['r0'] / size,
-                      'L0': L0,}
-                     # 'L0': L0,
-                     # 'force_stepk': getattr(self, '_force_stepk', 0.0)
-                     #}
+                     # 'L0': L0,}
+                      'L0': L0,
+                      'force_stepk': getattr(self, '_force_stepk', 0.0)
+                     }
             atmo = galsim.VonKarman(gsparams=self.gsparams, **kwargs)
         atmo = atmo.shear(g1=g1, g2=g2)
 
@@ -1900,17 +1836,17 @@ class OptAtmoPSF(PSF):
         # Use log(flux) and log(size), so we don't have to worry about going negative
         fit_params = [np.log(flux), du, dv, np.log(fit_size), fit_g1, fit_g2]
 
-        ## Set self._force_vk_stepk if not already set
-        #if not hasattr(self, '_force_vk_stepk'):
-        #    vk = galsim.VonKarman(
-        #        lam=self.kolmogorov_kwargs['lam'],
-        #        r0=self.kolmogorov_kwargs['r0']/fit_size,
-        #        L0=opt_L0,
-        #        gsparams=self.gsparams
-        #    )
-        #    slack_factor = 0.8
-        #    self._force_vk_stepk = vk.stepk * slack_factor
-        #
+        # Set self._force_vk_stepk if not already set
+        if not hasattr(self, '_force_vk_stepk'):
+            vk = galsim.VonKarman(
+                lam=self.kolmogorov_kwargs['lam'],
+                r0=self.kolmogorov_kwargs['r0']/fit_size,
+                L0=opt_L0,
+                gsparams=self.gsparams
+            )
+            slack_factor = 0.8
+            self._force_vk_stepk = vk.stepk * slack_factor
+        
         # Find the solution
         results = scipy.optimize.least_squares(
                 self._fit_model_residual, fit_params,
@@ -2459,10 +2395,10 @@ class OptAtmoPSF(PSF):
         else:
             kwargs = {'lam': self.kolmogorov_kwargs['lam'],
                       'r0': self.kolmogorov_kwargs['r0'] / size,
-                      'L0': L0,}
-                     # 'L0': L0,
-                     # 'force_stepk': self._force_vk_stepk
-                     #}
+                     # 'L0': L0,}
+                      'L0': L0,
+                      'force_stepk': self._force_vk_stepk
+                     }
             atmo = galsim.VonKarman(gsparams=self.gsparams, **kwargs)
         atmo = atmo.shear(g1=g1, g2=g2)
 
