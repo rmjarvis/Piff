@@ -82,8 +82,7 @@ class SingleChipPSF(PSF):
         nproc = config_psf.pop('nproc', 1)
 
         # If there is a "single_type" specified, call that the type for now.
-        if 'single_type' in config_psf:
-            config_psf['type'] = config_psf.pop('single_type')
+        config_psf['type'] = config_psf.pop('single_type', 'Simple')
 
         # Now the regular PSF process function can process the dict.
         single_psf = piff.PSF.process(config_psf, logger)
