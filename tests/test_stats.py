@@ -628,6 +628,17 @@ def test_hsmcatalog():
     np.testing.assert_allclose(data['u'], [w.x for w in world], rtol=1.e-4)
     np.testing.assert_allclose(data['v'], [w.y for w in world], rtol=1.e-4)
 
+    # Use class directly, rather than through config.
+    psf = piff.PSF.read(psf_file)
+    stars, _, _ = piff.Input.process(config['input'])
+    hsmcat = piff.stats.HSMCatalogStats()
+    hsmcat.compute(psf, stars)
+    hsm_file2 = os.path.join('output', 'test_hsmcatalog2.fits')
+    hsmcat.write(hsm_file2)
+    data2 = fitsio.read(hsm_file2)
+    for key in data.dtype.names:
+        np.testing.assert_allclose(data2[key], data[key], rtol=1.e-5)
+
 
 if __name__ == '__main__':
     setup()
