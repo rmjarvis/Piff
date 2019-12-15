@@ -585,6 +585,7 @@ class HSMCatalogStats(Stats):
                             which is typically read from the config field.]
         :param logger:      A logger object for logging debug info. [default: None]
         """
+        logger = galsim.config.LoggerWrapper(logger)
         import fitsio
         if file_name is None:
             file_name = self.file_name
