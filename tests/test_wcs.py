@@ -294,6 +294,11 @@ def test_single():
     im2.write('output/test_single_im2.fits')
     fitsio.write('output/test_single_cat2.fits', data2, clobber=True)
 
+    # im3 is blank.  Will give errors trying to measure PSF from it.
+    im3 = galsim.Image(2048,2048, wcs=wcs2)
+    im3.write('output/test_single_im3.fits')
+    fitsio.write('output/test_single_cat3.fits', data2, clobber=True)
+
     # Try to fit with the right model (Moffat) and interpolant (2nd order polyomial)
     # Should work very well, since no noise.
     config = {
@@ -354,10 +359,13 @@ def test_single():
             #print('  fitted s,e1,e2 = ',star.fit.params)
             np.testing.assert_almost_equal(star.fit.params, [s,e1,e2], decimal=6)
 
-    # Do again in parallel
+    # Do again in parallel.  Also check I/O.
     config['psf']['nproc'] = 2
     config['input']['nproc'] = -1
-    psf = piff.process(config)
+    psf_file = os.path.join('output','test_single.fits')
+    config['output'] = { 'file_name' : psf_file }
+    piff.piffify(config)
+    psf = piff.read(psf_file)
 
     for chipnum, data, wcs in [(1,data1,wcs1), (2,data2,wcs2)]:
         for k in range(nstars):
@@ -381,12 +389,21 @@ def test_single():
     assert "Building solution for chip 1" in cl.output
     assert "Building solution for chip 2" in cl.output
 
-    # Check that errors in the multiprocessing get properly reported.
+    # Check that errors in the solution get properly reported.
+    config['input']['nimages'] = 3
+    with CaptureLog(level=2) as cl:
+        psf = piff.process(config, cl.logger)
+    assert "Removed 6 stars in initialize" in cl.output
+    assert "No stars.  Cannot find PSF model." in cl.output
+    assert "Solutions failed for chipnums: [3]" in cl.output
+
+    # Check that errors in the multiprocessing input get properly reported.
     config['input']['x_col'] = 'invalid'
     with CaptureLog(level=2) as cl:
         with np.testing.assert_raises(RuntimeError):
             psf = piff.process(config, cl.logger)
     assert "x_col = invalid is not a column" in cl.output
+
 
 @timer
 def test_pickle():

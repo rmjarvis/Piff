@@ -150,7 +150,11 @@ class SimplePSF(PSF):
         # Begin iterations.  Very simple convergence criterion right now.
         oldchisq = 0.
         for iteration in range(max_iterations):
+            if len(self.stars) == 0:
+                raise RuntimeError("No stars.  Cannot find PSF model.")
+
             logger.warning("Iteration %d: Fitting %d stars", iteration+1, len(self.stars))
+
 
             fit_fn = self.model.chisq if quadratic_chisq else self.model.fit
 

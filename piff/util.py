@@ -252,12 +252,12 @@ def run_multi(func, nproc, args, logger, kwargs=None):
 
     def log_output(result):
         i, out, log = result
-        if isinstance(out, Exception):
-            logger.warning("Caught exception in proc: %r",out)
-        else:
-            output_list[i] = out
         if log is not None:
             logger.info(log)
+        if isinstance(out, Exception):
+            logger.warning("Caught exception: %r",out)
+        else:
+            output_list[i] = out
 
     if nproc == 1:
         for i in range(njobs):
