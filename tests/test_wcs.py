@@ -381,6 +381,13 @@ def test_single():
     assert "Building solution for chip 1" in cl.output
     assert "Building solution for chip 2" in cl.output
 
+    # Check that errors in the multiprocessing get properly reported.
+    config['input']['x_col'] = 'invalid'
+    with CaptureLog(level=2) as cl:
+        with np.testing.assert_raises(RuntimeError):
+            psf = piff.process(config, cl.logger)
+    assert "x_col = invalid is not a column" in cl.output
+
 @timer
 def test_pickle():
     """Test the reading a file written with python 2 pickling is readable with python 2 or 3.

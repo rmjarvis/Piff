@@ -60,6 +60,9 @@ class Input(object):
         # Creat a lit of StarData objects
         stars = input_handler.makeStars(logger)
 
+        if len(stars) == 0:
+            raise RuntimeError("No stars read in from input catalog(s).")
+
         # Get the wcs for all the input chips
         wcs = input_handler.getWCS(logger)
 
@@ -102,7 +105,7 @@ class Input(object):
         stars = run_multi(call_makeStarsFromImage, self.nproc, args, logger, kwargs)
 
         # Concatenate the star lists into a single list
-        stars = [s for slist in stars for s in slist]
+        stars = [s for slist in stars if slist is not None for s in slist if slist]
 
         logger.warning("Read a total of %d stars from %d image%s",len(stars),self.nimages,
                        "s" if self.nimages > 1 else "")
