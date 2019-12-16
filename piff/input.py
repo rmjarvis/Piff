@@ -387,7 +387,12 @@ class InputFiles(Input):
             image_list = sorted(glob.glob(image_file_name))
             if len(image_list) == 0:
                 raise ValueError("No files found corresponding to "+config['image_file_name'])
-        elif not isinstance(config['image_file_name'], dict):
+        elif isinstance(config['image_file_name'], dict):
+            if nimages is None:
+                raise ValueError(
+                    'input.nimages is required if not using a list or simple string for ' +
+                    'file names')
+        else:
             raise ValueError("image_file_name should be either a dict or a string")
 
         if image_list is not None:
@@ -401,6 +406,8 @@ class InputFiles(Input):
                 'type' : 'List',
                 'items' : image_list
             }
+        logger.debug('nimages = %d',nimages)
+        assert nimages is not None
 
         if 'cat_file_name' not in config:
             raise AttributeError('Attribute cat_file_name is required')
@@ -422,22 +429,16 @@ class InputFiles(Input):
 
         if cat_list is not None:
             logger.debug('cat_list = %s',cat_list)
-            if len(cat_list) == 1 and len(image_list) > 1:
+            if len(cat_list) == 1 and nimages > 1:
                 logger.info("Using the same catlist for all image")
-                cat_list = cat_list * len(image_list)
-            if nimages is not None and nimages != len(cat_list):
+                cat_list = cat_list * nimages
+            elif nimages != len(cat_list):
                 raise ValueError("nimages = %s doesn't match length of cat_file_name list (%d)"%(
-                        nimages, len(cat_list)))
-            nimages = len(cat_list)
-            logger.debug('nimages = %d',nimages)
+                                 nimages, len(cat_list)))
             config['cat_file_name'] = {
                 'type' : 'List',
                 'items' : cat_list
             }
-
-        if nimages is None:
-            raise ValueError('input.nimages is required if not using a list or simple string for ' +
-                             'file names')
 
         self.nimages = nimages
         self.chipnums = list(range(nimages))
