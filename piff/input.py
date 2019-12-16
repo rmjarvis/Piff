@@ -877,6 +877,10 @@ class InputFiles(Input):
         if ra_col is not None or dec_col is not None:
             if ra_col is None or dec_col is None:
                 raise ValueError("ra_col and dec_col are both required if one is provided.")
+            if ra_col not in cat.dtype.names:
+                raise ValueError("ra_col = %s is not a column in %s"%(ra_col,cat_file_name))
+            if dec_col not in cat.dtype.names:
+                raise ValueError("dec_col = %s is not a column in %s"%(dec_col,cat_file_name))
             logger.debug("Starting to make a list of positions from ra, dec")
             ra_values = cat[ra_col]
             dec_values = cat[dec_col]
