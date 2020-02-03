@@ -1,6 +1,7 @@
 branches:
     only:
         - master
+        - optatmo
 
 language: python
 python:
@@ -28,7 +29,10 @@ before_install:
     # Install GalSim
     - pip install -U setuptools pip
     - pip install -U numpy astropy future pyyaml LSSTDESC.Coord pybind11
-    - pip install -U galsim
+
+    #- pip install -U galsim
+    # For now... we need force_stepk option.
+    - pip install git+https://github.com/GalSim-developers/GalSim.git@master
 
     # Install Pixmappy
     - git clone https://github.com/gbernstein/pixmappy.git

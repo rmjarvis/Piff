@@ -46,7 +46,8 @@ class StarStats(Stats):
                                     plot all stars. Otherwise, we draw
                                     number_plot stars at random (without
                                     replacement). [default: 5]
-        :param adjust_stars:        Boolean. If true, when computing, will also fit for best starfit center and flux to match observed star. [default: False]
+        :param adjust_stars:        Boolean. If true, when computing, will also fit for best
+                                    starfit center and flux to match observed star. [default: False]
         :param file_name:           Name of the file to output to. [default: None]
         :param logger:              A logger object for logging debug info. [default: None]
         """
@@ -87,34 +88,30 @@ class StarStats(Stats):
 
         :returns: Star with modified fit and center
         """
-        import lmfit
-        # create lmfit
-        lmparams = lmfit.Parameters()
+        import scipy
         # put in initial guesses for flux, du, dv if they exist
         flux = star.fit.flux
         du, dv = star.fit.center
-        # Order of params is important!
-        lmparams.add('flux', value=flux, vary=True, min=0.0)
-        lmparams.add('du', value=du, vary=True, min=-1, max=1)
-        lmparams.add('dv', value=dv, vary=True, min=-1, max=1)
+        params = np.array([flux, du, dv])
 
-        # run lmfit
-        results = lmfit.minimize(self._fit_residual, lmparams,
-                                 args=(star, psf, logger,),
-                                 method='leastsq', epsfcn=1e-8,
-                                 maxfev=500)
+        results = scipy.optimize.least_squares(
+            fun = self._fit_residual,
+            x0 = params,
+            args=(star, psf, logger,),
+            method='lm', ftol=1e-8, diff_step=1.e-4,
+            max_nfev=500)
 
         # report results
         logger.debug('Adjusted Star Fit Results:')
-        logger.debug(lmfit.fit_report(results))
+        logger.debug(results)
 
         # create new star with new fit
-        flux = results.params['flux'].value
-        du = results.params['du'].value
-        dv = results.params['dv'].value
+        flux = results.x[0]
+        du = results.x[1]
+        dv = results.x[2]
         center = (du, dv)
         # also update the chisq, but keep the rest of the parameters from model fit
-        chisq = results.chisqr
+        chisq = results.cost*2  # Their cost is basically chisq / 2
         fit = StarFit(star.fit.params, params_var=star.fit.params_var,
                 flux=flux, center=center, chisq=chisq, dof=star.fit.dof,
                 A=star.fit.A, b=star.fit.b)
@@ -122,9 +119,9 @@ class StarStats(Stats):
 
         return star_fit
 
-    def _fit_residual(self, lmparams, star, psf, logger=None):
+    def _fit_residual(self, params, star, psf, logger=None):
         # modify star's fit values
-        flux, du, dv = lmparams.valuesdict().values()
+        flux, du, dv = params
         star.fit.flux = flux
         star.fit.center = (du, dv)
 
