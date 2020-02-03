@@ -191,6 +191,7 @@ def test_fit_model_for_many_stars():
     fit_atmo_sizes = []
     fit_atmo_g1s = []
     fit_atmo_g2s = []
+    number_of_failed_fits = 0
     for star, star_i, param, param_including_atmo_params in zip(stars_blank, list(range(0,len(stars_blank))), params, params_including_atmo_params):
         prof = psf_draw.getProfile(copy.deepcopy(star), param_including_atmo_params) * 1e6
         star = psf_draw.drawProfile(star, prof, param_including_atmo_params)
@@ -203,6 +204,7 @@ def test_fit_model_for_many_stars():
             delete_list.append(star_i)
             logger.warning('{0}'.format(str(e)))
             logger.warning('Warning! Failed to fit atmosphere model for star {0}. Removing star'.format(star_i))
+            number_of_failed_fits = number_of_failed_fits + 1
             continue
         fit_atmo_size = fitted_star.fit.params[0]
         fit_atmo_sizes.append(fit_atmo_size)
@@ -214,9 +216,11 @@ def test_fit_model_for_many_stars():
     draw_atmo_g1s = np.delete(draw_atmo_g1s, delete_list).tolist()
     draw_atmo_g2s = np.delete(draw_atmo_g2s, delete_list).tolist()
     tol = 1e-6
+    max_failed_fits = 3
     assert np.all(np.array(draw_atmo_sizes) - np.array(fit_atmo_sizes) <= tol),'failed to fit all atmo_sizes to tolerance {0}'.format(tol)
     assert np.all(np.array(draw_atmo_g1s) - np.array(fit_atmo_g1s) <= tol),'failed to fit all atmo_g1s to tolerance {0}'.format(tol)
     assert np.all(np.array(draw_atmo_g2s) - np.array(fit_atmo_g2s) <= tol),'failed to fit all atmo_g2s to tolerance {0}'.format(tol)
+    assert number_of_failed_fits <= max_failed_fits,'number of failed fits is {0}, which exceeds the maximum for this unit test {1}'.format(number_of_failed_fits, max_failed_fits)
 
 
 
@@ -598,6 +602,6 @@ def test_size_fit():
 
 if __name__ == '__main__':
     test_fit_model_for_many_stars()
-    test_star_residuals()
-    test_optics_and_test_fit_model()
-    test_size_fit()
+    #test_star_residuals()
+    #test_optics_and_test_fit_model()
+    #test_size_fit()
