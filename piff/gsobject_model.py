@@ -40,7 +40,6 @@ class GSObjectModel(Model):
     def __init__(self, gsobj, fastfit=False, centered=True, include_pixel=True,
                  logger=None):
         if isinstance(gsobj, str):
-            import galsim
             gsobj = eval(gsobj)
 
         self.kwargs = {'gsobj':repr(gsobj),
@@ -62,7 +61,6 @@ class GSObjectModel(Model):
 
     def moment_fit(self, star, logger=None):
         """Estimate transformations needed to bring self.gsobj towards given star."""
-        import galsim
         flux, cenu, cenv, size, g1, g2 = star.data.properties['hsm']
         shape = galsim.Shear(g1=g1, g2=g2)
 
@@ -116,7 +114,6 @@ class GSObjectModel(Model):
 
         :returns: `chi` as a flattened numpy array.
         """
-        import galsim
         image, weight, image_pos = star.data.getImage()
         flux, du, dv, scale, g1, g2 = params
 
@@ -354,7 +351,6 @@ class Gaussian(GSObjectModel):
     :param logger:      A logger object for logging debug info. [default: None]
     """
     def __init__(self, fastfit=False, centered=True, include_pixel=True, logger=None):
-        import galsim
         gsobj = galsim.Gaussian(sigma=1.0)
         GSObjectModel.__init__(self, gsobj, fastfit, centered, include_pixel, logger)
         # We'd need self.kwargs['gsobj'] if we were reconstituting via the GSObjectModel
@@ -375,7 +371,6 @@ class Kolmogorov(GSObjectModel):
     :param logger:      A logger object for logging debug info. [default: None]
     """
     def __init__(self, fastfit=False, centered=True, include_pixel=True, logger=None):
-        import galsim
         gsobj = galsim.Kolmogorov(half_light_radius=1.0)
         GSObjectModel.__init__(self, gsobj, fastfit, centered, include_pixel, logger)
         # We'd need self.kwargs['gsobj'] if we were reconstituting via the GSObjectModel
@@ -400,7 +395,6 @@ class Moffat(GSObjectModel):
     """
     def __init__(self, beta, trunc=0., fastfit=False, centered=True, include_pixel=True,
                  logger=None):
-        import galsim
         gsobj = galsim.Moffat(half_light_radius=1.0, beta=beta, trunc=trunc)
         GSObjectModel.__init__(self, gsobj, fastfit, centered, include_pixel, logger)
         # We'd need self.kwargs['gsobj'] if we were reconstituting via the GSObjectModel
