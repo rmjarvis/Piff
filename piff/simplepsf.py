@@ -34,15 +34,19 @@ class SimplePSF(PSF):
     The model defines the functional form of the surface brightness profile, and the
     interpolator defines how the parameters of the model vary across the field of view.
     """
-    def __init__(self, model, interp, outliers=None, extra_interp_properties=None):
+    def __init__(self, model, interp, outliers=None, extra_interp_properties=None,
+                 chisq_thresh=0.1, max_iter=30):
         """
         :param model:       A Model instance used for modeling the surface brightness profile.
         :param interp:      An Interp instance used to interpolate across the field of view.
         :param outliers:    Optionally, an Outliers instance used to remove outliers.
                             [default: None]
-        :param extra_interp_properties:     A list of any extra properties that will be used for
-                                            the interpolation in addition to (u,v).
-                                            [default: None]
+        :param extra_interp_properties: A list of any extra properties that will be used for
+                            the interpolation in addition to (u,v).
+                            [default: None]
+        :param chisq_thresh: Change in reduced chisq at which iteration will terminate.
+                            [default: 0.1]
+        :param max_iter:    Maximum number of iterations to try. [default: 30]
         """
         self.model = model
         self.interp = interp
@@ -51,6 +55,8 @@ class SimplePSF(PSF):
             self.extra_interp_properties = []
         else:
             self.extra_interp_properties = extra_interp_properties
+        self.chisq_thresh = chisq_thresh
+        self.max_iter = max_iter
         self.kwargs = {
             # These are junk entries that will be overwritten.
             # TODO: Come up with a nicer mechanism for specifying items that can be overwritten
@@ -58,6 +64,8 @@ class SimplePSF(PSF):
             'model': 0,
             'interp': 0,
             'outliers': 0,
+            'chisq_thresh': self.chisq_thresh,
+            'max_iter': self.max_iter,
         }
 
     @classmethod
@@ -94,22 +102,16 @@ class SimplePSF(PSF):
 
         return kwargs
 
-    def fit(self, stars, wcs, pointing,
-            chisq_threshold=0.1, max_iterations=30, logger=None):
+    def fit(self, stars, wcs, pointing, logger=None):
         """Fit interpolated PSF model to star data using standard sequence of operations.
 
         :param stars:           A list of Star instances.
         :param wcs:             A dict of WCS solutions indexed by chipnum.
         :param pointing:        A galsim.CelestialCoord object giving the telescope pointing.
                                 [Note: pointing should be None if the WCS is not a CelestialWCS]
-        :param chisq_threshold: Change in reduced chisq at which iteration will terminate.
-                                [default: 0.1]
-        :param max_iterations:  Maximum number of iterations to try. [default: 30]
         :param logger:          A logger object for logging debug info. [default: None]
         """
         logger = galsim.config.LoggerWrapper(logger)
-        # TODO: Make chisq_thresh and max_iterations configurable paramters and move them
-        #       to the initialization.
         self.stars = stars
         self.wcs = wcs
         self.pointing = pointing
@@ -149,7 +151,7 @@ class SimplePSF(PSF):
 
         # Begin iterations.  Very simple convergence criterion right now.
         oldchisq = 0.
-        for iteration in range(max_iterations):
+        for iteration in range(self.max_iter):
             if len(self.stars) == 0:
                 raise RuntimeError("No stars.  Cannot find PSF model.")
 
@@ -209,7 +211,6 @@ class SimplePSF(PSF):
             logger.warning("             Total chisq = %.2f / %d dof", chisq, dof)
 
             # Save these so we can write them to the output file.
-            self.chisq_threshold = chisq_threshold
             self.chisq = chisq
             self.last_delta_chisq = oldchisq-chisq
             self.dof = dof
@@ -218,11 +219,11 @@ class SimplePSF(PSF):
             # Very simple convergence test here:
             # Note, the lack of abs here means if chisq increases, we also stop.
             # Also, don't quit if we removed any outliers.
-            if (nremoved == 0) and (oldchisq > 0) and (oldchisq-chisq < chisq_threshold*dof):
+            if (nremoved == 0) and (oldchisq > 0) and (oldchisq-chisq < self.chisq_thresh*dof):
                 return
             oldchisq = chisq
 
-        logger.warning("PSF fit did not converge.  Max iterations = %d reached.",max_iterations)
+        logger.warning("PSF fit did not converge.  Max iterations = %d reached.",self.max_iter)
 
     def drawStarList(self, stars, copy_image=True):
         """Generate PSF images for given stars. Takes advantage of
@@ -269,7 +270,6 @@ class SimplePSF(PSF):
         logger = galsim.config.LoggerWrapper(logger)
         if hasattr(self, 'chisq'):
             chisq_dict = {
-                'chisq_threshold' : self.chisq_threshold,
                 'chisq' : self.chisq,
                 'last_delta_chisq' : self.last_delta_chisq,
                 'dof' : self.dof,
