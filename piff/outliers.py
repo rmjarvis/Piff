@@ -216,7 +216,7 @@ class ChisqOutliers(Outliers):
         :param thresh:      The threshold in chisq above which an object is declared an outlier.
         :param ndof:        The threshold as a multiple of the model's dof.
         :param prob:        The probability limit that a chisq distribution with the model's dof
-                            would exceed the given galue.
+                            would exceed the given value.
         :param nsigma:      The number of sigma equivalent for the probability that a chisq
                             distribution would exceed the given value.
         :param max_remove:  The maximum number of outliers to remove on each iteration.  If this
@@ -236,7 +236,7 @@ class ChisqOutliers(Outliers):
         # The only one of these we can convert now is nsigma, which we can convert into prob.
         # Going from either prob or ndof to thresh requires knowledge of dof.
         if nsigma is not None:
-            prob = 2. * math.erfc(nsigma)
+            prob = math.erfc(nsigma / 2**0.5)
 
         self.thresh = thresh
         self.ndof = ndof
