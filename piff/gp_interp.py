@@ -37,27 +37,23 @@ class GPInterp(Interp):
                         custom piff AnisotropicRBF or ExplicitKernel object.  [default: 'RBF()']
     :param optimize:    Boolean indicating whether or not to try and optimize the kernel by
                         maximizing the marginal likelihood.  [default: True]
-    :param npca:        Number of principal components to keep.  [default: 0, which means don't
-                        decompose PSF parameters into principle components]
     :param normalize:   Whether to normalize the interpolation parameters to have a mean of 0.
                         Normally, the parameters being interpolated are not mean 0, so you would
                         want this to be True, but if your parameters have an a priori mean of 0,
                         then subtracting off the realized mean would be invalid.  [default: True]
     :param logger:      A logger object for logging debug info. [default: None]
     """
-    def __init__(self, keys=('u','v'), kernel='RBF()', optimize=True, npca=0, normalize=True,
+    def __init__(self, keys=('u','v'), kernel='RBF()', optimize=True, normalize=True,
                  logger=None):
         from sklearn.gaussian_process import GaussianProcessRegressor
 
         self.keys = keys
         self.kernel = kernel
-        self.npca = npca
         self.degenerate_points = False
 
         self.kwargs = {
             'keys': keys,
             'optimize': optimize,
-            'npca': npca,
             'kernel': kernel
         }
         optimizer = 'fmin_l_bfgs_b' if optimize else None
@@ -98,11 +94,6 @@ class GPInterp(Interp):
         # Save these for potential read/write.
         self._X = X
         self._y = y
-        if self.npca > 0:
-            from sklearn.decomposition import PCA
-            self._pca = PCA(n_components=self.npca)
-            self._pca.fit(y)
-            y = self._pca.transform(y)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             # Sometimes the next line emits a warning along the lines of:
@@ -118,8 +109,6 @@ class GPInterp(Interp):
         :returns:  Regressed parameters  (n_samples, n_targets)
         """
         ystar = self.gp.predict(Xstar)
-        if self.npca > 0:
-            ystar = self._pca.inverse_transform(ystar)
         return ystar
 
     def getProperties(self, star, logger=None):
