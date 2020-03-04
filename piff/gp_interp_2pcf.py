@@ -172,10 +172,6 @@ class GPInterp2pcf(Interp):
                          custom piff VonKarman object.  [default: 'RBF(1)']
     :param optimize:     Boolean indicating whether or not to try and optimize the kernel by
                          computing the two-point correlation function.  [default: True]
-    :param npca:         Number of principal components to keep. If !=0 pca is done on
-                         PSF parameters before any interpolation, and it will be the PC that will
-                         be interpolate and then retransform in PSF parameters. [default: 0, which
-                         means don't decompose PSF parameters into principle components.]
     :param anisotropic:   2D 2-point correlation function. Used 2D correlation function for the
                          fiting part of the GP instead of a 1D correlation function. [default: False]
     :param normalize:    Whether to normalize the interpolation parameters to have a mean of 0.
@@ -201,11 +197,10 @@ class GPInterp2pcf(Interp):
                          exposures. See meanify documentation. [default: None]
     :param logger:       A logger object for logging debug info. [default: None]
     """
-    def __init__(self, keys=('u','v'), kernel='RBF(1)', optimize=True, npca=0, anisotropic=False, normalize=True,
+    def __init__(self, keys=('u','v'), kernel='RBF(1)', optimize=True, anisotropic=False, normalize=True,
                  white_noise=0., n_neighbors=4, average_fits=None, nbins=20, min_sep=None, max_sep=None, logger=None):
 
         self.keys = keys
-        self.npca = npca
         self.normalize = normalize
         self.optimize = optimize
         self.white_noise = white_noise
@@ -218,7 +213,6 @@ class GPInterp2pcf(Interp):
         self.kwargs = {
             'keys': keys,
             'optimize': optimize,
-            'npca': npca,
             'kernel': kernel,
             'normalize':normalize
         }
@@ -241,8 +235,6 @@ class GPInterp2pcf(Interp):
         self._2pcf_mask = []
 
         if average_fits is not None:
-            if npca != 0:
-                raise ValueError('npca can be only 0 for the moment when average_fits is not None')
             import fitsio
             average = fitsio.read(average_fits)
             X0 = average['COORDS0'][0]
@@ -368,12 +360,8 @@ class GPInterp2pcf(Interp):
 
         :returns:       Regressed parameters  (n_samples, n_targets)
         """
-        if self.npca>0:
-            y_init = self._y_pca
-            y_err = self._y_pca_err
-        else:
-            y_init = self._y
-            y_err = self._y_err
+        y_init = self._y
+        y_err = self._y_err
 
         ystar = np.array([self.return_gp_predict(y_init[:,i]-self._mean[i]-self._spatial_average[:,i],
                                                  self._X, Xstar, ker, y_err=y_err[:,i],
@@ -384,8 +372,6 @@ class GPInterp2pcf(Interp):
 
         for i in range(self.nparams):
             ystar[:,i] += self._mean[i] + spatial_average[:,i]
-        if self.npca > 0:
-            ystar = self._pca.inverse_transform(ystar)
         return ystar
 
     def return_gp_predict(self,y, X1, X2, kernel, y_err, logger=None):
@@ -438,12 +424,10 @@ class GPInterp2pcf(Interp):
         :param logger:  A logger object for logging debug info. [default: None]
         """
         self.nparams = len(stars[0].fit.params)
-        if self.npca>0:
-            self.nparams = self.npca
         if len(self.kernel_template)==1:
             self.kernels = [copy.deepcopy(self.kernel_template[0]) for i in range(self.nparams)]
         else:
-            if len(self.kernel_template)!= self.nparams or (len(self.kernel_template)!= self.npca & self.npca!=0):
+            if len(self.kernel_template)!= self.nparams:
                 raise ValueError("numbers of kernel provided should be 1 (same for all parameters) or " \
                                  "equal to the number of params (%i), number kernel provided: %i" \
                                  %((self.nparams,len(self.kernel_template))))
@@ -486,15 +470,6 @@ class GPInterp2pcf(Interp):
         if self.white_noise > 0:
             y_err = np.sqrt(y_err**2 + self.white_noise**2)
         self._y_err = y_err
-
-        if self.npca > 0:
-            from sklearn.decomposition import PCA
-            self._pca = PCA(n_components=self.npca)
-            self._pca.fit(y)
-            y = self._pca.transform(y)
-            y_err = self._pca.transform(y_err)
-            self._y_pca, self._y_pca_err = y, y_err
-            self.nparams = self.npca
 
         if self.normalize:
             self._mean = np.mean(y - self._spatial_average, axis=0)
