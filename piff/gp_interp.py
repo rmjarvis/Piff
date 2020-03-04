@@ -19,8 +19,9 @@
 import numpy as np
 import warnings
 
-from sklearn.gaussian_process.kernels import StationaryKernelMixin, NormalizedKernelMixin, Kernel
-from sklearn.gaussian_process.kernels import Hyperparameter
+#from sklearn.gaussian_process.kernels import StationaryKernelMixin, NormalizedKernelMixin, Kernel
+#from sklearn.gaussian_process.kernels import Hyperparameter
+import treegp
 
 from .interp import Interp
 from .star import Star, StarFit
@@ -45,9 +46,10 @@ class GPInterp(Interp):
     """
     def __init__(self, keys=('u','v'), kernel='RBF()', optimize=True, normalize=True,
                  logger=None):
-        from sklearn.gaussian_process import GaussianProcessRegressor
 
         self.keys = keys
+        self.optimize = optimize
+        self.normalize = normalize
         self.kernel = kernel
         self.degenerate_points = False
 
@@ -56,35 +58,18 @@ class GPInterp(Interp):
             'optimize': optimize,
             'kernel': kernel
         }
-        optimizer = 'fmin_l_bfgs_b' if optimize else None
-        self.gp = GaussianProcessRegressor(self._eval_kernel(self.kernel), optimizer=optimizer,
-                                           normalize_y=normalize)
 
-    @staticmethod
-    def _eval_kernel(kernel):
-        # Some import trickery to get all subclasses of sklearn.gaussian_process.kernels.Kernel
-        # into the local namespace without doing "from sklearn.gaussian_process.kernels import *"
-        # and without importing them all manually.
-        def recurse_subclasses(cls):
-            out = []
-            for c in cls.__subclasses__():
-                out.append(c)
-                out.extend(recurse_subclasses(c))
-            return out
-        clses = recurse_subclasses(Kernel)
-        for cls in clses:
-            module = __import__(cls.__module__, globals(), locals(), cls)
-            execstr = "{0} = module.{0}".format(cls.__name__)
-            exec(execstr, globals(), locals())
+        if isinstance(kernel,str):
+            self.kernel_template = [kernel]
+        else:
+            if type(kernel) is not list and type(kernel) is not np.ndarray:
+                raise TypeError("kernel should be a string a list or a numpy.ndarray of string")
+            else:
+                self.kernel_template = [ker for ker in kernel]
 
-        from numpy import array
+        #self.gp = GaussianProcessRegressor(self._eval_kernel(self.kernel), optimizer=optimizer,
+        #                                   normalize_y=normalize)
 
-        try:
-            k = eval(kernel)
-        except Exception as e:  # pragma: no cover
-            raise RuntimeError("Failed to evaluate kernel string {0!r}.  "
-                               "Original exception: {1}".format(kernel, e))
-        return k
 
     def _fit(self, X, y, logger=None):
         """Update the GaussianProcessRegressor with data
@@ -101,14 +86,16 @@ class GPInterp(Interp):
             # {'grad': array([-0.29692092, -4.153523  ,  2.9923153 ]),
             # 'task': b'ABNORMAL_TERMINATION_IN_LNSRCH', 'funcalls': 70, 'nit': 2, 'warnflag': 2}
             # As far as I can tell, it's not actually harmful, so just ignore it.
-            self.gp.fit(X, y)
+            for i in range(self.nparams):
+                self.gps[i].initialize(X, y[:,i], y_err=None)
+                self.gps[i].solve()
 
     def _predict(self, Xstar):
         """ Predict responses given covariates.
         :param X:  The independent covariates at which to interpolate.  (n_samples, n_features).
         :returns:  Regressed parameters  (n_samples, n_targets)
         """
-        ystar = self.gp.predict(Xstar)
+        ystar = np.array([gp.predict(Xstar) for gp in self.gps]).T
         return ystar
 
     def getProperties(self, star, logger=None):
@@ -130,6 +117,29 @@ class GPInterp(Interp):
         :param stars:   A list of Star instances to interpolate between
         :param logger:  A logger object for logging debug info. [default: None]
         """
+        self.nparams = len(stars[0].fit.params)
+        if len(self.kernel_template)==1:
+            self.kernels = [self.kernel_template[0] for i in range(self.nparams)]
+        else:
+            if len(self.kernel_template)!= self.nparams:
+                raise ValueError("numbers of kernel provided should be 1 (same for all parameters) or " \
+                                 "equal to the number of params (%i), number kernel provided: %i" \
+                                 %((self.nparams,len(self.kernel_template))))
+            else:
+                self.kernels = [copy.deepcopy(ker) for ker in self.kernel_template]
+        
+        self.gps = []
+
+        for i in range(self.nparams):
+
+            gp = treegp.GPInterpolation(kernel=self.kernels[i], 
+                                        optimize=self.optimize, optimizer='log-likelihood',
+                                        anisotropic=False, normalize=self.normalize, 
+                                        robust_fit=False, p0=[3000., 0.,0.],
+                                        white_noise=0., n_neighbors=4, average_fits=None,
+                                        nbins=20, min_sep=None, max_sep=None)
+            self.gps.append(gp)
+
         return stars
 
     def solve(self, stars=None, logger=None):
