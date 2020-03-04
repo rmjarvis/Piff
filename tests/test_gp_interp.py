@@ -625,13 +625,13 @@ def validate(validate_stars, interp, rtol=0.02):
 
 
 def check_gp(training_data, validation_data, visualization_data,
-             kernel, npca=0, optimize=False, file_name=None, rng=None,
+             kernel, optimize=False, file_name=None, rng=None,
              visualize=False, check_config=False, rtol=0.02):
     """ Solve for global PSF model, test it, and optionally display it.
     """
     stars = params_to_stars(training_data, noise=0.03, rng=rng)
     validate_stars = params_to_stars(validation_data, noise=0.0, rng=rng)
-    interp = piff.GPInterp(kernel=kernel, optimize=optimize, npca=npca)
+    interp = piff.GPInterp(kernel=kernel, optimize=optimize)
     interp.initialize(stars)
     iterate(stars, interp)
     if visualize:
@@ -643,7 +643,6 @@ def check_gp(training_data, validation_data, visualization_data,
             'interp' : {
                 'type' : 'GPInterp',
                 'kernel' : kernel,
-                'npca' : npca,
                 'optimize' : optimize
             }
         }
@@ -674,7 +673,7 @@ def check_gp(training_data, validation_data, visualization_data,
 
 
 def check_gp_2pcf(training_data, validation_data, visualization_data,
-                  kernel, npca=0, optimize=False, anisotropic=False, file_name=None, rng=None,
+                  kernel, optimize=False, anisotropic=False, file_name=None, rng=None,
                   visualize=False, check_config=False, rtol=0.02):
     """ Solve for global PSF model, test it, and optionally display it.
     """
@@ -689,7 +688,7 @@ def check_gp_2pcf(training_data, validation_data, visualization_data,
         MIN = 0.1
         MAX = 0.6
     interp = piff.GPInterp2pcf(kernel=kernel, optimize=optimize, anisotropic=anisotropic,
-                               npca=npca, nbins=nbins, min_sep=MIN, max_sep=MAX, white_noise=1e-5)
+                               nbins=nbins, min_sep=MIN, max_sep=MAX, white_noise=1e-5)
     interp.initialize(stars)
     iterate_2pcf(stars, interp)
     if visualize:
@@ -701,7 +700,6 @@ def check_gp_2pcf(training_data, validation_data, visualization_data,
             'interp' : {
                 'type' : 'GPInterp2pcf',
                 'kernel' : kernel,
-                'npca' : npca,
                 'optimize' : optimize,
                 'white_noise': 1e-5,
                 'nbins': nbins,
@@ -735,10 +733,8 @@ def check_gp_2pcf(training_data, validation_data, visualization_data,
 @timer
 def test_constant_psf():
     if __name__ == '__main__':
-        npcas = [0, 2]
         optimizes = [True, False]
     else:
-        npcas = [2]
         optimizes = [True]
     ntrain, nvalidate, nvisualize = 100, 1, 21
     rng = galsim.BaseDeviate(572958179)
@@ -750,23 +746,20 @@ def test_constant_psf():
     # We probably aren't measuring fwhm, g1, g2, etc. to better than 1e-5...
     #kernel += " + WhiteKernel(1e-5, (1e-7, 1e-1))"
 
-    for npca in npcas:
-        for optimize in optimizes:
-            check_gp(training_data, validation_data, visualization_data, kernel,
-                     npca=npca, optimize=optimize, rng=rng, check_config=True)
-            check_gp_2pcf(training_data, validation_data, visualization_data, kernel,
-                          npca=npca, optimize=optimize, rng=rng, check_config=True)
+    for optimize in optimizes:
+        check_gp(training_data, validation_data, visualization_data, kernel,
+                 optimize=optimize, rng=rng, check_config=True)
+        check_gp_2pcf(training_data, validation_data, visualization_data, kernel,
+                      optimize=optimize, rng=rng, check_config=True)
 
 
 @timer
 def test_polynomial_psf():
     if __name__ == '__main__':
         ntrain = 200
-        npcas = [0, 2]
         optimizes = [True, False]
     else:
         ntrain = 100
-        npcas = [0]
         optimizes = [False]
     nvalidate, nvisualize = 1, 21
     rng = galsim.BaseDeviate(1203985)
@@ -778,25 +771,21 @@ def test_polynomial_psf():
     # white noise
     #kernel += " + WhiteKernel(1e-5, (1e-7, 1e-1))"
 
-    for npca in npcas:
-        for optimize in optimizes:
-            check_gp(training_data, validation_data, visualization_data, kernel,
-                     npca=npca, optimize=optimize, rng=rng)
-            if npca == 0:
-                check_gp_2pcf(training_data, validation_data, visualization_data, kernel,
-                              npca=npca, optimize=optimize, rng=rng)
+    for optimize in optimizes:
+        check_gp(training_data, validation_data, visualization_data, kernel,
+                 optimize=optimize, rng=rng)
+        check_gp_2pcf(training_data, validation_data, visualization_data, kernel,
+                      optimize=optimize, rng=rng)
 
 
 @timer
 def test_grf_psf():
     if __name__ == '__main__':
         ntrain = 200
-        npcas = [0]
         optimizes = [True, False]
         check_config = True
     else:
         ntrain = 100
-        npcas = [0]
         optimizes = [False]
         check_config = False
     nvalidate, nvisualize = 1, 21
@@ -810,14 +799,13 @@ def test_grf_psf():
     # white noise
     #kernel += " + WhiteKernel(1e-5, (1e-7, 1e-1))"
 
-    for npca in npcas:
-        for optimize in optimizes:
-            check_gp(training_data, validation_data, visualization_data, kernel+" + WhiteKernel(1e-5, (1e-7, 1e-1))",
-                     npca=npca, optimize=optimize, file_name="test_gp_grf.fits", rng=rng,
-                     check_config=check_config)
-            check_gp_2pcf(training_data, validation_data, visualization_data, kernel,
-                          npca=npca, optimize=optimize, anisotropic=False, file_name="test_gp_grf.fits", rng=rng,
-                          check_config=check_config)
+    for optimize in optimizes:
+        check_gp(training_data, validation_data, visualization_data, kernel+" + WhiteKernel(1e-5, (1e-7, 1e-1))",
+                 optimize=optimize, file_name="test_gp_grf.fits", rng=rng,
+                 check_config=check_config)
+        check_gp_2pcf(training_data, validation_data, visualization_data, kernel,
+                      optimize=optimize, anisotropic=False, file_name="test_gp_grf.fits", rng=rng,
+                      check_config=check_config)
 
     # Check ExplicitKernel here too
     #
@@ -827,32 +815,27 @@ def test_grf_psf():
     kernel = "ExplicitKernel('np.exp(-0.5*(du**2+dv**2)/0.3**2)')"
     kernel += " + WhiteKernel(1e-5)"
     # No optimize loop, since ExplicitKernel is not optimizable.
-    for npca in npcas:
-        check_gp(training_data, validation_data, visualization_data, kernel,
-                 npca=npca, file_name="test_explicit_grf.fits", rng=rng,
-                 check_config=check_config)
+    check_gp(training_data, validation_data, visualization_data, kernel,
+             file_name="test_explicit_grf.fits", rng=rng,
+             check_config=check_config)
 
     # Try out an AnisotropicRBF on the isotropic data too.
     kernel = "0.01*AnisotropicRBF(scale_length=[0.3, 0.3])"
     #kernel += " + WhiteKernel(1e-5)"
-    for npca in npcas:
-        for optimize in optimizes:
-            check_gp(training_data, validation_data, visualization_data, kernel+ "+ WhiteKernel(1e-5)",
-                     npca=npca, optimize=optimize,
-                     file_name="test_aniso_isotropic_grf.fits", rng=rng,
-                     check_config=check_config)
+    for optimize in optimizes:
+        check_gp(training_data, validation_data, visualization_data, kernel+ "+ WhiteKernel(1e-5)",
+                 optimize=optimize, file_name="test_aniso_isotropic_grf.fits", rng=rng,
+                 check_config=check_config)
 
 @timer
 def test_vonkarman_psf():
     if __name__ == '__main__':
         ntrain = 200
-        npcas = [0]
         optimizes = [True, False]
         check_config = True
         rtol = 0.05
     else:
         ntrain = 100
-        npcas = [0]
         optimizes = [True]
         check_config = False
         rtol = 0.05
@@ -865,18 +848,17 @@ def test_vonkarman_psf():
     kernel = "0.01*VonKarman(2., (1e-1, 1e1))"
     anisotropic_kernel = "0.01*AnisotropicVonKarman(scale_length=[4.,4.])"
 
-    for npca in npcas:
-        for optimize in optimizes:
-            check_gp(training_data, validation_data, visualization_data,
-                     kernel + " + WhiteKernel(1e-5, (1e-6, 1e-1))",
-                     npca=npca, optimize=optimize, file_name="test_gp_vonkarman.fits", rng=rng,
-                     check_config=check_config, rtol=rtol)
-            check_gp_2pcf(training_data, validation_data, visualization_data, kernel,
-                          npca=npca, optimize=optimize, anisotropic=False, file_name="test_gp_vonkarman.fits", rng=rng,
-                          check_config=check_config, rtol=rtol)
+    for optimize in optimizes:
+        check_gp(training_data, validation_data, visualization_data,
+                 kernel + " + WhiteKernel(1e-5, (1e-6, 1e-1))",
+                 optimize=optimize, file_name="test_gp_vonkarman.fits", rng=rng,
+                 check_config=check_config, rtol=rtol)
+        check_gp_2pcf(training_data, validation_data, visualization_data, kernel,
+                      optimize=optimize, anisotropic=False, file_name="test_gp_vonkarman.fits", rng=rng,
+                      check_config=check_config, rtol=rtol)
 
     check_gp_2pcf(training_data, validation_data, visualization_data, anisotropic_kernel,
-                  npca=0, optimize=False, anisotropic=True, file_name="test_gp_vonkarman.fits", rng=rng,
+                  optimize=False, anisotropic=True, file_name="test_gp_vonkarman.fits", rng=rng,
                   check_config=check_config, rtol=rtol)
 
 @timer
@@ -884,13 +866,11 @@ def test_gp_with_kernels():
 
     if __name__ == '__main__':
         ntrain = 1000
-        npcas = [0]
         optimizes = [True, False]
         check_config = True
         rtol = 0.02
     else:
         ntrain = 500
-        npcas = [0]
         optimizes = [False]
         check_config = False
         rtol = 0.05
@@ -906,26 +886,23 @@ def test_gp_with_kernels():
               "0.01*VonKarman(0.7, (1e-1, 1e1))",
               "0.01*VonKarman(0.7, (1e-1, 1e1))"]
 
-    for npca in npcas:
-        for optimize in optimizes:
-            check_gp_2pcf(training_data, validation_data, visualization_data, kernel,
-                          npca=npca, optimize=optimize, file_name="test_gp_vonkarman.fits", rng=rng,
-                          check_config=check_config, rtol=rtol)
+    for optimize in optimizes:
+        check_gp_2pcf(training_data, validation_data, visualization_data, kernel,
+                      optimize=optimize, file_name="test_gp_vonkarman.fits", rng=rng,
+                      check_config=check_config, rtol=rtol)
 
 
 @timer
 def test_anisotropic_rbf_kernel():
     if __name__ == '__main__':
         ntrain = 250
-        npcas = [0]
         optimizes = [True, False]
         check_config = True
         nvalidate = 1
         nvisualize = 21
         rtol = 0.03
     else:
-        ntrain = 100
-        npcas = [0]
+        ntrain = 250
         optimizes = [False, True]
         check_config = False
         nvalidate = 1
@@ -947,15 +924,12 @@ def test_anisotropic_rbf_kernel():
 
     print(kernel)
 
-    for npca in npcas:
-        for optimize in optimizes:
-            check_gp(training_data, validation_data, visualization_data,
-                     kernel+ "+ WhiteKernel(1e-5, (1e-7, 1e-2))",
-                     npca=npca, optimize=optimize, file_name="test_anisotropic_rbf.fits",
-                     rng=rng, check_config=check_config)
-            check_gp_2pcf(training_data, validation_data, visualization_data, kernel,
-                          npca=npca, anisotropic=True, optimize=optimize, rng=rng,
-                          check_config=check_config, rtol=rtol)
+    for optimize in optimizes:
+        check_gp(training_data, validation_data, visualization_data, kernel+ "+ WhiteKernel(1e-5, (1e-7, 1e-2))",
+                 optimize=optimize, file_name="test_anisotropic_rbf.fits",
+                 rng=rng, check_config=check_config)
+        check_gp_2pcf(training_data, validation_data, visualization_data, kernel,
+                      anisotropic=True, optimize=optimize, rng=rng, check_config=True)
 
 @timer
 def test_vonkarman_kernel():
