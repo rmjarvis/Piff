@@ -19,8 +19,6 @@
 import numpy as np
 import warnings
 
-#from sklearn.gaussian_process.kernels import StationaryKernelMixin, NormalizedKernelMixin, Kernel
-#from sklearn.gaussian_process.kernels import Hyperparameter
 import treegp
 
 from .interp import Interp
@@ -45,11 +43,12 @@ class GPInterp(Interp):
     :param logger:      A logger object for logging debug info. [default: None]
     """
     def __init__(self, keys=('u','v'), kernel='RBF()', optimize=True, normalize=True,
-                 logger=None):
+                 white_noise=0., logger=None):
 
         self.keys = keys
         self.optimize = optimize
         self.normalize = normalize
+        self.white_noise = white_noise
         self.kernel = kernel
         self.degenerate_points = False
 
@@ -136,7 +135,7 @@ class GPInterp(Interp):
                                         optimize=self.optimize, optimizer='log-likelihood',
                                         anisotropic=False, normalize=self.normalize, 
                                         robust_fit=False, p0=[3000., 0.,0.],
-                                        white_noise=0., n_neighbors=4, average_fits=None,
+                                        white_noise=self.white_noise, n_neighbors=4, average_fits=None,
                                         nbins=20, min_sep=None, max_sep=None)
             self.gps.append(gp)
 
@@ -151,6 +150,7 @@ class GPInterp(Interp):
         X = np.array([self.getProperties(star) for star in stars])
         y = np.array([star.fit.params for star in stars])
         self._fit(X, y, logger=logger)
+        self.kernels = [gp.kernel for gp in self.gps]
 
     def interpolate(self, star, logger=None):
         """Perform the interpolation to find the interpolated parameter vector at some position.
