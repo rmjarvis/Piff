@@ -419,6 +419,8 @@ def iterate(stars, interp):
     print("chisq: {0}    dof: {1}".format(chisq, dof))
     print("chisq/dof: {0}".format(chisq/dof))
 
+    interp.initialize(stars)
+
     oldchisq = 0.
     print()
     for iteration in range(10):
@@ -440,7 +442,7 @@ def iterate(stars, interp):
             break
         else:
             oldchisq = chisq
-    print(interp.gp.kernel_)
+    print(interp.kernels)
 
 def iterate_2pcf(stars, interp):
     """Iteratively improve the global PSF model.
@@ -625,13 +627,13 @@ def validate(validate_stars, interp, rtol=0.02):
 
 
 def check_gp(training_data, validation_data, visualization_data,
-             kernel, optimize=False, file_name=None, rng=None,
+             kernel, white_noise=1e-5, optimize=False, file_name=None, rng=None,
              visualize=False, check_config=False, rtol=0.02):
     """ Solve for global PSF model, test it, and optionally display it.
     """
     stars = params_to_stars(training_data, noise=0.03, rng=rng)
     validate_stars = params_to_stars(validation_data, noise=0.0, rng=rng)
-    interp = piff.GPInterp(kernel=kernel, optimize=optimize)
+    interp = piff.GPInterp(kernel=kernel, optimize=optimize, white_noise=1e-5)
     interp.initialize(stars)
     iterate(stars, interp)
     if visualize:
@@ -642,6 +644,7 @@ def check_gp(training_data, validation_data, visualization_data,
         config = {
             'interp' : {
                 'type' : 'GPInterp',
+                'white_noise' : 1e-5,
                 'kernel' : kernel,
                 'optimize' : optimize
             }
@@ -733,7 +736,7 @@ def check_gp_2pcf(training_data, validation_data, visualization_data,
 @timer
 def test_constant_psf():
     if __name__ == '__main__':
-        optimizes = [True, False]
+        optimizes = [False]
     else:
         optimizes = [True]
     ntrain, nvalidate, nvisualize = 100, 1, 21
@@ -743,8 +746,6 @@ def test_constant_psf():
             ntrain, nvalidate, nvisualize)
 
     kernel = "1*RBF(1.0, (1e-1, 1e3))"
-    # We probably aren't measuring fwhm, g1, g2, etc. to better than 1e-5...
-    #kernel += " + WhiteKernel(1e-5, (1e-7, 1e-1))"
 
     for optimize in optimizes:
         check_gp(training_data, validation_data, visualization_data, kernel,
@@ -795,12 +796,9 @@ def test_grf_psf():
             ntrain, nvalidate, nvisualize)
 
     kernel = "0.01*RBF(0.3, (1e-1, 1e1))"
-    # We probably aren't measuring fwhm, g1, g2, etc. to better than 1e-5, so add that amount of
-    # white noise
-    #kernel += " + WhiteKernel(1e-5, (1e-7, 1e-1))"
 
     for optimize in optimizes:
-        check_gp(training_data, validation_data, visualization_data, kernel+" + WhiteKernel(1e-5, (1e-7, 1e-1))",
+        check_gp(training_data, validation_data, visualization_data, kernel,
                  optimize=optimize, file_name="test_gp_grf.fits", rng=rng,
                  check_config=check_config)
         check_gp_2pcf(training_data, validation_data, visualization_data, kernel,
@@ -813,7 +811,6 @@ def test_grf_psf():
     # For simplicity, though, just assert a Gaussian == SquaredExponential with scale-length
     # of 0.3.
     kernel = "ExplicitKernel('np.exp(-0.5*(du**2+dv**2)/0.3**2)')"
-    kernel += " + WhiteKernel(1e-5)"
     # No optimize loop, since ExplicitKernel is not optimizable.
     check_gp(training_data, validation_data, visualization_data, kernel,
              file_name="test_explicit_grf.fits", rng=rng,
@@ -821,9 +818,8 @@ def test_grf_psf():
 
     # Try out an AnisotropicRBF on the isotropic data too.
     kernel = "0.01*AnisotropicRBF(scale_length=[0.3, 0.3])"
-    #kernel += " + WhiteKernel(1e-5)"
     for optimize in optimizes:
-        check_gp(training_data, validation_data, visualization_data, kernel+ "+ WhiteKernel(1e-5)",
+        check_gp(training_data, validation_data, visualization_data, kernel,
                  optimize=optimize, file_name="test_aniso_isotropic_grf.fits", rng=rng,
                  check_config=check_config)
 
@@ -849,8 +845,7 @@ def test_vonkarman_psf():
     anisotropic_kernel = "0.01*AnisotropicVonKarman(scale_length=[4.,4.])"
 
     for optimize in optimizes:
-        check_gp(training_data, validation_data, visualization_data,
-                 kernel + " + WhiteKernel(1e-5, (1e-6, 1e-1))",
+        check_gp(training_data, validation_data, visualization_data, kernel,
                  optimize=optimize, file_name="test_gp_vonkarman.fits", rng=rng,
                  check_config=check_config, rtol=rtol)
         check_gp_2pcf(training_data, validation_data, visualization_data, kernel,
@@ -925,7 +920,7 @@ def test_anisotropic_rbf_kernel():
     print(kernel)
 
     for optimize in optimizes:
-        check_gp(training_data, validation_data, visualization_data, kernel+ "+ WhiteKernel(1e-5, (1e-7, 1e-2))",
+        check_gp(training_data, validation_data, visualization_data, kernel,
                  optimize=optimize, file_name="test_anisotropic_rbf.fits",
                  rng=rng, check_config=check_config)
         check_gp_2pcf(training_data, validation_data, visualization_data, kernel,
@@ -1154,7 +1149,6 @@ def test_guess():
         # noise of 0.3 turns out to be pretty significant here.
         stars = params_to_stars(training_data, noise=0.3, rng=rng)
         kernel = "1*RBF({0}, (1e-1, 1e1))".format(guess)
-        kernel += " + WhiteKernel(1e-5, (1e-7, 1e-1))"
         interp = piff.GPInterp(kernel=kernel, normalize=False)
         stars = [mod.fit(s) for s in stars]
         stars = interp.initialize(stars)
@@ -1229,7 +1223,6 @@ def test_anisotropic_guess():
         # noise of 0.3 turns out to be pretty significant here.
         stars = params_to_stars(training_data, noise=0.03, rng=rng)
         kernel = "1*AnisotropicRBF(scale_length={0!r})".format([guess, guess])
-        kernel += " + WhiteKernel(1e-5, (1e-7, 1e-1))"
         interp = piff.GPInterp(kernel=kernel)
         stars = [mod.fit(s) for s in stars]
         stars = interp.initialize(stars)
@@ -1258,18 +1251,33 @@ if __name__ == '__main__':
     # pr = cProfile.Profile()
     # pr.enable()
     test_constant_psf()
-    test_polynomial_psf()
-    test_grf_psf()
-    test_vonkarman_psf()
-    test_anisotropic_rbf_kernel()
-    test_gp_with_kernels()
-    test_vonkarman_kernel()
-    test_anisotropic_vonkarman_kernel()
-    test_yaml()
-    test_anisotropic_limit()
-    test_guess()
-    test_guess_2pcf()
-    test_anisotropic_guess()
+
+    #optimizes = [False]
+    #ntrain, nvalidate, nvisualize = 100, 1, 21
+    #rng = galsim.BaseDeviate(572958179)
+
+    #training_data, validation_data, visualization_data = make_constant_psf_params(ntrain, nvalidate, nvisualize)
+
+    #kernel = "1*RBF(1.0, (1e-1, 1e3))"
+
+    #for optimize in optimizes:
+    #    check_gp(training_data, validation_data, visualization_data, kernel,
+    #             optimize=optimize, rng=rng, check_config=True)
+        #check_gp_2pcf(training_data, validation_data, visualization_data, kernel,
+        #              optimize=optimize, rng=rng, check_config=True)
+
+    ##test_polynomial_psf()
+    ##test_grf_psf()
+    ##test_vonkarman_psf()
+    ##test_anisotropic_rbf_kernel()
+    ##test_gp_with_kernels()
+    ##test_vonkarman_kernel()
+    ##test_anisotropic_vonkarman_kernel()
+    ##test_yaml()
+    ##test_anisotropic_limit()
+    ##test_guess()
+    ##test_guess_2pcf()
+    ##test_anisotropic_guess()
     # pr.disable()
     # ps = pstats.Stats(pr).sort_stats('tottime')
     # ps.print_stats(25)
