@@ -53,6 +53,10 @@ class GPInterp(Interp):
         self.optimize = optimize
         self.optimizer = optimizer
         self.anisotropic = anisotropic
+        if not self.anisotropic:
+            self.robust_fit = False
+        else:
+            self.robust_fit = True
         self.p0 = p0
         self.n_neighbors = n_neighbors
         self.average_fits = average_fits
@@ -135,7 +139,7 @@ class GPInterp(Interp):
             gp = treegp.GPInterpolation(kernel=self.kernels[i], 
                                         optimize=self.optimize, optimizer=self.optimizer,
                                         anisotropic=self.anisotropic, normalize=self.normalize,
-                                        robust_fit=True, p0=self.p0,
+                                        robust_fit=self.robust_fit, p0=self.p0,
                                         white_noise=self.white_noise, n_neighbors=self.n_neighbors, 
                                         average_fits=self.average_fits,
                                         nbins=self.nbins, min_sep=self.min_sep, max_sep=self.max_sep)
