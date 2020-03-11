@@ -43,11 +43,22 @@ class GPInterp(Interp):
                         then subtracting off the realized mean would be invalid.  [default: True]
     :param logger:      A logger object for logging debug info. [default: None]
     """
-    def __init__(self, keys=('u','v'), kernel='RBF()', optimize=True, normalize=True,
-                 white_noise=0., logger=None):
+    def __init__(self, keys=('u','v'), kernel='RBF()', 
+                 optimize=True, optimizer='two-pcf',
+                 anisotropic=False, normalize=True, p0=[3000., 0.,0.],
+                 white_noise=0., n_neighbors=4, average_fits=None,
+                 nbins=20, min_sep=None, max_sep=None, logger=None):
 
         self.keys = keys
         self.optimize = optimize
+        self.optimizer = optimizer
+        self.anisotropic = anisotropic
+        self.p0 = p0
+        self.n_neighbors = n_neighbors
+        self.average_fits = average_fits
+        self.nbins = nbins
+        self.min_sep = min_sep
+        self.max_sep = max_sep
         self.normalize = normalize
         self.white_noise = white_noise
         self.kernel = kernel
@@ -65,6 +76,9 @@ class GPInterp(Interp):
                 raise TypeError("kernel should be a string a list or a numpy.ndarray of string")
             else:
                 self.kernel_template = [ker for ker in kernel]
+        
+        if self.optimizer not in ['two-pcf', 'log-likelihood']:
+            raise ValueError("Only two-pcf and log-likelihood are supported for optimizer. Current value: %s"%(self.optimizer))
 
 
     def _fit(self, X, y, y_err=None, logger=None):
@@ -119,11 +133,12 @@ class GPInterp(Interp):
         for i in range(self.nparams):
 
             gp = treegp.GPInterpolation(kernel=self.kernels[i], 
-                                        optimize=self.optimize, optimizer='log-likelihood',
-                                        anisotropic=False, normalize=self.normalize, 
-                                        robust_fit=False, p0=[3000., 0.,0.],
-                                        white_noise=self.white_noise, n_neighbors=4, average_fits=None,
-                                        nbins=20, min_sep=None, max_sep=None)
+                                        optimize=self.optimize, optimizer=self.optimizer,
+                                        anisotropic=self.anisotropic, normalize=self.normalize,
+                                        robust_fit=True, p0=self.p0,
+                                        white_noise=self.white_noise, n_neighbors=self.n_neighbors, 
+                                        average_fits=self.average_fits,
+                                        nbins=self.nbins, min_sep=self.min_sep, max_sep=self.max_sep)
             self.gps.append(gp)
             
         self._init_theta = np.array([gp.kernel_template.theta for gp in self.gps])
