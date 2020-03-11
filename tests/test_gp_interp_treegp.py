@@ -124,36 +124,85 @@ def make_gaussian_random_fields(kernel, nstars, noise_level=1e-3,
 @timer
 def test_gp_interp_isotropic():
 
-    nstars = 800
-    kernels = ["4e-4 * RBF(2.)"]
-    optimize = [True]
-    optimizer = 'log-likelihood'
+    nstars = 1400
+    noise_level = 1e-3
 
-    for ker in kernels:
-        stars_training, stars_validation = make_gaussian_random_fields(ker, 900, xlim=-10, ylim=10,
-                                                                       seed=30352010, vmax=4e-2, noise_level=1e-3)
-        for do_fit in optimize:
-            interp = piff.GPInterp(kernel=ker, optimize=do_fit, optimizer=optimizer,
-                                   normalize=True, white_noise=0.)
-            interp.initialize(stars_training)
-            interp.solve(stars=stars_training, logger=None)
-            stars_test = interp.interpolateList(stars_validation)
+    kernels = ["4e-4 * RBF(1.)", 
+               "4e-4 * RBF(1.)", 
+               "4e-4 * RBF(1.)", 
+               "4e-4 * VonKarman(10.)",
+               "4e-4 * VonKarman(10.)",
+               "4e-4 * VonKarman(10.)"]
 
-            xtest = np.array([interp.getProperties(star) for star in stars_validation])
-            y_validation = np.array([star.fit.params for star in stars_validation])
-            y_err = np.sqrt(np.array([star.fit.params_var for star in stars_validation]))
+    optimize = [False, True, True, False, True, True]
 
-            y_test = np.array([star.fit.params for star in stars_validation])
+    optimizer = ['log-likelihood', 
+                 'log-likelihood', 
+                 'two-pcf',
+                 'log-likelihood',
+                 'log-likelihood',
+                 'two-pcf']
 
-            title = ["size", "$g_1$", "$g_2$"]
-            for i in range(3):
+    for t in range(3):
+        i = 3+t
+        print(kernels[i], optimize[i], optimizer[i])
+        stars_training, stars_validation = make_gaussian_random_fields(kernels[i], nstars, xlim=-10, ylim=10,
+                                                                       seed=30352010, vmax=4e-2,
+                                                                       noise_level=noise_level)
+
+        interp = piff.GPInterp(kernel=kernels[i], optimize=optimize[i], optimizer=optimizer[i],
+                               normalize=True, white_noise=0.,
+                               anisotropic=False, p0=[3000., 0.,0.],
+                               n_neighbors=4, average_fits=None,
+                               nbins=20, min_sep=None, max_sep=None,
+                               logger=None)
+
+        interp.initialize(stars_training)
+        interp.solve(stars=stars_training, logger=None)
+        stars_test = interp.interpolateList(stars_validation)
+
+        xtest = np.array([interp.getProperties(star) for star in stars_validation])
+        y_validation = np.array([star.fit.params for star in stars_validation])
+        y_err = np.sqrt(np.array([star.fit.params_var for star in stars_validation]))
+            
+        y_test = np.array([star.fit.params for star in stars_test])
+
+        print(np.mean(y_test - y_validation, axis=0))
+        print(np.std(y_test - y_validation, axis=0))
+        print("")
+        
+        for gp in interp.gps:
+            if optimize[i]:
+                print(np.exp(gp._optimizer._kernel.theta))
+            else:
+                print("Truth:", np.exp(gp.kernel.theta))
+        print("")
+
+        #np.testing.assert_allclose(y_test, y_validation, atol = 2e-2)
+
+        #if optimize[i]:
+        #    truth_hyperparameters = np.exp(interp._init_theta)
+        #    fitted_hyperparameters = np.exp(np.array([gp._optimizer._kernel.theta for gp in interp.gps]))
+        #    np.testing.assert_allclose(fitted_hyperparameters, truth_hyperparameters, rtol = 0.3)
+            
+        title = ["size", "$g_1$", "$g_2$"]
+        for j in range(3):
+            plt.figure()
+            plt.title('%s validation'%(title[j]), fontsize=18)
+            plt.scatter(xtest[:,0], xtest[:,1], c=y_validation[:,j], vmin=-4e-2, vmax=4e-2, cmap=plt.cm.seismic)
+            plt.figure()
+            plt.title('%s test'%(title[j]), fontsize=18)
+            plt.scatter(xtest[:,0], xtest[:,1], c=y_test[:,j], vmin=-4e-2, vmax=4e-2, cmap=plt.cm.seismic)
+        
+        if optimizer[i] == 'two-pcf':
+            for gp in interp.gps:
                 plt.figure()
-                plt.title('%s validation'%(title[i]), fontsize=18)
-                plt.scatter(xtest[:,0], xtest[:,1], c=y_validation[:,i], vmin=-4e-2, vmax=4e-2, cmap=plt.cm.seismic)
-                plt.figure()
-                plt.title('%s test'%(title[i]), fontsize=18)
-                plt.scatter(xtest[:,0], xtest[:,1], c=y_test[:,i], vmin=-4e-2, vmax=4e-2, cmap=plt.cm.seismic)
-            plt.show()
+                plt.scatter(gp._optimizer._2pcf_dist, gp._optimizer._2pcf)
+                plt.plot(gp._optimizer._2pcf_dist, gp._optimizer._2pcf_fit)
+                plt.plot(gp._optimizer._2pcf_dist, np.ones_like(gp._optimizer._2pcf_dist)*4e-4,'b--')
+                plt.ylim(0,7e-4)
+            
+        plt.show()
     return interp
 
 @timer
