@@ -127,12 +127,14 @@ def test_gp_interp_isotropic():
     nstars = 800
     kernels = ["4e-4 * RBF(2.)"]
     optimize = [True]
+    optimizer = 'log-likelihood'
 
     for ker in kernels:
         stars_training, stars_validation = make_gaussian_random_fields(ker, 900, xlim=-10, ylim=10,
                                                                        seed=30352010, vmax=4e-2, noise_level=1e-3)
         for do_fit in optimize:
-            interp = piff.GPInterp(kernel=ker, optimize=do_fit, normalize=True, white_noise=0.)
+            interp = piff.GPInterp(kernel=ker, optimize=do_fit, optimizer=optimizer,
+                                   normalize=True, white_noise=0.)
             interp.initialize(stars_training)
             interp.solve(stars=stars_training, logger=None)
             stars_test = interp.interpolateList(stars_validation)
