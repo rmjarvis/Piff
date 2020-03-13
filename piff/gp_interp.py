@@ -136,12 +136,12 @@ class GPInterp(Interp):
 
         for i in range(self.nparams):
 
-            gp = treegp.GPInterpolation(kernel=self.kernels[i], 
+            gp = treegp.GPInterpolation(kernel=self.kernels[i],
                                         optimize=self.optimize, optimizer=self.optimizer,
                                         anisotropic=self.anisotropic, normalize=self.normalize,
                                         robust_fit=self.robust_fit, p0=self.p0,
-                                        white_noise=self.white_noise, n_neighbors=self.n_neighbors, 
-                                        average_fits=self.average_fits,
+                                        white_noise=self.white_noise, n_neighbors=self.n_neighbors,
+                                        average_fits=self.average_fits, indice_meanify = i,
                                         nbins=self.nbins, min_sep=self.min_sep, max_sep=self.max_sep)
             self.gps.append(gp)
             
