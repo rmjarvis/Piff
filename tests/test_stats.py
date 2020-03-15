@@ -639,6 +639,101 @@ def test_hsmcatalog():
     for key in data.dtype.names:
         np.testing.assert_allclose(data2[key], data[key], rtol=1.e-5)
 
+@timer
+def test_bad_hsm():
+    """Test that stats don't break when all stars end up being flagged with hsm errors.
+    """
+    image_file = os.path.join('input','DECam_00241238_01.fits.fz')
+    cat_file = os.path.join('input',
+                            'DECam_00241238_01_psfcat_tb_maxmag_17.0_magcut_3.0_findstars.fits')
+    psf_file = os.path.join('output','bad_hsm.fits')
+
+    twodhist_file = os.path.join('output','bad_hsm_twod.pdf')
+    whisker_file = os.path.join('output','bad_hsm_whisk.pdf')
+    rho_file = os.path.join('output','bad_hsm_rho.pdf')
+    shape_file = os.path.join('output','bad_hsm_shape.pdf')
+    star_file = os.path.join('output','bad_hsm_star.pdf')
+    hsm_file = os.path.join('output','bad_hsm_hsm.fits')
+
+    stamp_size = 25
+
+    # The configuration dict with the right input fields for the file we're using.
+    config = {
+        'input' : {
+            'nstars': 8,
+            'image_file_name' : image_file,
+            'image_hdu' : 1,
+            'weight_hdu' : 3,
+            'badpix_hdu' : 2,
+            'cat_file_name' : cat_file,
+            'cat_hdu' : 2,
+            # These next two are intentionally backwards.  The PixelGrid will find some kind
+            # of solution, but it will be complex garbage, and hsm will fail for them.
+            'x_col' : 'YWIN_IMAGE',
+            'y_col' : 'XWIN_IMAGE',
+            'sky_col' : 'BACKGROUND',
+            'stamp_size' : stamp_size,
+            'ra' : 'TELRA',
+            'dec' : 'TELDEC',
+            'gain' : 'GAINA',
+        },
+        'output' : {
+            'file_name' : psf_file,
+            'stats' : [
+                {
+                    'type': 'TwoDHist',
+                    'file_name': twodhist_file,
+                },
+                {
+                    'type': 'Whisker',
+                    'file_name': whisker_file,
+                },
+                {  # Note: stats doesn't have to be a list.
+                    'type': 'Rho',
+                    'file_name': rho_file
+                },
+                {
+                    'type': 'ShapeHistograms',
+                    'file_name': shape_file
+                },
+                {
+                    'type': 'Star',
+                    'file_name': star_file,
+                },
+                {
+                    'type': 'HSMCatalog',
+                    'file_name': hsm_file,
+                },
+            ],
+        },
+        'psf' : {
+            'model' : {
+                'type' : 'PixelGrid',
+                'scale' : 0.3,
+                'size' : 10,
+            },
+            'interp' : { 'type' : 'Mean' },
+            'outliers' : {
+                'type' : 'Chisq',
+                'nsigma' : 1.e-3,  # This will throw out all but 1, which adds an additional
+                                   # test of Star stats when nstars < number_plot
+            }
+        },
+    }
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(1)
+    else:
+        config['verbose'] = 0
+        logger = None
+
+    for f in [twodhist_file, rho_file, shape_file, star_file, hsm_file]:
+        if os.path.exists(f):
+            os.remove(f)
+
+    piff.piffify(config, logger=logger)
+
+    for f in [twodhist_file, rho_file, shape_file, star_file, hsm_file]:
+        assert os.path.exists(f)
 
 if __name__ == '__main__':
     setup()
@@ -649,3 +744,4 @@ if __name__ == '__main__':
     test_shapestats_config()
     test_starstats_config()
     test_hsmcatalog()
+    test_bad_hsm()
