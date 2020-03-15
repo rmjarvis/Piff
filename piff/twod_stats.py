@@ -57,6 +57,7 @@ class TwoDHistStats(Stats):
         self.reducing_function = eval(reducing_function)
 
         self.file_name = file_name
+        self.skip = False
 
     def compute(self, psf, stars, logger=None):
         """
@@ -74,6 +75,10 @@ class TwoDHistStats(Stats):
         flag_model = shapes_model[:, 6]
         mask = (flag_truth == 0) & (flag_model == 0)
         logger.info("%d/%d measurements were successful",np.sum(mask),len(mask))
+        if np.sum(mask) == 0:
+            logger.warning("All stars had hsm errors.  TwoDHist plot will be empty.")
+            self.skip = True
+            return
 
         # define terms for the catalogs
         u = positions[mask, 0]
@@ -171,6 +176,18 @@ class TwoDHistStats(Stats):
         axs[2, 1].set_xlabel('u')
         axs[2, 2].set_xlabel('u')
 
+        axs[0, 0].set_title('T')
+        axs[1, 0].set_title('T Model')
+        axs[2, 0].set_title('dT')
+        axs[0, 1].set_title('g1')
+        axs[1, 1].set_title('g1 Model')
+        axs[2, 1].set_title('dg1')
+        axs[0, 2].set_title('g2')
+        axs[1, 2].set_title('g2 Model')
+        axs[2, 2].set_title('dg2')
+        if self.skip:
+            return fig, axs
+
         # make the colormaps
         logger.info("Creating TwoDHist colormaps")
         # T and T_model share colorbar
@@ -196,7 +213,6 @@ class TwoDHistStats(Stats):
         # make the plots
         logger.info("Creating TwoDHist plots")
         ax = axs[0, 0]
-        ax.set_title('T')
         IM = ax.pcolor(self.bins_u, self.bins_v, self.twodhists['T'], cmap=cmap__T,
                        vmin=vmin__T, vmax=vmax__T)
         ax.set_xlim(min(self.bins_u), max(self.bins_u))
@@ -204,7 +220,6 @@ class TwoDHistStats(Stats):
         fig.colorbar(IM, ax=ax)
 
         ax = axs[1, 0]
-        ax.set_title('T Model')
         IM = ax.pcolor(self.bins_u, self.bins_v, self.twodhists['T_model'], cmap=cmap__T,
                        vmin=vmin__T, vmax=vmax__T)
         ax.set_xlim(min(self.bins_u), max(self.bins_u))
@@ -212,7 +227,6 @@ class TwoDHistStats(Stats):
         fig.colorbar(IM, ax=ax)
 
         ax = axs[2, 0]
-        ax.set_title('dT')
         IM = ax.pcolor(self.bins_u, self.bins_v, self.twodhists['dT'], cmap=cmap__dT,
                        vmin=vmin__dT, vmax=vmax__dT)
         ax.set_xlim(min(self.bins_u), max(self.bins_u))
@@ -220,7 +234,6 @@ class TwoDHistStats(Stats):
         fig.colorbar(IM, ax=ax)
 
         ax = axs[0, 1]
-        ax.set_title('g1')
         IM = ax.pcolor(self.bins_u, self.bins_v, self.twodhists['g1'], cmap=cmap__g,
                        vmin=vmin__g, vmax=vmax__g)
         ax.set_xlim(min(self.bins_u), max(self.bins_u))
@@ -228,7 +241,6 @@ class TwoDHistStats(Stats):
         fig.colorbar(IM, ax=ax)
 
         ax = axs[1, 1]
-        ax.set_title('g1 Model')
         IM = ax.pcolor(self.bins_u, self.bins_v, self.twodhists['g1_model'], cmap=cmap__g,
                        vmin=vmin__g, vmax=vmax__g)
         ax.set_xlim(min(self.bins_u), max(self.bins_u))
@@ -236,7 +248,6 @@ class TwoDHistStats(Stats):
         fig.colorbar(IM, ax=ax)
 
         ax = axs[2, 1]
-        ax.set_title('dg1')
         IM = ax.pcolor(self.bins_u, self.bins_v, self.twodhists['dg1'], cmap=cmap__dg,
                        vmin=vmin__dg, vmax=vmax__dg)
         ax.set_xlim(min(self.bins_u), max(self.bins_u))
@@ -244,7 +255,6 @@ class TwoDHistStats(Stats):
         fig.colorbar(IM, ax=ax)
 
         ax = axs[0, 2]
-        ax.set_title('g2')
         IM = ax.pcolor(self.bins_u, self.bins_v, self.twodhists['g2'], cmap=cmap__g,
                        vmin=vmin__g, vmax=vmax__g)
         ax.set_xlim(min(self.bins_u), max(self.bins_u))
@@ -252,7 +262,6 @@ class TwoDHistStats(Stats):
         fig.colorbar(IM, ax=ax)
 
         ax = axs[1, 2]
-        ax.set_title('g2 Model')
         IM = ax.pcolor(self.bins_u, self.bins_v, self.twodhists['g2_model'], cmap=cmap__g,
                        vmin=vmin__g, vmax=vmax__g)
         ax.set_xlim(min(self.bins_u), max(self.bins_u))
@@ -260,7 +269,6 @@ class TwoDHistStats(Stats):
         fig.colorbar(IM, ax=ax)
 
         ax = axs[2, 2]
-        ax.set_title('dg2')
         IM = ax.pcolor(self.bins_u, self.bins_v, self.twodhists['dg2'], cmap=cmap__dg,
                        vmin=vmin__dg, vmax=vmax__dg)
         ax.set_xlim(min(self.bins_u), max(self.bins_u))
@@ -412,6 +420,7 @@ class WhiskerStats(Stats):
         self.reducing_function = eval(reducing_function)
 
         self.file_name = file_name
+        self.skip = False
 
     def compute(self, psf, stars, logger=None):
         """
@@ -430,6 +439,10 @@ class WhiskerStats(Stats):
         flag_model = shapes_model[:, 6]
         mask = (flag_truth == 0) & (flag_model == 0)
         logger.info("%d/%d measurements were successful",np.sum(mask),len(mask))
+        if np.sum(mask) == 0:
+            logger.warning("All stars had hsm errors.  Whisker plot will be empty.")
+            self.skip = True
+            return
 
         # define terms for the catalogs
         u = positions[mask, 0]
@@ -523,6 +536,8 @@ class WhiskerStats(Stats):
         axs[0].set_ylabel('v')
         axs[1].set_xlabel('u')
         axs[1].set_ylabel('v')
+        if self.skip:
+            return fig, axs
 
         # make the plots
         logger.info("Creating TwoDHist whiskerplots")
