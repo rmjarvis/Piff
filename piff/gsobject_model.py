@@ -28,16 +28,16 @@ class GSObjectModel(Model):
     """ Model that takes a fiducial GalSim.GSObject and dilates, shifts, and shears it to get a
     good match to stars.
 
-    :param gsobj:    GSObject to use as fiducial profile.
-    :param fastfit:  Use HSM moments for fitting.  Approximate, but fast.  [default: False]
-    :param force_model_center: If True, PSF model centroid is fixed at origin and
+    :param gsobj:       GSObject to use as fiducial profile.
+    :param fastfit:     Use HSM moments for fitting.  Approximate, but fast.  [default: False]
+    :param centered:    If True, PSF model centroid is forced to be (0,0), and the
                         PSF fitting will marginalize over stellar position.  If False, stellar
                         position is fixed at input value and the fitted PSF may be off-center.
                         [default: True]
-    :param include_pixel:   Include integration over pixel?  [default: True]
-    :param logger:   A logger object for logging debug info. [default: None]
+    :param include_pixel: Include integration over pixel?  [default: True]
+    :param logger:      A logger object for logging debug info. [default: None]
     """
-    def __init__(self, gsobj, fastfit=False, force_model_center=True, include_pixel=True,
+    def __init__(self, gsobj, fastfit=False, centered=True, include_pixel=True,
                  logger=None):
         if isinstance(gsobj, str):
             import galsim
@@ -45,17 +45,17 @@ class GSObjectModel(Model):
 
         self.kwargs = {'gsobj':repr(gsobj),
                        'fastfit':fastfit,
-                       'force_model_center':force_model_center,
+                       'centered':centered,
                        'include_pixel':include_pixel}
 
         # Center and normalize the fiducial model.
         self.gsobj = gsobj.withFlux(1.0).shift(-gsobj.centroid)
         self._fastfit = fastfit
-        self._force_model_center = force_model_center
+        self._centered = centered
         self._method = 'auto' if include_pixel else 'no_pixel'
         # Params are [du, dv], scale, g1, g2, i.e., transformation parameters that bring the
         # fiducial gsobject towards the data.
-        if self._force_model_center:
+        if self._centered:
             self._nparams = 3
         else:
             self._nparams = 5
@@ -72,7 +72,7 @@ class GSObjectModel(Model):
             raise ModelFitError("Error calculating model moments for this star.")
 
         param_flux = star.fit.flux
-        if self._force_model_center:
+        if self._centered:
             param_scale, param_g1, param_g2 = star.fit.params
             param_du, param_dv = star.fit.center
         else:
@@ -99,7 +99,7 @@ class GSObjectModel(Model):
 
         :returns: a galsim.GSObject instance
         """
-        if self._force_model_center:
+        if self._centered:
             scale, g1, g2 = params
             du, dv = (0.0, 0.0)
         else:
@@ -156,7 +156,7 @@ class GSObjectModel(Model):
                 raise RuntimeError("Error initializing star fit values using hsm.")
         else:
             flux = star.fit.flux
-            if self._force_model_center:
+            if self._centered:
                 du, dv = star.fit.center
                 scale, g1, g2 = star.fit.params
             else:
@@ -248,7 +248,7 @@ class GSObjectModel(Model):
         else:
             flux, du, dv, scale, g1, g2, var = self.least_squares_fit(star, logger=logger)
         # Make a StarFit object with these parameters
-        if self._force_model_center:
+        if self._centered:
             params = np.array([ scale, g1, g2 ])
             center = (du, dv)
             params_var = var[3:]
@@ -277,7 +277,7 @@ class GSObjectModel(Model):
         """
         star = self.with_hsm(star)
         if star.fit.params is None:
-            if self._force_model_center:
+            if self._centered:
                 params = np.array([ 1.0, 0.0, 0.0])
                 params_var = np.array([ 0.0, 0.0, 0.0])
             else:
@@ -323,7 +323,7 @@ class GSObjectModel(Model):
         f_model = np.sum(WMM)
         flux_ratio = f_data / f_model
 
-        if fit_center and self._force_model_center:
+        if fit_center and self._centered:
             ushift = np.sum(WIM * u)/f_data - np.sum(WMM * u)/f_model
             vshift = np.sum(WIM * v)/f_data - np.sum(WMM * v)/f_model
             new_center = (star.fit.center[0] + ushift,
@@ -345,18 +345,18 @@ class GSObjectModel(Model):
 class Gaussian(GSObjectModel):
     """ Model PSFs as elliptical Gaussians.
 
-    :param fastfit:  Use HSM moments for fitting.  Approximate, but fast.  [default: False]
-    :param force_model_center: If True, PSF model centroid is fixed at origin and
+    :param fastfit:     Use HSM moments for fitting.  Approximate, but fast.  [default: False]
+    :param centered:    If True, PSF model centroid is forced to be (0,0), and the
                         PSF fitting will marginalize over stellar position.  If False, stellar
                         position is fixed at input value and the fitted PSF may be off-center.
                         [default: True]
-    :param include_pixel:   Include integration over pixel?  [default: True]
-    :param logger:   A logger object for logging debug info. [default: None]
+    :param include_pixel: Include integration over pixel?  [default: True]
+    :param logger:      A logger object for logging debug info. [default: None]
     """
-    def __init__(self, fastfit=False, force_model_center=True, include_pixel=True, logger=None):
+    def __init__(self, fastfit=False, centered=True, include_pixel=True, logger=None):
         import galsim
         gsobj = galsim.Gaussian(sigma=1.0)
-        GSObjectModel.__init__(self, gsobj, fastfit, force_model_center, include_pixel, logger)
+        GSObjectModel.__init__(self, gsobj, fastfit, centered, include_pixel, logger)
         # We'd need self.kwargs['gsobj'] if we were reconstituting via the GSObjectModel
         # constructor, but since config['type'] for this will be Gaussian, it gets reconstituted
         # here, where there is no `gsobj` argument.  So remove `gsobj` from kwargs.
@@ -366,18 +366,18 @@ class Gaussian(GSObjectModel):
 class Kolmogorov(GSObjectModel):
     """ Model PSFs as elliptical Kolmogorovs.
 
-    :param fastfit:  Use HSM moments for fitting.  Approximate, but fast.  [default: False]
-    :param force_model_center: If True, PSF model centroid is fixed at origin and
+    :param fastfit:     Use HSM moments for fitting.  Approximate, but fast.  [default: False]
+    :param centered:    If True, PSF model centroid is forced to be (0,0), and the
                         PSF fitting will marginalize over stellar position.  If False, stellar
                         position is fixed at input value and the fitted PSF may be off-center.
                         [default: True]
-    :param include_pixel:   Include integration over pixel?  [default: True]
-    :param logger:   A logger object for logging debug info. [default: None]
+    :param include_pixel: Include integration over pixel?  [default: True]
+    :param logger:      A logger object for logging debug info. [default: None]
     """
-    def __init__(self, fastfit=False, force_model_center=True, include_pixel=True, logger=None):
+    def __init__(self, fastfit=False, centered=True, include_pixel=True, logger=None):
         import galsim
         gsobj = galsim.Kolmogorov(half_light_radius=1.0)
-        GSObjectModel.__init__(self, gsobj, fastfit, force_model_center, include_pixel, logger)
+        GSObjectModel.__init__(self, gsobj, fastfit, centered, include_pixel, logger)
         # We'd need self.kwargs['gsobj'] if we were reconstituting via the GSObjectModel
         # constructor, but since config['type'] for this will be Kolmogorov, it gets reconstituted
         # here, where there is no `gsobj` argument.  So remove `gsobj` from kwargs.
@@ -387,22 +387,22 @@ class Kolmogorov(GSObjectModel):
 class Moffat(GSObjectModel):
     """ Model PSFs as elliptical Moffats.
 
-    :param beta:  Moffat shape parameter.
-    :param trunc:  Optional truncation radius at which profile drops to zero.  Measured in half
-                   light radii.  [default: 0, indicating no truncation]
-    :param fastfit:  Use HSM moments for fitting.  Approximate, but fast.  [default: False]
-    :param force_model_center: If True, PSF model centroid is fixed at origin and
+    :param beta:        Moffat shape parameter.
+    :param trunc:       Optional truncation radius at which profile drops to zero.  Measured in half
+                        light radii.  [default: 0, indicating no truncation]
+    :param fastfit:     Use HSM moments for fitting.  Approximate, but fast.  [default: False]
+    :param centered:    If True, PSF model centroid is forced to be (0,0), and the
                         PSF fitting will marginalize over stellar position.  If False, stellar
                         position is fixed at input value and the fitted PSF may be off-center.
                         [default: True]
-    :param include_pixel:   Include integration over pixel?  [default: True]
-    :param logger:   A logger object for logging debug info. [default: None]
+    :param include_pixel: Include integration over pixel?  [default: True]
+    :param logger:      A logger object for logging debug info. [default: None]
     """
-    def __init__(self, beta, trunc=0., fastfit=False, force_model_center=True, include_pixel=True,
+    def __init__(self, beta, trunc=0., fastfit=False, centered=True, include_pixel=True,
                  logger=None):
         import galsim
         gsobj = galsim.Moffat(half_light_radius=1.0, beta=beta, trunc=trunc)
-        GSObjectModel.__init__(self, gsobj, fastfit, force_model_center, include_pixel, logger)
+        GSObjectModel.__init__(self, gsobj, fastfit, centered, include_pixel, logger)
         # We'd need self.kwargs['gsobj'] if we were reconstituting via the GSObjectModel
         # constructor, but since config['type'] for this will be Moffat, it gets reconstituted
         # here, where there is no `gsobj` argument.  So remove `gsobj` from kwargs.

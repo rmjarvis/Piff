@@ -25,7 +25,7 @@ import fitsio
 from piff_test_helper import get_script_name, timer
 
 fiducial_kolmogorov = galsim.Kolmogorov(half_light_radius=1.0)
-mod = piff.GSObjectModel(fiducial_kolmogorov, force_model_center=False, include_pixel=False,
+mod = piff.GSObjectModel(fiducial_kolmogorov, centered=False, include_pixel=False,
                          fastfit=True)
 
 star_type = np.dtype([('u', float),
