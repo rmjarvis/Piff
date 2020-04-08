@@ -187,13 +187,17 @@ class PixelGrid(Model):
 
         # Create new StarFit, update the chisq value.  Note no beta is returned as
         # the quadratic Taylor expansion was about the old parameters, not these.
-        # TODO: Calculate params_var and set that as well.  params_var=np.diag(alpha) ??
         Adp = star1.fit.A.dot(dparam)
         new_chisq = star1.fit.chisq + Adp.dot(Adp) - 2 * Adp.dot(star1.fit.b)
+
+        # covariance of dp is C = (AT A)^-1
+        # params_var = diag(C)
+        params_var = np.diagonal(scipy.linalg.inv(star1.fit.A.T.dot(star1.fit.A)))
 
         starfit2 = StarFit(star1.fit.params + dparam,
                            flux = star1.fit.flux,
                            center = star1.fit.center,
+                           params_var = params_var,
                            A = star1.fit.A,
                            chisq = new_chisq)
 
@@ -275,6 +279,7 @@ class PixelGrid(Model):
         outfit = StarFit(star.fit.params,
                          flux = star.fit.flux,
                          center = star.fit.center,
+                         params_var = star.fit.params_var,
                          chisq = chisq,
                          dof = dof,
                          A = Aw,
@@ -463,6 +468,7 @@ class PixelGrid(Model):
         return Star(star.data, StarFit(star.fit.params,
                                        flux = scaled_flux / star.data.pixel_area,
                                        center = center,
+                                       params_var = star.fit.params_var,
                                        chisq = chisq,
                                        dof = dof,
                                        A = star.fit.A,
