@@ -95,11 +95,18 @@ class GSObjectModel(Model):
         f = var_flux / flux**2
         var_cenx = f * (1+g1)**2 * size**2
         var_ceny = f * (1-g1)**2 * size**2
+        # This estimate for var_size is not very close actually.  A better calculation would
+        # require an integral of r^4.  For some plausible profiles, this is within about 20% or
+        # so of the right answer, so not too terrible.
         var_size = f * size**2
         var_g = f
 
         var = np.zeros(6)
         var[0] = var_flux
+        # We expect some fudge factors for this because of the non-linearity in the hsm fitter.
+        # These are completely empirical that work ok for the default models we have available
+        # for gsobj (Gaussian, Kolmogorov, Moffat).  Probably won't work well for a wider array
+        # of user-provided gsobj parameters.
         var[1] = var_cenx * 4.8
         var[2] = var_ceny * 4.8
         var[3] = var_size * 4.8
