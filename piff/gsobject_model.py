@@ -70,7 +70,10 @@ class GSObjectModel(Model):
             raise ModelFitError("Error calculating model moments for this star.")
 
         param_flux = star.fit.flux
-        if self._centered:
+        if star.fit.params is None:
+            param_scale = 1
+            param_g1 = param_g2 = param_du = param_dv = 0
+        elif self._centered:
             param_scale, param_g1, param_g2 = star.fit.params
             param_du, param_dv = star.fit.center
         else:
@@ -85,7 +88,25 @@ class GSObjectModel(Model):
         param_g1 = param_shear.g1
         param_g2 = param_shear.g2
 
-        return param_flux, param_du, param_dv, param_scale, param_g1, param_g2
+        # Rough estimate of the variance, assuming noise is uniform.
+        var_pix = 1./np.mean(star.weight.array)
+        pixel_area = star.image.wcs.pixelArea(image_pos=star.image_pos)
+        var_flux = 2*np.pi * var_pix * size**2 / pixel_area
+        f = var_flux / flux**2
+        var_cenx = f * (1+g1)**2 * size**2
+        var_ceny = f * (1-g1)**2 * size**2
+        var_size = f * size**2
+        var_g = f
+
+        var = np.zeros(6)
+        var[0] = var_flux
+        var[1] = var_cenx * 4.8
+        var[2] = var_ceny * 4.8
+        var[3] = var_size * 4.8
+        var[4] = var_g * 2.0
+        var[5] = var_g * 2.0
+
+        return param_flux, param_du, param_dv, param_scale, param_g1, param_g2, var
 
     def getProfile(self, params):
         """Get a version of the model as a GalSim GSObject
@@ -97,12 +118,14 @@ class GSObjectModel(Model):
 
         :returns: a galsim.GSObject instance
         """
-        if self._centered:
+        if params is None:
+            return self.gsobj
+        elif self._centered:
             scale, g1, g2 = params
-            du, dv = (0.0, 0.0)
+            return self.gsobj.dilate(scale).shear(g1=g1, g2=g2)
         else:
             du, dv, scale, g1, g2 = params
-        return self.gsobj.dilate(scale).shear(g1=g1, g2=g2).shift(du, dv)
+            return self.gsobj.dilate(scale).shear(g1=g1, g2=g2).shift(du, dv)
 
     def _resid(self, params, star):
         """Residual function to use with least_squares.
@@ -148,9 +171,7 @@ class GSObjectModel(Model):
         # Get initial parameter values.  Either use values currently in star.fit, or if those are
         # absent, run HSM to get initial values.
         if star.fit.params is None:
-            flux, du, dv, scale, g1, g2, flag = self.moment_fit(star)
-            if flag != 0:
-                raise RuntimeError("Error initializing star fit values using hsm.")
+            flux, du, dv, scale, g1, g2, var = self.moment_fit(star)
         else:
             flux = star.fit.flux
             if self._centered:
@@ -221,11 +242,10 @@ class GSObjectModel(Model):
             fastfit = self._fastfit
 
         if not hasattr(star.data.properties, 'hsm'):
-            star = self.initialize(star)
+            star = self.with_hsm(star)
 
         if fastfit:
-            flux, du, dv, scale, g1, g2 = self.moment_fit(star, logger=logger)
-            var = np.zeros(6)
+            flux, du, dv, scale, g1, g2, var = self.moment_fit(star, logger=logger)
         else:
             flux, du, dv, scale, g1, g2, var = self.least_squares_fit(star, logger=logger)
 
