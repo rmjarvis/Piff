@@ -40,7 +40,7 @@ def make_gaussian_data(sigma, u0, v0, flux, noise=0., du=1., fpu=0., fpv=0., nsi
     """
     g = galsim.Gaussian(sigma=sigma, flux=flux).shift(u0,v0)
     if noise == 0.:
-        var = 0.1
+        var = 1.e-6
     else:
         var = noise**2
     star = piff.Star.makeTarget(x=nside/2+nom_u0/du, y=nside/2+nom_v0/du,

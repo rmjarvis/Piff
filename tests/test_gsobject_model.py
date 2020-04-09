@@ -45,9 +45,9 @@ def make_data(gsobject, scale, g1, g2, u0, v0, flux, noise=0., pix_scale=1., fpu
     """
     k = gsobject.withFlux(flux).dilate(scale).shear(g1=g1, g2=g2).shift(u0, v0)
     if noise == 0.:
-        var = 0.1
+        var = 1.e-6
     else:
-        var = noise
+        var = noise**2
     star = piff.Star.makeTarget(x=nside/2+nom_u0/pix_scale, y=nside/2+nom_v0/pix_scale,
                                 u=fpu, v=fpv, scale=pix_scale, stamp_size=nside)
     star.image.setOrigin(0,0)
@@ -55,7 +55,7 @@ def make_data(gsobject, scale, g1, g2, u0, v0, flux, noise=0., pix_scale=1., fpu
     k.drawImage(star.image, method=method,
                 offset=galsim.PositionD(nom_u0/pix_scale, nom_v0/pix_scale), use_true_center=False)
     star.data.weight = star.image.copy()
-    star.weight.fill(1./var/var)
+    star.weight.fill(1./var)
     if noise != 0:
         gn = galsim.GaussianNoise(sigma=noise, rng=rng)
         star.image.addNoise(gn)
@@ -704,9 +704,9 @@ def test_var():
     #        fastfit = True/False,
     #        include_pixel = True/False
     models = [piff.Gaussian(fastfit=False, include_pixel=False, centered=False),
-              piff.Kolmogorov(fastfit=False, include_pixel=False, centered=True),
-              piff.Moffat(fastfit=False, beta=3.0, include_pixel=True, centered=True),
-              piff.Moffat(fastfit=False, beta=2.5, trunc=3.0, include_pixel=False, centered=False)]
+              piff.Kolmogorov(fastfit=True, include_pixel=True, centered=False),
+              piff.Moffat(fastfit=False, beta=4.8, include_pixel=True, centered=True),
+              piff.Moffat(fastfit=True, beta=2.5, trunc=3.0, include_pixel=False, centered=True)]
 
     names = ['Gaussian',
              'Kolmogorov',
@@ -741,7 +741,7 @@ def test_var():
             for i in range(num_runs):
                 image1 = image.copy()
                 image1.addNoise(galsim.GaussianNoise(sigma=noise))
-                sd = piff.StarData(image1, image1.true_center)
+                sd = piff.StarData(image1, image1.true_center, weight)
                 s = piff.Star(sd, None)
                 try:
                     s = model.initialize(s)
@@ -761,7 +761,9 @@ def test_var():
         print('max ratio = ',np.max(fit.params_var/var))
         print('min ratio = ',np.min(fit.params_var/var))
         print('mean ratio = ',np.mean(fit.params_var/var))
-        np.testing.assert_allclose(fit.params_var, var, rtol=0.1)
+        # Note: The fastfit=False estimates are better -- typically better than 10%
+        #       The fastfit=True estimates are much rougher.  Especially size.  Need rtol=0.3.
+        np.testing.assert_allclose(fit.params_var, var, rtol=0.3)
 
 
 if __name__ == '__main__':
