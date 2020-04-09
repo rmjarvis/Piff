@@ -195,6 +195,28 @@ def hsm(star):
 
     return flux, center.x, center.y, sigma, shape.g1, shape.g2, flag
 
+def estimate_cov_from_jac(jac):
+    """Estimate a covariance matrix from a jacobian as returned by scipy.optimize.least_squares
+    .. math::
+        C = (J^T J)^{-1}
+    This is computed using Moore-Penrose inversion to discard singular values.
+
+    :param jac:     The Jacobian as a 2d numpy array
+
+    :returns: cov, a numpy array giving the estimated covariance.
+    """
+    import scipy
+    # Cribbed from implemenation in scipy.optimize.curve_fit
+    # https://github.com/scipy/scipy/blob/maintenance/1.3.x/scipy/optimize/minpack.py#L771
+
+    # Do Moore-Penrose inverse discarding zero singular values.
+    _, s, VT = scipy.linalg.svd(jac, full_matrices=False)
+    threshold = np.finfo(float).eps * max(jac.shape) * s[0]
+    s = s[s > threshold]
+    VT = VT[:s.size]
+    cov = np.dot(VT.T / s**2, VT)
+    return cov
+
 def _run_multi_helper(func, i, args, kwargs, logger):
     if sys.version_info < (3,0):
         from io import BytesIO as StringIO
@@ -292,3 +314,4 @@ def run_multi(func, nproc, args, logger, kwargs=None):
         pool.terminate()
 
     return output_list
+

@@ -681,6 +681,88 @@ def test_direct():
             roundtrip_model = piff.GSObjectModel.read(f, 'psf_model')
         assert model.__dict__ == roundtrip_model.__dict__
 
+@timer
+def test_var():
+    """Check that the variance estimate in params_var is sane.
+    """
+    # Here is the true PSF
+    scale = 1.3
+    g1 = 0.23
+    g2 = -0.17
+    du = 0.1
+    dv = 0.4
+    flux = 500
+    wcs = galsim.JacobianWCS(0.26, 0.05, -0.08, -0.29)
+    noise = 0.2
+
+    gsobjs = [galsim.Gaussian(sigma=1.0),
+              galsim.Kolmogorov(half_light_radius=1.0),
+              galsim.Moffat(half_light_radius=1.0, beta=3.0),
+              galsim.Moffat(half_light_radius=1.0, beta=2.5, trunc=3.0)]
+
+    # Mix of centered = True/False,
+    #        fastfit = True/False,
+    #        include_pixel = True/False
+    models = [piff.Gaussian(fastfit=False, include_pixel=False, centered=False),
+              piff.Kolmogorov(fastfit=False, include_pixel=False, centered=True),
+              piff.Moffat(fastfit=False, beta=3.0, include_pixel=True, centered=True),
+              piff.Moffat(fastfit=False, beta=2.5, trunc=3.0, include_pixel=False, centered=False)]
+
+    names = ['Gaussian',
+             'Kolmogorov',
+             'Moffat3',
+             'Moffat2.5']
+
+    for gsobj, model, name in zip(gsobjs, models, names):
+        print()
+        print("gsobj = ", gsobj)
+        print()
+        psf = gsobj.dilate(scale).shear(g1=g1, g2=g2).shift(du, dv).withFlux(flux)
+        image = psf.drawImage(nx=64, ny=64, wcs=wcs, method='no_pixel')
+        weight = image.copy()
+        weight.fill(1/noise**2)
+        # Save this one without noise.
+
+        image1 = image.copy()
+        image1.addNoise(galsim.GaussianNoise(sigma=0.2))
+
+        # Make a StarData instance for this image
+        stardata = piff.StarData(image, image.true_center, weight)
+        star = piff.Star(stardata, None)
+        star = model.initialize(star)
+        fit = model.fit(star).fit
+
+        file_name = 'input/test_%s_var.npz'%name
+        print(file_name)
+
+        if not os.path.isfile(file_name):
+            num_runs = 1000
+            all_params = []
+            for i in range(num_runs):
+                image1 = image.copy()
+                image1.addNoise(galsim.GaussianNoise(sigma=noise))
+                sd = piff.StarData(image1, image1.true_center)
+                s = piff.Star(sd, None)
+                try:
+                    s = model.initialize(s)
+                    s = model.fit(s)
+                except RuntimeError as e:  # Occasionally hsm fails.
+                    print('Caught ',e)
+                    continue
+                print(s.fit.params)
+                all_params.append(s.fit.params)
+            var = np.var(all_params, axis=0)
+            np.savez(file_name, var=var)
+        var = np.load(file_name)['var']
+        print('params = ',fit.params)
+        print('empirical var = ',var)
+        print('piff estimate = ',fit.params_var)
+        print('ratio = ',fit.params_var/var)
+        print('max ratio = ',np.max(fit.params_var/var))
+        print('min ratio = ',np.min(fit.params_var/var))
+        print('mean ratio = ',np.mean(fit.params_var/var))
+        np.testing.assert_allclose(fit.params_var, var, rtol=0.1)
+
 
 if __name__ == '__main__':
     test_simple()
@@ -690,3 +772,4 @@ if __name__ == '__main__':
     test_gradient()
     test_gradient_center()
     test_direct()
+    test_var()
