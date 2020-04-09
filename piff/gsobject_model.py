@@ -20,8 +20,8 @@ import numpy as np
 import galsim
 
 from .model import Model, ModelFitError
-from .star import Star, StarFit, StarData
-from .util import hsm
+from .star import Star, StarFit
+from .util import hsm, estimate_cov_from_jac
 
 
 class GSObjectModel(Model):
@@ -161,24 +161,6 @@ class GSObjectModel(Model):
 
         return np.array([flux, du, dv, scale, g1, g2])
 
-    def _minimize(self, params, star, logger=None):
-        """Find the least-squares best fit solution.
-
-        :param params: numpy array of initial guess
-        :param star:   Star to fit.
-
-        :returns: scipy.optimize.OptimizeResults instance containing fit results.
-        """
-        import scipy
-        import time
-        logger = galsim.config.LoggerWrapper(logger)
-        t0 = time.time()
-        logger.debug("Start least_squares")
-
-        results = scipy.optimize.least_squares(self._resid, params, args=(star,))
-        logger.debug("Done.  Elapsed time: {0}".format(time.time() - t0))
-        return results
-
     def least_squares_fit(self, star, logger=None):
         """Fit parameters of the given star using least-squares minimization.
 
@@ -187,24 +169,26 @@ class GSObjectModel(Model):
 
         :returns: (flux, dx, dy, scale, g1, g2, flag)
         """
+        import scipy
+        import time
+
         logger = galsim.config.LoggerWrapper(logger)
+        logger.debug("Start least_squares")
+        t0 = time.time()
         params = self._get_params(star)
-        results = self._minimize(params, star, logger=logger)
+
+        results = scipy.optimize.least_squares(self._resid, params, args=(star,))
         if logger:
             logger.debug(results)
-        flux, du, dv, scale, g1, g2 = results.x
         if not results.success:
             raise RuntimeError("Error finding the full nonlinear solution")
 
-        try:
-            params_var = np.diag(results.covar)
-        except (ValueError, AttributeError) as e:
-            logger.debug("Failed to get params_var")
-            logger.debug("  -- Caught exception: %s",e)
-            # results.covar is either None or does not exist
-            params_var = np.zeros(6)
+        flux, du, dv, scale, g1, g2 = results.x
 
-        return flux, du, dv, scale, g1, g2, params_var
+        var = np.diagonal(estimate_cov_from_jac(results.jac))
+
+        logger.debug("Done.  Elapsed time: {0}".format(time.time() - t0))
+        return flux, du, dv, scale, g1, g2, var
 
     @staticmethod
     def with_hsm(star):
@@ -244,6 +228,7 @@ class GSObjectModel(Model):
             var = np.zeros(6)
         else:
             flux, du, dv, scale, g1, g2, var = self.least_squares_fit(star, logger=logger)
+
         # Make a StarFit object with these parameters
         if self._centered:
             params = np.array([ scale, g1, g2 ])
