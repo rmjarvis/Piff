@@ -922,7 +922,7 @@ def test_anisotropic_rbf_kernel():
         check_config = True
         nvalidate = 1
         nvisualize = 21
-        rtol = 0.02
+        rtol = 0.03
     else:
         ntrain = 100
         npcas = [0]
