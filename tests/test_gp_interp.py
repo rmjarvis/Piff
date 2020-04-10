@@ -920,12 +920,17 @@ def test_anisotropic_rbf_kernel():
         npcas = [0]
         optimizes = [True, False]
         check_config = True
+        nvalidate = 10
+        nvisualize = 21
+        rtol = 0.02
     else:
-        ntrain = 250
+        ntrain = 100
         npcas = [0]
         optimizes = [False, True]
         check_config = False
-    nvalidate, nvisualize = 1, 21
+        nvalidate = 1
+        nvisualize = 1
+        rtol = 0.05
     rng = galsim.BaseDeviate(5867943)
 
     training_data, validation_data, visualization_data = make_anisotropic_grf_psf_params(
@@ -944,11 +949,13 @@ def test_anisotropic_rbf_kernel():
 
     for npca in npcas:
         for optimize in optimizes:
-            check_gp(training_data, validation_data, visualization_data, kernel+ "+ WhiteKernel(1e-5, (1e-7, 1e-2))",
+            check_gp(training_data, validation_data, visualization_data,
+                     kernel+ "+ WhiteKernel(1e-5, (1e-7, 1e-2))",
                      npca=npca, optimize=optimize, file_name="test_anisotropic_rbf.fits",
                      rng=rng, check_config=check_config)
             check_gp_2pcf(training_data, validation_data, visualization_data, kernel,
-                          npca=npca, anisotropic=True, optimize=optimize, rng=rng, check_config=True)
+                          npca=npca, anisotropic=True, optimize=optimize, rng=rng,
+                          check_config=check_config, rtol=rtol)
 
 @timer
 def test_vonkarman_kernel():
