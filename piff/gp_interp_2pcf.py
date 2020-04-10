@@ -22,9 +22,7 @@ import copy
 
 from sklearn.gaussian_process.kernels import Kernel
 from sklearn.neighbors import KNeighborsRegressor
-from scipy import optimize
-from scipy.linalg import cholesky, cho_solve
-from scipy.stats import binned_statistic_2d
+import scipy
 import itertools
 
 from .interp import Interp
@@ -153,7 +151,7 @@ class bootstrap_2pcf(object):
                 top = x - 1.
                 bottom = x - npixel - 2.
                 return (top/bottom) - 2.
-            results = optimize.fsolve(f_bias, len(xi[mask]) + 10)
+            results = scipy.optimize.fsolve(f_bias, len(xi[mask]) + 10)
             xi_cov = self.comp_xi_covariance(n_bootstrap=int(results[0]), mask=mask, seed=seed)
             bias_factor = (int(results[0]) - 1.) / (int(results[0]) - len(xi[mask]) - 2.)
             xi_weight = np.linalg.inv(xi_cov) * bias_factor
@@ -347,8 +345,8 @@ class GPInterp2pcf(Interp):
 
         p0 = kernel.theta
 
-        results_fmin = optimize.fmin(chi2,p0,disp=False)
-        results_bfgs = optimize.minimize(chi2,p0,method="L-BFGS-B")
+        results_fmin = scipy.optimize.fmin(chi2,p0,disp=False)
+        results_bfgs = scipy.optimize.minimize(chi2,p0,method="L-BFGS-B")
         results = [results_fmin, results_bfgs['x']]
         chi2_min = [chi2(results[0]), chi2(results[1])]
         ind_min = chi2_min.index(min(chi2_min))
@@ -362,10 +360,13 @@ class GPInterp2pcf(Interp):
         self._2pcf_mask.append(mask)
         return kernel
 
-    def _predict(self, Xstar):
+    def _predict(self, Xstar, logger=None):
         """ Predict responses given covariates.
-        :param Xstar:  The independent covariates at which to interpolate.  (n_samples, 2).
-        :returns:  Regressed parameters  (n_samples, n_targets)
+
+        :param Xstar:   The independent covariates at which to interpolate.  (n_samples, 2).
+        :param logger:  A logger object for logging debug info.
+
+        :returns:       Regressed parameters  (n_samples, n_targets)
         """
         if self.npca>0:
             y_init = self._y_pca
@@ -375,7 +376,8 @@ class GPInterp2pcf(Interp):
             y_err = self._y_err
 
         ystar = np.array([self.return_gp_predict(y_init[:,i]-self._mean[i]-self._spatial_average[:,i],
-                                                 self._X, Xstar, ker, y_err=y_err[:,i])
+                                                 self._X, Xstar, ker, y_err=y_err[:,i],
+                                                 logger=logger)
                           for i, ker in enumerate(self.kernels)]).T
 
         spatial_average = self._build_average_meanify(Xstar)
@@ -386,20 +388,35 @@ class GPInterp2pcf(Interp):
             ystar = self._pca.inverse_transform(ystar)
         return ystar
 
-    def return_gp_predict(self,y, X1, X2, kernel, y_err):
+    def return_gp_predict(self,y, X1, X2, kernel, y_err, logger=None):
         """Compute interpolation with gaussian process for a given kernel.
 
-        :param y:  The dependent responses.  (n_samples, n_targets)
-        :param X1:  The independent covariates.  (n_samples, 2)
-        :param X2:  The independent covariates at which to interpolate.  (n_samples, 2)
-        :param kernel: sklearn.gaussian_process kernel.
-        :param y_err: Error of y. (n_samples, n_targets)
+        :param y:       The dependent responses.  (n_samples, n_targets)
+        :param X1:      The independent covariates.  (n_samples, 2)
+        :param X2:      The independent covariates at which to interpolate.  (n_samples, 2)
+        :param kernel:  sklearn.gaussian_process kernel.
+        :param y_err:   Error of y. (n_samples, n_targets)
+        :param logger:  A logger object for logging debug info.
+
+        :returns:       The prediction for the given y
         """
         HT = kernel.__call__(X2,Y=X1)
         K = kernel.__call__(X1) + np.eye(len(y))*y_err**2
-        factor = (cholesky(K, overwrite_a=True, lower=False), False)
-        alpha = cho_solve(factor, y, overwrite_b=False)
-        return np.dot(HT,alpha.reshape((len(alpha),1))).T[0]
+        try:
+            alpha = scipy.linalg.solve(K, y, assume_a='pos', overwrite_a=True, overwrite_b=False)
+        except scipy.linalg.LinAlgError as e:  # param: no cover
+            if logger is not None:
+                logger.debug("Caught exception in gp prediction. Switching to non-pos algorithm" +
+                             str(e))
+            # This might happen if K turns out to be not quite positive definite.
+            # In perfect math, it should be, but numerically, it might not.
+            # So, switch to non-pos-def solution.
+            # Note: we overwrote the original K, which is normally good for efficiency,
+            # but now means that we need to recreate K.
+            K = kernel.__call__(X1) + np.eye(len(y))*y_err**2
+            alpha = scipy.linalg.solve(K, y, assume_a='sym', overwrite_a=True, overwrite_b=False)
+
+        return np.dot(HT,alpha)
 
     def getProperties(self, star, logger=None):
         """Extract the appropriate properties to use as the independent variables for the
@@ -514,7 +531,7 @@ class GPInterp2pcf(Interp):
         :returns: a list of new Star instances with interpolated parameters
         """
         Xstar = np.array([self.getProperties(star) for star in stars])
-        y = self._predict(Xstar)
+        y = self._predict(Xstar, logger)
         fitted_stars = []
         for y0, star in zip(y, stars):
             fit = star.fit.newParams(y0)
