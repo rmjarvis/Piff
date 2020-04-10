@@ -920,7 +920,7 @@ def test_anisotropic_rbf_kernel():
         npcas = [0]
         optimizes = [True, False]
         check_config = True
-        nvalidate = 10
+        nvalidate = 1
         nvisualize = 21
         rtol = 0.02
     else:
