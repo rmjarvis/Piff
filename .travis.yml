@@ -32,6 +32,9 @@ before_install:
 
     #- pip install -U galsim
     # For now... we need force_stepk option.
+    # Install the non-python dependencies: fftw, eigen
+    - if [[ $TRAVIS_OS_NAME == "linux" ]]; then sudo -H apt-get -qq update; sudo -H apt-get install -y python-dev libfftw3-dev libeigen3-dev; fi
+    - if [[ $TRAVIS_OS_NAME == "osx" ]]; then brew update; brew install fftw eigen; fi
     - pip install git+https://github.com/GalSim-developers/GalSim.git@master
 
     # Install Pixmappy
