@@ -106,15 +106,15 @@ def test_shearing():
     g2 = 0.05
     model = piff.Optical(r0=0.1, g1=g1, g2=g2, template='des')
     star = model.draw(star)
-    gaussian = piff.Gaussian(include_pixel=False)
+    gaussian = piff.Gaussian()
     star_gaussian = gaussian.fit(star)
-    np.testing.assert_almost_equal(star_gaussian.fit.params[1], g1, 5)
-    np.testing.assert_almost_equal(star_gaussian.fit.params[2], g2, 5)
+    np.testing.assert_almost_equal(star_gaussian.fit.params[1], g1, 4)
+    np.testing.assert_almost_equal(star_gaussian.fit.params[2], g2, 4)
 
 
 @timer
 def test_gaussian():
-    gaussian = piff.Gaussian(include_pixel=False)
+    gaussian = piff.Gaussian()
     print('test gaussian')
     star = make_empty_star()
     # test gaussian alone

@@ -1,4 +1,3 @@
-
 # Copyright (c) 2016 by Mike Jarvis and the other collaborators on GitHub at
 # https://github.com/rmjarvis/Piff  All rights reserved.
 #
@@ -27,22 +26,42 @@ import numpy as np
 from .model import Model
 from .star import Star, StarFit, StarData
 
-# The only one here by default is 'des', but this allows people to easily add another template
+# Some templates people can use rather than provide all their own parameters.
 optical_templates = {
-    'des': { 'obscuration': 0.301 / 0.7174,
-             'nstruts': 4,
-             'diam': 4.274419,  # meters
-             'lam': 700, # nm
-             # aaron plays between 19 mm thick and 50 mm thick
-             'strut_thick': 0.050 * (1462.526 / 4010.) / 2.0, # conversion factor is nebulous?!
-             'strut_angle': 45 * galsim.degrees,
-             'r0': 0.1,
-           },
-}
+    'des': {
+        'obscuration': 0.301 / 0.7174,
+        'nstruts': 4,
+        'diam': 4.274419,  # meters
+        'lam': 700, # nm
+        # aaron plays between 19 mm thick and 50 mm thick
+        'strut_thick': 0.050 * (1462.526 / 4010.) / 2.0, # conversion factor is nebulous?!
+        'strut_angle': 45 * galsim.degrees,
+        'r0': 0.1,
+    },
+    'des_big_r0': {  # Same as des, but r0 = 0.15
+        'obscuration': 0.301 / 0.7174,
+        'nstruts': 4,
+        'diam': 4.274419,
+        'lam': 700,
+        'strut_thick': 0.050 * (1462.526 / 4010.) / 2.0,
+        'strut_angle': 45 * galsim.degrees,
+        'r0': 0.15,
+    },
+    'des_vonkarman': {  # Same as des, but with L0.
+        'obscuration': 0.301 / 0.7174,
+        'nstruts': 4,
+        'diam': 4.274419,
+        'lam': 700,
+        'strut_thick': 0.050 * (1462.526 / 4010.) / 2.0,
+        'strut_angle': 45 * galsim.degrees,
+        'r0': 0.15,
+        'L0': 25.0,
+    },
+ }
 
 class Optical(Model):
 
-    _method = 'no_pixel'
+    _method = 'auto'
 
     def __init__(self, template=None, logger=None, **kwargs):
         """Initialize the Optical Model
@@ -77,8 +96,9 @@ class Optical(Model):
                                 [default: None]
         :param r0:              The Fried parameter in units of meters to use to calculate fwhm
                                 as fwhm = 0.976 lam / r0. [default: None]
+        :param L0:              The VonKarman outer scale [default: None]
 
-        Finall, there is allowed to be a final Gaussian component and an applied shear.
+        Finally, there is allowed to be a final Gaussian component and an applied shear.
 
         :param sigma:           Convolve with gaussian of size sigma. [default: 0]
         :param g1, g2:          Shear to apply to final image. Simulates vibrational modes.
@@ -130,14 +150,16 @@ class Optical(Model):
                 pupil_plane_im = galsim.fits.read(pupil_plane_im)
             self.optical_psf_kwargs['pupil_plane_im'] = pupil_plane_im
 
+        # If L0 is present, then this is really Von Karman.
         kolmogorov_keys = ('lam', 'r0', 'lam_over_r0', 'scale_unit',
-                           'fwhm', 'half_light_radius', 'r0_500')
+                           'fwhm', 'half_light_radius', 'r0_500', 'L0')
         self.kolmogorov_kwargs = { key : self.kwargs[key] for key in self.kwargs
                                                           if key in kolmogorov_keys }
-        # If lam is the only one, then remove it -- we don't have a Kolmogorov component then.
+        # If lam is the only one, then remove it -- we don't have a Kolmogorov (or VonKarman)
+        # component then.
         if self.kolmogorov_kwargs.keys() == ['lam']:
             self.kolmogorov_kwargs = {}
-        # Also, let r0=0 or None indicate that there is no kolmogorov component
+        # Also, let r0=0 or None indicate that there is no kolmogorov (or vonkarman) component
         if 'r0' in self.kolmogorov_kwargs and not self.kolmogorov_kwargs['r0']:
             self.kolmogorov_kwargs = {}
 
@@ -198,7 +220,10 @@ class Optical(Model):
             prof.append(gaussian)
         # atmosphere
         if len(self.kolmogorov_kwargs) > 0:
-            atm = galsim.Kolmogorov(**self.kolmogorov_kwargs)
+            if 'L0' in self.kolmogorov_kwargs:
+                atm = galsim.VonKarman(**self.kolmogorov_kwargs)
+            else:
+                atm = galsim.Kolmogorov(**self.kolmogorov_kwargs)
             prof.append(atm)
         # optics
         if params is None or len(params) == 0:
@@ -222,4 +247,3 @@ class Optical(Model):
             prof = prof.shear(g1=self.g1, g2=self.g2)
 
         return prof
-

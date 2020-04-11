@@ -119,7 +119,7 @@ class TwoDHistStats(Stats):
         self.twodhists['g2'] = self._array_to_2dhist(g2, indx_u, indx_v, unique_indx)
 
         # T_model
-        self.twodhists['T_model'] = self._array_to_2dhist(T, indx_u, indx_v, unique_indx)
+        self.twodhists['T_model'] = self._array_to_2dhist(T_model, indx_u, indx_v, unique_indx)
 
         # g1_model
         self.twodhists['g1_model'] = self._array_to_2dhist(g1_model, indx_u, indx_v, unique_indx)

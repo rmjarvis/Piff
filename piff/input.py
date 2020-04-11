@@ -160,6 +160,60 @@ class Input(object):
         logger.warning("Read a total of %d stars from %d image%s",len(stars),len(self.images),
                        "s" if len(self.images) > 1 else "")
 
+        # here we remove stars which have a deformed postage stamp
+        if len(stars) > 0:
+            postage_stamp_heights = []
+            postage_stamp_widths = []
+            for star in stars:
+                postage_stamp_heights.append(star.image.array.shape[0])
+                postage_stamp_widths.append(star.image.array.shape[1])
+            postage_stamp_heights = np.array(postage_stamp_heights)
+            postage_stamp_widths = np.array(postage_stamp_widths)
+            conds_height_not_deformed = (    np.abs(postage_stamp_heights - self.stamp_size) < self.cutoff_deformed_level    )
+            conds_width_not_deformed = (    np.abs(postage_stamp_widths - self.stamp_size) < self.cutoff_deformed_level    )
+            stars = np.array(stars)[conds_height_not_deformed*conds_width_not_deformed].tolist()
+        logger.info("There are {0} stars after the deformed star cut".format(len(stars)))
+
+        # here we remove nuisance stars. We do this by seeing if there is an unusual amount of flux far from the center of the postage stamp
+        if len(stars) > 0:
+            flux_extras = []
+            for star_i, star in enumerate(stars):
+                if star.image.array.shape[0] != self.stamp_size or star.image.array.shape[1] != self.stamp_size:
+                    logger.info("Star {0} unable to be tested for having a nuisance star due to being deformed. Star will stay in.".format(star_i))
+                    print("Star {0} unable to be tested for having a nuisance star due to being deformed. Star will stay in.".format(star_i))
+                    flux_extras.append(np.nan)
+                    continue
+                flux_extra = 0
+                for i in range(0,self.stamp_size):
+                    for j in range(0,self.stamp_size):
+                        if np.sqrt(np.square((self.stamp_size-1.0)/2.0-i)+np.square((self.stamp_size-1.0)/2.0-j))>(self.stamp_size-1.0)*(5.0/12.0):
+                            flux_extra = flux_extra + star.image.array[i][j]
+                flux_extras.append(flux_extra)
+
+            flux_extras = np.array(flux_extras)
+            med = np.nanmedian(flux_extras)
+            mad = np.nanmedian(np.abs(flux_extras-med[None]))
+            madx = np.abs(flux_extras - med[None])
+
+            delete_list = []
+            for star_i, star in enumerate(stars):
+                if madx[star_i] > 1.48 * self.cutoff_nuisance_level * mad:
+                    delete_list.append(star_i)
+            stars = np.delete(stars, delete_list)
+            stars = stars.tolist()
+
+        logger.info("There are {0} stars after the nuisance star cut".format(len(stars)))
+
+        # here we remove stars that have been at least partially covered by a mask and thus have weight exactly 0 in at least one pixel of their postage stamp
+        if len(stars) > 0:
+            star_weightmaps = []
+            delete_list = []
+            for star_i, star in enumerate(stars):
+                if star.weight.array.shape[0] * star.weight.array.shape[1] - np.count_nonzero(star.weight.array) >= self.cutoff_masked_level:
+                    delete_list.append(star_i)
+            stars = np.delete(stars, delete_list)
+            stars = stars.tolist()
+        logger.info("There are {0} stars after the masked star cut".format(len(stars)))
         return stars
 
     @staticmethod
@@ -320,6 +374,16 @@ class InputFiles(Input):
                             so this parameter limits the effective S/N of any single star.
                             Basically, it adds noise to bright stars to lower their S/N down to
                             this value.  [default: 100]
+            :_cutoff_deformed_level     The degree to which the width or height of a star's postage stamp is
+                            allowed to differ from the desired stamp size + 1. This occurs if the
+                            star is partially cutoff due to being at the edge of an image.
+                            [default: 1000]
+            :_cutoff_nuisance_level     Stars with fluxes on the outer edges of their postage stamps too many
+                            sigma away from the median outer-edge flux are cut. This specifies how
+                            many sigma. Note that this is done with a MAD cut. [default: 1000.0]
+            :_cutoff_masked_level       Stars that are partially masked to an extent are cut. Specifically,
+                            stars where at least this many number of pixels have weight 0.0 are
+                            cut [default: 1000]
             :use_partial:   Whether to use stars whose postage stamps are only partially on the
                             full image.  [default: False]
             :nstars:        Stop reading the input file at this many stars.  (This is applied
@@ -572,6 +636,9 @@ class InputFiles(Input):
 
         self.min_snr = config.get('min_snr', None)
         self.max_snr = config.get('max_snr', 100)
+        self.cutoff_deformed_level = int(config.get('_cutoff_deformed_level', 1000))
+        self.cutoff_nuisance_level = config.get('_cutoff_nuisance_level', 1000.0)
+        self.cutoff_masked_level = int(config.get('_cutoff_masked_level', 1000))
         self.use_partial = config.get('use_partial', False)
 
         # Finally, set the pointing coordinate.

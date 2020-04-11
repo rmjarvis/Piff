@@ -188,7 +188,7 @@ def test_decam_wavefront():
         image.setCenter(icen, jcen)
         image_pos = image.center
 
-        stardata = piff.StarData(image, image_pos, properties={'ccdnum': ccdnum})
+        stardata = piff.StarData(image, image_pos, properties={'chipnum': ccdnum})
 
         star = piff.Star(stardata, None)
         star_list.append(star)

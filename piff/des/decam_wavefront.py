@@ -17,6 +17,7 @@
 """
 
 from ..knn_interp import kNNInterp
+from .decaminfo import DECamInfo
 
 import numpy as np
 import fitsio
@@ -67,6 +68,8 @@ class DECamWavefront(kNNInterp):
             'p': p,
             }
         self.kwargs.update(self.knr_kwargs)
+
+        self.decaminfo = DECamInfo()
 
         from sklearn.neighbors import KNeighborsRegressor
         self.knn = KNeighborsRegressor(**self.knr_kwargs)
@@ -156,7 +159,7 @@ class DECamWavefront(kNNInterp):
 
         return targets
 
-    def _finish_write(self, fits, extname):
+    def _finish_write(self, fits, extname, logger=None):
         """Write the solution to a FITS binary table.
 
         Save the knn params and the locations and targets arrays
@@ -179,7 +182,7 @@ class DECamWavefront(kNNInterp):
         # write to fits
         fits.write_table(data, extname=extname + '_solution')
 
-    def _finish_read(self, fits, extname):
+    def _finish_read(self, fits, extname, logger=None):
         """Read the solution from a FITS binary table.
 
         :param fits:        An open fitsio.FITS object.
@@ -193,3 +196,23 @@ class DECamWavefront(kNNInterp):
 
         # other attributes
         self.Xpixel = data['XPIXEL'][0]
+
+    def interpolate(self, star, logger=None):
+        """Perform the interpolation to find the interpolated parameter vector at some position. First makes sure stars are in focal basis with call to decaminfo, and then super's to knn interpolate
+
+        :param star:        A Star instance to which one wants to interpolate
+        :param logger:      A logger object for logging debug info. [default: None]
+
+        :returns: a new Star instance with its StarFit member holding the interpolated parameters
+        """
+        return super(DECamWavefront, self).interpolate(self.decaminfo.pixel_to_focal(star), logger=logger)
+
+    def interpolateList(self, star_list, logger=None):
+        """Perform the interpolation for a list of stars. First makes sure stars are in focal basis, and then super's to knn interpolate
+
+        :param star_list:   A list of Star instances to which to interpolate.
+        :param logger:      A logger object for logging debug info. [default: None]
+
+        :returns: a list of new Star instances with interpolated parameters
+        """
+        return super(DECamWavefront, self).interpolateList(self.decaminfo.pixel_to_focalList(star_list), logger=logger)

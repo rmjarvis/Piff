@@ -681,7 +681,6 @@ def test_direct():
             roundtrip_model = piff.GSObjectModel.read(f, 'psf_model')
         assert model.__dict__ == roundtrip_model.__dict__
 
-
 if __name__ == '__main__':
     test_simple()
     test_center()

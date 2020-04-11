@@ -332,5 +332,6 @@ def meanify(config, logger=None):
     data['COORDS0'] = coords0
     data['PARAMS0'] = params0
 
+    logger.info('Writing average solution to {0}'.format(file_name_out))
     with fitsio.FITS(file_name_out,'rw',clobber=True) as f:
         f.write_table(data, extname='average_solution')
