@@ -192,7 +192,13 @@ class PixelGrid(Model):
 
         # covariance of dp is C = (AT A)^-1
         # params_var = diag(C)
-        params_var = np.diagonal(scipy.linalg.inv(star1.fit.A.T.dot(star1.fit.A)))
+        try:
+            params_var = np.diagonal(scipy.linalg.inv(star1.fit.A.T.dot(star1.fit.A)))
+        except np.linalg.LinAlgError as e:
+            # If we get an error, set the variance to "infinity".
+            logger = galsim.config.LoggerWrapper(logger)
+            logger.info("Caught error %s making params_var.  Setting all to 1.e100")
+            params_var = np.ones_like(dparam) * 1.e100
 
         starfit2 = StarFit(star1.fit.params + dparam,
                            flux = star1.fit.flux,
