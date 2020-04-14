@@ -1,0 +1,230 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>Writing the output file &#8212; Piff 0.4.0 documentation</title>
+    <link rel="stylesheet" href="_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/language_data.js"></script>
+    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="PSF" href="psf.html" />
+    <link rel="prev" title="Interpolation Schemes" href="interp.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="psf.html" title="PSF"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="interp.html" title="Interpolation Schemes"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Piff 0.4.0 documentation</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="writing-the-output-file">
+<h1>Writing the output file<a class="headerlink" href="#writing-the-output-file" title="Permalink to this headline">¶</a></h1>
+<p>Output handlers govern how the final solution is handled.  The typical thing to do is to
+write to a FITS file, which is handled by the class <a class="reference internal" href="#piff.OutputFile" title="piff.OutputFile"><code class="xref py py-class docutils literal notranslate"><span class="pre">OutputFile</span></code></a>.  This is
+the default, so if you are using that, you can omit the :type: specification.</p>
+<div class="section" id="the-output-class">
+<h2>The Output class<a class="headerlink" href="#the-output-class" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="piff.Output">
+<em class="property">class </em><code class="sig-prename descclassname">piff.</code><code class="sig-name descname">Output</code><a class="reference internal" href="_modules/piff/output.html#Output"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Output" title="Permalink to this definition">¶</a></dt>
+<dd><p>The base class for handling the output for writing a Piff model.</p>
+<p>This is essentially an abstract base class intended to define the methods that should be
+implemented by any derived class.</p>
+<dl class="method">
+<dt id="piff.Output.parseKwargs">
+<em class="property">classmethod </em><code class="sig-name descname">parseKwargs</code><span class="sig-paren">(</span><em class="sig-param">config_output</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/output.html#Output.parseKwargs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Output.parseKwargs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Parse the output field of a configuration dict and return the kwargs to use for
+initializing an instance of the class.</p>
+<p>The base class implementation just returns the kwargs as they are, but derived classes
+might want to override this if they need to do something more sophisticated with them.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>config_output</strong> – The output field of the configuration dict, config[‘output’]</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a kwargs dict to pass to the initializer</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="piff.Output.process">
+<em class="property">classmethod </em><code class="sig-name descname">process</code><span class="sig-paren">(</span><em class="sig-param">config_output</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/output.html#Output.process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Output.process" title="Permalink to this definition">¶</a></dt>
+<dd><p>Parse the output field of the config dict.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>config_output</strong> – The configuration dict for the output field.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>an Output handler</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="piff.Output.read">
+<code class="sig-name descname">read</code><span class="sig-paren">(</span><em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/output.html#Output.read"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Output.read" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read a PSF object that was written to an output file back in.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a piff.PSF instance</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="piff.Output.write">
+<code class="sig-name descname">write</code><span class="sig-paren">(</span><em class="sig-param">psf</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/output.html#Output.write"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Output.write" title="Permalink to this definition">¶</a></dt>
+<dd><p>Write a PSF object to the output file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>psf</strong> – A piff.PSF instance</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="piff.OutputFile">
+<em class="property">class </em><code class="sig-prename descclassname">piff.</code><code class="sig-name descname">OutputFile</code><span class="sig-paren">(</span><em class="sig-param">file_name</em>, <em class="sig-param">dir=None</em>, <em class="sig-param">stats_list=None</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/output.html#OutputFile"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.OutputFile" title="Permalink to this definition">¶</a></dt>
+<dd><p>An Output handler that just writes to a FITS file.</p>
+<p>This is the only Output handler we have, so it doesn’t need to be specified by name
+with a <code class="docutils literal notranslate"><span class="pre">type</span></code> field.</p>
+<p>It includes specification of both the output file name as well as potentially some
+statistics to output as well.</p>
+<dl class="method">
+<dt id="piff.OutputFile.parseKwargs">
+<em class="property">classmethod </em><code class="sig-name descname">parseKwargs</code><span class="sig-paren">(</span><em class="sig-param">config_output</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/output.html#OutputFile.parseKwargs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.OutputFile.parseKwargs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Parse the output field of a configuration dict and return the kwargs to use for
+initializing an instance of the class.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>config_output</strong> – The output field of the configuration dict, config[‘output’]</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a kwargs dict to pass to the initializer</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="piff.OutputFile.write">
+<code class="sig-name descname">write</code><span class="sig-paren">(</span><em class="sig-param">psf</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/output.html#OutputFile.write"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.OutputFile.write" title="Permalink to this definition">¶</a></dt>
+<dd><p>Write a PSF object to the output file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>psf</strong> – A piff.PSF instance</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Writing the output file</a><ul>
+<li><a class="reference internal" href="#the-output-class">The Output class</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="interp.html"
+                        title="previous chapter">Interpolation Schemes</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="psf.html"
+                        title="next chapter">PSF</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/output.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="psf.html" title="PSF"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="interp.html" title="Interpolation Schemes"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Piff 0.4.0 documentation</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2019.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 2.1.2.
+    </div>
+  </body>
+</html>
