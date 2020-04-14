@@ -1,5 +1,7 @@
 include *.rst
 include LICENSE
-include docs/*.rst
-include tests/*.py
-recursive-include include *.h
+recursive-include tests *.py
+prune *docs/_build
+prune *tests/input
+prune *tests/output
+prune *tests/.*
