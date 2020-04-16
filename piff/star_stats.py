@@ -56,7 +56,7 @@ class StarStats(Stats):
         self.file_name = file_name
         self.adjust_stars = adjust_stars
 
-    def compute(self, psf, stars, logger=None):
+    def compute(self, psf, stars, trust_atmo_params_stored_in_stars=False, logger=None):
         """
         :param psf:         A PSF Object
         :param stars:       A list of Star instances.
@@ -77,7 +77,10 @@ class StarStats(Stats):
             if self.adjust_stars:
                 star = self.fit_star(star, psf=psf, logger=logger)
             self.stars.append(star)
-        self.models = psf.drawStarList(self.stars)
+        if trust_atmo_params_stored_in_stars ==True:
+            self.models = psf.drawStarList(self.stars, trust_atmo_params_stored_in_stars=True)
+        else:
+            self.models = psf.drawStarList(self.stars)
 
     def fit_star(self, star, psf, logger=None):
         """Adjust star.fit.flux and star.fit.center

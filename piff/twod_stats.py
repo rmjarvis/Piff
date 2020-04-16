@@ -58,7 +58,7 @@ class TwoDHistStats(Stats):
 
         self.file_name = file_name
 
-    def compute(self, psf, stars, logger=None):
+    def compute(self, psf, stars, trust_atmo_params_stored_in_stars=False, logger=None):
         """
         :param psf:         A PSF Object
         :param stars:       A list of Star instances.
@@ -67,7 +67,7 @@ class TwoDHistStats(Stats):
         logger = galsim.config.LoggerWrapper(logger)
         # get the shapes
         logger.info("Measuring Star and Model Shapes")
-        positions, shapes_truth, shapes_model = self.measureShapes(psf, stars, logger=logger)
+        positions, shapes_truth, shapes_model = self.measureShapes(psf, stars, trust_atmo_params_stored_in_stars=trust_atmo_params_stored_in_stars, logger=logger)
 
         # Only use stars for which hsm was successful
         flag_truth = shapes_truth[:, 6]
