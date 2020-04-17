@@ -198,9 +198,14 @@ def generate_starlist(n_samples=500):
 def setup():
     """Build an input image and catalog used by a few tests below.
     """
+    wcs = galsim.TanWCS(
+            galsim.AffineTransform(0.26, 0.05, -0.08, -0.24, galsim.PositionD(1024,1024)),
+            #galsim.AffineTransform(0.26, 0., 0., 0.26, galsim.PositionD(1024,1024)),
+            galsim.CelestialCoord(5 * galsim.arcmin, -25 * galsim.degrees)
+            )
 
     # Make the image (copied from test_single_image in test_simple.py)
-    image = galsim.Image(2048, 2048, scale=0.26)
+    image = galsim.Image(2048, 2048, wcs=wcs)
 
     # Where to put the stars.
     x_list = [ 123.12, 345.98, 567.25, 1094.94, 924.15, 1532.74, 1743.11, 888.39, 1033.29, 1409.31 ]
@@ -210,13 +215,13 @@ def setup():
     sigma = 1.3
     g1 = 0.23
     g2 = -0.17
-    dx = 0.31  # in pixels
-    dy = -0.32
+    du = 0.09  # in arcsec
+    dv = -0.07
     flux = 123.45
-    psf = galsim.Gaussian(sigma=sigma).shear(g1=g1, g2=g2) * flux
+    psf = galsim.Gaussian(sigma=sigma).shear(g1=g1, g2=g2).shift(du,dv) * flux
     for x, y in zip(x_list, y_list):
         bounds = galsim.BoundsI(int(x-31), int(x+32), int(y-31), int(y+32))
-        offset = galsim.PositionD( x-int(x)-0.5 + dx, y-int(y)-0.5 + dy)
+        offset = galsim.PositionD(x-int(x)-0.5, y-int(y)-0.5)
         psf.drawImage(image=image[bounds], method='no_pixel', offset=offset)
     image.addNoise(galsim.GaussianNoise(rng=galsim.BaseDeviate(1234), sigma=1e-6))
 
@@ -539,22 +544,196 @@ def test_starstats_config():
     fluxs_adjust = np.array([s.fit.flux for s in starStats.stars])
     ds_adjust = np.array([s.fit.center for s in starStats.stars])
     # copy the right values from setup()
-    dx = 0.31
-    dy = -0.32
+    du = 0.09
+    dv = -0.07
     flux = 123.45
     # compare fluxes
     np.testing.assert_allclose(fluxs_adjust, flux, rtol=1e-4)
-    # compare dx and dy, keeping in mind that ds_adjust is dx/y * 0.26 (scale)
-    dx_adjust = ds_adjust[:, 0] / 0.26
-    dy_adjust = ds_adjust[:, 1] / 0.26
-    np.testing.assert_allclose(dx_adjust, dx, rtol=1e-4)
-    np.testing.assert_allclose(dy_adjust, dy, rtol=1e-4)
+    np.testing.assert_allclose(ds_adjust[:,0], du, rtol=1e-4)
+    np.testing.assert_allclose(ds_adjust[:,1], dv, rtol=1e-4)
 
     # do once with adjust_stars = False to graphically demonstrate
     config['output']['stats'][0]['file_name'] = star_noadjust_file
     config['output']['stats'][0]['adjust_stars'] = False
     piff.plotify(config, logger)
     assert os.path.isfile(star_noadjust_file)
+
+@timer
+def test_hsmcatalog():
+    """Test HSMCatalog stats type.
+    """
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(verbose=2)
+    else:
+        logger = piff.config.setup_logger(log_file='output/test_hsmcatalog.log')
+
+    image_file = os.path.join('output','test_stats_image.fits')
+    cat_file = os.path.join('output','test_stats_cat.fits')
+    psf_file = os.path.join('output','test_starstats.fits')
+    hsm_file = os.path.join('output', 'test_hsmcatalog.fits')
+    config = {
+        'input' : {
+            'image_file_name' : image_file,
+            'cat_file_name' : cat_file,
+            'stamp_size' : 48
+        },
+        'psf' : {
+            'model' : { 'type' : 'Gaussian',
+                        'fastfit': True,
+                        'include_pixel': False },
+            'interp' : { 'type' : 'Mean' },
+        },
+        'output' : {
+            'file_name' : psf_file,
+            'stats' : [
+                {
+                    'type': 'HSMCatalog',
+                    'file_name': hsm_file,
+                }
+            ]
+        }
+    }
+    piff.piffify(config, logger)
+    assert os.path.isfile(hsm_file)
+
+    data = fitsio.read(hsm_file)
+    for col in ['ra', 'dec', 'x', 'y', 'u', 'v',
+                'T_data', 'g1_data', 'g2_data',
+                'T_model', 'g1_model', 'g2_model',
+                'flux', 'reserve']:
+        assert len(data[col]) == 10
+    true_data = fitsio.read(cat_file)
+
+    np.testing.assert_allclose(data['x'], true_data['x'])
+    np.testing.assert_allclose(data['y'], true_data['y'])
+    np.testing.assert_allclose(data['flux'], 123.45, atol=0.001)
+    np.testing.assert_array_equal(data['reserve'], False)
+    np.testing.assert_allclose(data['T_model'], data['T_data'], rtol=1.e-4)
+    np.testing.assert_allclose(data['g1_model'], data['g1_data'], rtol=1.e-4)
+    np.testing.assert_allclose(data['g2_model'], data['g2_data'], rtol=1.e-4)
+
+    image = galsim.fits.read(image_file)
+    world = [image.wcs.toWorld(galsim.PositionD(x,y)) for x,y in zip(data['x'],data['y'])]
+    np.testing.assert_allclose(data['ra'], [w.ra.deg for w in world], rtol=1.e-4)
+    np.testing.assert_allclose(data['dec'], [w.dec.deg for w in world], rtol=1.e-4)
+
+    # Repeat with non-Celestial WCS
+    wcs = galsim.AffineTransform(0.26, 0.05, -0.08, -0.24, galsim.PositionD(1024,1024))
+    config['input']['wcs'] = wcs
+    piff.piffify(config, logger)
+    data = fitsio.read(hsm_file)
+    np.testing.assert_array_equal(data['ra'], 0.)
+    np.testing.assert_array_equal(data['dec'], 0.)
+    world = [wcs.toWorld(galsim.PositionD(x,y)) for x,y in zip(data['x'],data['y'])]
+    np.testing.assert_allclose(data['u'], [w.x for w in world], rtol=1.e-4)
+    np.testing.assert_allclose(data['v'], [w.y for w in world], rtol=1.e-4)
+
+    # Use class directly, rather than through config.
+    psf = piff.PSF.read(psf_file)
+    stars, _, _ = piff.Input.process(config['input'])
+    hsmcat = piff.stats.HSMCatalogStats()
+    hsmcat.compute(psf, stars)
+    hsm_file2 = os.path.join('output', 'test_hsmcatalog2.fits')
+    hsmcat.write(hsm_file2)
+    data2 = fitsio.read(hsm_file2)
+    for key in data.dtype.names:
+        np.testing.assert_allclose(data2[key], data[key], rtol=1.e-5)
+
+@timer
+def test_bad_hsm():
+    """Test that stats don't break when all stars end up being flagged with hsm errors.
+    """
+    image_file = os.path.join('input','DECam_00241238_01.fits.fz')
+    cat_file = os.path.join('input',
+                            'DECam_00241238_01_psfcat_tb_maxmag_17.0_magcut_3.0_findstars.fits')
+    psf_file = os.path.join('output','bad_hsm.fits')
+
+    twodhist_file = os.path.join('output','bad_hsm_twod.pdf')
+    whisker_file = os.path.join('output','bad_hsm_whisk.pdf')
+    rho_file = os.path.join('output','bad_hsm_rho.pdf')
+    shape_file = os.path.join('output','bad_hsm_shape.pdf')
+    star_file = os.path.join('output','bad_hsm_star.pdf')
+    hsm_file = os.path.join('output','bad_hsm_hsm.fits')
+
+    stamp_size = 25
+
+    # The configuration dict with the right input fields for the file we're using.
+    config = {
+        'input' : {
+            'nstars': 8,
+            'image_file_name' : image_file,
+            'image_hdu' : 1,
+            'weight_hdu' : 3,
+            'badpix_hdu' : 2,
+            'cat_file_name' : cat_file,
+            'cat_hdu' : 2,
+            # These next two are intentionally backwards.  The PixelGrid will find some kind
+            # of solution, but it will be complex garbage, and hsm will fail for them.
+            'x_col' : 'YWIN_IMAGE',
+            'y_col' : 'XWIN_IMAGE',
+            'sky_col' : 'BACKGROUND',
+            'stamp_size' : stamp_size,
+            'ra' : 'TELRA',
+            'dec' : 'TELDEC',
+            'gain' : 'GAINA',
+        },
+        'output' : {
+            'file_name' : psf_file,
+            'stats' : [
+                {
+                    'type': 'TwoDHist',
+                    'file_name': twodhist_file,
+                },
+                {
+                    'type': 'Whisker',
+                    'file_name': whisker_file,
+                },
+                {  # Note: stats doesn't have to be a list.
+                    'type': 'Rho',
+                    'file_name': rho_file
+                },
+                {
+                    'type': 'ShapeHistograms',
+                    'file_name': shape_file
+                },
+                {
+                    'type': 'Star',
+                    'file_name': star_file,
+                },
+                {
+                    'type': 'HSMCatalog',
+                    'file_name': hsm_file,
+                },
+            ],
+        },
+        'psf' : {
+            'model' : {
+                'type' : 'PixelGrid',
+                'scale' : 0.3,
+                'size' : 10,
+            },
+            'interp' : { 'type' : 'Mean' },
+            'outliers' : {
+                'type' : 'Chisq',
+                'nsigma' : 1.e-3,  # This will throw out all but 1, which adds an additional
+                                   # test of Star stats when nstars < number_plot
+            }
+        },
+    }
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(1)
+    else:
+        config['verbose'] = 0
+        logger = None
+
+    for f in [twodhist_file, rho_file, shape_file, star_file, hsm_file]:
+        if os.path.exists(f):
+            os.remove(f)
+
+    piff.piffify(config, logger=logger)
+
+    for f in [twodhist_file, rho_file, shape_file, star_file, hsm_file]:
+        assert os.path.exists(f)
 
 if __name__ == '__main__':
     setup()
@@ -564,3 +743,5 @@ if __name__ == '__main__':
     test_rhostats_config()
     test_shapestats_config()
     test_starstats_config()
+    test_hsmcatalog()
+    test_bad_hsm()

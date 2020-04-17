@@ -142,7 +142,6 @@ class PSF(object):
 
         :returns:           A GalSim Image of the PSF
         """
-        import galsim
         logger = galsim.config.LoggerWrapper(logger)
         properties = {'chipnum' : chipnum}
         for key in self.extra_interp_properties:
@@ -313,7 +312,6 @@ class PSF(object):
         :param extname:     The name of the extension to write to
         :param logger:      A logger object for logging debug info.
         """
-        import galsim
         import base64
         try:
             import cPickle as pickle
@@ -375,7 +373,6 @@ class PSF(object):
         :returns: wcs, pointing where wcs is a dict of galsim.BaseWCS instances and
                                       pointing is a galsim.CelestialCoord instance
         """
-        import galsim
         import base64
         try:
             import cPickle as pickle

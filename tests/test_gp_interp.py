@@ -46,7 +46,6 @@ def return_var_map(weight, xi):
         VAR[N/2, N/2] /= 2.
     return VAR
 
-
 def get_correlation_length_matrix(correlation_length, g1, g2):
     """
     Produce correlation matrix to introduce anisotropy in kernel. 

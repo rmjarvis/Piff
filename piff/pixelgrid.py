@@ -47,28 +47,26 @@ class PixelGrid(Model):
     flux is defined as sum of pixel values; or in surface brightness units (sb=True), such
     that flux is (sum of pixels)*(pixel area).  Internally the sb convention is used, although
     the flux convention is more typical of input data.
-    """
-    def __init__(self, scale, size, interp=None, force_model_center=True, logger=None,
-                 start_sigma=None, degenerate=None):
-        """Constructor for PixelGrid defines the PSF scale, size, and interpolant.
 
-        :param scale:       Pixel scale of the PSF model (in arcsec)
-        :param size:        Number of pixels on each side of square grid.
-        :param interp:      An Interpolant to be used [default: Lanczos(3); currently only
-                            Lanczos(n) is implemented, for any n]
-        :param force_model_center: If True, PSF model centroid is fixed at origin and
-                            PSF fitting will marginalize over stellar position.  If False, stellar
-                            position is fixed at input value and the fitted PSF may be off-center.
-                            [default: True]
-        :param logger:      A logger object for logging debug info. [default: None]
-        """
+    :param scale:       Pixel scale of the PSF model (in arcsec)
+    :param size:        Number of pixels on each side of square grid.
+    :param interp:      An Interpolant to be used [default: Lanczos(3); currently only
+                        Lanczos(n) is implemented, for any n]
+    :param centered:    If True, PSF model centroid is forced to be (0,0), and the
+                        PSF fitting will marginalize over stellar position.  If False, stellar
+                        position is fixed at input value and the fitted PSF may be off-center.
+                        [default: True]
+    :param logger:      A logger object for logging debug info. [default: None]
+    """
+    def __init__(self, scale, size, interp=None, centered=True, logger=None,
+                 start_sigma=None, degenerate=None):
         # start_sigma and degenerate are for backwards compatibility.  Ignore.
         logger = galsim.config.LoggerWrapper(logger)
         logger.debug("Building Pixel model with the following parameters:")
         logger.debug("scale = %s",scale)
         logger.debug("size = %s",size)
         logger.debug("interp = %s",interp)
-        logger.debug("force_model_center = %s",force_model_center)
+        logger.debug("centered = %s",centered)
 
         self.scale = scale
         self.size = size
@@ -76,7 +74,7 @@ class PixelGrid(Model):
         if interp is None: interp = Lanczos(3)
         elif isinstance(interp, basestring): interp = eval(interp)
         self.interp = interp
-        self._force_model_center = force_model_center
+        self._centered = centered
 
         # We will limit the calculations to |u|, |v| <= maxuv
         self.maxuv = self.size/2. * self.scale
@@ -88,7 +86,7 @@ class PixelGrid(Model):
         self.kwargs = {
             'scale' : scale,
             'size' : size,
-            'force_model_center' : force_model_center,
+            'centered' : centered,
             'interp' : repr(self.interp),
         }
 
@@ -131,7 +129,7 @@ class PixelGrid(Model):
         data, weight, u, v = star.data.getDataVector()
         # Start with the sum of pixels as initial estimate of flux.
         flux = np.sum(data)
-        if self._force_model_center:
+        if self._centered:
             # Initial center is the centroid of the data.
             Ix = np.sum(data * u) / flux
             Iy = np.sum(data * v) / flux
@@ -388,7 +386,7 @@ class PixelGrid(Model):
         # Build the model and maybe also d(model)/dcenter
         # This tracks the same steps in chisq.
         # TODO: Make a helper function to consolidate the common code.
-        if self._force_model_center:
+        if self._centered:
             coeffs, psfx, psfy, dcdu, dcdv = self.interp_calculate(u/self.scale, v/self.scale, True)
             dcdu /= self.scale
             dcdv /= self.scale
@@ -401,14 +399,14 @@ class PixelGrid(Model):
         alt_index1d = np.where(nopsf, 0, index1d)
         # And null the coefficients for such pixels
         coeffs = np.where(nopsf, 0., coeffs)
-        if self._force_model_center:
+        if self._centered:
             dcdu = np.where(nopsf, 0., dcdu)
             dcdv = np.where(nopsf, 0., dcdv)
 
         # Multiply kernel (and derivs) by current PSF element values to get current estimates
         pvals = star.fit.params[alt_index1d]
         mod = np.sum(coeffs*pvals, axis=1)
-        if self._force_model_center:
+        if self._centered:
             dmdu = scaled_flux * np.sum(dcdu*pvals, axis=1)
             dmdv = scaled_flux * np.sum(dcdv*pvals, axis=1)
             derivs = np.vstack((mod, dmdu, dmdv)).T
@@ -447,7 +445,7 @@ class PixelGrid(Model):
         scaled_flux += x[0]
         logger.debug("flux += %s => %s",x[0],scaled_flux)
         logger.debug("center = %s",center)
-        if self._force_model_center:
+        if self._centered:
             center = (center[0]+x[1], center[1]+x[2])
             logger.debug("center += (%s,%s) => %s",x[1],x[2],center)
 
@@ -458,7 +456,7 @@ class PixelGrid(Model):
             logger.debug("params cen = %s,%s.  center => %s",params_cenu,params_cenv,center)
 
         dof = np.count_nonzero(weight)
-        logger.debug("dchi, dof, do_center = %s, %s, %s", dchi, dof, self._force_model_center)
+        logger.debug("dchi, dof, do_center = %s, %s, %s", dchi, dof, self._centered)
 
         # Update to the expected new chisq value.
         chisq = chisq - dchi

@@ -65,7 +65,7 @@ def test_simplest():
 
     # Pixelized model with Lanczos 3 interp
     interp = piff.Lanczos(3)
-    mod = piff.PixelGrid(du, 32, interp, force_model_center=False)
+    mod = piff.PixelGrid(du, 32, interp, centered=False)
     star = mod.initialize(s).withFlux(flux=np.sum(s.image.array))
 
     # Check that fitting the star can recover the right flux.
@@ -103,7 +103,7 @@ def test_oversample():
 
     # Pixelized model with Lanczos 3 interp, coarser pix scale
     interp = 'Lanczos(3)'  # eval the string
-    mod = piff.PixelGrid(2*du, nside//2, interp, force_model_center=False)
+    mod = piff.PixelGrid(2*du, nside//2, interp, centered=False)
     star = mod.initialize(s).withFlux(flux=np.sum(s.image.array))
 
     for i in range(2):
@@ -142,7 +142,7 @@ def test_center():
     else:
         logger = None
     # Want an odd-sized model when center=True
-    mod = piff.PixelGrid(0.5, 21, force_model_center=True, logger=logger)
+    mod = piff.PixelGrid(0.5, 21, centered=True, logger=logger)
     star = mod.initialize(s, logger=logger)
     print('Flux, ctr after init:',star.fit.flux,star.fit.center)
     for i in range(4):
@@ -174,7 +174,7 @@ def test_center():
     du = 0.7
     s = make_gaussian_data(2.0, x0, y0, influx, du=du)
 
-    mod = piff.PixelGrid(0.8, 29, force_model_center=True)
+    mod = piff.PixelGrid(0.8, 29, centered=True)
     star = mod.initialize(s)
     print('Flux, ctr after reflux:',star.fit.flux,star.fit.center)
     for i in range(3):
@@ -288,7 +288,7 @@ def test_missing():
     # Pixelized model with Lanczos 3 interpolation, slightly smaller than data
     # than the data
     pixinterp = piff.Lanczos(3)
-    mod = piff.PixelGrid(0.5, size, pixinterp, force_model_center=False)
+    mod = piff.PixelGrid(0.5, size, pixinterp, centered=False)
 
     # Draw stars on a 2d grid of "focal plane" with 0<=u,v<=1
     positions = np.linspace(0.,1.,4)
@@ -368,7 +368,7 @@ def test_gradient():
     # Pixelized model with Lanczos 3 interpolation, slightly smaller than data
     # than the data
     pixinterp = piff.Lanczos(3)
-    mod = piff.PixelGrid(0.5, size, pixinterp, force_model_center=False)
+    mod = piff.PixelGrid(0.5, size, pixinterp, centered=False)
 
     # Interpolator will be linear
     interp = piff.Polynomial(order=1)
@@ -448,7 +448,6 @@ def test_undersamp():
     pixinterp = piff.Lanczos(3)
     du = 0.5
     mod = piff.PixelGrid(0.25, size, pixinterp)
-    ##,force_model_center=True)
 
     # Interpolator will be constant
     interp = piff.Polynomial(order=0)
@@ -531,7 +530,7 @@ def test_undersamp_shift():
     pixinterp = piff.Lanczos(3)
     influx = 150.
     du = 0.5
-    mod = piff.PixelGrid(0.3, size, pixinterp, force_model_center=True)
+    mod = piff.PixelGrid(0.3, size, pixinterp, centered=True)
 
     # Make a sample star just so we can pass the initial PSF into interpolator
     # Also store away a noiseless copy of the PSF, origin of focal plane
@@ -610,7 +609,7 @@ def do_undersamp_drift(fit_centers=False):
     pixinterp = piff.Lanczos(3)
     influx = 150.
     du = 0.5
-    mod = piff.PixelGrid(0.3, size, pixinterp, force_model_center=fit_centers)
+    mod = piff.PixelGrid(0.3, size, pixinterp, centered=fit_centers)
 
     # Make a sample star just so we can pass the initial PSF into interpolator
     # Also store away a noiseless copy of the PSF, origin of focal plane
@@ -759,14 +758,14 @@ def test_single_image():
     assert input.cat_file_name == [cat_file]
 
     # Check image
-    assert len(input.images) == 1
-    np.testing.assert_equal(input.images[0].array, image.array)
+    assert input.nimages == 1
+    image1, _, image_pos, _, _, _ = input.getRawImageData(0)
+    np.testing.assert_equal(image1.array, image.array)
 
     # Check catalog
-    assert len(input.image_pos) == 1
-    assert len(input.image_pos[0]) == len(x_list)
-    np.testing.assert_equal([pos.x for pos in input.image_pos[0]], x_list)
-    np.testing.assert_equal([pos.y for pos in input.image_pos[0]], y_list)
+    assert len(image_pos) == len(x_list)
+    np.testing.assert_equal([pos.x for pos in image_pos], x_list)
+    np.testing.assert_equal([pos.y for pos in image_pos], y_list)
 
     # Make stars
     orig_stars = input.makeStars()
@@ -803,7 +802,7 @@ def test_single_image():
         interp = piff.BasisPolynomial(order=order)
         pointing = None     # wcs is not Celestial here, so pointing needs to be None.
         psf = piff.SimplePSF(model, interp)
-        psf.fit(orig_stars, {0:input.images[0].wcs}, pointing, logger=logger)
+        psf.fit(orig_stars, {0:image1.wcs}, pointing, logger=logger)
 
         # Check that the interpolation is what it should be
         print('target.flux = ',target_star.fit.flux)
@@ -992,7 +991,7 @@ def test_des_image():
 
         # Make model, force PSF centering
         model = piff.PixelGrid(scale=scale, size=size, interp=piff.Lanczos(3),
-                               force_model_center=True, logger=logger)
+                               centered=True, logger=logger)
 
         # Interpolator will be zero-order polynomial.
         # Find u, v ranges

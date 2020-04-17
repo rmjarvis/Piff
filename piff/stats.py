@@ -208,6 +208,7 @@ class ShapeHistogramsStats(Stats):
         self.bins_size = bins_size
         self.bins_shape = bins_shape
         self.file_name = file_name
+        self.skip = False
 
     def compute(self, psf, stars, logger=None):
         """
@@ -224,6 +225,9 @@ class ShapeHistogramsStats(Stats):
         flag_truth = shapes_truth[:, 6]
         flag_model = shapes_model[:, 6]
         mask = (flag_truth == 0) & (flag_model == 0)
+        if np.sum(mask) == 0:
+            logger.warning("All stars had hsm errors.  ShapeHistograms plot will be empty.")
+            self.skip = True
 
         # define terms for the catalogs
         self.u = positions[mask, 0]
@@ -261,6 +265,15 @@ class ShapeHistogramsStats(Stats):
                  fig.add_subplot(2,3,6) ]]
         axs = np.array(axs, dtype=object)
 
+        axs[0, 0].set_xlabel(r'$T$')
+        axs[1, 0].set_xlabel(r'$T_{data} - T_{model}$')
+        axs[0, 1].set_xlabel(r'$g_{1}$')
+        axs[1, 1].set_xlabel(r'$g_{1, data} - g_{1, model}$')
+        axs[0, 2].set_xlabel(r'$g_{2}$')
+        axs[1, 2].set_xlabel(r'$g_{2, data} - g_{2, model}$')
+        if self.skip:
+            return fig, axs
+
         # some defaults for the kwargs
         if 'histtype' not in kwargs:
             kwargs['histtype'] = 'step'
@@ -269,31 +282,25 @@ class ShapeHistogramsStats(Stats):
         ax = axs[0, 0]
         ax.hist([self.T, self.T_model], bins=self.bins_size, label=['data', 'model'], **kwargs)
         ax.legend(loc='upper right')
-        ax.set_xlabel(r'$T$')
         # axs[0,1] = size difference
         ax = axs[1, 0]
         ax.hist(self.dT, bins=self.bins_size, **kwargs)
-        ax.set_xlabel(r'$T_{data} - T_{model}$')
 
         # axs[1,0] = g1 distribution
         ax = axs[0, 1]
         ax.hist([self.g1, self.g1_model], bins=self.bins_shape, label=['data', 'model'], **kwargs)
         ax.legend(loc='upper right')
-        ax.set_xlabel(r'$g_{1}$')
         # axs[1,0] = g1 difference
         ax = axs[1, 1]
         ax.hist(self.dg1, bins=self.bins_shape, **kwargs)
-        ax.set_xlabel(r'$g_{1, data} - g_{1, model}$')
 
         # axs[2,0] = g2 distribution
         ax = axs[0, 2]
         ax.hist([self.g2, self.g2_model], bins=self.bins_shape, label=['data', 'model'], **kwargs)
         ax.legend(loc='upper right')
-        ax.set_xlabel(r'$g_{2}$')
         # axs[2,0] = g2 difference
         ax = axs[1, 2]
         ax.hist(self.dg2, bins=self.bins_shape, **kwargs)
-        ax.set_xlabel(r'$g_{2, data} - g_{2, model}$')
 
         return fig, ax
 
@@ -346,6 +353,7 @@ class RhoStats(Stats):
         if 'sep_units' not in self.tckwargs:
             self.tckwargs['sep_units'] = 'arcmin'
         self.file_name = file_name
+        self.skip = False  # Set this to true if there is a problem and we need to skip plots.
 
     def compute(self, psf, stars, logger=None):
         """
@@ -364,6 +372,10 @@ class RhoStats(Stats):
         flag_truth = shapes_truth[:, 6]
         flag_model = shapes_model[:, 6]
         mask = (flag_truth == 0) & (flag_model == 0)
+        if np.sum(mask) == 0:
+            logger.warning("All stars had hsm errors.  Rho plot will be empty.")
+            self.skip = True
+            return
 
         # define terms for the catalogs
         u = positions[mask, 0]
@@ -411,7 +423,11 @@ class RhoStats(Stats):
         axs = [ fig.add_subplot(1,2,1),
                 fig.add_subplot(1,2,2) ]
         axs = np.array(axs, dtype=object)
-
+        for ax in axs:
+            ax.set_xlabel('log $r$ [arcmin]')
+            ax.set_ylabel(r'$\rho$')
+        if self.skip:
+            return fig,axs
 
         # axs[0] gets rho1 rho3 and rho4
         # axs[1] gets rho2 and rho5
@@ -423,8 +439,6 @@ class RhoStats(Stats):
                  [r'$\rho_{2}$', r'$\rho_{5}$']]):
 
             # put in some labels
-            ax.set_xlabel('log $r$ [arcmin]')
-            ax.set_ylabel(r'$\rho$')
             # set the scale
             ax.set_xscale("log", nonposx='clip')
             ax.set_yscale("log", nonposy='clip')
@@ -482,6 +496,22 @@ class RhoStats(Stats):
                 fig.add_subplot(1,2,2) ]
         axs = np.array(axs, dtype=object)
 
+        axs[0].set_ylim(1.e-9, None)
+        axs[0].set_xlim(self.tckwargs['min_sep'], self.tckwargs['max_sep'])
+        axs[0].set_xlabel(r'$\theta$ (arcmin)')
+        axs[0].set_ylabel(r'$\rho(\theta)$')
+        axs[0].set_xscale('log')
+        axs[0].set_yscale('log', nonposy='clip')
+
+        axs[1].set_ylim(1.e-7, None)
+        axs[1].set_xlim(self.tckwargs['min_sep'], self.tckwargs['max_sep'])
+        axs[1].set_xlabel(r'$\theta$ (arcmin)')
+        axs[1].set_ylabel(r'$\rho(\theta)$')
+        axs[1].set_xscale('log')
+        axs[1].set_yscale('log', nonposy='clip')
+
+        if self.skip:
+            return fig,axs
 
         # Left plot is rho1,3,4
         rho1 = self._plot_single(axs[0], self.rho1, 'blue', 'o')
@@ -491,12 +521,6 @@ class RhoStats(Stats):
         axs[0].legend([rho1, rho3, rho4],
                      [r'$\rho_1(\theta)$', r'$\rho_3(\theta)$', r'$\rho_4(\theta)$'],
                      loc='upper right', fontsize=12)
-        axs[0].set_ylim(1.e-9, None)
-        axs[0].set_xlim(self.tckwargs['min_sep'], self.tckwargs['max_sep'])
-        axs[0].set_xlabel(r'$\theta$ (arcmin)')
-        axs[0].set_ylabel(r'$\rho(\theta)$')
-        axs[0].set_xscale('log')
-        axs[0].set_yscale('log', nonposy='clip')
 
         # Right plot is rho2,5
         rho2 = self._plot_single(axs[1], self.rho2, 'blue', 'o')
@@ -505,11 +529,99 @@ class RhoStats(Stats):
         axs[1].legend([rho2, rho5],
                      [r'$\rho_2(\theta)$', r'$\rho_5(\theta)$'],
                      loc='upper right', fontsize=12)
-        axs[1].set_ylim(1.e-7, None)
-        axs[1].set_xlim(self.tckwargs['min_sep'], self.tckwargs['max_sep'])
-        axs[1].set_xlabel(r'$\theta$ (arcmin)')
-        axs[1].set_ylabel(r'$\rho(\theta)$')
-        axs[1].set_xscale('log')
-        axs[1].set_yscale('log', nonposy='clip')
 
         return fig, axs
+
+class HSMCatalogStats(Stats):
+    """Stats class for writing the shape information to an output file.
+
+    This will compute the size and shapes of the observed stars and the PSF models
+    and write these data to a file.
+
+    The output file will include the following columns:
+
+        :ra:        The RA of the star in degrees. (or 0 if the wcs is not a CelestialWCS)
+        :dec:       The Declination of the star in degrees. (or 0 if the wcs is not a CelestialWCS)
+        :u:         The u position in field coordinates.
+        :v:         The v position in field coordinates.
+        :x:         The x position in chip coordinates.
+        :y:         The y position in chip coordinates.
+        :T:         The size (T = Ixx + Iyy) of the observed star.
+        :g1:        The g1 component of the shapes of the observed star.
+        :g2:        The g2 component of the shapes of the observed star.
+        :T_model:   The size of the PSF model at the same locations as the star.
+        :g1_model:  The g1 component of the PSF model.
+        :g2_model:  The g2 component of the PSF model.
+        :reserve:   Whether the star was a reserve star. (Placeholder -- always false now.)
+    """
+    def __init__(self, file_name=None, logger=None):
+        """
+        :param file_name:   Name of the file to output to. [default: None]
+        """
+        self.file_name = file_name
+
+    def compute(self, psf, stars, logger=None):
+        """
+        :param psf:         A PSF Object
+        :param stars:       A list of Star instances.
+        :param logger:      A logger object for logging debug info. [default: None]
+        """
+        logger = galsim.config.LoggerWrapper(logger)
+        # get the shapes
+        logger.warning("Calculating shape histograms for %d stars",len(stars))
+        positions, shapes_truth, shapes_model = self.measureShapes(psf, stars, logger=logger)
+
+        # Only use stars for which hsm was successful
+        flag_truth = shapes_truth[:, 6]
+        flag_model = shapes_model[:, 6]
+        mask = (flag_truth == 0) & (flag_model == 0)
+
+        # define terms for the catalogs
+        self.u = positions[mask, 0]
+        self.v = positions[mask, 1]
+        self.flux = shapes_truth[mask, 0]
+        self.reserve = np.zeros_like(self.u, dtype=bool)  # For now, all reserve = False
+        self.T_data = shapes_truth[mask, 3]
+        self.g1_data = shapes_truth[mask, 4]
+        self.g2_data = shapes_truth[mask, 5]
+        self.T_model = shapes_model[mask, 3]
+        self.g1_model = shapes_model[mask, 4]
+        self.g2_model = shapes_model[mask, 5]
+        self.x = np.array([star.image_pos.x for star in stars])[mask]
+        self.y = np.array([star.image_pos.y for star in stars])[mask]
+        if isinstance(stars[0].image.wcs, galsim.wcs.CelestialWCS):
+            self.ra = np.array([star.image.wcs.toWorld(star.image_pos).ra.deg for star in stars])
+            self.dec = np.array([star.image.wcs.toWorld(star.image_pos).dec.deg for star in stars])
+        else:
+            self.ra = np.zeros_like(self.u)
+            self.dec = np.zeros_like(self.u)
+
+    def write(self, file_name=None, logger=None):
+        """Write catalog to file.
+
+        :param file_name:   The name of the file to write to. [default: Use self.file_name,
+                            which is typically read from the config field.]
+        :param logger:      A logger object for logging debug info. [default: None]
+        """
+        logger = galsim.config.LoggerWrapper(logger)
+        import fitsio
+        if file_name is None:
+            file_name = self.file_name
+        if file_name is None:
+            raise ValueError("No file_name specified for %s"%self.__class__.__name__)
+
+        logger.warning("Writing HSM catalog to file %s",file_name)
+
+        cols = [self.u, self.v, self.x, self.y, self.ra, self.dec,
+                self.flux, self.reserve,
+                self.T_data, self.g1_data, self.g2_data,
+                self.T_model, self.g1_model, self.g2_model]
+        dtypes = [('u', float), ('v', float),
+                  ('x', float), ('y', float),
+                  ('ra', float), ('dec', float),
+                  ('flux', float), ('reserve', float),
+                  ('T_data', float), ('g1_data', float), ('g2_data', float),
+                  ('T_model', float), ('g1_model', float), ('g2_model', float)]
+        data = np.array(list(zip(*cols)), dtype=dtypes)
+        with fitsio.FITS(file_name, 'rw', clobber=True) as f:
+            f.write_table(data)

@@ -34,7 +34,7 @@ star_type = np.dtype([('u', float),
                       ('flux', float)])
 
 
-mod0 = piff.GSObjectModel(galsim.Kolmogorov(half_light_radius=1.0), force_model_center=True,
+mod0 = piff.GSObjectModel(galsim.Kolmogorov(half_light_radius=1.0),
                           include_pixel=False, fastfit=False)
 
 def make_star(hlr, g1, g2, u0, v0, flux, noise=0., du=1., fpu=0., fpv=0., nside=32,

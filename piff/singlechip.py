@@ -23,20 +23,38 @@ import copy
 import galsim
 
 from .psf import PSF
-from .util import write_kwargs, read_kwargs, make_dtype, adjust_value
+from .util import write_kwargs, read_kwargs, make_dtype, adjust_value, run_multi
+
+# Used by SingleChipPSF.fit
+def single_chip_run(chipnum, single_psf, stars, wcs, pointing, logger):
+    # Make a copy of single_psf for each chip
+    psf_chip = copy.deepcopy(single_psf)
+
+    # Break the list of stars up into a list for each chip
+    stars_chip = [ s for s in stars if s['chipnum'] == chipnum ]
+    wcs_chip = { chipnum : wcs[chipnum] }
+
+    # Run the psf_chip fit function using this stars and wcs (and the same pointing)
+    logger.warning("Building solution for chip %s with %d stars", chipnum, len(stars_chip))
+    psf_chip.fit(stars_chip, wcs_chip, pointing, logger=logger)
+
+    return psf_chip
 
 class SingleChipPSF(PSF):
     """A PSF class that uses a separate PSF solution for each chip
     """
-    def __init__(self, single_psf, extra_interp_properties=None):
+    def __init__(self, single_psf, nproc=1, extra_interp_properties=None):
         """
         :param single_psf:  A PSF instance to use for the PSF solution on each chip.
                             (This will be turned into nchips copies of the provided object.)
+        :param nproc:       How many multiprocessing processes to use for running multiple
+                            chips at once. [default: 1]
         :param extra_interp_properties:     A list of any extra properties that will be used for
                                             the interpolation in addition to (u,v).
                                             [default: None]
         """
         self.single_psf = single_psf
+        self.nproc = nproc
         if extra_interp_properties is None:
             self.extra_interp_properties = []
         else:
@@ -44,6 +62,7 @@ class SingleChipPSF(PSF):
 
         self.kwargs = {
             'single_psf': 0,
+            'nproc' : nproc,
         }
 
     @classmethod
@@ -60,15 +79,15 @@ class SingleChipPSF(PSF):
 
         config_psf = config_psf.copy()  # Don't alter the original dict.
         config_psf.pop('type', None)
+        nproc = config_psf.pop('nproc', 1)
 
         # If there is a "single_type" specified, call that the type for now.
-        if 'single_type' in config_psf:
-            config_psf['type'] = config_psf.pop('single_type')
+        config_psf['type'] = config_psf.pop('single_type', 'Simple')
 
         # Now the regular PSF process function can process the dict.
         single_psf = piff.PSF.process(config_psf, logger)
 
-        return { 'single_psf' : single_psf }
+        return { 'single_psf' : single_psf, 'nproc' : nproc }
 
     def fit(self, stars, wcs, pointing, logger=None):
         """Fit interpolated PSF model to star data using standard sequence of operations.
@@ -84,20 +103,24 @@ class SingleChipPSF(PSF):
         self.wcs = wcs
         self.pointing = pointing
         self.psf_by_chip = {}
-        for chipnum in wcs:
-            # Make a copy of single_psf for each chip
-            psf_chip = copy.deepcopy(self.single_psf)
-            self.psf_by_chip[chipnum] = psf_chip
 
-            # Break the list of stars up into a list for each chip
-            stars_chip = [ s for s in stars if s['chipnum'] == chipnum ]
-            wcs_chip = { chipnum : wcs[chipnum] }
+        chipnums = list(wcs.keys())
+        args = [(chipnum, self.single_psf, stars, wcs, pointing) for chipnum in chipnums]
 
-            # Run the psf_chip fit function using this stars and wcs (and the same pointing)
-            logger.warning("Building solution for chip %s with %d stars", chipnum, len(stars_chip))
-            psf_chip.fit(stars_chip, wcs_chip, pointing, logger=logger)
+        output = run_multi(single_chip_run, self.nproc, args, logger)
+
+        for chipnum, psf in zip(chipnums, output):
+            self.psf_by_chip[chipnum] = psf
+
+        # If any chips failed their solution, remove them.
+        if any([self.psf_by_chip[c] is None for c in chipnums]):
+            logger.warning("Solutions failed for chipnums: %s",
+                           [c for c in chipnums if self.psf_by_chip[c] is None])
+            logger.warning("Removing these chips from the output")
+            chipnums = [c for c in chipnums if self.psf_by_chip[c] is not None]
+
         # update stars from psf outlier rejection
-        self.stars = [ star for chipnum in wcs for star in self.psf_by_chip[chipnum].stars ]
+        self.stars = [ star for chipnum in chipnums for star in self.psf_by_chip[chipnum].stars ]
 
     def drawStar(self, star, copy_image=True):
         """Generate PSF image for a given star.
@@ -124,6 +147,7 @@ class SingleChipPSF(PSF):
         """
         # Write the colnums to an extension.
         chipnums = list(self.psf_by_chip.keys())
+        chipnums = [c for c in chipnums if self.psf_by_chip[c] is not None]
         dt = make_dtype('chipnums', chipnums[0])
         chipnums = [ adjust_value(c,dt) for c in chipnums ]
         cols = [ chipnums ]
@@ -132,7 +156,7 @@ class SingleChipPSF(PSF):
         fits.write_table(data, extname=extname + '_chipnums')
 
         # Add _1, _2, etc. to the extname for the psf model of each chip.
-        for chipnum in self.psf_by_chip:
+        for chipnum in chipnums:
             self.psf_by_chip[chipnum]._write(fits, extname + '_%s'%chipnum, logger)
 
     def _finish_read(self, fits, extname, logger):
