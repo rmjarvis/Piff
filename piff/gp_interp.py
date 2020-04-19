@@ -13,7 +13,7 @@
 #    and/or other materials provided with the distribution.
 
 """
-.. module:: gp_interp_treegp
+.. module:: gp_interp
 """
 
 import numpy as np
@@ -47,7 +47,8 @@ class GPInterp(Interp):
                  optimize=True, optimizer='two-pcf',
                  anisotropic=False, normalize=True, p0=[3000., 0.,0.],
                  white_noise=0., n_neighbors=4, average_fits=None,
-                 nbins=20, min_sep=None, max_sep=None, logger=None):
+                 nbins=20, min_sep=None, max_sep=None, 
+                 rows=None, logger=None):
 
         self.keys = keys
         self.optimize = optimize
@@ -66,6 +67,7 @@ class GPInterp(Interp):
         self.normalize = normalize
         self.white_noise = white_noise
         self.kernel = kernel
+        self.rows = rows
 
         self.kwargs = {
             'keys': keys,
@@ -121,7 +123,11 @@ class GPInterp(Interp):
         :param stars:   A list of Star instances to interpolate between
         :param logger:  A logger object for logging debug info. [default: None]
         """
-        self.nparams = len(stars[0].fit.params)
+        if self.rows is None:
+            self.nparams = len(stars[0].fit.params)
+            self.rows = range(self.nparams)
+        else:
+            self.nparams = len(self.rows)
 
         if len(self.kernel_template)==1:
             self.kernels = [self.kernel_template[0] for i in range(self.nparams)]
@@ -159,6 +165,9 @@ class GPInterp(Interp):
         y = np.array([star.fit.params for star in stars])
         y_err = np.sqrt(np.array([star.fit.params_var for star in stars]))
 
+        y = np.array([y[:,i] for i in self.rows]).T
+        y_err = np.array([y_err[:,i] for i in self.rows]).T
+
         self._X = X
         self._y = y
 
@@ -189,22 +198,23 @@ class GPInterp(Interp):
         :returns: a list of new Star instances with interpolated parameters
         """
         Xstar = np.array([self.getProperties(star) for star in stars])
-        y = self._predict(Xstar)
+        gp_y = self._predict(Xstar)
         fitted_stars = []
-        for y0, star in zip(y, stars):
+        for y0, star in zip(gp_y, stars):
             if star.fit is None:
-                fit = StarFit(y)
+                fit = StarFit(y0)
             else:
-                fit = star.fit.newParams(y0)
+                y0_updated = star.fit.params
+                for j in range(self.nparams):
+                    y0_updated[self.rows[j]] = y0[j] 
+                fit = star.fit.newParams(y0_updated)
             fitted_stars.append(Star(star.data, fit))
         return fitted_stars
-
 
     def _finish_write(self, fits, extname):
         # Note, we're only storing the training data and hyperparameters here, which means the
         # Cholesky decomposition will have to be re-computed when this object is read back from
         # disk.
-
         init_theta = np.array([self._init_theta[i] for i in range(self.nparams)])
         fit_theta = np.array([ker.theta for ker in self.kernels])
 
@@ -212,7 +222,8 @@ class GPInterp(Interp):
                   ('FIT_THETA', fit_theta.dtype, fit_theta.shape),
                   ('X', self._X.dtype, self._X.shape),
                   ('Y', self._y.dtype, self._y.shape),
-                  ('Y_ERR', self._y_err.dtype, self._y_err.shape)]
+                  ('Y_ERR', self._y_err.dtype, self._y_err.shape),
+                  ('ROWS', self.rows.dtype,  self.rows.shape)]
 
         # TO DO: need to see how I propagate meanify
 
@@ -225,6 +236,7 @@ class GPInterp(Interp):
         data['X'] = self._X
         data['Y'] = self._y
         data['Y_ERR'] = self._y_err
+        data['ROWS'] = self.rows
         #data['X0'] = self._X0
         #data['Y0'] = self._y0
 
@@ -241,6 +253,7 @@ class GPInterp(Interp):
         self._X = np.atleast_1d(data['X'][0])
         self._y = np.atleast_1d(data['Y'][0])
         self._y_err = np.atleast_1d(data['Y_ERR'][0])
+        self.rows = np.atleast_1d(data['ROWS'][0])
 
         self._init_theta = init_theta
         self.nparams = len(init_theta)
