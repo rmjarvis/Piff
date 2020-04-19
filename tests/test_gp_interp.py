@@ -312,7 +312,7 @@ def test_gp_interp_anisotropic():
                                                                        seed=30352010, vmax=4e-2,
                                                                        noise_level=noise_level)
         gp_testing(stars_training, stars_validation, kernels[i], optimize[i], 
-                   optimizer[i], anisotropic=True, 
+                   optimizer[i], anisotropic=True,
                    min_sep=0., max_sep=5., nbins=11, p0=[20., 0.,0.], plotting=False)
 
 
