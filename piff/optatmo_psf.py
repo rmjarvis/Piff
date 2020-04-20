@@ -20,7 +20,7 @@ from __future__ import print_function
 
 # fix for DISPLAY variable issue
 import matplotlib
-matplotlib.use('Agg')
+#matplotlib.use('Agg')
 
 import matplotlib.pyplot as plt
 
@@ -41,6 +41,7 @@ from .model import ModelFitError
 from .star import Star, StarFit, StarData
 from .util import measure_snr, write_kwargs, read_kwargs
 from galsim.config import LoggerWrapper
+from galsim.image import Image
 
 class wavefrontmap(object):
     """a class used to build and access a Wavefront map - zernike coefficients vs. X,Y
@@ -199,7 +200,7 @@ class OptAtmoPSF(PSF):
         self.optical_psf_kwargs = optical_psf_kwargs
         self.kolmogorov_kwargs = kolmogorov_kwargs
         self.reference_wavefront = reference_wavefront
-        self.higher_order_reference_wavefront_file = higher_order_reference_wavefront_file
+        self.higher_order_reference_wavefront_file = os.path.basename(higher_order_reference_wavefront_file)
         if self.higher_order_reference_wavefront_file in [None, 'none', 'None', 'NONE']:
             # here we save the specified higher order reference wavefront as an instance of the
             # wavefrontmap class.
@@ -683,7 +684,7 @@ class OptAtmoPSF(PSF):
         # for a significant fraction of random number seeds when cutting, but very rarely when
         # not cutting.  Therefore disable these cuts for pixel mode.
         if self.fit_optics_mode in ['shape', 'random_forest']:
-            print("self.star_shapes[0]".format(self.star_shapes[0]))
+            #print("self.star_shapes[0]".format(self.star_shapes[0]))
 
             # do a MAD cut
             med = np.nanmedian(
@@ -897,7 +898,7 @@ class OptAtmoPSF(PSF):
             aberrations_pupil[i,:] = res.real
         return aberrations_pupil.T
 
-    def getParamsList(self, stars, logger=None):
+    def getParamsList(self, stars, return_stars_with_atmo_params_from_psf=False, trust_atmo_params_stored_in_stars=False, logger=None):
         """Get params for a list of stars.
         :param stars:       List of Star instances holding information needed
                             for interpolation as well as an image/WCS into
@@ -921,6 +922,9 @@ class OptAtmoPSF(PSF):
         finally fitted.
         """
         logger = LoggerWrapper(logger)
+        #print("")
+        #print("now entering getParamsList()")
+        #print("")
         params = np.zeros((len(stars), self.jmax_pupil + 4), dtype=np.float64)
 
         logger.debug('Getting aberrations from optical / mean system')
@@ -1017,10 +1021,16 @@ class OptAtmoPSF(PSF):
                                'atmospheric interpolant! Ignoring')
             else:
                 logger.debug('Getting atmospheric aberrations')
-                # strip star fit
-                stars = [Star(star.data, None) for star in stars]
-                stars = self.atmo_interp.interpolateList(stars)
-                aberrations_atmo_star = np.array([star.fit.params for star in stars])
+                if trust_atmo_params_stored_in_stars:
+                    #print("Reading atmo params from stars.")
+                    aberrations_atmo_star = np.array([star.fit.params for star in stars])[:,0:3]
+                else:
+                    # strip star fit
+                    #print("Re-calculating atmo params with given PSF.")
+                    stars = [Star(star.data, None) for star in stars]
+                    stars = self.atmo_interp.interpolateList(stars)
+                    aberrations_atmo_star = np.array([star.fit.params for star in stars])      
+                #print("aberrations_atmo_star[0:2]: {0}".format(aberrations_atmo_star[0:2]))              
                 params[:, 0:3] += aberrations_atmo_star
         if self.atmosphere_model == 'vonkarman':
             # set the vonkarman outer scale, L0
@@ -1028,7 +1038,10 @@ class OptAtmoPSF(PSF):
         else:
             params[:, 3] = -1.
 
-        return params
+        if return_stars_with_atmo_params_from_psf:
+            return params, stars
+        else:
+            return params
 
     def getParams(self, star):
         """Get params for a given star.
@@ -1108,16 +1121,27 @@ class OptAtmoPSF(PSF):
         g2 = params[2] + params[6]
         L0 = params[3]
         if L0 == -1.0:
-            atmo = galsim.Kolmogorov(gsparams=self.gsparams, **self.kolmogorov_kwargs)
-            atmo = atmo.dilate(size)
+            #if "L0" in list(self.kolmogorov_kwargs.keys):
+            #    del self.kolmogorov_kwargs["L0"]
+            #atmo = galsim.Kolmogorov(gsparams=self.gsparams, **self.kolmogorov_kwargs)
+            #atmo = atmo.dilate(size)
+            kwargs = {'lam': self.kolmogorov_kwargs['lam'],
+                      'r0': self.kolmogorov_kwargs['r0'] / size
+                     }
+            atmo = galsim.Kolmogorov(gsparams=self.gsparams, **kwargs)
         else:
             kwargs = {'lam': self.kolmogorov_kwargs['lam'],
                       'r0': self.kolmogorov_kwargs['r0'] / size,
-                      'L0': L0,}
-                     # 'L0': L0,
-                     # 'force_stepk': getattr(self, '_force_stepk', 0.0)
-                     #}
-            atmo = galsim.VonKarman(gsparams=self.gsparams, **kwargs)
+                     # 'L0': L0,}
+                      'L0': L0,
+                      'force_stepk': getattr(self, '_force_vk_stepk', 0.0)
+                     }
+            try:
+                atmo = galsim.VonKarman(gsparams=self.gsparams, **kwargs)
+            except:
+                print("kwargs: {0}".format(kwargs))
+                print("self.gsparams: {0}".format(self.gsparams))
+                print("self._force_vk_stepk: {0}".format(self._force_vk_stepk))
         atmo = atmo.shear(g1=g1, g2=g2)
 
         # convolve together
@@ -1195,7 +1219,7 @@ class OptAtmoPSF(PSF):
         star = self.drawProfile(star, prof, params, copy_image=copy_image)
         return star
 
-    def drawStarList(self, stars, copy_image=True):
+    def drawStarList(self, stars, return_stars_with_atmo_params_from_psf=False, trust_atmo_params_stored_in_stars=False, copy_image=True):
         """Generate PSF images for given stars.
 
         Slightly different from drawStar because we get all params at once
@@ -1206,8 +1230,14 @@ class OptAtmoPSF(PSF):
 
         :returns:       List of Star instances with its image filled with rendered PSF
         """
+        #print("")
+        #print("now entering drawStarList()")
+        #print("")
         # get all params at once
-        params = self.getParamsList(stars)
+        if return_stars_with_atmo_params_from_psf:
+            params, stars = self.getParamsList(stars, return_stars_with_atmo_params_from_psf=True, trust_atmo_params_stored_in_stars=trust_atmo_params_stored_in_stars)
+        else:
+            params = self.getParamsList(stars, trust_atmo_params_stored_in_stars=trust_atmo_params_stored_in_stars)
         # now step through to make the stars
         stars_drawn = []
         for param, star in zip(params, stars):
@@ -1217,7 +1247,10 @@ class OptAtmoPSF(PSF):
             except:
                 stars_drawn.append(None)
 
-        return stars_drawn
+        if return_stars_with_atmo_params_from_psf:
+            return stars_drawn, stars
+        else:
+            return stars_drawn
 
     def _update_optatmopsf(self, optatmo_psf_kwargs={}, logger=None):
         """Update the state of the PSF's field components
@@ -1571,6 +1604,51 @@ class OptAtmoPSF(PSF):
             upper_bounds[3] = 100.0
         bounds = (lower_bounds, upper_bounds)
 
+        # Make sure everything is 64 bit, otherwise least_squares fails
+        stars_64_bit = []
+        for star in stars:
+            try:
+                star_image_copy = Image(star.image.copy(), dtype=np.float64, copy=True)
+                new_star_data = StarData(image=star_image_copy,
+                                    image_pos=star.data.image_pos,
+                                    weight=star.data.weight,
+                                    orig_weight=star.data.orig_weight,
+                                    pointing=star.data.pointing,
+                                    field_pos=star.data.field_pos,
+                                    properties=star.data.properties,
+                                    _xyuv_set=True)
+                star = Star(new_star_data, star.fit)
+                stars_64_bit.append(star)
+            except:
+                pass
+        stars = stars_64_bit
+
+        #try:
+        #    print("type of params: {0}".format(np.array(params).dtype))
+        #except:
+        #    pass
+        #try:
+        #    print("type of shapes: {0}".format(np.array(shapes).dtype))
+        #except:
+        #    pass
+        #try:
+        #    print("type of errors: {0}".format(np.array(errors).dtype))
+        #except:
+        #    pass
+
+        # Set self._force_vk_stepk if not already set
+
+        if self.optatmo_psf_kwargs['L0'] != -1.0:
+            if not hasattr(self, '_force_vk_stepk'):
+                vk = galsim.VonKarman(
+                    lam=self.kolmogorov_kwargs['lam'],
+                    r0=self.kolmogorov_kwargs['r0']/self.optatmo_psf_kwargs['size'],
+                    L0=self.optatmo_psf_kwargs['L0'],
+                    gsparams=self.gsparams
+                )
+                slack_factor = 0.8
+                self._force_vk_stepk = vk.stepk * slack_factor
+
         if mode == 'random_forest':
             results = scipy.optimize.least_squares(
                     self._fit_random_forest_residual, params,
@@ -1586,8 +1664,23 @@ class OptAtmoPSF(PSF):
             for i in range(len(stars)):
                 params.append(stars[i].center[0])
                 params.append(stars[i].center[1])
+                #if i == 0:
+                #    try:
+                #        print("type of stars[0].center: {0}".format(stars[0].center.dtype))
+                #    except:
+                #        pass
+
+            # re-make bounds for pixel mode
+            lower_bounds = np.full(len(params),-np.inf)
+            upper_bounds = np.full(len(params),np.inf)
+            if self.optatmo_psf_kwargs['L0'] != -1.0:
+                lower_bounds[3] = 5.0 # pixel mode needs bounds placed on L0 also; otherwise it wanders into negative territory
+                upper_bounds[3] = 100.0
+            bounds = (lower_bounds, upper_bounds)
+
             results = scipy.optimize.least_squares(
                     self._fit_optics_pixel_residual, params,
+                    bounds=bounds, # pixel mode needs bounds placed on L0 also; otherwise it wanders into negative territory
                     jac=self._fit_optics_pixel_jac,
                     args=(stars, fit_keys, logger,),
                     diff_step=1e-5, ftol=ftol, xtol=1.e-4)
@@ -1832,30 +1925,62 @@ class OptAtmoPSF(PSF):
 
         # acquire the values of opt_size, opt_g1, opt_g2, and opt_L0
         opt_L0, opt_size, opt_g1, opt_g2 = params[3:7]
-        fit_size += opt_size  # Do fits with full size, g1, g2
-        fit_g1 += opt_g1
-        fit_g2 += opt_g2
+        #fit_size += opt_size  # Do fits with full size, g1, g2
+        #fit_g1 += opt_g1
+        #fit_g2 += opt_g2
 
         # parameters to fit:
         # Use log(flux) and log(size), so we don't have to worry about going negative
-        fit_params = [np.log(flux), du, dv, np.log(fit_size), fit_g1, fit_g2]
+        fit_params = [np.log(flux), du, dv, fit_size, fit_g1, fit_g2]
 
-        ## Set self._force_vk_stepk if not already set
-        #if not hasattr(self, '_force_vk_stepk'):
-        #    vk = galsim.VonKarman(
-        #        lam=self.kolmogorov_kwargs['lam'],
-        #        r0=self.kolmogorov_kwargs['r0']/fit_size,
-        #        L0=opt_L0,
-        #        gsparams=self.gsparams
-        #    )
-        #    slack_factor = 0.8
-        #    self._force_vk_stepk = vk.stepk * slack_factor
+        lower_bounds = np.full(len(fit_params),-np.inf)
+        upper_bounds = np.full(len(fit_params),np.inf)
+
+        if self.optatmo_psf_kwargs['L0'] != -1.0:
+            print("0")
+            lower_atmo_size_bound = 0.7 - opt_size
+            upper_atmo_size_bound = 3.0 - opt_size
+        else:
+            print("1")
+            lower_atmo_size_bound = 0.45 - opt_size
+            upper_atmo_size_bound = 3.0 - opt_size
+        lower_bounds[3] = lower_atmo_size_bound
+        upper_bounds[3] = upper_atmo_size_bound
+        bounds = (lower_bounds, upper_bounds)
+        print("fit_params: {0}".format(fit_params))
+        print("bounds: {0}".format(bounds))
+
+        # Set self._force_vk_stepk if not already set
+        if not hasattr(self, '_force_vk_stepk'):
+            vk = galsim.VonKarman(
+                lam=self.kolmogorov_kwargs['lam'],
+                r0=self.kolmogorov_kwargs['r0']/(opt_size + fit_size),
+                L0=opt_L0,
+                gsparams=self.gsparams
+            )
+            slack_factor = 0.8
+            self._force_vk_stepk = vk.stepk * slack_factor
         
+        # Make sure everything is 64 bit, otherwise least_squares fails
+        star_image_copy = Image(star.image.copy(), dtype=np.float64, copy=True)
+        new_star_data = StarData(image=star_image_copy,
+                            image_pos=star.data.image_pos,
+                            weight=star.data.weight,
+                            orig_weight=star.data.orig_weight,
+                            pointing=star.data.pointing,
+                            field_pos=star.data.field_pos,
+                            properties=star.data.properties,
+                            _xyuv_set=True)
+        star = Star(new_star_data, star.fit)
+        fit_params = np.array(fit_params).astype("float64").tolist()
+
         # Find the solution
+        print("2")
         results = scipy.optimize.least_squares(
-                self._fit_model_residual, fit_params,
-                args=(star, optical_profile, opt_L0, logger,),
+                self._fit_model_residual, fit_params, bounds=bounds,
+                args=(star, optical_profile, opt_L0, opt_size, opt_g1, opt_g2, logger,),
                 ftol=1.e-3, xtol=1.e-4)
+        print("3")
 
         logger.debug(results.message)
         if not results.success:
@@ -1866,16 +1991,15 @@ class OptAtmoPSF(PSF):
             raise RuntimeError('Bad fit.  g1,g2 = %f,%f is probably unphysical'%(g1,g2))
 
         fit_params = np.zeros_like(params)
-        fit_params[0] = np.exp(results.x[3])  # size = exp(logsize)
+        fit_params[0] = results.x[3]  # size
         fit_params[1:3] = results.x[4:6]      # g1, g2
-        fit_params[0:3] -= params[4:7]        # subtract off opt_* part
         fit_params[3:] = params[3:]           # fill in the other params that were constant here
 
         # Estimate covariance matrix from jacobian
         cov = estimate_cov_from_jac(results.jac)
         params_var = np.zeros_like(fit_params)
         params_var[0:3] = cov.diagonal()[3:6]
-        params_var[0] *= fit_params[0]**2     # var(size) = size**2 * var(logsize)
+        #params_var[0] *= fit_params[0]**2     # var(size) = size**2 * var(logsize)
 
         # Return results as a new Star instance
         logflux, du, dv = results.x[0:3]
@@ -1884,340 +2008,6 @@ class OptAtmoPSF(PSF):
         chisq = results.cost * 2
         dof = len(results.fun) - len(results.x)
         fit = StarFit(fit_params, params_var=params_var, flux=flux, center=center,
-                      chisq=chisq, dof=dof)
-        star_fit = Star(star.data, fit)
-        return star_fit
-
-    def fit_model_temporary_debug(self, star_i, star, params, logger=None):
-        """Fit model to star's pixel data.
-
-        :param star:        A Star instance
-        :param params:      An array of initial star parameters like one would
-                            get from getParams
-        :param logger:      A logger object for logging debug info. [default: None]
-
-        :returns:           New Star instance and results, with updated flux,
-                            center, chisq, dof, and fit params and params_var
-        """
-        from .util import estimate_cov_from_jac
-
-        logger = LoggerWrapper(logger)
-
-        # Make the optical profile, constant for this part of the fit.
-        optical_profile = self.getOpticalProfile(star, params)
-
-        # Start with the current parameters
-        flux = star.fit.flux
-        if flux == 1.:
-            # a pretty reasonable first guess is to just take the sum of the pixels
-            flux = star.image.array.sum()
-            flux = flux * 10.0
-        #du, dv = star.fit.center
-        du, dv = star.center
-        fit_size, fit_g1, fit_g2 = params[0:3]
-
-        # acquire the values of opt_size, opt_g1, opt_g2, and opt_L0
-        opt_L0, opt_size, opt_g1, opt_g2 = params[3:7]
-
-
-
-
-        ## linear relations between between the optical residals of the second moments and
-        #shape = self.measure_shape_orthogonal(star)
-        #full_profile = self.getProfile(star, params)
-        #star_model = self.drawProfile(star, full_profile, params)
-        #shape_model = self.measure_shape_orthogonal(star_model)
-        #shape_difference = shape - shape_model
-        #optical_de0 = shape_difference[3]
-        #optical_de1 = shape_difference[4]
-        #optical_de2 = shape_difference[5]
-        #guess_atmo_size = 1.143 * optical_de0 + 0.001
-        #guess_atmo_g1 = 1.075 * optical_de1 + 0.001
-        #guess_atmo_g2 = 1.033 * optical_de2
-
-
-
-        print("atmo_size, pre-fit: {0}".format(fit_size))
-        print("atmo_g1, pre-fit: {0}".format(fit_g1))
-        print("atmo_g2, pre-fit: {0}".format(fit_g2))
-
-        #print("flux, pre-fit: {0}".format(flux))
-        #print("du, pre-fit: {0}".format(du))
-        #print("dv, pre-fit: {0}".format(dv))
-
-        #if star_i in [0,1,5]:
-            #if star_i == 0:
-                #ideal_atmo_size = -0.12086435504074633
-                #ideal_flux = 15050.360865527771
-                #ideal_du = -0.043702653854424116
-                #ideal_dv = -0.06421854886386198
-            #if star_i == 1:
-                #ideal_atmo_size = -0.007945686958543252
-                #ideal_flux = 14780.42710975209
-                #ideal_du = -0.013561449931022835
-                #ideal_dv = -0.11568772539087945
-            #if star_i == 5:
-                #ideal_atmo_size = -0.009765501996093606
-                #ideal_flux = 19891.10828069378
-                #ideal_du = -0.002889949747869649
-                #deal_dv = -0.06045270866481539
-            #fit_size = ideal_atmo_size
-            #flux=ideal_flux
-            #du=ideal_du
-            #dv=ideal_dv
-
-
-        #print("atmo_size, ideal: {0}".format(fit_size))
-        #print("flux, ideal: {0}".format(flux))
-        #print("du, ideal: {0}".format(du))
-        #print("dv, ideal: {0}".format(dv))
-
-
-        self.opt_size = opt_size
-        self.opt_g1 = opt_g1
-        self.opt_g2 = opt_g2
-
-        fit_size += opt_size  # Do fits with full size, g1, g2
-        fit_g1 += opt_g1
-        fit_g2 += opt_g2
-
-        # parameters to fit:
-        # Use log(flux) and log(size), so we don't have to worry about going negative
-        fit_params = [np.log(flux), du, dv, np.log(fit_size), fit_g1, fit_g2]
-        print("pre-fit fit_params: {0}".format(fit_params))
-
-        chi_pre_fit = self._fit_model_residual(fit_params, star, optical_profile, opt_L0)
-        print("chisq, pre-fit: {0}".format(           np.sum(np.square(chi_pre_fit))         ))
-
-        print("preparing to make star residual plot, pre-fit")
-        data_image_array = self.generate_data_image_array_temporary_debug(fit_params, star, optical_profile, opt_L0)
-        model_image_array = self.generate_model_image_array_temporary_debug(fit_params, star, optical_profile, opt_L0)
-        difference_image_array = data_image_array - model_image_array
-        plt.figure()
-        plt.imshow(data_image_array, vmin=np.percentile(data_image_array, q=2),vmax=np.percentile(data_image_array, q=98), cmap=plt.cm.RdBu_r)
-        plt.colorbar()
-        plt.title("Data Image")
-        plt.savefig("/nfs/slac/kipac/fs1/g/des/aresh/y1_many_exposure_fit_check_band_i_shape_mode/00228724/individual_star_fit_detailed_analysis/pre_fit_data_image_for_star_{0}.png".format(star_i))
-        plt.figure()
-        plt.imshow(model_image_array, vmin=np.percentile(data_image_array, q=2),vmax=np.percentile(data_image_array, q=98), cmap=plt.cm.RdBu_r)
-        plt.colorbar()
-        plt.title("Model Image")
-        plt.savefig("/nfs/slac/kipac/fs1/g/des/aresh/y1_many_exposure_fit_check_band_i_shape_mode/00228724/individual_star_fit_detailed_analysis/pre_fit_model_image_for_star_{0}.png".format(star_i))
-        plt.figure()
-        plt.imshow(difference_image_array, vmin=np.percentile(difference_image_array, q=2),vmax=np.percentile(difference_image_array, q=98), cmap=plt.cm.RdBu_r)
-        plt.colorbar()
-        plt.title("Difference Image")
-        plt.savefig("/nfs/slac/kipac/fs1/g/des/aresh/y1_many_exposure_fit_check_band_i_shape_mode/00228724/individual_star_fit_detailed_analysis/pre_fit_difference_image_for_star_{0}.png".format(star_i))
-
-        ## Set self._force_vk_stepk if not already set
-        #if not hasattr(self, '_force_vk_stepk'):
-        #    vk = galsim.VonKarman(
-        #        lam=self.kolmogorov_kwargs['lam'],
-        #        r0=self.kolmogorov_kwargs['r0']/fit_size,
-        #        L0=opt_L0,
-        #        gsparams=self.gsparams
-        #    )
-        #    slack_factor = 0.8
-        #    self._force_vk_stepk = vk.stepk * slack_factor
-        
-        # Find the solution
-
-        self.fluxes_across_iterations = []
-        self.dus_across_iterations = []
-        self.dvs_across_iterations = []
-        self.atmo_sizes_across_iterations = []
-        self.atmo_g1s_across_iterations = []
-        self.atmo_g2s_across_iterations = []
-        self.individual_star_chisqs_across_iterations = []
-
-        results = scipy.optimize.least_squares(
-                self._fit_model_residual, fit_params,
-                args=(star, optical_profile, opt_L0, logger,),
-                ftol=1.e-3, xtol=1.e-4, verbose=2)
-
-        if star_i == 0:
-            optimal_atmo_g1 = 0.035
-            optimal_atmo_g2 = 0.06
-        if star_i == 1:
-            optimal_atmo_g1 = 0.015
-            optimal_atmo_g2 = -0.03
-        if star_i == 5:
-            optimal_atmo_g1 = 0.005
-            optimal_atmo_g2 = 0.002
-
-        test_iterations = list(range(0,len(self.atmo_g2s_across_iterations)))
-        for test_param_name, test_param_across_iterations in zip(["flux","du","dv","atmo_size","atmo_g1","atmo_g2", "chisq"],[self.fluxes_across_iterations,self.dus_across_iterations,self.dvs_across_iterations,self.atmo_sizes_across_iterations,self.atmo_g1s_across_iterations,self.atmo_g2s_across_iterations,self.individual_star_chisqs_across_iterations]):
-            plt.figure()
-            plt.scatter(test_iterations, test_param_across_iterations)
-            if test_param_name == "atmo_g1":
-                plt.axhline(y=optimal_atmo_g1)
-            if test_param_name == "atmo_g2":
-                plt.axhline(y=optimal_atmo_g2)
-            plt.title("{0} across iterations".format(test_param_name))
-            plt.savefig("/nfs/slac/kipac/fs1/g/des/aresh/y1_many_exposure_fit_check_band_i_shape_mode/00228724/individual_star_fit_detailed_analysis/{0}_across_iterations_for_star_{1}.png".format(test_param_name,star_i))
-
-        logger.debug(results.message)
-        if not results.success:
-            raise RuntimeError('Not successful fit')
-
-        g1, g2 = results.x[4:6]
-        if np.abs(g1) > 0.4 or np.abs(g2) > 0.4:
-            raise RuntimeError('Bad fit.  g1,g2 = %f,%f is probably unphysical'%(g1,g2))
-
-        fit_params = np.zeros_like(params)
-        fit_params[0] = np.exp(results.x[3])  # size = exp(logsize)
-        fit_params[1:3] = results.x[4:6]      # g1, g2
-        fit_params[0:3] -= params[4:7]        # subtract off opt_* part
-        fit_params[3:] = params[3:]           # fill in the other params that were constant here
-
-
-
-        print("atmo_size, post-fit: {0}".format(fit_params[0]))
-        print("atmo_g1, post-fit: {0}".format(fit_params[1]))
-        print("atmo_g2, post-fit: {0}".format(fit_params[2]))
-
-        print("flux, post-fit: {0}".format(np.exp(results.x[0])))
-        print("du, post-fit: {0}".format(results.x[1]))
-        print("dv, post-fit: {0}".format(results.x[2]))
-
-        chi_post_fit = self._fit_model_residual(results.x[0:6], star, optical_profile, opt_L0)
-        print("chisq, post-fit: {0}".format(                      np.sum(np.square(chi_post_fit))              ))
-
-        print("preparing to make star residual plot, post-fit")
-        data_image_array = self.generate_data_image_array_temporary_debug(results.x[0:6], star, optical_profile, opt_L0)
-        model_image_array = self.generate_model_image_array_temporary_debug(results.x[0:6], star, optical_profile, opt_L0)
-        difference_image_array = data_image_array - model_image_array
-        plt.figure()
-        plt.imshow(data_image_array, vmin=np.percentile(data_image_array, q=2),vmax=np.percentile(data_image_array, q=98), cmap=plt.cm.RdBu_r)
-        plt.colorbar()
-        plt.title("Data Image")
-        plt.savefig("/nfs/slac/kipac/fs1/g/des/aresh/y1_many_exposure_fit_check_band_i_shape_mode/00228724/individual_star_fit_detailed_analysis/post_fit_data_image_for_star_{0}.png".format(star_i))
-        plt.figure()
-        plt.imshow(model_image_array, vmin=np.percentile(data_image_array, q=2),vmax=np.percentile(data_image_array, q=98), cmap=plt.cm.RdBu_r)
-        plt.colorbar()
-        plt.title("Model Image")
-        plt.savefig("/nfs/slac/kipac/fs1/g/des/aresh/y1_many_exposure_fit_check_band_i_shape_mode/00228724/individual_star_fit_detailed_analysis/post_fit_model_image_for_star_{0}.png".format(star_i))
-        plt.figure()
-        plt.imshow(difference_image_array, vmin=np.percentile(difference_image_array, q=2),vmax=np.percentile(difference_image_array, q=98), cmap=plt.cm.RdBu_r)
-        plt.colorbar()
-        plt.title("Difference Image")
-        plt.savefig("/nfs/slac/kipac/fs1/g/des/aresh/y1_many_exposure_fit_check_band_i_shape_mode/00228724/individual_star_fit_detailed_analysis/post_fit_difference_image_for_star_{0}.png".format(star_i))
-
-
-
-        # for loop across atmo_sizes to see which gives the best chisq
-        chisqs_across_atmo_sizes = []
-        atmo_sizes = np.linspace(-0.04,0.05,20)
-        for atmo_size in atmo_sizes:
-            results_copy = copy.deepcopy(results.x)
-            atmo_size_difference = atmo_size - fit_params[0]
-            results_copy[3] = np.log(np.exp(results_copy[3]) + atmo_size_difference)
-            chisq = np.sum(np.square(             self._fit_model_residual(results_copy[0:6], star, optical_profile, opt_L0)            ))
-            chisqs_across_atmo_sizes.append(chisq)
-        plt.figure()
-        plt.scatter(atmo_sizes, chisqs_across_atmo_sizes)
-        plt.axvline(x=fit_params[0])
-        plt.title("chisq across atmo_sizes")
-        plt.savefig("/nfs/slac/kipac/fs1/g/des/aresh/y1_many_exposure_fit_check_band_i_shape_mode/00228724/individual_star_fit_detailed_analysis/chisq_across_atmo_sizes_{0}.png".format(star_i))
-
-        # for loop across atmo_g1s to see which gives the best chisq
-        chisqs_across_atmo_g1s = []
-        atmo_g1s = np.linspace(-0.04,0.06,20)
-        for atmo_g1 in atmo_g1s:
-            results_copy = copy.deepcopy(results.x)
-            atmo_g1_difference = atmo_g1 - fit_params[1]
-            results_copy[4] = results_copy[4] + atmo_g1_difference
-            chisq = np.sum(np.square(             self._fit_model_residual(results_copy[0:6], star, optical_profile, opt_L0)            ))
-            chisqs_across_atmo_g1s.append(chisq)
-        plt.figure()
-        plt.scatter(atmo_g1s, chisqs_across_atmo_g1s)
-        plt.axvline(x=fit_params[1])
-        plt.title("chisq across atmo_g1s")
-        plt.savefig("/nfs/slac/kipac/fs1/g/des/aresh/y1_many_exposure_fit_check_band_i_shape_mode/00228724/individual_star_fit_detailed_analysis/chisq_across_atmo_g1s_{0}.png".format(star_i))
-
-        # for loop across atmo_g2s to see which gives the best chisq
-        chisqs_across_atmo_g2s = []
-        atmo_g2s = np.linspace(-0.06,0.06,20)
-        for atmo_g2 in atmo_g2s:
-            results_copy = copy.deepcopy(results.x)
-            atmo_g2_difference = atmo_g2 - fit_params[2]
-            results_copy[5] = results_copy[5] + atmo_g2_difference
-            chisq = np.sum(np.square(             self._fit_model_residual(results_copy[0:6], star, optical_profile, opt_L0)            ))
-            chisqs_across_atmo_g2s.append(chisq)
-        plt.figure()
-        plt.scatter(atmo_g2s, chisqs_across_atmo_g2s)
-        plt.axvline(x=fit_params[2])
-        plt.title("chisq across atmo_g2s")
-        plt.savefig("/nfs/slac/kipac/fs1/g/des/aresh/y1_many_exposure_fit_check_band_i_shape_mode/00228724/individual_star_fit_detailed_analysis/chisq_across_atmo_g2s_{0}.png".format(star_i))
-
-
-
-
-
-
-        if star_i in [0,1,5]:
-            results_copy = copy.deepcopy(results.x)
-            print("atmo_size, optimal-fit: {0}".format(fit_params[0]))
-            if star_i == 0:
-                optimal_atmo_g1 = 0.035
-                optimal_atmo_g2 = 0.06
-                print("atmo_g1, optimal-fit: {0}".format(optimal_atmo_g1))
-                print("atmo_g2, optimal-fit: {0}".format(optimal_atmo_g2))
-            if star_i == 1:
-                optimal_atmo_g1 = 0.015
-                optimal_atmo_g2 = -0.03
-                print("atmo_g1, optimal-fit: {0}".format(optimal_atmo_g1))
-                print("atmo_g2, optimal-fit: {0}".format(optimal_atmo_g2))
-            if star_i == 5:
-                optimal_atmo_g1 = 0.005
-                optimal_atmo_g2 = 0.002
-                print("atmo_g1, optimal-fit: {0}".format(optimal_atmo_g1))
-                print("atmo_g2, optimal-fit: {0}".format(optimal_atmo_g2))
-            atmo_g1_difference = optimal_atmo_g1 - fit_params[1]
-            results_copy[4] = results_copy[4] + atmo_g1_difference
-
-            atmo_g2_difference = optimal_atmo_g2 - fit_params[2]
-            results_copy[5] = results_copy[5] + atmo_g2_difference
-
-
-            chi_post_fit = self._fit_model_residual(results_copy[0:6], star, optical_profile, opt_L0)
-            print("chisq, optimal-fit: {0}".format(                      np.sum(np.square(chi_post_fit))              ))
-
-            print("preparing to make star residual plot, optimal-fit")
-            data_image_array = self.generate_data_image_array_temporary_debug(results_copy[0:6], star, optical_profile, opt_L0)
-            model_image_array = self.generate_model_image_array_temporary_debug(results_copy[0:6], star, optical_profile, opt_L0)
-            difference_image_array = data_image_array - model_image_array
-            plt.figure()
-            plt.imshow(data_image_array, vmin=np.percentile(data_image_array, q=2),vmax=np.percentile(data_image_array, q=98), cmap=plt.cm.RdBu_r)
-            plt.colorbar()
-            plt.title("Data Image")
-            plt.savefig("/nfs/slac/kipac/fs1/g/des/aresh/y1_many_exposure_fit_check_band_i_shape_mode/00228724/individual_star_fit_detailed_analysis/optimal_fit_data_image_for_star_{0}.png".format(star_i))
-            plt.figure()
-            plt.imshow(model_image_array, vmin=np.percentile(data_image_array, q=2),vmax=np.percentile(data_image_array, q=98), cmap=plt.cm.RdBu_r)
-            plt.colorbar()
-            plt.title("Model Image")
-            plt.savefig("/nfs/slac/kipac/fs1/g/des/aresh/y1_many_exposure_fit_check_band_i_shape_mode/00228724/individual_star_fit_detailed_analysis/optimal_fit_model_image_for_star_{0}.png".format(star_i))
-            plt.figure()
-            plt.imshow(difference_image_array, vmin=np.percentile(difference_image_array, q=2),vmax=np.percentile(difference_image_array, q=98), cmap=plt.cm.RdBu_r)
-            plt.colorbar()
-            plt.title("Difference Image")
-            plt.savefig("/nfs/slac/kipac/fs1/g/des/aresh/y1_many_exposure_fit_check_band_i_shape_mode/00228724/individual_star_fit_detailed_analysis/optimal_fit_difference_image_for_star_{0}.png".format(star_i))
-
-
-
-        # Estimate covariance matrix from jacobian
-        cov = estimate_cov_from_jac(results.jac)
-        params_var = np.zeros_like(fit_params)
-        params_var[0:3] = cov.diagonal()[3:6]
-        params_var[0] *= fit_params[0]**2     # var(size) = size**2 * var(logsize)
-
-        # Return results as a new Star instance
-        logflux, du, dv = results.x[0:3]
-        flux = np.exp(logflux)
-        center = (du, dv)
-        chisq = results.cost * 2
-        dof = len(results.fun) - len(results.x)
-        fit = StarFit(fit_params, params_var=params_var, flux=star.image.array.sum(), center=center,
                       chisq=chisq, dof=dof)
         star_fit = Star(star.data, fit)
         return star_fit
@@ -2387,8 +2177,14 @@ class OptAtmoPSF(PSF):
             g2 = params[2] + params[6]
             L0 = params[3]
             if L0 == -1.0:
-                atmo = galsim.Kolmogorov(gsparams=self.gsparams, **self.kolmogorov_kwargs)
-                atmo = atmo.dilate(size)
+                #if "L0" in list(self.kolmogorov_kwargs.keys):
+                #    del self.kolmogorov_kwargs["L0"]
+                #atmo = galsim.Kolmogorov(gsparams=self.gsparams, **self.kolmogorov_kwargs)
+                #atmo = atmo.dilate(size)
+                kwargs = {'lam': self.kolmogorov_kwargs['lam'],
+                          'r0': self.kolmogorov_kwargs['r0'] / size
+                         }
+                atmo = galsim.Kolmogorov(gsparams=self.gsparams, **kwargs)
             else:
                 kwargs = {'lam': self.kolmogorov_kwargs['lam'],
                           'r0': self.kolmogorov_kwargs['r0'] / size,
@@ -2710,10 +2506,10 @@ class OptAtmoPSF(PSF):
         return jac
 
 
-    def _fit_model_residual(self, params, star, optical_profile, L0, logger=None):
+    def _fit_model_residual(self, params, star, optical_profile, L0, opt_size, opt_g1, opt_g2, logger=None):
         """Residual function for fitting individual profile parameters to observed pixels.
 
-        :param params:          numpy array of fit parameters: [logflux, du, dv, logsize, g1, g2]
+        :param params:          numpy array of fit parameters: [logflux, du, dv, atmo_size, atmo_g1, atmo_g2]
         :param star:            A Star instance.
         :param optical_profile: The optical part of the profile.
         :param L0               L0 (== -1 for Kolmogorov)
@@ -2722,58 +2518,31 @@ class OptAtmoPSF(PSF):
         :returns chi: Chi of observed pixels to model pixels
         """
         logger = LoggerWrapper(logger)
-
-        logflux, du, dv, logsize, g1, g2 = params
+        print("entered _fit_model_residual()")
+        logflux, du, dv, atmo_size, atmo_g1, atmo_g2 = params
         flux = np.exp(logflux)
-        size = np.exp(logsize)
-
-        try:
-            self.fluxes_across_iterations.append(flux)
-            self.dus_across_iterations.append(du)
-            self.dvs_across_iterations.append(dv)
-            self.atmo_sizes_across_iterations.append(size - self.opt_size)
-            self.atmo_g1s_across_iterations.append(g1 - self.opt_g1)
-            self.atmo_g2s_across_iterations.append(g2 - self.opt_g2)
-        except:
-            pass
+        size = opt_size + atmo_size
+        g1 = opt_g1 + atmo_g1
+        g2 = opt_g2 + atmo_g2
 
         if L0 == -1.0:
-            atmo = galsim.Kolmogorov(gsparams=self.gsparams, **self.kolmogorov_kwargs)
-            atmo = atmo.dilate(size)
+            #if "L0" in list(self.kolmogorov_kwargs.keys):
+            #    del self.kolmogorov_kwargs["L0"]
+            #atmo = galsim.Kolmogorov(gsparams=self.gsparams, **self.kolmogorov_kwargs)
+            #atmo = atmo.dilate(size)
+            kwargs = {'lam': self.kolmogorov_kwargs['lam'],
+                      'r0': self.kolmogorov_kwargs['r0'] / size
+                     }
+            atmo = galsim.Kolmogorov(gsparams=self.gsparams, **kwargs)
         else:
             kwargs = {'lam': self.kolmogorov_kwargs['lam'],
                       'r0': self.kolmogorov_kwargs['r0'] / size,
-                      'L0': L0,}
-                     # 'L0': L0,
-                     # 'force_stepk': self._force_vk_stepk
-                     #}
+                      #'L0': L0,}
+                      'L0': L0,
+                      'force_stepk': self._force_vk_stepk
+                     }
             atmo = galsim.VonKarman(gsparams=self.gsparams, **kwargs)
         atmo = atmo.shear(g1=g1, g2=g2)
-
-        # convolve together
-        #prof = galsim.Convolve([optical_profile, atmo], gsparams=self.gsparams)
-        #prof = prof.shift(du, dv) #* flux
-
-        # prepare to calculatte chi
-
-        #image, weight, image_pos = star.data.getImage()
-        #model = prof.drawImage(image.copy(), method='auto', center=star.image_pos)
-
-        # No need to use all the pixels.  All the information is in the center.
-        # Take just the pixels within 2 * size
-        #_, _, u, v = star.data.getDataVector(include_zero_weight=True)
-        #rsq = (u**2 + v**2) / size**2
-        #mask = rsq < 4
-
-        #data = image.array.ravel()[mask]
-        #weight = weight.array.ravel()[mask]
-        #model = model.array.ravel()[mask]
-
-        # Calculate chi for this star
-        #image_flux = np.sum(data * weight)
-        #model_flux = np.sum(model * weight)
-        #model *= image_flux/model_flux  # Don't worry about flux differences
-        #chi = np.sqrt(weight) * (model - data)
 
         # convolve together
         prof = galsim.Convolve([optical_profile, atmo], gsparams=self.gsparams)
@@ -2784,87 +2553,8 @@ class OptAtmoPSF(PSF):
         image_model = prof.drawImage(image.copy(), method='auto', center=star.image_pos)
         chi = (np.sqrt(weight.array) * (image_model.array - image.array)).flatten()
 
-        try:
-            self.individual_star_chisqs_across_iterations.append(                  np.sum(np.square(   chi   ))                        )
-        except:
-            pass
-
+        print("exiting _fit_model_residual()")
         return chi
-
-    def generate_data_image_array_temporary_debug(self, params, star, optical_profile, L0):
-        """Residual function for fitting individual profile parameters to observed pixels.
-
-        :param params:          numpy array of fit parameters: [logflux, du, dv, logsize, g1, g2]
-        :param star:            A Star instance.
-        :param optical_profile: The optical part of the profile.
-        :param L0               L0 (== -1 for Kolmogorov)
-        :param logger:          A logger object for logging debug info.  [default: None]
-
-        :returns chi: Chi of observed pixels to model pixels
-        """
-
-        logflux, du, dv, logsize, g1, g2 = params
-        flux = np.exp(logflux)
-        size = np.exp(logsize)
-
-        if L0 == -1.0:
-            atmo = galsim.Kolmogorov(gsparams=self.gsparams, **self.kolmogorov_kwargs)
-            atmo = atmo.dilate(size)
-        else:
-            kwargs = {'lam': self.kolmogorov_kwargs['lam'],
-                      'r0': self.kolmogorov_kwargs['r0'] / size,
-                      'L0': L0,}
-                     # 'L0': L0,
-                     # 'force_stepk': self._force_vk_stepk
-                     #}
-            atmo = galsim.VonKarman(gsparams=self.gsparams, **kwargs)
-        atmo = atmo.shear(g1=g1, g2=g2)
-
-        # convolve together
-        prof = galsim.Convolve([optical_profile, atmo], gsparams=self.gsparams)
-        prof = prof.shift(du, dv) * flux
-
-        # calculate chi
-        image, weight, image_pos = star.data.getImage()
-        return image.array
-
-    def generate_model_image_array_temporary_debug(self, params, star, optical_profile, L0):
-        """Residual function for fitting individual profile parameters to observed pixels.
-
-        :param params:          numpy array of fit parameters: [logflux, du, dv, logsize, g1, g2]
-        :param star:            A Star instance.
-        :param optical_profile: The optical part of the profile.
-        :param L0               L0 (== -1 for Kolmogorov)
-        :param logger:          A logger object for logging debug info.  [default: None]
-
-        :returns chi: Chi of observed pixels to model pixels
-        """
-
-        logflux, du, dv, logsize, g1, g2 = params
-        flux = np.exp(logflux)
-        size = np.exp(logsize)
-
-        if L0 == -1.0:
-            atmo = galsim.Kolmogorov(gsparams=self.gsparams, **self.kolmogorov_kwargs)
-            atmo = atmo.dilate(size)
-        else:
-            kwargs = {'lam': self.kolmogorov_kwargs['lam'],
-                      'r0': self.kolmogorov_kwargs['r0'] / size,
-                      'L0': L0,}
-                     # 'L0': L0,
-                     # 'force_stepk': self._force_vk_stepk
-                     #}
-            atmo = galsim.VonKarman(gsparams=self.gsparams, **kwargs)
-        atmo = atmo.shear(g1=g1, g2=g2)
-
-        # convolve together
-        prof = galsim.Convolve([optical_profile, atmo], gsparams=self.gsparams)
-        prof = prof.shift(du, dv) * flux
-
-        # calculate chi
-        image, weight, image_pos = star.data.getImage()
-        image_model = prof.drawImage(image.copy(), method='auto', center=star.image_pos)
-        return image_model.array
 
     def _create_caches(self, stars, logger=None):
         """Save aberrations from reference wavefronts. This is useful if we want

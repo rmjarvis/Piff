@@ -18,6 +18,7 @@ import numpy as np
 import piff
 import fitsio
 import os
+import warnings
 
 from piff_test_helper import get_script_name, timer
 
@@ -402,13 +403,14 @@ def test_olddes():
     try:
         import pixmappy
     except ImportError:
+        print('pixmappy not installed.  Skipping test_newdes()')
         return
     import copy
 
     if __name__ == '__main__':
         logger = piff.config.setup_logger(verbose=2)
     else:
-        logger = piff.config.setup_logger(log_file='output/test_pickle.log')
+        logger = piff.config.setup_logger(log_file='output/test_olddes.log')
 
     fname = os.path.join('input', 'D00240560_r_c01_r2362p01_piff.fits')
     psf = piff.PSF.read(fname, logger=logger)
@@ -437,51 +439,57 @@ def test_olddes():
     image2 = psf2.draw(x=103.3, y=592.0)
     np.testing.assert_equal(image2.array, image.array)
 
-def test_hsm():
-    # Test the hsm function in the presence of a non-trivial WCS.
+@timer
+def test_newdes():
+    # This is a DES Y6 PSF file made by Robert Gruendl using python 2, so
+    # check that this also works correctly.
+    try:
+        import pixmappy
+    except ImportError:
+        print('pixmappy not installed.  Skipping test_newdes()')
+        return
+    # Also make sure pixmappy is recent enough to work.
+    if 'exposure_file' not in pixmappy.GalSimWCS._opt_params:
+        print('pixmappy not recent enough version.  Skipping test_newdes()')
+        return
+    import copy
 
-    gal = galsim.Gaussian(sigma=1.7, flux=1000)
-    shear = galsim.Shear(g1=0.4, g2=0.3)
-    pos = galsim.PositionD(1.2,-0.5)
-    final_gal = gal.shear(shear).shift(pos)
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(verbose=2)
+    else:
+        logger = piff.config.setup_logger(log_file='output/test_newdes.log')
 
-    # A fairly crazy WCS with large rotation and shear.
-    wcs = galsim.JacobianWCS(0.35, -0.13, 0.09, 0.30)
-    print('wcs = ',wcs)
-    print('decomp = ',wcs.getDecomposition())
+    fname = os.path.join('input', 'D00232418_i_c19_r5006p01_piff-model.fits')
+    with warnings.catch_warnings():
+        # This file was written with GalSim 2.1, and now raises a deprecation warning for 2.2.
+        warnings.simplefilter("ignore", galsim.GalSimDeprecationWarning)
+        psf = piff.PSF.read(fname, logger=logger)
 
-    image = final_gal.drawImage(nx=128, ny=128, wcs=wcs, method='no_pixel')
-    star = piff.Star(piff.StarData(image, image.true_center),None)
+    print('psf.wcs = ',psf.wcs[0])
+    print('(0,0) -> ',psf.wcs[0].toWorld(galsim.PositionD(0,0)))
+    print(psf.wcs[0].toWorld(galsim.PositionD(0,0)).ra/galsim.degrees,
+            psf.wcs[0].toWorld(galsim.PositionD(0,0)).dec/galsim.degrees)
+    assert np.isclose(psf.wcs[0].toWorld(galsim.PositionD(0,0)).ra / galsim.degrees, 15.4729872672)
+    assert np.isclose(psf.wcs[0].toWorld(galsim.PositionD(0,0)).dec / galsim.degrees, 1.95221895945)
+    print('local at 0,0 = ',psf.wcs[0].local(galsim.PositionD(0,0)))
+    print('area at 0,0 = ',psf.wcs[0].pixelArea(galsim.PositionD(0,0)),' = %f**2'%(
+            psf.wcs[0].pixelArea(galsim.PositionD(0,0))**0.5))
+    assert np.isclose(psf.wcs[0].pixelArea(galsim.PositionD(0,0)), 0.263021**2, rtol=1.e-3)
+    image = psf.draw(x=103.3, y=592.0, logger=logger)
+    print('image shape = ',image.array.shape)
+    print('image near center = ',image.array[23:26,23:26])
+    print('image sum = ',image.array.sum())
+    assert np.isclose(image.array.sum(), 1.0, rtol=1.e-2)
+    # The center values should be at least close to the following:
+    regression_array = np.array([[0.03305565, 0.04500969, 0.0395154],
+                                 [0.03765249, 0.05419811, 0.04867231],
+                                 [0.02734579, 0.0418797, 0.03928504]])
+    np.testing.assert_allclose(image.array[23:26,23:26], regression_array, rtol=1.e-5)
 
-    flux, x, y, sigma, g1, g2, flag = piff.util.hsm(star)
-    print('hsm returns: ',flux,x,y,sigma,g1,g2)
-
-    tol = 1.e-7
-    np.testing.assert_allclose(flux, gal.flux, rtol=tol)
-    np.testing.assert_allclose(sigma, gal.sigma, rtol=tol)
-    np.testing.assert_allclose(g1, shear.g1, rtol=tol)
-    np.testing.assert_allclose(g2, shear.g2, rtol=tol)
-    np.testing.assert_allclose(x, pos.x, rtol=tol)
-    np.testing.assert_allclose(y, pos.y, rtol=tol)
-
-    # Repeat with one with flip=True
-    wcs = galsim.JacobianWCS(0.35, -0.13, 0.09, -0.30)
-    print('wcs = ',wcs)
-    print('decomp = ',wcs.getDecomposition())
-
-    image = final_gal.drawImage(nx=128, ny=128, wcs=wcs, method='no_pixel')
-    star = piff.Star(piff.StarData(image, image.true_center),None)
-
-    flux, x, y, sigma, g1, g2, flag = piff.util.hsm(star)
-    print('hsm returns: ',flux,x,y,sigma,g1,g2)
-
-    np.testing.assert_allclose(flux, gal.flux, rtol=tol)
-    np.testing.assert_allclose(sigma, gal.sigma, rtol=tol)
-    np.testing.assert_allclose(g1, shear.g1, rtol=tol)
-    np.testing.assert_allclose(g2, shear.g2, rtol=tol)
-    np.testing.assert_allclose(x, pos.x, rtol=tol)
-    np.testing.assert_allclose(y, pos.y, rtol=tol)
-
+    # Also check that it is picklable.
+    psf2 = copy.deepcopy(psf)
+    image2 = psf2.draw(x=103.3, y=592.0)
+    np.testing.assert_equal(image2.array, image.array)
 
 if __name__ == '__main__':
     test_focal()
@@ -489,4 +497,4 @@ if __name__ == '__main__':
     test_single()
     test_pickle()
     test_olddes()
-    test_hsm()
+    test_newdes()
