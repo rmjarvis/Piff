@@ -25,29 +25,59 @@ import treegp
 from .interp import Interp
 from .star import Star, StarFit
 
-
 class GPInterp(Interp):
     """
-    An interpolator that uses sklearn.gaussian_process to interpolate a single surface.
-
-    :param keys:        A list of star attributes to interpolate from
-    :param kernel:      A string that can be eval-ed to make a
-                        sklearn.gaussian_process.kernels.Kernel object.  The reprs of
-                        sklearn.gaussian_process.kernels will work, as well as the repr of a
-                        custom piff AnisotropicRBF or ExplicitKernel object.  [default: 'RBF()']
-    :param optimize:    Boolean indicating whether or not to try and optimize the kernel by
-                        maximizing the marginal likelihood.  [default: True]
-    :param normalize:   Whether to normalize the interpolation parameters to have a mean of 0.
-                        Normally, the parameters being interpolated are not mean 0, so you would
-                        want this to be True, but if your parameters have an a priori mean of 0,
-                        then subtracting off the realized mean would be invalid.  [default: True]
-    :param logger:      A logger object for logging debug info. [default: None]
+    An interpolator that uses gaussian process from treegp to interpolate multiple surfaces.
+    :param keys:         A list of star attributes to interpolate from. Must be 2 attributes
+                         using two-point correlation function to estimate hyperparameter(s).
+    :param kernel:       A string that can be evaled to make a
+                         sklearn.gaussian_process.kernels.Kernel object.  The reprs of
+                         sklearn.gaussian_process.kernels will work, as well as the repr of a
+                         custom treegp VonKarman object.  [default: 'RBF(1)']
+    :param optimize:     Boolean indicating whether or not to try and optimize the kernel by
+                         computing the two-point correlation function or a maximum likelihood.
+                         [default: True]
+    :param optimizer:    Indicates which technics to used for optimizing the kernel. Two options
+                         are available. "two-pcf" optimize the kernel on the 1d/2d 2-point correlation
+                         function estimate by treecorr. "log-likelihood" used the classical
+                         gaussian process maximum likelihood to optimize the kernel. [default: "two-pcf"]
+    :param anisotropic:  2D 2-point correlation function. Used 2D correlation function for the
+                         fiting part of the GP instead of a 1D correlation function. Used only
+                         if optimizer is "two-pcf", for "log-likelihood" will do an anisotropic fit
+                         if the kernel is anisotropic. [default: False]
+    :param p0:           Initial guess for correlation length, and quantity of anisotropy
+                         (e1 and e2 params as for galaxy shape). Used only if optimizer is "two-pcf"
+                         and anisotropic is True. [default: [3000., 0., 0.]]
+    :param normalize:    Whether to normalize the interpolation parameters to have a mean of 0.
+                         Normally, the parameters being interpolated are not mean 0, so you would
+                         want this to be True, but if your parameters have an a priori mean of 0,
+                         then subtracting off the realized mean would be invalid.  [default: True]
+    :param white_noise:  A float value that indicate the ammount of white noise that you want to
+                         use during the gp interpolation. This is an additional uncorrelated noise
+                         added to the error of the PSF parameters. [default: 0.]
+    :param n_neighbors:  Number of neighbors to used for interpolating the spatial average using
+                         a KNeighbors interpolation. Used only if average_fits is not None. [defaulf: 4]
+    :param nbins:        Number of bins (if 1D correlation function) of the square root of the number
+                         of bins (if 2D correlation function) used in TreeCorr to compute the
+                         2-point correlation function. Used only if optimizer is "two-pcf". [default: 20]
+    :param min_sep:      Minimum separation between pairs when computing 2-point correlation
+                         function. In the same units as the keys. Compute automaticaly if it
+                         is not given. Used only if optimizer is "two-pcf". [default: None]
+    :param max_sep:      Maximum separation between pairs when computing 2-point correlation
+                         function. In the same units as the keys. Compute automaticaly if it
+                         is not given. Used only if optimizer is "two-pcf". [default: None]
+    :param average_fits: A fits file that have the spatial average functions of PSF parameters
+                         build in it. Build using meanify and piff output across different
+                         exposures. See meanify documentation. [default: None]
+    :param rows:         A list of integer which indicates on which rows of Star.fit.param
+                         need to be interpolated using GPs. [default: None]
+    :param logger:       A logger object for logging debug info. [default: None]
     """
-    def __init__(self, keys=('u','v'), kernel='RBF()', 
+    def __init__(self, keys=('u','v'), kernel='RBF(1)',
                  optimize=True, optimizer='two-pcf',
                  anisotropic=False, normalize=True, p0=[3000., 0.,0.],
                  white_noise=0., n_neighbors=4, average_fits=None,
-                 nbins=20, min_sep=None, max_sep=None, 
+                 nbins=20, min_sep=None, max_sep=None,
                  rows=None, logger=None):
 
         self.keys = keys
@@ -82,15 +112,17 @@ class GPInterp(Interp):
                 raise TypeError("kernel should be a string a list or a numpy.ndarray of string")
             else:
                 self.kernel_template = [ker for ker in kernel]
-        
+
         if self.optimizer not in ['two-pcf', 'log-likelihood']:
             raise ValueError("Only two-pcf and log-likelihood are supported for optimizer. Current value: %s"%(self.optimizer))
 
-
     def _fit(self, X, y, y_err=None, logger=None):
-        """Update the GaussianProcessRegressor with data
+        """Update the GaussianProcess with data
+
         :param X:  The independent covariates.  (n_samples, n_features)
         :param y:  The dependent responses.  (n_samples, n_targets)
+        :param y_err: Error of y. (n_samples, n_targets)
+        :param logger:  A logger object for logging debug info. [default: None]
         """
         for i in range(self.nparams):
             self.gps[i].initialize(X, y[:,i], y_err=y_err[:,i])
@@ -150,7 +182,7 @@ class GPInterp(Interp):
                                         average_fits=self.average_fits, indice_meanify = i,
                                         nbins=self.nbins, min_sep=self.min_sep, max_sep=self.max_sep)
             self.gps.append(gp)
-            
+
         self._init_theta = np.array([gp.kernel_template.theta for gp in self.gps])
 
         return stars
@@ -186,7 +218,6 @@ class GPInterp(Interp):
 
         :returns: a new Star instance with its StarFit member holding the interpolated parameters
         """
-        # because of sklearn formatting, call interpolateList and take 0th entry
         return self.interpolateList([star], logger=logger)[0]
 
     def interpolateList(self, stars, logger=None):
@@ -225,11 +256,6 @@ class GPInterp(Interp):
                   ('Y_ERR', self._y_err.dtype, self._y_err.shape),
                   ('ROWS', self.rows.dtype,  self.rows.shape)]
 
-        # TO DO: need to see how I propagate meanify
-
-                  #('X0', self._X0.dtype, self._X0.shape),
-                  #('Y0', self._y0.dtype, self._y0.shape)]
-
         data = np.empty(1, dtype=dtypes)
         data['INIT_THETA'] = init_theta
         data['FIT_THETA'] = fit_theta
@@ -237,8 +263,6 @@ class GPInterp(Interp):
         data['Y'] = self._y
         data['Y_ERR'] = self._y_err
         data['ROWS'] = self.rows
-        #data['X0'] = self._X0
-        #data['Y0'] = self._y0
 
         fits.write_table(data, extname=extname+'_kernel')
 
@@ -246,6 +270,7 @@ class GPInterp(Interp):
         data = fits[extname+'_kernel'].read()
         # Run fit to set up GP, but don't actually do any hyperparameter optimization. Just
         # set the GP up using the current hyperparameters.
+        # Need to give back average fits files if needed.
 
         init_theta = np.atleast_1d(data['INIT_THETA'][0])
         fit_theta = np.atleast_1d(data['FIT_THETA'][0])
@@ -258,17 +283,8 @@ class GPInterp(Interp):
         self._init_theta = init_theta
         self.nparams = len(init_theta)
 
-        # TO DO : see what to do with mean function #
-        #self._X0 = np.atleast_1d(data['X0'][0])
-        #self._y0 = np.atleast_1d(data['Y0'][0])
-        #self._spatial_average = self._build_average_meanify(self._X)
-
-        #if self.normalize:
-        #    self._mean = np.mean(self._y - self._spatial_average, axis=0)
-        #else:
-        #    self._mean = np.zeros(self.nparams)
         if len(self.kernel_template)==1:
-            self.kernels = [copy.deepcopy(self.kernel_template[0]) for i in range(self.nparams)]
+            self.kernels = [copy.deepcopey(self.kernel_template[0]) for i in range(self.nparams)]
         else:
             if len(self.kernel_template)!= self.nparams:
                 raise ValueError("numbers of kernel provided should be 1 (same for all parameters) or " \
