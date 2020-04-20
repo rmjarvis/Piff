@@ -17,20 +17,19 @@ import galsim
 import treegp
 import numpy as np
 import piff
-import os
-import yaml
-import fitsio
 from sklearn.model_selection import train_test_split
 
 from piff_test_helper import get_script_name, timer
 
-#TO REMOVE:
-import pylab as plt
-
-
 kolmogorov = galsim.Kolmogorov(half_light_radius=1., flux=1.)
 
 def return_var_map(weight, xi):
+    """
+    function to return variance of 2-pcf.
+
+    :param weight: weight, output of treegp.
+    :param xi:     2-pcf, ouput of treegp.
+    """
     N = int(np.sqrt(len(xi)))
     var = np.diag(np.linalg.inv(weight))
     VAR = np.zeros(N*N)
@@ -73,7 +72,6 @@ def make_single_star(u, v, size, g1, g2, size_err, g1_err, g2_err):
     :param size_err:       Size error.
     :param g1_err, g2_err: Shear error. 
     """
-
     star = piff.Star.makeTarget(x=None, y=None, u=u, v=v,
                                 properties={}, wcs=None, scale=0.26,
                                 stamp_size=24, image=None,
@@ -90,6 +88,20 @@ def make_single_star(u, v, size, g1, g2, size_err, g1_err, g2_err):
 def make_gaussian_random_fields(kernel, nstars, noise_level=1e-3, 
                                 xlim=-10, ylim=10, seed=30352010,
                                 test_size=0.20, vmax=8, plot=False):
+    """
+    Make psf params as gaussian random fields.
+
+    :param kernel:      sklearn kernel to used for generating
+                        the data.
+    :param nstars:      number of stars to generate.
+    :param noise_level: quantity of noise to add to the data.
+    :param xlim:        x limit of the field.
+    :param ylim:        y limit of the field.
+    :param seed:        seed of the generator.
+    :param test_size:   size ratio of the test sample.
+    :param plot:        set to true to have plot of the field.
+    :param vmax=8       max value for the color map.
+    """
     np.random.seed(seed)
 
     # generate star coordinate
@@ -124,6 +136,7 @@ def make_gaussian_random_fields(kernel, nstars, noise_level=1e-3,
         stars.append(star)
 
     if plot:
+        import pylab as plt
         plt.figure()
         plt.scatter(u, v, c=size, vmin=-vmax, vmax=vmax, cmap=plt.cm.seismic)
         plt.figure()
@@ -157,20 +170,6 @@ def gp_testing(stars_training, stars_validation, kernel, optimize, optimizer,
             
     y_test = np.array([star.fit.params for star in stars_test])
 
-    print(np.mean(y_test - y_validation, axis=0))
-    print(np.std(y_test - y_validation, axis=0))
-    print("")
-        
-    for gp in interp.gps:
-        if optimize:
-            print(np.exp(gp._optimizer._kernel.theta))
-        else:
-            print("Truth:", np.exp(gp.kernel.theta))
-        print("")
-
-    # TO DO : criteria for validation are to LOOSE, and 
-    # there is something that I don't understand with the 
-    # VonKarman, but for the moment it should be ok...
     np.testing.assert_allclose(y_test, y_validation, atol = 4e-2)
 
     if optimize:
@@ -179,6 +178,7 @@ def gp_testing(stars_training, stars_validation, kernel, optimize, optimizer,
         np.testing.assert_allclose(fitted_hyperparameters, truth_hyperparameters, rtol = 2.)
             
     if plotting:
+        import pylab as plt
         title = ["size", "$g_1$", "$g_2$"]
         for j in range(3):
             plt.figure()
@@ -276,7 +276,6 @@ def test_gp_interp_isotropic():
                  'two-pcf']
 
     for i in range(len(kernels)):
-        print(kernels[i], optimize[i], optimizer[i])
         stars_training, stars_validation = make_gaussian_random_fields(kernels[i], nstars, xlim=-10, ylim=10,
                                                                        seed=30352010, vmax=4e-2,
                                                                        noise_level=noise_level)
@@ -307,7 +306,6 @@ def test_gp_interp_anisotropic():
 
 
     for i in range(len(kernels)):
-        print(kernels[i], optimize[i], optimizer[i])
         stars_training, stars_validation = make_gaussian_random_fields(kernels[i], nstars, xlim=-10, ylim=10,
                                                                        seed=30352010, vmax=4e-2,
                                                                        noise_level=noise_level)
