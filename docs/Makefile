@@ -4,8 +4,9 @@
 # You can set these variables from the command line.
 SPHINXOPTS    =
 SPHINXBUILD   = sphinx-build
+SPHINXPROJ    = Piff
 PAPER         =
-BUILDDIR      = ../gh-pages/
+BUILDDIR      = _build
 
 # User-friendly check for sphinx-build
 ifeq ($(shell which $(SPHINXBUILD) >/dev/null 2>&1; echo $$?), 1)

@@ -1,0 +1,479 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>piff.gsobject_model &#8212; Piff 0.4.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../_static/language_data.js"></script>
+    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">Piff 0.4.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for piff.gsobject_model</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright (c) 2016 by Mike Jarvis and the other collaborators on GitHub at</span>
+<span class="c1"># https://github.com/rmjarvis/Piff  All rights reserved.</span>
+<span class="c1">#</span>
+<span class="c1"># Piff is free software: Redistribution and use in source and binary forms</span>
+<span class="c1"># with or without modification, are permitted provided that the following</span>
+<span class="c1"># conditions are met:</span>
+<span class="c1">#</span>
+<span class="c1"># 1. Redistributions of source code must retain the above copyright notice, this</span>
+<span class="c1">#    list of conditions and the disclaimer given in the accompanying LICENSE</span>
+<span class="c1">#    file.</span>
+<span class="c1"># 2. Redistributions in binary form must reproduce the above copyright notice,</span>
+<span class="c1">#    this list of conditions and the disclaimer given in the documentation</span>
+<span class="c1">#    and/or other materials provided with the distribution.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">.. module:: gsobject_model</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">galsim</span>
+
+<span class="kn">from</span> <span class="nn">.model</span> <span class="kn">import</span> <span class="n">Model</span><span class="p">,</span> <span class="n">ModelFitError</span>
+<span class="kn">from</span> <span class="nn">.star</span> <span class="kn">import</span> <span class="n">Star</span><span class="p">,</span> <span class="n">StarFit</span><span class="p">,</span> <span class="n">StarData</span>
+<span class="kn">from</span> <span class="nn">.util</span> <span class="kn">import</span> <span class="n">hsm</span>
+
+
+<div class="viewcode-block" id="GSObjectModel"><a class="viewcode-back" href="../../model.html#piff.GSObjectModel">[docs]</a><span class="k">class</span> <span class="nc">GSObjectModel</span><span class="p">(</span><span class="n">Model</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Model that takes a fiducial GalSim.GSObject and dilates, shifts, and shears it to get a</span>
+<span class="sd">    good match to stars.</span>
+
+<span class="sd">    :param gsobj:       GSObject to use as fiducial profile.</span>
+<span class="sd">    :param fastfit:     Use HSM moments for fitting.  Approximate, but fast.  [default: False]</span>
+<span class="sd">    :param centered:    If True, PSF model centroid is forced to be (0,0), and the</span>
+<span class="sd">                        PSF fitting will marginalize over stellar position.  If False, stellar</span>
+<span class="sd">                        position is fixed at input value and the fitted PSF may be off-center.</span>
+<span class="sd">                        [default: True]</span>
+<span class="sd">    :param include_pixel: Include integration over pixel?  [default: True]</span>
+<span class="sd">    :param logger:      A logger object for logging debug info. [default: None]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gsobj</span><span class="p">,</span> <span class="n">fastfit</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">centered</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">include_pixel</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                 <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">gsobj</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">gsobj</span> <span class="o">=</span> <span class="nb">eval</span><span class="p">(</span><span class="n">gsobj</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;gsobj&#39;</span><span class="p">:</span><span class="nb">repr</span><span class="p">(</span><span class="n">gsobj</span><span class="p">),</span>
+                       <span class="s1">&#39;fastfit&#39;</span><span class="p">:</span><span class="n">fastfit</span><span class="p">,</span>
+                       <span class="s1">&#39;centered&#39;</span><span class="p">:</span><span class="n">centered</span><span class="p">,</span>
+                       <span class="s1">&#39;include_pixel&#39;</span><span class="p">:</span><span class="n">include_pixel</span><span class="p">}</span>
+
+        <span class="c1"># Center and normalize the fiducial model.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gsobj</span> <span class="o">=</span> <span class="n">gsobj</span><span class="o">.</span><span class="n">withFlux</span><span class="p">(</span><span class="mf">1.0</span><span class="p">)</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span><span class="o">-</span><span class="n">gsobj</span><span class="o">.</span><span class="n">centroid</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_fastfit</span> <span class="o">=</span> <span class="n">fastfit</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_centered</span> <span class="o">=</span> <span class="n">centered</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_method</span> <span class="o">=</span> <span class="s1">&#39;auto&#39;</span> <span class="k">if</span> <span class="n">include_pixel</span> <span class="k">else</span> <span class="s1">&#39;no_pixel&#39;</span>
+        <span class="c1"># Params are [du, dv], scale, g1, g2, i.e., transformation parameters that bring the</span>
+        <span class="c1"># fiducial gsobject towards the data.</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_centered</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_nparams</span> <span class="o">=</span> <span class="mi">3</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_nparams</span> <span class="o">=</span> <span class="mi">5</span>
+
+<div class="viewcode-block" id="GSObjectModel.moment_fit"><a class="viewcode-back" href="../../model.html#piff.GSObjectModel.moment_fit">[docs]</a>    <span class="k">def</span> <span class="nf">moment_fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Estimate transformations needed to bring self.gsobj towards given star.&quot;&quot;&quot;</span>
+        <span class="n">flux</span><span class="p">,</span> <span class="n">cenu</span><span class="p">,</span> <span class="n">cenv</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">g1</span><span class="p">,</span> <span class="n">g2</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s1">&#39;hsm&#39;</span><span class="p">]</span>
+        <span class="n">shape</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">Shear</span><span class="p">(</span><span class="n">g1</span><span class="o">=</span><span class="n">g1</span><span class="p">,</span> <span class="n">g2</span><span class="o">=</span><span class="n">g2</span><span class="p">)</span>
+
+        <span class="n">ref_flux</span><span class="p">,</span> <span class="n">ref_cenu</span><span class="p">,</span> <span class="n">ref_cenv</span><span class="p">,</span> <span class="n">ref_size</span><span class="p">,</span> <span class="n">ref_g1</span><span class="p">,</span> <span class="n">ref_g2</span><span class="p">,</span> <span class="n">flag</span> <span class="o">=</span> <span class="n">hsm</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">draw</span><span class="p">(</span><span class="n">star</span><span class="p">))</span>
+        <span class="n">ref_shape</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">Shear</span><span class="p">(</span><span class="n">g1</span><span class="o">=</span><span class="n">ref_g1</span><span class="p">,</span> <span class="n">g2</span><span class="o">=</span><span class="n">ref_g2</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">flag</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">ModelFitError</span><span class="p">(</span><span class="s2">&quot;Error calculating model moments for this star.&quot;</span><span class="p">)</span>
+
+        <span class="n">param_flux</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">flux</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_centered</span><span class="p">:</span>
+            <span class="n">param_scale</span><span class="p">,</span> <span class="n">param_g1</span><span class="p">,</span> <span class="n">param_g2</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">params</span>
+            <span class="n">param_du</span><span class="p">,</span> <span class="n">param_dv</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">center</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">param_du</span><span class="p">,</span> <span class="n">param_dv</span><span class="p">,</span> <span class="n">param_scale</span><span class="p">,</span> <span class="n">param_g1</span><span class="p">,</span> <span class="n">param_g2</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">params</span>
+        <span class="n">param_shear</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">Shear</span><span class="p">(</span><span class="n">g1</span><span class="o">=</span><span class="n">param_g1</span><span class="p">,</span> <span class="n">g2</span><span class="o">=</span><span class="n">param_g2</span><span class="p">)</span>
+
+        <span class="n">param_flux</span> <span class="o">*=</span> <span class="n">flux</span> <span class="o">/</span> <span class="n">ref_flux</span>
+        <span class="n">param_du</span> <span class="o">+=</span> <span class="n">cenu</span> <span class="o">-</span> <span class="n">ref_cenu</span>
+        <span class="n">param_dv</span> <span class="o">+=</span> <span class="n">cenv</span> <span class="o">-</span> <span class="n">ref_cenv</span>
+        <span class="n">param_scale</span> <span class="o">*=</span> <span class="n">size</span> <span class="o">/</span> <span class="n">ref_size</span>
+        <span class="n">param_shear</span> <span class="o">+=</span> <span class="p">(</span><span class="n">shape</span> <span class="o">-</span> <span class="n">ref_shape</span><span class="p">)</span>
+        <span class="n">param_g1</span> <span class="o">=</span> <span class="n">param_shear</span><span class="o">.</span><span class="n">g1</span>
+        <span class="n">param_g2</span> <span class="o">=</span> <span class="n">param_shear</span><span class="o">.</span><span class="n">g2</span>
+
+        <span class="k">return</span> <span class="n">param_flux</span><span class="p">,</span> <span class="n">param_du</span><span class="p">,</span> <span class="n">param_dv</span><span class="p">,</span> <span class="n">param_scale</span><span class="p">,</span> <span class="n">param_g1</span><span class="p">,</span> <span class="n">param_g2</span></div>
+
+<div class="viewcode-block" id="GSObjectModel.getProfile"><a class="viewcode-back" href="../../model.html#piff.GSObjectModel.getProfile">[docs]</a>    <span class="k">def</span> <span class="nf">getProfile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get a version of the model as a GalSim GSObject</span>
+
+<span class="sd">        :param params:      A numpy array with either  [ size, g1, g2 ]</span>
+<span class="sd">                            or  [ cenu, cenv, size, g1, g2 ]</span>
+<span class="sd">                            depending on if the center of the model is being forced to (0.0, 0.0)</span>
+<span class="sd">                            or not.</span>
+
+<span class="sd">        :returns: a galsim.GSObject instance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_centered</span><span class="p">:</span>
+            <span class="n">scale</span><span class="p">,</span> <span class="n">g1</span><span class="p">,</span> <span class="n">g2</span> <span class="o">=</span> <span class="n">params</span>
+            <span class="n">du</span><span class="p">,</span> <span class="n">dv</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">du</span><span class="p">,</span> <span class="n">dv</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="n">g1</span><span class="p">,</span> <span class="n">g2</span> <span class="o">=</span> <span class="n">params</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">gsobj</span><span class="o">.</span><span class="n">dilate</span><span class="p">(</span><span class="n">scale</span><span class="p">)</span><span class="o">.</span><span class="n">shear</span><span class="p">(</span><span class="n">g1</span><span class="o">=</span><span class="n">g1</span><span class="p">,</span> <span class="n">g2</span><span class="o">=</span><span class="n">g2</span><span class="p">)</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span><span class="n">du</span><span class="p">,</span> <span class="n">dv</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_resid</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">star</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Residual function to use with least_squares.</span>
+
+<span class="sd">        Essentially `chi` from `chisq`, but not summed over pixels yet.</span>
+
+<span class="sd">        :param params:      A numpy array of model parameters.</span>
+<span class="sd">        :param star:        A Star instance.</span>
+
+<span class="sd">        :returns: `chi` as a flattened numpy array.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">image</span><span class="p">,</span> <span class="n">weight</span><span class="p">,</span> <span class="n">image_pos</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">getImage</span><span class="p">()</span>
+        <span class="n">flux</span><span class="p">,</span> <span class="n">du</span><span class="p">,</span> <span class="n">dv</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="n">g1</span><span class="p">,</span> <span class="n">g2</span> <span class="o">=</span> <span class="n">params</span>
+
+        <span class="c1"># We shear/dilate/shift the profile as follows.</span>
+        <span class="c1">#    prof = self.gsobj.dilate(scale).shear(g1=g1, g2=g2).shift(du, dv) * flux</span>
+        <span class="c1"># However, it is a bit faster to do all these operations at once to avoid some superfluous</span>
+        <span class="c1"># calculations that GalSim does for each of these steps when done separately.</span>
+        <span class="n">jac</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">_Shear</span><span class="p">(</span><span class="n">g1</span> <span class="o">+</span> <span class="mi">1</span><span class="n">j</span><span class="o">*</span><span class="n">g2</span><span class="p">)</span><span class="o">.</span><span class="n">getMatrix</span><span class="p">()</span>
+        <span class="n">jac</span><span class="p">[:,:]</span> <span class="o">*=</span> <span class="n">scale</span>
+        <span class="n">flux</span> <span class="o">/=</span> <span class="n">scale</span><span class="o">**</span><span class="mi">2</span>
+        <span class="n">prof</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">_Transform</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gsobj</span><span class="p">,</span> <span class="n">jac</span><span class="o">.</span><span class="n">ravel</span><span class="p">(),</span> <span class="n">offset</span><span class="o">=</span><span class="n">galsim</span><span class="o">.</span><span class="n">PositionD</span><span class="p">(</span><span class="n">du</span><span class="p">,</span><span class="n">dv</span><span class="p">),</span>
+                                 <span class="n">flux_ratio</span><span class="o">=</span><span class="n">flux</span><span class="p">)</span>
+
+        <span class="c1"># Equivalent to galsim.Image(image, dtype=float), but without the sanity checks.</span>
+        <span class="n">model_image</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">_Image</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">empty_like</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">array</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">),</span>
+                                    <span class="n">image</span><span class="o">.</span><span class="n">bounds</span><span class="p">,</span> <span class="n">image</span><span class="o">.</span><span class="n">wcs</span><span class="p">)</span>
+        <span class="n">prof</span><span class="o">.</span><span class="n">drawImage</span><span class="p">(</span><span class="n">model_image</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_method</span><span class="p">,</span>
+                       <span class="n">offset</span><span class="o">=</span><span class="p">(</span><span class="n">image_pos</span> <span class="o">-</span> <span class="n">model_image</span><span class="o">.</span><span class="n">true_center</span><span class="p">))</span>
+
+        <span class="c1"># Caculate sqrt(weight) * (model_image - image) in place for efficiency.</span>
+        <span class="n">model_image</span><span class="o">.</span><span class="n">array</span><span class="p">[:,:]</span> <span class="o">-=</span> <span class="n">image</span><span class="o">.</span><span class="n">array</span>
+        <span class="n">model_image</span><span class="o">.</span><span class="n">array</span><span class="p">[:,:]</span> <span class="o">*=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">weight</span><span class="o">.</span><span class="n">array</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">model_image</span><span class="o">.</span><span class="n">array</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_get_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Generate an array of model parameters.</span>
+
+<span class="sd">        :param star:         A Star from which to initialize parameter values.</span>
+
+<span class="sd">        :returns: a numpy array</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Get initial parameter values.  Either use values currently in star.fit, or if those are</span>
+        <span class="c1"># absent, run HSM to get initial values.</span>
+        <span class="k">if</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">params</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">flux</span><span class="p">,</span> <span class="n">du</span><span class="p">,</span> <span class="n">dv</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="n">g1</span><span class="p">,</span> <span class="n">g2</span><span class="p">,</span> <span class="n">flag</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">moment_fit</span><span class="p">(</span><span class="n">star</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">flag</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Error initializing star fit values using hsm.&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">flux</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">flux</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_centered</span><span class="p">:</span>
+                <span class="n">du</span><span class="p">,</span> <span class="n">dv</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">center</span>
+                <span class="n">scale</span><span class="p">,</span> <span class="n">g1</span><span class="p">,</span> <span class="n">g2</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">params</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">du</span><span class="p">,</span> <span class="n">dv</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="n">g1</span><span class="p">,</span> <span class="n">g2</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">params</span>
+
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">flux</span><span class="p">,</span> <span class="n">du</span><span class="p">,</span> <span class="n">dv</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="n">g1</span><span class="p">,</span> <span class="n">g2</span><span class="p">])</span>
+
+    <span class="k">def</span> <span class="nf">_minimize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Find the least-squares best fit solution.</span>
+
+<span class="sd">        :param params: numpy array of initial guess</span>
+<span class="sd">        :param star:   Star to fit.</span>
+
+<span class="sd">        :returns: scipy.optimize.OptimizeResults instance containing fit results.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">import</span> <span class="nn">scipy</span>
+        <span class="kn">import</span> <span class="nn">time</span>
+        <span class="n">logger</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">LoggerWrapper</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
+        <span class="n">t0</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Start least_squares&quot;</span><span class="p">)</span>
+
+        <span class="n">results</span> <span class="o">=</span> <span class="n">scipy</span><span class="o">.</span><span class="n">optimize</span><span class="o">.</span><span class="n">least_squares</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_resid</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">star</span><span class="p">,))</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Done.  Elapsed time: </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">t0</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">results</span>
+
+<div class="viewcode-block" id="GSObjectModel.least_squares_fit"><a class="viewcode-back" href="../../model.html#piff.GSObjectModel.least_squares_fit">[docs]</a>    <span class="k">def</span> <span class="nf">least_squares_fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Fit parameters of the given star using least-squares minimization.</span>
+
+<span class="sd">        :param star:    A Star to fit.</span>
+<span class="sd">        :param logger:  A logger object for logging debug info. [default: None]</span>
+
+<span class="sd">        :returns: (flux, dx, dy, scale, g1, g2, flag)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">logger</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">LoggerWrapper</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_params</span><span class="p">(</span><span class="n">star</span><span class="p">)</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_minimize</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">logger</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
+        <span class="n">flux</span><span class="p">,</span> <span class="n">du</span><span class="p">,</span> <span class="n">dv</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="n">g1</span><span class="p">,</span> <span class="n">g2</span> <span class="o">=</span> <span class="n">results</span><span class="o">.</span><span class="n">x</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">results</span><span class="o">.</span><span class="n">success</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Error finding the full nonlinear solution&quot;</span><span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">params_var</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">results</span><span class="o">.</span><span class="n">covar</span><span class="p">)</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">AttributeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Failed to get params_var&quot;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;  -- Caught exception: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">e</span><span class="p">)</span>
+            <span class="c1"># results.covar is either None or does not exist</span>
+            <span class="n">params_var</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">6</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">flux</span><span class="p">,</span> <span class="n">du</span><span class="p">,</span> <span class="n">dv</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="n">g1</span><span class="p">,</span> <span class="n">g2</span><span class="p">,</span> <span class="n">params_var</span></div>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">with_hsm</span><span class="p">(</span><span class="n">star</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">properties</span><span class="p">,</span> <span class="s1">&#39;hsm&#39;</span><span class="p">):</span>
+            <span class="n">flux</span><span class="p">,</span> <span class="n">cenu</span><span class="p">,</span> <span class="n">cenv</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">g1</span><span class="p">,</span> <span class="n">g2</span><span class="p">,</span> <span class="n">flag</span> <span class="o">=</span> <span class="n">hsm</span><span class="p">(</span><span class="n">star</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">flag</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Error initializing star fit values using hsm.&quot;</span><span class="p">)</span>
+            <span class="n">sd</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="n">sd</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s1">&#39;hsm&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">flux</span><span class="p">,</span> <span class="n">cenu</span><span class="p">,</span> <span class="n">cenv</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">g1</span><span class="p">,</span> <span class="n">g2</span>
+            <span class="k">return</span> <span class="n">Star</span><span class="p">(</span><span class="n">sd</span><span class="p">,</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">star</span>
+
+<div class="viewcode-block" id="GSObjectModel.fit"><a class="viewcode-back" href="../../model.html#piff.GSObjectModel.fit">[docs]</a>    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">fastfit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Fit the image either using HSM or least-squares minimization.</span>
+
+<span class="sd">        If `fastfit` is True, then the galsim.hsm module will be used to estimate the transformation</span>
+<span class="sd">        parameters that take the fiducial moments into the data moments.  If `fastfit` is False,</span>
+<span class="sd">        then the Levenberg-Marquardt minimization algorithm will be used instead.  The latter should</span>
+<span class="sd">        generally be more accurate, but slower due to the need to iteratively propose model</span>
+<span class="sd">        improvements.</span>
+
+<span class="sd">        :param star:    A Star to fit.</span>
+<span class="sd">        :param fastfit: Use fast HSM moments to fit? [default: None, which means use fitting mode</span>
+<span class="sd">                        specified in the constructor.]</span>
+<span class="sd">        :param logger:  A logger object for logging debug info. [default: None]</span>
+
+<span class="sd">        :returns: a new Star with the fitted parameters in star.fit</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">fastfit</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">fastfit</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fastfit</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">properties</span><span class="p">,</span> <span class="s1">&#39;hsm&#39;</span><span class="p">):</span>
+            <span class="n">star</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">initialize</span><span class="p">(</span><span class="n">star</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">fastfit</span><span class="p">:</span>
+            <span class="n">flux</span><span class="p">,</span> <span class="n">du</span><span class="p">,</span> <span class="n">dv</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="n">g1</span><span class="p">,</span> <span class="n">g2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">moment_fit</span><span class="p">(</span><span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
+            <span class="n">var</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">6</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">flux</span><span class="p">,</span> <span class="n">du</span><span class="p">,</span> <span class="n">dv</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="n">g1</span><span class="p">,</span> <span class="n">g2</span><span class="p">,</span> <span class="n">var</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">least_squares_fit</span><span class="p">(</span><span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
+        <span class="c1"># Make a StarFit object with these parameters</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_centered</span><span class="p">:</span>
+            <span class="n">params</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span> <span class="n">scale</span><span class="p">,</span> <span class="n">g1</span><span class="p">,</span> <span class="n">g2</span> <span class="p">])</span>
+            <span class="n">center</span> <span class="o">=</span> <span class="p">(</span><span class="n">du</span><span class="p">,</span> <span class="n">dv</span><span class="p">)</span>
+            <span class="n">params_var</span> <span class="o">=</span> <span class="n">var</span><span class="p">[</span><span class="mi">3</span><span class="p">:]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">params</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span> <span class="n">du</span><span class="p">,</span> <span class="n">dv</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="n">g1</span><span class="p">,</span> <span class="n">g2</span> <span class="p">])</span>
+            <span class="n">center</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+            <span class="n">params_var</span> <span class="o">=</span> <span class="n">var</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+
+        <span class="c1"># Also need to compute chisq</span>
+        <span class="n">prof</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getProfile</span><span class="p">(</span><span class="n">params</span><span class="p">)</span> <span class="o">*</span> <span class="n">flux</span>
+        <span class="n">model_image</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">prof</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span><span class="n">center</span><span class="p">)</span><span class="o">.</span><span class="n">drawImage</span><span class="p">(</span><span class="n">model_image</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_method</span><span class="p">,</span>
+                                     <span class="n">offset</span><span class="o">=</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">image_pos</span> <span class="o">-</span> <span class="n">model_image</span><span class="o">.</span><span class="n">true_center</span><span class="p">))</span>
+        <span class="n">chisq</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">weight</span><span class="o">.</span><span class="n">array</span> <span class="o">*</span> <span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">array</span> <span class="o">-</span> <span class="n">model_image</span><span class="o">.</span><span class="n">array</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">dof</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">weight</span><span class="o">.</span><span class="n">array</span><span class="p">)</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_nparams</span>
+        <span class="n">fit</span> <span class="o">=</span> <span class="n">StarFit</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">params_var</span><span class="o">=</span><span class="n">params_var</span><span class="p">,</span> <span class="n">flux</span><span class="o">=</span><span class="n">flux</span><span class="p">,</span> <span class="n">center</span><span class="o">=</span><span class="n">center</span><span class="p">,</span> <span class="n">chisq</span><span class="o">=</span><span class="n">chisq</span><span class="p">,</span> <span class="n">dof</span><span class="o">=</span><span class="n">dof</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Star</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">fit</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="GSObjectModel.initialize"><a class="viewcode-back" href="../../model.html#piff.GSObjectModel.initialize">[docs]</a>    <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initialize the given star&#39;s fit parameters.</span>
+
+<span class="sd">        :param star:  The Star to initialize.</span>
+<span class="sd">        :param logger:  A logger object for logging debug info. [default: None]</span>
+
+<span class="sd">        :returns: a new initialized Star.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">star</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">with_hsm</span><span class="p">(</span><span class="n">star</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">params</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_centered</span><span class="p">:</span>
+                <span class="n">params</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">])</span>
+                <span class="n">params_var</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">params</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">])</span>
+                <span class="n">params_var</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">])</span>
+            <span class="n">fit</span> <span class="o">=</span> <span class="n">StarFit</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">flux</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">center</span><span class="o">=</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span> <span class="n">params_var</span><span class="o">=</span><span class="n">params_var</span><span class="p">)</span>
+            <span class="n">star</span> <span class="o">=</span> <span class="n">Star</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">fit</span><span class="p">)</span>
+            <span class="n">star</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">star</span><span class="p">,</span> <span class="n">fastfit</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">star</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reflux</span><span class="p">(</span><span class="n">star</span><span class="p">,</span> <span class="n">fit_center</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">star</span></div>
+
+<div class="viewcode-block" id="GSObjectModel.reflux"><a class="viewcode-back" href="../../model.html#piff.GSObjectModel.reflux">[docs]</a>    <span class="k">def</span> <span class="nf">reflux</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">fit_center</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Fit the Model to the star&#39;s data, varying only the flux (and</span>
+<span class="sd">        center, if it is free).  Flux and center are updated in the Star&#39;s</span>
+<span class="sd">        attributes.  This is a single-step solution if only solving for flux,</span>
+<span class="sd">        otherwise an iterative operation.  DOF in the result assume</span>
+<span class="sd">        only flux (&amp; center) are free parameters.</span>
+
+<span class="sd">        :param star:        A Star instance</span>
+<span class="sd">        :param fit_center:  If False, disable any motion of center</span>
+<span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
+
+<span class="sd">        :returns:           New Star instance, with updated flux, center, chisq, dof</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">logger</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">LoggerWrapper</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Reflux for star:&quot;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;    flux = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">flux</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;    center = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">center</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;    props = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">properties</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;    image = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">image</span><span class="p">)</span>
+        <span class="c1">#logger.debug(&quot;    image = %s&quot;,star.data.image.array)</span>
+        <span class="c1">#logger.debug(&quot;    weight = %s&quot;,star.data.weight.array)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;    image center = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">image</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">center</span><span class="p">))</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;    weight center = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">weight</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">weight</span><span class="o">.</span><span class="n">center</span><span class="p">))</span>
+
+        <span class="n">image</span><span class="p">,</span> <span class="n">weight</span><span class="p">,</span> <span class="n">u</span><span class="p">,</span> <span class="n">v</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">getDataVector</span><span class="p">(</span><span class="n">include_zero_weight</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">draw</span><span class="p">(</span><span class="n">star</span><span class="p">)</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">array</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+
+        <span class="n">WIM</span> <span class="o">=</span> <span class="n">weight</span> <span class="o">*</span> <span class="n">image</span> <span class="o">*</span> <span class="n">model</span>
+        <span class="n">WMM</span> <span class="o">=</span> <span class="n">weight</span> <span class="o">*</span> <span class="n">model</span><span class="o">**</span><span class="mi">2</span>
+
+        <span class="n">f_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WIM</span><span class="p">)</span>
+        <span class="n">f_model</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WMM</span><span class="p">)</span>
+        <span class="n">flux_ratio</span> <span class="o">=</span> <span class="n">f_data</span> <span class="o">/</span> <span class="n">f_model</span>
+
+        <span class="k">if</span> <span class="n">fit_center</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_centered</span><span class="p">:</span>
+            <span class="n">ushift</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WIM</span> <span class="o">*</span> <span class="n">u</span><span class="p">)</span><span class="o">/</span><span class="n">f_data</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WMM</span> <span class="o">*</span> <span class="n">u</span><span class="p">)</span><span class="o">/</span><span class="n">f_model</span>
+            <span class="n">vshift</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WIM</span> <span class="o">*</span> <span class="n">v</span><span class="p">)</span><span class="o">/</span><span class="n">f_data</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WMM</span> <span class="o">*</span> <span class="n">v</span><span class="p">)</span><span class="o">/</span><span class="n">f_model</span>
+            <span class="n">new_center</span> <span class="o">=</span> <span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">center</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">ushift</span><span class="p">,</span>
+                          <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">center</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">vshift</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">new_center</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">center</span>
+
+        <span class="c1"># new_chisq ignores centroid shift, but close enough.</span>
+        <span class="n">new_chisq</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">weight</span> <span class="o">*</span> <span class="p">(</span><span class="n">image</span> <span class="o">-</span> <span class="n">flux_ratio</span><span class="o">*</span><span class="n">model</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">Star</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">StarFit</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">params</span><span class="p">,</span>
+                                       <span class="n">flux</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">flux</span> <span class="o">*</span> <span class="n">flux_ratio</span><span class="p">,</span>
+                                       <span class="n">center</span> <span class="o">=</span> <span class="n">new_center</span><span class="p">,</span>
+                                       <span class="n">chisq</span> <span class="o">=</span> <span class="n">new_chisq</span><span class="p">,</span>
+                                       <span class="n">dof</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span><span class="n">weight</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span>
+                                       <span class="n">params_var</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">params_var</span><span class="p">))</span></div></div>
+
+
+<div class="viewcode-block" id="Gaussian"><a class="viewcode-back" href="../../model.html#piff.Gaussian">[docs]</a><span class="k">class</span> <span class="nc">Gaussian</span><span class="p">(</span><span class="n">GSObjectModel</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Model PSFs as elliptical Gaussians.</span>
+
+<span class="sd">    :param fastfit:     Use HSM moments for fitting.  Approximate, but fast.  [default: False]</span>
+<span class="sd">    :param centered:    If True, PSF model centroid is forced to be (0,0), and the</span>
+<span class="sd">                        PSF fitting will marginalize over stellar position.  If False, stellar</span>
+<span class="sd">                        position is fixed at input value and the fitted PSF may be off-center.</span>
+<span class="sd">                        [default: True]</span>
+<span class="sd">    :param include_pixel: Include integration over pixel?  [default: True]</span>
+<span class="sd">    :param logger:      A logger object for logging debug info. [default: None]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fastfit</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">centered</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">include_pixel</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">gsobj</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">Gaussian</span><span class="p">(</span><span class="n">sigma</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
+        <span class="n">GSObjectModel</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gsobj</span><span class="p">,</span> <span class="n">fastfit</span><span class="p">,</span> <span class="n">centered</span><span class="p">,</span> <span class="n">include_pixel</span><span class="p">,</span> <span class="n">logger</span><span class="p">)</span>
+        <span class="c1"># We&#39;d need self.kwargs[&#39;gsobj&#39;] if we were reconstituting via the GSObjectModel</span>
+        <span class="c1"># constructor, but since config[&#39;type&#39;] for this will be Gaussian, it gets reconstituted</span>
+        <span class="c1"># here, where there is no `gsobj` argument.  So remove `gsobj` from kwargs.</span>
+        <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;gsobj&#39;</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="Kolmogorov"><a class="viewcode-back" href="../../model.html#piff.Kolmogorov">[docs]</a><span class="k">class</span> <span class="nc">Kolmogorov</span><span class="p">(</span><span class="n">GSObjectModel</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Model PSFs as elliptical Kolmogorovs.</span>
+
+<span class="sd">    :param fastfit:     Use HSM moments for fitting.  Approximate, but fast.  [default: False]</span>
+<span class="sd">    :param centered:    If True, PSF model centroid is forced to be (0,0), and the</span>
+<span class="sd">                        PSF fitting will marginalize over stellar position.  If False, stellar</span>
+<span class="sd">                        position is fixed at input value and the fitted PSF may be off-center.</span>
+<span class="sd">                        [default: True]</span>
+<span class="sd">    :param include_pixel: Include integration over pixel?  [default: True]</span>
+<span class="sd">    :param logger:      A logger object for logging debug info. [default: None]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fastfit</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">centered</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">include_pixel</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">gsobj</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">Kolmogorov</span><span class="p">(</span><span class="n">half_light_radius</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
+        <span class="n">GSObjectModel</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gsobj</span><span class="p">,</span> <span class="n">fastfit</span><span class="p">,</span> <span class="n">centered</span><span class="p">,</span> <span class="n">include_pixel</span><span class="p">,</span> <span class="n">logger</span><span class="p">)</span>
+        <span class="c1"># We&#39;d need self.kwargs[&#39;gsobj&#39;] if we were reconstituting via the GSObjectModel</span>
+        <span class="c1"># constructor, but since config[&#39;type&#39;] for this will be Kolmogorov, it gets reconstituted</span>
+        <span class="c1"># here, where there is no `gsobj` argument.  So remove `gsobj` from kwargs.</span>
+        <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;gsobj&#39;</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="Moffat"><a class="viewcode-back" href="../../model.html#piff.Moffat">[docs]</a><span class="k">class</span> <span class="nc">Moffat</span><span class="p">(</span><span class="n">GSObjectModel</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Model PSFs as elliptical Moffats.</span>
+
+<span class="sd">    :param beta:        Moffat shape parameter.</span>
+<span class="sd">    :param trunc:       Optional truncation radius at which profile drops to zero.  Measured in half</span>
+<span class="sd">                        light radii.  [default: 0, indicating no truncation]</span>
+<span class="sd">    :param fastfit:     Use HSM moments for fitting.  Approximate, but fast.  [default: False]</span>
+<span class="sd">    :param centered:    If True, PSF model centroid is forced to be (0,0), and the</span>
+<span class="sd">                        PSF fitting will marginalize over stellar position.  If False, stellar</span>
+<span class="sd">                        position is fixed at input value and the fitted PSF may be off-center.</span>
+<span class="sd">                        [default: True]</span>
+<span class="sd">    :param include_pixel: Include integration over pixel?  [default: True]</span>
+<span class="sd">    :param logger:      A logger object for logging debug info. [default: None]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">beta</span><span class="p">,</span> <span class="n">trunc</span><span class="o">=</span><span class="mf">0.</span><span class="p">,</span> <span class="n">fastfit</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">centered</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">include_pixel</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                 <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">gsobj</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">Moffat</span><span class="p">(</span><span class="n">half_light_radius</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">beta</span><span class="o">=</span><span class="n">beta</span><span class="p">,</span> <span class="n">trunc</span><span class="o">=</span><span class="n">trunc</span><span class="p">)</span>
+        <span class="n">GSObjectModel</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gsobj</span><span class="p">,</span> <span class="n">fastfit</span><span class="p">,</span> <span class="n">centered</span><span class="p">,</span> <span class="n">include_pixel</span><span class="p">,</span> <span class="n">logger</span><span class="p">)</span>
+        <span class="c1"># We&#39;d need self.kwargs[&#39;gsobj&#39;] if we were reconstituting via the GSObjectModel</span>
+        <span class="c1"># constructor, but since config[&#39;type&#39;] for this will be Moffat, it gets reconstituted</span>
+        <span class="c1"># here, where there is no `gsobj` argument.  So remove `gsobj` from kwargs.</span>
+        <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;gsobj&#39;</span><span class="p">]</span>
+        <span class="c1"># Need to add `beta` and `trunc` though.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="nb">dict</span><span class="p">(</span><span class="n">beta</span><span class="o">=</span><span class="n">beta</span><span class="p">,</span> <span class="n">trunc</span><span class="o">=</span><span class="n">trunc</span><span class="p">))</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">Piff 0.4.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2019.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 2.1.2.
+    </div>
+  </body>
+</html>

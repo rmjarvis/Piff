@@ -183,13 +183,13 @@ def test_single_image():
     assert input.cat_file_name == [ cat_file ]
 
     # Check image
-    assert len(input.images) == 1
-    np.testing.assert_equal(input.images[0].array, image.array)
+    assert input.nimages == 1
+    image1, _, image_pos, _, _, _ = input.getRawImageData(0)
+    np.testing.assert_equal(image1.array, image.array)
 
     # Check catalog
-    assert len(input.image_pos) == 1
-    np.testing.assert_equal([pos.x for pos in input.image_pos[0]], x_list)
-    np.testing.assert_equal([pos.y for pos in input.image_pos[0]], y_list)
+    np.testing.assert_equal([pos.x for pos in image_pos], x_list)
+    np.testing.assert_equal([pos.y for pos in image_pos], y_list)
 
     # Repeat, using flag columns this time.
     config = { 'image_file_name' : image_file,
@@ -199,9 +199,9 @@ def test_single_image():
                'skip_flag': '4',
                'stamp_size': 48 }
     input = piff.InputFiles(config, logger=logger)
-    print('pos = ',input.image_pos)
-    print('pos[0] = ',input.image_pos[0])
-    assert len(input.image_pos[0]) == 7
+    assert input.nimages == 1
+    _, _, image_pos, _, _, _ = input.getRawImageData(0)
+    assert len(image_pos) == 7
 
     # Make star data
     orig_stars = input.makeStars()
@@ -233,6 +233,13 @@ def test_single_image():
     test_star = interp.interpolate(target)
     np.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=4)
 
+    # Check default values of options
+    psf = piff.SimplePSF(model, interp)
+    assert psf.chisq_thresh == 0.1
+    assert psf.max_iter == 30
+    assert psf.outliers == None
+    assert psf.extra_interp_properties == []
+
     # Now test running it via the config parser
     psf_file = os.path.join('output','simple_psf.fits')
     config = {
@@ -249,13 +256,18 @@ def test_single_image():
                         'fastfit': True,
                         'include_pixel': False},
             'interp' : { 'type' : 'Mean' },
+            'max_iter' : 10,
+            'chisq_thresh' : 0.2,
         },
         'output' : { 'file_name' : psf_file },
     }
     orig_stars, wcs, pointing = piff.Input.process(config['input'], logger)
 
     # Use a SimplePSF to process the stars data this time.
-    psf = piff.SimplePSF(model, interp)
+    interp = piff.Mean()
+    psf = piff.SimplePSF(model, interp, max_iter=10, chisq_thresh=0.2)
+    assert psf.chisq_thresh == 0.2
+    assert psf.max_iter == 10
 
     psf.fit(orig_stars, wcs, pointing, logger=logger)
     test_star = psf.interp.interpolate(target)
@@ -299,7 +311,8 @@ def test_single_image():
     assert type(psf2.interp) is piff.Mean
     assert psf2.chisq == psf.chisq
     assert psf2.last_delta_chisq == psf.last_delta_chisq
-    assert psf2.chisq_threshold == psf.chisq_threshold
+    assert psf2.chisq_thresh == psf.chisq_thresh
+    assert psf2.max_iter == psf.max_iter
     assert psf2.dof == psf.dof
     assert psf2.nremoved == psf.nremoved
     test_star = psf2.interp.interpolate(target)
@@ -309,8 +322,16 @@ def test_single_image():
     os.remove(psf_file)
 
     piff.piffify(config, logger)
-    psf = piff.read(psf_file)
-    test_star = psf.interp.interpolate(target)
+    psf3 = piff.read(psf_file)
+    assert type(psf3.model) is piff.Gaussian
+    assert type(psf3.interp) is piff.Mean
+    assert psf3.chisq == psf.chisq
+    assert psf3.last_delta_chisq == psf.last_delta_chisq
+    assert psf3.chisq_thresh == psf.chisq_thresh
+    assert psf3.max_iter == psf.max_iter
+    assert psf3.dof == psf.dof
+    assert psf3.nremoved == psf.nremoved
+    test_star = psf3.interp.interpolate(target)
     np.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=4)
 
     # Test using the piffify executable
@@ -326,8 +347,16 @@ def test_single_image():
     piffify_exe = get_script_name('piffify')
     p = subprocess.Popen( [piffify_exe, 'simple.yaml'] )
     p.communicate()
-    psf = piff.read(psf_file)
-    test_star = psf.interp.interpolate(target)
+    psf4 = piff.read(psf_file)
+    assert type(psf4.model) is piff.Gaussian
+    assert type(psf4.interp) is piff.Mean
+    assert psf4.chisq == psf.chisq
+    assert psf4.last_delta_chisq == psf.last_delta_chisq
+    assert psf4.chisq_thresh == psf.chisq_thresh
+    assert psf4.max_iter == psf.max_iter
+    assert psf4.dof == psf.dof
+    assert psf4.nremoved == psf.nremoved
+    test_star = psf4.interp.interpolate(target)
     np.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=4)
 
 if __name__ == '__main__':

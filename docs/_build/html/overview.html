@@ -1,0 +1,208 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>PIFF: PSFs In the Full FOV &#8212; Piff 0.4.0 documentation</title>
+    <link rel="stylesheet" href="_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/language_data.js"></script>
+    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="The piffify executable" href="piffify.html" />
+    <link rel="prev" title="Piff Documentation" href="index.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="piffify.html" title="The piffify executable"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Piff Documentation"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Piff 0.4.0 documentation</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="piff-psfs-in-the-full-fov">
+<h1>PIFF: PSFs In the Full FOV<a class="headerlink" href="#piff-psfs-in-the-full-fov" title="Permalink to this headline">¶</a></h1>
+<p>Piff is a Python software package for modeling the point-spread function (PSF)
+across multiple detectors in the full field of view (FOV).</p>
+<p>Features: (Some are aspirational.  We’re still working on the code!)</p>
+<ul class="simple">
+<li><p>Has multiple basis sets for the underlying PSF model, including pixel-based,
+shapelets, Gaussian mixture, maybe also Moffat and/or Kolmogorov.</p></li>
+<li><p>Can build the models in either chip or sky coordinates, properly accounting
+for the WCS of the image.</p></li>
+<li><p>Can interpolate across the full field-of-view, or across each chip separately,
+or a combination of both.</p></li>
+<li><p>Can do the fitting in either real or Fourier space.</p></li>
+<li><p>Has multiple interpolation functions including polynomials, gaussian processes,
+and others.</p></li>
+<li><p>Can take knowledge of the optical aberrations as input to convolve the model
+of the atmospheric PSF.</p></li>
+<li><p>Performs outlier rejection to detect and remove stars that are not good
+exemplars of the PSF.  Outputs the list of stars that were actually used
+to build the final model.</p></li>
+<li><p>Allows the centroid to be fixed or floating.</p></li>
+<li><p>In general, allow any value to be fixed rather than fit for.</p></li>
+<li><p>Uses highly readable YAML configuration files to set the various options.</p></li>
+<li><p>Includes Python code to read in the PSF files and use it to draw an image
+of the PSF at an arbitrary location.</p></li>
+<li><p>Currently, the lead developers are:
+- Mike Jarvis (mikejarvis17 at gmail)
+- Josh Meyers (jmeyers314 at gmail)
+- Pierre-Francois Leget (leget at stanford)
+- Chris Davis (chris.pa.davis at gmail)
+If you’d like to join the development effort, or if you have any other
+questions or comments about the code, feel free to contact us at the above
+email addresses.</p></li>
+</ul>
+<div class="section" id="installation">
+<h2>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h2>
+<p>The easiest way to install Piff is with pip:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip</span> <span class="n">install</span> <span class="n">piff</span>
+</pre></div>
+</div>
+<p>If you have previously installed Piff and want to uprade to a new released version,
+you should do:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip</span> <span class="n">install</span> <span class="n">piff</span> <span class="o">--</span><span class="n">upgrade</span>
+</pre></div>
+</div>
+<p>Depending on the write permissions of the python distribution for your specific
+system, you might need to use one of the following variants:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sudo</span> <span class="n">pip</span> <span class="n">install</span> <span class="n">piff</span>
+<span class="n">pip</span> <span class="n">install</span> <span class="n">piff</span> <span class="o">--</span><span class="n">user</span>
+</pre></div>
+</div>
+<p>The latter installs the Python module into <code class="docutils literal notranslate"><span class="pre">~/.local/lib/python3.7/site-packages</span></code>,
+which is normally already in your PYTHONPATH, but it puts the executables
+<code class="docutils literal notranslate"><span class="pre">piffify</span></code> and <code class="docutils literal notranslate"><span class="pre">meanify</span></code> into <code class="docutils literal notranslate"><span class="pre">~/.local/bin</span></code> which is probably not in your PATH.
+To use these scripts, you should add this directory to your PATH.  If you would
+rather install into a different prefix rather than ~/.local, you can use:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip</span> <span class="n">install</span> <span class="n">piff</span> <span class="o">--</span><span class="n">install</span><span class="o">-</span><span class="n">option</span><span class="o">=</span><span class="s2">&quot;--prefix=PREFIX&quot;</span>
+</pre></div>
+</div>
+<p>This would install the executables into <code class="docutils literal notranslate"><span class="pre">PREFIX/bin</span></code> and the Python module
+into <code class="docutils literal notranslate"><span class="pre">PREFIX/lib/python3.7/site-packages</span></code>.</p>
+<p>If you need the bleeding edge version on master, you can download or clone
+the repo and install with:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip</span> <span class="n">install</span> <span class="o">-</span><span class="n">r</span> <span class="n">requirements</span><span class="o">.</span><span class="n">txt</span>
+<span class="n">python</span> <span class="n">setup</span><span class="o">.</span><span class="n">py</span> <span class="n">install</span>
+</pre></div>
+</div>
+<p>Depending on your setup, you might prefer/need one of these variants:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sudo</span> <span class="n">python</span> <span class="n">setup</span><span class="o">.</span><span class="n">py</span> <span class="n">install</span>
+<span class="n">python</span> <span class="n">setup</span><span class="o">.</span><span class="n">py</span> <span class="n">install</span> <span class="o">--</span><span class="n">user</span>
+<span class="n">python</span> <span class="n">setup</span><span class="o">.</span><span class="n">py</span> <span class="n">install</span> <span class="o">--</span><span class="n">prefix</span><span class="o">=</span><span class="n">PREFIX</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="running-tests">
+<h2>Running Tests<a class="headerlink" href="#running-tests" title="Permalink to this headline">¶</a></h2>
+<p>After installing Piff, you can run the unit tests by doing:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cd</span> <span class="n">tests</span>
+<span class="n">nosetests</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="reporting-bugs">
+<h2>Reporting bugs<a class="headerlink" href="#reporting-bugs" title="Permalink to this headline">¶</a></h2>
+<p>If you have any trouble installing or using the code, or if you find a bug,
+please report it at:</p>
+<p><a class="reference external" href="https://github.com/rmjarvis/Piff/issues">https://github.com/rmjarvis/Piff/issues</a></p>
+<p>Click “New Issue”, which will open up a form for you to fill in with the
+details of the problem you are having.</p>
+</div>
+<div class="section" id="requesting-features">
+<h2>Requesting features<a class="headerlink" href="#requesting-features" title="Permalink to this headline">¶</a></h2>
+<p>If you would like to request a new feature, do the same thing.  Open a new
+issue and fill in the details of the feature you would like added to Piff.
+Or if there is already an issue for your desired feature, please add to the
+discussion, describing your use case.  The more people who say they want a
+feature, the more likely we are to get around to it sooner than later.</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">PIFF: PSFs In the Full FOV</a><ul>
+<li><a class="reference internal" href="#installation">Installation</a></li>
+<li><a class="reference internal" href="#running-tests">Running Tests</a></li>
+<li><a class="reference internal" href="#reporting-bugs">Reporting bugs</a></li>
+<li><a class="reference internal" href="#requesting-features">Requesting features</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="index.html"
+                        title="previous chapter">Piff Documentation</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="piffify.html"
+                        title="next chapter">The piffify executable</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/overview.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="piffify.html" title="The piffify executable"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Piff Documentation"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Piff 0.4.0 documentation</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2019.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 2.1.2.
+    </div>
+  </body>
+</html>

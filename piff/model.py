@@ -197,6 +197,9 @@ class Model(object):
 
         kwargs = read_kwargs(fits, extname)
         kwargs.pop('type',None)
+        if 'force_model_center' in kwargs: # pragma: no cover
+            # old version of this parameter name.
+            kwargs['centered'] = kwargs.pop('force_model_center')
         model = model_cls(**kwargs)
         model._finish_read(fits, extname)
         return model

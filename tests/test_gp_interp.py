@@ -24,10 +24,6 @@ from sklearn.model_selection import train_test_split
 
 from piff_test_helper import get_script_name, timer
 
-#TO REMOVE:
-import pylab as plt
-
-
 kolmogorov = galsim.Kolmogorov(half_light_radius=1., flux=1.)
 
 def return_var_map(weight, xi):
@@ -45,6 +41,11 @@ def return_var_map(weight, xi):
     if N%2 == 1:
         VAR[N/2, N/2] /= 2.
     return VAR
+
+
+fiducial_kolmogorov = galsim.Kolmogorov(half_light_radius=1.0)
+mod = piff.GSObjectModel(fiducial_kolmogorov, centered=False, include_pixel=False,
+                         fastfit=True)
 
 
 def get_correlation_length_matrix(correlation_length, g1, g2):

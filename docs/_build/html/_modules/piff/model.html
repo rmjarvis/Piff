@@ -1,0 +1,291 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>piff.model &#8212; Piff 0.4.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../_static/language_data.js"></script>
+    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">Piff 0.4.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for piff.model</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright (c) 2016 by Mike Jarvis and the other collaborators on GitHub at</span>
+<span class="c1"># https://github.com/rmjarvis/Piff  All rights reserved.</span>
+<span class="c1">#</span>
+<span class="c1"># Piff is free software: Redistribution and use in source and binary forms</span>
+<span class="c1"># with or without modification, are permitted provided that the following</span>
+<span class="c1"># conditions are met:</span>
+<span class="c1">#</span>
+<span class="c1"># 1. Redistributions of source code must retain the above copyright notice, this</span>
+<span class="c1">#    list of conditions and the disclaimer given in the accompanying LICENSE</span>
+<span class="c1">#    file.</span>
+<span class="c1"># 2. Redistributions in binary form must reproduce the above copyright notice,</span>
+<span class="c1">#    this list of conditions and the disclaimer given in the documentation</span>
+<span class="c1">#    and/or other materials provided with the distribution.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">.. module:: model</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">print_function</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">from</span> <span class="nn">.util</span> <span class="kn">import</span> <span class="n">write_kwargs</span><span class="p">,</span> <span class="n">read_kwargs</span>
+<span class="kn">from</span> <span class="nn">.star</span> <span class="kn">import</span> <span class="n">Star</span><span class="p">,</span> <span class="n">StarData</span>
+
+
+<span class="c1"># Raise this if there&#39;s a failure in the Model.fit() method.</span>
+<span class="k">class</span> <span class="nc">ModelFitError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+
+<div class="viewcode-block" id="Model"><a class="viewcode-back" href="../../model.html#piff.Model">[docs]</a><span class="k">class</span> <span class="nc">Model</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;The base class for modeling a single PSF (i.e. no interpolation yet)</span>
+
+<span class="sd">    This is essentially an abstract base class intended to define the methods that should be</span>
+<span class="sd">    implemented by any derived class.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+<div class="viewcode-block" id="Model.process"><a class="viewcode-back" href="../../model.html#piff.Model.process">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">config_model</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Parse the model field of the config dict.</span>
+
+<span class="sd">        :param config_model:    The configuration dict for the model field.</span>
+<span class="sd">        :param logger:          A logger object for logging debug info. [default: None]</span>
+
+<span class="sd">        :returns: a Model instance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">import</span> <span class="nn">piff</span>
+
+        <span class="k">if</span> <span class="s1">&#39;type&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">config_model</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;config[&#39;model&#39;] has no type field&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Get the class to use for the model</span>
+        <span class="c1"># Not sure if this is what we&#39;ll always want, but it would be simple if we can make it work.</span>
+        <span class="n">model_class</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">piff</span><span class="p">,</span> <span class="n">config_model</span><span class="p">[</span><span class="s1">&#39;type&#39;</span><span class="p">])</span>
+
+        <span class="c1"># Read any other kwargs in the model field</span>
+        <span class="n">kwargs</span> <span class="o">=</span> <span class="n">model_class</span><span class="o">.</span><span class="n">parseKwargs</span><span class="p">(</span><span class="n">config_model</span><span class="p">,</span> <span class="n">logger</span><span class="p">)</span>
+
+        <span class="c1"># Build model object</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">model_class</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">model</span></div>
+
+<div class="viewcode-block" id="Model.parseKwargs"><a class="viewcode-back" href="../../model.html#piff.Model.parseKwargs">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">parseKwargs</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">config_model</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Parse the model field of a configuration dict and return the kwargs to use for</span>
+<span class="sd">        initializing an instance of the class.</span>
+
+<span class="sd">        The base class implementation just returns the kwargs as they are, but derived classes</span>
+<span class="sd">        might want to override this if they need to do something more sophisticated with them.</span>
+
+<span class="sd">        :param config_model:    The model field of the configuration dict, config[&#39;model&#39;]</span>
+<span class="sd">        :param logger:          A logger object for logging debug info. [default: None]</span>
+
+<span class="sd">        :returns: a kwargs dict to pass to the initializer</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">kwargs</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">config_model</span><span class="p">)</span>
+        <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;type&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">kwargs</span></div>
+
+<div class="viewcode-block" id="Model.initialize"><a class="viewcode-back" href="../../model.html#piff.Model.initialize">[docs]</a>    <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initialize a star to work with the current model.</span>
+
+<span class="sd">        :param star:    A Star instance with the raw data.</span>
+<span class="sd">        :param logger:  A logger object for logging debug info. [default: None]</span>
+
+<span class="sd">        :returns:       Star instance with the appropriate initial fit values</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># If implemented, update the flux to something close to right.</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;reflux&#39;</span><span class="p">):</span>
+            <span class="n">star</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reflux</span><span class="p">(</span><span class="n">star</span><span class="p">,</span> <span class="n">fit_center</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">star</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">withFlux</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">array</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">star</span></div>
+
+<div class="viewcode-block" id="Model.normalize"><a class="viewcode-back" href="../../model.html#piff.Model.normalize">[docs]</a>    <span class="k">def</span> <span class="nf">normalize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Make sure star.fit.params are normalized properly.</span>
+
+<span class="sd">        Note: This modifies the input star in place.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># This is by default a no op.  Some models may need to do something to noramlize the</span>
+        <span class="c1"># parameter values in star.fit.</span>
+        <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="Model.fit"><a class="viewcode-back" href="../../model.html#piff.Model.fit">[docs]</a>    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Fit the Model to the star&#39;s data to yield iterative improvement on</span>
+<span class="sd">        its PSF parameters, their uncertainties, and flux (and center, if free).</span>
+<span class="sd">        The returned star.fit.alpha will be inverse covariance of solution if</span>
+<span class="sd">        it is estimated, else is None.</span>
+
+<span class="sd">        :param star:   A Star instance</span>
+
+<span class="sd">        :returns:      New Star instance with updated fit information</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Derived classes must define the fit function&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Model.draw"><a class="viewcode-back" href="../../model.html#piff.Model.draw">[docs]</a>    <span class="k">def</span> <span class="nf">draw</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">copy_image</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Draw the model on the given image.</span>
+
+<span class="sd">        :param star:        A Star instance with the fitted parameters to use for drawing and a</span>
+<span class="sd">                            data field that acts as a template image for the drawn model.</span>
+<span class="sd">        :param copy_image:  If False, will use the same image object.</span>
+<span class="sd">                            If True, will copy the image and then overwrite it.</span>
+<span class="sd">                            [default: True]</span>
+
+<span class="sd">        :returns: a new Star instance with the data field having an image of the drawn model.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">prof</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getProfile</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">params</span><span class="p">)</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">center</span><span class="p">)</span> <span class="o">*</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">flux</span>
+        <span class="k">if</span> <span class="n">copy_image</span><span class="p">:</span>
+            <span class="n">image</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">image</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">image</span>
+        <span class="n">prof</span><span class="o">.</span><span class="n">drawImage</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_method</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">image_pos</span><span class="o">-</span><span class="n">image</span><span class="o">.</span><span class="n">true_center</span><span class="p">))</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">StarData</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">star</span><span class="o">.</span><span class="n">image_pos</span><span class="p">,</span> <span class="n">star</span><span class="o">.</span><span class="n">weight</span><span class="p">,</span> <span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">pointing</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Star</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Model.write"><a class="viewcode-back" href="../../model.html#piff.Model.write">[docs]</a>    <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Write a Model to a FITS file.</span>
+
+<span class="sd">        Note: this only writes the initialization kwargs to the fits extension, not the parameters.</span>
+
+<span class="sd">        The base class implemenation works if the class has a self.kwargs attribute and these</span>
+<span class="sd">        are all simple values (str, float, or int)</span>
+
+<span class="sd">        :param fits:        An open fitsio.FITS object</span>
+<span class="sd">        :param extname:     The name of the extension to write the model information.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># First write the basic kwargs that works for all Model classes</span>
+        <span class="n">model_type</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span>
+        <span class="n">write_kwargs</span><span class="p">(</span><span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="n">model_type</span><span class="p">))</span>
+
+        <span class="c1"># Now do any class-specific steps.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_finish_write</span><span class="p">(</span><span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_finish_write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Finish the writing process with any class-specific steps.</span>
+
+<span class="sd">        The base class implementation doesn&#39;t do anything, which is often appropriate, but</span>
+<span class="sd">        this hook exists in case any Model classes need to write extra information to the</span>
+<span class="sd">        fits file.</span>
+
+<span class="sd">        :param fits:        An open fitsio.FITS object</span>
+<span class="sd">        :param extname:     The base name of the extension</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span>
+
+<div class="viewcode-block" id="Model.read"><a class="viewcode-back" href="../../model.html#piff.Model.read">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">read</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Read a Model from a FITS file.</span>
+
+<span class="sd">        Note: the returned Model will not have its parameters set.  This just initializes a fresh</span>
+<span class="sd">        model that can be used to interpret interpolated vectors.</span>
+
+<span class="sd">        :param fits:        An open fitsio.FITS object</span>
+<span class="sd">        :param extname:     The name of the extension with the model information.</span>
+
+<span class="sd">        :returns: a model built with a information in the FITS file.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">import</span> <span class="nn">piff</span>
+
+        <span class="k">assert</span> <span class="n">extname</span> <span class="ow">in</span> <span class="n">fits</span>
+        <span class="k">assert</span> <span class="s1">&#39;type&#39;</span> <span class="ow">in</span> <span class="n">fits</span><span class="p">[</span><span class="n">extname</span><span class="p">]</span><span class="o">.</span><span class="n">get_colnames</span><span class="p">()</span>
+        <span class="n">model_type</span> <span class="o">=</span> <span class="n">fits</span><span class="p">[</span><span class="n">extname</span><span class="p">]</span><span class="o">.</span><span class="n">read</span><span class="p">()[</span><span class="s1">&#39;type&#39;</span><span class="p">]</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">model_type</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">model_type</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">model_type</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">decode</span><span class="p">())</span>
+        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+            <span class="c1"># fitsio 1.0 returns strings</span>
+            <span class="n">model_type</span> <span class="o">=</span> <span class="n">model_type</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="c1"># Check that model_type is a valid Model type.</span>
+        <span class="n">model_classes</span> <span class="o">=</span> <span class="n">piff</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">get_all_subclasses</span><span class="p">(</span><span class="n">piff</span><span class="o">.</span><span class="n">Model</span><span class="p">)</span>
+        <span class="n">valid_model_types</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">([</span> <span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="n">c</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">model_classes</span> <span class="p">])</span>
+        <span class="k">if</span> <span class="n">model_type</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">valid_model_types</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;model type </span><span class="si">%s</span><span class="s2"> is not a valid Piff Model&quot;</span><span class="o">%</span><span class="n">model_type</span><span class="p">)</span>
+        <span class="n">model_cls</span> <span class="o">=</span> <span class="n">valid_model_types</span><span class="p">[</span><span class="n">model_type</span><span class="p">]</span>
+
+        <span class="n">kwargs</span> <span class="o">=</span> <span class="n">read_kwargs</span><span class="p">(</span><span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">)</span>
+        <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;type&#39;</span><span class="p">,</span><span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s1">&#39;force_model_center&#39;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span> <span class="c1"># pragma: no cover</span>
+            <span class="c1"># old version of this parameter name.</span>
+            <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;centered&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;force_model_center&#39;</span><span class="p">)</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">model_cls</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">model</span><span class="o">.</span><span class="n">_finish_read</span><span class="p">(</span><span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">model</span></div>
+
+    <span class="k">def</span> <span class="nf">_finish_read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Finish the reading process with any class-specific steps.</span>
+
+<span class="sd">        The base class implementation doesn&#39;t do anything, which is often appropriate, but</span>
+<span class="sd">        this hook exists in case any Model classes need to read extra information from the</span>
+<span class="sd">        fits file.</span>
+
+<span class="sd">        :param fits:        An open fitsio.FITS object.</span>
+<span class="sd">        :param extname:     The base name of the extension.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">Piff 0.4.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2019.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 2.1.2.
+    </div>
+  </body>
+</html>

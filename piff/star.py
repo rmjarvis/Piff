@@ -223,22 +223,19 @@ class Star(object):
         if image is None:
             image = galsim.Image(stamp_size, stamp_size, dtype=float)
 
+        # Make field_pos if we have u,v
+        if u is not None:
+            field_pos = galsim.PositionD(float(u),float(v))
+        else:
+            field_pos = None
+
         # Figure out the image_pos
         if x is None:
-            field_pos = galsim.PositionD(float(u),float(v))
             image_pos = wcs.toImage(field_pos)
             x = image_pos.x
             y = image_pos.y
         else:
             image_pos = galsim.PositionD(float(x),float(y))
-
-        # Make wcs locally accurate affine transformation
-        if x is not None:
-            if u is not None:
-                field_pos = galsim.PositionD(float(u),float(v))
-                wcs = wcs.local(image_pos).withOrigin(image_pos, field_pos)
-            else:
-                field_pos = None
 
         # Make the center of the image (close to) the image_pos
         image.setCenter(int(x+0.5), int(y+0.5))
@@ -261,7 +258,6 @@ class Star(object):
         :param fits:        An open fitsio.FITS object
         :param extname:     The name of the extension to write to
         """
-        import galsim
         # TODO This doesn't write everything out.  Probably want image as an optional I/O.
 
         cols = []
@@ -331,7 +327,6 @@ class Star(object):
 
         :returns: the arrays coords and params
         """
-        import galsim
         if extname not in fits: raise RuntimeError('{0} not found in FITS object'.format(extname))
         colnames = fits[extname].get_colnames()
 
@@ -353,7 +348,6 @@ class Star(object):
 
         :returns: a list of Star instances
         """
-        import galsim
         assert extname in fits
         colnames = fits[extname].get_colnames()
 
@@ -446,7 +440,6 @@ class Star(object):
 
         :returns: a new list of Stars with the images information loaded.
         """
-        import galsim
         # TODO: This is largely copied from InputHandler.readImages.
         #       This should probably be refactored a bit to avoid the duplicated code.
         logger = galsim.config.LoggerWrapper(logger)
@@ -510,9 +503,8 @@ class Star(object):
 
         :returns:           The corresponding (du,dv) in focal plane coordinates.
         """
-        import galsim
         # The model is in sky coordinates, so figure out what (u,v) corresponds to this offset.
-        jac = self.data.image.wcs.jacobian(self.data.image.true_center)
+        jac = self.data.local_wcs.jacobian()
         dx, dy = offset
         du = jac.dudx * dx + jac.dudy * dy
         dv = jac.dvdx * dx + jac.dvdy * dy
@@ -526,8 +518,7 @@ class Star(object):
 
         :returns:           The corresponding (dx,dy) in image coordinates.
         """
-        import galsim
-        jac = self.data.image.wcs.jacobian(self.data.image.true_center).inverse()
+        jac = self.data.local_wcs.jacobian().inverse()
         du, dv = center
         # The names (u,v) and (x,y) are reversed for jac, since we've taken its inverse,
         # so this looks a little confusing.  e.g. jac.dudx is really (dx/du), etc.
@@ -625,7 +616,6 @@ class StarData(object):
     def __init__(self, image, image_pos, weight=None, pointing=None, field_pos=None,
                  properties=None, orig_weight=None, logger=None,
                  _xyuv_set=False):
-        import galsim
         # Save all of these as attributes.
         self.image = image
         self.image_pos = image_pos
@@ -688,7 +678,6 @@ class StarData(object):
 
         :returns: a galsim.PositionD instance representing the position in field coordinates.
         """
-        import galsim
         # Calculate the field_pos, the position in the fov coordinates
         if wcs.isCelestial():
             if pointing is None:
@@ -821,8 +810,6 @@ class StarData(object):
 
         :returns: a new StarData instance with updated weight array.
         """
-        import galsim
-
         # Get the gain.  None both here and in properties, means don't add any variance.
         if gain is None:
             gain = self.properties.get('gain',None)
