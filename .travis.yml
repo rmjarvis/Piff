@@ -34,6 +34,10 @@ before_install:
     - git clone https://github.com/gbernstein/pixmappy.git
     - cd pixmappy; python setup.py install; cd ..
 
+    # Install Treegp
+    - git clone https://github.com/PFLeget/treegp.git
+    - cd treegp; python setup.py install; cd ..
+
 cache:
     pip: true
     directories:

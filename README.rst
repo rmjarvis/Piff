@@ -28,7 +28,7 @@ Features: (Some are aspirational.  We're still working on the code!)
 - Currently, the lead developers are:
   - Mike Jarvis (mikejarvis17 at gmail)
   - Josh Meyers (jmeyers314 at gmail)
-  - Pierre-Francois Leget (leget at stanford)
+  - Pierre-Francois Leget (pierrefrancois.leget at gmail)
   - Chris Davis (chris.pa.davis at gmail)
   If you'd like to join the development effort, or if you have any other
   questions or comments about the code, feel free to contact us at the above
