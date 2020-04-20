@@ -517,34 +517,6 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
 
 # Make this also available as a method of Star
 Star.calculate_moments = calculate_moments
-=======
-    # Note that FindAdaptiveMom only respects the weight function in a binary sense.  I.e., pixels
-    # with non-zero weight will be included in the moment measurement, those with weight=0.0 will be
-    # excluded.
-    mom = image.FindAdaptiveMom(weight=weight, strict=False)
-
-    sigma = mom.moments_sigma
-    shape = mom.observed_shape
-    # These are in pixel coordinates.  Need to convert to world coords.
-    jac = image.wcs.jacobian(image_pos=image_pos)
-    scale, shear, theta, flip = jac.getDecomposition()
-    # Fix sigma
-    sigma *= scale
-    # Fix shear.  First the flip, if any.
-    if flip:
-        shape = galsim.Shear(g1 = -shape.g1, g2 = shape.g2)
-    # Next the rotation
-    shape = galsim.Shear(g = shape.g, beta = shape.beta + theta)
-    # Finally the shear
-    shape = shear + shape
-
-    flux = mom.moments_amp
-
-    localwcs = image.wcs.local(image_pos)
-    center = localwcs.toWorld(mom.moments_centroid) - localwcs.toWorld(image_pos)
-    flag = mom.moments_status
-
-    return flux, center.x, center.y, sigma, shape.g1, shape.g2, flag
 
 def _run_multi_helper(func, i, args, kwargs, logger):
     if sys.version_info < (3,0):
