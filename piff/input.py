@@ -117,7 +117,7 @@ class Input(object):
                         logger.warning("Star at position %f,%f overlaps the edge of the image.  "
                                        "Skipping this star.", x, y)
                         continue
-                stamp = image[bounds]
+                stamp = image[bounds].copy()
                 props = { 'chipnum' : chipnum,
                           'gain' : gain[k] }
                 if sky is not None:
@@ -125,7 +125,7 @@ class Input(object):
                     logger.debug("Median pixel value = %f", np.median(stamp.array))
                     stamp = stamp - sky[k]  # Don't change the original!
                     props['sky'] = sky[k]
-                wt_stamp = wt[bounds]
+                wt_stamp = wt[bounds].copy()
 
                 # if a star is totally masked, then don't add it!
                 if np.all(wt_stamp.array == 0):

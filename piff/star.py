@@ -490,9 +490,9 @@ class Star(object):
                                 file_name)
             weight.array[badpix.array != 0] = 0
 
-        stars = [ Star(data = StarData(image=image[star.data.image.bounds],
+        stars = [ Star(data = StarData(image=image[star.data.image.bounds].copy(),
                                        image_pos=star.data.image_pos,
-                                       weight=weight[star.data.image.bounds],
+                                       weight=weight[star.data.image.bounds].copy(),
                                        pointing= (pointing if pointing is not None
                                                   else star.data.pointing),
                                        properties=star.data.properties,
