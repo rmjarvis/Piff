@@ -229,7 +229,7 @@ class OptAtmoPSF(PSF):
 
         self._noll_coef_field = galsim.zernike._noll_coef_array(self.jmax_focal, 0.0)
 
-        min_sizes = {'kolmogorov': 0.45, 'vonkarman': 0.7}
+        min_sizes = {'kolmogorov': 0.45, 'vonkarman': 0.55}
         self.optatmo_psf_kwargs = {
             'L0' : 25.0 if atmosphere_model == 'vonkarman' else -1.,
             'fix_L0':   atmosphere_model == 'kolmogorov',
