@@ -162,7 +162,7 @@ class StarStats(Stats):
 
         logger.info("Creating Star Plots")
 
-        for i in range(self.number_plot):
+        for i in range(len(self.indices)):
             star = self.stars[i]
             model = self.models[i]
 

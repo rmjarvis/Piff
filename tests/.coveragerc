@@ -1,6 +1,9 @@
 [run]
 branch = True
 
+# This lets coverage include lines that happen in multiprocessing mode
+concurrency = multiprocessing
+
 [report]
 # Regexes for lines to exclude from consideration
 exclude_lines =

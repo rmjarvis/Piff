@@ -20,7 +20,7 @@ import fitsio
 import os
 import warnings
 
-from piff_test_helper import get_script_name, timer
+from piff_test_helper import get_script_name, timer, CaptureLog
 
 # Helper function for drawing an image of a number of Moffat stars
 def drawImage(xsize, ysize, wcs, x, y, e1, e2, s):
@@ -269,7 +269,8 @@ def test_single():
     rng = np.random.RandomState(1234)
     x = rng.random_sample(nstars) * 2000 + 24
     y = rng.random_sample(nstars) * 2000 + 24
-    u, v = field_center.project_rad(*wcs1._radec(x.copy(),y.copy()), projection='gnomonic')
+    ra1, dec1 = wcs1.toWorld(x,y,units='rad')
+    u, v = field_center.project_rad(ra1,dec1, projection='gnomonic')
     e1 = 0.02 + 2.e-5 * u - 3.e-9 * u**2 + 2.e-9 * v**2
     e2 = -0.04 - 3.e-5 * v + 1.e-9 * u*v + 3.e-9 * v**2
     s = 0.3 + 8.e-9 * (u**2 + v**2) - 1.e-9 * u*v
@@ -282,7 +283,8 @@ def test_single():
 
     x = rng.random_sample(nstars) * 2000 + 24
     y = rng.random_sample(nstars) * 2000 + 24
-    u, v = field_center.project_rad(*wcs2._radec(x.copy(),y.copy()), projection='gnomonic')
+    ra2, dec2 = wcs2.toWorld(x,y,units='rad')
+    u, v = field_center.project_rad(ra1,dec1, projection='gnomonic')
     # Same functions of u,v, but using the positions on chip 2
     e1 = 0.02 + 2.e-5 * u - 3.e-9 * u**2 + 2.e-9 * v**2
     e2 = -0.04 - 3.e-5 * v + 1.e-9 * u*v + 3.e-9 * v**2
@@ -293,6 +295,16 @@ def test_single():
     im2 = drawImage(2048, 2048, wcs2, x, y, e1, e2, s)
     im2.write('output/test_single_im2.fits')
     fitsio.write('output/test_single_cat2.fits', data2, clobber=True)
+
+    ra12 = np.concatenate([ra1,ra2])
+    dec12 = np.concatenate([dec1,dec2])
+    data12 = np.array(list(zip(ra12,dec12)), dtype=[('ra',float), ('dec',float)])
+    fitsio.write('output/test_single_cat12.fits', data12, clobber=True)
+
+    # im3 is blank.  Will give errors trying to measure PSF from it.
+    im3 = galsim.Image(2048,2048, wcs=wcs2)
+    im3.write('output/test_single_im3.fits')
+    fitsio.write('output/test_single_cat3.fits', data2, clobber=True)
 
     # Try to fit with the right model (Moffat) and interpolant (2nd order polyomial)
     # Should work very well, since no noise.
@@ -332,7 +344,11 @@ def test_single():
     }
     if __name__ != '__main__':
         config['verbose'] = 0
-    psf = piff.process(config)
+    with CaptureLog(level=2) as cl:
+        psf = piff.process(config, cl.logger)
+    #print('without nproc, log = ',cl.output)
+    assert "Building solution for chip 1" in cl.output
+    assert "Building solution for chip 2" in cl.output
 
     for chipnum, data, wcs in [(1,data1,wcs1), (2,data2,wcs2)]:
         for k in range(nstars):
@@ -349,6 +365,84 @@ def test_single():
             star = psf.drawStar(star)
             #print('  fitted s,e1,e2 = ',star.fit.params)
             np.testing.assert_almost_equal(star.fit.params, [s,e1,e2], decimal=6)
+
+    # Do again in parallel.  Also check I/O and using a single input catalog.
+    psf_file = os.path.join('output','test_single.fits')
+    config = {
+        'input' : {
+            # A third way to input these same file names.  Use GalSim config values and
+            # explicitly specify the number of images to read
+            'nimages' : 2,
+            'image_file_name' : {
+                'type' : 'FormattedStr',
+                'format' : '%s/test_single_im%d.fits',
+                'items' : [ 'output', '$image_num+1' ],
+            },
+            'cat_file_name' : 'output/test_single_cat12.fits',
+            'chipnum' : '$image_num+1',
+            'ra_col' : 'ra',
+            'dec_col' : 'dec',
+            'ra_units' : 'rad',
+            'dec_units' : 'rad',
+            'nproc' : -1,
+        },
+        'psf' : {
+            'type' : 'SingleChip',
+            'model' : {
+                'type' : 'Moffat',
+                'beta' : 2.5,
+            },
+            'interp' : {
+                'type' : 'Polynomial',
+                'order' : 2,
+            },
+            'nproc' : 2,
+        },
+        'output' : {
+            'file_name' : psf_file,
+        },
+    }
+    with CaptureLog(level=2) as cl:
+        piff.piffify(config, logger=cl.logger)
+    psf = piff.read(psf_file)
+
+    for chipnum, data, wcs in [(1,data1,wcs1), (2,data2,wcs2)]:
+        for k in range(nstars):
+            x = data['x'][k]
+            y = data['y'][k]
+            e1 = data['e1'][k]
+            e2 = data['e2'][k]
+            s = data['s'][k]
+            image_pos = galsim.PositionD(x,y)
+            star = piff.Star.makeTarget(x=x, y=y, wcs=wcs, stamp_size=48, pointing=field_center,
+                                        chipnum=chipnum)
+            star = psf.drawStar(star)
+            np.testing.assert_almost_equal(star.fit.params, [s,e1,e2], decimal=6)
+
+    # Finally, check that the logger properly captures the subprocess logs
+    with CaptureLog(level=2) as cl:
+        psf = piff.process(config, cl.logger)
+    #print('with nproc=2, log = ',cl.output)
+    assert "Processing catalog 1" in cl.output
+    assert "Processing catalog 2" in cl.output
+    assert "Building solution for chip 1" in cl.output
+    assert "Building solution for chip 2" in cl.output
+
+    # Check that errors in the solution get properly reported.
+    config['input']['nimages'] = 3
+    with CaptureLog(level=2) as cl:
+        psf = piff.process(config, cl.logger)
+    assert "Removed 6 stars in initialize" in cl.output
+    assert "No stars.  Cannot find PSF model." in cl.output
+    assert "Solutions failed for chipnums: [3]" in cl.output
+
+    # Check that errors in the multiprocessing input get properly reported.
+    config['input']['ra_col'] = 'invalid'
+    with CaptureLog(level=2) as cl:
+        with np.testing.assert_raises(RuntimeError):
+            psf = piff.process(config, cl.logger)
+    assert "ra_col = invalid is not a column" in cl.output
+
 
 @timer
 def test_pickle():
@@ -561,6 +655,9 @@ def test_hsm():
     np.testing.assert_equal(image2.array, image.array)
 
 if __name__ == '__main__':
+    #import cProfile, pstats
+    #pr = cProfile.Profile()
+    #pr.enable()
     test_focal()
     test_wrongwcs()
     test_single()
@@ -568,3 +665,6 @@ if __name__ == '__main__':
     test_olddes()
     test_newdes()
     test_hsm()
+    #pr.disable()
+    #ps = pstats.Stats(pr).sort_stats('tottime')
+    #ps.print_stats(20)

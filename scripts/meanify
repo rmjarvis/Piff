@@ -76,7 +76,7 @@ def main():
         verbose = args.verbose
     logger = piff.config.setup_logger(verbose, args.log_file)
 
-    logger.warn('Using config file %s'%args.config_file)
+    logger.warning('Using config file %s'%args.config_file)
 
     # Run the meanify function
     piff.meanify(config, logger)

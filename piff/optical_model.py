@@ -212,7 +212,6 @@ class Optical(Model):
 
         :returns: a galsim.GSObject instance
         """
-        import galsim
         prof = []
         # gaussian
         if self.sigma is not None:

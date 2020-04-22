@@ -1,0 +1,657 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>piff.gp_interp_2pcf &#8212; Piff 0.4.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../_static/language_data.js"></script>
+    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">Piff 0.4.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for piff.gp_interp_2pcf</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright (c) 2016 by Mike Jarvis and the other collaborators on GitHub at</span>
+<span class="c1"># https://github.com/rmjarvis/Piff  All rights reserved.</span>
+<span class="c1">#</span>
+<span class="c1"># Piff is free software: Redistribution and use in source and binary forms</span>
+<span class="c1"># with or without modification, are permitted provided that the following</span>
+<span class="c1"># conditions are met:</span>
+<span class="c1">#</span>
+<span class="c1"># 1. Redistributions of source code must retain the above copyright notice, this</span>
+<span class="c1">#    list of conditions and the disclaimer given in the accompanying LICENSE</span>
+<span class="c1">#    file.</span>
+<span class="c1"># 2. Redistributions in binary form must reproduce the above copyright notice,</span>
+<span class="c1">#    this list of conditions and the disclaimer given in the documentation</span>
+<span class="c1">#    and/or other materials provided with the distribution.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">.. module:: gp_interp_2pcf</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">treecorr</span>
+<span class="kn">import</span> <span class="nn">copy</span>
+
+<span class="kn">from</span> <span class="nn">sklearn.gaussian_process.kernels</span> <span class="kn">import</span> <span class="n">Kernel</span>
+<span class="kn">from</span> <span class="nn">sklearn.neighbors</span> <span class="kn">import</span> <span class="n">KNeighborsRegressor</span>
+<span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">optimize</span>
+<span class="kn">from</span> <span class="nn">scipy.linalg</span> <span class="kn">import</span> <span class="n">cholesky</span><span class="p">,</span> <span class="n">cho_solve</span>
+<span class="kn">from</span> <span class="nn">scipy.stats</span> <span class="kn">import</span> <span class="n">binned_statistic_2d</span>
+<span class="kn">import</span> <span class="nn">itertools</span>
+
+<span class="kn">from</span> <span class="nn">.interp</span> <span class="kn">import</span> <span class="n">Interp</span>
+<span class="kn">from</span> <span class="nn">.star</span> <span class="kn">import</span> <span class="n">Star</span><span class="p">,</span> <span class="n">StarFit</span>
+
+<span class="k">class</span> <span class="nc">bootstrap_2pcf</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">y_err</span><span class="p">,</span>
+                 <span class="n">min_sep</span><span class="p">,</span> <span class="n">max_sep</span><span class="p">,</span> <span class="n">nbins</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">anisotropic</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Fit statistical uncertaintie on two-point correlation function using bootstraping.</span>
+
+<span class="sd">        :param X:           The independent covariates.  (n_samples, 2)</span>
+<span class="sd">        :param y:           The dependent responses.  (n_samples, n_targets)</span>
+<span class="sd">        :param y_err:       Error of y. (n_samples, n_targets)</span>
+<span class="sd">        :param min_sep:     Minimum bin for treecorr. (float)</span>
+<span class="sd">        :param max_sep:     Maximum bin for treecorr. (float)</span>
+<span class="sd">        :param nbins:       Number of bins (if 1D correlation function) of the square root of the number</span>
+<span class="sd">                            of bins (if 2D correlation function) used in TreeCorr to compute the</span>
+<span class="sd">                            2-point correlation function. [default: 20]</span>
+<span class="sd">        :param anisotropic:  2D 2-point correlation function.</span>
+<span class="sd">                            Used 2D correlation function for the</span>
+<span class="sd">                            fiting part of the GP. (Boolean)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">X</span> <span class="o">=</span> <span class="n">X</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">y</span> <span class="o">=</span> <span class="n">y</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">y_err</span> <span class="o">=</span> <span class="n">y_err</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">min_sep</span> <span class="o">=</span> <span class="n">min_sep</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_sep</span> <span class="o">=</span> <span class="n">max_sep</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nbins</span> <span class="o">=</span> <span class="n">nbins</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">anisotropic</span> <span class="o">=</span> <span class="n">anisotropic</span>
+
+    <span class="k">def</span> <span class="nf">resample_bootstrap</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Make a single bootstarp resampling on stars.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">npsfs</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">y</span><span class="p">)</span>
+
+        <span class="n">ind_star</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="n">npsfs</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">npsfs</span><span class="p">)</span>
+        <span class="n">u_ressample</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">X</span><span class="p">[:,</span><span class="mi">0</span><span class="p">][</span><span class="n">ind_star</span><span class="p">]</span>
+        <span class="n">v_ressample</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">X</span><span class="p">[:,</span><span class="mi">1</span><span class="p">][</span><span class="n">ind_star</span><span class="p">]</span>
+        <span class="n">y_ressample</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">y</span><span class="p">[</span><span class="n">ind_star</span><span class="p">]</span>
+        <span class="n">y_err_ressample</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">y_err</span><span class="p">[</span><span class="n">ind_star</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="n">u_ressample</span><span class="p">,</span> <span class="n">v_ressample</span><span class="p">,</span> <span class="n">y_ressample</span><span class="p">,</span> <span class="n">y_err_ressample</span>
+
+    <span class="k">def</span> <span class="nf">comp_2pcf</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">y_err</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Estimate 2-point correlation function using TreeCorr.</span>
+
+<span class="sd">        :param X:  The independent covariates.  (n_samples, 2)</span>
+<span class="sd">        :param y:  The dependent responses.  (n_samples, n_targets)</span>
+<span class="sd">        :param y_err: Error of y. (n_samples, n_targets)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">y_err</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">w</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">w</span> <span class="o">=</span> <span class="mf">1.</span><span class="o">/</span><span class="n">y_err</span><span class="o">**</span><span class="mi">2</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">anisotropic</span><span class="p">:</span>
+            <span class="n">cat</span> <span class="o">=</span> <span class="n">treecorr</span><span class="o">.</span><span class="n">Catalog</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">X</span><span class="p">[:,</span><span class="mi">0</span><span class="p">],</span> <span class="n">y</span><span class="o">=</span><span class="n">X</span><span class="p">[:,</span><span class="mi">1</span><span class="p">],</span> <span class="n">k</span><span class="o">=</span><span class="p">(</span><span class="n">y</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">y</span><span class="p">)),</span> <span class="n">w</span><span class="o">=</span><span class="n">w</span><span class="p">)</span>
+            <span class="n">kk</span> <span class="o">=</span> <span class="n">treecorr</span><span class="o">.</span><span class="n">KKCorrelation</span><span class="p">(</span><span class="n">min_sep</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">min_sep</span><span class="p">,</span> <span class="n">max_sep</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">max_sep</span><span class="p">,</span> <span class="n">nbins</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">nbins</span><span class="p">,</span>
+                                        <span class="n">bin_type</span><span class="o">=</span><span class="s1">&#39;TwoD&#39;</span><span class="p">,</span> <span class="n">bin_slop</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">kk</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">cat</span><span class="p">)</span>
+            <span class="c1"># Need a mask in the case of the 2D correlation function, to compute</span>
+            <span class="c1"># the covariance matrix using the bootstrap. The 2D correlation</span>
+            <span class="c1"># function is symmetric, so just half of the correlation function</span>
+            <span class="c1"># is useful to compute the covariance matrix. If it is not done,</span>
+            <span class="c1"># the covariance matrix is consequently not positive definite.</span>
+            <span class="n">npixels</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">kk</span><span class="o">.</span><span class="n">xi</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span>
+            <span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">kk</span><span class="o">.</span><span class="n">xi</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
+            <span class="n">mask</span> <span class="o">=</span> <span class="n">mask</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">npixels</span><span class="p">)),</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">npixels</span><span class="p">))))</span>
+
+            <span class="n">boolean_mask_odd</span> <span class="o">=</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">mask</span><span class="p">)</span><span class="o">%</span><span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="n">even_or_odd</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">mask</span><span class="p">)</span><span class="o">%</span><span class="mi">2</span>
+            <span class="n">nmask</span> <span class="o">=</span> <span class="nb">int</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">mask</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span><span class="p">)</span> <span class="o">+</span> <span class="n">even_or_odd</span><span class="p">)</span>
+            <span class="n">mask</span><span class="p">[</span><span class="n">nmask</span><span class="p">:,:]</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="n">mask</span><span class="p">[</span><span class="n">nmask</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="n">nmask</span><span class="p">:]</span> <span class="o">=</span> <span class="n">boolean_mask_odd</span>
+
+            <span class="n">mask</span> <span class="o">=</span> <span class="n">mask</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">npixels</span><span class="p">)</span>
+
+            <span class="n">distance</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">kk</span><span class="o">.</span><span class="n">dx</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">npixels</span><span class="p">),</span> <span class="n">kk</span><span class="o">.</span><span class="n">dy</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">npixels</span><span class="p">)])</span><span class="o">.</span><span class="n">T</span>
+            <span class="n">Coord</span> <span class="o">=</span> <span class="n">distance</span>
+            <span class="n">xi</span> <span class="o">=</span> <span class="n">kk</span><span class="o">.</span><span class="n">xi</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">npixels</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">cat</span> <span class="o">=</span> <span class="n">treecorr</span><span class="o">.</span><span class="n">Catalog</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">X</span><span class="p">[:,</span><span class="mi">0</span><span class="p">],</span> <span class="n">y</span><span class="o">=</span><span class="n">X</span><span class="p">[:,</span><span class="mi">1</span><span class="p">],</span> <span class="n">k</span><span class="o">=</span><span class="p">(</span><span class="n">y</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">y</span><span class="p">)),</span> <span class="n">w</span><span class="o">=</span><span class="n">w</span><span class="p">)</span>
+            <span class="n">kk</span> <span class="o">=</span> <span class="n">treecorr</span><span class="o">.</span><span class="n">KKCorrelation</span><span class="p">(</span><span class="n">min_sep</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">min_sep</span><span class="p">,</span> <span class="n">max_sep</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">max_sep</span><span class="p">,</span> <span class="n">nbins</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">nbins</span><span class="p">)</span>
+            <span class="n">kk</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">cat</span><span class="p">)</span>
+            <span class="n">distance</span> <span class="o">=</span> <span class="n">kk</span><span class="o">.</span><span class="n">meanr</span>
+            <span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">kk</span><span class="o">.</span><span class="n">xi</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
+            <span class="n">Coord</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">distance</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">distance</span><span class="p">)])</span><span class="o">.</span><span class="n">T</span>
+            <span class="n">xi</span> <span class="o">=</span> <span class="n">kk</span><span class="o">.</span><span class="n">xi</span>
+
+        <span class="k">return</span> <span class="n">xi</span><span class="p">,</span> <span class="n">distance</span><span class="p">,</span> <span class="n">Coord</span><span class="p">,</span> <span class="n">mask</span>
+
+    <span class="k">def</span> <span class="nf">comp_xi_covariance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_bootstrap</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">610639139</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Estimate 2-point correlation function covariance matrix using Bootstrap.</span>
+
+<span class="sd">        :param seed: seed of the random generator.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span>
+        <span class="n">xi_bootstrap</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_bootstrap</span><span class="p">):</span>
+            <span class="n">u</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">y_err</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">resample_bootstrap</span><span class="p">()</span>
+            <span class="n">coord</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">u</span><span class="p">,</span> <span class="n">v</span><span class="p">])</span><span class="o">.</span><span class="n">T</span>
+            <span class="n">xi</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="n">m</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">comp_2pcf</span><span class="p">(</span><span class="n">coord</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">y_err</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">mask</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="kc">True</span><span class="p">]</span><span class="o">*</span><span class="nb">len</span><span class="p">(</span><span class="n">xi</span><span class="p">))</span>
+            <span class="n">xi_bootstrap</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">xi</span><span class="p">[</span><span class="n">mask</span><span class="p">])</span>
+        <span class="n">xi_bootstrap</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">xi_bootstrap</span><span class="p">)</span>
+
+        <span class="n">dxi</span> <span class="o">=</span> <span class="n">xi_bootstrap</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">xi_bootstrap</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">xi_cov</span> <span class="o">=</span> <span class="mf">1.</span><span class="o">/</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">dxi</span><span class="p">)</span><span class="o">-</span><span class="mf">1.</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">dxi</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">dxi</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">xi_cov</span>
+
+    <span class="k">def</span> <span class="nf">return_2pcf</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">610639139</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return 2-point correlation function and its variance using Bootstrap.</span>
+
+<span class="sd">        :param seed: seed of the random generator.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">xi</span><span class="p">,</span> <span class="n">distance</span><span class="p">,</span> <span class="n">coord</span><span class="p">,</span> <span class="n">mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">comp_2pcf</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">X</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">y_err</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">anisotropic</span><span class="p">:</span>
+            <span class="c1"># Choice done from Andy Taylor et al. 2012</span>
+            <span class="k">def</span> <span class="nf">f_bias</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">npixel</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">xi</span><span class="p">[</span><span class="n">mask</span><span class="p">])):</span>
+                <span class="n">top</span> <span class="o">=</span> <span class="n">x</span> <span class="o">-</span> <span class="mf">1.</span>
+                <span class="n">bottom</span> <span class="o">=</span> <span class="n">x</span> <span class="o">-</span> <span class="n">npixel</span> <span class="o">-</span> <span class="mf">2.</span>
+                <span class="k">return</span> <span class="p">(</span><span class="n">top</span><span class="o">/</span><span class="n">bottom</span><span class="p">)</span> <span class="o">-</span> <span class="mf">2.</span>
+            <span class="n">results</span> <span class="o">=</span> <span class="n">optimize</span><span class="o">.</span><span class="n">fsolve</span><span class="p">(</span><span class="n">f_bias</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">xi</span><span class="p">[</span><span class="n">mask</span><span class="p">])</span> <span class="o">+</span> <span class="mi">10</span><span class="p">)</span>
+            <span class="n">xi_cov</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">comp_xi_covariance</span><span class="p">(</span><span class="n">n_bootstrap</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="n">mask</span><span class="o">=</span><span class="n">mask</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="n">seed</span><span class="p">)</span>
+            <span class="n">bias_factor</span> <span class="o">=</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">-</span> <span class="mf">1.</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">xi</span><span class="p">[</span><span class="n">mask</span><span class="p">])</span> <span class="o">-</span> <span class="mf">2.</span><span class="p">)</span>
+            <span class="n">xi_weight</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">xi_cov</span><span class="p">)</span> <span class="o">*</span> <span class="n">bias_factor</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># let like developed initialy for the moment</span>
+            <span class="n">xi_weight</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">xi</span><span class="p">))</span> <span class="o">*</span> <span class="mf">1.</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">var</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">y</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">xi</span><span class="p">,</span> <span class="n">xi_weight</span><span class="p">,</span> <span class="n">distance</span><span class="p">,</span> <span class="n">coord</span><span class="p">,</span> <span class="n">mask</span>
+
+<div class="viewcode-block" id="GPInterp2pcf"><a class="viewcode-back" href="../../interp.html#piff.GPInterp2pcf">[docs]</a><span class="k">class</span> <span class="nc">GPInterp2pcf</span><span class="p">(</span><span class="n">Interp</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    An interpolator that uses two-point correlation function and gaussian process to interpolate a single surface.</span>
+
+<span class="sd">    :param keys:         A list of star attributes to interpolate from. Must be 2 attributes</span>
+<span class="sd">                         using two-point correlation function to estimate hyperparameter(s)</span>
+<span class="sd">    :param kernel:       A string that can be evaled to make a</span>
+<span class="sd">                         sklearn.gaussian_process.kernels.Kernel object.  The reprs of</span>
+<span class="sd">                         sklearn.gaussian_process.kernels will work, as well as the repr of a</span>
+<span class="sd">                         custom piff VonKarman object.  [default: &#39;RBF(1)&#39;]</span>
+<span class="sd">    :param optimize:     Boolean indicating whether or not to try and optimize the kernel by</span>
+<span class="sd">                         computing the two-point correlation function.  [default: True]</span>
+<span class="sd">    :param npca:         Number of principal components to keep. If !=0 pca is done on</span>
+<span class="sd">                         PSF parameters before any interpolation, and it will be the PC that will</span>
+<span class="sd">                         be interpolate and then retransform in PSF parameters. [default: 0, which</span>
+<span class="sd">                         means don&#39;t decompose PSF parameters into principle components.]</span>
+<span class="sd">    :param anisotropic:   2D 2-point correlation function. Used 2D correlation function for the</span>
+<span class="sd">                         fiting part of the GP instead of a 1D correlation function. [default: False]</span>
+<span class="sd">    :param normalize:    Whether to normalize the interpolation parameters to have a mean of 0.</span>
+<span class="sd">                         Normally, the parameters being interpolated are not mean 0, so you would</span>
+<span class="sd">                         want this to be True, but if your parameters have an a priori mean of 0,</span>
+<span class="sd">                         then subtracting off the realized mean would be invalid.  [default: True]</span>
+<span class="sd">    :param white_noise:  A float value that indicate the ammount of white noise that you want to</span>
+<span class="sd">                         use during the gp interpolation. This is an additional uncorrelated noise</span>
+<span class="sd">                         added to the error of the PSF parameters. [default: 0.]</span>
+<span class="sd">    :param n_neighbors:  Number of neighbors to used for interpolating the spatial average using</span>
+<span class="sd">                         a KNeighbors interpolation. Used only if average_fits is not None. [defaulf: 4]</span>
+<span class="sd">    :param nbins:        Number of bins (if 1D correlation function) of the square root of the number</span>
+<span class="sd">                         of bins (if 2D correlation function) used in TreeCorr to compute the</span>
+<span class="sd">                         2-point correlation function. [default: 20]</span>
+<span class="sd">    :param min_sep:      Minimum separation between pairs when computing 2-point correlation</span>
+<span class="sd">                         function. In the same units as the keys. Compute automaticaly if it</span>
+<span class="sd">                         is not given. [default: None]</span>
+<span class="sd">    :param max_sep:      Maximum separation between pairs when computing 2-point correlation</span>
+<span class="sd">                         function. In the same units as the keys. Compute automaticaly if it</span>
+<span class="sd">                         is not given. [default: None]</span>
+<span class="sd">    :param average_fits: A fits file that have the spatial average functions of PSF parameters</span>
+<span class="sd">                         build in it. Build using meanify and piff output across different</span>
+<span class="sd">                         exposures. See meanify documentation. [default: None]</span>
+<span class="sd">    :param logger:       A logger object for logging debug info. [default: None]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">keys</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;u&#39;</span><span class="p">,</span><span class="s1">&#39;v&#39;</span><span class="p">),</span> <span class="n">kernel</span><span class="o">=</span><span class="s1">&#39;RBF(1)&#39;</span><span class="p">,</span> <span class="n">optimize</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">npca</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">anisotropic</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">normalize</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                 <span class="n">white_noise</span><span class="o">=</span><span class="mf">0.</span><span class="p">,</span> <span class="n">n_neighbors</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">average_fits</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">nbins</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">min_sep</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">max_sep</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">keys</span> <span class="o">=</span> <span class="n">keys</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">npca</span> <span class="o">=</span> <span class="n">npca</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">normalize</span> <span class="o">=</span> <span class="n">normalize</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">optimize</span> <span class="o">=</span> <span class="n">optimize</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">white_noise</span> <span class="o">=</span> <span class="n">white_noise</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_neighbors</span> <span class="o">=</span> <span class="n">n_neighbors</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">anisotropic</span> <span class="o">=</span> <span class="n">anisotropic</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nbins</span> <span class="o">=</span> <span class="n">nbins</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">min_sep</span> <span class="o">=</span> <span class="n">min_sep</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_sep</span> <span class="o">=</span> <span class="n">max_sep</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;keys&#39;</span><span class="p">:</span> <span class="n">keys</span><span class="p">,</span>
+            <span class="s1">&#39;optimize&#39;</span><span class="p">:</span> <span class="n">optimize</span><span class="p">,</span>
+            <span class="s1">&#39;npca&#39;</span><span class="p">:</span> <span class="n">npca</span><span class="p">,</span>
+            <span class="s1">&#39;kernel&#39;</span><span class="p">:</span> <span class="n">kernel</span><span class="p">,</span>
+            <span class="s1">&#39;normalize&#39;</span><span class="p">:</span><span class="n">normalize</span>
+        <span class="p">}</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">keys</span><span class="p">)</span><span class="o">!=</span><span class="mi">2</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;the total size of keys can not be something else than 2 using two-point correlation function. Here len(keys) = </span><span class="si">%i</span><span class="s1">&#39;</span><span class="o">%</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">keys</span><span class="p">)))</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">kernel</span><span class="p">,</span><span class="nb">str</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">kernel_template</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_eval_kernel</span><span class="p">(</span><span class="n">kernel</span><span class="p">)]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">kernel</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="nb">list</span> <span class="ow">and</span> <span class="nb">type</span><span class="p">(</span><span class="n">kernel</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;kernel should be a string a list or a numpy.ndarray of string&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">kernel_template</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_eval_kernel</span><span class="p">(</span><span class="n">ker</span><span class="p">)</span> <span class="k">for</span> <span class="n">ker</span> <span class="ow">in</span> <span class="n">kernel</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_2pcf</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_2pcf_weight</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_2pcf_dist</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_2pcf_fit</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_2pcf_mask</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">if</span> <span class="n">average_fits</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">npca</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;npca can be only 0 for the moment when average_fits is not None&#39;</span><span class="p">)</span>
+            <span class="kn">import</span> <span class="nn">fitsio</span>
+            <span class="n">average</span> <span class="o">=</span> <span class="n">fitsio</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">average_fits</span><span class="p">)</span>
+            <span class="n">X0</span> <span class="o">=</span> <span class="n">average</span><span class="p">[</span><span class="s1">&#39;COORDS0&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">y0</span> <span class="o">=</span> <span class="n">average</span><span class="p">[</span><span class="s1">&#39;PARAMS0&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">X0</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="n">y0</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_X0</span> <span class="o">=</span> <span class="n">X0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_y0</span> <span class="o">=</span> <span class="n">y0</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_eval_kernel</span><span class="p">(</span><span class="n">kernel</span><span class="p">):</span>
+        <span class="c1"># Some import trickery to get all subclasses of sklearn.gaussian_process.kernels.Kernel</span>
+        <span class="c1"># into the local namespace without doing &quot;from sklearn.gaussian_process.kernels import *&quot;</span>
+        <span class="c1"># and without importing them all manually.</span>
+        <span class="k">def</span> <span class="nf">recurse_subclasses</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="bp">cls</span><span class="o">.</span><span class="n">__subclasses__</span><span class="p">():</span>
+                <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+                <span class="n">out</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">recurse_subclasses</span><span class="p">(</span><span class="n">c</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">out</span>
+        <span class="n">clses</span> <span class="o">=</span> <span class="n">recurse_subclasses</span><span class="p">(</span><span class="n">Kernel</span><span class="p">)</span>
+        <span class="k">for</span> <span class="bp">cls</span> <span class="ow">in</span> <span class="n">clses</span><span class="p">:</span>
+            <span class="n">module</span> <span class="o">=</span> <span class="nb">__import__</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="vm">__module__</span><span class="p">,</span> <span class="nb">globals</span><span class="p">(),</span> <span class="nb">locals</span><span class="p">(),</span> <span class="bp">cls</span><span class="p">)</span>
+            <span class="n">execstr</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> = module.</span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span>
+            <span class="n">exec</span><span class="p">(</span><span class="n">execstr</span><span class="p">,</span> <span class="nb">globals</span><span class="p">(),</span> <span class="nb">locals</span><span class="p">())</span>
+
+        <span class="kn">from</span> <span class="nn">numpy</span> <span class="kn">import</span> <span class="n">array</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">k</span> <span class="o">=</span> <span class="nb">eval</span><span class="p">(</span><span class="n">kernel</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Failed to evaluate kernel string </span><span class="si">{0!r}</span><span class="s2">.  &quot;</span>
+                               <span class="s2">&quot;Original exception: </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">kernel</span><span class="p">,</span> <span class="n">e</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">k</span><span class="o">.</span><span class="n">theta</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">property</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;String provided was not initialized properly&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">k</span>
+
+    <span class="k">def</span> <span class="nf">_fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">kernel</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">y_err</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Update the Kernel with data.</span>
+
+<span class="sd">        :param kernel: sklearn.gaussian_process kernel.</span>
+<span class="sd">        :param X:  The independent covariates.  (n_samples, 2)</span>
+<span class="sd">        :param y:  The dependent responses.  (n_samples, n_targets)</span>
+<span class="sd">        :param y_err: Error of y. (n_samples, n_targets)</span>
+<span class="sd">        :param logger:  A logger object for logging debug info. [default: None]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">logger</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Start kernel: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">kernel</span><span class="o">.</span><span class="n">set_params</span><span class="p">())</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;gp.fit with mean y = </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">y</span><span class="p">))</span>
+        <span class="c1"># Save these for potential read/write.</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">optimize</span><span class="p">:</span>
+            <span class="n">kernel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_optimizer_2pcf</span><span class="p">(</span><span class="n">kernel</span><span class="p">,</span><span class="n">X</span><span class="p">,</span><span class="n">y</span><span class="p">,</span><span class="n">y_err</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">logger</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;After fit: kernel = </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span><span class="n">kernel</span><span class="o">.</span><span class="n">set_params</span><span class="p">())</span>
+        <span class="k">return</span> <span class="n">kernel</span>
+
+    <span class="k">def</span> <span class="nf">_optimizer_2pcf</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">kernel</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">y_err</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Fit hyperparameter using two-point correlation function.</span>
+
+<span class="sd">        :param kernel: sklearn.gaussian_process kernel.</span>
+<span class="sd">        :param X:  The independent covariates.  (n_samples, 2)</span>
+<span class="sd">        :param y:  The dependent responses.  (n_samples, n_targets)</span>
+<span class="sd">        :param y_err: Error of y. (n_samples, n_targets)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">size_x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">X</span><span class="p">[:,</span><span class="mi">0</span><span class="p">])</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">X</span><span class="p">[:,</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">size_y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">X</span><span class="p">[:,</span><span class="mi">1</span><span class="p">])</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">X</span><span class="p">[:,</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">rho</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">X</span><span class="p">[:,</span><span class="mi">0</span><span class="p">]))</span> <span class="o">/</span> <span class="p">(</span><span class="n">size_x</span> <span class="o">*</span> <span class="n">size_y</span><span class="p">)</span>
+        <span class="c1"># if min_sep is None and isotropic GP, set min_sep to the average separation</span>
+        <span class="c1"># between stars.</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_sep</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">min_sep</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_sep</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">anisotropic</span><span class="p">:</span>
+                <span class="n">min_sep</span> <span class="o">=</span> <span class="mf">0.</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">min_sep</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">1.</span><span class="o">/</span><span class="n">rho</span><span class="p">)</span>
+        <span class="c1"># if max_sep is None, set max_sep to half of the size of the </span>
+        <span class="c1"># given field.</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_sep</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">max_sep</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_sep</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">max_sep</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">size_x</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">size_y</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">/</span><span class="mf">2.</span>
+
+        <span class="n">bp</span> <span class="o">=</span> <span class="n">bootstrap_2pcf</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">y_err</span><span class="p">,</span>
+                            <span class="n">min_sep</span><span class="o">=</span><span class="n">min_sep</span><span class="p">,</span> <span class="n">max_sep</span><span class="o">=</span><span class="n">max_sep</span><span class="p">,</span> <span class="n">nbins</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">nbins</span><span class="p">,</span>
+                            <span class="n">anisotropic</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">anisotropic</span><span class="p">)</span>
+        <span class="n">xi</span><span class="p">,</span> <span class="n">xi_weight</span><span class="p">,</span> <span class="n">distance</span><span class="p">,</span> <span class="n">coord</span><span class="p">,</span> <span class="n">mask</span> <span class="o">=</span> <span class="n">bp</span><span class="o">.</span><span class="n">return_2pcf</span><span class="p">()</span>
+
+        <span class="k">def</span> <span class="nf">PCF</span><span class="p">(</span><span class="n">param</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="n">kernel</span><span class="p">):</span>
+            <span class="n">kernel</span> <span class="o">=</span>  <span class="n">k</span><span class="o">.</span><span class="n">clone_with_theta</span><span class="p">(</span><span class="n">param</span><span class="p">)</span>
+            <span class="n">pcf</span> <span class="o">=</span> <span class="n">kernel</span><span class="o">.</span><span class="fm">__call__</span><span class="p">(</span><span class="n">coord</span><span class="p">,</span><span class="n">Y</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">coord</span><span class="p">))[:,</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">return</span> <span class="n">pcf</span>
+
+        <span class="n">xi_mask</span> <span class="o">=</span> <span class="n">xi</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span>
+        <span class="k">def</span> <span class="nf">chi2</span><span class="p">(</span><span class="n">param</span><span class="p">):</span>
+            <span class="n">residual</span> <span class="o">=</span> <span class="n">xi_mask</span> <span class="o">-</span> <span class="n">PCF</span><span class="p">(</span><span class="n">param</span><span class="p">)[</span><span class="n">mask</span><span class="p">]</span>
+            <span class="k">return</span> <span class="n">residual</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">xi_weight</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">residual</span><span class="p">))</span>
+
+        <span class="n">p0</span> <span class="o">=</span> <span class="n">kernel</span><span class="o">.</span><span class="n">theta</span>
+
+        <span class="n">results_fmin</span> <span class="o">=</span> <span class="n">optimize</span><span class="o">.</span><span class="n">fmin</span><span class="p">(</span><span class="n">chi2</span><span class="p">,</span><span class="n">p0</span><span class="p">,</span><span class="n">disp</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">results_bfgs</span> <span class="o">=</span> <span class="n">optimize</span><span class="o">.</span><span class="n">minimize</span><span class="p">(</span><span class="n">chi2</span><span class="p">,</span><span class="n">p0</span><span class="p">,</span><span class="n">method</span><span class="o">=</span><span class="s2">&quot;L-BFGS-B&quot;</span><span class="p">)</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="p">[</span><span class="n">results_fmin</span><span class="p">,</span> <span class="n">results_bfgs</span><span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">]]</span>
+        <span class="n">chi2_min</span> <span class="o">=</span> <span class="p">[</span><span class="n">chi2</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="n">chi2</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">1</span><span class="p">])]</span>
+        <span class="n">ind_min</span> <span class="o">=</span> <span class="n">chi2_min</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="n">chi2_min</span><span class="p">))</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="n">ind_min</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_2pcf</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">xi</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_2pcf_weight</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">xi_weight</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_2pcf_dist</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">distance</span><span class="p">)</span>
+        <span class="n">kernel</span> <span class="o">=</span> <span class="n">kernel</span><span class="o">.</span><span class="n">clone_with_theta</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_2pcf_fit</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">PCF</span><span class="p">(</span><span class="n">kernel</span><span class="o">.</span><span class="n">theta</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_2pcf_mask</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mask</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">kernel</span>
+
+    <span class="k">def</span> <span class="nf">_predict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">Xstar</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Predict responses given covariates.</span>
+<span class="sd">        :param Xstar:  The independent covariates at which to interpolate.  (n_samples, 2).</span>
+<span class="sd">        :returns:  Regressed parameters  (n_samples, n_targets)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">npca</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">:</span>
+            <span class="n">y_init</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_y_pca</span>
+            <span class="n">y_err</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_y_pca_err</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">y_init</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_y</span>
+            <span class="n">y_err</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_y_err</span>
+
+        <span class="n">ystar</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">return_gp_predict</span><span class="p">(</span><span class="n">y_init</span><span class="p">[:,</span><span class="n">i</span><span class="p">]</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">_mean</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">_spatial_average</span><span class="p">[:,</span><span class="n">i</span><span class="p">],</span>
+                                                 <span class="bp">self</span><span class="o">.</span><span class="n">_X</span><span class="p">,</span> <span class="n">Xstar</span><span class="p">,</span> <span class="n">ker</span><span class="p">,</span> <span class="n">y_err</span><span class="o">=</span><span class="n">y_err</span><span class="p">[:,</span><span class="n">i</span><span class="p">])</span>
+                          <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">ker</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernels</span><span class="p">)])</span><span class="o">.</span><span class="n">T</span>
+
+        <span class="n">spatial_average</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_average_meanify</span><span class="p">(</span><span class="n">Xstar</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nparams</span><span class="p">):</span>
+            <span class="n">ystar</span><span class="p">[:,</span><span class="n">i</span><span class="p">]</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mean</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="n">spatial_average</span><span class="p">[:,</span><span class="n">i</span><span class="p">]</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">npca</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">ystar</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pca</span><span class="o">.</span><span class="n">inverse_transform</span><span class="p">(</span><span class="n">ystar</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">ystar</span>
+
+<div class="viewcode-block" id="GPInterp2pcf.return_gp_predict"><a class="viewcode-back" href="../../interp.html#piff.GPInterp2pcf.return_gp_predict">[docs]</a>    <span class="k">def</span> <span class="nf">return_gp_predict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">y</span><span class="p">,</span> <span class="n">X1</span><span class="p">,</span> <span class="n">X2</span><span class="p">,</span> <span class="n">kernel</span><span class="p">,</span> <span class="n">y_err</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Compute interpolation with gaussian process for a given kernel.</span>
+
+<span class="sd">        :param y:  The dependent responses.  (n_samples, n_targets)</span>
+<span class="sd">        :param X1:  The independent covariates.  (n_samples, 2)</span>
+<span class="sd">        :param X2:  The independent covariates at which to interpolate.  (n_samples, 2)</span>
+<span class="sd">        :param kernel: sklearn.gaussian_process kernel.</span>
+<span class="sd">        :param y_err: Error of y. (n_samples, n_targets)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">HT</span> <span class="o">=</span> <span class="n">kernel</span><span class="o">.</span><span class="fm">__call__</span><span class="p">(</span><span class="n">X2</span><span class="p">,</span><span class="n">Y</span><span class="o">=</span><span class="n">X1</span><span class="p">)</span>
+        <span class="n">K</span> <span class="o">=</span> <span class="n">kernel</span><span class="o">.</span><span class="fm">__call__</span><span class="p">(</span><span class="n">X1</span><span class="p">)</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">y</span><span class="p">))</span><span class="o">*</span><span class="n">y_err</span><span class="o">**</span><span class="mi">2</span>
+        <span class="n">factor</span> <span class="o">=</span> <span class="p">(</span><span class="n">cholesky</span><span class="p">(</span><span class="n">K</span><span class="p">,</span> <span class="n">overwrite_a</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">lower</span><span class="o">=</span><span class="kc">False</span><span class="p">),</span> <span class="kc">False</span><span class="p">)</span>
+        <span class="n">alpha</span> <span class="o">=</span> <span class="n">cho_solve</span><span class="p">(</span><span class="n">factor</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">overwrite_b</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">HT</span><span class="p">,</span><span class="n">alpha</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">alpha</span><span class="p">),</span><span class="mi">1</span><span class="p">)))</span><span class="o">.</span><span class="n">T</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="GPInterp2pcf.getProperties"><a class="viewcode-back" href="../../interp.html#piff.GPInterp2pcf.getProperties">[docs]</a>    <span class="k">def</span> <span class="nf">getProperties</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Extract the appropriate properties to use as the independent variables for the</span>
+<span class="sd">        interpolation.</span>
+
+<span class="sd">        Take self.keys from star.data</span>
+
+<span class="sd">        :param star:    A Star instances from which to extract the properties to use.</span>
+
+<span class="sd">        :returns:       A np vector of these properties.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">keys</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="GPInterp2pcf.initialize"><a class="viewcode-back" href="../../interp.html#piff.GPInterp2pcf.initialize">[docs]</a>    <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initialize both the interpolator to some state prefatory to any solve iterations and</span>
+<span class="sd">        initialize the stars for use with this interpolator.</span>
+
+<span class="sd">        :param stars:   A list of Star instances to interpolate between</span>
+<span class="sd">        :param logger:  A logger object for logging debug info. [default: None]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nparams</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">stars</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">params</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">npca</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">nparams</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">npca</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel_template</span><span class="p">)</span><span class="o">==</span><span class="mi">1</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">kernels</span> <span class="o">=</span> <span class="p">[</span><span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel_template</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nparams</span><span class="p">)]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel_template</span><span class="p">)</span><span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">nparams</span> <span class="ow">or</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel_template</span><span class="p">)</span><span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">npca</span> <span class="o">&amp;</span> <span class="bp">self</span><span class="o">.</span><span class="n">npca</span><span class="o">!=</span><span class="mi">0</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;numbers of kernel provided should be 1 (same for all parameters) or &quot;</span> \
+                                 <span class="s2">&quot;equal to the number of params (</span><span class="si">%i</span><span class="s2">), number kernel provided: </span><span class="si">%i</span><span class="s2">&quot;</span> \
+                                 <span class="o">%</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">nparams</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel_template</span><span class="p">))))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">kernels</span> <span class="o">=</span> <span class="p">[</span><span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">ker</span><span class="p">)</span> <span class="k">for</span> <span class="n">ker</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernel_template</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">stars</span></div>
+
+    <span class="k">def</span> <span class="nf">_build_average_meanify</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Compute spatial average from meanify output for a given coordinate using KN interpolation.</span>
+<span class="sd">        If no average_fits was given, return array of 0.</span>
+
+<span class="sd">        :param X: Coordinates of training stars or coordinates where to interpolate. (n_samples, 2)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">equal</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_X0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_X0</span><span class="p">[:,</span><span class="mi">0</span><span class="p">])</span><span class="o">*</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_X0</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+            <span class="n">neigh</span> <span class="o">=</span> <span class="n">KNeighborsRegressor</span><span class="p">(</span><span class="n">n_neighbors</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">n_neighbors</span><span class="p">)</span>
+            <span class="n">neigh</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_X0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_y0</span><span class="p">)</span>
+            <span class="n">average</span> <span class="o">=</span> <span class="n">neigh</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>         
+            <span class="k">return</span> <span class="n">average</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">X</span><span class="p">[:,</span><span class="mi">0</span><span class="p">]),</span> <span class="bp">self</span><span class="o">.</span><span class="n">nparams</span><span class="p">))</span>
+
+<div class="viewcode-block" id="GPInterp2pcf.solve"><a class="viewcode-back" href="../../interp.html#piff.GPInterp2pcf.solve">[docs]</a>    <span class="k">def</span> <span class="nf">solve</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Set up this GPInterp object.</span>
+
+<span class="sd">        :param stars:    A list of Star instances to interpolate between</span>
+<span class="sd">        :param logger:   A logger object for logging debug info. [default: None]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">getProperties</span><span class="p">(</span><span class="n">star</span><span class="p">)</span> <span class="k">for</span> <span class="n">star</span> <span class="ow">in</span> <span class="n">stars</span><span class="p">])</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">params</span> <span class="k">for</span> <span class="n">star</span> <span class="ow">in</span> <span class="n">stars</span><span class="p">])</span>
+        <span class="n">y_err</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">params_var</span> <span class="k">for</span> <span class="n">star</span> <span class="ow">in</span> <span class="n">stars</span><span class="p">]))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_X</span> <span class="o">=</span> <span class="n">X</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_y</span> <span class="o">=</span> <span class="n">y</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_X0</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_X0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_X</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_y0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_y</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_spatial_average</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_average_meanify</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">white_noise</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">y_err</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">y_err</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">white_noise</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_y_err</span> <span class="o">=</span> <span class="n">y_err</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">npca</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="kn">from</span> <span class="nn">sklearn.decomposition</span> <span class="kn">import</span> <span class="n">PCA</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_pca</span> <span class="o">=</span> <span class="n">PCA</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">npca</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_pca</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+            <span class="n">y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pca</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+            <span class="n">y_err</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pca</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">y_err</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_y_pca</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_y_pca_err</span> <span class="o">=</span> <span class="n">y</span><span class="p">,</span> <span class="n">y_err</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">nparams</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">npca</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">normalize</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_mean</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">y</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_spatial_average</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_mean</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nparams</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_init_theta</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nparams</span><span class="p">):</span>
+            <span class="n">kernel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernels</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_init_theta</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">kernel</span><span class="o">.</span><span class="n">theta</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">kernels</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fit</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernels</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+                                        <span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">[:,</span><span class="n">i</span><span class="p">]</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">_mean</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">_spatial_average</span><span class="p">[:,</span><span class="n">i</span><span class="p">],</span>
+                                        <span class="n">y_err</span><span class="p">[:,</span><span class="n">i</span><span class="p">],</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">logger</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;param </span><span class="si">%d</span><span class="s1">: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span><span class="n">i</span><span class="p">,</span><span class="n">kernel</span><span class="o">.</span><span class="n">set_params</span><span class="p">())</span></div>
+
+<div class="viewcode-block" id="GPInterp2pcf.interpolate"><a class="viewcode-back" href="../../interp.html#piff.GPInterp2pcf.interpolate">[docs]</a>    <span class="k">def</span> <span class="nf">interpolate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Perform the interpolation to find the interpolated parameter vector at some position.</span>
+
+<span class="sd">        :param star:        A Star instance to which one wants to interpolate</span>
+<span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
+
+<span class="sd">        :returns: a new Star instance with its StarFit member holding the interpolated parameters</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># because of sklearn formatting, call interpolateList and take 0th entry</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">interpolateList</span><span class="p">([</span><span class="n">star</span><span class="p">],</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="GPInterp2pcf.interpolateList"><a class="viewcode-back" href="../../interp.html#piff.GPInterp2pcf.interpolateList">[docs]</a>    <span class="k">def</span> <span class="nf">interpolateList</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Perform the interpolation for a list of stars.</span>
+
+<span class="sd">        :param star_list:   A list of Star instances to which to interpolate.</span>
+<span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
+
+<span class="sd">        :returns: a list of new Star instances with interpolated parameters</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">Xstar</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">getProperties</span><span class="p">(</span><span class="n">star</span><span class="p">)</span> <span class="k">for</span> <span class="n">star</span> <span class="ow">in</span> <span class="n">stars</span><span class="p">])</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_predict</span><span class="p">(</span><span class="n">Xstar</span><span class="p">)</span>
+        <span class="n">fitted_stars</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">y0</span><span class="p">,</span> <span class="n">star</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">stars</span><span class="p">):</span>
+            <span class="n">fit</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">newParams</span><span class="p">(</span><span class="n">y0</span><span class="p">)</span>
+            <span class="n">fitted_stars</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Star</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">fit</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">fitted_stars</span></div>
+
+    <span class="k">def</span> <span class="nf">_finish_write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">):</span>
+        <span class="c1"># Note, we&#39;re only storing the training data and hyperparameters here, which means the</span>
+        <span class="c1"># Cholesky decomposition will have to be re-computed when this object is read back from</span>
+        <span class="c1"># disk.</span>
+
+        <span class="n">init_theta</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">_init_theta</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nparams</span><span class="p">)])</span>
+        <span class="n">fit_theta</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">ker</span><span class="o">.</span><span class="n">theta</span> <span class="k">for</span> <span class="n">ker</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernels</span><span class="p">])</span>
+
+        <span class="n">dtypes</span> <span class="o">=</span> <span class="p">[(</span><span class="s1">&#39;INIT_THETA&#39;</span><span class="p">,</span> <span class="n">init_theta</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">init_theta</span><span class="o">.</span><span class="n">shape</span><span class="p">),</span>
+                  <span class="p">(</span><span class="s1">&#39;FIT_THETA&#39;</span><span class="p">,</span> <span class="n">fit_theta</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">fit_theta</span><span class="o">.</span><span class="n">shape</span><span class="p">),</span>
+                  <span class="p">(</span><span class="s1">&#39;X&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_X</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_X</span><span class="o">.</span><span class="n">shape</span><span class="p">),</span>
+                  <span class="p">(</span><span class="s1">&#39;Y&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_y</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_y</span><span class="o">.</span><span class="n">shape</span><span class="p">),</span>
+                  <span class="p">(</span><span class="s1">&#39;Y_ERR&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_y_err</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_y_err</span><span class="o">.</span><span class="n">shape</span><span class="p">),</span>
+                  <span class="p">(</span><span class="s1">&#39;X0&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_X0</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_X0</span><span class="o">.</span><span class="n">shape</span><span class="p">),</span>
+                  <span class="p">(</span><span class="s1">&#39;Y0&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_y0</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_y0</span><span class="o">.</span><span class="n">shape</span><span class="p">)]</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtypes</span><span class="p">)</span>
+        <span class="n">data</span><span class="p">[</span><span class="s1">&#39;INIT_THETA&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">init_theta</span>
+        <span class="n">data</span><span class="p">[</span><span class="s1">&#39;FIT_THETA&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">fit_theta</span>
+        <span class="n">data</span><span class="p">[</span><span class="s1">&#39;X&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_X</span>
+        <span class="n">data</span><span class="p">[</span><span class="s1">&#39;Y&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_y</span>
+        <span class="n">data</span><span class="p">[</span><span class="s1">&#39;Y_ERR&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_y_err</span>
+        <span class="n">data</span><span class="p">[</span><span class="s1">&#39;X0&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_X0</span>
+        <span class="n">data</span><span class="p">[</span><span class="s1">&#39;Y0&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_y0</span>
+
+        <span class="n">fits</span><span class="o">.</span><span class="n">write_table</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">extname</span><span class="o">=</span><span class="n">extname</span><span class="o">+</span><span class="s1">&#39;_kernel&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_finish_read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">):</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">fits</span><span class="p">[</span><span class="n">extname</span><span class="o">+</span><span class="s1">&#39;_kernel&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+        <span class="c1"># Run fit to set up GP, but don&#39;t actually do any hyperparameter optimization. Just</span>
+        <span class="c1"># set the GP up using the current hyperparameters.</span>
+        <span class="n">init_theta</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_1d</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;INIT_THETA&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">fit_theta</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_1d</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;FIT_THETA&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_1d</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;X&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_1d</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;Y&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_y_err</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_1d</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;Y_ERR&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_init_theta</span> <span class="o">=</span> <span class="n">init_theta</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nparams</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">init_theta</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_X0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_1d</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;X0&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_y0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_1d</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;Y0&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_spatial_average</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_average_meanify</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_X</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">normalize</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_mean</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_y</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_spatial_average</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_mean</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nparams</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel_template</span><span class="p">)</span><span class="o">==</span><span class="mi">1</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">kernels</span> <span class="o">=</span> <span class="p">[</span><span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel_template</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nparams</span><span class="p">)]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel_template</span><span class="p">)</span><span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">nparams</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;numbers of kernel provided should be 1 (same for all parameters) or &quot;</span> \
+                <span class="s2">&quot;equal to the number of params (</span><span class="si">%i</span><span class="s2">), number kernel provided: </span><span class="si">%i</span><span class="s2">&quot;</span><span class="o">%</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">nparams</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel_template</span><span class="p">))))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">kernels</span> <span class="o">=</span> <span class="p">[</span><span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">ker</span><span class="p">)</span> <span class="k">for</span> <span class="n">ker</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernel_template</span><span class="p">]</span>
+
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nparams</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">kernels</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernels</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">clone_with_theta</span><span class="p">(</span><span class="n">fit_theta</span><span class="p">[</span><span class="n">i</span><span class="p">])</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">Piff 0.4.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2019.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 2.1.2.
+    </div>
+  </body>
+</html>
