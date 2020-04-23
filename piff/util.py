@@ -165,6 +165,7 @@ def read_kwargs(fits, extname):
                 pass
     return kwargs
 
+# TODO: make sure this function always matches the SNR-measuring function in input.py
 def measure_snr(star):
     """Calculate the signal-to-noise of a given star.
 

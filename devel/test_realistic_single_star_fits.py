@@ -225,6 +225,125 @@ def test_fit_model_for_many_stars():
 
 
 @timer
+def test_fit_model_params_var_for_three_stars():
+    # setup logger
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(verbose=2)
+    else:
+        logger = piff.config.setup_logger(verbose=1)
+    logger.debug('Entering test_fit')
+
+    config = return_config()
+    config['atmo_interp'] = 'None'
+    config['jmax_focal'] = 1
+    config['jmax_pupil'] = 11
+
+    optatmo_psf_kwargs = {'size': 1.0, 'g1': 0, 'g2': 0,
+                          'fix_size': False, 'fix_g1': True, 'fix_g2': True,
+                          'zPupil004_zFocal001': -0.15,
+                          'zPupil005_zFocal001': 0.1,
+                          'zPupil006_zFocal001': 0.25,
+                          'zPupil007_zFocal001': -0.1,
+                          'zPupil008_zFocal001': 0.1,
+                          'zPupil009_zFocal001': 0.3,
+                          'zPupil010_zFocal001': -0.4,
+                          'zPupil011_zFocal001': 0.2,
+                          'fix_zPupil011_zFocal001': True,
+                        }  # avoid the defocus,astig,spherical -> negatives degeneracy by fixing spherical
+    config['optatmo_psf_kwargs'] = copy.deepcopy(optatmo_psf_kwargs)
+    config_draw = copy.deepcopy(config)
+    optatmo_psf_kwargs_values = {'size': 0.8,
+            'zPupil004_zFocal001': 0.2,
+            'zPupil005_zFocal001': 0.3,
+            'zPupil006_zFocal001': -0.2,
+            'zPupil007_zFocal001': 0.2,
+            'zPupil008_zFocal001': 0.4,
+            'zPupil009_zFocal001': -0.25,
+            'zPupil010_zFocal001': 0.2}
+    config_draw['optatmo_psf_kwargs'].update(optatmo_psf_kwargs_values)
+    psf_draw = piff.PSF.process(config_draw)
+    psf_train = piff.PSF.process(copy.deepcopy(config))
+
+    # make stars
+    logger.info('Making Stars')
+    nstars = 3
+    np.random.seed(12345)
+    chipnums = np.random.choice(range(1,63), nstars)
+    icens = np.random.randint(0, 1024, nstars)
+    jcens = np.random.randint(0, 2048, nstars)
+    stars_blank = [make_star(i, j, chip) for i, j, chip in zip(icens, jcens, chipnums)]
+    wcs = {}
+    for i in np.unique(chipnums):
+        wcs[i] = decaminfo.get_nominal_wcs(i)
+    pointing = None
+    true_optatmo_psf_kwargs = copy.deepcopy(optatmo_psf_kwargs)
+    params = psf_draw.getParamsList(stars_blank)
+    params_including_atmo_params = copy.deepcopy(params)
+    draw_atmo_sizes = np.random.uniform(-0.1,0.1,params.shape[0])
+    draw_atmo_g1s = np.random.uniform(-0.1,0.1,params.shape[0])
+    draw_atmo_g2s = np.random.uniform(-0.1,0.1,params.shape[0])
+    known_atmo_size_vars = np.array([9.428090381740227e-11, 1.2509087173271692e-10, 8.746287562949641e-11])
+    known_atmo_g1_vars = np.array([1.2646342862727268e-10, 1.392361783212879e-10, 1.239358322159534e-10])
+    known_atmo_g2_vars = np.array([1.2839876868239813e-10, 1.4015155202586417e-10, 1.2585684616270795e-10])
+    params_including_atmo_params[:,0] = draw_atmo_sizes
+    params_including_atmo_params[:,1] = draw_atmo_g1s
+    params_including_atmo_params[:,2] = draw_atmo_g2s
+
+    delete_list = []
+    stars = []
+    fit_atmo_sizes = []
+    fit_atmo_g1s = []
+    fit_atmo_g2s = []
+    fit_atmo_size_vars = []
+    fit_atmo_g1_vars = []
+    fit_atmo_g2_vars = []
+    number_of_failed_fits = 0
+    for star, star_i, param, param_including_atmo_params in zip(stars_blank, list(range(0,len(stars_blank))), params, params_including_atmo_params):
+        prof = psf_draw.getProfile(copy.deepcopy(star), param_including_atmo_params) * 1e6
+        star = psf_draw.drawProfile(star, prof, param_including_atmo_params)
+        stars.append(star)
+        fitted_star = psf_draw.fit_model(piff.Star(star.data.copy(), None), params=params[star_i])
+        try:
+            fitted_star = psf_draw.fit_model(piff.Star(star.data.copy(), None), params=params[star_i])
+        except (KeyboardInterrupt, SystemExit):
+            raise
+        except Exception as e:
+            delete_list.append(star_i)
+            logger.warning('{0}'.format(str(e)))
+            logger.warning('Warning! Failed to fit atmosphere model for star {0}. Removing star'.format(star_i))
+            number_of_failed_fits = number_of_failed_fits + 1
+            continue
+        fit_atmo_size = fitted_star.fit.params[0]
+        fit_atmo_g1 = fitted_star.fit.params[1]
+        fit_atmo_g2 = fitted_star.fit.params[2]
+        fit_atmo_size_var = fitted_star.fit.params_var[0]
+        fit_atmo_g1_var = fitted_star.fit.params_var[1]
+        fit_atmo_g2_var = fitted_star.fit.params_var[2]
+        fit_atmo_sizes.append(fit_atmo_size)
+        fit_atmo_g1s.append(fit_atmo_g1)
+        fit_atmo_g2s.append(fit_atmo_g2)
+        fit_atmo_size_vars.append(fit_atmo_size_var)
+        fit_atmo_g1_vars.append(fit_atmo_g1_var)
+        fit_atmo_g2_vars.append(fit_atmo_g2_var)
+    draw_atmo_sizes = np.delete(draw_atmo_sizes, delete_list).tolist()
+    draw_atmo_g1s = np.delete(draw_atmo_g1s, delete_list).tolist()
+    draw_atmo_g2s = np.delete(draw_atmo_g2s, delete_list).tolist()
+    known_atmo_size_vars = np.delete(known_atmo_size_vars, delete_list).tolist()
+    known_atmo_g1_vars = np.delete(known_atmo_g1_vars, delete_list).tolist()
+    known_atmo_g2_vars = np.delete(known_atmo_g2_vars, delete_list).tolist()
+    tol = 1e-6
+    max_failed_fits = 1
+    assert np.all(np.array(draw_atmo_sizes) - np.array(fit_atmo_sizes) <= tol),'failed to fit all atmo_sizes to tolerance {0}'.format(tol)
+    assert np.all(np.array(draw_atmo_g1s) - np.array(fit_atmo_g1s) <= tol),'failed to fit all atmo_g1s to tolerance {0}'.format(tol)
+    assert np.all(np.array(draw_atmo_g2s) - np.array(fit_atmo_g2s) <= tol),'failed to fit all atmo_g2s to tolerance {0}'.format(tol)
+    assert np.all(np.array(known_atmo_size_vars) - np.array(fit_atmo_size_vars) <= tol),'failed to fit all atmo_sizes to tolerance {0}'.format(tol)
+    assert np.all(np.array(known_atmo_g1_vars) - np.array(fit_atmo_g1_vars) <= tol),'failed to fit all atmo_g1s to tolerance {0}'.format(tol)
+    assert np.all(np.array(known_atmo_g2_vars) - np.array(fit_atmo_g2_vars) <= tol),'failed to fit all atmo_g2s to tolerance {0}'.format(tol)
+    assert number_of_failed_fits <= max_failed_fits,'number of failed fits is {0}, which exceeds the maximum for this unit test {1}'.format(number_of_failed_fits, max_failed_fits)
+
+
+
+@timer
 def test_star_residuals():
     # setup logger
     if __name__ == '__main__':
@@ -601,7 +720,8 @@ def test_size_fit():
 
 
 if __name__ == '__main__':
+    test_fit_model_params_var_for_three_stars()
     test_fit_model_for_many_stars()
-    #test_star_residuals()
-    #test_optics_and_test_fit_model()
-    #test_size_fit()
+    test_star_residuals()
+    test_optics_and_test_fit_model()
+    test_size_fit()

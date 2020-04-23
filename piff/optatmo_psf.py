@@ -684,7 +684,6 @@ class OptAtmoPSF(PSF):
         # for a significant fraction of random number seeds when cutting, but very rarely when
         # not cutting.  Therefore disable these cuts for pixel mode.
         if self.fit_optics_mode in ['shape', 'random_forest']:
-            #print("self.star_shapes[0]".format(self.star_shapes[0]))
 
             # do a MAD cut
             med = np.nanmedian(
@@ -826,7 +825,7 @@ class OptAtmoPSF(PSF):
             logger.warning('Found unrecognized fit_optics_mode {0}. Ignoring'.format(
                            self.fit_optics_mode))
 
-        if self.fit_optics_mode == 'shape':
+        if True:
             number_of_stars_used_in_optical_chi = \
                 len(self.final_optical_chi)//self.length_of_moments_list
             logger.info("total chisq for optical chi: {0}".format(
@@ -922,9 +921,6 @@ class OptAtmoPSF(PSF):
         finally fitted.
         """
         logger = LoggerWrapper(logger)
-        #print("")
-        #print("now entering getParamsList()")
-        #print("")
         params = np.zeros((len(stars), self.jmax_pupil + 4), dtype=np.float64)
 
         logger.debug('Getting aberrations from optical / mean system')
@@ -942,23 +938,9 @@ class OptAtmoPSF(PSF):
                 # obtain reference wavefront zernike values for all stars
                 if self.reference_wavefront:
                     logger.debug('Getting reference wavefront aberrations')
-                    #print("len(stars): {0}".format(len(stars)))
-                    #stars_no_int = 0
-                    #for star in stars:
-                    #    if type(star.data['chipnum']) != int:
-                    #        stars_no_int = stars_no_int + 1
-                    #        print(star.data['chipnum'])
-                    #        break
-                    #print("stars_no_int: {0}".format(stars_no_int))
+                    print("len(stars): {0}".format(len(stars)))
                     clean_stars = [Star(star.data, None) for star in stars]
-                    #print("len(clean_stars): {0}".format(len(stars)))
-                    #clean_stars_no_int = 0
-                    #for clean_star in clean_stars:
-                    #    if type(clean_star.data['chipnum']) != int:
-                    #        clean_stars_no_int = clean_stars_no_int + 1
-                    #        print(star.data['chipnum'])
-                    #        break
-                    #print("clean_stars_no_int: {0}".format(clean_stars_no_int))
+                    print("len(clean_stars): {0}".format(len(clean_stars)))
                     interp_stars = self.reference_wavefront.interpolateList(clean_stars)
                     aberrations_reference_wavefront = np.array(
                         [star_interpolated.fit.params for star_interpolated in interp_stars])
@@ -1022,15 +1004,12 @@ class OptAtmoPSF(PSF):
             else:
                 logger.debug('Getting atmospheric aberrations')
                 if trust_atmo_params_stored_in_stars:
-                    #print("Reading atmo params from stars.")
                     aberrations_atmo_star = np.array([star.fit.params for star in stars])[:,0:3]
                 else:
                     # strip star fit
-                    #print("Re-calculating atmo params with given PSF.")
                     stars = [Star(star.data, None) for star in stars]
                     stars = self.atmo_interp.interpolateList(stars)
-                    aberrations_atmo_star = np.array([star.fit.params for star in stars])      
-                #print("aberrations_atmo_star[0:2]: {0}".format(aberrations_atmo_star[0:2]))              
+                    aberrations_atmo_star = np.array([star.fit.params for star in stars])
                 params[:, 0:3] += aberrations_atmo_star
         if self.atmosphere_model == 'vonkarman':
             # set the vonkarman outer scale, L0
@@ -1142,6 +1121,7 @@ class OptAtmoPSF(PSF):
                 print("kwargs: {0}".format(kwargs))
                 print("self.gsparams: {0}".format(self.gsparams))
                 print("self._force_vk_stepk: {0}".format(self._force_vk_stepk))
+                atmo = galsim.VonKarman(gsparams=self.gsparams, **kwargs)
         atmo = atmo.shear(g1=g1, g2=g2)
 
         # convolve together
@@ -1230,9 +1210,6 @@ class OptAtmoPSF(PSF):
 
         :returns:       List of Star instances with its image filled with rendered PSF
         """
-        #print("")
-        #print("now entering drawStarList()")
-        #print("")
         # get all params at once
         if return_stars_with_atmo_params_from_psf:
             params, stars = self.getParamsList(stars, return_stars_with_atmo_params_from_psf=True, trust_atmo_params_stored_in_stars=trust_atmo_params_stored_in_stars)
@@ -1623,19 +1600,6 @@ class OptAtmoPSF(PSF):
                 pass
         stars = stars_64_bit
 
-        #try:
-        #    print("type of params: {0}".format(np.array(params).dtype))
-        #except:
-        #    pass
-        #try:
-        #    print("type of shapes: {0}".format(np.array(shapes).dtype))
-        #except:
-        #    pass
-        #try:
-        #    print("type of errors: {0}".format(np.array(errors).dtype))
-        #except:
-        #    pass
-
         # Set self._force_vk_stepk if not already set
 
         if self.optatmo_psf_kwargs['L0'] != -1.0:
@@ -1664,11 +1628,6 @@ class OptAtmoPSF(PSF):
             for i in range(len(stars)):
                 params.append(stars[i].center[0])
                 params.append(stars[i].center[1])
-                #if i == 0:
-                #    try:
-                #        print("type of stars[0].center: {0}".format(stars[0].center.dtype))
-                #    except:
-                #        pass
 
             # re-make bounds for pixel mode
             lower_bounds = np.full(len(params),-np.inf)
@@ -1937,29 +1896,26 @@ class OptAtmoPSF(PSF):
         upper_bounds = np.full(len(fit_params),np.inf)
 
         if self.optatmo_psf_kwargs['L0'] != -1.0:
-            print("0")
             lower_atmo_size_bound = 0.7 - opt_size
             upper_atmo_size_bound = 3.0 - opt_size
         else:
-            print("1")
             lower_atmo_size_bound = 0.45 - opt_size
             upper_atmo_size_bound = 3.0 - opt_size
         lower_bounds[3] = lower_atmo_size_bound
         upper_bounds[3] = upper_atmo_size_bound
         bounds = (lower_bounds, upper_bounds)
-        print("fit_params: {0}".format(fit_params))
-        print("bounds: {0}".format(bounds))
 
         # Set self._force_vk_stepk if not already set
-        if not hasattr(self, '_force_vk_stepk'):
-            vk = galsim.VonKarman(
-                lam=self.kolmogorov_kwargs['lam'],
-                r0=self.kolmogorov_kwargs['r0']/(opt_size + fit_size),
-                L0=opt_L0,
-                gsparams=self.gsparams
-            )
-            slack_factor = 0.8
-            self._force_vk_stepk = vk.stepk * slack_factor
+        if self.optatmo_psf_kwargs['L0'] != -1.0:
+            if not hasattr(self, '_force_vk_stepk'):
+                vk = galsim.VonKarman(
+                    lam=self.kolmogorov_kwargs['lam'],
+                    r0=self.kolmogorov_kwargs['r0']/(opt_size + fit_size),
+                    L0=opt_L0,
+                    gsparams=self.gsparams
+                )
+                slack_factor = 0.8
+                self._force_vk_stepk = vk.stepk * slack_factor
         
         # Make sure everything is 64 bit, otherwise least_squares fails
         star_image_copy = Image(star.image.copy(), dtype=np.float64, copy=True)
@@ -1975,12 +1931,10 @@ class OptAtmoPSF(PSF):
         fit_params = np.array(fit_params).astype("float64").tolist()
 
         # Find the solution
-        print("2")
         results = scipy.optimize.least_squares(
                 self._fit_model_residual, fit_params, bounds=bounds,
                 args=(star, optical_profile, opt_L0, opt_size, opt_g1, opt_g2, logger,),
                 ftol=1.e-3, xtol=1.e-4)
-        print("3")
 
         logger.debug(results.message)
         if not results.success:
@@ -2518,7 +2472,6 @@ class OptAtmoPSF(PSF):
         :returns chi: Chi of observed pixels to model pixels
         """
         logger = LoggerWrapper(logger)
-        print("entered _fit_model_residual()")
         logflux, du, dv, atmo_size, atmo_g1, atmo_g2 = params
         flux = np.exp(logflux)
         size = opt_size + atmo_size
@@ -2553,7 +2506,6 @@ class OptAtmoPSF(PSF):
         image_model = prof.drawImage(image.copy(), method='auto', center=star.image_pos)
         chi = (np.sqrt(weight.array) * (image_model.array - image.array)).flatten()
 
-        print("exiting _fit_model_residual()")
         return chi
 
     def _create_caches(self, stars, logger=None):
