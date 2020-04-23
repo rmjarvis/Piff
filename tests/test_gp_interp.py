@@ -150,14 +150,13 @@ def make_gaussian_random_fields(kernel, nstars, noise_level=1e-3,
 
     return stars_training, stars_validation
 
-def check_gp(stars_training, stars_validation, kernel, optimize, optimizer, 
-             anisotropic=False, min_sep=None, max_sep=None, nbins=20, p0=[3000., 0.,0.],
+def check_gp(stars_training, stars_validation, kernel, optimizer,
+             min_sep=None, max_sep=None, nbins=20, p0=[3000., 0.,0.],
              plotting=False):
     """ Solve for global PSF model, test it, and optionally display it.
     """
-    interp = piff.GPInterp(kernel=kernel, optimize=optimize, optimizer=optimizer,
-                           normalize=True, white_noise=0.,
-                           anisotropic=anisotropic, p0=p0,
+    interp = piff.GPInterp(kernel=kernel, optimizer=optimizer,
+                           normalize=True, white_noise=0., p0=p0,
                            n_neighbors=4, average_fits=None,
                            nbins=nbins, min_sep=min_sep, max_sep=max_sep,
                            logger=None)
@@ -174,7 +173,7 @@ def check_gp(stars_training, stars_validation, kernel, optimize, optimizer,
 
     np.testing.assert_allclose(y_test, y_validation, atol = 4e-2)
 
-    if optimize:
+    if optimizer is not 'none':
         truth_hyperparameters = np.exp(interp._init_theta)
         fitted_hyperparameters = np.exp(np.array([gp._optimizer._kernel.theta for gp in interp.gps]))
         np.testing.assert_allclose(fitted_hyperparameters, truth_hyperparameters, rtol = 2.)
@@ -192,8 +191,8 @@ def check_gp(stars_training, stars_validation, kernel, optimize, optimizer,
             plt.scatter(xtest[:,0], xtest[:,1], c=y_test[:,j], vmin=-4e-2, vmax=4e-2, cmap=plt.cm.seismic)
             plt.colorbar()
         
-        if optimizer == 'two-pcf' and optimize:
-            if not anisotropic:
+        if optimizer in ['two-pcf', 'anisotropic']:
+            if optimizer is 'two-pcf':
                 for gp in interp.gps:
                     plt.figure()
                     plt.scatter(gp._optimizer._2pcf_dist, gp._optimizer._2pcf)
@@ -267,12 +266,10 @@ def test_gp_interp_isotropic():
                "4e-4 * VonKarman(20.)",
                "4e-4 * VonKarman(20.)"]
 
-    optimize = [False, True, True, False, True, True]
-
-    optimizer = ['log-likelihood', 
+    optimizer = ['none',
                  'log-likelihood', 
                  'two-pcf',
-                 'log-likelihood',
+                 'none',
                  'log-likelihood',
                  'two-pcf']
 
@@ -280,7 +277,7 @@ def test_gp_interp_isotropic():
         stars_training, stars_validation = make_gaussian_random_fields(kernels[i], nstars, xlim=-10, ylim=10,
                                                                        seed=30352010, vmax=4e-2,
                                                                        noise_level=noise_level)
-        check_gp(stars_training, stars_validation, kernels[i], optimize[i], 
+        check_gp(stars_training, stars_validation, kernels[i],
                  optimizer[i], plotting=False)
 
 @timer
@@ -298,22 +295,18 @@ def test_gp_interp_anisotropic():
                "4e-4 * AnisotropicVonKarman(invLam={0!r})".format(invL2),
                "4e-4 * AnisotropicVonKarman(invLam={0!r})".format(invL2)]
 
-    optimize = [False, True, False, True]
-
-    optimizer = ['two-pcf', 
-                 'two-pcf', 
-                 'two-pcf',
-                 'two-pcf']
+    optimizer = ['none',
+                 'anisotropic',
+                 'none',
+                 'anisotropic']
 
 
     for i in range(len(kernels)):
         stars_training, stars_validation = make_gaussian_random_fields(kernels[i], nstars, xlim=-10, ylim=10,
                                                                        seed=30352010, vmax=4e-2,
                                                                        noise_level=noise_level)
-        check_gp(stars_training, stars_validation, kernels[i], optimize[i], 
-                 optimizer[i], anisotropic=True,
-                 min_sep=0., max_sep=5., nbins=11, p0=[20., 0.,0.], plotting=False)
-
+        check_gp(stars_training, stars_validation, kernels[i],
+                 optimizer[i], min_sep=0., max_sep=5., nbins=11, p0=[20., 0.,0.], plotting=False)
 
 if __name__ == "__main__":
 
