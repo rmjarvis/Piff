@@ -34,17 +34,11 @@ class GPInterp(Interp):
                          sklearn.gaussian_process.kernels.Kernel object.  The reprs of
                          sklearn.gaussian_process.kernels will work, as well as the repr of a
                          custom treegp VonKarman object.  [default: 'RBF(1)']
-    :param optimize:     Boolean indicating whether or not to try and optimize the kernel by
-                         computing the two-point correlation function or a maximum likelihood.
-                         [default: True]
-    :param optimizer:    Indicates which technics to used for optimizing the kernel. Two options
-                         are available. "two-pcf" optimize the kernel on the 1d/2d 2-point correlation
-                         function estimate by treecorr. "log-likelihood" used the classical
+    :param optimizer:    Indicates which techniques to use for optimizing the kernel. Two options
+                         are available. "two-pcf" optimize the kernel on the 1d 2-point correlation
+                         function estimate by treecorr. "anisotropic" optimize the kernel on the
+                         2d 2-point correlation function estimate by treecorr. "log-likelihood" used the classical
                          gaussian process maximum likelihood to optimize the kernel. [default: "two-pcf"]
-    :param anisotropic:  2D 2-point correlation function. Used 2D correlation function for the
-                         fiting part of the GP instead of a 1D correlation function. Used only
-                         if optimizer is "two-pcf", for "log-likelihood" will do an anisotropic fit
-                         if the kernel is anisotropic. [default: False]
     :param p0:           Initial guess for correlation length, and quantity of anisotropy
                          (e1 and e2 params as for galaxy shape). Used only if optimizer is "two-pcf"
                          and anisotropic is True. [default: [3000., 0., 0.]]
@@ -74,20 +68,13 @@ class GPInterp(Interp):
     :param logger:       A logger object for logging debug info. [default: None]
     """
     def __init__(self, keys=('u','v'), kernel='RBF(1)',
-                 optimize=True, optimizer='two-pcf',
-                 anisotropic=False, normalize=True, p0=[3000., 0.,0.],
+                 optimizer='two-pcf', normalize=True, p0=[3000., 0.,0.],
                  white_noise=0., n_neighbors=4, average_fits=None,
                  nbins=20, min_sep=None, max_sep=None,
                  rows=None, logger=None):
 
         self.keys = keys
-        self.optimize = optimize
         self.optimizer = optimizer
-        self.anisotropic = anisotropic
-        if not self.anisotropic:
-            self.robust_fit = False
-        else:
-            self.robust_fit = True
         self.p0 = p0
         self.n_neighbors = n_neighbors
         self.average_fits = average_fits
@@ -101,7 +88,7 @@ class GPInterp(Interp):
 
         self.kwargs = {
             'keys': keys,
-            'optimize': optimize,
+            'optimizer': optimizer,
             'kernel': kernel
         }
 
@@ -113,8 +100,9 @@ class GPInterp(Interp):
             else:
                 self.kernel_template = [ker for ker in kernel]
 
-        if self.optimizer not in ['two-pcf', 'log-likelihood']:
-            raise ValueError("Only two-pcf and log-likelihood are supported for optimizer. Current value: %s"%(self.optimizer))
+        if self.optimizer not in ['anisotropic', 'two-pcf', 'log-likelihood', 'none']:
+            raise ValueError("Only anisotropic, two-pcf, log-likelihood, and " \
+                             "none are supported for optimizer. Current value: %s"%(self.optimizer))
 
     def _fit(self, X, y, y_err=None, logger=None):
         """Update the GaussianProcess with data
@@ -175,10 +163,10 @@ class GPInterp(Interp):
         for i in range(self.nparams):
 
             gp = treegp.GPInterpolation(kernel=self.kernels[i],
-                                        optimize=self.optimize, optimizer=self.optimizer,
-                                        anisotropic=self.anisotropic, normalize=self.normalize,
-                                        robust_fit=self.robust_fit, p0=self.p0,
-                                        white_noise=self.white_noise, n_neighbors=self.n_neighbors,
+                                        optimizer=self.optimizer,
+                                        normalize=self.normalize,
+                                        p0=self.p0, white_noise=self.white_noise,
+                                        n_neighbors=self.n_neighbors,
                                         average_fits=self.average_fits, indice_meanify = i,
                                         nbins=self.nbins, min_sep=self.min_sep, max_sep=self.max_sep)
             self.gps.append(gp)
@@ -254,7 +242,8 @@ class GPInterp(Interp):
                   ('X', self._X.dtype, self._X.shape),
                   ('Y', self._y.dtype, self._y.shape),
                   ('Y_ERR', self._y_err.dtype, self._y_err.shape),
-                  ('ROWS', self.rows.dtype,  self.rows.shape)]
+                  ('ROWS', self.rows.dtype,  self.rows.shape),
+                  ('OPTIMIZER', str, len(self.optimizer))]
 
         data = np.empty(1, dtype=dtypes)
         data['INIT_THETA'] = init_theta
@@ -263,6 +252,7 @@ class GPInterp(Interp):
         data['Y'] = self._y
         data['Y_ERR'] = self._y_err
         data['ROWS'] = self.rows
+        data['OPTIMIZER'] = self.optimizer
 
         fits.write_table(data, extname=extname+'_kernel')
 
@@ -282,6 +272,7 @@ class GPInterp(Interp):
 
         self._init_theta = init_theta
         self.nparams = len(init_theta)
+        self.optimizer = optimizer
 
         if len(self.kernel_template)==1:
             self.kernels = [copy.deepcopey(self.kernel_template[0]) for i in range(self.nparams)]
@@ -296,9 +287,9 @@ class GPInterp(Interp):
         for i in range(self.nparams):
 
             gp = treegp.GPInterpolation(kernel=self.kernels[i],
-                                        optimize=self.optimize, optimizer='log-likelihood',
-                                        anisotropic=False, normalize=self.normalize,
-                                        robust_fit=False, p0=[3000., 0.,0.],
+                                        optimizer=self.optimizer,
+                                        normalize=self.normalize,
+                                        p0=[3000., 0.,0.],
                                         white_noise=self.white_noise, n_neighbors=4, average_fits=None,
                                         nbins=20, min_sep=None, max_sep=None)
             gp.kernel.clone_with_theta(fit_theta[i])
