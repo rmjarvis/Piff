@@ -51,13 +51,6 @@ class DECamWavefront(kNNInterp):
         :param logger:      A logger object for logging debug info. [default: None]
         """
 
-        self.z_min = 4
-        self.z_max = 11
-        # these were kwargs in knn interp, but are no longer kwargs because they are fixed by our
-        # wavefront model!
-        self.keys = ['focal_x', 'focal_y']
-        self.attr_target_wavefront = ['z{0}'.format(zi) for zi in range(self.z_min, self.z_max + 1)]
-
         self.kwargs = {
             'file_name': file_name,
             'extname': extname,
@@ -84,12 +77,44 @@ class DECamWavefront(kNNInterp):
             logger.debug(fits)
             logger.debug(fits[1])
         data = fits[extname].read()
+
+        # find out what zernikes are in your reference wavefront
+        the_type =  data.dtype
+        field_list = []
+        for field in the_type.fields:
+            field_list.append(field)
+        zernike_number_list_preliminary = []
+        for field in field_list:
+            if field[0] == "z":
+                zernike_number_list_preliminary.append(field[1:])
+        zernike_number_list = []
+        for zernike_number_preliminary in zernike_number_list_preliminary:
+            try:
+                zernike_number = int(zernike_number_preliminary)
+                zernike_number_list.append(zernike_number)
+            except:
+                continue
+        zernike_number_list = sorted(zernike_number_list)
+
+        self.z_min = np.min(zernike_number_list)
+        self.z_max = np.max(zernike_number_list)
+        # these were kwargs in knn interp, but are no longer kwargs because they are fixed by our
+        # wavefront model!
+        self.keys = ['focal_x', 'focal_y']
+        self.attr_target_wavefront = ['z{0}'.format(zi) for zi in range(self.z_min, self.z_max + 1)]
+
         if logger:
             logger.debug("read data from fits file")
         locations = np.array([data[attr] for attr in self.keys]).T
         if logger:
             logger.debug("locations shape = %s",locations.shape)
-        targets = np.array([data[attr] for attr in self.attr_target_wavefront]).T
+        targets_untransposed_list = []
+        for attr in self.attr_target_wavefront:
+            if int(attr[1:]) in zernike_number_list:
+                targets_untransposed_list.append(data[attr])
+            else:
+                targets_untransposed_list.append(np.zeros(len(data))) # fill zernikes you don't have reference wavefront information for that are below the highest zernike in your wavefront with zeros
+        targets = np.array(targets_untransposed_list).T
         if logger:
             logger.debug("targets shape = %s",targets.shape)
 

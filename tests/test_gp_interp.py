@@ -54,7 +54,6 @@ def get_correlation_length_matrix(correlation_length, g1, g2):
     Used same parametrization as shape measurement in weak-lensing 
     because this is mathematicaly equivalent (anistropic kernel 
     will have an elliptical shape).
-
     :param correlation_length: Correlation lenght of the kernel.
     :param g1, g2:             Shear applied to isotropic kernel.
     """
@@ -68,12 +67,76 @@ def get_correlation_length_matrix(correlation_length, g1, g2):
 
 def make_single_star(u, v, size, g1, g2, size_err, g1_err, g2_err):
     """Make a Star instance filled with a Kolmogorov profile
+    :param hlr:         The half_light_radius of the Kolmogorov.
+    :param g1, g2:      Shear applied to profile.
+    :param u0, v0:      The sub-pixel offset to apply.
+    :param flux:        The flux of the star
+    :param noise:       RMS Gaussian noise to be added to each pixel [default: 0]
+    :param du:          pixel size in "wcs" units [default: 1.]
+    :param fpu,fpv:     position of this cutout in some larger focal plane [default: 0,0]
+    :param nside:       The size of the array [default: 32]
+    :param nom_u0, nom_v0:  The nominal u0,v0 in the StarData [default: 0,0]
+    :param rng:         If adding noise, the galsim deviate to use for the random numbers
+                        [default: None]
+    """
+    k = galsim.Kolmogorov(half_light_radius=hlr, flux=flux).shear(g1=g1, g2=g2).shift(u0,v0)
+    if noise == 0.:
+        var = 0.1
+    else:
+        var = noise
+    star = piff.Star.makeTarget(x=nside/2+nom_u0/du, y=nside/2+nom_v0/du,
+                                u=fpu, v=fpv, scale=du, stamp_size=nside)
+    star.image.setOrigin(0,0)
+    k.drawImage(star.image, method='no_pixel',
+                offset=galsim.PositionD(nom_u0/du,nom_v0/du), use_true_center=False)
+    star.data.weight = star.image.copy()
+    star.weight.fill(1./var/var)
+    if noise != 0:
+        gn = galsim.GaussianNoise(sigma=noise, rng=rng)
+        star.image.addNoise(gn)
+    return star
 
-    :param u, v:           Star coordinate.
-    :param size:           Star size.
-    :param g1, g2:         Shear applied to profile.
-    :param size_err:       Size error.
-    :param g1_err, g2_err: Shear error. 
+
+def make_constant_psf_params(ntrain, nvalidate, nvisualize):
+    """ Make training/testing data for a constant PSF.
+    """
+
+    bd = galsim.BaseDeviate(5647382910)
+    ud = galsim.UniformDeviate(bd)
+
+    training_data = np.recarray((ntrain,), dtype=star_type)
+    validate_data = np.recarray((nvalidate,), dtype=star_type)
+
+    hlr, g1, g2, u0, v0 = 0.4, 0.03, 0.06, 0.1, 0.2
+    for i in range(ntrain):
+        u = ud()
+        v = ud()
+        flux = ud()*50+100
+        training_data[i] = (u, v, hlr, g1, g2, u0, v0, flux)
+
+    for i in range(nvalidate):
+        u = ud()*0.5 + 0.25
+        v = ud()*0.5 + 0.25
+        flux = 1.0
+        validate_data[i] = (u, v, hlr, g1, g2, u0, v0, flux)
+
+    vis_data = np.recarray((nvisualize, nvisualize), dtype=star_type)
+    u = v = np.linspace(0, 1, nvisualize)
+    u, v = np.meshgrid(u, v)
+    vis_data['u'] = u
+    vis_data['v'] = v
+    vis_data['hlr'] = hlr
+    vis_data['g1'] = g1
+    vis_data['g2'] = g2
+    vis_data['u0'] = u0
+    vis_data['v0'] = v0
+    vis_data['flux'] = flux
+
+    return training_data, validate_data, vis_data
+
+
+def make_polynomial_psf_params(ntrain, nvalidate, nvisualize):
+    """ Make training/testing data for PSF with params varying as polynomials.
     """
 
     star = piff.Star.makeTarget(x=None, y=None, u=u, v=v,
