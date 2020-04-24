@@ -39,9 +39,8 @@ class GPInterp(Interp):
                          function estimate by treecorr. "anisotropic" optimize the kernel on the
                          2d 2-point correlation function estimate by treecorr. "log-likelihood" used the classical
                          gaussian process maximum likelihood to optimize the kernel. [default: "two-pcf"]
-    :param p0:           Initial guess for correlation length, and quantity of anisotropy
-                         (e1 and e2 params as for galaxy shape). Used only if optimizer is "two-pcf"
-                         and anisotropic is True. [default: [3000., 0., 0.]]
+    :param l0:           Initial guess for correlation length when optimzer is "anisotropy".
+                         [default: 3000.]
     :param normalize:    Whether to normalize the interpolation parameters to have a mean of 0.
                          Normally, the parameters being interpolated are not mean 0, so you would
                          want this to be True, but if your parameters have an a priori mean of 0,
@@ -68,14 +67,14 @@ class GPInterp(Interp):
     :param logger:       A logger object for logging debug info. [default: None]
     """
     def __init__(self, keys=('u','v'), kernel='RBF(1)',
-                 optimizer='two-pcf', normalize=True, p0=[3000., 0.,0.],
+                 optimizer='two-pcf', normalize=True, l0=3000.,
                  white_noise=0., n_neighbors=4, average_fits=None,
                  nbins=20, min_sep=None, max_sep=None,
                  rows=None, logger=None):
 
         self.keys = keys
         self.optimizer = optimizer
-        self.p0 = p0
+        self.l0 = l0
         self.n_neighbors = n_neighbors
         self.average_fits = average_fits
         self.nbins = nbins
@@ -165,7 +164,7 @@ class GPInterp(Interp):
             gp = treegp.GPInterpolation(kernel=self.kernels[i],
                                         optimizer=self.optimizer,
                                         normalize=self.normalize,
-                                        p0=self.p0, white_noise=self.white_noise,
+                                        p0=[self.l0, 0, 0], white_noise=self.white_noise,
                                         n_neighbors=self.n_neighbors,
                                         average_fits=self.average_fits, indice_meanify = i,
                                         nbins=self.nbins, min_sep=self.min_sep, max_sep=self.max_sep)
