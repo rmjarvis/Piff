@@ -2100,11 +2100,13 @@ class OptAtmoPSF(PSF):
         chi = (shape_weights[None] * (shapes_model - shapes) / errors).flatten() #chi is
         logger.debug('Current Chi2 / dof is {0:.4e} / {1}'.format(np.sum(np.square(chi)), len(chi)))
 
+        self.final_optical_chi = chi
         # chi is a one-dimensional numpy array, containing
         # moment_weight*((moment_model-moment)/moment_error)
-        # for up to all moments up to third moments, for all stars
-        # the model moments in this case are based on what the random forest model
-        # returns for a model star with a given set of fit parameters
+        # for all moments, for all stars
+        chisq = np.sum(chi**2)
+        logger.info("chisq = %s",chisq)
+        #self.total_redchi_across_iterations.append(chisq/len(chi))
         return chi
 
     def _fit_size_residual(self, x, stars, opt_params, optical_profiles, logger=None):

@@ -205,8 +205,8 @@ def setup():
 def test_meanify():
 
     if __name__ == '__main__':
-        rtol = 4.e-1
-        atol = 5.e-2
+        rtol = 1.e-1
+        atol = 2.e-2
         bin_spacing = 30  # arcsec
     else:
         rtol = 1.e-1
@@ -279,8 +279,8 @@ def test_meanify():
     fit_hyp = [False, True]
 
     for fit in fit_hyp:
-        gp = piff.GPInterp(kernel="0.009 * RBF(300.*0.26)",
-                           optimize=fit_hyp, white_noise=1e-5, average_fits='output/average.fits')
+        gp = piff.GPInterp2pcf(kernel="0.009 * RBF(300.*0.26)",
+                               optimize=fit_hyp, white_noise=1e-5, average_fits='output/average.fits')
         gp.initialize(stars_training)
         gp.solve(stars_training)
         stars_interp = gp.interpolateList(stars_validation)
