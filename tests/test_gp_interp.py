@@ -23,29 +23,6 @@ from piff_test_helper import get_script_name, timer
 
 kolmogorov = galsim.Kolmogorov(half_light_radius=1., flux=1.)
 
-def return_var_map(weight, xi):
-    """
-    function to return variance of 2-pcf.
-
-    :param weight: weight, output of treegp.
-    :param xi:     2-pcf, ouput of treegp.
-    """
-    N = int(np.sqrt(len(xi)))
-    var = np.diag(np.linalg.inv(weight))
-    VAR = np.zeros(N*N)
-    I = 0
-    for i in range(N*N):
-        if xi[i] !=0:
-            VAR[i] = var[I]
-            I+=1
-        if I == len(var):
-            break
-    VAR = VAR.reshape(N,N) + np.flipud(np.fliplr(VAR.reshape(N,N)))
-    if N%2 == 1:
-        VAR[N/2, N/2] /= 2.
-    return VAR
-
-
 def get_correlation_length_matrix(correlation_length, g1, g2):
     """
     Produce correlation matrix to introduce anisotropy in kernel. 
@@ -137,7 +114,7 @@ def make_gaussian_random_fields(kernel, nstars, noise_level=1e-3,
         stars.append(star)
 
     if plot:
-        import pylab as plt
+        import matplotlib.pyplot as plt
         plt.figure()
         plt.scatter(u, v, c=size, vmin=-vmax, vmax=vmax, cmap=plt.cm.seismic)
         plt.figure()
@@ -177,9 +154,9 @@ def check_gp(stars_training, stars_validation, kernel, optimizer,
         truth_hyperparameters = np.exp(interp._init_theta)
         fitted_hyperparameters = np.exp(np.array([gp._optimizer._kernel.theta for gp in interp.gps]))
         np.testing.assert_allclose(fitted_hyperparameters, truth_hyperparameters, rtol = 2.)
-            
+
     if plotting:
-        import pylab as plt
+        import matplotlib.pyplot as plt
         title = ["size", "$g_1$", "$g_2$"]
         for j in range(3):
             plt.figure()
@@ -207,10 +184,10 @@ def check_gp(stars_training, stars_validation, kernel, optimizer,
                     MAX = np.max(gp._optimizer._2pcf)
                     N = int(np.sqrt(len(gp._optimizer._2pcf)))
 
-                    plt.figure(figsize=(14,5) ,frameon=False)
+                    plt.figure(figsize=(10,5) ,frameon=False)
                     plt.subplots_adjust(wspace=0.5,left=0.07,right=0.95, bottom=0.15,top=0.85)
 
-                    plt.subplot(1,3,1)
+                    plt.subplot(1,2,1)
                     plt.imshow(gp._optimizer._2pcf.reshape(N,N), extent=EXT, interpolation='nearest', origin='lower',
                                vmin=-MAX, vmax=MAX, cmap=CM)
                     cbar = plt.colorbar()
@@ -221,7 +198,7 @@ def check_gp(stars_training, stars_validation, kernel, optimizer,
                     plt.ylabel('$\\theta_Y$',fontsize=20)
                     plt.title('Measured 2-PCF',fontsize=16)
                 
-                    plt.subplot(1,3,2)
+                    plt.subplot(1,2,2)
                     plt.imshow(gp._optimizer._2pcf_fit.reshape(N,N), extent=EXT, interpolation='nearest',
                                origin='lower',vmin=-MAX,vmax=MAX, cmap=CM)
                     cbar = plt.colorbar()
@@ -230,26 +207,6 @@ def check_gp(stars_training, stars_validation, kernel, optimizer,
                     cbar.set_label('$\\xi\'$',fontsize=20)
                     plt.xlabel('$\\theta_X$',fontsize=20)
                     plt.ylabel('$\\theta_Y$',fontsize=20)
-                    
-                    var = return_var_map(gp._optimizer._2pcf_weight, gp._optimizer._2pcf)
-                    cm_residual = plt.matplotlib.cm.get_cmap('RdBu',10)
-                    Res = gp._optimizer._2pcf[gp._optimizer._2pcf_mask] - gp._optimizer._2pcf_fit[gp._optimizer._2pcf_mask]
-                    chi2 = Res.dot(gp._optimizer._2pcf_weight).dot(Res)
-                    dof = np.sum(gp._optimizer._2pcf_mask) - 4.
-                    pull = (gp._optimizer._2pcf.reshape(N,N) - gp._optimizer._2pcf_fit.reshape(N,N)) / np.sqrt(var)
-                    plt.title('Fitted 2-PCF'%(chi2/dof),fontsize=16)
-
-                    plt.subplot(1,3,3)
-                
-                    plt.imshow(pull, extent=EXT, interpolation='nearest', 
-                               origin='lower', vmin=-5., vmax=+5., cmap=cm_residual)
-                    cbar = plt.colorbar()
-                    cbar.formatter.set_powerlimits((0, 0))
-                    cbar.update_ticks()
-                    cbar.set_label('$\\frac{\\xi-\\xi\'}{\sigma_{\\xi}}$',fontsize=20)
-                    plt.xlabel('$\\theta_X$',fontsize=20)
-                    plt.ylabel('$\\theta_Y$',fontsize=20)
-                    plt.title('Pull',fontsize=16)
     
         plt.show()
 
