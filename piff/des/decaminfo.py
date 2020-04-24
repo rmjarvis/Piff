@@ -22,15 +22,13 @@ import numpy as np
 class DECamInfo(object):
     """ decaminfo is a class used to contain DECam geometry information and various utility routines
     """
-    _infoDict = None
+    _infoDict = {}
 
     @property
     def infoDict(self):
-        if DECamInfo._infoDict is None:
+        if not DECamInfo._infoDict:
             # info returns a dictionary chock full of info on the DECam geometry
             # keyed by the CCD name
-
-            DECamInfo._infoDict = {}
 
             # store a dictionary for each CCD, keyed by the CCD name
             # AJR 9/14/2012 fixed these to agree with the DS9 coordinate system
