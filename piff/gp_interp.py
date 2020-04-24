@@ -13,14 +13,14 @@
 #    and/or other materials provided with the distribution.
 
 """
-.. module:: gp_interp_treegp
+.. module:: sklearn_gp_interp
 """
 
 import numpy as np
 import warnings
-import copy
 
-import treegp
+from sklearn.gaussian_process.kernels import StationaryKernelMixin, NormalizedKernelMixin, Kernel
+from sklearn.gaussian_process.kernels import Hyperparameter
 
 from .interp import Interp
 from .star import Star, StarFit
@@ -37,69 +37,89 @@ class GPInterp(Interp):
                         custom piff AnisotropicRBF or ExplicitKernel object.  [default: 'RBF()']
     :param optimize:    Boolean indicating whether or not to try and optimize the kernel by
                         maximizing the marginal likelihood.  [default: True]
+    :param npca:        Number of principal components to keep.  [default: 0, which means don't
+                        decompose PSF parameters into principle components]
     :param normalize:   Whether to normalize the interpolation parameters to have a mean of 0.
                         Normally, the parameters being interpolated are not mean 0, so you would
                         want this to be True, but if your parameters have an a priori mean of 0,
                         then subtracting off the realized mean would be invalid.  [default: True]
     :param logger:      A logger object for logging debug info. [default: None]
     """
-    def __init__(self, keys=('u','v'), kernel='RBF()', 
-                 optimize=True, optimizer='two-pcf',
-                 anisotropic=False, normalize=True, p0=[3000., 0.,0.],
-                 white_noise=0., n_neighbors=4, average_fits=None,
-                 nbins=20, min_sep=None, max_sep=None, logger=None):
+    def __init__(self, keys=('u','v'), kernel='RBF()', optimize=True, npca=0, normalize=True,
+                 logger=None):
+        from sklearn.gaussian_process import GaussianProcessRegressor
 
         self.keys = keys
-        self.optimize = optimize
-        self.optimizer = optimizer
-        self.anisotropic = anisotropic
-        if not self.anisotropic:
-            self.robust_fit = False
-        else:
-            self.robust_fit = True
-        self.p0 = p0
-        self.n_neighbors = n_neighbors
-        self.average_fits = average_fits
-        self.nbins = nbins
-        self.min_sep = min_sep
-        self.max_sep = max_sep
-        self.normalize = normalize
-        self.white_noise = white_noise
         self.kernel = kernel
+        self.npca = npca
+        self.degenerate_points = False
 
         self.kwargs = {
             'keys': keys,
             'optimize': optimize,
+            'npca': npca,
             'kernel': kernel
         }
+        optimizer = 'fmin_l_bfgs_b' if optimize else None
+        self.gp = GaussianProcessRegressor(self._eval_kernel(self.kernel), optimizer=optimizer,
+                                           normalize_y=normalize)
 
-        if isinstance(kernel,str):
-            self.kernel_template = [kernel]
-        else:
-            if type(kernel) is not list and type(kernel) is not np.ndarray:
-                raise TypeError("kernel should be a string a list or a numpy.ndarray of string")
-            else:
-                self.kernel_template = [ker for ker in kernel]
-        
-        if self.optimizer not in ['two-pcf', 'log-likelihood']:
-            raise ValueError("Only two-pcf and log-likelihood are supported for optimizer. Current value: %s"%(self.optimizer))
+    @staticmethod
+    def _eval_kernel(kernel):
+        # Some import trickery to get all subclasses of sklearn.gaussian_process.kernels.Kernel
+        # into the local namespace without doing "from sklearn.gaussian_process.kernels import *"
+        # and without importing them all manually.
+        def recurse_subclasses(cls):
+            out = []
+            for c in cls.__subclasses__():
+                out.append(c)
+                out.extend(recurse_subclasses(c))
+            return out
+        clses = recurse_subclasses(Kernel)
+        for cls in clses:
+            module = __import__(cls.__module__, globals(), locals(), cls)
+            execstr = "{0} = module.{0}".format(cls.__name__)
+            exec(execstr, globals(), locals())
 
+        from numpy import array
 
-    def _fit(self, X, y, y_err=None, logger=None):
+        try:
+            k = eval(kernel)
+        except Exception as e:  # pragma: no cover
+            raise RuntimeError("Failed to evaluate kernel string {0!r}.  "
+                               "Original exception: {1}".format(kernel, e))
+        return k
+
+    def _fit(self, X, y, logger=None):
         """Update the GaussianProcessRegressor with data
         :param X:  The independent covariates.  (n_samples, n_features)
         :param y:  The dependent responses.  (n_samples, n_targets)
         """
-        for i in range(self.nparams):
-            self.gps[i].initialize(X, y[:,i], y_err=y_err[:,i])
-            self.gps[i].solve()
+        # Save these for potential read/write.
+        self._X = X
+        self._y = y
+        if self.npca > 0:
+            from sklearn.decomposition import PCA
+            self._pca = PCA(n_components=self.npca)
+            self._pca.fit(y)
+            y = self._pca.transform(y)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            # Sometimes the next line emits a warning along the lines of:
+            # UserWarning: fmin_l_bfgs_b terminated abnormally with the  state:
+            # {'grad': array([-0.29692092, -4.153523  ,  2.9923153 ]),
+            # 'task': b'ABNORMAL_TERMINATION_IN_LNSRCH', 'funcalls': 70, 'nit': 2, 'warnflag': 2}
+            # As far as I can tell, it's not actually harmful, so just ignore it.
+            self.gp.fit(X, y)
 
     def _predict(self, Xstar):
         """ Predict responses given covariates.
         :param X:  The independent covariates at which to interpolate.  (n_samples, n_features).
         :returns:  Regressed parameters  (n_samples, n_targets)
         """
-        ystar = np.array([gp.predict(Xstar) for gp in self.gps]).T
+        ystar = self.gp.predict(Xstar)
+        if self.npca > 0:
+            ystar = self._pca.inverse_transform(ystar)
         return ystar
 
     def getProperties(self, star, logger=None):
@@ -121,32 +141,6 @@ class GPInterp(Interp):
         :param stars:   A list of Star instances to interpolate between
         :param logger:  A logger object for logging debug info. [default: None]
         """
-        self.nparams = len(stars[0].fit.params)
-
-        if len(self.kernel_template)==1:
-            self.kernels = [self.kernel_template[0] for i in range(self.nparams)]
-        else:
-            if len(self.kernel_template)!= self.nparams:
-                raise ValueError("numbers of kernel provided should be 1 (same for all parameters) or " \
-                                 "equal to the number of params (%i), number kernel provided: %i" \
-                                 %((self.nparams,len(self.kernel_template))))
-            else:
-                self.kernels = [copy.deepcopy(ker) for ker in self.kernel_template]
-        self.gps = []
-
-        for i in range(self.nparams):
-
-            gp = treegp.GPInterpolation(kernel=self.kernels[i],
-                                        optimize=self.optimize, optimizer=self.optimizer,
-                                        anisotropic=self.anisotropic, normalize=self.normalize,
-                                        robust_fit=self.robust_fit, p0=self.p0,
-                                        white_noise=self.white_noise, n_neighbors=self.n_neighbors,
-                                        average_fits=self.average_fits, indice_meanify = i,
-                                        nbins=self.nbins, min_sep=self.min_sep, max_sep=self.max_sep)
-            self.gps.append(gp)
-            
-        self._init_theta = np.array([gp.kernel_template.theta for gp in self.gps])
-
         return stars
 
     def solve(self, stars=None, logger=None):
@@ -157,17 +151,7 @@ class GPInterp(Interp):
         """
         X = np.array([self.getProperties(star) for star in stars])
         y = np.array([star.fit.params for star in stars])
-        y_err = np.sqrt(np.array([star.fit.params_var for star in stars]))
-
-        self._X = X
-        self._y = y
-
-        if self.white_noise > 0:
-            y_err = np.sqrt(y_err**2 + self.white_noise**2)
-        self._y_err = y_err
-
-        self._fit(X, y, y_err=y_err, logger=logger)
-        self.kernels = [gp.kernel for gp in self.gps]
+        self._fit(X, y, logger=logger)
 
     def interpolate(self, star, logger=None):
         """Perform the interpolation to find the interpolated parameter vector at some position.
@@ -199,78 +183,32 @@ class GPInterp(Interp):
             fitted_stars.append(Star(star.data, fit))
         return fitted_stars
 
-
     def _finish_write(self, fits, extname):
         # Note, we're only storing the training data and hyperparameters here, which means the
         # Cholesky decomposition will have to be re-computed when this object is read back from
         # disk.
-
-        init_theta = np.array([self._init_theta[i] for i in range(self.nparams)])
-        fit_theta = np.array([ker.theta for ker in self.kernels])
-
+        init_theta = self.gp.kernel.theta
+        fit_theta = self.gp.kernel_.theta
         dtypes = [('INIT_THETA', init_theta.dtype, init_theta.shape),
                   ('FIT_THETA', fit_theta.dtype, fit_theta.shape),
                   ('X', self._X.dtype, self._X.shape),
-                  ('Y', self._y.dtype, self._y.shape),
-                  ('Y_ERR', self._y_err.dtype, self._y_err.shape)]
-
-        # TO DO: need to see how I propagate meanify
-
-                  #('X0', self._X0.dtype, self._X0.shape),
-                  #('Y0', self._y0.dtype, self._y0.shape)]
+                  ('Y', self._y.dtype, self._y.shape)]
 
         data = np.empty(1, dtype=dtypes)
         data['INIT_THETA'] = init_theta
         data['FIT_THETA'] = fit_theta
         data['X'] = self._X
         data['Y'] = self._y
-        data['Y_ERR'] = self._y_err
-        #data['X0'] = self._X0
-        #data['Y0'] = self._y0
 
         fits.write_table(data, extname=extname+'_kernel')
 
     def _finish_read(self, fits, extname):
         data = fits[extname+'_kernel'].read()
-        # Run fit to set up GP, but don't actually do any hyperparameter optimization. Just
+        # Run fit to set up GP, but don't actually do any hyperparameter optimization.  Just
         # set the GP up using the current hyperparameters.
-
-        init_theta = np.atleast_1d(data['INIT_THETA'][0])
-        fit_theta = np.atleast_1d(data['FIT_THETA'][0])
-
-        self._X = np.atleast_1d(data['X'][0])
-        self._y = np.atleast_1d(data['Y'][0])
-        self._y_err = np.atleast_1d(data['Y_ERR'][0])
-
-        self._init_theta = init_theta
-        self.nparams = len(init_theta)
-
-        # TO DO : see what to do with mean function #
-        #self._X0 = np.atleast_1d(data['X0'][0])
-        #self._y0 = np.atleast_1d(data['Y0'][0])
-        #self._spatial_average = self._build_average_meanify(self._X)
-
-        #if self.normalize:
-        #    self._mean = np.mean(self._y - self._spatial_average, axis=0)
-        #else:
-        #    self._mean = np.zeros(self.nparams)
-        if len(self.kernel_template)==1:
-            self.kernels = [copy.deepcopy(self.kernel_template[0]) for i in range(self.nparams)]
-        else:
-            if len(self.kernel_template)!= self.nparams:
-                raise ValueError("numbers of kernel provided should be 1 (same for all parameters) or " \
-                "equal to the number of params (%i), number kernel provided: %i"%((self.nparams,len(self.kernel_template))))
-            else:
-                self.kernels = [copy.deepcopy(ker) for ker in self.kernel_template]
-
-        self.gps = []
-        for i in range(self.nparams):
-
-            gp = treegp.GPInterpolation(kernel=self.kernels[i],
-                                        optimize=self.optimize, optimizer='log-likelihood',
-                                        anisotropic=False, normalize=self.normalize,
-                                        robust_fit=False, p0=[3000., 0.,0.],
-                                        white_noise=self.white_noise, n_neighbors=4, average_fits=None,
-                                        nbins=20, min_sep=None, max_sep=None)
-            gp.kernel.clone_with_theta(fit_theta[i])
-            self.gps.append(gp)
+        self.gp.kernel.theta = np.atleast_1d(data['FIT_THETA'][0])
+        old_optimizer, self.gp.optimizer = self.gp.optimizer, None
+        self._fit(data['X'][0], data['Y'][0])
+        self.gp.optimizer = old_optimizer
+        # Now that gp is setup, we can restore it's initial kernel.
+        self.gp.kernel.theta = np.atleast_1d(data['INIT_THETA'][0])
