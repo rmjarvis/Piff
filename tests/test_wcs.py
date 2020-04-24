@@ -19,6 +19,7 @@ import piff
 import fitsio
 import os
 import warnings
+import copy
 
 from piff_test_helper import get_script_name, timer, CaptureLog
 
