@@ -34,11 +34,13 @@ class GPInterp(Interp):
                          sklearn.gaussian_process.kernels.Kernel object.  The reprs of
                          sklearn.gaussian_process.kernels will work, as well as the repr of a
                          custom treegp VonKarman object.  [default: 'RBF(1)']
-    :param optimizer:    Indicates which techniques to use for optimizing the kernel. Two options
+    :param optimizer:    Indicates which techniques to use for optimizing the kernel. Four options
                          are available. "two-pcf" optimize the kernel on the 1d 2-point correlation
                          function estimate by treecorr. "anisotropic" optimize the kernel on the
                          2d 2-point correlation function estimate by treecorr. "log-likelihood" used the classical
                          gaussian process maximum likelihood to optimize the kernel. [default: "two-pcf"]
+    :param rows:         A list of integer which indicates on which rows of Star.fit.param
+                         need to be interpolated using GPs. [default: None, which means all rows]
     :param l0:           Initial guess for correlation length when optimzer is "anisotropy".
                          [default: 3000.]
     :param normalize:    Whether to normalize the interpolation parameters to have a mean of 0.
@@ -48,8 +50,6 @@ class GPInterp(Interp):
     :param white_noise:  A float value that indicate the ammount of white noise that you want to
                          use during the gp interpolation. This is an additional uncorrelated noise
                          added to the error of the PSF parameters. [default: 0.]
-    :param n_neighbors:  Number of neighbors to used for interpolating the spatial average using
-                         a KNeighbors interpolation. Used only if average_fits is not None. [defaulf: 4]
     :param nbins:        Number of bins (if 1D correlation function) of the square root of the number
                          of bins (if 2D correlation function) used in TreeCorr to compute the
                          2-point correlation function. Used only if optimizer is "two-pcf". [default: 20]
@@ -62,8 +62,8 @@ class GPInterp(Interp):
     :param average_fits: A fits file that have the spatial average functions of PSF parameters
                          build in it. Build using meanify and piff output across different
                          exposures. See meanify documentation. [default: None]
-    :param rows:         A list of integer which indicates on which rows of Star.fit.param
-                         need to be interpolated using GPs. [default: None]
+    :param n_neighbors:  Number of neighbors to used for interpolating the spatial average using
+                         a KNeighbors interpolation. Used only if average_fits is not None. [defaulf: 4]
     :param logger:       A logger object for logging debug info. [default: None]
     """
     def __init__(self, keys=('u','v'), kernel='RBF(1)',
