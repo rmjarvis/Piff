@@ -93,32 +93,6 @@ class Input(object):
         else:
             logger.debug("Making star list from %d catalogs", self.nimages)
 
-        if False
-            # Check the snr and limit it if appropriate
-            snr = self.calculateSNR(stamp, wt_stamp)
-            logger.debug("SNR = %f",snr)
-            if self.min_snr is not None and snr < self.min_snr:
-                logger.info("Skipping star at position %f,%f with snr=%f."%(x,y,snr))
-                continue
-            if False: # snr rescaling is disabled
-                factor = (self.max_snr / snr)**2
-                logger.debug("Scaling noise by factor of %f to achieve snr=%f", factor, self.max_snr)
-                wt_stamp = wt_stamp * factor
-                snr = self.max_snr
-            props['snr'] = snr
-
-            pos = galsim.PositionD(x,y)
-            data = piff.StarData(stamp, pos, weight=wt_stamp, pointing=self.pointing, properties=props)
-            star = piff.Star(data, None)
-            g = gain[k]
-            if g is not None:
-                logger.debug("Adding Poisson noise to weight map according to gain=%f",g)
-                star = star.addPoisson(gain=g)
-            stars.append(star)
-            nstars_in_image += 1
-        logger.warning("Read a total of %d stars from %d image%s",len(stars),len(self.images),
-                       "s" if len(self.images) > 1 else "")
-
         args = [(self.__class__,
                  self.image_kwargs[k], self.cat_kwargs[k], self.wcs_list[k], self.chipnums[k])
                 for k in range(self.nimages)]
@@ -129,12 +103,42 @@ class Input(object):
                       hsm_size_reject=self.hsm_size_reject)
 
         stars = run_multi(call_makeStarsFromImage, self.nproc, args, logger, kwargs)
-
         # Concatenate the star lists into a single list
         stars = [s for slist in stars if slist is not None for s in slist if slist]
-
         logger.warning("Read a total of %d stars from %d image%s",len(stars),self.nimages,
                        "s" if self.nimages > 1 else "")
+
+        if False:
+
+            stars_keep = []
+
+            for star in stars:
+                # Check the snr and limit it if appropriate
+                
+                snr = self.calculateSNR(stamp, wt_stamp)
+                logger.debug("SNR = %f",snr)
+                if self.min_snr is not None and snr < self.min_snr:
+                    logger.info("Skipping star at position %f,%f with snr=%f."%(x,y,snr))
+                    continue
+                if False: # snr rescaling is disabled
+                    factor = (self.max_snr / snr)**2
+                    logger.debug("Scaling noise by factor of %f to achieve snr=%f", factor, self.max_snr)
+                    wt_stamp = wt_stamp * factor
+                    snr = self.max_snr
+                props['snr'] = snr
+
+                pos = galsim.PositionD(x,y)
+                data = piff.StarData(stamp, pos, weight=wt_stamp, pointing=self.pointing, properties=props)
+                star = piff.Star(data, None)
+                g = gain[k]
+                if g is not None:
+                    logger.debug("Adding Poisson noise to weight map according to gain=%f",g)
+                    star = star.addPoisson(gain=g)
+                stars_keep.append(star)
+                nstars_in_image += 1
+
+                stars = stars_keep
+                
 
         # here we remove stars which have a deformed (excessively non-square) postage stamp
         if len(stars) > 0:
@@ -713,8 +717,8 @@ class InputFiles(Input):
                     logger.warning("Star at position %f,%f overlaps the edge of the image.  "
                                     "Skipping this star.", x, y)
                     continue
-            stamp = image[bounds]
-            wt_stamp = wt[bounds]
+            stamp = image[bounds].copy()
+            wt_stamp = wt[bounds].copy()
             props = { 'chipnum' : chipnum,
                         'gain' : gain[k] }
 

@@ -449,4 +449,4 @@ def read(file_name, logger=None):
 
     :returns: a piff.PSF instance
     """    
-    return PSF.read(os.path.basename(file_name), logger=logger)
+    return PSF.read(file_name, logger=logger)

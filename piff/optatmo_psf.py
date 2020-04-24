@@ -200,7 +200,7 @@ class OptAtmoPSF(PSF):
         self.optical_psf_kwargs = optical_psf_kwargs
         self.kolmogorov_kwargs = kolmogorov_kwargs
         self.reference_wavefront = reference_wavefront
-        self.higher_order_reference_wavefront_file = os.path.basename(higher_order_reference_wavefront_file)
+        self.higher_order_reference_wavefront_file = higher_order_reference_wavefront_file
         if self.higher_order_reference_wavefront_file in [None, 'none', 'None', 'NONE']:
             # here we save the specified higher order reference wavefront as an instance of the
             # wavefrontmap class.
@@ -1606,6 +1606,7 @@ class OptAtmoPSF(PSF):
 
         # Make sure everything is 64 bit, otherwise least_squares fails
         stars_64_bit = []
+        # EAC FIXME, can we just double precision the data in place?
         for star in stars:
             try:
                 star_image_copy = Image(star.image.copy(), dtype=np.float64, copy=True)
@@ -1937,31 +1938,31 @@ class OptAtmoPSF(PSF):
         upper_bounds = np.full(len(fit_params),np.inf)
 
         if self.optatmo_psf_kwargs['L0'] != -1.0:
-            print("0")
             lower_atmo_size_bound = 0.7 - opt_size
             upper_atmo_size_bound = 3.0 - opt_size
         else:
-            print("1")
             lower_atmo_size_bound = 0.45 - opt_size
             upper_atmo_size_bound = 3.0 - opt_size
         lower_bounds[3] = lower_atmo_size_bound
         upper_bounds[3] = upper_atmo_size_bound
         bounds = (lower_bounds, upper_bounds)
-        print("fit_params: {0}".format(fit_params))
-        print("bounds: {0}".format(bounds))
-
+        #print("fit_params: {0}".format(fit_params))
+        #print("bounds: {0}".format(bounds))
+        
         # Set self._force_vk_stepk if not already set
         if not hasattr(self, '_force_vk_stepk'):
+            if opt_L0 < 0:
+                print("L0 > 0", opt_L0)
             vk = galsim.VonKarman(
                 lam=self.kolmogorov_kwargs['lam'],
                 r0=self.kolmogorov_kwargs['r0']/(opt_size + fit_size),
                 L0=opt_L0,
-                gsparams=self.gsparams
-            )
+                gsparams=self.gsparams)
             slack_factor = 0.8
             self._force_vk_stepk = vk.stepk * slack_factor
-        
+                
         # Make sure everything is 64 bit, otherwise least_squares fails
+        # EAC FIXME, can we just double precision the data in place?
         star_image_copy = Image(star.image.copy(), dtype=np.float64, copy=True)
         new_star_data = StarData(image=star_image_copy,
                             image_pos=star.data.image_pos,
@@ -1975,12 +1976,12 @@ class OptAtmoPSF(PSF):
         fit_params = np.array(fit_params).astype("float64").tolist()
 
         # Find the solution
-        print("2")
+        #print("2")
         results = scipy.optimize.least_squares(
                 self._fit_model_residual, fit_params, bounds=bounds,
                 args=(star, optical_profile, opt_L0, opt_size, opt_g1, opt_g2, logger,),
                 ftol=1.e-3, xtol=1.e-4)
-        print("3")
+        #print("3")
 
         logger.debug(results.message)
         if not results.success:
@@ -2518,7 +2519,7 @@ class OptAtmoPSF(PSF):
         :returns chi: Chi of observed pixels to model pixels
         """
         logger = LoggerWrapper(logger)
-        print("entered _fit_model_residual()")
+        #print("entered _fit_model_residual()")
         logflux, du, dv, atmo_size, atmo_g1, atmo_g2 = params
         flux = np.exp(logflux)
         size = opt_size + atmo_size
@@ -2553,7 +2554,7 @@ class OptAtmoPSF(PSF):
         image_model = prof.drawImage(image.copy(), method='auto', center=star.image_pos)
         chi = (np.sqrt(weight.array) * (image_model.array - image.array)).flatten()
 
-        print("exiting _fit_model_residual()")
+        #print("exiting _fit_model_residual()")
         return chi
 
     def _create_caches(self, stars, logger=None):

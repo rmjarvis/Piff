@@ -193,8 +193,6 @@ def measure_snr(star):
     else:
         return (F - Npix) / np.sqrt(F)
 
->>>>>>
-
 def hsm(star):
     """ Use HSM to measure moments of star image. Does not go beyond second moments.
 

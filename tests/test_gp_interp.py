@@ -138,7 +138,7 @@ def make_gaussian_random_fields(kernel, nstars, noise_level=1e-3,
 
     return stars_training, stars_validation
 
-def gp_testing(stars_training, stars_validation, kernel, optimize, optimizer, 
+def gp_process(stars_training, stars_validation, kernel, optimize, optimizer, 
                anisotropic=False, min_sep=None, max_sep=None, nbins=20, p0=[3000., 0.,0.],
                plotting=False):
     
@@ -282,7 +282,7 @@ def test_gp_interp_isotropic():
         stars_training, stars_validation = make_gaussian_random_fields(kernels[i], nstars, xlim=-10, ylim=10,
                                                                        seed=30352010, vmax=4e-2,
                                                                        noise_level=noise_level)
-        gp_testing(stars_training, stars_validation, kernels[i], optimize[i], 
+        gp_process(stars_training, stars_validation, kernels[i], optimize[i], 
                    optimizer[i], plotting=False)
 
 @timer
@@ -313,7 +313,7 @@ def test_gp_interp_anisotropic():
         stars_training, stars_validation = make_gaussian_random_fields(kernels[i], nstars, xlim=-10, ylim=10,
                                                                        seed=30352010, vmax=4e-2,
                                                                        noise_level=noise_level)
-        gp_testing(stars_training, stars_validation, kernels[i], optimize[i], 
+        gp_process(stars_training, stars_validation, kernels[i], optimize[i], 
                    optimizer[i], anisotropic=True, 
                    min_sep=0., max_sep=5., nbins=11, p0=[20., 0.,0.], plotting=False)
 
