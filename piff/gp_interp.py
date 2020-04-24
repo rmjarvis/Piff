@@ -144,7 +144,7 @@ class GPInterp(Interp):
         """
         if self.rows is None:
             self.nparams = len(stars[0].fit.params)
-            self.rows = range(self.nparams)
+            self.rows = np.arange(0, self.nparams, 1).astype(int)
         else:
             self.nparams = len(self.rows)
 
@@ -222,7 +222,10 @@ class GPInterp(Interp):
             if star.fit is None:
                 fit = StarFit(y0)
             else:
-                y0_updated = star.fit.params
+                if star.fit.params is None:
+                    y0_updated = np.zeros(self.nparams)
+                else:
+                    y0_updated = star.fit.params
                 for j in range(self.nparams):
                     y0_updated[self.rows[j]] = y0[j] 
                 fit = star.fit.newParams(y0_updated)
@@ -235,7 +238,6 @@ class GPInterp(Interp):
         # disk.
         init_theta = np.array([self._init_theta[i] for i in range(self.nparams)])
         fit_theta = np.array([ker.theta for ker in self.kernels])
-
         dtypes = [('INIT_THETA', init_theta.dtype, init_theta.shape),
                   ('FIT_THETA', fit_theta.dtype, fit_theta.shape),
                   ('X', self._X.dtype, self._X.shape),
@@ -271,10 +273,10 @@ class GPInterp(Interp):
 
         self._init_theta = init_theta
         self.nparams = len(init_theta)
-        self.optimizer = optimizer
+        self.optimizer = data['OPTIMIZER'][0]
 
         if len(self.kernel_template)==1:
-            self.kernels = [copy.deepcopey(self.kernel_template[0]) for i in range(self.nparams)]
+            self.kernels = [copy.deepcopy(self.kernel_template[0]) for i in range(self.nparams)]
         else:
             if len(self.kernel_template)!= self.nparams:
                 raise ValueError("numbers of kernel provided should be 1 (same for all parameters) or " \
@@ -291,5 +293,7 @@ class GPInterp(Interp):
                                         p0=[3000., 0.,0.],
                                         white_noise=self.white_noise, n_neighbors=4, average_fits=None,
                                         nbins=20, min_sep=None, max_sep=None)
-            gp.kernel.clone_with_theta(fit_theta[i])
+            gp.kernel_template.clone_with_theta(fit_theta[i])
+            gp.initialize(self._X, self._y[:,i], y_err=self._y_err[:,i])
             self.gps.append(gp)
+
