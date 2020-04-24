@@ -2479,10 +2479,6 @@ class OptAtmoPSF(PSF):
         :returns chi: Chi of observed pixels to model pixels
         """
         logger = LoggerWrapper(logger)
-<<<<<<< HEAD
-        #print("entered _fit_model_residual()")
-=======
->>>>>>> galsimify_optatmo_plus_cleaning
         logflux, du, dv, atmo_size, atmo_g1, atmo_g2 = params
         flux = np.exp(logflux)
         size = opt_size + atmo_size
