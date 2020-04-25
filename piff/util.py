@@ -188,10 +188,13 @@ def measure_snr(star):
     w = weight.array
     mask = np.isfinite(I) & np.isfinite(w)
     F = (w[mask]*I[mask]**2).sum(dtype=float)
+    print("calculated flux: {0}".format(F))
     Npix = np.sum(mask)
+    print("calculated Npix: {0}".format(Npix))
     if F < Npix:
         return 0.
     else:
+        print("calculated snr: {0}".format((F - Npix) / np.sqrt(F)))
         return (F - Npix) / np.sqrt(F)
 
 def hsm(star):

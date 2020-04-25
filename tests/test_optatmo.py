@@ -594,12 +594,19 @@ def test_snr_and_shapes():
     optatmo_psf_kwargs = {'size': 1.2, 'g1': 0.05, 'g2': -0.05}
     psf._update_optatmopsf(optatmo_psf_kwargs, logger=logger)
     star = make_star(500, 500, 25)
+    Npix = len(star.image.array)**2.0
+    print("")
+    print("Npix: {0}".format(Npix))
 
     # draw stars, add noise, check shapes and errors
     Nsamples = 500
     # test for two levels of SNR
     for snr in [50]:
-        flux = snr ** 2
+        #flux = snr ** 2
+        flux = 0.5 * (np.sqrt(4.0*Npix*snr**2.0+snr**4.0) + 2*Npix + snr**2.0)
+        print("flux: {0}".format(flux))
+        print("snr: {0}".format(snr))
+        print("")
         shapes = []
         errors = []
         snrs = []
@@ -938,11 +945,11 @@ def test_moments():
     assert np.isclose(moments[17], true_M44/true_M11**4, rtol=1.e-5)
 
     # Check that we can get back to Ares's results.
-    values = piff.util.calculate_moments(star, third_order=True, radial=True)
+    values = piff.util.calculate_moments(star, third_order=True)
     shape = np.array(values)
 
-    from old_moments import hsm_orthogonal
-    values2 = hsm_orthogonal(star)
+    from old_moments import hsm_third_moments
+    values2 = hsm_third_moments(star)
     shape2 = np.array(values2)
 
     hsm = piff.util.hsm(star)
@@ -950,10 +957,6 @@ def test_moments():
     shape[1] += hsm[1]
     shape[2] += hsm[2]
     shape[3:] *= 2
-
-    print(shape)
-    print(shape2)
-    print(shape/shape2)
 
     np.testing.assert_allclose(shape, shape2, rtol=1.e-5, atol=1.e-7)
 
@@ -1082,10 +1085,10 @@ if __name__ == '__main__':
     #test_atmo_model_fit()
     #test_atmo_interp_fit()
     #test_profile()
-    #test_snr_and_shapes()
+    test_snr_and_shapes()
     #test_roundtrip()
     #test_fit()
-    test_moments()
+    #test_moments()
     #test_moments_errors()
     #pr.disable()
     #pr.dump_stats('prof.out')
