@@ -870,14 +870,10 @@ def test_moments():
     gal = galsim.Gaussian(sigma=1.7, flux=23.)
     image = galsim.Image(scale=0.12, ncol=256, nrow=256)
     gal.drawImage(image, offset=(-1.2, 0.8), method='no_pixel')
-    #gal.drawImage(image, method='no_pixel')
     weight = image.copy()
     weight.fill(0.15)
     star = piff.Star.makeTarget(x=123, y=234, image=image, weight=weight)
     data, weight, u, v = star.data.getDataVector(include_zero_weight=True)
-    print("u:{0}".format(u))
-    print("v:{0}".format(v))
-    sys.exit()
 
     moments = star.calculate_moments()
     # M00, M10, M01, M11, M20, M02
@@ -887,13 +883,11 @@ def test_moments():
     # Note: offset does not affect any moments
     print('flux = ',flux, gal.flux / (4*np.pi*gal.sigma**2))
     assert np.isclose(flux, gal.flux / (4*np.pi*gal.sigma**2), rtol=1.e-5)
-    print("u0: {0}, v0: {1}".format(u0,v0))
     assert np.isclose(u0, 0., atol=1.e-8)
     assert np.isclose(v0, 0., atol=1.e-8)
     assert np.isclose(e0, gal.sigma**2, rtol=1.e-5)
     assert np.isclose(e1, 0., atol=1.e-8)
     assert np.isclose(e2, 0., atol=1.e-8)
-    sys.exit()
 
     moments = star.calculate_moments(third_order=True)
     np.testing.assert_allclose(moments[6:], 0., atol=1.e-8)
@@ -903,10 +897,9 @@ def test_moments():
     np.testing.assert_allclose(moments[7:], 0., atol=1.e-6)
 
     moments = star.calculate_moments(radial=True)
-    assert np.isclose(moments[6], 2.*gal.sigma**4 - 3*gal.sigma**2, rtol=1.e-5)
-    assert np.isclose(moments[7], 6.*gal.sigma**6 - 16*gal.sigma**4 + 12*gal.sigma**2, rtol=1.e-5)
-    assert np.isclose(moments[8],
-        24.*gal.sigma**8 - 90*gal.sigma**6 + 120*gal.sigma**4 - 60*gal.sigma**2, rtol=1.e-5)
+    assert np.isclose(moments[6], 2, rtol=1.e-5)
+    assert np.isclose(moments[7], 6, rtol=1.e-5)
+    assert np.isclose(moments[8], 24., rtol=1.e-5)
 
     # Now sheared.
     # The math is a bit unwieldy for these.
@@ -938,11 +931,11 @@ def test_moments():
     true_M04 = 24.*gal.sigma**4*shear.g1*shear.g2/(1.-shear.g**2)**2
     assert np.isclose(moments[14], true_M04)
 
-    assert np.isclose(moments[15], true_M22 - 3*true_M11, rtol=1.e-5)
+    assert np.isclose(moments[15], true_M22/true_M11**2, rtol=1.e-5)
     true_M33 = 6.*gal.sigma**6*(1+9*shear.g**2+9*shear.g**4+shear.g**6)/(1.-shear.g**2)**3
-    assert np.isclose(moments[16], true_M33 - 8*true_M22 + 12*true_M11, rtol=1.e-5)
+    assert np.isclose(moments[16], true_M33/true_M11**3, rtol=1.e-5)
     true_M44 = 24.*gal.sigma**8*(1+16*shear.g**2+36*shear.g**4+16*shear.g**6+shear.g**8)/(1.-shear.g**2)**4
-    assert np.isclose(moments[17], true_M44 - 15*true_M33 + 60*true_M22 - 60*true_M11, rtol=1.e-5)
+    assert np.isclose(moments[17], true_M44/true_M11**4, rtol=1.e-5)
 
     # Check that we can get back to Ares's results.
     values = piff.util.calculate_moments(star, third_order=True, radial=True)
@@ -953,10 +946,14 @@ def test_moments():
     shape2 = np.array(values2)
 
     hsm = piff.util.hsm(star)
-    shape[0] *= hsm[0] * image.scale**2 * np.mean(weight.array)
+    shape[0] *= hsm[0] * image.scale**2 * np.mean(weight)
     shape[1] += hsm[1]
     shape[2] += hsm[2]
     shape[3:] *= 2
+
+    print(shape)
+    print(shape2)
+    print(shape/shape2)
 
     np.testing.assert_allclose(shape, shape2, rtol=1.e-5, atol=1.e-7)
 
