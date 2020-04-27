@@ -453,13 +453,13 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
    norm = M00            # This is the normalization for all other moments.
    WI /= norm
 
-   # Centroid
-   M10 = np.sum(WI * u)
-   M01 = np.sum(WI * v)
-
    # Subtract Centroid from u,v grid
    u -= u0
    v -= v0
+   
+   # Centroid
+   M10 = np.sum(WI * u)
+   M01 = np.sum(WI * v)
 
    # Store some quantities that we will use repeatedly below.
    # Note: This could still be sped up more by caching more combinations.
