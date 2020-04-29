@@ -941,9 +941,7 @@ class OptAtmoPSF(PSF):
                 # obtain reference wavefront zernike values for all stars
                 if self.reference_wavefront:
                     logger.debug('Getting reference wavefront aberrations')
-                    print("len(stars): {0}".format(len(stars)))
                     clean_stars = [Star(star.data, None) for star in stars]
-                    print("len(clean_stars): {0}".format(len(clean_stars)))
                     interp_stars = self.reference_wavefront.interpolateList(clean_stars)
                     aberrations_reference_wavefront = np.array(
                         [star_interpolated.fit.params for star_interpolated in interp_stars])

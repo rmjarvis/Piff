@@ -188,10 +188,13 @@ def measure_snr(star):
     w = weight.array
     mask = np.isfinite(I) & np.isfinite(w)
     F = (w[mask]*I[mask]**2).sum(dtype=float)
+    print("calculated flux: {0}".format(F))
     Npix = np.sum(mask)
+    print("calculated Npix: {0}".format(Npix))
     if F < Npix:
         return 0.
     else:
+        print("calculated snr: {0}".format((F - Npix) / np.sqrt(F)))
         return (F - Npix) / np.sqrt(F)
 
 def hsm(star):
@@ -461,6 +464,10 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
    M10 = np.sum(WI * u)
    M01 = np.sum(WI * v)
 
+   # Centroid
+   M10 = np.sum(WI * u)
+   M01 = np.sum(WI * v)
+
    # Store some quantities that we will use repeatedly below.
    # Note: This could still be sped up more by caching more combinations.
    usq = u*u
@@ -535,6 +542,8 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
 
        # varM00
        varM00 = np.sum(WV)
+       # Uncertainty in weighted flux is ~double this due to uncertainty in kernel.
+       varM00 *= 4
 
        # now set WV = W^2 1/w / M00^2
        WV /= norm**2
