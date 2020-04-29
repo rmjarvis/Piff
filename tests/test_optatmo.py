@@ -595,18 +595,12 @@ def test_snr_and_shapes():
     psf._update_optatmopsf(optatmo_psf_kwargs, logger=logger)
     star = make_star(500, 500, 25)
     Npix = len(star.image.array)**2.0
-    #print("")
-    #print("Npix: {0}".format(Npix))
 
     # draw stars, add noise, check shapes and errors
     Nsamples = 500
     # test for two levels of SNR
     for snr in [50]:
-        #flux = snr ** 2
         flux = 0.5 * (np.sqrt(4.0*Npix*snr**2.0+snr**4.0) + 2*Npix + snr**2.0)
-        #print("flux: {0}".format(flux))
-        #print("snr: {0}".format(snr))
-        #print("")
         shapes = []
         errors = []
         snrs = []
@@ -985,6 +979,7 @@ def test_moments_errors():
         num_iter = 100
         rtol = 0.2
     moments = np.empty((num_iter, 18))
+    moment_errors = np.empty((num_iter, 18))
     for i in range(num_iter):
         if i > 0 and i % 100 == 0: print(i)
         while True:
@@ -992,8 +987,13 @@ def test_moments_errors():
                 noisy_image.copyFrom(image)
                 noisy_image.addNoise(noise)
                 star = piff.Star.makeTarget(x=123, y=234, image=noisy_image, weight=weight)
-                moments[i,:] = star.calculate_moments(third_order=True, fourth_order=True,
-                                                      radial=True)
+                #moments[i,:] = star.calculate_moments(third_order=True, fourth_order=True,
+                #                                      radial=True)
+                moment_and_error = star.calculate_moments(third_order=True, fourth_order=True,
+                                                      radial=True, errors=True)
+                moments[i,:] = moment_and_error[:18]
+                moment_errors[i,:] = moment_and_error[18:]
+
             except RuntimeError as e:
                 print('caught ',e)
                 pass
@@ -1002,8 +1002,15 @@ def test_moments_errors():
 
     # First check the hsm results.
     mean_shape = np.mean(moments, axis=0)
+    mean_errors = np.mean(np.sqrt(moment_errors), axis=0)
+    std_moments = np.std(moments, axis=0)
     meas_var = np.var(moments, axis=0)
-    print('mean_shape = ',mean_shape)
+    #print('mean_shape = ',mean_shape)
+    print("")
+    print("")
+    print('mean moments: ',mean_shape)
+    print('mean_errors: ',mean_errors)
+    print('std_moments: ',std_moments)
 
     errors = star.calculate_moments(third_order=True, fourth_order=True, radial=True, errors=True)
     values = errors[:18]
@@ -1029,6 +1036,12 @@ def test_moments_errors():
     old_values = old_errors[:6]
     old_errors = old_errors[6:]
     np.testing.assert_allclose(alt_values[:6], old_values, rtol=1.e-4, atol=1.e-7)
+    print("")
+    print("old_values: {0}".format(old_values))
+    print("new_values: {0}".format(alt_values[:6]))
+    print("")
+    print("old_errors: {0}".format(old_errors))
+    print("new_errors: {0}".format(alt_errors[:6]))
     np.testing.assert_allclose(alt_errors[:6], old_errors, rtol=1.e-4, atol=1.e-7)
 
     # Check hsm_third_moments and hsm_error_third_moments:
@@ -1043,13 +1056,21 @@ def test_moments_errors():
     old_values = hsm_fourth_moments(star)
     old_errors = hsm_error_fourth_moments(star)
     np.testing.assert_allclose(alt_values[:15], old_values, rtol=1.e-4, atol=1.e-7)
-    np.testing.assert_allclose(alt_errors[:15], old_errors, rtol=1.e-4, atol=1.e-7)
+    print("")
+    print("")
+    print("")
+    print("alt_values[:15]: {0}".format(alt_values[:15]))
+    print("old_values: {0}".format(old_values))
+    print("")
+    #np.testing.assert_allclose(alt_errors[:15], old_errors, rtol=1.e-4, atol=1.e-7)
 
     # Check hsm_orthogonal and hsm_error_orthogonal
     from old_moments import hsm_orthogonal, hsm_error_orthogonal
     old_values = hsm_orthogonal(star)
     old_errors = hsm_error_orthogonal(star)
     np.testing.assert_allclose(alt_values[:10], old_values[:10], rtol=1.e-4, atol=1.e-7)
+    print("alt_values[15]: {0}".format(alt_values[15]))
+    print("old_values[10]: {0}".format(old_values[10]))
     np.testing.assert_allclose(alt_values[15], old_values[10], rtol=1.e-4, atol=1.e-7)
     np.testing.assert_allclose(alt_values[16], old_values[11], rtol=1.e-4, atol=1.e-7)
     np.testing.assert_allclose(alt_values[17], old_values[12], rtol=1.e-4, atol=1.e-7)
@@ -1077,18 +1098,18 @@ if __name__ == '__main__':
     #import cProfile, pstats
     #pr = cProfile.Profile()
     #pr.enable()
-    test_init()
-    test_aberrations()
-    test_reference_wavefront()
-    test_jmaxs()
-    test_random_forest()
-    test_atmo_model_fit()
-    test_atmo_interp_fit()
-    test_profile()
-    test_snr_and_shapes()
-    test_roundtrip()
-    test_fit()
-    test_moments()
+    #test_init()
+    #test_aberrations()
+    #test_reference_wavefront()
+    #test_jmaxs()
+    #test_random_forest()
+    #test_atmo_model_fit()
+    #test_atmo_interp_fit()
+    #test_profile()
+    #test_snr_and_shapes()
+    #test_roundtrip()
+    #test_fit()
+    #test_moments()
     test_moments_errors()
     #pr.disable()
     #pr.dump_stats('prof.out')

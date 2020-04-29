@@ -1893,12 +1893,8 @@ class OptAtmoPSF(PSF):
         lower_bounds = np.full(len(fit_params),-np.inf)
         upper_bounds = np.full(len(fit_params),np.inf)
 
-        if self.optatmo_psf_kwargs['L0'] != -1.0:
-            lower_atmo_size_bound = 0.7 - opt_size
-            upper_atmo_size_bound = 3.0 - opt_size
-        else:
-            lower_atmo_size_bound = 0.45 - opt_size
-            upper_atmo_size_bound = 3.0 - opt_size
+        lower_atmo_size_bound = self.optatmo_psf_kwargs["min_size"] - opt_size
+        upper_atmo_size_bound = self.optatmo_psf_kwargs["max_size"] - opt_size
         lower_bounds[3] = lower_atmo_size_bound
         upper_bounds[3] = upper_atmo_size_bound
         bounds = (lower_bounds, upper_bounds)
