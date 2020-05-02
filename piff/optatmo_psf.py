@@ -1702,6 +1702,10 @@ class OptAtmoPSF(PSF):
                 jac=self._fit_size_jac,
                 args=(stars, opt_params, optical_profiles, logger,),
                 diff_step=1.e-4, ftol=1.e-3, xtol=1.e-4)
+        logger.info('Results from size fit:')
+        logger.info(results.message)
+        if not results.success:
+            raise RuntimeError("fit failed")
 
         #
         # clean up after ourselves
@@ -1931,9 +1935,11 @@ class OptAtmoPSF(PSF):
                 args=(star, optical_profile, opt_L0, opt_size, opt_g1, opt_g2, logger,),
                 ftol=1.e-3, xtol=1.e-4)
 
-        logger.debug(results.message)
+        logger.info("")
+        logger.info('Results from individual atmo star fit for a particular star:')
+        logger.info(results.message)
         if not results.success:
-            raise RuntimeError('Not successful fit')
+            raise RuntimeError("fit failed")
 
         g1, g2 = results.x[4:6]
         if np.abs(g1) > 0.4 or np.abs(g2) > 0.4:
