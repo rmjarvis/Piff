@@ -49,7 +49,9 @@ def setup_logger(verbose=1, log_file=None):
         handle = logging.StreamHandler()
     else:
         handle = logging.FileHandler(log_file)
-    formatter = logging.Formatter('%(message)s')  # Simple text output
+    formatter = logging.Formatter(
+        fmt='%(asctime)s %(levelname)-8s %(message)s',
+    )
     handle.setFormatter(formatter)
     logger.addHandler(handle)
     logger.setLevel(logging_level)
@@ -312,7 +314,7 @@ def meanify(config, logger=None):
             Filter &= np.isfinite(average).reshape(-1)
             params0[:,i] = average
 
-    # get center of each bin 
+    # get center of each bin
     u0 = u0[:-1] + (u0[1] - u0[0])/2.
     v0 = v0[:-1] + (v0[1] - v0[0])/2.
     u0, v0 = np.meshgrid(u0, v0)
@@ -320,7 +322,7 @@ def meanify(config, logger=None):
     coords0 = np.array([u0.reshape(-1), v0.reshape(-1)]).T
 
     # remove any entries with nan (counts == 0 and non finite value in
-    # the 2D statistic computation) 
+    # the 2D statistic computation)
     coords0 = coords0[Filter]
     params0 = params0[Filter]
 
@@ -332,5 +334,6 @@ def meanify(config, logger=None):
     data['COORDS0'] = coords0
     data['PARAMS0'] = params0
 
+    logger.info('Writing average solution to {0}'.format(file_name_out))
     with fitsio.FITS(file_name_out,'rw',clobber=True) as f:
         f.write_table(data, extname='average_solution')
