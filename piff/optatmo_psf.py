@@ -2172,6 +2172,7 @@ class OptAtmoPSF(PSF):
         self._fit_size_cache_chis = chis
         self._fit_size_cache_chi0 = chi
         self._fit_size_cache_atmo_profiles = atmo_profiles
+        self.final_optical_chi = chi
 
         chisq = np.sum(chi**2)
         logger.info("size = %s: chisq = %s",opt_size, chisq)
