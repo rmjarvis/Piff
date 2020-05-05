@@ -1618,7 +1618,9 @@ class OptAtmoPSF(PSF):
                     args=(stars, fit_keys, shapes, errors, self.regr_dict, logger,),
                     diff_step=1e-5, ftol=ftol, xtol=1.e-4)
         elif mode == 'shape':
-            results = scipy.optimize.least_squares(
+            print("Params= ", params)
+            print("Bounds= ", bounds)
+            results = scipy.optimize.least_squares(                
                     self._fit_optics_residual, params,
                     bounds=bounds, # optical fit needs bounds placed on L0; otherwise it wanders into negative territory
                     args=(stars, fit_keys, shapes, errors, logger,),

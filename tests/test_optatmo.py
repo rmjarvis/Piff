@@ -595,18 +595,12 @@ def test_snr_and_shapes():
     psf._update_optatmopsf(optatmo_psf_kwargs, logger=logger)
     star = make_star(500, 500, 25)
     Npix = len(star.image.array)**2.0
-    #print("")
-    #print("Npix: {0}".format(Npix))
 
     # draw stars, add noise, check shapes and errors
     Nsamples = 500
     # test for two levels of SNR
     for snr in [50]:
-        #flux = snr ** 2
         flux = 0.5 * (np.sqrt(4.0*Npix*snr**2.0+snr**4.0) + 2*Npix + snr**2.0)
-        #print("flux: {0}".format(flux))
-        #print("snr: {0}".format(snr))
-        #print("")
         shapes = []
         errors = []
         snrs = []
@@ -643,11 +637,8 @@ def test_snr_and_shapes():
         print('std_shapes = ',std_shapes)
         print('mean_errors = ',mean_errors)
         print('ratio = ',mean_errors/std_shapes)
-        print("snr = ", np.mean(snrs))
-        print("snr_std = ", np.std(snrs))
-        # let's get the SNR back to within 10.5
-        
-        np.testing.assert_allclose(snrs, snr, atol=10.5)
+        # let's get the SNR back to within 10
+        np.testing.assert_allclose(snrs, snr, atol=10)
         # Note: the above goal had to be loosened to 30 percent
         np.testing.assert_allclose(std_shapes, mean_errors, rtol=0.3)
 
@@ -892,35 +883,20 @@ def test_moments():
 
     # Note: offset does not affect any moments
     print('flux = ',flux, gal.flux / (4*np.pi*gal.sigma**2))
-    print("moments", moments)
-    #assert np.isclose(flux, gal.flux / (4*np.pi*gal.sigma**2), rtol=1.e-5)
-    #assert np.isclose(u0, 0., atol=1.e-8)
-    #assert np.isclose(v0, 0., atol=1.e-8)
-    #assert np.isclose(e0, gal.sigma**2, rtol=1.e-5)
-    #assert np.isclose(e1, 0., atol=1.e-8)
-    #assert np.isclose(e2, 0., atol=1.e-8)
+    assert np.isclose(flux, gal.flux / (4*np.pi*gal.sigma**2), rtol=1.e-5)
+    assert np.isclose(u0, 0., atol=1.e-8)
+    assert np.isclose(v0, 0., atol=1.e-8)
+    assert np.isclose(e0, gal.sigma**2, rtol=1.e-5)
+    assert np.isclose(e1, 0., atol=1.e-8)
+    assert np.isclose(e2, 0., atol=1.e-8)
 
-    checklists = {}
-    checklist = []
-    checklist.append( np.isclose(flux, gal.flux / (4*np.pi*gal.sigma**2), rtol=1.e-5) )
-    checklist.append( np.isclose(u0, 0., atol=1.e-8) )
-    checklist.append( np.isclose(v0, 0., atol=1.e-8) )
-    checklist.append( np.isclose(e0, gal.sigma**2, rtol=1.e-5) )
-    checklist.append( np.isclose(e1, 0., atol=1.e-8) )
-    checklist.append( np.isclose(e2, 0., atol=1.e-8) )
-    checklists["moments"] = checklist
-    
     moments = star.calculate_moments(third_order=True)
     np.testing.assert_allclose(moments[6:], 0., atol=1.e-8)
 
     moments = star.calculate_moments(fourth_order=True)
-
-    print("moments_4_0", moments[6], gal.sigma)
-    #assert np.isclose(moments[6], 2.*gal.sigma**4, rtol=1.e-5)
-    checklists["moments4"] = [np.isclose(moments[6], 2.*gal.sigma**4, rtol=1.e-5)]
+    assert np.isclose(moments[6], 2.*gal.sigma**4, rtol=1.e-5)
     np.testing.assert_allclose(moments[7:], 0., atol=1.e-6)
 
-    
     moments = star.calculate_moments(radial=True)
     assert np.isclose(moments[6], 2, rtol=1.e-5)
     assert np.isclose(moments[7], 6, rtol=1.e-5)
@@ -934,34 +910,25 @@ def test_moments():
     moments = star.calculate_moments()
     flux, u0, v0, e0, e1, e2 = moments
 
-    # assert np.isclose(flux, gal.flux / (4*np.pi*gal.sigma**2), rtol=1.e-5)
-    # assert np.isclose(u0, 0., atol=1.e-8)
-    # assert np.isclose(v0, 0., atol=1.e-8)
+    assert np.isclose(flux, gal.flux / (4*np.pi*gal.sigma**2), rtol=1.e-5)
+    assert np.isclose(u0, 0., atol=1.e-8)
+    assert np.isclose(v0, 0., atol=1.e-8)
     true_M11 = gal.sigma**2 * (1+shear.g**2)/(1-shear.g**2)
-    # assert np.isclose(e0, true_M11, rtol=1.e-5)
-    # assert np.isclose(e1/e0, shear.e1, rtol=1.e-5)
-    # assert np.isclose(e2/e0, shear.e2, rtol=1.e-5)
+    assert np.isclose(e0, true_M11, rtol=1.e-5)
+    assert np.isclose(e1/e0, shear.e1, rtol=1.e-5)
+    assert np.isclose(e2/e0, shear.e2, rtol=1.e-5)
 
-    checklist = []
-    checklist.append(  np.isclose(flux, gal.flux / (4*np.pi*gal.sigma**2), rtol=1.e-5) )
-    checklist.append(  np.isclose(u0, 0., atol=1.e-8) )
-    checklist.append(  np.isclose(v0, 0., atol=1.e-8) )
-    checklist.append(  np.isclose(e0, true_M11, rtol=1.e-5) )
-    checklist.append(  np.isclose(e1/e0, shear.e1, rtol=1.e-5) )
-    checklist.append(  np.isclose(e2/e0, shear.e2, rtol=1.e-5) )
-    checklists['moments_sh'] = checklist
-    
     moments = star.calculate_moments(third_order=True, fourth_order=True, radial=True)
     np.testing.assert_allclose(moments[6:10], 0., atol=1.e-6)
 
     true_M22 = 2.*gal.sigma**4*(1+4*shear.g**2+shear.g**4)/(1.-shear.g**2)**2
-    #assert np.isclose(moments[10], true_M22)
+    assert np.isclose(moments[10], true_M22)
     true_M31 = 6.*gal.sigma**4*shear.g1*(1+shear.g**2)/(1.-shear.g**2)**2
-    #assert np.isclose(moments[11], true_M31)
+    assert np.isclose(moments[11], true_M31)
     true_M13 = 6.*gal.sigma**4*shear.g2*(1+shear.g**2)/(1.-shear.g**2)**2
-    #assert np.isclose(moments[12], true_M13)
+    assert np.isclose(moments[12], true_M13)
     true_M40 = 12.*gal.sigma**4*(shear.g1**2-shear.g2**2)/(1.-shear.g**2)**2
-    #assert np.isclose(moments[13], true_M40)
+    assert np.isclose(moments[13], true_M40)
     true_M04 = 24.*gal.sigma**4*shear.g1*shear.g2/(1.-shear.g**2)**2
     assert np.isclose(moments[14], true_M04)
 
@@ -985,11 +952,6 @@ def test_moments():
     shape[2] += hsm[2]
     shape[3:] *= 2
 
-    for key, checklist in checklists.items():
-        print (key, checklist)
-        assert np.all(checklist)
-
-    print("compare shapes", shape, shape2, shape/shape2)
     np.testing.assert_allclose(shape, shape2, rtol=1.e-5, atol=1.e-7)
 
 
@@ -1017,6 +979,7 @@ def test_moments_errors():
         num_iter = 100
         rtol = 0.2
     moments = np.empty((num_iter, 18))
+    moment_errors = np.empty((num_iter, 18))
     for i in range(num_iter):
         if i > 0 and i % 100 == 0: print(i)
         while True:
@@ -1024,8 +987,13 @@ def test_moments_errors():
                 noisy_image.copyFrom(image)
                 noisy_image.addNoise(noise)
                 star = piff.Star.makeTarget(x=123, y=234, image=noisy_image, weight=weight)
-                moments[i,:] = star.calculate_moments(third_order=True, fourth_order=True,
-                                                      radial=True)
+                #moments[i,:] = star.calculate_moments(third_order=True, fourth_order=True,
+                #                                      radial=True)
+                moment_and_error = star.calculate_moments(third_order=True, fourth_order=True,
+                                                      radial=True, errors=True)
+                moments[i,:] = moment_and_error[:18]
+                moment_errors[i,:] = moment_and_error[18:]
+
             except RuntimeError as e:
                 print('caught ',e)
                 pass
@@ -1034,8 +1002,15 @@ def test_moments_errors():
 
     # First check the hsm results.
     mean_shape = np.mean(moments, axis=0)
+    mean_errors = np.mean(np.sqrt(moment_errors), axis=0)
+    std_moments = np.std(moments, axis=0)
     meas_var = np.var(moments, axis=0)
-    print('mean_shape = ',mean_shape)
+    #print('mean_shape = ',mean_shape)
+    print("")
+    print("")
+    print('mean moments: ',mean_shape)
+    print('mean_errors: ',mean_errors)
+    print('std_moments: ',std_moments)
 
     errors = star.calculate_moments(third_order=True, fourth_order=True, radial=True, errors=True)
     values = errors[:18]
@@ -1061,20 +1036,32 @@ def test_moments_errors():
     old_values = old_errors[:6]
     old_errors = old_errors[6:]
     np.testing.assert_allclose(alt_values[:6], old_values, rtol=1.e-4, atol=1.e-7)
-    #np.testing.assert_allclose(alt_errors[:6], old_errors, rtol=1.e-4, atol=1.e-7)
+    print("")
+    print("old_values: {0}".format(old_values))
+    print("new_values: {0}".format(alt_values[:6]))
+    print("")
+    print("old_errors: {0}".format(old_errors))
+    print("new_errors: {0}".format(alt_errors[:6]))
+    np.testing.assert_allclose(alt_errors[:6], old_errors, rtol=1.e-4, atol=1.e-7)
 
     # Check hsm_third_moments and hsm_error_third_moments:
     from old_moments import hsm_third_moments, hsm_error_third_moments
     old_values = hsm_third_moments(star)
     old_errors = hsm_error_third_moments(star)
     np.testing.assert_allclose(alt_values[:10], old_values, rtol=1.e-4, atol=1.e-7)
-    #np.testing.assert_allclose(alt_errors[:10], old_errors, rtol=1.e-4, atol=1.e-7)
+    np.testing.assert_allclose(alt_errors[:10], old_errors, rtol=1.e-4, atol=1.e-7)
 
     # Check hsm_fourth_moments and hsm_error_fourth_moments:
     from old_moments import hsm_fourth_moments, hsm_error_fourth_moments
     old_values = hsm_fourth_moments(star)
     old_errors = hsm_error_fourth_moments(star)
     np.testing.assert_allclose(alt_values[:15], old_values, rtol=1.e-4, atol=1.e-7)
+    print("")
+    print("")
+    print("")
+    print("alt_values[:15]: {0}".format(alt_values[:15]))
+    print("old_values: {0}".format(old_values))
+    print("")
     #np.testing.assert_allclose(alt_errors[:15], old_errors, rtol=1.e-4, atol=1.e-7)
 
     # Check hsm_orthogonal and hsm_error_orthogonal
@@ -1082,13 +1069,15 @@ def test_moments_errors():
     old_values = hsm_orthogonal(star)
     old_errors = hsm_error_orthogonal(star)
     np.testing.assert_allclose(alt_values[:10], old_values[:10], rtol=1.e-4, atol=1.e-7)
+    print("alt_values[15]: {0}".format(alt_values[15]))
+    print("old_values[10]: {0}".format(old_values[10]))
     np.testing.assert_allclose(alt_values[15], old_values[10], rtol=1.e-4, atol=1.e-7)
     np.testing.assert_allclose(alt_values[16], old_values[11], rtol=1.e-4, atol=1.e-7)
     np.testing.assert_allclose(alt_values[17], old_values[12], rtol=1.e-4, atol=1.e-7)
-    #np.testing.assert_allclose(alt_errors[:10], old_errors[:10], rtol=1.e-4, atol=1.e-7)
-    #np.testing.assert_allclose(alt_errors[15], old_errors[10], rtol=1.e-4, atol=1.e-7)
-    #np.testing.assert_allclose(alt_errors[16], old_errors[11], rtol=1.e-4, atol=1.e-7)
-    #np.testing.assert_allclose(alt_errors[17], old_errors[12], rtol=1.e-4, atol=1.e-7)
+    np.testing.assert_allclose(alt_errors[:10], old_errors[:10], rtol=1.e-4, atol=1.e-7)
+    np.testing.assert_allclose(alt_errors[15], old_errors[10], rtol=1.e-4, atol=1.e-7)
+    np.testing.assert_allclose(alt_errors[16], old_errors[11], rtol=1.e-4, atol=1.e-7)
+    np.testing.assert_allclose(alt_errors[17], old_errors[12], rtol=1.e-4, atol=1.e-7)
 
     # The following tests are the ones we really do want to work, since they actually
     # check that the errors match the empirical values.
@@ -1121,7 +1110,7 @@ if __name__ == '__main__':
     test_roundtrip()
     test_fit()
     test_moments()
-    test_moments_errors()
+    #test_moments_errors()
     #pr.disable()
     #pr.dump_stats('prof.out')
     #ps = pstats.Stats(pr).sort_stats('tottime')
