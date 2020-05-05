@@ -200,7 +200,7 @@ class OptAtmoPSF(PSF):
         self.optical_psf_kwargs = optical_psf_kwargs
         self.kolmogorov_kwargs = kolmogorov_kwargs
         self.reference_wavefront = reference_wavefront
-        self.higher_order_reference_wavefront_file = os.path.basename(higher_order_reference_wavefront_file)
+        self.higher_order_reference_wavefront_file = higher_order_reference_wavefront_file
         if self.higher_order_reference_wavefront_file in [None, 'none', 'None', 'NONE']:
             # here we save the specified higher order reference wavefront as an instance of the
             # wavefrontmap class.

@@ -71,7 +71,8 @@ class DECamWavefront(kNNInterp):
         if logger:
             logger.debug("Made regressor")
 
-        fits = fitsio.FITS(os.path.basename(file_name))
+        #fits = fitsio.FITS(os.path.basename(file_name))
+        fits = fitsio.FITS(file_name)
         if logger:
             logger.debug("Made fits")
             logger.debug(fits)
