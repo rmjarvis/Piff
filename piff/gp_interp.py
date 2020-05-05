@@ -13,113 +13,114 @@
 #    and/or other materials provided with the distribution.
 
 """
-.. module:: sklearn_gp_interp
+.. module:: gp_interp
 """
 
 import numpy as np
 import warnings
+import copy
 
-from sklearn.gaussian_process.kernels import StationaryKernelMixin, NormalizedKernelMixin, Kernel
-from sklearn.gaussian_process.kernels import Hyperparameter
+import treegp
 
 from .interp import Interp
 from .star import Star, StarFit
 
-
 class GPInterp(Interp):
     """
-    An interpolator that uses sklearn.gaussian_process to interpolate a single surface.
-
-    :param keys:        A list of star attributes to interpolate from
-    :param kernel:      A string that can be eval-ed to make a
-                        sklearn.gaussian_process.kernels.Kernel object.  The reprs of
-                        sklearn.gaussian_process.kernels will work, as well as the repr of a
-                        custom piff AnisotropicRBF or ExplicitKernel object.  [default: 'RBF()']
-    :param optimize:    Boolean indicating whether or not to try and optimize the kernel by
-                        maximizing the marginal likelihood.  [default: True]
-    :param npca:        Number of principal components to keep.  [default: 0, which means don't
-                        decompose PSF parameters into principle components]
-    :param normalize:   Whether to normalize the interpolation parameters to have a mean of 0.
-                        Normally, the parameters being interpolated are not mean 0, so you would
-                        want this to be True, but if your parameters have an a priori mean of 0,
-                        then subtracting off the realized mean would be invalid.  [default: True]
-    :param logger:      A logger object for logging debug info. [default: None]
+    An interpolator that uses gaussian process from treegp to interpolate multiple surfaces.
+    :param keys:         A list of star attributes to interpolate from. Must be 2 attributes
+                         using two-point correlation function to estimate hyperparameter(s).
+    :param kernel:       A string that can be evaled to make a
+                         sklearn.gaussian_process.kernels.Kernel object.  The reprs of
+                         sklearn.gaussian_process.kernels will work, as well as the repr of a
+                         custom treegp VonKarman object.  [default: 'RBF(1)']
+    :param optimizer:    Indicates which techniques to use for optimizing the kernel. Four options
+                         are available. "two-pcf" optimize the kernel on the 1d 2-point correlation
+                         function estimate by treecorr. "anisotropic" optimize the kernel on the
+                         2d 2-point correlation function estimate by treecorr. "log-likelihood" used the classical
+                         gaussian process maximum likelihood to optimize the kernel. [default: "two-pcf"]
+    :param rows:         A list of integer which indicates on which rows of Star.fit.param
+                         need to be interpolated using GPs. [default: None, which means all rows]
+    :param l0:           Initial guess for correlation length when optimzer is "anisotropy".
+                         [default: 3000.]
+    :param normalize:    Whether to normalize the interpolation parameters to have a mean of 0.
+                         Normally, the parameters being interpolated are not mean 0, so you would
+                         want this to be True, but if your parameters have an a priori mean of 0,
+                         then subtracting off the realized mean would be invalid.  [default: True]
+    :param white_noise:  A float value that indicate the ammount of white noise that you want to
+                         use during the gp interpolation. This is an additional uncorrelated noise
+                         added to the error of the PSF parameters. [default: 0.]
+    :param nbins:        Number of bins (if 1D correlation function) of the square root of the number
+                         of bins (if 2D correlation function) used in TreeCorr to compute the
+                         2-point correlation function. Used only if optimizer is "two-pcf". [default: 20]
+    :param min_sep:      Minimum separation between pairs when computing 2-point correlation
+                         function. In the same units as the keys. Compute automaticaly if it
+                         is not given. Used only if optimizer is "two-pcf". [default: None]
+    :param max_sep:      Maximum separation between pairs when computing 2-point correlation
+                         function. In the same units as the keys. Compute automaticaly if it
+                         is not given. Used only if optimizer is "two-pcf". [default: None]
+    :param average_fits: A fits file that have the spatial average functions of PSF parameters
+                         build in it. Build using meanify and piff output across different
+                         exposures. See meanify documentation. [default: None]
+    :param n_neighbors:  Number of neighbors to used for interpolating the spatial average using
+                         a KNeighbors interpolation. Used only if average_fits is not None. [defaulf: 4]
+    :param logger:       A logger object for logging debug info. [default: None]
     """
-    def __init__(self, keys=('u','v'), kernel='RBF()', optimize=True, npca=0, normalize=True,
-                 logger=None):
-        from sklearn.gaussian_process import GaussianProcessRegressor
+    def __init__(self, keys=('u','v'), kernel='RBF(1)',
+                 optimizer='two-pcf', normalize=True, l0=3000.,
+                 white_noise=0., n_neighbors=4, average_fits=None,
+                 nbins=20, min_sep=None, max_sep=None,
+                 rows=None, logger=None):
 
         self.keys = keys
+        self.optimizer = optimizer
+        self.l0 = l0
+        self.n_neighbors = n_neighbors
+        self.average_fits = average_fits
+        self.nbins = nbins
+        self.min_sep = min_sep
+        self.max_sep = max_sep
+        self.normalize = normalize
+        self.white_noise = white_noise
         self.kernel = kernel
-        self.npca = npca
-        self.degenerate_points = False
+        self.rows = rows
 
         self.kwargs = {
             'keys': keys,
-            'optimize': optimize,
-            'npca': npca,
+            'optimizer': optimizer,
             'kernel': kernel
         }
-        optimizer = 'fmin_l_bfgs_b' if optimize else None
-        self.gp = GaussianProcessRegressor(self._eval_kernel(self.kernel), optimizer=optimizer,
-                                           normalize_y=normalize)
 
-    @staticmethod
-    def _eval_kernel(kernel):
-        # Some import trickery to get all subclasses of sklearn.gaussian_process.kernels.Kernel
-        # into the local namespace without doing "from sklearn.gaussian_process.kernels import *"
-        # and without importing them all manually.
-        def recurse_subclasses(cls):
-            out = []
-            for c in cls.__subclasses__():
-                out.append(c)
-                out.extend(recurse_subclasses(c))
-            return out
-        clses = recurse_subclasses(Kernel)
-        for cls in clses:
-            module = __import__(cls.__module__, globals(), locals(), cls)
-            execstr = "{0} = module.{0}".format(cls.__name__)
-            exec(execstr, globals(), locals())
+        if isinstance(kernel,str):
+            self.kernel_template = [kernel]
+        else:
+            if type(kernel) is not list and type(kernel) is not np.ndarray:
+                raise TypeError("kernel should be a string a list or a numpy.ndarray of string")
+            else:
+                self.kernel_template = [ker for ker in kernel]
 
-        from numpy import array
+        if self.optimizer not in ['anisotropic', 'two-pcf', 'log-likelihood', 'none']:
+            raise ValueError("Only anisotropic, two-pcf, log-likelihood, and " \
+                             "none are supported for optimizer. Current value: %s"%(self.optimizer))
 
-        try:
-            k = eval(kernel)
-        except Exception as e:  # pragma: no cover
-            raise RuntimeError("Failed to evaluate kernel string {0!r}.  "
-                               "Original exception: {1}".format(kernel, e))
-        return k
+    def _fit(self, X, y, y_err=None, logger=None):
+        """Update the GaussianProcess with data
 
-    def _fit(self, X, y, logger=None):
-        """Update the GaussianProcessRegressor with data
         :param X:  The independent covariates.  (n_samples, n_features)
         :param y:  The dependent responses.  (n_samples, n_targets)
+        :param y_err: Error of y. (n_samples, n_targets)
+        :param logger:  A logger object for logging debug info. [default: None]
         """
-        # Save these for potential read/write.
-        self._X = X
-        self._y = y
-        if self.npca > 0:
-            from sklearn.decomposition import PCA
-            self._pca = PCA(n_components=self.npca)
-            self._pca.fit(y)
-            y = self._pca.transform(y)
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            # Sometimes the next line emits a warning along the lines of:
-            # UserWarning: fmin_l_bfgs_b terminated abnormally with the  state:
-            # {'grad': array([-0.29692092, -4.153523  ,  2.9923153 ]),
-            # 'task': b'ABNORMAL_TERMINATION_IN_LNSRCH', 'funcalls': 70, 'nit': 2, 'warnflag': 2}
-            # As far as I can tell, it's not actually harmful, so just ignore it.
-            self.gp.fit(X, y)
+        for i in range(self.nparams):
+            self.gps[i].initialize(X, y[:,i], y_err=y_err[:,i])
+            self.gps[i].solve()
 
     def _predict(self, Xstar):
         """ Predict responses given covariates.
         :param X:  The independent covariates at which to interpolate.  (n_samples, n_features).
         :returns:  Regressed parameters  (n_samples, n_targets)
         """
-        ystar = self.gp.predict(Xstar)
-        if self.npca > 0:
-            ystar = self._pca.inverse_transform(ystar)
+        ystar = np.array([gp.predict(Xstar) for gp in self.gps]).T
         return ystar
 
     def getProperties(self, star, logger=None):
@@ -141,6 +142,36 @@ class GPInterp(Interp):
         :param stars:   A list of Star instances to interpolate between
         :param logger:  A logger object for logging debug info. [default: None]
         """
+        if self.rows is None:
+            self.nparams = len(stars[0].fit.params)
+            self.rows = np.arange(0, self.nparams, 1).astype(int)
+        else:
+            self.nparams = len(self.rows)
+
+        if len(self.kernel_template)==1:
+            self.kernels = [self.kernel_template[0] for i in range(self.nparams)]
+        else:
+            if len(self.kernel_template)!= self.nparams:
+                raise ValueError("numbers of kernel provided should be 1 (same for all parameters) or " \
+                                 "equal to the number of params (%i), number kernel provided: %i" \
+                                 %((self.nparams,len(self.kernel_template))))
+            else:
+                self.kernels = [copy.deepcopy(ker) for ker in self.kernel_template]
+        self.gps = []
+
+        for i in range(self.nparams):
+
+            gp = treegp.GPInterpolation(kernel=self.kernels[i],
+                                        optimizer=self.optimizer,
+                                        normalize=self.normalize,
+                                        p0=[self.l0, 0, 0], white_noise=self.white_noise,
+                                        n_neighbors=self.n_neighbors,
+                                        average_fits=self.average_fits, indice_meanify = i,
+                                        nbins=self.nbins, min_sep=self.min_sep, max_sep=self.max_sep)
+            self.gps.append(gp)
+
+        self._init_theta = np.array([gp.kernel_template.theta for gp in self.gps])
+
         return stars
 
     def solve(self, stars=None, logger=None):
@@ -151,7 +182,20 @@ class GPInterp(Interp):
         """
         X = np.array([self.getProperties(star) for star in stars])
         y = np.array([star.fit.params for star in stars])
-        self._fit(X, y, logger=logger)
+        y_err = np.sqrt(np.array([star.fit.params_var for star in stars]))
+
+        y = np.array([y[:,i] for i in self.rows]).T
+        y_err = np.array([y_err[:,i] for i in self.rows]).T
+
+        self._X = X
+        self._y = y
+
+        if self.white_noise > 0:
+            y_err = np.sqrt(y_err**2 + self.white_noise**2)
+        self._y_err = y_err
+
+        self._fit(X, y, y_err=y_err, logger=logger)
+        self.kernels = [gp.kernel for gp in self.gps]
 
     def interpolate(self, star, logger=None):
         """Perform the interpolation to find the interpolated parameter vector at some position.
@@ -161,7 +205,6 @@ class GPInterp(Interp):
 
         :returns: a new Star instance with its StarFit member holding the interpolated parameters
         """
-        # because of sklearn formatting, call interpolateList and take 0th entry
         return self.interpolateList([star], logger=logger)[0]
 
     def interpolateList(self, stars, logger=None):
@@ -173,13 +216,19 @@ class GPInterp(Interp):
         :returns: a list of new Star instances with interpolated parameters
         """
         Xstar = np.array([self.getProperties(star) for star in stars])
-        y = self._predict(Xstar)
+        gp_y = self._predict(Xstar)
         fitted_stars = []
-        for y0, star in zip(y, stars):
+        for y0, star in zip(gp_y, stars):
             if star.fit is None:
-                fit = StarFit(y)
+                fit = StarFit(y0)
             else:
-                fit = star.fit.newParams(y0)
+                if star.fit.params is None:
+                    y0_updated = np.zeros(self.nparams)
+                else:
+                    y0_updated = star.fit.params
+                for j in range(self.nparams):
+                    y0_updated[self.rows[j]] = y0[j] 
+                fit = star.fit.newParams(y0_updated)
             fitted_stars.append(Star(star.data, fit))
         return fitted_stars
 
@@ -187,28 +236,64 @@ class GPInterp(Interp):
         # Note, we're only storing the training data and hyperparameters here, which means the
         # Cholesky decomposition will have to be re-computed when this object is read back from
         # disk.
-        init_theta = self.gp.kernel.theta
-        fit_theta = self.gp.kernel_.theta
+        init_theta = np.array([self._init_theta[i] for i in range(self.nparams)])
+        fit_theta = np.array([ker.theta for ker in self.kernels])
         dtypes = [('INIT_THETA', init_theta.dtype, init_theta.shape),
                   ('FIT_THETA', fit_theta.dtype, fit_theta.shape),
                   ('X', self._X.dtype, self._X.shape),
-                  ('Y', self._y.dtype, self._y.shape)]
+                  ('Y', self._y.dtype, self._y.shape),
+                  ('Y_ERR', self._y_err.dtype, self._y_err.shape),
+                  ('ROWS', self.rows.dtype,  self.rows.shape),
+                  ('OPTIMIZER', str, len(self.optimizer))]
 
         data = np.empty(1, dtype=dtypes)
         data['INIT_THETA'] = init_theta
         data['FIT_THETA'] = fit_theta
         data['X'] = self._X
         data['Y'] = self._y
+        data['Y_ERR'] = self._y_err
+        data['ROWS'] = self.rows
+        data['OPTIMIZER'] = self.optimizer
 
         fits.write_table(data, extname=extname+'_kernel')
 
     def _finish_read(self, fits, extname):
         data = fits[extname+'_kernel'].read()
-        # Run fit to set up GP, but don't actually do any hyperparameter optimization.  Just
+        # Run fit to set up GP, but don't actually do any hyperparameter optimization. Just
         # set the GP up using the current hyperparameters.
-        self.gp.kernel.theta = np.atleast_1d(data['FIT_THETA'][0])
-        old_optimizer, self.gp.optimizer = self.gp.optimizer, None
-        self._fit(data['X'][0], data['Y'][0])
-        self.gp.optimizer = old_optimizer
-        # Now that gp is setup, we can restore it's initial kernel.
-        self.gp.kernel.theta = np.atleast_1d(data['INIT_THETA'][0])
+        # Need to give back average fits files if needed.
+
+        init_theta = np.atleast_1d(data['INIT_THETA'][0])
+        fit_theta = np.atleast_1d(data['FIT_THETA'][0])
+
+        self._X = np.atleast_1d(data['X'][0])
+        self._y = np.atleast_1d(data['Y'][0])
+        self._y_err = np.atleast_1d(data['Y_ERR'][0])
+        self.rows = np.atleast_1d(data['ROWS'][0])
+
+        self._init_theta = init_theta
+        self.nparams = len(init_theta)
+        self.optimizer = data['OPTIMIZER'][0]
+
+        if len(self.kernel_template)==1:
+            self.kernels = [copy.deepcopy(self.kernel_template[0]) for i in range(self.nparams)]
+        else:
+            if len(self.kernel_template)!= self.nparams:
+                raise ValueError("numbers of kernel provided should be 1 (same for all parameters) or " \
+                "equal to the number of params (%i), number kernel provided: %i"%((self.nparams,len(self.kernel_template))))
+            else:
+                self.kernels = [copy.deepcopy(ker) for ker in self.kernel_template]
+
+        self.gps = []
+        for i in range(self.nparams):
+
+            gp = treegp.GPInterpolation(kernel=self.kernels[i],
+                                        optimizer=self.optimizer,
+                                        normalize=self.normalize,
+                                        p0=[3000., 0.,0.],
+                                        white_noise=self.white_noise, n_neighbors=4, average_fits=None,
+                                        nbins=20, min_sep=None, max_sep=None)
+            gp.kernel_template.clone_with_theta(fit_theta[i])
+            gp.initialize(self._X, self._y[:,i], y_err=self._y_err[:,i])
+            self.gps.append(gp)
+

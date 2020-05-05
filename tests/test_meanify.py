@@ -276,11 +276,11 @@ def test_meanify():
     stars_training = stars[:900]
     stars_validation = stars[900:]
 
-    fit_hyp = [False, True]
+    fit_hyp = ['none', 'two-pcf']
 
     for fit in fit_hyp:
         gp = piff.GPInterp(kernel="0.009 * RBF(300.*0.26)",
-                           optimize=fit_hyp, white_noise=1e-5, average_fits='output/average.fits')
+                           optimizer=fit, white_noise=1e-5, average_fits='output/average.fits')
         gp.initialize(stars_training)
         gp.solve(stars_training)
         stars_interp = gp.interpolateList(stars_validation)
