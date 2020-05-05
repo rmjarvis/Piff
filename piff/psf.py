@@ -22,7 +22,6 @@ import numpy as np
 import fitsio
 import galsim
 import sys
-import os
 
 from .star import Star, StarData
 from .util import write_kwargs, read_kwargs
@@ -235,7 +234,7 @@ class PSF(object):
         """
         logger = galsim.config.LoggerWrapper(logger)
         logger.warning("Reading PSF from file %s",file_name)
-        
+
         with fitsio.FITS(file_name,'r') as f:
             logger.debug('opened FITS file')
             return cls._read(f, 'psf', logger)
@@ -448,5 +447,5 @@ def read(file_name, logger=None):
     :param logger:      A logger object for logging debug info. [default: None]
 
     :returns: a piff.PSF instance
-    """    
+    """
     return PSF.read(file_name, logger=logger)

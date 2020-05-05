@@ -20,7 +20,7 @@ from __future__ import print_function
 
 # fix for DISPLAY variable issue
 import matplotlib
-#matplotlib.use('Agg')
+matplotlib.use('Agg')
 
 import matplotlib.pyplot as plt
 
@@ -200,7 +200,7 @@ class OptAtmoPSF(PSF):
         self.optical_psf_kwargs = optical_psf_kwargs
         self.kolmogorov_kwargs = kolmogorov_kwargs
         self.reference_wavefront = reference_wavefront
-        self.higher_order_reference_wavefront_file = higher_order_reference_wavefront_file
+        self.higher_order_reference_wavefront_file = os.path.basename(higher_order_reference_wavefront_file)
         if self.higher_order_reference_wavefront_file in [None, 'none', 'None', 'NONE']:
             # here we save the specified higher order reference wavefront as an instance of the
             # wavefrontmap class.
@@ -921,9 +921,6 @@ class OptAtmoPSF(PSF):
         finally fitted.
         """
         logger = LoggerWrapper(logger)
-        #print("")
-        #print("now entering getParamsList()")
-        #print("")
         params = np.zeros((len(stars), self.jmax_pupil + 4), dtype=np.float64)
 
         logger.debug('Getting aberrations from optical / mean system')
@@ -1211,9 +1208,6 @@ class OptAtmoPSF(PSF):
 
         :returns:       List of Star instances with its image filled with rendered PSF
         """
-        #print("")
-        #print("now entering drawStarList()")
-        #print("")
         # get all params at once
         if return_stars_with_atmo_params_from_psf:
             params, stars = self.getParamsList(stars, return_stars_with_atmo_params_from_psf=True, trust_atmo_params_stored_in_stars=trust_atmo_params_stored_in_stars)
@@ -1578,16 +1572,16 @@ class OptAtmoPSF(PSF):
         self.optical_fit_keys = fit_keys
         params = [self.optatmo_psf_kwargs[key] for key in fit_keys]
 
+        # make bounds for the optical fit
         lower_bounds = np.full(len(params),-np.inf)
         upper_bounds = np.full(len(params),np.inf)
-        if self.optatmo_psf_kwargs['L0'] != -1.0:
-            lower_bounds[3] = 5.0 # shape mode needs bounds placed on L0; otherwise it wanders into negative territory
-            upper_bounds[3] = 100.0
+        if mode != 'random_forest':
+            lower_bounds[3] = self.optatmo_psf_kwargs['min_L0'] # optical fit needs bounds placed on L0; otherwise it wanders into negative territory
+            upper_bounds[3] = self.optatmo_psf_kwargs['max_L0']
         bounds = (lower_bounds, upper_bounds)
 
         # Make sure everything is 64 bit, otherwise least_squares fails
         stars_64_bit = []
-        # EAC FIXME, can we just double precision the data in place?
         for star in stars:
             try:
                 star_image_copy = Image(star.image.copy(), dtype=np.float64, copy=True)
@@ -1626,7 +1620,7 @@ class OptAtmoPSF(PSF):
         elif mode == 'shape':
             results = scipy.optimize.least_squares(
                     self._fit_optics_residual, params,
-                    bounds=bounds, # shape mode needs bounds placed on L0; otherwise it wanders into negative territory
+                    bounds=bounds, # optical fit needs bounds placed on L0; otherwise it wanders into negative territory
                     args=(stars, fit_keys, shapes, errors, logger,),
                     diff_step=1e-5, ftol=ftol, xtol=1.e-4)
         elif mode == 'pixel':
@@ -1638,13 +1632,13 @@ class OptAtmoPSF(PSF):
             lower_bounds = np.full(len(params),-np.inf)
             upper_bounds = np.full(len(params),np.inf)
             if self.optatmo_psf_kwargs['L0'] != -1.0:
-                lower_bounds[3] = 5.0 # pixel mode needs bounds placed on L0 also; otherwise it wanders into negative territory
-                upper_bounds[3] = 100.0
+                lower_bounds[3] = self.optatmo_psf_kwargs['min_L0'] # optical fit needs bounds placed on L0; otherwise it wanders into negative territory
+                upper_bounds[3] = self.optatmo_psf_kwargs['max_L0']
             bounds = (lower_bounds, upper_bounds)
 
             results = scipy.optimize.least_squares(
                     self._fit_optics_pixel_residual, params,
-                    bounds=bounds, # pixel mode needs bounds placed on L0 also; otherwise it wanders into negative territory
+                    bounds=bounds, # optical fit needs bounds placed on L0; otherwise it wanders into negative territory
                     jac=self._fit_optics_pixel_jac,
                     args=(stars, fit_keys, logger,),
                     diff_step=1e-5, ftol=ftol, xtol=1.e-4)
@@ -1708,6 +1702,10 @@ class OptAtmoPSF(PSF):
                 jac=self._fit_size_jac,
                 args=(stars, opt_params, optical_profiles, logger,),
                 diff_step=1.e-4, ftol=1.e-3, xtol=1.e-4)
+        logger.info('Results from size fit:')
+        logger.info(results.message)
+        if not results.success:
+            raise RuntimeError("fit failed")
 
         #
         # clean up after ourselves
@@ -1900,12 +1898,8 @@ class OptAtmoPSF(PSF):
         lower_bounds = np.full(len(fit_params),-np.inf)
         upper_bounds = np.full(len(fit_params),np.inf)
 
-        if self.optatmo_psf_kwargs['L0'] != -1.0:
-            lower_atmo_size_bound = 0.7 - opt_size
-            upper_atmo_size_bound = 3.0 - opt_size
-        else:
-            lower_atmo_size_bound = 0.45 - opt_size
-            upper_atmo_size_bound = 3.0 - opt_size
+        lower_atmo_size_bound = self.optatmo_psf_kwargs["min_size"] - opt_size
+        upper_atmo_size_bound = self.optatmo_psf_kwargs["max_size"] - opt_size
         lower_bounds[3] = lower_atmo_size_bound
         upper_bounds[3] = upper_atmo_size_bound
         bounds = (lower_bounds, upper_bounds)
@@ -1941,9 +1935,11 @@ class OptAtmoPSF(PSF):
                 args=(star, optical_profile, opt_L0, opt_size, opt_g1, opt_g2, logger,),
                 ftol=1.e-3, xtol=1.e-4)
 
-        logger.debug(results.message)
+        logger.info("")
+        logger.info('Results from individual atmo star fit for a particular star:')
+        logger.info(results.message)
         if not results.success:
-            raise RuntimeError('Not successful fit')
+            raise RuntimeError("fit failed")
 
         g1, g2 = results.x[4:6]
         if np.abs(g1) > 0.4 or np.abs(g2) > 0.4:
@@ -2098,13 +2094,11 @@ class OptAtmoPSF(PSF):
         chi = (shape_weights[None] * (shapes_model - shapes) / errors).flatten() #chi is
         logger.debug('Current Chi2 / dof is {0:.4e} / {1}'.format(np.sum(np.square(chi)), len(chi)))
 
-        self.final_optical_chi = chi
         # chi is a one-dimensional numpy array, containing
         # moment_weight*((moment_model-moment)/moment_error)
-        # for all moments, for all stars
-        chisq = np.sum(chi**2)
-        logger.info("chisq = %s",chisq)
-        #self.total_redchi_across_iterations.append(chisq/len(chi))
+        # for up to all moments up to third moments, for all stars
+        # the model moments in this case are based on what the random forest model
+        # returns for a model star with a given set of fit parameters
         return chi
 
     def _fit_size_residual(self, x, stars, opt_params, optical_profiles, logger=None):
