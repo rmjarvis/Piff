@@ -1575,7 +1575,7 @@ class OptAtmoPSF(PSF):
         # make bounds for the optical fit
         lower_bounds = np.full(len(params),-np.inf)
         upper_bounds = np.full(len(params),np.inf)
-        if mode != 'random_forest':
+        if self.optatmo_psf_kwargs['L0'] != -1.0:
             lower_bounds[3] = self.optatmo_psf_kwargs['min_L0'] # optical fit needs bounds placed on L0; otherwise it wanders into negative territory
             upper_bounds[3] = self.optatmo_psf_kwargs['max_L0']
         bounds = (lower_bounds, upper_bounds)
