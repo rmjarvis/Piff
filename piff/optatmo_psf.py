@@ -1575,10 +1575,9 @@ class OptAtmoPSF(PSF):
         # make bounds for the optical fit
         lower_bounds = np.full(len(params),-np.inf)
         upper_bounds = np.full(len(params),np.inf)
-        if mode != 'random_forest':
-            #lower_bounds[3] = self.optatmo_psf_kwargs['min_L0'] # optical fit needs bounds placed on L0; otherwise it wanders into negative territory
-            #upper_bounds[3] = self.optatmo_psf_kwargs['max_L0']
-            pass
+        if self.optatmo_psf_kwargs['L0'] != -1.0:
+            lower_bounds[3] = self.optatmo_psf_kwargs['min_L0'] # optical fit needs bounds placed on L0; otherwise it wanders into negative territory
+            upper_bounds[3] = self.optatmo_psf_kwargs['max_L0']
         bounds = (lower_bounds, upper_bounds)
 
         # Make sure everything is 64 bit, otherwise least_squares fails
@@ -1619,7 +1618,7 @@ class OptAtmoPSF(PSF):
                     args=(stars, fit_keys, shapes, errors, self.regr_dict, logger,),
                     diff_step=1e-5, ftol=ftol, xtol=1.e-4)
         elif mode == 'shape':
-            results = scipy.optimize.least_squares(                
+            results = scipy.optimize.least_squares(
                     self._fit_optics_residual, params,
                     bounds=bounds, # optical fit needs bounds placed on L0; otherwise it wanders into negative territory
                     args=(stars, fit_keys, shapes, errors, logger,),
