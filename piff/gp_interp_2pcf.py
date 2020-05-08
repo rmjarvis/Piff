@@ -404,7 +404,7 @@ class GPInterp2pcf(Interp):
         K = kernel.__call__(X1) + np.eye(len(y))*y_err**2
         try:
             alpha = scipy.linalg.solve(K, y, assume_a='pos', overwrite_a=True, overwrite_b=False)
-        except scipy.linalg.LinAlgError as e:  # param: no cover
+        except scipy.linalg.LinAlgError as e:  # pragma: no cover
             if logger is not None:
                 logger.debug("Caught exception in gp prediction. Switching to non-pos algorithm" +
                              str(e))
