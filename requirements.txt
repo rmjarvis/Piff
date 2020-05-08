@@ -1,10 +1,8 @@
 numpy
 scipy
 pyyaml
-iminuit
 treecorr>=4.0
-fitsio>=0.9.12
-scikit-learn>=0.18
+fitsio>=1.1.2
 matplotlib>=1.5.0
-LSSTDESC.Coord>=1.0.5
 galsim>=2.0
+treegp
