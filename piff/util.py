@@ -205,16 +205,23 @@ def estimate_cov_from_jac(jac):
 
     :returns: cov, a numpy array giving the estimated covariance.
     """
-    import scipy
+    import scipy.linalg
     # Cribbed from implemenation in scipy.optimize.curve_fit
     # https://github.com/scipy/scipy/blob/maintenance/1.3.x/scipy/optimize/minpack.py#L771
 
     # Do Moore-Penrose inverse discarding zero singular values.
-    _, s, VT = scipy.linalg.svd(jac, full_matrices=False)
-    threshold = np.finfo(float).eps * max(jac.shape) * s[0]
-    s = s[s > threshold]
-    VT = VT[:s.size]
-    cov = np.dot(VT.T / s**2, VT)
+    try:
+        _, s, VT = scipy.linalg.svd(jac, full_matrices=False)
+        threshold = np.finfo(float).eps * max(jac.shape) * s[0]
+        s = s[s > threshold]
+        VT = VT[:s.size]
+        cov = np.dot(VT.T / s**2, VT)
+    except np.linalg.LinAlgError as e:   # pragma: no cover
+        # If we get an error, set the variance to "infinity".
+        # MJ: I'm not sure if this can happen.  It shouldn't happen for singular matrices
+        #     or other kinds of normal ill conditions.  But better safe than sorry.
+        var = np.ones(jac.shape[1]) * 1.e100
+        cov = np.diag(var)
     return cov
 
 def _run_multi_helper(func, i, args, kwargs, logger):
