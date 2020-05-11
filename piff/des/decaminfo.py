@@ -29,7 +29,6 @@ class DECamInfo(object):
         if DECamInfo._infoDict is None:
             # info returns a dictionary chock full of info on the DECam geometry
             # keyed by the CCD name
-
             DECamInfo._infoDict = {}
 
             # store a dictionary for each CCD, keyed by the CCD name
@@ -145,13 +144,13 @@ class DECamInfo(object):
         :returns xPos, yPos:    Arrays of x and y coordinates in mm on the focal plane.
         """
         # do getPosition but with chipnum instead
-        if type(chipnums[0]) != int:
-            chipnums = np.array([ int(c) for c in chipnums ])
-        xpixHalfSize = 1024. * np.ones(len(chipnums))
-        ypixHalfSize = 1024. * np.ones(len(chipnums))
-        ypixHalfSize = np.where(np.array(chipnums) > 62, 1024., 2048.)
-        xCenter = self.infoArr[chipnums.astype(int)][:, 0]
-        yCenter = self.infoArr[chipnums.astype(int)][:, 1]
+        chipnums = np.array(chipnums, dtype=int, copy=False)
+
+        xpixHalfSize = 1024. * np.ones(chipnums.shape)
+        ypixHalfSize = 1024. * np.ones(chipnums.shape)
+        ypixHalfSize = np.where(chipnums > 62, 1024., 2048.)
+        xCenter = self.infoArr[chipnums][:, 0]
+        yCenter = self.infoArr[chipnums][:, 1]
 
         xPos = xCenter + (ix - xpixHalfSize + 0.5) * self.mmperpixel
         yPos = yCenter + (iy - ypixHalfSize + 0.5) * self.mmperpixel
@@ -167,11 +166,13 @@ class DECamInfo(object):
         :returns ix, iy:    Arrays of x and y coordinates in pixels
         """
         # do getPixel but with chipnum instead
-        xpixHalfSize = 1024. * np.ones(len(chipnums))
-        ypixHalfSize = 1024. * np.ones(len(chipnums))
-        ypixHalfSize = np.where(np.array(chipnums) > 62, 1024., 2048.)
-        xCenter = self.infoArr[np.array(chipnums, dtype=int)][:, 0]
-        yCenter = self.infoArr[np.array(chipnums, dtype=int)][:, 1]
+        chipnums = np.array(chipnums, dtype=int, copy=False)
+        
+        xpixHalfSize = 1024. * np.ones(chipnums.shape)
+        ypixHalfSize = 1024. * np.ones(chipnums.shape)
+        ypixHalfSize = np.where(chipnums > 62, 1024., 2048.)
+        xCenter = self.infoArr[chipnums][:, 0]
+        yCenter = self.infoArr[chipnums][:, 1]
 
         ix = (xPos - xCenter) / self.mmperpixel + xpixHalfSize - 0.5
         iy = (yPos - yCenter) / self.mmperpixel + ypixHalfSize - 0.5
