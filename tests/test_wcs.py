@@ -659,6 +659,7 @@ if __name__ == '__main__':
     test_pickle()
     test_olddes()
     test_newdes()
+    test_des_wcs()
     #pr.disable()
     #ps = pstats.Stats(pr).sort_stats('tottime')
     #ps.print_stats(20)
