@@ -590,9 +590,6 @@ def test_newdes():
 def test_des_wcs():
     """Test the get_nominal_wcs function.
     """
-    import os
-    import fitsio
-
     # Read a random DES image
     image_file = 'input/DECam_00241238_01.fits.fz'
     print('read DES image ',image_file)
