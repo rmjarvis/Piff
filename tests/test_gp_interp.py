@@ -99,7 +99,10 @@ def make_gaussian_random_fields(kernel, nstars, noise_level=1e-3,
     np.random.seed(seed)
 
     # generate star coordinate
-    nstars_interp = 1500
+    if nstars<1500:
+        nstars_interp = nstars
+    else:
+        nstars_interp = 1500
     u_interp = np.random.uniform(-xlim, xlim, nstars_interp)
     v_interp = np.random.uniform(-ylim, ylim, nstars_interp)
     coord_interp = np.array([u_interp, v_interp]).T
@@ -109,23 +112,30 @@ def make_gaussian_random_fields(kernel, nstars, noise_level=1e-3,
     cov_interp = kernel.__call__(coord_interp)
 
     # generate gaussian random fields
-    size_interp = np.random.multivariate_normal([0]*1500, cov_interp)
-    g1_interp = np.random.multivariate_normal([0]*1500, cov_interp)
-    g2_interp = np.random.multivariate_normal([0]*1500, cov_interp)
+    size_interp = np.random.multivariate_normal([0]*nstars_interp, cov_interp)
+    g1_interp = np.random.multivariate_normal([0]*nstars_interp, cov_interp)
+    g2_interp = np.random.multivariate_normal([0]*nstars_interp, cov_interp)
 
-    # Interp on stars position using a gp interp with truth kernel.
-    # Trick to have more stars faster as a gaussian random field.
-    u = np.random.uniform(-xlim, xlim, nstars)
-    v = np.random.uniform(-ylim, ylim, nstars)
-    coord = np.array([u,v]).T
+    if nstars<1500:
+        size = size_interp
+        g1 = g1_interp
+        g2 = g2_interp
+        u = u_interp
+        v = v_interp
+        coord = coord_interp
+    else:
+        # Interp on stars position using a gp interp with truth kernel.
+        # Trick to have more stars faster as a gaussian random field.
+        u = np.random.uniform(-xlim, xlim, nstars)
+        v = np.random.uniform(-ylim, ylim, nstars)
+        coord = np.array([u,v]).T
 
-    K = kernel.__call__(coord_interp) + np.eye(nstars_interp)*1e-10
-    factor = (cholesky(K, overwrite_a=True, lower=False), False)
+        K = kernel.__call__(coord_interp) + np.eye(nstars_interp)*1e-10
+        factor = (cholesky(K, overwrite_a=True, lower=False), False)
 
-    size = return_gp_predict(size_interp, coord_interp, coord, kernel, factor)
-    g1 = return_gp_predict(g1_interp, coord_interp, coord, kernel, factor)
-    g2 = return_gp_predict(g2_interp, coord_interp, coord, kernel, factor)
-
+        size = return_gp_predict(size_interp, coord_interp, coord, kernel, factor)
+        g1 = return_gp_predict(g1_interp, coord_interp, coord, kernel, factor)
+        g2 = return_gp_predict(g2_interp, coord_interp, coord, kernel, factor)
 
     # add noise on psfs parameters
     size += np.random.normal(scale=noise_level, size=nstars)
@@ -160,7 +170,7 @@ def make_gaussian_random_fields(kernel, nstars, noise_level=1e-3,
 
 def check_gp(stars_training, stars_validation, kernel, optimizer,
              min_sep=None, max_sep=None, nbins=20, l0=3000.,
-             plotting=False):
+             plotting=False, atol=4e-2, rtol=1e-3):
     """ Solve for global PSF model, test it, and optionally display it.
     """
     interp = piff.GPInterp(kernel=kernel, optimizer=optimizer,
@@ -179,14 +189,14 @@ def check_gp(stars_training, stars_validation, kernel, optimizer,
 
     y_test = np.array([star.fit.params for star in stars_test])
 
-    np.testing.assert_allclose(y_test, y_validation, atol = 4e-2)
+    np.testing.assert_allclose(y_test, y_validation, atol=atol)
 
     if optimizer is not 'none':
         truth_hyperparameters = np.exp(interp._init_theta)
         fitted_hyperparameters = np.exp(np.array([gp._optimizer._kernel.theta for gp in interp.gps]))
         np.testing.assert_allclose(np.mean(fitted_hyperparameters, axis=0),
                                    np.mean(truth_hyperparameters, axis=0),
-                                   rtol = 3e-1)
+                                   rtol=rtol)
 
     if plotting:
         import matplotlib.pyplot as plt
@@ -246,9 +256,16 @@ def check_gp(stars_training, stars_validation, kernel, optimizer,
 @timer
 def test_gp_interp_isotropic():
 
-    noise_level = 1e-3
+    if __name__ == "__main__":
+        atol = 4e-1
+        rtol = 5e-1
+        nstars = [160, 160, 400, 400]
+    else:
+        atol = 4e-2
+        rtol = 1e-3
+        nstars = [1600, 1600, 4000, 4000]
 
-    nstars = [1600, 1600, 4000, 4000]
+    noise_level = 1e-3
     LIM = [10, 10, 20, 20]
 
     kernels = ["4e-4 * RBF(4.)",
@@ -267,14 +284,21 @@ def test_gp_interp_isotropic():
                                                                        seed=30352010, vmax=4e-2,
                                                                        noise_level=noise_level)
         check_gp(stars_training, stars_validation, kernels[i],
-                 optimizer[i], plotting=False)
+                 optimizer[i], atol=atol, rtol=rtol, plotting=False)
 
 @timer
 def test_gp_interp_anisotropic():
 
-    noise_level = 1e-4
+    if __name__ == "__main__":
+        atol = 4e-1
+        rtol = 5e-1
+        nstars = [160, 400, 160, 400]
+    else:
+        atol = 4e-2
+        rtol = 1e-3
+        nstars = [1600, 4000, 1600, 4000]
 
-    nstars = [1600, 4000, 1600, 4000]
+    noise_level = 1e-4
 
     L1 = get_correlation_length_matrix(4., 0.3, 0.3)
     invL1 = np.linalg.inv(L1)
@@ -297,7 +321,8 @@ def test_gp_interp_anisotropic():
                                                                        seed=30352010, vmax=4e-2,
                                                                        noise_level=noise_level)
         check_gp(stars_training, stars_validation, kernels[i],
-                 optimizer[i], min_sep=0., max_sep=5., nbins=11, l0=20., plotting=False)
+                 optimizer[i], min_sep=0., max_sep=5., nbins=11,
+                 l0=20., atol=atol, rtol=rtol, plotting=False)
 
 @timer
 def test_yaml():
