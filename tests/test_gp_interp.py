@@ -265,11 +265,10 @@ def test_gp_interp_isotropic():
         rtol = 5e-1
         nstars = [160, 160, 400, 400]
 
-
     noise_level = 1e-3
     LIM = [10, 10, 20, 20]
 
-    kernels = ["4e-4 * RBF(4.)",
+    kernels = [["4e-4 * RBF(4.)", "4e-4 * RBF(4.)", "4e-4 * RBF(4.)"],
                "4e-4 * RBF(4.)",
                "4e-4 * RBF(4.)",
                "4e-4 * VonKarman(20.)"]
@@ -281,7 +280,13 @@ def test_gp_interp_isotropic():
 
     for i in range(len(kernels)):
 
-        stars_training, stars_validation = make_gaussian_random_fields(kernels[i], nstars[i], xlim=-LIM[i], ylim=LIM[i],
+        if i!=0:
+            K = kernels[i]
+        else:
+            K = kernels[i][0]
+
+        stars_training, stars_validation = make_gaussian_random_fields(K, nstars[i],
+                                                                       xlim=-LIM[i], ylim=LIM[i],
                                                                        seed=30352010, vmax=4e-2,
                                                                        noise_level=noise_level)
         check_gp(stars_training, stars_validation, kernels[i],
