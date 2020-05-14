@@ -257,13 +257,14 @@ def check_gp(stars_training, stars_validation, kernel, optimizer,
 def test_gp_interp_isotropic():
 
     if __name__ == "__main__":
+        atol = 4e-2
+        rtol = 3e-1
+        nstars = [1600, 1600, 4000, 4000]
+    else:
         atol = 4e-1
         rtol = 5e-1
         nstars = [160, 160, 400, 400]
-    else:
-        atol = 4e-2
-        rtol = 1e-3
-        nstars = [1600, 1600, 4000, 4000]
+
 
     noise_level = 1e-3
     LIM = [10, 10, 20, 20]
@@ -290,13 +291,13 @@ def test_gp_interp_isotropic():
 def test_gp_interp_anisotropic():
 
     if __name__ == "__main__":
+        atol = 4e-2
+        rtol = 3e-1
+        nstars = [1600, 4000, 1600, 4000]
+    else:
         atol = 4e-1
         rtol = 5e-1
         nstars = [160, 400, 160, 400]
-    else:
-        atol = 4e-2
-        rtol = 1e-3
-        nstars = [1600, 4000, 1600, 4000]
 
     noise_level = 1e-4
 
