@@ -19,6 +19,7 @@ import galsim
 import yaml
 import subprocess
 import time
+import os
 
 from piff_test_helper import get_script_name, timer
 
@@ -39,16 +40,16 @@ def make_gaussian_data(sigma, u0, v0, flux, noise=0., du=1., fpu=0., fpv=0., nsi
     """
     g = galsim.Gaussian(sigma=sigma, flux=flux).shift(u0,v0)
     if noise == 0.:
-        var = 0.1
+        var = 1.e-6
     else:
-        var = noise
+        var = noise**2
     star = piff.Star.makeTarget(x=nside/2+nom_u0/du, y=nside/2+nom_v0/du,
                                 u=fpu, v=fpv, scale=du, stamp_size=nside)
     star.image.setOrigin(0,0)
     g.drawImage(star.image, method='no_pixel', use_true_center=False,
                 offset=galsim.PositionD(nom_u0/du,nom_v0/du))
     star.data.weight = star.image.copy()
-    star.weight.fill(1./var/var)
+    star.weight.fill(1./var)
     if noise != 0:
         gn = galsim.GaussianNoise(sigma=noise, rng=rng)
         star.image.addNoise(gn)
@@ -1043,7 +1044,7 @@ def test_des_image():
             offset = s.center_to_offset(s.fit.center)
             image = psf.draw(x=s['x'], y=s['y'], stamp_size=stamp_size,
                              flux=s.fit.flux, offset=offset)
-            np.testing.assert_almost_equal(image.array, fit_stamp.array, decimal=4)
+            np.testing.assert_allclose(image.array, fit_stamp.array, rtol=1.e-6, atol=1.e-4)
 
         print('n_good, marginal, bad = ',n_good,n_marginal,n_bad)
         # The real counts are 10 and 2.  So this says make sure any updates to the code don't make
@@ -1221,6 +1222,46 @@ def test_des2():
     # Basically saying the solution doesn't go completely haywire.
     np.testing.assert_almost_equal(test_stamp.array, check_stamp.array, decimal=1)
 
+@timer
+def test_var():
+    """Check that the estimate of params_var is sane
+    """
+    rng = galsim.BaseDeviate(123456)
+    noise = 0.17
+    star = make_gaussian_data(2.0, 0., 0., 200, du=0.5, noise=noise, rng=rng)
+
+    # Pixelized model with Lanczos 3 interp
+    mod = piff.PixelGrid(0.5, 20, centered=False)
+    star = mod.initialize(star)
+
+    star = mod.fit(star)
+    star = mod.reflux(star)
+    print('Flux after fit 1:',star.fit.flux)
+
+    # Make an empirical estimate of the real variance from many runs.
+    file_name = 'input/test_pixelgrid_var.npz'
+    print(file_name)
+    if not os.path.isfile(file_name):
+        num_runs = 1000
+        all_params = []
+        for i in range(num_runs):
+            s = make_gaussian_data(2.0, 0., 0., 200, du=0.5, noise=noise)
+            s = mod.initialize(s)
+            s = mod.fit(s)
+            print(s.fit.params.max())
+            all_params.append(s.fit.params)
+        var = np.var(all_params, axis=0)
+        np.savez(file_name, var=var)
+
+    var = np.load(file_name)['var']
+    #print('empirical var = ',var)
+    #print('pixelgrid estimate = ',star.fit.params_var)
+    #print('ratio = ',star.fit.params_var/var)
+    print('max ratio = ',np.max(star.fit.params_var/var))
+    print('min ratio = ',np.min(star.fit.params_var/var))
+    print('mean ratio = ',np.mean(star.fit.params_var/var))
+    np.testing.assert_allclose(star.fit.params_var, var, rtol=0.2)
+
 
 if __name__ == '__main__':
     #import cProfile, pstats
@@ -1238,6 +1279,7 @@ if __name__ == '__main__':
     test_single_image()
     test_des_image()
     test_des2()
+    test_var()
     #pr.disable()
     #ps = pstats.Stats(pr).sort_stats('tottime')
     #ps.print_stats(20)

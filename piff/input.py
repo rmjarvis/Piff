@@ -709,7 +709,7 @@ class InputFiles(Input):
             if sky is not None:
                 logger.debug("Subtracting off sky = %f", sky[k])
                 logger.debug("Median pixel value = %f", np.median(stamp.array))
-                stamp = stamp - sky[k]  # Don't change the original!
+                stamp -= sky[k]
                 props['sky'] = sky[k]
 
             # Check the snr and limit it if appropriate
@@ -722,7 +722,7 @@ class InputFiles(Input):
                 factor = (max_snr / snr)**2
                 logger.debug("Scaling noise by factor of %f to achieve snr=%f",
                                 factor, max_snr)
-                wt_stamp = wt_stamp * factor
+                wt_stamp *= factor
                 snr = max_snr
             props['snr'] = snr
 

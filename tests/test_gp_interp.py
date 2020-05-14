@@ -51,27 +51,26 @@ def make_single_star(u, v, size, g1, g2, size_err, g1_err, g2_err):
     :param size_err:       Size error.
     :param g1_err, g2_err: Shear error. 
     """
-    star = piff.Star.makeTarget(x=None, y=None, u=u, v=v,
-                                properties={}, wcs=None, scale=0.26,
-                                stamp_size=24, image=None,
-                                pointing=None, flux=1.)
+    k = galsim.Kolmogorov(half_light_radius=hlr, flux=flux).shear(g1=g1, g2=g2).shift(u0,v0)
+    if noise == 0.:
+        var = 1.e-6
+    else:
+        var = noise**2
+    star = piff.Star.makeTarget(x=nside/2+nom_u0/du, y=nside/2+nom_v0/du,
+                                u=fpu, v=fpv, scale=du, stamp_size=nside)
+    star.image.setOrigin(0,0)
+    k.drawImage(star.image, method='no_pixel',
+                offset=galsim.PositionD(nom_u0/du,nom_v0/du), use_true_center=False)
+    star.data.weight = star.image.copy()
+    star.weight.fill(1./var)
+    if noise != 0:
+        gn = galsim.GaussianNoise(sigma=noise, rng=rng)
+        star.image.addNoise(gn)
+    return star
 
-    kolmogorov.drawImage(star.image, method='auto')
-    fit = piff.StarFit(np.array([size, g1, g2]),
-                       params_var=np.array([size_err**2, g1_err**2, g2_err**2]),
-                       flux=1.)
-    final_star = piff.Star(star.data, fit)
 
-    return final_star
-
-def return_gp_predict(y, X1, X2, kernel, factor):
-    """Compute interpolation with gaussian process for a given kernel.
-
-    :param y:      The dependent responses.  (n_samples, n_targets)
-    :param X1:     The independent covariates.  (n_samples, 2)
-    :param X2:     The independent covariates at which to interpolate.  (n_samples, 2)
-    :param kernel: sklearn.gaussian_process kernel.
-    :param factor: Cholesky decomposition of sklearn.gaussian_process kernel.
+def make_constant_psf_params(ntrain, nvalidate, nvisualize):
+    """ Make training/testing data for a constant PSF.
     """
     HT = kernel.__call__(X2, Y=X1)
     alpha = cho_solve(factor, y, overwrite_b=False)
@@ -292,11 +291,215 @@ def test_gp_interp_anisotropic():
 
     for i in range(len(kernels)):
 
-        stars_training, stars_validation = make_gaussian_random_fields(kernels[i], nstars[i], xlim=-20, ylim=20,
-                                                                       seed=30352010, vmax=4e-2,
-                                                                       noise_level=noise_level)
-        check_gp(stars_training, stars_validation, kernels[i],
-                 optimizer[i], min_sep=0., max_sep=5., nbins=11, l0=20., plotting=False)
+    for npca in npcas:
+        for optimize in optimizes:
+            check_gp(training_data, validation_data, visualization_data,
+                     kernel + " + WhiteKernel(1e-5, (1e-6, 1e-1))",
+                     npca=npca, optimize=optimize, file_name="test_gp_vonkarman.fits", rng=rng,
+                     check_config=check_config, rtol=rtol)
+            check_gp_2pcf(training_data, validation_data, visualization_data, kernel,
+                          npca=npca, optimize=optimize, anisotropic=False, file_name="test_gp_vonkarman.fits", rng=rng,
+                          check_config=check_config, rtol=rtol)
+
+    check_gp_2pcf(training_data, validation_data, visualization_data, anisotropic_kernel,
+                  npca=0, optimize=False, anisotropic=True, file_name="test_gp_vonkarman.fits", rng=rng,
+                  check_config=check_config, rtol=rtol)
+
+@timer
+def test_gp_with_kernels():
+
+    if __name__ == '__main__':
+        ntrain = 1000
+        npcas = [0]
+        optimizes = [True, False]
+        check_config = True
+        rtol = 0.02
+    else:
+        ntrain = 500
+        npcas = [0]
+        optimizes = [False]
+        check_config = False
+        rtol = 0.05
+    nvalidate, nvisualize = 1, 20
+    rng = galsim.BaseDeviate(987654334587656)
+
+    training_data, validation_data, visualization_data = make_vonkarman_and_rbf_psf_params(
+            ntrain, nvalidate, nvisualize)
+    
+    kernel = ["0.01*RBF(0.7, (1e-1, 1e1))",
+              "0.01*RBF(0.7, (1e-1, 1e1))",
+              "0.01*VonKarman(0.7, (1e-1, 1e1))",
+              "0.01*VonKarman(0.7, (1e-1, 1e1))",
+              "0.01*VonKarman(0.7, (1e-1, 1e1))"]
+
+    for npca in npcas:
+        for optimize in optimizes:
+            check_gp_2pcf(training_data, validation_data, visualization_data, kernel,
+                          npca=npca, optimize=optimize, file_name="test_gp_vonkarman.fits", rng=rng,
+                          check_config=check_config, rtol=rtol)
+
+
+@timer
+def test_anisotropic_rbf_kernel():
+    if __name__ == '__main__':
+        ntrain = 250
+        npcas = [0]
+        optimizes = [True, False]
+        check_config = True
+        nvalidate = 1
+        nvisualize = 21
+        rtol = 0.03
+    else:
+        ntrain = 100
+        npcas = [0]
+        optimizes = [False, True]
+        check_config = False
+        nvalidate = 1
+        nvisualize = 1
+        rtol = 0.05
+    rng = galsim.BaseDeviate(5867943)
+
+    training_data, validation_data, visualization_data = make_anisotropic_grf_psf_params(
+            ntrain, nvalidate, nvisualize)
+    var1 = 0.1**2
+    var2 = 0.2**2
+    corr = 0.7
+    cov = np.array([[var1, np.sqrt(var1*var2)*corr],
+                    [np.sqrt(var1*var2)*corr, var2]])
+    invLam = np.linalg.inv(cov)
+
+    kernel = "0.1*AnisotropicRBF(invLam={0!r})".format(invLam)
+    #kernel_vk= "0.1*AnisotropicVonKarman(invLam={0!r})".format(invLam)
+
+    print(kernel)
+
+    for npca in npcas:
+        for optimize in optimizes:
+            check_gp(training_data, validation_data, visualization_data,
+                     kernel+ "+ WhiteKernel(1e-5, (1e-7, 1e-2))",
+                     npca=npca, optimize=optimize, file_name="test_anisotropic_rbf.fits",
+                     rng=rng, check_config=check_config)
+            check_gp_2pcf(training_data, validation_data, visualization_data, kernel,
+                          npca=npca, anisotropic=True, optimize=optimize, rng=rng,
+                          check_config=check_config, rtol=rtol)
+
+@timer
+def test_vonkarman_kernel():
+    from scipy import special
+                    
+    corr_lenght = [1.,10.,100.,1000.]
+    kernel_amp = [1e-4,1e-3,1e-2,1.]
+    dist = np.linspace(0,10,100)
+    coord = np.array([dist,dist]).T
+
+    dist = np.linspace(0.01,10,100)
+    coord_corr = np.array([dist,np.zeros_like(dist)]).T
+    
+    def _vonkarman_kernel(param,x):
+        A = (x[:,0]-x[:,0][:,None])
+        B = (x[:,1]-x[:,1][:,None])
+        distance = np.sqrt(A*A + B*B)
+        Filter = distance != 0.
+        K = np.zeros_like(distance)
+        K[Filter] = param[0]**2 * ((distance[Filter]/param[1])**(5./6.) *
+                                   special.kv(-5./6.,2*np.pi*distance[Filter]/param[1]))
+        dist = np.linspace(1e-4,1.,100)
+        div = 5./6.
+        lim0 = special.gamma(div) /(2 * (np.pi**div) )
+        K[~Filter] = param[0]**2 * lim0
+        K /= lim0
+        return K
+        
+    def _vonkarman_corr_function(param, distance):
+        div = 5./6.
+        lim0 = (2 * (np.pi**div) ) / special.gamma(div) 
+        return param[0]**2 * lim0 * ((distance/param[1])**(5./6.)) * special.kv(-5./6.,2*np.pi*distance/param[1])
+    
+    for corr in corr_lenght:
+        for amp in kernel_amp:
+        
+            kernel = "%.10f * VonKarman(length_scale=%f)"%((amp**2,corr))
+
+            interp = piff.GPInterp2pcf(kernel=kernel,
+                                       normalize=False,
+                                       white_noise=0.)
+            ker = interp.kernel_template[0]
+
+            ker_piff = ker.__call__(coord)
+            corr_piff = ker.__call__(coord_corr,Y=np.zeros_like(coord_corr))[:,0]
+
+            ker_test = _vonkarman_kernel([amp,corr],coord)
+            corr_test = _vonkarman_corr_function([amp,corr], dist) 
+
+            np.testing.assert_allclose(ker_piff, ker_test, atol=1e-12)
+            np.testing.assert_allclose(corr_piff, corr_test, atol=1e-12)
+
+@timer
+def test_anisotropic_vonkarman_kernel():
+    from scipy import special
+    from scipy.spatial.distance import pdist, squareform
+
+    corr_length = [1., 30. ,30. ,30., 30.]
+    g1 = [0, 0.4, 0.4, -0.4, -0.4]
+    g2 = [0, 0.4, -0.4, 0.4, -0.4]
+    kernel_amp = [1e-4, 1e-3, 1e-2, 1., 1.]
+    dist = np.linspace(0,10,100)
+    coord = np.array([dist,dist]).T
+
+    dist = np.linspace(-10,10,21)
+    #coord_corr = np.array([dist,np.zeros_like(dist)]).T
+
+    X, Y = np.meshgrid(dist,dist)
+    x = X.reshape(len(dist)**2)
+    y = Y.reshape(len(dist)**2)
+    coord_corr = np.array([x, y]).T
+
+    def _anisotropic_vonkarman_kernel(x, sigma, corr_length, g1, g2):
+        L = get_correlation_length_matrix(corr_length, g1, g2)
+        invL = np.linalg.inv(L)
+        dists = pdist(x, metric='mahalanobis', VI=invL)
+        K = dists **(5./6.) *  special.kv(5./6., 2*np.pi * dists)
+        lim0 = special.gamma(5./6.) /(2 * ((np.pi)**(5./6.)) )
+        K = squareform(K)
+        np.fill_diagonal(K, lim0)
+        K /= lim0
+        K *= sigma**2
+        return K
+        
+    def _anisotropic_vonkarman_corr_function( x, y, sigma, 
+                                              corr_length, g1, g2):
+        L = get_correlation_length_matrix(corr_length, g1, g2)
+        l = np.linalg.inv(L)
+        dist_a = (l[0,0]*x*x) + (2*l[0,1]*x*y) + (l[1,1]*y*y)
+        z = np.zeros_like(dist_a)
+        Filter = dist_a != 0.
+        z[Filter] = dist_a[Filter]**(5./12.) *  special.kv(5./6., 2*np.pi * np.sqrt(dist_a[Filter]))
+        lim0 = special.gamma(5./6.) /(2 * ((np.pi)**(5./6.)) )
+        if np.sum(Filter) != len(z):
+            z[~Filter] = lim0
+        z /= lim0
+        return z*sigma**2
+    
+    for i in range(5):
+        L = get_correlation_length_matrix(corr_length[i], g1[i], g2[i])
+        inv_L = np.linalg.inv(L)
+        ker = kernel_amp[i]**2 * piff.AnisotropicVonKarman(invLam=inv_L)
+        ker_piff = ker.__call__(coord)
+        corr_piff = ker.__call__(coord_corr,Y=np.zeros_like(coord_corr))[:,0]
+        ker_test = _anisotropic_vonkarman_kernel(coord, kernel_amp[i], corr_length[i], g1[i], g2[i])
+        corr_test = _anisotropic_vonkarman_corr_function(x, y, kernel_amp[i],
+                                                         corr_length[i], g1[i], g2[i])
+        np.testing.assert_allclose(ker_piff, ker_test, atol=1e-12)
+        np.testing.assert_allclose(corr_piff, corr_test, atol=1e-12)
+        
+        hyperparameter = ker.theta
+        theta = hyperparameter[1:]
+        L1 = np.zeros_like(inv_L)
+        L1[np.diag_indices(2)] = np.exp(theta[:2])
+        L1[np.tril_indices(2, -1)] = theta[2:]
+        invLam = np.dot(L1, L1.T)
+        np.testing.assert_allclose(inv_L, invLam, atol=1e-12)
+>>>>>>> master
 
 @timer
 def test_yaml():

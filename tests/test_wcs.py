@@ -20,6 +20,7 @@ import fitsio
 import os
 import warnings
 import copy
+import coord
 
 from piff_test_helper import get_script_name, timer, CaptureLog
 
@@ -586,6 +587,7 @@ def test_newdes():
     image2 = psf2.draw(x=103.3, y=592.0)
     np.testing.assert_equal(image2.array, image.array)
 
+    
 @timer
 def test_hsm():
     # Test the hsm function in the presence of a non-trivial WCS.
@@ -656,6 +658,66 @@ def test_hsm():
     image2 = psf2.draw(x=103.3, y=592.0)
     np.testing.assert_equal(image2.array, image.array)
 
+
+def test_des_wcs():
+    """Test the get_nominal_wcs function.
+    """
+    # Read a random DES image
+    image_file = 'input/DECam_00241238_01.fits.fz'
+    print('read DES image ',image_file)
+    im = galsim.fits.read(image_file, read_header=True)
+    print(list(im.header.keys()))
+    print('ra = ',im.header['TELRA'])
+    print('dec = ',im.header['TELDEC'])
+    ra = coord.Angle.from_hms(im.header['TELRA'])
+    dec = coord.Angle.from_dms(im.header['TELDEC'])
+    pointing = coord.CelestialCoord(ra,dec)
+
+    print('raw wcs = ',im.wcs)
+    print('world coord at center = ',im.wcs.toWorld(im.center))
+    print('pointing = ',pointing)
+    print('dist = ',pointing.distanceTo(im.wcs.toWorld(im.center)).deg)
+
+    # This chip is near the edge, but check that we're at least close to the nominal pointing.
+    assert pointing.distanceTo(im.wcs.toWorld(im.center)) < 1.2 * coord.degrees
+
+    # Get the local affine approximation relative to the pointing center
+    wcs1 = im.wcs.affine(world_pos=pointing)
+    print('wcs1 = ',wcs1)
+    print('u,v at image center = ',wcs1.toWorld(im.center))
+
+    # A different approach.  Get the local wcs at the image center, and adjust
+    # the origin to the pointing center.
+    wcs2 = im.wcs.local(im.center).withOrigin(im.wcs.toImage(pointing))
+    print('wcs2 = ',wcs2)
+    print('u,v at image center = ',wcs2.toWorld(im.center))
+
+    # Finally, compare with the mock up approximate version we have in piff
+    wcs3 = piff.des.DECamInfo().get_nominal_wcs(chipnum=1)
+    print('wcs3 = ',wcs3)
+    print('u,v at image center = ',wcs3.toWorld(im.center))
+
+    # Check that these are all vaguley similar.
+    # wcs2 is probably the most accurate of these, since it Taylor expands the nonlinear
+    # stuff at the image center.  wcs1 expands around a point way off the chip, so there
+    # are expected to be some errors in this extrapolation.
+    # And of course wcs3 is just an approximation, so it's only expected to be good to a
+    # few arcsec or so.
+    np.testing.assert_allclose(wcs3.jacobian().getMatrix(), wcs2.jacobian().getMatrix(),
+                               rtol=0.02, atol=0.003)
+    np.testing.assert_allclose(wcs3.toWorld(im.center).x, wcs2.toWorld(im.center).x,
+                               rtol=0.02)
+    np.testing.assert_allclose(wcs3.toWorld(im.center).y, wcs2.toWorld(im.center).y,
+                               rtol=0.02)
+
+    # As mentioned, wcs1 is not as close, but that's ok.
+    np.testing.assert_allclose(wcs3.jacobian().getMatrix(), wcs1.jacobian().getMatrix(),
+                               rtol=0.04, atol=0.002)
+    np.testing.assert_allclose(wcs3.toWorld(im.center).x, wcs1.toWorld(im.center).x,
+                               rtol=0.04)
+    np.testing.assert_allclose(wcs3.toWorld(im.center).y, wcs1.toWorld(im.center).y,
+                               rtol=0.04)
+
 if __name__ == '__main__':
     #import cProfile, pstats
     #pr = cProfile.Profile()
@@ -667,6 +729,7 @@ if __name__ == '__main__':
     test_olddes()
     test_newdes()
     test_hsm()
+    test_des_wcs()
     #pr.disable()
     #ps = pstats.Stats(pr).sort_stats('tottime')
     #ps.print_stats(20)
