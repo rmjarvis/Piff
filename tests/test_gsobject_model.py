@@ -213,6 +213,8 @@ def test_center():
             print('Flux, ctr, chisq after fit {:d}:'.format(i),
                   star.fit.flux, star.fit.center, star.fit.chisq)
             np.testing.assert_almost_equal(star.fit.flux/influx, 1.0, decimal=8)
+            np.testing.assert_allclose(star.fit.center[0], u0)
+            np.testing.assert_allclose(star.fit.center[1], v0)
 
         # Residual image when done should be dominated by structure off the edge of the fitted
         # region.
@@ -225,6 +227,15 @@ def test_center():
         np.testing.assert_almost_equal(star2.image.array[mask]/peak, s.image.array[mask]/peak,
                                        decimal=8)
 
+        # Measured centroid of PSF model should be close to 0,0
+        star3 = mod.draw(star.withFlux(influx, (0,0)))
+        flux, cenx, ceny, sigma, e1, e2, flag = piff.util.hsm(star3)
+        print('HSM measurements: ',flux, cenx, ceny, sigma, g1, g2, flag)
+        np.testing.assert_allclose(cenx, 0, atol=1.e-4)
+        np.testing.assert_allclose(ceny, 0, atol=1.e-4)
+        np.testing.assert_allclose(e1, g1, rtol=1.e-4)
+        np.testing.assert_allclose(e2, g2, rtol=1.e-4)
+
         # test copy_image
         star_copy = mod.draw(star, copy_image=True)
         star_nocopy = mod.draw(star, copy_image=False)
@@ -232,6 +243,53 @@ def test_center():
         assert star_nocopy.image.array[0,0] == star.image.array[0,0]
         assert star_copy.image.array[0,0] != star.image.array[0,0]
         assert star_copy.image.array[1,1] == star.image.array[1,1]
+
+@timer
+def test_uncentered():
+    """Fit with centroid shift included in the PSF model.  (I.e. centered=False)
+    """
+    influx = 150.
+    scale = 2.0
+    u0, v0 = 0.6, -0.4
+    g1, g2 = 0.1, 0.2
+    for fiducial in [fiducial_gaussian, fiducial_kolmogorov, fiducial_moffat]:
+        print()
+        print("fiducial = ", fiducial)
+        print()
+        s = make_data(fiducial, scale, g1, g2, u0, v0, influx, pix_scale=0.5, include_pixel=False)
+
+        mod = piff.GSObjectModel(fiducial, include_pixel=False, centered=False)
+        star = mod.initialize(s)
+        print('Flux, ctr after reflux:',star.fit.flux,star.fit.center)
+        for i in range(3):
+            star = mod.fit(star)
+            star = mod.reflux(star)
+            print('Flux, ctr, chisq after fit {:d}:'.format(i),
+                  star.fit.flux, star.fit.center, star.fit.chisq)
+            np.testing.assert_allclose(star.fit.flux, influx)
+            np.testing.assert_allclose(star.fit.center[0], 0)
+            np.testing.assert_allclose(star.fit.center[1], 0)
+
+        # Residual image when done should be dominated by structure off the edge of the fitted
+        # region.
+        mask = star.weight.array > 0
+        # This comes out fairly close, but only 2 dp of accuracy, compared to 3 above.
+        star2 = mod.draw(star)
+        print('max image abs diff = ',np.max(np.abs(star2.image.array-s.image.array)))
+        print('max image abs value = ',np.max(np.abs(s.image.array)))
+        peak = np.max(np.abs(s.image.array[mask]))
+        np.testing.assert_almost_equal(star2.image.array[mask]/peak, s.image.array[mask]/peak,
+                                       decimal=8)
+
+        # Measured centroid of PSF model should be close to u0, v0
+        star3 = mod.draw(star.withFlux(influx, (0,0)))
+        flux, cenx, ceny, sigma, e1, e2, flag = piff.util.hsm(star3)
+        print('HSM measurements: ',flux, cenx, ceny, sigma, g1, g2, flag)
+        np.testing.assert_allclose(cenx, u0, rtol=1.e-4)
+        np.testing.assert_allclose(ceny, v0, rtol=1.e-4)
+        np.testing.assert_allclose(e1, g1, rtol=1.e-4)
+        np.testing.assert_allclose(e2, g2, rtol=1.e-4)
+
 
 @timer
 def test_interp():
