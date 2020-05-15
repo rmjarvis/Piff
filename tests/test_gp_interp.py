@@ -18,6 +18,7 @@ import treegp
 import numpy as np
 import piff
 import os
+import copy
 from scipy.linalg import cholesky, cho_solve
 from sklearn.model_selection import train_test_split
 
@@ -170,7 +171,7 @@ def make_gaussian_random_fields(kernel, nstars, noise_level=1e-3,
 
 def check_gp(stars_training, stars_validation, kernel, optimizer,
              min_sep=None, max_sep=None, nbins=20, l0=3000., rows=None,
-             plotting=False, atol=4e-2, rtol=1e-3):
+             plotting=False, atol=4e-2, rtol=1e-3, test_star_fit=False):
     """ Solve for global PSF model, test it, and optionally display it.
     """
     interp = piff.GPInterp(kernel=kernel, optimizer=optimizer,
@@ -181,7 +182,14 @@ def check_gp(stars_training, stars_validation, kernel, optimizer,
 
     interp.initialize(stars_training)
     interp.solve(stars=stars_training, logger=None)
-    stars_test = interp.interpolateList(stars_validation)
+
+    if not test_star_fit:
+        stars_test = interp.interpolateList(stars_validation)
+    else:
+        stars_v = copy.deepcopy(stars_validation)
+        for s in stars_v:
+            s.fit = None
+        stars_test = interp.interpolateList(stars_v)
 
     xtest = np.array([interp.getProperties(star) for star in stars_validation])
     y_validation = np.array([star.fit.params for star in stars_validation])
@@ -280,6 +288,8 @@ def test_gp_interp_isotropic():
 
     rows = [[0,1,2], None, None, None]
 
+    test_star_fit = [True, False, False, False]
+
     for i in range(len(kernels)):
 
         if i!=0:
@@ -293,7 +303,8 @@ def test_gp_interp_isotropic():
                                                                        noise_level=noise_level)
         check_gp(stars_training, stars_validation, kernels[i],
                  optimizer[i], rows=rows[i],
-                 atol=atol, rtol=rtol, plotting=False)
+                 atol=atol, rtol=rtol, test_star_fit=test_star_fit[i],
+                 plotting=False)
 
 @timer
 def test_gp_interp_anisotropic():
