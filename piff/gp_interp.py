@@ -31,9 +31,10 @@ class GPInterp(Interp):
     :param keys:         A list of star attributes to interpolate from. Must be 2 attributes
                          using two-point correlation function to estimate hyperparameter(s).
     :param kernel:       A string that can be evaled to make a
-                         sklearn.gaussian_process.kernels.Kernel object.  The reprs of
-                         sklearn.gaussian_process.kernels will work, as well as the repr of a
-                         custom treegp VonKarman object.  [default: 'RBF(1)']
+                         sklearn.gaussian_process.kernels.Kernel object. Could be also a list of
+                         sklearn.gaussian_process.kernels.Kernel object (one per PSFs params).
+                         The reprs of sklearn.gaussian_process.kernels will work, as well as
+                         the repr of a custom treegp VonKarman object.  [default: 'RBF(1)']
     :param optimizer:    Indicates which techniques to use for optimizing the kernel. Four options
                          are available. "two-pcf" optimize the kernel on the 1d 2-point correlation
                          function estimate by treecorr. "anisotropic" optimize the kernel on the
