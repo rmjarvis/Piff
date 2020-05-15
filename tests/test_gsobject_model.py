@@ -48,7 +48,7 @@ def make_data(gsobject, scale, g1, g2, u0, v0, flux, noise=0., pix_scale=1., fpu
         var = 1.e-6
     else:
         var = noise**2
-    weight = galsim.Image(nside, nside, dtype=float, init_value=1./var)
+    weight = galsim.Image(nside, nside, dtype=float, init_value=1./var, scale=pix_scale)
     star = piff.Star.makeTarget(x=nside/2+nom_u0/pix_scale, y=nside/2+nom_v0/pix_scale,
                                 u=fpu, v=fpv, scale=pix_scale, stamp_size=nside, weight=weight)
     star.image.setOrigin(0,0)

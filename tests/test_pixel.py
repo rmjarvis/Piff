@@ -43,7 +43,7 @@ def make_gaussian_data(sigma, u0, v0, flux, noise=0., du=1., fpu=0., fpv=0., nsi
         var = 1.e-6
     else:
         var = noise**2
-    weight = galsim.Image(nside, nside, dtype=float, init_value=1./var)
+    weight = galsim.Image(nside, nside, dtype=float, init_value=1./var, scale=du)
     star = piff.Star.makeTarget(x=nside/2+nom_u0/du, y=nside/2+nom_v0/du,
                                 u=fpu, v=fpv, scale=du, stamp_size=nside, weight=weight)
     star.image.setOrigin(0,0)
