@@ -242,11 +242,13 @@ class Star(object):
         if image.wcs is None:
             image.wcs = wcs
         if weight is not None:
+            weight = galsim.Image(weight.array.copy(), scale=image.scale)
             weight.setCenter(int(x+0.5), int(y+0.5))
 
+            
         # Build the StarData instance
         data = StarData(image, image_pos, field_pos=field_pos, properties=properties, 
-                        pointing=pointing, weight=weight)
+                        pointing=pointing, weight=weight)        
         fit = StarFit(None, flux=flux, center=(0.,0.))
         return cls(data, fit)
 
