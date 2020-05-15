@@ -169,13 +169,13 @@ def make_gaussian_random_fields(kernel, nstars, noise_level=1e-3,
     return stars_training, stars_validation
 
 def check_gp(stars_training, stars_validation, kernel, optimizer,
-             min_sep=None, max_sep=None, nbins=20, l0=3000.,
+             min_sep=None, max_sep=None, nbins=20, l0=3000., rows=None,
              plotting=False, atol=4e-2, rtol=1e-3):
     """ Solve for global PSF model, test it, and optionally display it.
     """
     interp = piff.GPInterp(kernel=kernel, optimizer=optimizer,
                            normalize=True, white_noise=0., l0=l0,
-                           n_neighbors=4, average_fits=None,
+                           n_neighbors=4, average_fits=None, rows=rows,
                            nbins=nbins, min_sep=min_sep, max_sep=max_sep,
                            logger=None)
 
@@ -278,6 +278,8 @@ def test_gp_interp_isotropic():
                  'two-pcf',
                  'two-pcf']
 
+    rows = [[0,1,2], None, None, None]
+
     for i in range(len(kernels)):
 
         if i!=0:
@@ -290,7 +292,8 @@ def test_gp_interp_isotropic():
                                                                        seed=30352010, vmax=4e-2,
                                                                        noise_level=noise_level)
         check_gp(stars_training, stars_validation, kernels[i],
-                 optimizer[i], atol=atol, rtol=rtol, plotting=False)
+                 optimizer[i], rows=rows[i],
+                 atol=atol, rtol=rtol, plotting=False)
 
 @timer
 def test_gp_interp_anisotropic():
