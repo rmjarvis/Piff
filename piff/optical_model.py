@@ -37,27 +37,10 @@ optical_templates = {
         'strut_thick': 0.050 * (1462.526 / 4010.) / 2.0, # conversion factor is nebulous?!
         'strut_angle': 45 * galsim.degrees,
         'r0': 0.1,
-    },
-    'des_big_r0': {  # Same as des, but r0 = 0.15
-        'obscuration': 0.301 / 0.7174,
-        'nstruts': 4,
-        'diam': 4.274419,
-        'lam': 700,
-        'strut_thick': 0.050 * (1462.526 / 4010.) / 2.0,
-        'strut_angle': 45 * galsim.degrees,
-        'r0': 0.15,
-    },
-    'des_vonkarman': {  # Same as des, but with L0.
-        'obscuration': 0.301 / 0.7174,
-        'nstruts': 4,
-        'diam': 4.274419,
-        'lam': 700,
-        'strut_thick': 0.050 * (1462.526 / 4010.) / 2.0,
-        'strut_angle': 45 * galsim.degrees,
-        'r0': 0.15,
-        'L0': 25.0,
-    },
- }
+        # For VonKarman
+        #'L0': 25.0,
+        }
+    }
 
 class Optical(Model):
 
@@ -219,7 +202,7 @@ class Optical(Model):
             prof.append(gaussian)
         # atmosphere
         if len(self.kolmogorov_kwargs) > 0:
-            if 'L0' in self.kolmogorov_kwargs:
+            if self.kolmogorov_kwargs.get('L0', None) is not None:
                 atm = galsim.VonKarman(**self.kolmogorov_kwargs)
             else:
                 atm = galsim.Kolmogorov(**self.kolmogorov_kwargs)
