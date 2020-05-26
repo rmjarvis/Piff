@@ -84,7 +84,7 @@ def return_config_big_r0():
     return {
         'type': 'OptAtmo',
         'optical_psf_kwargs': {
-            'template': 'des_big_r0',
+            'template': 'des', 'r0': 0.15
         },
         'reference_wavefront': {
             'file_name': './input/Science-20121120s1-v20i2.fits',
