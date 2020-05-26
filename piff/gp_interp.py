@@ -27,22 +27,31 @@ from .star import Star, StarFit
 
 class GPInterp(Interp):
     """
-    An interpolator that uses gaussian process from treegp to interpolate multiple surfaces.
-    :param keys:         A list of star attributes to interpolate from. Must be 2 attributes
-                         using two-point correlation function to estimate hyperparameter(s).
+    An interpolator that uses Gaussian process from treegp to interpolate multiple surfaces.
+
+    :param keys:         A list of keys for properties that will be interpolated.  Must be 2
+                         properties, which can be used to calculate a 2-point correlation
+                         function. [default: ('u','v')]
     :param kernel:       A string that can be evaled to make a
-                         sklearn.gaussian_process.kernels.Kernel object. Could be also a list of
-                         sklearn.gaussian_process.kernels.Kernel object (one per PSFs params).
-                         The reprs of sklearn.gaussian_process.kernels will work, as well as
-                         the repr of a custom treegp VonKarman object.  [default: 'RBF(1)']
-    :param optimizer:    Indicates which techniques to use for optimizing the kernel. Four options
-                         are available. "two-pcf" optimize the kernel on the 1d 2-point correlation
-                         function estimate by treecorr. "anisotropic" optimize the kernel on the
-                         2d 2-point correlation function estimate by treecorr. "log-likelihood" used the classical
-                         gaussian process maximum likelihood to optimize the kernel. [default: "two-pcf"]
+                         ``sklearn.gaussian_process.kernels.Kernel`` object. Could be also a list
+                         of Kernels objects (one per PSF param).  The reprs of sklear Kernels
+                         will work, as well as the repr of a custom treegp VonKarman object.
+                         [default: 'RBF(1)']
+    :param optimizer:    Indicates which techniques to use for optimizing the kernel. Three options
+                         are available:
+
+                            * "isotropic" = optimize the kernel using an isotropic radial
+                              2-point correlation function estimated by TreeCorr.
+                            * "anisotropic" = optimize the kernel using the two-dimentional
+                              2-point correlation function estimated by TreeCorr.
+                            * "likelihood" = use the classical gaussian process maximum
+                              likelihood to optimize the kernel.
+                            * "none" = don't do any kernal optimization.
+
+                         [default: "isotropic"]
     :param rows:         A list of integer which indicates on which rows of Star.fit.param
                          need to be interpolated using GPs. [default: None, which means all rows]
-    :param l0:           Initial guess for correlation length when optimzer is "anisotropy".
+    :param l0:           Initial guess for correlation length when optimzer is "anisotropic".
                          [default: 3000.]
     :param normalize:    Whether to normalize the interpolation parameters to have a mean of 0.
                          Normally, the parameters being interpolated are not mean 0, so you would
@@ -51,24 +60,37 @@ class GPInterp(Interp):
     :param white_noise:  A float value that indicate the ammount of white noise that you want to
                          use during the gp interpolation. This is an additional uncorrelated noise
                          added to the error of the PSF parameters. [default: 0.]
-    :param nbins:        Number of bins (if 1D correlation function) of the square root of the number
-                         of bins (if 2D correlation function) used in TreeCorr to compute the
-                         2-point correlation function. Used only if optimizer is "two-pcf". [default: 20]
+    :param nbins:        Number of bins (if 1D correlation function) of the square root of the
+                         number of bins (if 2D correlation function) used in TreeCorr to compute the
+                         2-point correlation function. Used only if optimizer is "isotropic"
+                         or "anisotropic". [default: 20]
     :param min_sep:      Minimum separation between pairs when computing 2-point correlation
                          function. In the same units as the keys. Compute automaticaly if it
-                         is not given. Used only if optimizer is "two-pcf". [default: None]
+                         is not given. Used only if optimizer is "isotropic" or "anisotropic".
+                         [default: None]
     :param max_sep:      Maximum separation between pairs when computing 2-point correlation
                          function. In the same units as the keys. Compute automaticaly if it
-                         is not given. Used only if optimizer is "two-pcf". [default: None]
+                         is not given. Used only if optimizer is "isotropic" or "anisotropic".
+                         [default: None]
     :param average_fits: A fits file that have the spatial average functions of PSF parameters
                          build in it. Build using meanify and piff output across different
-                         exposures. See meanify documentation. [default: None]
-    :param n_neighbors:  Number of neighbors to used for interpolating the spatial average using
-                         a KNeighbors interpolation. Used only if average_fits is not None. [defaulf: 4]
+                         exposures. See meanify documentation for details. [default: None]
+    :param n_neighbors:  Number of neighbors to use for interpolating the spatial average using
+                         a KNeighbors interpolation. Used only if average_fits is not None.
+                         [defaulf: 4]
     :param logger:       A logger object for logging debug info. [default: None]
     """
+
+    # treegp currently uses slightly different names for these
+    treegp_alias = {
+        'none' : 'none',
+        'likelihood' : 'log-likelihood',
+        'isotropic' : 'two-pcf',
+        'anisotropic' : 'anisotropic'
+    }
+
     def __init__(self, keys=('u','v'), kernel='RBF(1)',
-                 optimizer='two-pcf', normalize=True, l0=3000.,
+                 optimizer='isotropic', normalize=True, l0=3000.,
                  white_noise=0., n_neighbors=4, average_fits=None,
                  nbins=20, min_sep=None, max_sep=None,
                  rows=None, logger=None):
@@ -100,8 +122,8 @@ class GPInterp(Interp):
             else:
                 self.kernel_template = [ker for ker in kernel]
 
-        if self.optimizer not in ['anisotropic', 'two-pcf', 'log-likelihood', 'none']:
-            raise ValueError("Only anisotropic, two-pcf, log-likelihood, and " \
+        if self.optimizer not in ['anisotropic', 'isotropic', 'likelihood', 'none']:
+            raise ValueError("Only anisotropic, isotropic, likelihood, and " \
                              "none are supported for optimizer. Current value: %s"%(self.optimizer))
 
     def _fit(self, X, y, y_err=None, logger=None):
@@ -163,7 +185,7 @@ class GPInterp(Interp):
         for i in range(self.nparams):
 
             gp = treegp.GPInterpolation(kernel=self.kernels[i],
-                                        optimizer=self.optimizer,
+                                        optimizer=self.treegp_alias[self.optimizer],
                                         normalize=self.normalize,
                                         p0=[self.l0, 0, 0], white_noise=self.white_noise,
                                         n_neighbors=self.n_neighbors,
@@ -228,7 +250,7 @@ class GPInterp(Interp):
                 else:
                     y0_updated = star.fit.params
                 for j in range(self.nparams):
-                    y0_updated[self.rows[j]] = y0[j] 
+                    y0_updated[self.rows[j]] = y0[j]
                 fit = star.fit.newParams(y0_updated)
             fitted_stars.append(Star(star.data, fit))
         return fitted_stars
@@ -280,8 +302,10 @@ class GPInterp(Interp):
             self.kernels = [copy.deepcopy(self.kernel_template[0]) for i in range(self.nparams)]
         else:
             if len(self.kernel_template)!= self.nparams:
-                raise ValueError("numbers of kernel provided should be 1 (same for all parameters) or " \
-                "equal to the number of params (%i), number kernel provided: %i"%((self.nparams,len(self.kernel_template))))
+                raise ValueError(
+                    "numbers of kernel provided should be 1 (same for all parameters) or " +
+                    "equal to the number of params (%i), number kernel provided: %i"%(
+                        (self.nparams,len(self.kernel_template))))
             else:
                 self.kernels = [copy.deepcopy(ker) for ker in self.kernel_template]
 
@@ -289,10 +313,11 @@ class GPInterp(Interp):
         for i in range(self.nparams):
 
             gp = treegp.GPInterpolation(kernel=self.kernels[i],
-                                        optimizer=self.optimizer,
+                                        optimizer=self.treegp_alias[self.optimizer],
                                         normalize=self.normalize,
                                         p0=[3000., 0.,0.],
-                                        white_noise=self.white_noise, n_neighbors=4, average_fits=None,
+                                        white_noise=self.white_noise, n_neighbors=4,
+                                        average_fits=None,
                                         nbins=20, min_sep=None, max_sep=None)
             gp.kernel_template.clone_with_theta(fit_theta[i])
             gp.initialize(self._X, self._y[:,i], y_err=self._y_err[:,i])
