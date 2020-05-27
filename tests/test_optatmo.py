@@ -625,8 +625,8 @@ def test_snr_and_shapes():
             shapes.append(shape)
             errors.append(error)
 
-            snrs.append(piff.util.measure_snr(star_model))
-
+            snrs.append(piff.InputFiles.calculateSNR(star_model.image, star_model.weight))
+            
         # not particularly concerned with flux, du, dv
         snrs = np.array(snrs)
         shapes = np.array(shapes)

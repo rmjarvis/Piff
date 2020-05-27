@@ -42,6 +42,7 @@ from .star import Star, StarFit, StarData
 from .util import measure_snr, write_kwargs, read_kwargs
 from galsim.config import LoggerWrapper
 from galsim.image import Image
+from .input import InputFiles
 
 class wavefrontmap(object):
     """a class used to build and access a Wavefront map - zernike coefficients vs. X,Y
@@ -630,12 +631,11 @@ class OptAtmoPSF(PSF):
                 # moments up to eighth moments
                 star.data.properties['shape'] = shape
                 star.data.properties['shape_error'] = error
-                snr = measure_snr(star)
-
+                
                 self.stars.append(star)
                 self.star_shapes.append(shape)
                 self.star_errors.append(error)
-                self.star_snrs.append(snr)
+                self.star_snrs.append(InputFiles.calculateSNR(star.data.image, star.data.weight))
             except (ModelFitError, RuntimeError) as e:
                 # something went wrong with this star
                 logger.warning(str(e))
@@ -662,12 +662,12 @@ class OptAtmoPSF(PSF):
                 star = Star(star.data, StarFit(None, flux=shape[0], center=(shape[1], shape[2])))
                 star.data.properties['shape'] = shape
                 star.data.properties['shape_error'] = error
-                snr = measure_snr(star)
+                #snr = measure_snr(star)
 
                 self.test_stars.append(star)
                 self.test_star_shapes.append(shape)
                 self.test_star_errors.append(error)
-                self.test_star_snrs.append(snr)
+                self.test_star_snrs.append(InputFiles.calculateSNR(star.data.image, star.data.weight))
             except (ModelFitError, RuntimeError) as e:
                 # something went wrong with this star
                 logger.warning(str(e))
@@ -770,7 +770,8 @@ class OptAtmoPSF(PSF):
             bright_train_star_errors = []
             snrs = []
             for fit_optics_star in self.fit_optics_stars:
-                snrs.append(-measure_snr(fit_optics_star))
+                #snrs.append(-measure_snr(fit_optics_star))
+                snrs.append(fit_optics_star.data.properties['snr'])
             snrs = np.array(snrs)
             order = np.argsort(snrs)
 
