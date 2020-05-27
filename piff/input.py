@@ -110,60 +110,6 @@ class Input(object):
         logger.warning("Read a total of %d stars from %d image%s",len(stars),self.nimages,
                        "s" if self.nimages > 1 else "")
 
-        # here we remove stars which have a deformed (excessively non-square) postage stamp
-        if len(stars) > 0:
-            postage_stamp_heights = []
-            postage_stamp_widths = []
-            for star in stars:
-                postage_stamp_heights.append(star.image.array.shape[0])
-                postage_stamp_widths.append(star.image.array.shape[1])
-            postage_stamp_heights = np.array(postage_stamp_heights)
-            postage_stamp_widths = np.array(postage_stamp_widths)
-            conds_height_not_deformed = (    np.abs(postage_stamp_heights - self.stamp_size) < self.cutoff_deformed_level    )
-            conds_width_not_deformed = (    np.abs(postage_stamp_widths - self.stamp_size) < self.cutoff_deformed_level    )
-            stars = np.array(stars)[conds_height_not_deformed*conds_width_not_deformed].tolist()
-        logger.info("There are {0} stars after the deformed star cut".format(len(stars)))
-
-        # here we remove nuisance stars. We do this by seeing if there is an unusual amount of flux far from the center of the postage stamp
-        if len(stars) > 0:
-            flux_extras = []
-            for star_i, star in enumerate(stars):
-                if star.image.array.shape[0] != self.stamp_size or star.image.array.shape[1] != self.stamp_size:
-                    logger.info("Star {0} unable to be tested for having a nuisance star due to being deformed. Star will stay in.".format(star_i))
-                    print("Star {0} unable to be tested for having a nuisance star due to being deformed. Star will stay in.".format(star_i))
-                    flux_extras.append(np.nan)
-                    continue
-                flux_extra = 0
-                for i in range(0,self.stamp_size):
-                    for j in range(0,self.stamp_size):
-                        if np.sqrt(np.square((self.stamp_size-1.0)/2.0-i)+np.square((self.stamp_size-1.0)/2.0-j))>(self.stamp_size-1.0)*(5.0/12.0):
-                            flux_extra = flux_extra + star.image.array[i][j]
-                flux_extras.append(flux_extra)
-
-            flux_extras = np.array(flux_extras)
-            med = np.nanmedian(flux_extras)
-            mad = np.nanmedian(np.abs(flux_extras-med[None]))
-            madx = np.abs(flux_extras - med[None])
-
-            delete_list = []
-            for star_i, star in enumerate(stars):
-                if madx[star_i] > 1.48 * self.cutoff_nuisance_level * mad:
-                    delete_list.append(star_i)
-            stars = np.delete(stars, delete_list)
-            stars = stars.tolist()
-        logger.info("There are {0} stars after the nuisance star cut".format(len(stars)))
-
-        # here we remove stars that have been at least partially covered by a mask and thus have weight exactly 0 in at least a certain number of pixels of their postage stamp
-        if len(stars) > 0:
-            star_weightmaps = []
-            delete_list = []
-            for star_i, star in enumerate(stars):
-                if star.weight.array.shape[0] * star.weight.array.shape[1] - np.count_nonzero(star.weight.array) >= self.cutoff_masked_level:
-                    delete_list.append(star_i)
-            stars = np.delete(stars, delete_list)
-            stars = stars.tolist()
-        logger.info("There are {0} stars after the masked star cut".format(len(stars)))
-
         return stars
 
     @staticmethod
@@ -705,6 +651,22 @@ class InputFiles(Input):
                 logger.warning("Skipping this star.")
                 continue
 
+
+            # Cut out "deformed" stars
+            if np.abs( stamp.array.shape[0] - self.stamp_size ) < self.cutoff_deformed_level:                
+                #continue
+                pass
+            if np.abs( stamp.array.shape[1] - self.stamp_size ) < self.cutoff_deformed_level:
+                #continue
+                pass
+
+            # here we remove stars that have been at least partially covered by a mask
+            # and thus have weight exactly 0 in at least a certain number of pixels of their postage stamp           
+            if wt_stamp.shape[0] * wt_stamp.shape[1] - np.count_nonzero(wt_stamp) >= self.cutoff_masked_level:
+                #continue
+                pass
+
+            
             # Subtract the sky
             if sky is not None:
                 logger.debug("Subtracting off sky = %f", sky[k])
@@ -734,9 +696,28 @@ class InputFiles(Input):
             if g is not None:
                 logger.debug("Adding Poisson noise to weight map according to gain=%f",g)
                 star = star.addPoisson(gain=g)
+
+            # here we remove nuisance stars. We do this by seeing if there is an unusual amount of flux far from the center of the postage stamp
+            if star.image.array.shape[0] != self.stamp_size or star.image.array.shape[1] != self.stamp_size:
+                logger.info("Star {0} unable to be tested for having a nuisance star due to being deformed. Star will stay in.".format(star_i))
+                print("Star {0} unable to be tested for having a nuisance star due to being deformed. Star will stay in.".format(star_i))
+            else:
+                flux = 0.
+                flux_extra = 0.
+                for i in range(0,self.stamp_size):
+                    for j in range(0,self.stamp_size):
+                        flux += star.image.array[i][j]
+                        if np.sqrt(np.square((self.stamp_size-1.0)/2.0-i)+np.square((self.stamp_size-1.0)/2.0-j))>(self.stamp_size-1.0)*(5.0/12.0):
+                            flux_extra += star.image.array[i][j]
+                        
+                if flux_extra / flux > self.cutoff_nuisance_level: 
+                    #continue
+                    pass
+                    
             stars.append(star)
             nstars_in_image += 1
 
+            
         if hsm_size_reject != 0:
             # Calculate the hsm size for each star and throw out extreme outliers.
             sigma = [hsm(star)[3] for star in stars]
