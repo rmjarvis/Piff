@@ -322,3 +322,46 @@ def run_multi(func, nproc, args, logger, kwargs=None):
 
     return output_list
 
+
+def calculateSNR(image, weight):
+    """Calculate the signal-to-noise of a given image.
+
+    :param image:       The stamp image for a star
+    :param weight:      The weight image for a star
+    :param logger:      A logger object for logging debug info. [default: None]
+
+    :returns: the SNR value.
+    """
+    # The S/N value that we use will be the weighted total flux where the weight function
+    # is the star's profile itself.  This is the maximum S/N value that any flux measurement
+    # can possibly produce, which will be closer to an in-practice S/N than using all the
+    # pixels equally.
+    #
+    # F = Sum_i w_i I_i^2
+    # var(F) = Sum_i w_i^2 I_i^2 var(I_i)
+    #        = Sum_i w_i I_i^2             <--- Assumes var(I_i) = 1/w_i
+    #
+    # S/N = F / sqrt(var(F))
+    #
+    # Note that if the image is pure noise, this will produce a "signal" of
+    #
+    # F_noise = Sum_i w_i 1/w_i = Npix
+    #
+    # So for a more accurate estimate of the S/N of the actual star itself, one should
+    # subtract off Npix from the measured F.
+    #
+    # The final formula then is:
+    #
+    # F = Sum_i w_i I_i^2
+    # S/N = (F-Npix) / sqrt(F)
+
+    I = image.array
+    w = weight.array
+    mask = np.isfinite(I) & np.isfinite(w)
+    F = (w[mask]*I[mask]**2).sum(dtype=float)
+    Npix = np.sum(mask)
+    if F < Npix:
+        return 0.
+    else:
+        return (F - Npix) / np.sqrt(F)
+
