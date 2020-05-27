@@ -759,7 +759,7 @@ def test_stars():
     chipnum_list = [ star['chipnum'] for star in stars ]
     gain_list = [ star['gain'] for star in stars ]
     snr_list = [ star['snr'] for star in stars ]
-    snr_list2 = [ input.calculateSNR(star.data.image, star.data.orig_weight) for star in stars ]
+    snr_list2 = [ piff.util.calculateSNR(star.data.image, star.data.orig_weight) for star in stars ]
     print('snr = ', np.min(snr_list), np.max(snr_list))
     np.testing.assert_array_equal(chipnum_list, 0)
     np.testing.assert_array_equal(gain_list, gain_list[0])
@@ -778,7 +778,7 @@ def test_stars():
     print('snr = ', np.min(snr_list), np.max(snr_list))
     assert np.min(snr_list) < 20.
     assert np.max(snr_list) == 120.
-    snr_list2 = [ input.calculateSNR(star.data.image, star.data.orig_weight) for star in stars ]
+    snr_list2 = [ piff.util.calculateSNR(star.data.image, star.data.orig_weight) for star in stars ]
     snr_list = np.array(snr_list)
     snr_list2 = np.array(snr_list2)
     lo = np.where(snr_list < 120)
@@ -798,7 +798,7 @@ def test_stars():
     print('snr = ', np.min(snr_list), np.max(snr_list))
     assert np.min(snr_list) < 20.
     assert np.max(snr_list) == 100.
-    snr_list2 = [ input.calculateSNR(star.data.image, star.data.orig_weight) for star in stars ]
+    snr_list2 = [ piff.util.calculateSNR(star.data.image, star.data.orig_weight) for star in stars ]
     snr_list = np.array(snr_list)
     snr_list2 = np.array(snr_list2)
     lo = np.where(snr_list < 100)
@@ -818,7 +818,7 @@ def test_stars():
     print('snr = ', np.min(snr_list), np.max(snr_list))
     assert np.min(snr_list) >= 50.
     assert np.max(snr_list) == 100.
-    snr_list2 = [ input.calculateSNR(star.data.image, star.data.orig_weight) for star in stars ]
+    snr_list2 = [ piff.util.calculateSNR(star.data.image, star.data.orig_weight) for star in stars ]
     snr_list = np.array(snr_list)
     snr_list2 = np.array(snr_list2)
     lo = np.where(snr_list < 100)
@@ -902,7 +902,7 @@ def test_stars():
     # (which would be weird of course), then it could get to negative flux = wI^2.
     star0 = stars[0]
     star0.data.orig_weight *= -1.
-    snr0 = input.calculateSNR(star0.data.image, star0.data.orig_weight)
+    snr0 = piff.util.calculateSNR(star0.data.image, star0.data.orig_weight)
     assert snr0 == 0.
 
 
