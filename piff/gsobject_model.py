@@ -34,7 +34,7 @@ class GSObjectModel(Model):
                         PSF fitting will marginalize over stellar position.  If False, stellar
                         position is fixed at input value and the fitted PSF may be off-center.
                         [default: True]
-    :param include_pixel: Include integration over pixel?  [default: True]
+    :param include_pixel: Include integration over pixel when drawing?  [default: True]
     :param logger:      A logger object for logging debug info. [default: None]
     """
     def __init__(self, gsobj, fastfit=False, centered=True, include_pixel=True,
@@ -359,7 +359,7 @@ class Gaussian(GSObjectModel):
                         PSF fitting will marginalize over stellar position.  If False, stellar
                         position is fixed at input value and the fitted PSF may be off-center.
                         [default: True]
-    :param include_pixel: Include integration over pixel?  [default: True]
+    :param include_pixel: Include integration over pixel when drawing?  [default: True]
     :param logger:      A logger object for logging debug info. [default: None]
     """
     def __init__(self, fastfit=False, centered=True, include_pixel=True, logger=None):
@@ -379,7 +379,7 @@ class Kolmogorov(GSObjectModel):
                         PSF fitting will marginalize over stellar position.  If False, stellar
                         position is fixed at input value and the fitted PSF may be off-center.
                         [default: True]
-    :param include_pixel: Include integration over pixel?  [default: True]
+    :param include_pixel: Include integration over pixel when drawing?  [default: True]
     :param logger:      A logger object for logging debug info. [default: None]
     """
     def __init__(self, fastfit=False, centered=True, include_pixel=True, logger=None):
@@ -402,7 +402,7 @@ class Moffat(GSObjectModel):
                         PSF fitting will marginalize over stellar position.  If False, stellar
                         position is fixed at input value and the fitted PSF may be off-center.
                         [default: True]
-    :param include_pixel: Include integration over pixel?  [default: True]
+    :param include_pixel: Include integration over pixel when drawing?  [default: True]
     :param logger:      A logger object for logging debug info. [default: None]
     """
     def __init__(self, beta, trunc=0., fastfit=False, centered=True, include_pixel=True,
