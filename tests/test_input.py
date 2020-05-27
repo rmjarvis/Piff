@@ -939,7 +939,7 @@ def test_masked_star_cuts():
     stars = input.makeStars(logger=logger)
     assert len(stars) == 117
 
-    config['_cutoff_masked_level'] = 1 # free up the masked star cut; here cut stars where even 1 pixel is masked, not default of 1000
+    config['max_mask_pixels'] = 1 # apply the masked star cut; here cut stars where even 1 pixel is masked, not default of 1000
     input = piff.InputFiles(config, logger=logger)
     stars = input.makeStars(logger=logger)
     assert len(stars) == 108 # Nine stars are cut due masked star cut
@@ -976,7 +976,7 @@ def test_deformed_star_cuts():
     assert len(stars) == 100
 
 
-    config['_cutoff_deformed_level'] = 1 # free up the deformed star cut; here cut stars where even 1 pixel is masked, not default of 1000
+    config['max_deformation'] = 1 # apply the deformed star cut; here cut stars where the shape changes by one pixel
     input = piff.InputFiles(config, logger=logger)
     stars = input.makeStars(logger=logger)
     assert len(stars) == 99 # One star is cut due deformed star cut
@@ -1012,7 +1012,7 @@ def test_nuisance_star_cuts():
     assert len(stars) == 100
 
 
-    config['_cutoff_nuisance_level'] = 7.5 # free up the deformed star cut; here cut stars that are more than 7.5 sigma away from the median in terms of how much flux they have on the outer edge of their postage stamp, not default of 1000.0 sigma
+    config['max_edge_frac'] = 0.25 # Cut stars where > 25% of the flux is in the edges
     input = piff.InputFiles(config, logger=logger)
     stars = input.makeStars(logger=logger)
     assert len(stars) == 99 # One star is cut due to the nuisance star cut

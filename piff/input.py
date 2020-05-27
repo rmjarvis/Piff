@@ -1,6 +1,6 @@
 # Copyright (c) 2016 by Mike Jarvis and the other collaborators on GitHub at
 # https://github.com/rmjarvis/Piff  All rights reserved.
-#
+#x
 # Piff is free software: Redistribution and use in source and binary forms
 # with or without modification, are permitted provided that the following
 # conditions are met:
@@ -100,7 +100,10 @@ class Input(object):
                       pointing=self.pointing, use_partial=self.use_partial,
                       invert_weight=self.invert_weight,
                       remove_signal_from_weight=self.remove_signal_from_weight,
-                      hsm_size_reject=self.hsm_size_reject)
+                      hsm_size_reject=self.hsm_size_reject,
+                      max_deformation=self.max_deformation,
+                      max_mask_pixels=self.max_mask_pixels,
+                      max_edge_frac=self.max_edge_frac)
 
         stars = run_multi(call_makeStarsFromImage, self.nproc, args, logger, kwargs)
 
@@ -272,14 +275,13 @@ class InputFiles(Input):
                             so this parameter limits the effective S/N of any single star.
                             Basically, it adds noise to bright stars to lower their S/N down to
                             this value.  [default: 100]
-            :_cutoff_deformed_level     The degree to which the width or height of a star's postage stamp is
+            :max_deformation: The degree to which the width or height of a star's postage stamp is
                             allowed to differ from the desired stamp size + 1. This occurs if the
                             star is partially cutoff due to being at the edge of an image.
                             [default: 1000]
-            :_cutoff_nuisance_level     Stars with fluxes on the outer edges of their postage stamps too many
-                            sigma away from the median outer-edge flux are cut. This specifies how
-                            many sigma. Note that this is done with a MAD cut. [default: 1000.0]
-            :_cutoff_masked_level       Stars that are partially masked to an extent are cut. Specifically,
+            :max_edge_frac: Cutoff on the fraction of the flux comming from pixels on the edges of the
+                            postage stamp. [default: 1000.0]
+            :max_masked_pixels: Stars that are partially masked to an extent are cut. Specifically,
                             stars where at least this many number of pixels have weight 0.0 are
                             cut [default: 1000]
             :use_partial:   Whether to use stars whose postage stamps are only partially on the
@@ -346,6 +348,9 @@ class InputFiles(Input):
                 'max_snr' : float,
                 'use_partial' : bool,
                 'hsm_size_reject' : float,
+                'max_edge_frac': float,
+                'max_deformation': int,
+                'max_mask_pixels' : int,
                 'sky' : str,
                 'noise' : float,
                 'nstars' : int,
@@ -538,9 +543,10 @@ class InputFiles(Input):
 
         self.min_snr = config.get('min_snr', None)
         self.max_snr = config.get('max_snr', 100)
-        self.cutoff_deformed_level = int(config.get('_cutoff_deformed_level', 1000))
-        self.cutoff_nuisance_level = config.get('_cutoff_nuisance_level', 1000.0)
-        self.cutoff_masked_level = int(config.get('_cutoff_masked_level', 1000))
+        self.max_deformation = int(config.get('max_deformation', 1000))
+        self.max_edge_frac = config.get('max_edge_frac', 1000.)
+        self.max_mask_pixels = int(config.get('max_mask_pixels', 1000))
+
         self.use_partial = config.get('use_partial', False)
         self.hsm_size_reject = config.get('hsm_size_reject', 0.)
         if self.hsm_size_reject == 1:
@@ -603,7 +609,9 @@ class InputFiles(Input):
     @staticmethod
     def _makeStarsFromImage(image_kwargs, cat_kwargs, wcs, chipnum,
                             stamp_size, min_snr, max_snr, pointing, use_partial,
-                            invert_weight, remove_signal_from_weight, hsm_size_reject, logger):
+                            invert_weight, remove_signal_from_weight, hsm_size_reject,
+                            max_deformation, max_mask_pixels, max_edge_frac,
+                            logger):
         """Make stars from a single input image
         """
         image, wt, image_pos, sky, gain, satur = InputFiles._getRawImageData(
@@ -612,6 +620,7 @@ class InputFiles(Input):
 
         nstars_in_image = 0
         stars = []
+        nfail = 0
         for k in range(len(image_pos)):
             x = image_pos[k].x
             y = image_pos[k].y
@@ -651,20 +660,16 @@ class InputFiles(Input):
                 logger.warning("Skipping this star.")
                 continue
 
-
             # Cut out "deformed" stars
-            if np.abs( stamp.array.shape[0] - self.stamp_size ) < self.cutoff_deformed_level:                
-                #continue
-                pass
-            if np.abs( stamp.array.shape[1] - self.stamp_size ) < self.cutoff_deformed_level:
-                #continue
-                pass
+            if np.abs( stamp.array.shape[0] - stamp_size ) > max_deformation:                
+                continue
+            if np.abs( stamp.array.shape[1] - stamp_size ) > max_deformation:
+                continue
 
             # here we remove stars that have been at least partially covered by a mask
             # and thus have weight exactly 0 in at least a certain number of pixels of their postage stamp           
-            if wt_stamp.shape[0] * wt_stamp.shape[1] - np.count_nonzero(wt_stamp) >= self.cutoff_masked_level:
-                #continue
-                pass
+            if wt_stamp.array.shape[0] * wt_stamp.array.shape[1] - np.count_nonzero(wt_stamp.array) >= max_mask_pixels:
+                continue
 
             
             # Subtract the sky
@@ -697,27 +702,23 @@ class InputFiles(Input):
                 logger.debug("Adding Poisson noise to weight map according to gain=%f",g)
                 star = star.addPoisson(gain=g)
 
-            # here we remove nuisance stars. We do this by seeing if there is an unusual amount of flux far from the center of the postage stamp
-            if star.image.array.shape[0] != self.stamp_size or star.image.array.shape[1] != self.stamp_size:
-                logger.info("Star {0} unable to be tested for having a nuisance star due to being deformed. Star will stay in.".format(star_i))
-                print("Star {0} unable to be tested for having a nuisance star due to being deformed. Star will stay in.".format(star_i))
-            else:
-                flux = 0.
-                flux_extra = 0.
-                for i in range(0,self.stamp_size):
-                    for j in range(0,self.stamp_size):
+            flux_extra = 0.
+            flux = 0.
+            # EAC this could be implemented more efficiently by precomputing the edge region mask!
+            for i in range(stamp_size):
+                for j in range(stamp_size):
+                    try:
                         flux += star.image.array[i][j]
-                        if np.sqrt(np.square((self.stamp_size-1.0)/2.0-i)+np.square((self.stamp_size-1.0)/2.0-j))>(self.stamp_size-1.0)*(5.0/12.0):
-                            flux_extra += star.image.array[i][j]
-                        
-                if flux_extra / flux > self.cutoff_nuisance_level: 
-                    #continue
-                    pass
-                    
+                    except IndexError:
+                        continue
+                    if np.sqrt(np.square((stamp_size-1.0)/2.0-i)+np.square((stamp_size-1.0)/2.0-j))>(stamp_size-1.0)*(5.0/12.0):
+                        flux_extra += star.image.array[i][j]
+            if flux_extra / flux > max_edge_frac:
+                continue
+    
             stars.append(star)
             nstars_in_image += 1
 
-            
         if hsm_size_reject != 0:
             # Calculate the hsm size for each star and throw out extreme outliers.
             sigma = [hsm(star)[3] for star in stars]
