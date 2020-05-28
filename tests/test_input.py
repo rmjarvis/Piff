@@ -916,7 +916,6 @@ def test_stars():
     assert len(stars) == 94
 
 
-    
     # Check that negative snr flux yields 0, not an error (from sqrt(neg))
     # Negative flux is actually ok, since it gets squared, but if an image has negative weights
     # (which would be weird of course), then it could get to negative flux = wI^2.
@@ -925,8 +924,6 @@ def test_stars():
     snr0 = piff.util.calculateSNR(star0.data.image, star0.data.orig_weight)
     assert snr0 == 0.
 
-    
-    
 
 @timer
 def test_pointing():
