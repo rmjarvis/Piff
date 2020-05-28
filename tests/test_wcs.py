@@ -444,6 +444,12 @@ def test_single():
             psf = piff.process(config, cl.logger)
     assert "ra_col = invalid is not a column" in cl.output
 
+    # With nproc=1, the error is raised directly.
+    config['input']['nproc'] = 1
+    config['verbose'] = 0
+    with np.testing.assert_raises(ValueError):
+        psf = piff.process(config)
+
 
 @timer
 def test_pickle():

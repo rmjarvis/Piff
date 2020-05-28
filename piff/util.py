@@ -224,36 +224,32 @@ def estimate_cov_from_jac(jac):
         cov = np.diag(var)
     return cov
 
-def _run_multi_helper(func, i, args, kwargs, logger):
+def _run_multi_helper(func, i, args, kwargs, log_level):
     if sys.version_info < (3,0):
         from io import BytesIO as StringIO
     else:
         from io import StringIO
 
     import logging
-    if isinstance(logger, int):
-        # In multiprocessing, we cannot pass in the logger, so log to a string and then
-        # return that back at the end to be logged by the parent process.
-        logger1 = logging.getLogger('logtostring_%d'%i)
-        buf = StringIO()
-        handler = logging.StreamHandler(buf)
-        logger1.addHandler(handler)
-        logger1.setLevel(logger) # Input logger in this case is the level to use.
-        logger1 = galsim.config.LoggerWrapper(logger1)
-    else:
-        logger1 = galsim.config.LoggerWrapper(logger)
+
+    # In multiprocessing, we cannot pass in the logger, so log to a string and then
+    # return that back at the end to be logged by the parent process.
+    logger = logging.getLogger('logtostring_%d'%i)
+    buf = StringIO()
+    handler = logging.StreamHandler(buf)
+    logger.addHandler(handler)
+    logger.setLevel(log_level) # Input logger in this case is the level to use.
 
     try:
-        out = func(*args, logger=logger1, **kwargs)
+        out = func(*args, logger=logger, **kwargs)
     except Exception as e:
+        # Exceptions don't propagate through multiprocessing.  So best alternative
+        # is to catch it and return it.  We can deal with it somehow on the other end.
         out = e
 
-    if isinstance(logger, int):
-        handler.flush()
-        buf.flush()
-        return i, out, buf.getvalue()
-    else:
-        return i, out, None
+    handler.flush()
+    buf.flush()
+    return i, out, buf.getvalue()
 
 
 def run_multi(func, nproc, args, logger, kwargs=None):
@@ -281,8 +277,7 @@ def run_multi(func, nproc, args, logger, kwargs=None):
 
     def log_output(result):
         i, out, log = result
-        if log is not None:
-            logger.info(log)
+        logger.info(log)
         if isinstance(out, Exception):
             logger.warning("Caught exception: %r",out)
         else:
@@ -296,8 +291,8 @@ def run_multi(func, nproc, args, logger, kwargs=None):
                 k = {}
             else:  # pragma: no cover  (We don't use this option currently)
                 k = kwargs[i]
-            result = _run_multi_helper(func, i, args[i], k, logger)
-            log_output(result)
+            out = func(*args[i], logger=logger, **k)
+            output_list[i] = out
     else:
         pool = Pool(nproc)
         results = []
