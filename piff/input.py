@@ -101,7 +101,6 @@ class Input(object):
                       invert_weight=self.invert_weight,
                       remove_signal_from_weight=self.remove_signal_from_weight,
                       hsm_size_reject=self.hsm_size_reject,
-                      max_deformation=self.max_deformation,
                       max_mask_pixels=self.max_mask_pixels,
                       max_edge_frac=self.max_edge_frac)
 
@@ -232,10 +231,6 @@ class InputFiles(Input):
                             so this parameter limits the effective S/N of any single star.
                             Basically, it adds noise to bright stars to lower their S/N down to
                             this value.  [default: 100]
-            :max_deformation: The degree to which the width or height of a star's postage stamp is
-                            allowed to differ from the desired stamp size + 1. This occurs if the
-                            star is partially cutoff due to being at the edge of an image.
-                            [default: 1000]
             :max_edge_frac: Cutoff on the fraction of the flux comming from pixels on the edges of the
                             postage stamp. [default: 1000.0]
             :max_masked_pixels: Stars that are partially masked to an extent are cut. Specifically,
@@ -306,7 +301,6 @@ class InputFiles(Input):
                 'use_partial' : bool,
                 'hsm_size_reject' : float,
                 'max_edge_frac': float,
-                'max_deformation': int,
                 'max_mask_pixels' : int,
                 'sky' : str,
                 'noise' : float,
@@ -500,7 +494,6 @@ class InputFiles(Input):
 
         self.min_snr = config.get('min_snr', None)
         self.max_snr = config.get('max_snr', 100)
-        self.max_deformation = int(config.get('max_deformation', 1000))
         self.max_edge_frac = config.get('max_edge_frac', 1000.)
         self.max_mask_pixels = int(config.get('max_mask_pixels', 1000))
 
@@ -567,7 +560,7 @@ class InputFiles(Input):
     def _makeStarsFromImage(image_kwargs, cat_kwargs, wcs, chipnum,
                             stamp_size, min_snr, max_snr, pointing, use_partial,
                             invert_weight, remove_signal_from_weight, hsm_size_reject,
-                            max_deformation, max_mask_pixels, max_edge_frac,
+                            max_mask_pixels, max_edge_frac,
                             logger):
         """Make stars from a single input image
         """
@@ -578,6 +571,18 @@ class InputFiles(Input):
         nstars_in_image = 0
         stars = []
         nfail = 0
+
+        if max_edge_frac < 1:
+            edge_mask = np.zeros((stamp_size, stamp_size), bool)
+            for i in range(stamp_size):
+                for j in range(stamp_size):
+                    if np.sqrt(np.square((stamp_size-1.0)/2.0-i)+np.square((stamp_size-1.0)/2.0-j))>(stamp_size-1.0)*(5.0/12.0):
+                        edge_mask[i][j] = True
+        else:
+            edge_mask = None
+            
+        
+        
         for k in range(len(image_pos)):
             x = image_pos[k].x
             y = image_pos[k].y
@@ -618,10 +623,10 @@ class InputFiles(Input):
                 continue
 
             # Cut out "deformed" stars
-            if np.abs( stamp.array.shape[0] - stamp_size ) > max_deformation:                
-                continue
-            if np.abs( stamp.array.shape[1] - stamp_size ) > max_deformation:
-                continue
+            #if np.abs( stamp.array.shape[0] - stamp_size ) > max_deformation:                
+            #    continue
+            #if np.abs( stamp.array.shape[1] - stamp_size ) > max_deformation:
+            #    continue
 
             # here we remove stars that have been at least partially covered by a mask
             # and thus have weight exactly 0 in at least a certain number of pixels of their postage stamp           
@@ -659,19 +664,16 @@ class InputFiles(Input):
                 logger.debug("Adding Poisson noise to weight map according to gain=%f",g)
                 star = star.addPoisson(gain=g)
 
-            flux_extra = 0.
-            flux = 0.
-            # EAC this could be implemented more efficiently by precomputing the edge region mask!
-            for i in range(stamp_size):
-                for j in range(stamp_size):
-                    try:
-                        flux += star.image.array[i][j]
-                    except IndexError:
-                        continue
-                    if np.sqrt(np.square((stamp_size-1.0)/2.0-i)+np.square((stamp_size-1.0)/2.0-j))>(stamp_size-1.0)*(5.0/12.0):
-                        flux_extra += star.image.array[i][j]
-            if flux_extra / flux > max_edge_frac:
-                continue
+
+            if max_edge_frac < 1:
+                flux = np.sum(star.image.array)
+                try:
+                    flux_extra = np.sum(star.image.array[edge_mask])
+                except IndexError:
+                    # This preserves the orignal behvaior of not applying the cut to partial stamps
+                    flux_extra = 0.
+                if flux_extra / flux > max_edge_frac:
+                    continue
     
             stars.append(star)
             nstars_in_image += 1

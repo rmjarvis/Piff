@@ -752,6 +752,7 @@ def test_stars():
                 'gain_col' : 'gain',
                 'max_snr' : 0,
                 'use_partial' : True,
+                'nproc' : 1
              }
     input = piff.InputFiles(config, logger=logger)
     stars = input.makeStars(logger=logger)
@@ -906,120 +907,6 @@ def test_stars():
     assert snr0 == 0.
 
 
-
-@timer
-def test_masked_star_cuts():
-    """Test the deformed star cuts where stars that have either width or height excesively different from the desired stamp_size are cut.
-    """
-    if __name__ == '__main__':
-        logger = piff.config.setup_logger(verbose=2)
-    else:
-        logger = piff.config.setup_logger(log_file=os.path.join('output','test_masked_stars.log'))
-    image_file = './input/DECam_00241238_01.fits.fz' # these have to be different than the other tests on cuts because the usual image used in those tests has no masked stars
-    cat_file = './input/DECam_00241238_01_psfcat_tb_maxmag_17.0_magcut_3.0_findstars.fits'
-    config = {
-        'image_file_name' : image_file,
-        'cat_file_name' : cat_file,
-        'image_hdu' : 1,
-        'weight_hdu' : 3,
-        'badpix_hdu' : 2,
-        'cat_file_name' : cat_file,
-        'cat_hdu' : 2,
-        'x_col' : 'XWIN_IMAGE',
-        'y_col' : 'YWIN_IMAGE',
-        'sky_col' : 'BACKGROUND',
-        'stamp_size' : 19,
-        'ra' : 'TELRA',
-        'dec' : 'TELDEC',
-        'gain' : 'GAINA',
-        'min_snr': 20,
-        'max_snr': 100,
-        }
-    input = piff.InputFiles(config, logger=logger)
-    stars = input.makeStars(logger=logger)
-    assert len(stars) == 117
-
-    config['max_mask_pixels'] = 1 # apply the masked star cut; here cut stars where even 1 pixel is masked, not default of 1000
-    input = piff.InputFiles(config, logger=logger)
-    stars = input.makeStars(logger=logger)
-    assert len(stars) == 108 # Nine stars are cut due masked star cut
-
-
-
-@timer
-def test_deformed_star_cuts():
-    """Test the deformed star cuts where stars that have either width or height excesively different from the desired stamp_size are cut.
-    """
-    if __name__ == '__main__':
-        logger = piff.config.setup_logger(verbose=2)
-    else:
-        logger = piff.config.setup_logger(log_file=os.path.join('output','test_deformed_stars.log'))
-
-    dir = 'input'
-    image_file = 'test_input_image_00.fits'
-    cat_file = 'test_input_cat_00.fits'
-
-    # Turn off two defaults for now (max_snr=100 and use_partial=False)
-    config = {
-                'dir' : dir,
-                'image_file_name' : image_file,
-                'cat_file_name' : cat_file,
-                'weight_hdu' : 1,
-                'sky_col' : 'sky',
-                'stamp_size' : 19,
-                'gain_col' : 'gain',
-                'max_snr' : 0,
-                'use_partial' : True,
-             }
-    input = piff.InputFiles(config, logger=logger)
-    stars = input.makeStars(logger=logger)
-    assert len(stars) == 100
-
-
-    config['max_deformation'] = 1 # apply the deformed star cut; here cut stars where the shape changes by one pixel
-    input = piff.InputFiles(config, logger=logger)
-    stars = input.makeStars(logger=logger)
-    assert len(stars) == 99 # One star is cut due deformed star cut
-
-
-@timer
-def test_nuisance_star_cuts():
-    """Test the nuisance star cuts where stars that have an extra star in the postage stamp with them are cut. Specifically, if flux on the outer edge of the postage stamp is too many sigma away from the median flux of the stars on the outer edge, the star is cut.
-    """
-    if __name__ == '__main__':
-        logger = piff.config.setup_logger(verbose=2)
-    else:
-        logger = piff.config.setup_logger(log_file=os.path.join('output','test_nuisance_stars.log'))
-
-    dir = 'input'
-    image_file = 'test_input_image_00.fits'
-    cat_file = 'test_input_cat_00.fits'
-
-    # Turn off two defaults for now (max_snr=200 and use_partial=False)
-    config = {
-                'dir' : dir,
-                'image_file_name' : image_file,
-                'cat_file_name' : cat_file,
-                'weight_hdu' : 1,
-                'sky_col' : 'sky',
-                'stamp_size' : 19,
-                'gain_col' : 'gain',
-                'max_snr' : 0,
-                'use_partial' : True,
-             }
-    input = piff.InputFiles(config, logger=logger)
-    stars = input.makeStars(logger=logger)
-    assert len(stars) == 100
-
-
-    config['max_edge_frac'] = 0.25 # Cut stars where > 25% of the flux is in the edges
-    input = piff.InputFiles(config, logger=logger)
-    stars = input.makeStars(logger=logger)
-    assert len(stars) == 99 # One star is cut due to the nuisance star cut
-
-
-
-
 @timer
 def test_pointing():
     """Test the input.setPointing function
@@ -1140,7 +1027,4 @@ if __name__ == '__main__':
     test_weight()
     test_lsst_weight()
     test_stars()
-    test_deformed_star_cuts()
-    test_nuisance_star_cuts()
-    test_masked_star_cuts()
     test_pointing()
