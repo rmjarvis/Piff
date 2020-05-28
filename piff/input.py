@@ -233,7 +233,7 @@ class InputFiles(Input):
                             this value.  [default: 100]
             :max_edge_frac: Cutoff on the fraction of the flux comming from pixels on the edges of the
                             postage stamp. [default: None]
-            :max_masked_pixels: Stars that are partially masked to an extent are cut. Specifically,
+            :max_mask_pixels: Stars that are partially masked to an extent are cut. Specifically,
                             stars where at least this many number of pixels have weight 0.0 are
                             cut [default: None]
             :use_partial:   Whether to use stars whose postage stamps are only partially on the
