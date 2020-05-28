@@ -276,7 +276,7 @@ def test_meanify():
     stars_training = stars[:900]
     stars_validation = stars[900:]
 
-    fit_hyp = ['none', 'two-pcf']
+    fit_hyp = ['none', 'isotropic']
 
     for fit in fit_hyp:
         gp = piff.GPInterp(kernel="0.009 * RBF(300.*0.26)",

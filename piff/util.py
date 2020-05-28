@@ -357,6 +357,7 @@ def run_multi(func, nproc, args, logger, kwargs=None):
 
     return output_list
 
+
 def calculateSNR(image, weight):
     """Calculate the signal-to-noise of a given image.
 
@@ -398,7 +399,6 @@ def calculateSNR(image, weight):
         return 0.
     else:
         return (F - Npix) / np.sqrt(F)
-
 
 def calculate_moments(star, third_order=False, fourth_order=False, radial=False, errors=False, logger=None):
    r"""Calculate a bunch of moments using HSM for the weight function.

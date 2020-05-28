@@ -201,7 +201,8 @@ def check_gp(stars_training, stars_validation, kernel, optimizer,
 
     if optimizer is not 'none':
         truth_hyperparameters = np.exp(interp._init_theta)
-        fitted_hyperparameters = np.exp(np.array([gp._optimizer._kernel.theta for gp in interp.gps]))
+        fitted_hyperparameters = np.exp(
+                np.array([gp._optimizer._kernel.theta for gp in interp.gps]))
         np.testing.assert_allclose(np.mean(fitted_hyperparameters, axis=0),
                                    np.mean(truth_hyperparameters, axis=0),
                                    rtol=rtol)
@@ -212,25 +213,30 @@ def check_gp(stars_training, stars_validation, kernel, optimizer,
         for j in range(3):
             plt.figure()
             plt.title('%s validation'%(title[j]), fontsize=18)
-            plt.scatter(xtest[:,0], xtest[:,1], c=y_validation[:,j], vmin=-4e-2, vmax=4e-2, cmap=plt.cm.seismic)
+            plt.scatter(xtest[:,0], xtest[:,1], c=y_validation[:,j], vmin=-4e-2, vmax=4e-2,
+                        cmap=plt.cm.seismic)
             plt.colorbar()
             plt.figure()
             plt.title('%s test (gp interp)'%(title[j]), fontsize=18)
-            plt.scatter(xtest[:,0], xtest[:,1], c=y_test[:,j], vmin=-4e-2, vmax=4e-2, cmap=plt.cm.seismic)
+            plt.scatter(xtest[:,0], xtest[:,1], c=y_test[:,j], vmin=-4e-2, vmax=4e-2,
+                        cmap=plt.cm.seismic)
             plt.colorbar()
 
-        if optimizer in ['two-pcf', 'anisotropic']:
-            if optimizer == 'two-pcf':
+        if optimizer in ['isotropic', 'anisotropic']:
+            if optimizer == 'isotropic':
                 for gp in interp.gps:
                     plt.figure()
                     plt.scatter(gp._optimizer._2pcf_dist, gp._optimizer._2pcf)
                     plt.plot(gp._optimizer._2pcf_dist, gp._optimizer._2pcf_fit)
-                    plt.plot(gp._optimizer._2pcf_dist, np.ones_like(gp._optimizer._2pcf_dist)*4e-4,'b--')
+                    plt.plot(gp._optimizer._2pcf_dist,
+                             np.ones_like(gp._optimizer._2pcf_dist)*4e-4,'b--')
                     plt.ylim(0,7e-4)
             else:
                 for gp in interp.gps:
-                    EXT = [np.min(gp._optimizer._2pcf_dist[:,0]), np.max(gp._optimizer._2pcf_dist[:,0]),
-                           np.min(gp._optimizer._2pcf_dist[:,1]), np.max(gp._optimizer._2pcf_dist[:,1])]
+                    EXT = [np.min(gp._optimizer._2pcf_dist[:,0]),
+                                  np.max(gp._optimizer._2pcf_dist[:,0]),
+                           np.min(gp._optimizer._2pcf_dist[:,1]),
+                                  np.max(gp._optimizer._2pcf_dist[:,1])]
                     CM = plt.cm.seismic
                     MAX = np.max(gp._optimizer._2pcf)
                     N = int(np.sqrt(len(gp._optimizer._2pcf)))
@@ -239,7 +245,8 @@ def check_gp(stars_training, stars_validation, kernel, optimizer,
                     plt.subplots_adjust(wspace=0.5,left=0.07,right=0.95, bottom=0.15,top=0.85)
 
                     plt.subplot(1,2,1)
-                    plt.imshow(gp._optimizer._2pcf.reshape(N,N), extent=EXT, interpolation='nearest', origin='lower',
+                    plt.imshow(gp._optimizer._2pcf.reshape(N,N), extent=EXT,
+                               interpolation='nearest', origin='lower',
                                vmin=-MAX, vmax=MAX, cmap=CM)
                     cbar = plt.colorbar()
                     cbar.formatter.set_powerlimits((0, 0))
@@ -250,7 +257,8 @@ def check_gp(stars_training, stars_validation, kernel, optimizer,
                     plt.title('Measured 2-PCF',fontsize=16)
 
                     plt.subplot(1,2,2)
-                    plt.imshow(gp._optimizer._2pcf_fit.reshape(N,N), extent=EXT, interpolation='nearest',
+                    plt.imshow(gp._optimizer._2pcf_fit.reshape(N,N), extent=EXT,
+                               interpolation='nearest',
                                origin='lower',vmin=-MAX,vmax=MAX, cmap=CM)
                     cbar = plt.colorbar()
                     cbar.formatter.set_powerlimits((0, 0))
@@ -282,9 +290,9 @@ def test_gp_interp_isotropic():
                "4e-4 * VonKarman(20.)"]
 
     optimizer = ['none',
-                 'log-likelihood',
-                 'two-pcf',
-                 'two-pcf']
+                 'likelihood',
+                 'isotropic',
+                 'isotropic']
 
     rows = [[0,1,2], None, None, None]
 
@@ -337,9 +345,10 @@ def test_gp_interp_anisotropic():
 
     for i in range(len(kernels)):
 
-        stars_training, stars_validation = make_gaussian_random_fields(kernels[i], nstars[i], xlim=-20, ylim=20,
-                                                                       seed=30352010, vmax=4e-2,
-                                                                       noise_level=noise_level)
+        stars_training, stars_validation = make_gaussian_random_fields(
+                kernels[i], nstars[i], xlim=-20, ylim=20,
+                seed=30352010, vmax=4e-2,
+                noise_level=noise_level)
         check_gp(stars_training, stars_validation, kernels[i],
                  optimizer[i], min_sep=0., max_sep=5., nbins=11,
                  l0=20., atol=atol, rtol=rtol, plotting=False)
