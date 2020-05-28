@@ -1,6 +1,6 @@
 # Copyright (c) 2016 by Mike Jarvis and the other collaborators on GitHub at
 # https://github.com/rmjarvis/Piff  All rights reserved.
-#
+#x
 # Piff is free software: Redistribution and use in source and binary forms
 # with or without modification, are permitted provided that the following
 # conditions are met:
@@ -100,7 +100,9 @@ class Input(object):
                       pointing=self.pointing, use_partial=self.use_partial,
                       invert_weight=self.invert_weight,
                       remove_signal_from_weight=self.remove_signal_from_weight,
-                      hsm_size_reject=self.hsm_size_reject)
+                      hsm_size_reject=self.hsm_size_reject,
+                      max_mask_pixels=self.max_mask_pixels,
+                      max_edge_frac=self.max_edge_frac)
 
         stars = run_multi(call_makeStarsFromImage, self.nproc, raise_except=True,
                           args=args, logger=logger, kwargs=kwargs)
@@ -230,6 +232,11 @@ class InputFiles(Input):
                             so this parameter limits the effective S/N of any single star.
                             Basically, it adds noise to bright stars to lower their S/N down to
                             this value.  [default: 100]
+            :max_edge_frac: Cutoff on the fraction of the flux comming from pixels on the edges of the
+                            postage stamp. [default: None]
+            :max_masked_pixels: Stars that are partially masked to an extent are cut. Specifically,
+                            stars where at least this many number of pixels have weight 0.0 are
+                            cut [default: None]
             :use_partial:   Whether to use stars whose postage stamps are only partially on the
                             full image.  [default: False]
             :hsm_size_reject: Whether to reject stars with a very different hsm-measured size than
@@ -294,6 +301,8 @@ class InputFiles(Input):
                 'max_snr' : float,
                 'use_partial' : bool,
                 'hsm_size_reject' : float,
+                'max_edge_frac': float,
+                'max_mask_pixels' : int,
                 'sky' : str,
                 'noise' : float,
                 'nstars' : int,
@@ -486,6 +495,9 @@ class InputFiles(Input):
 
         self.min_snr = config.get('min_snr', None)
         self.max_snr = config.get('max_snr', 100)
+        self.max_edge_frac = config.get('max_edge_frac', None)
+        self.max_mask_pixels = config.get('max_mask_pixels', None)
+
         self.use_partial = config.get('use_partial', False)
         self.hsm_size_reject = config.get('hsm_size_reject', 0.)
         if self.hsm_size_reject == 1:
@@ -548,7 +560,9 @@ class InputFiles(Input):
     @staticmethod
     def _makeStarsFromImage(image_kwargs, cat_kwargs, wcs, chipnum,
                             stamp_size, min_snr, max_snr, pointing, use_partial,
-                            invert_weight, remove_signal_from_weight, hsm_size_reject, logger):
+                            invert_weight, remove_signal_from_weight, hsm_size_reject,
+                            max_mask_pixels, max_edge_frac,
+                            logger):
         """Make stars from a single input image
         """
         image, wt, image_pos, sky, gain, satur = InputFiles._getRawImageData(
@@ -557,6 +571,16 @@ class InputFiles(Input):
 
         nstars_in_image = 0
         stars = []
+
+        if max_edge_frac is not None:
+            edge_mask = np.zeros((stamp_size, stamp_size), bool)
+            for i in range(stamp_size):
+                for j in range(stamp_size):
+                    if np.sqrt(np.square((stamp_size-1.0)/2.0-i)+np.square((stamp_size-1.0)/2.0-j))>(stamp_size-1.0)*(5.0/12.0):
+                        edge_mask[i][j] = True
+        else:
+            edge_mask = None
+
         for k in range(len(image_pos)):
             x = image_pos[k].x
             y = image_pos[k].y
@@ -596,6 +620,12 @@ class InputFiles(Input):
                 logger.warning("Skipping this star.")
                 continue
 
+            # here we remove stars that have been at least partially covered by a mask
+            # and thus have weight exactly 0 in at least a certain number of pixels of their postage stamp
+            if max_mask_pixels is not None:
+                if wt_stamp.array.shape[0] * wt_stamp.array.shape[1] - np.count_nonzero(wt_stamp.array) >= max_mask_pixels:
+                    continue
+
             # Subtract the sky
             if sky is not None:
                 logger.debug("Subtracting off sky = %f", sky[k])
@@ -625,6 +655,18 @@ class InputFiles(Input):
             if g is not None:
                 logger.debug("Adding Poisson noise to weight map according to gain=%f",g)
                 star = star.addPoisson(gain=g)
+
+
+            if max_edge_frac is not None:
+                flux = np.sum(star.image.array)
+                try:
+                    flux_extra = np.sum(star.image.array[edge_mask])
+                except IndexError:
+                    # This preserves the orignal behvaior of not applying the cut to partial stamps
+                    flux_extra = 0.
+                if flux_extra / flux > max_edge_frac:
+                    continue
+
             stars.append(star)
             nstars_in_image += 1
 
