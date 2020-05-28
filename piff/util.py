@@ -256,7 +256,7 @@ def _run_multi_helper(func, i, args, kwargs, log_level):
     return i, out, buf.getvalue()
 
 
-def run_multi(func, nproc, args, raise_except, logger, kwargs=None):
+def run_multi(func, nproc, raise_except, args, logger, kwargs=None):
     """Run a function possibly in multiprocessing mode.
 
     This is basically just doing a Pool.map, but it handles the logger properly (which cannot
@@ -266,8 +266,8 @@ def run_multi(func, nproc, args, raise_except, logger, kwargs=None):
                             func(*args, logger=logger, **kwargs)
     :param nproc:       How many processes to run.  If nproc=1, no multiprocessing is done.
                         nproc <= 0 means use all the cores.
-    :param args:        a list of args for func for each job to run.
     :param raise_except: Whether to raise any exceptions that happen in individual jobs.
+    :param args:        a list of args for func for each job to run.
     :param logger:      The logger you would pass to func in single-processor mode.
     :param kwargs:      a list of kwargs for func for each job to run.  May also be a single dict
                         to use for all jobs. [default: None]

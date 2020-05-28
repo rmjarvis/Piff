@@ -102,8 +102,8 @@ class Input(object):
                       remove_signal_from_weight=self.remove_signal_from_weight,
                       hsm_size_reject=self.hsm_size_reject)
 
-        stars = run_multi(call_makeStarsFromImage, self.nproc, args,
-                          raise_except=True, logger=logger, kwargs=kwargs)
+        stars = run_multi(call_makeStarsFromImage, self.nproc, raise_except=True,
+                          args=args, logger=logger, kwargs=kwargs)
 
         # Concatenate the star lists into a single list
         stars = [s for slist in stars if slist is not None for s in slist if slist]
