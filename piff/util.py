@@ -231,6 +231,7 @@ def _run_multi_helper(func, i, args, kwargs, log_level):
         from io import StringIO
 
     import logging
+    import traceback
 
     # In multiprocessing, we cannot pass in the logger, so log to a string and then
     # return that back at the end to be logged by the parent process.
@@ -245,6 +246,9 @@ def _run_multi_helper(func, i, args, kwargs, log_level):
     except Exception as e:
         # Exceptions don't propagate through multiprocessing.  So best alternative
         # is to catch it and return it.  We can deal with it somehow on the other end.
+        # Also add more details here with verbose>=2 to help with debugging.
+        tr = traceback.format_exc()
+        logger.info("Caught exception:\n%s",tr)
         out = e
 
     handler.flush()
@@ -279,7 +283,7 @@ def run_multi(func, nproc, args, logger, kwargs=None):
         i, out, log = result
         logger.info(log)
         if isinstance(out, Exception):
-            logger.warning("Caught exception: %r",out)
+            logger.warning("Caught exception in multiprocessing job: %r",out)
         else:
             output_list[i] = out
 
