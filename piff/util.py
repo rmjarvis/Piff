@@ -20,6 +20,7 @@ from __future__ import print_function
 import numpy as np
 import os
 import sys
+import traceback
 import galsim
 
 # Courtesy of
@@ -231,7 +232,6 @@ def _run_multi_helper(func, i, args, kwargs, log_level):
         from io import StringIO
 
     import logging
-    import traceback
 
     # In multiprocessing, we cannot pass in the logger, so log to a string and then
     # return that back at the end to be logged by the parent process.
@@ -256,34 +256,38 @@ def _run_multi_helper(func, i, args, kwargs, log_level):
     return i, out, buf.getvalue()
 
 
-def run_multi(func, nproc, args, logger, kwargs=None):
+def run_multi(func, nproc, args, raise_except, logger, kwargs=None):
     """Run a function possibly in multiprocessing mode.
 
     This is basically just doing a Pool.map, but it handles the logger properly (which cannot
     be pickled, so it cannot be passed to the function being run by the workers).
 
-    :param func:    The function to run.  Signature should be:
-                        func(*args, logger=logger, **kwargs)
-    :param nproc:   How many processes to run.  If nproc=1, no multiprocessing is done.
-                    nproc <= 0 means use all the cores.
-    :param args:    a list of args for func for each job to run.
-    :param logger:  The logger you would pass to func in single-processor mode.
-    :param kwargs:  a list of kwargs for func for each job to run.  May also be a single dict
-                    to use for all jobs. [default: None]
+    :param func:        The function to run.  Signature should be:
+                            func(*args, logger=logger, **kwargs)
+    :param nproc:       How many processes to run.  If nproc=1, no multiprocessing is done.
+                        nproc <= 0 means use all the cores.
+    :param args:        a list of args for func for each job to run.
+    :param raise_except: Whether to raise any exceptions that happen in individual jobs.
+    :param logger:      The logger you would pass to func in single-processor mode.
+    :param kwargs:      a list of kwargs for func for each job to run.  May also be a single dict
+                        to use for all jobs. [default: None]
 
     :returns:   The output of func(*args[i], **kwargs[i]) for each item in the args, kwargs lists.
     """
     from multiprocessing import Pool
+
     njobs = len(args)
     nproc = galsim.config.util.UpdateNProc(nproc, len(args), {}, logger)
 
     output_list = [None] * njobs
+    err_list = [None] * njobs
 
     def log_output(result):
         i, out, log = result
         logger.info(log)
         if isinstance(out, Exception):
             logger.warning("Caught exception in multiprocessing job: %r",out)
+            err_list[i] = out
         else:
             output_list[i] = out
 
@@ -295,8 +299,17 @@ def run_multi(func, nproc, args, logger, kwargs=None):
                 k = {}
             else:  # pragma: no cover  (We don't use this option currently)
                 k = kwargs[i]
-            out = func(*args[i], logger=logger, **k)
-            output_list[i] = out
+            try:
+                out = func(*args[i], logger=logger, **k)
+            except Exception as e:
+                if raise_except:
+                    raise
+                else:
+                    tr = traceback.format_exc()
+                    logger.warning("Caught exception:\n%s",tr)
+                    logger.warning("Ignoring this failure and continuing on.")
+            else:
+                output_list[i] = out
     else:
         pool = Pool(nproc)
         results = []
@@ -318,6 +331,11 @@ def run_multi(func, nproc, args, logger, kwargs=None):
         pool.close()
         pool.join()
         pool.terminate()
+        # Now we can raise an error if there was one.
+        if raise_except:
+            errs = [e for e in err_list if e is not None]
+            if len(errs) > 0:
+                raise errs[0]
 
     return output_list
 
