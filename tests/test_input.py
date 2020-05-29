@@ -915,6 +915,13 @@ def test_stars():
     print('new len is ',len(stars))
     assert len(stars) == 94
 
+    # Redo that check with use_partial=True to make sure it catch edge case
+    config['use_partial'] = True
+    input = piff.InputFiles(config, logger=logger)
+    stars = input.makeStars(logger=logger)
+    print('new len is ',len(stars))
+    assert len(stars) == 94
+
 
     # Check that negative snr flux yields 0, not an error (from sqrt(neg))
     # Negative flux is actually ok, since it gets squared, but if an image has negative weights

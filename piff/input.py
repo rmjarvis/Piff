@@ -599,7 +599,7 @@ class InputFiles(Input):
                                 "Using smaller than the full stamp size: %s", x, y, bounds)
                 else:
                     logger.warning("Star at position %f,%f overlaps the edge of the image.  "
-                                    "Skipping this star.", x, y)
+                                    "Skipping this star.", x, y)                    
                     continue
             stamp = image[bounds].copy()
             wt_stamp = wt[bounds].copy()
@@ -656,13 +656,13 @@ class InputFiles(Input):
                 star = star.addPoisson(gain=g)
 
 
-            if max_edge_frac is not None:
+            if max_edge_frac is not None and max_edge_frac < 1:
                 flux = np.sum(star.image.array)
                 try:
                     flux_extra = np.sum(star.image.array[edge_mask])
                 except IndexError:
-                    # This preserves the orignal behvaior of not applying the cut to partial stamps
-                    flux_extra = 0.
+                    logger.info("Star at position %f,%f overlaps the edge of the image and max_edge_frac cut is set, skipping this star.")                    
+                    continue
                 if flux_extra / flux > max_edge_frac:
                     continue
 
