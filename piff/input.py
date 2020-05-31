@@ -1,6 +1,6 @@
 # Copyright (c) 2016 by Mike Jarvis and the other collaborators on GitHub at
 # https://github.com/rmjarvis/Piff  All rights reserved.
-#x
+#
 # Piff is free software: Redistribution and use in source and binary forms
 # with or without modification, are permitted provided that the following
 # conditions are met:
@@ -623,9 +623,11 @@ class InputFiles(Input):
             # here we remove stars that have been at least partially covered by a mask
             # and thus have weight exactly 0 in at least a certain number of pixels of their postage stamp
             if max_mask_pixels is not None:
-                if wt_stamp.array.shape[0] * wt_stamp.array.shape[1] - np.count_nonzero(wt_stamp.array) >= max_mask_pixels:
+                n_masked = wt_stamp.array.shape[0] * wt_stamp.array.shape[1] - np.count_nonzero(wt_stamp.array)
+                if n_masked >= max_mask_pixels:
+                    logger.warning("Star at position %f,%f has %i masked pixels.",x,y,n_masked)
                     continue
-
+                
             # Subtract the sky
             if sky is not None:
                 logger.debug("Subtracting off sky = %f", sky[k])
