@@ -233,9 +233,8 @@ class InputFiles(Input):
                             this value.  [default: 100]
             :max_edge_frac: Cutoff on the fraction of the flux comming from pixels on the edges of the
                             postage stamp. [default: None]
-            :max_mask_pixels: Stars that are partially masked to an extent are cut. Specifically,
-                            stars where at least this many number of pixels have weight 0.0 are
-                            cut [default: None]
+            :max_mask_pixels: If given, reject stars with more than this many masked pixels
+                            (i.e. those with w=0). [default: None]
             :use_partial:   Whether to use stars whose postage stamps are only partially on the
                             full image.  [default: False]
             :hsm_size_reject: Whether to reject stars with a very different hsm-measured size than
@@ -572,11 +571,11 @@ class InputFiles(Input):
         stars = []
 
         if max_edge_frac is not None:
-            edge_mask = np.zeros((stamp_size, stamp_size), bool)
-            for i in range(stamp_size):
-                for j in range(stamp_size):
-                    if np.sqrt(np.square((stamp_size-1.0)/2.0-i)+np.square((stamp_size-1.0)/2.0-j))>(stamp_size-1.0)*(5.0/12.0):
-                        edge_mask[i][j] = True
+            edge_radius = 5./12.                # fraction of stamp_size to use as a radius
+            cen = (stamp_size-1.)/2.            # index at center of array.  May be half-integral.
+            r = edge_radius * (stamp_size-1.)   # radius outside of which is the "edge"
+            i,j = np.ogrid[0:stamp_size,0:stamp_size]
+            edge_mask = (i-cen)**2 + (j-cen)**2 > r**2
         else:
             edge_mask = None
 
@@ -599,7 +598,7 @@ class InputFiles(Input):
                                 "Using smaller than the full stamp size: %s", x, y, bounds)
                 else:
                     logger.warning("Star at position %f,%f overlaps the edge of the image.  "
-                                    "Skipping this star.", x, y)                    
+                                    "Skipping this star.", x, y)
                     continue
             stamp = image[bounds].copy()
             wt_stamp = wt[bounds].copy()
@@ -624,7 +623,7 @@ class InputFiles(Input):
             if max_mask_pixels is not None:
                 n_masked = wt_stamp.array.shape[0] * wt_stamp.array.shape[1] - np.count_nonzero(wt_stamp.array)
                 if n_masked >= max_mask_pixels:
-                    logger.warning("Star at position %f,%f has %i masked pixels.",x,y,n_masked)
+                    logger.warning("Star at position %f,%f has %i masked pixels, skipping this star.",x,y,n_masked)
                     continue
                 
             # Subtract the sky
@@ -662,10 +661,12 @@ class InputFiles(Input):
                 flux = np.sum(star.image.array)
                 try:
                     flux_extra = np.sum(star.image.array[edge_mask])
+                    flux_frac = flux_extra / flux
                 except IndexError:
-                    logger.info("Star at position %f,%f overlaps the edge of the image and max_edge_frac cut is set, skipping this star.")                    
+                    logger.warning("Star at position %f,%f overlaps the edge of the image and max_edge_frac cut is set, skipping this star."%(x,y))
                     continue
-                if flux_extra / flux > max_edge_frac:
+                if flux_frac > max_edge_frac:
+                    logger.warning("Star at position %f,%f fraction of flux near edge of stamp exceeds cut: %f > %f, skipping this star."%(x,y,flux_extra/flux,max_edge_frac))
                     continue
 
             stars.append(star)
