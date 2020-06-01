@@ -102,7 +102,8 @@ class Input(object):
                       remove_signal_from_weight=self.remove_signal_from_weight,
                       hsm_size_reject=self.hsm_size_reject,
                       max_mask_pixels=self.max_mask_pixels,
-                      max_edge_frac=self.max_edge_frac)
+                      max_edge_frac=self.max_edge_frac,
+                      stamp_center_size=self.stamp_center_size)
 
         stars = run_multi(call_makeStarsFromImage, self.nproc, args, logger, kwargs)
 
@@ -233,6 +234,10 @@ class InputFiles(Input):
                             this value.  [default: 100]
             :max_edge_frac: Cutoff on the fraction of the flux comming from pixels on the edges of the
                             postage stamp. [default: None]
+            :stamp_center_size: Distance from center of postage stamp (in pixels) to consider as defining
+                            the edge of the stamp for the purpose of the max_edge_fact cut.  (The default
+                            value of 13 was tuned by hand to reject a set problematic stars when
+                            combined with max_edge_frac cut of 0.25) [default 13].
             :max_mask_pixels: If given, reject stars with more than this many masked pixels
                             (i.e. those with w=0). [default: None]
             :use_partial:   Whether to use stars whose postage stamps are only partially on the
@@ -300,6 +305,7 @@ class InputFiles(Input):
                 'use_partial' : bool,
                 'hsm_size_reject' : float,
                 'max_edge_frac': float,
+                'stamp_center_size': float,
                 'max_mask_pixels' : int,
                 'sky' : str,
                 'noise' : float,
@@ -495,6 +501,7 @@ class InputFiles(Input):
         self.max_snr = config.get('max_snr', 100)
         self.max_edge_frac = config.get('max_edge_frac', None)
         self.max_mask_pixels = config.get('max_mask_pixels', None)
+        self.stamp_center_size = config.get('stamp_center_size', 13)
 
         self.use_partial = config.get('use_partial', False)
         self.hsm_size_reject = config.get('hsm_size_reject', 0.)
@@ -559,7 +566,7 @@ class InputFiles(Input):
     def _makeStarsFromImage(image_kwargs, cat_kwargs, wcs, chipnum,
                             stamp_size, min_snr, max_snr, pointing, use_partial,
                             invert_weight, remove_signal_from_weight, hsm_size_reject,
-                            max_mask_pixels, max_edge_frac,
+                            max_mask_pixels, max_edge_frac, stamp_center_size,
                             logger):
         """Make stars from a single input image
         """
@@ -571,11 +578,9 @@ class InputFiles(Input):
         stars = []
 
         if max_edge_frac is not None:
-            edge_radius = 5./12.                # fraction of stamp_size to use as a radius
             cen = (stamp_size-1.)/2.            # index at center of array.  May be half-integral.
-            r = edge_radius * (stamp_size-1.)   # radius outside of which is the "edge"
             i,j = np.ogrid[0:stamp_size,0:stamp_size]
-            edge_mask = (i-cen)**2 + (j-cen)**2 > r**2
+            edge_mask = (i-cen)**2 + (j-cen)**2 > stamp_center_size**2
         else:
             edge_mask = None
 
