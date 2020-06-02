@@ -1,19 +1,19 @@
 
 <!DOCTYPE html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
   <head>
     <meta charset="utf-8" />
-    <title>The piffify executable &#8212; Piff 0.4.0 documentation</title>
+    <title>The piffify executable &#8212; Piff 0.4 documentation</title>
     <link rel="stylesheet" href="_static/classic.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     
-    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-    <script type="text/javascript" src="_static/jquery.js"></script>
-    <script type="text/javascript" src="_static/underscore.js"></script>
-    <script type="text/javascript" src="_static/doctools.js"></script>
-    <script type="text/javascript" src="_static/language_data.js"></script>
-    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/language_data.js"></script>
+    <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -32,7 +32,7 @@
         <li class="right" >
           <a href="overview.html" title="PIFF: PSFs In the Full FOV"
              accesskey="P">previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Piff 0.4.0 documentation</a> &#187;</li> 
+        <li class="nav-item nav-item-0"><a href="index.html">Piff 0.4 documentation</a> &#187;</li> 
       </ul>
     </div>  
 
@@ -93,9 +93,9 @@ the <a class="reference internal" href="interp.html#piff.Polynomial" title="piff
 </div>
 <p>The functionality of the piffify executable is also available from python via
 <a class="reference internal" href="#piff.piffify" title="piff.piffify"><code class="xref py py-func docutils literal notranslate"><span class="pre">piffify()</span></code></a> and related functions.</p>
-<dl class="function">
+<dl class="py function">
 <dt id="piff.piffify">
-<code class="sig-prename descclassname">piff.</code><code class="sig-name descname">piffify</code><span class="sig-paren">(</span><em class="sig-param">config</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/config.html#piffify"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.piffify" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">piff.</code><code class="sig-name descname">piffify</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">config</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/config.html#piffify"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.piffify" title="Permalink to this definition">¶</a></dt>
 <dd><p>Build a Piff model according to the specifications in a config dict.</p>
 <p>This includes writing the model to disk according to the output field.
 If you would rather get the psf object in return, see the process function.</p>
@@ -109,9 +109,9 @@ If you would rather get the psf object in return, see the process function.</p>
 </dl>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="piff.read_config">
-<code class="sig-prename descclassname">piff.</code><code class="sig-name descname">read_config</code><span class="sig-paren">(</span><em class="sig-param">file_name</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/config.html#read_config"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.read_config" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">piff.</code><code class="sig-name descname">read_config</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">file_name</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/config.html#read_config"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.read_config" title="Permalink to this definition">¶</a></dt>
 <dd><p>Read a configuration dict from a file.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -120,9 +120,9 @@ If you would rather get the psf object in return, see the process function.</p>
 </dl>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="piff.setup_logger">
-<code class="sig-prename descclassname">piff.</code><code class="sig-name descname">setup_logger</code><span class="sig-paren">(</span><em class="sig-param">verbose=1</em>, <em class="sig-param">log_file=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/config.html#setup_logger"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.setup_logger" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">piff.</code><code class="sig-name descname">setup_logger</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">verbose</span><span class="o">=</span><span class="default_value">1</span></em>, <em class="sig-param"><span class="n">log_file</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/config.html#setup_logger"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.setup_logger" title="Permalink to this definition">¶</a></dt>
 <dd><p>Build a logger object to use for logging progress</p>
 <p>Note: This will update the verbosity if a previous call to setup_logger used a different
 value for verbose.  However, it will not update the handler to use a different log_file
@@ -140,9 +140,9 @@ or switch between using a log_file and stdout.</p>
 </dl>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="piff.parse_variables">
-<code class="sig-prename descclassname">piff.</code><code class="sig-name descname">parse_variables</code><span class="sig-paren">(</span><em class="sig-param">config</em>, <em class="sig-param">variables</em>, <em class="sig-param">logger</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/config.html#parse_variables"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.parse_variables" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">piff.</code><code class="sig-name descname">parse_variables</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">config</span></em>, <em class="sig-param"><span class="n">variables</span></em>, <em class="sig-param"><span class="n">logger</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/config.html#parse_variables"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.parse_variables" title="Permalink to this definition">¶</a></dt>
 <dd><p>Parse configuration variables and add them to the config dict</p>
 <p>The command line variables should be specified as key=value.
 The key string can include dots, such as interp.order=2, which means to set:</p>
@@ -190,7 +190,7 @@ The key string can include dots, such as interp.order=2, which means to set:</p>
     </form>
     </div>
 </div>
-<script type="text/javascript">$('#searchbox').show(0);</script>
+<script>$('#searchbox').show(0);</script>
         </div>
       </div>
       <div class="clearer"></div>
@@ -207,12 +207,12 @@ The key string can include dots, such as interp.order=2, which means to set:</p>
         <li class="right" >
           <a href="overview.html" title="PIFF: PSFs In the Full FOV"
              >previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Piff 0.4.0 documentation</a> &#187;</li> 
+        <li class="nav-item nav-item-0"><a href="index.html">Piff 0.4 documentation</a> &#187;</li> 
       </ul>
     </div>
     <div class="footer" role="contentinfo">
         &#169; Copyright 2019.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 2.1.2.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.0.3.
     </div>
   </body>
 </html>

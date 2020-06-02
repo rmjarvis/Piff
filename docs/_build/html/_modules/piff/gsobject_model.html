@@ -1,19 +1,19 @@
 
 <!DOCTYPE html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
   <head>
     <meta charset="utf-8" />
-    <title>piff.gsobject_model &#8212; Piff 0.4.0 documentation</title>
+    <title>piff.gsobject_model &#8212; Piff 0.4 documentation</title>
     <link rel="stylesheet" href="../../_static/classic.css" type="text/css" />
     <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
     
-    <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
-    <script type="text/javascript" src="../../_static/jquery.js"></script>
-    <script type="text/javascript" src="../../_static/underscore.js"></script>
-    <script type="text/javascript" src="../../_static/doctools.js"></script>
-    <script type="text/javascript" src="../../_static/language_data.js"></script>
-    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" /> 
@@ -24,7 +24,7 @@
         <li class="right" style="margin-right: 10px">
           <a href="../../genindex.html" title="General Index"
              accesskey="I">index</a></li>
-        <li class="nav-item nav-item-0"><a href="../../index.html">Piff 0.4.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">Piff 0.4 documentation</a> &#187;</li>
           <li class="nav-item nav-item-1"><a href="../index.html" accesskey="U">Module code</a> &#187;</li> 
       </ul>
     </div>  
@@ -57,8 +57,8 @@
 <span class="kn">import</span> <span class="nn">galsim</span>
 
 <span class="kn">from</span> <span class="nn">.model</span> <span class="kn">import</span> <span class="n">Model</span><span class="p">,</span> <span class="n">ModelFitError</span>
-<span class="kn">from</span> <span class="nn">.star</span> <span class="kn">import</span> <span class="n">Star</span><span class="p">,</span> <span class="n">StarFit</span><span class="p">,</span> <span class="n">StarData</span>
-<span class="kn">from</span> <span class="nn">.util</span> <span class="kn">import</span> <span class="n">hsm</span>
+<span class="kn">from</span> <span class="nn">.star</span> <span class="kn">import</span> <span class="n">Star</span><span class="p">,</span> <span class="n">StarFit</span>
+<span class="kn">from</span> <span class="nn">.util</span> <span class="kn">import</span> <span class="n">hsm</span><span class="p">,</span> <span class="n">estimate_cov_from_jac</span>
 
 
 <div class="viewcode-block" id="GSObjectModel"><a class="viewcode-back" href="../../model.html#piff.GSObjectModel">[docs]</a><span class="k">class</span> <span class="nc">GSObjectModel</span><span class="p">(</span><span class="n">Model</span><span class="p">):</span>
@@ -71,7 +71,7 @@
 <span class="sd">                        PSF fitting will marginalize over stellar position.  If False, stellar</span>
 <span class="sd">                        position is fixed at input value and the fitted PSF may be off-center.</span>
 <span class="sd">                        [default: True]</span>
-<span class="sd">    :param include_pixel: Include integration over pixel?  [default: True]</span>
+<span class="sd">    :param include_pixel: Include integration over pixel when drawing?  [default: True]</span>
 <span class="sd">    :param logger:      A logger object for logging debug info. [default: None]</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gsobj</span><span class="p">,</span> <span class="n">fastfit</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">centered</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">include_pixel</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
@@ -107,7 +107,10 @@
             <span class="k">raise</span> <span class="n">ModelFitError</span><span class="p">(</span><span class="s2">&quot;Error calculating model moments for this star.&quot;</span><span class="p">)</span>
 
         <span class="n">param_flux</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">flux</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_centered</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">params</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">param_scale</span> <span class="o">=</span> <span class="mi">1</span>
+            <span class="n">param_g1</span> <span class="o">=</span> <span class="n">param_g2</span> <span class="o">=</span> <span class="n">param_du</span> <span class="o">=</span> <span class="n">param_dv</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">_centered</span><span class="p">:</span>
             <span class="n">param_scale</span><span class="p">,</span> <span class="n">param_g1</span><span class="p">,</span> <span class="n">param_g2</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">params</span>
             <span class="n">param_du</span><span class="p">,</span> <span class="n">param_dv</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">center</span>
         <span class="k">else</span><span class="p">:</span>
@@ -122,7 +125,32 @@
         <span class="n">param_g1</span> <span class="o">=</span> <span class="n">param_shear</span><span class="o">.</span><span class="n">g1</span>
         <span class="n">param_g2</span> <span class="o">=</span> <span class="n">param_shear</span><span class="o">.</span><span class="n">g2</span>
 
-        <span class="k">return</span> <span class="n">param_flux</span><span class="p">,</span> <span class="n">param_du</span><span class="p">,</span> <span class="n">param_dv</span><span class="p">,</span> <span class="n">param_scale</span><span class="p">,</span> <span class="n">param_g1</span><span class="p">,</span> <span class="n">param_g2</span></div>
+        <span class="c1"># Rough estimate of the variance, assuming noise is uniform.</span>
+        <span class="n">var_pix</span> <span class="o">=</span> <span class="mf">1.</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">weight</span><span class="o">.</span><span class="n">array</span><span class="p">)</span>
+        <span class="n">pixel_area</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">wcs</span><span class="o">.</span><span class="n">pixelArea</span><span class="p">(</span><span class="n">image_pos</span><span class="o">=</span><span class="n">star</span><span class="o">.</span><span class="n">image_pos</span><span class="p">)</span>
+        <span class="n">var_flux</span> <span class="o">=</span> <span class="mi">2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">var_pix</span> <span class="o">*</span> <span class="n">size</span><span class="o">**</span><span class="mi">2</span> <span class="o">/</span> <span class="n">pixel_area</span>
+        <span class="n">f</span> <span class="o">=</span> <span class="n">var_flux</span> <span class="o">/</span> <span class="n">flux</span><span class="o">**</span><span class="mi">2</span>
+        <span class="n">var_cenx</span> <span class="o">=</span> <span class="n">f</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span><span class="o">+</span><span class="n">g1</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span> <span class="o">*</span> <span class="n">size</span><span class="o">**</span><span class="mi">2</span>
+        <span class="n">var_ceny</span> <span class="o">=</span> <span class="n">f</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span><span class="o">-</span><span class="n">g1</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span> <span class="o">*</span> <span class="n">size</span><span class="o">**</span><span class="mi">2</span>
+        <span class="c1"># This estimate for var_size is not very close actually.  A better calculation would</span>
+        <span class="c1"># require an integral of r^4.  For some plausible profiles, this is within about 20% or</span>
+        <span class="c1"># so of the right answer, so not too terrible.</span>
+        <span class="n">var_size</span> <span class="o">=</span> <span class="n">f</span> <span class="o">*</span> <span class="n">size</span><span class="o">**</span><span class="mi">2</span>
+        <span class="n">var_g</span> <span class="o">=</span> <span class="n">f</span>
+
+        <span class="n">var</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">6</span><span class="p">)</span>
+        <span class="n">var</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">var_flux</span>
+        <span class="c1"># We expect some fudge factors for this because of the non-linearity in the hsm fitter.</span>
+        <span class="c1"># These are completely empirical that work ok for the default models we have available</span>
+        <span class="c1"># for gsobj (Gaussian, Kolmogorov, Moffat).  Probably won&#39;t work well for a wider array</span>
+        <span class="c1"># of user-provided gsobj parameters.</span>
+        <span class="n">var</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">var_cenx</span> <span class="o">*</span> <span class="mf">4.8</span>
+        <span class="n">var</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">var_ceny</span> <span class="o">*</span> <span class="mf">4.8</span>
+        <span class="n">var</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="n">var_size</span> <span class="o">*</span> <span class="mf">4.8</span>
+        <span class="n">var</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span> <span class="o">=</span> <span class="n">var_g</span> <span class="o">*</span> <span class="mf">2.0</span>
+        <span class="n">var</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span> <span class="o">=</span> <span class="n">var_g</span> <span class="o">*</span> <span class="mf">2.0</span>
+
+        <span class="k">return</span> <span class="n">param_flux</span><span class="p">,</span> <span class="n">param_du</span><span class="p">,</span> <span class="n">param_dv</span><span class="p">,</span> <span class="n">param_scale</span><span class="p">,</span> <span class="n">param_g1</span><span class="p">,</span> <span class="n">param_g2</span><span class="p">,</span> <span class="n">var</span></div>
 
 <div class="viewcode-block" id="GSObjectModel.getProfile"><a class="viewcode-back" href="../../model.html#piff.GSObjectModel.getProfile">[docs]</a>    <span class="k">def</span> <span class="nf">getProfile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Get a version of the model as a GalSim GSObject</span>
@@ -134,12 +162,14 @@
 
 <span class="sd">        :returns: a galsim.GSObject instance</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_centered</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">params</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">gsobj</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">_centered</span><span class="p">:</span>
             <span class="n">scale</span><span class="p">,</span> <span class="n">g1</span><span class="p">,</span> <span class="n">g2</span> <span class="o">=</span> <span class="n">params</span>
-            <span class="n">du</span><span class="p">,</span> <span class="n">dv</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">gsobj</span><span class="o">.</span><span class="n">dilate</span><span class="p">(</span><span class="n">scale</span><span class="p">)</span><span class="o">.</span><span class="n">shear</span><span class="p">(</span><span class="n">g1</span><span class="o">=</span><span class="n">g1</span><span class="p">,</span> <span class="n">g2</span><span class="o">=</span><span class="n">g2</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">du</span><span class="p">,</span> <span class="n">dv</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="n">g1</span><span class="p">,</span> <span class="n">g2</span> <span class="o">=</span> <span class="n">params</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">gsobj</span><span class="o">.</span><span class="n">dilate</span><span class="p">(</span><span class="n">scale</span><span class="p">)</span><span class="o">.</span><span class="n">shear</span><span class="p">(</span><span class="n">g1</span><span class="o">=</span><span class="n">g1</span><span class="p">,</span> <span class="n">g2</span><span class="o">=</span><span class="n">g2</span><span class="p">)</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span><span class="n">du</span><span class="p">,</span> <span class="n">dv</span><span class="p">)</span></div>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">gsobj</span><span class="o">.</span><span class="n">dilate</span><span class="p">(</span><span class="n">scale</span><span class="p">)</span><span class="o">.</span><span class="n">shear</span><span class="p">(</span><span class="n">g1</span><span class="o">=</span><span class="n">g1</span><span class="p">,</span> <span class="n">g2</span><span class="o">=</span><span class="n">g2</span><span class="p">)</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span><span class="n">du</span><span class="p">,</span> <span class="n">dv</span><span class="p">)</span></div>
 
     <span class="k">def</span> <span class="nf">_resid</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">star</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Residual function to use with least_squares.</span>
@@ -185,9 +215,7 @@
         <span class="c1"># Get initial parameter values.  Either use values currently in star.fit, or if those are</span>
         <span class="c1"># absent, run HSM to get initial values.</span>
         <span class="k">if</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">params</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">flux</span><span class="p">,</span> <span class="n">du</span><span class="p">,</span> <span class="n">dv</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="n">g1</span><span class="p">,</span> <span class="n">g2</span><span class="p">,</span> <span class="n">flag</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">moment_fit</span><span class="p">(</span><span class="n">star</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">flag</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Error initializing star fit values using hsm.&quot;</span><span class="p">)</span>
+            <span class="n">flux</span><span class="p">,</span> <span class="n">du</span><span class="p">,</span> <span class="n">dv</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="n">g1</span><span class="p">,</span> <span class="n">g2</span><span class="p">,</span> <span class="n">var</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">moment_fit</span><span class="p">(</span><span class="n">star</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">flux</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">flux</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_centered</span><span class="p">:</span>
@@ -198,24 +226,6 @@
 
         <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">flux</span><span class="p">,</span> <span class="n">du</span><span class="p">,</span> <span class="n">dv</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="n">g1</span><span class="p">,</span> <span class="n">g2</span><span class="p">])</span>
 
-    <span class="k">def</span> <span class="nf">_minimize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Find the least-squares best fit solution.</span>
-
-<span class="sd">        :param params: numpy array of initial guess</span>
-<span class="sd">        :param star:   Star to fit.</span>
-
-<span class="sd">        :returns: scipy.optimize.OptimizeResults instance containing fit results.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="kn">import</span> <span class="nn">scipy</span>
-        <span class="kn">import</span> <span class="nn">time</span>
-        <span class="n">logger</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">LoggerWrapper</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
-        <span class="n">t0</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Start least_squares&quot;</span><span class="p">)</span>
-
-        <span class="n">results</span> <span class="o">=</span> <span class="n">scipy</span><span class="o">.</span><span class="n">optimize</span><span class="o">.</span><span class="n">least_squares</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_resid</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">star</span><span class="p">,))</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Done.  Elapsed time: </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">t0</span><span class="p">))</span>
-        <span class="k">return</span> <span class="n">results</span>
-
 <div class="viewcode-block" id="GSObjectModel.least_squares_fit"><a class="viewcode-back" href="../../model.html#piff.GSObjectModel.least_squares_fit">[docs]</a>    <span class="k">def</span> <span class="nf">least_squares_fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Fit parameters of the given star using least-squares minimization.</span>
 
@@ -224,24 +234,26 @@
 
 <span class="sd">        :returns: (flux, dx, dy, scale, g1, g2, flag)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">import</span> <span class="nn">scipy</span>
+        <span class="kn">import</span> <span class="nn">time</span>
+
         <span class="n">logger</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">LoggerWrapper</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Start least_squares&quot;</span><span class="p">)</span>
+        <span class="n">t0</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
         <span class="n">params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_params</span><span class="p">(</span><span class="n">star</span><span class="p">)</span>
-        <span class="n">results</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_minimize</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
+
+        <span class="n">results</span> <span class="o">=</span> <span class="n">scipy</span><span class="o">.</span><span class="n">optimize</span><span class="o">.</span><span class="n">least_squares</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_resid</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">star</span><span class="p">,))</span>
         <span class="k">if</span> <span class="n">logger</span><span class="p">:</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
-        <span class="n">flux</span><span class="p">,</span> <span class="n">du</span><span class="p">,</span> <span class="n">dv</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="n">g1</span><span class="p">,</span> <span class="n">g2</span> <span class="o">=</span> <span class="n">results</span><span class="o">.</span><span class="n">x</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">results</span><span class="o">.</span><span class="n">success</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Error finding the full nonlinear solution&quot;</span><span class="p">)</span>
 
-        <span class="k">try</span><span class="p">:</span>
-            <span class="n">params_var</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">results</span><span class="o">.</span><span class="n">covar</span><span class="p">)</span>
-        <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">AttributeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Failed to get params_var&quot;</span><span class="p">)</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;  -- Caught exception: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">e</span><span class="p">)</span>
-            <span class="c1"># results.covar is either None or does not exist</span>
-            <span class="n">params_var</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">6</span><span class="p">)</span>
+        <span class="n">flux</span><span class="p">,</span> <span class="n">du</span><span class="p">,</span> <span class="n">dv</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="n">g1</span><span class="p">,</span> <span class="n">g2</span> <span class="o">=</span> <span class="n">results</span><span class="o">.</span><span class="n">x</span>
 
-        <span class="k">return</span> <span class="n">flux</span><span class="p">,</span> <span class="n">du</span><span class="p">,</span> <span class="n">dv</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="n">g1</span><span class="p">,</span> <span class="n">g2</span><span class="p">,</span> <span class="n">params_var</span></div>
+        <span class="n">var</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diagonal</span><span class="p">(</span><span class="n">estimate_cov_from_jac</span><span class="p">(</span><span class="n">results</span><span class="o">.</span><span class="n">jac</span><span class="p">))</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Done.  Elapsed time: </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">t0</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">flux</span><span class="p">,</span> <span class="n">du</span><span class="p">,</span> <span class="n">dv</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="n">g1</span><span class="p">,</span> <span class="n">g2</span><span class="p">,</span> <span class="n">var</span></div>
 
     <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">with_hsm</span><span class="p">(</span><span class="n">star</span><span class="p">):</span>
@@ -274,13 +286,13 @@
             <span class="n">fastfit</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fastfit</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">properties</span><span class="p">,</span> <span class="s1">&#39;hsm&#39;</span><span class="p">):</span>
-            <span class="n">star</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">initialize</span><span class="p">(</span><span class="n">star</span><span class="p">)</span>
+            <span class="n">star</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">with_hsm</span><span class="p">(</span><span class="n">star</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">fastfit</span><span class="p">:</span>
-            <span class="n">flux</span><span class="p">,</span> <span class="n">du</span><span class="p">,</span> <span class="n">dv</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="n">g1</span><span class="p">,</span> <span class="n">g2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">moment_fit</span><span class="p">(</span><span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
-            <span class="n">var</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">6</span><span class="p">)</span>
+            <span class="n">flux</span><span class="p">,</span> <span class="n">du</span><span class="p">,</span> <span class="n">dv</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="n">g1</span><span class="p">,</span> <span class="n">g2</span><span class="p">,</span> <span class="n">var</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">moment_fit</span><span class="p">(</span><span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">flux</span><span class="p">,</span> <span class="n">du</span><span class="p">,</span> <span class="n">dv</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="n">g1</span><span class="p">,</span> <span class="n">g2</span><span class="p">,</span> <span class="n">var</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">least_squares_fit</span><span class="p">(</span><span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
+
         <span class="c1"># Make a StarFit object with these parameters</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_centered</span><span class="p">:</span>
             <span class="n">params</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span> <span class="n">scale</span><span class="p">,</span> <span class="n">g1</span><span class="p">,</span> <span class="n">g2</span> <span class="p">])</span>
@@ -384,7 +396,7 @@
 <span class="sd">                        PSF fitting will marginalize over stellar position.  If False, stellar</span>
 <span class="sd">                        position is fixed at input value and the fitted PSF may be off-center.</span>
 <span class="sd">                        [default: True]</span>
-<span class="sd">    :param include_pixel: Include integration over pixel?  [default: True]</span>
+<span class="sd">    :param include_pixel: Include integration over pixel when drawing?  [default: True]</span>
 <span class="sd">    :param logger:      A logger object for logging debug info. [default: None]</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fastfit</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">centered</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">include_pixel</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
@@ -404,7 +416,7 @@
 <span class="sd">                        PSF fitting will marginalize over stellar position.  If False, stellar</span>
 <span class="sd">                        position is fixed at input value and the fitted PSF may be off-center.</span>
 <span class="sd">                        [default: True]</span>
-<span class="sd">    :param include_pixel: Include integration over pixel?  [default: True]</span>
+<span class="sd">    :param include_pixel: Include integration over pixel when drawing?  [default: True]</span>
 <span class="sd">    :param logger:      A logger object for logging debug info. [default: None]</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fastfit</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">centered</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">include_pixel</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
@@ -427,7 +439,7 @@
 <span class="sd">                        PSF fitting will marginalize over stellar position.  If False, stellar</span>
 <span class="sd">                        position is fixed at input value and the fitted PSF may be off-center.</span>
 <span class="sd">                        [default: True]</span>
-<span class="sd">    :param include_pixel: Include integration over pixel?  [default: True]</span>
+<span class="sd">    :param include_pixel: Include integration over pixel when drawing?  [default: True]</span>
 <span class="sd">    :param logger:      A logger object for logging debug info. [default: None]</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">beta</span><span class="p">,</span> <span class="n">trunc</span><span class="o">=</span><span class="mf">0.</span><span class="p">,</span> <span class="n">fastfit</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">centered</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">include_pixel</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
@@ -456,7 +468,7 @@
     </form>
     </div>
 </div>
-<script type="text/javascript">$('#searchbox').show(0);</script>
+<script>$('#searchbox').show(0);</script>
         </div>
       </div>
       <div class="clearer"></div>
@@ -467,13 +479,13 @@
         <li class="right" style="margin-right: 10px">
           <a href="../../genindex.html" title="General Index"
              >index</a></li>
-        <li class="nav-item nav-item-0"><a href="../../index.html">Piff 0.4.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">Piff 0.4 documentation</a> &#187;</li>
           <li class="nav-item nav-item-1"><a href="../index.html" >Module code</a> &#187;</li> 
       </ul>
     </div>
     <div class="footer" role="contentinfo">
         &#169; Copyright 2019.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 2.1.2.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.0.3.
     </div>
   </body>
 </html>

@@ -1,19 +1,19 @@
 
 <!DOCTYPE html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
   <head>
     <meta charset="utf-8" />
-    <title>Piff Documentation &#8212; Piff 0.4.0 documentation</title>
+    <title>Piff Documentation &#8212; Piff 0.4 documentation</title>
     <link rel="stylesheet" href="_static/classic.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     
-    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-    <script type="text/javascript" src="_static/jquery.js"></script>
-    <script type="text/javascript" src="_static/underscore.js"></script>
-    <script type="text/javascript" src="_static/doctools.js"></script>
-    <script type="text/javascript" src="_static/language_data.js"></script>
-    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/language_data.js"></script>
+    <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -28,7 +28,7 @@
         <li class="right" >
           <a href="overview.html" title="PIFF: PSFs In the Full FOV"
              accesskey="N">next</a> |</li>
-        <li class="nav-item nav-item-0"><a href="#">Piff 0.4.0 documentation</a> &#187;</li> 
+        <li class="nav-item nav-item-0"><a href="#">Piff 0.4 documentation</a> &#187;</li> 
       </ul>
     </div>  
 
@@ -50,18 +50,19 @@
 </li>
 <li class="toctree-l1"><a class="reference internal" href="piffify.html">The piffify executable</a></li>
 <li class="toctree-l1"><a class="reference internal" href="input.html">Reading in Files</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="input.html#the-input-class">The Input class</a></li>
+<li class="toctree-l2"><a class="reference internal" href="input.html#the-input-base-class">The Input base class</a></li>
+<li class="toctree-l2"><a class="reference internal" href="input.html#inputfiles">InputFiles</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="model.html">Models</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="model.html#model">Model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="model.html#the-model-base-class">The Model base class</a></li>
 <li class="toctree-l2"><a class="reference internal" href="model.html#gsobjectmodel">GSObjectModel</a></li>
 <li class="toctree-l2"><a class="reference internal" href="model.html#pixelgrid">PixelGrid</a></li>
 <li class="toctree-l2"><a class="reference internal" href="model.html#optical">Optical</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="interp.html">Interpolation Schemes</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="interp.html#interp">Interp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="interp.html#the-interp-base-class">The Interp base class</a></li>
 <li class="toctree-l2"><a class="reference internal" href="interp.html#mean">Mean</a></li>
 <li class="toctree-l2"><a class="reference internal" href="interp.html#polynomial">Polynomial</a></li>
 <li class="toctree-l2"><a class="reference internal" href="interp.html#basisinterp">BasisInterp</a></li>
@@ -70,7 +71,8 @@
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="output.html">Writing the output file</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="output.html#the-output-class">The Output class</a></li>
+<li class="toctree-l2"><a class="reference internal" href="output.html#the-output-base-class">The Output base class</a></li>
+<li class="toctree-l2"><a class="reference internal" href="output.html#outputfile">OutputFile</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="psf.html">PSF</a><ul>
@@ -115,7 +117,7 @@
     </form>
     </div>
 </div>
-<script type="text/javascript">$('#searchbox').show(0);</script>
+<script>$('#searchbox').show(0);</script>
         </div>
       </div>
       <div class="clearer"></div>
@@ -129,12 +131,12 @@
         <li class="right" >
           <a href="overview.html" title="PIFF: PSFs In the Full FOV"
              >next</a> |</li>
-        <li class="nav-item nav-item-0"><a href="#">Piff 0.4.0 documentation</a> &#187;</li> 
+        <li class="nav-item nav-item-0"><a href="#">Piff 0.4 documentation</a> &#187;</li> 
       </ul>
     </div>
     <div class="footer" role="contentinfo">
         &#169; Copyright 2019.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 2.1.2.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.0.3.
     </div>
   </body>
 </html>

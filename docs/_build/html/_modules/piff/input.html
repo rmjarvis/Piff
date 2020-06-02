@@ -1,19 +1,19 @@
 
 <!DOCTYPE html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
   <head>
     <meta charset="utf-8" />
-    <title>piff.input &#8212; Piff 0.4.0 documentation</title>
+    <title>piff.input &#8212; Piff 0.4 documentation</title>
     <link rel="stylesheet" href="../../_static/classic.css" type="text/css" />
     <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
     
-    <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
-    <script type="text/javascript" src="../../_static/jquery.js"></script>
-    <script type="text/javascript" src="../../_static/underscore.js"></script>
-    <script type="text/javascript" src="../../_static/doctools.js"></script>
-    <script type="text/javascript" src="../../_static/language_data.js"></script>
-    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" /> 
@@ -24,7 +24,7 @@
         <li class="right" style="margin-right: 10px">
           <a href="../../genindex.html" title="General Index"
              accesskey="I">index</a></li>
-        <li class="nav-item nav-item-0"><a href="../../index.html">Piff 0.4.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">Piff 0.4 documentation</a> &#187;</li>
           <li class="nav-item nav-item-1"><a href="../index.html" accesskey="U">Module code</a> &#187;</li> 
       </ul>
     </div>  
@@ -61,7 +61,7 @@
 <span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">galsim</span>
 
-<span class="kn">from</span> <span class="nn">.util</span> <span class="kn">import</span> <span class="n">hsm</span><span class="p">,</span> <span class="n">run_multi</span>
+<span class="kn">from</span> <span class="nn">.util</span> <span class="kn">import</span> <span class="n">hsm</span><span class="p">,</span> <span class="n">run_multi</span><span class="p">,</span> <span class="n">calculateSNR</span>
 <span class="kn">from</span> <span class="nn">.star</span> <span class="kn">import</span> <span class="n">Star</span><span class="p">,</span> <span class="n">StarData</span>
 
 <div class="viewcode-block" id="Input"><a class="viewcode-back" href="../../input.html#piff.Input">[docs]</a><span class="k">class</span> <span class="nc">Input</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
@@ -137,9 +137,13 @@
                       <span class="n">pointing</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">pointing</span><span class="p">,</span> <span class="n">use_partial</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">use_partial</span><span class="p">,</span>
                       <span class="n">invert_weight</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">invert_weight</span><span class="p">,</span>
                       <span class="n">remove_signal_from_weight</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">remove_signal_from_weight</span><span class="p">,</span>
-                      <span class="n">hsm_size_reject</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hsm_size_reject</span><span class="p">)</span>
+                      <span class="n">hsm_size_reject</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hsm_size_reject</span><span class="p">,</span>
+                      <span class="n">max_mask_pixels</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">max_mask_pixels</span><span class="p">,</span>
+                      <span class="n">max_edge_frac</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">max_edge_frac</span><span class="p">,</span>
+                      <span class="n">stamp_center_size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">stamp_center_size</span><span class="p">)</span>
 
-        <span class="n">stars</span> <span class="o">=</span> <span class="n">run_multi</span><span class="p">(</span><span class="n">call_makeStarsFromImage</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">nproc</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">logger</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">stars</span> <span class="o">=</span> <span class="n">run_multi</span><span class="p">(</span><span class="n">call_makeStarsFromImage</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">nproc</span><span class="p">,</span> <span class="n">raise_except</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                          <span class="n">args</span><span class="o">=</span><span class="n">args</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">,</span> <span class="n">kwargs</span><span class="o">=</span><span class="n">kwargs</span><span class="p">)</span>
 
         <span class="c1"># Concatenate the star lists into a single list</span>
         <span class="n">stars</span> <span class="o">=</span> <span class="p">[</span><span class="n">s</span> <span class="k">for</span> <span class="n">slist</span> <span class="ow">in</span> <span class="n">stars</span> <span class="k">if</span> <span class="n">slist</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">slist</span> <span class="k">if</span> <span class="n">slist</span><span class="p">]</span>
@@ -148,49 +152,6 @@
                        <span class="s2">&quot;s&quot;</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">nimages</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">stars</span></div>
-
-<div class="viewcode-block" id="Input.calculateSNR"><a class="viewcode-back" href="../../input.html#piff.Input.calculateSNR">[docs]</a>    <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">calculateSNR</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">weight</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Calculate the signal-to-noise of a given image.</span>
-
-<span class="sd">        :param image:       The stamp image for a star</span>
-<span class="sd">        :param weight:      The weight image for a star</span>
-<span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
-
-<span class="sd">        :returns: the SNR value.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c1"># The S/N value that we use will be the weighted total flux where the weight function</span>
-        <span class="c1"># is the star&#39;s profile itself.  This is the maximum S/N value that any flux measurement</span>
-        <span class="c1"># can possibly produce, which will be closer to an in-practice S/N than using all the</span>
-        <span class="c1"># pixels equally.</span>
-        <span class="c1">#</span>
-        <span class="c1"># F = Sum_i w_i I_i^2</span>
-        <span class="c1"># var(F) = Sum_i w_i^2 I_i^2 var(I_i)</span>
-        <span class="c1">#        = Sum_i w_i I_i^2             &lt;--- Assumes var(I_i) = 1/w_i</span>
-        <span class="c1">#</span>
-        <span class="c1"># S/N = F / sqrt(var(F))</span>
-        <span class="c1">#</span>
-        <span class="c1"># Note that if the image is pure noise, this will produce a &quot;signal&quot; of</span>
-        <span class="c1">#</span>
-        <span class="c1"># F_noise = Sum_i w_i 1/w_i = Npix</span>
-        <span class="c1">#</span>
-        <span class="c1"># So for a more accurate estimate of the S/N of the actual star itself, one should</span>
-        <span class="c1"># subtract off Npix from the measured F.</span>
-        <span class="c1">#</span>
-        <span class="c1"># The final formula then is:</span>
-        <span class="c1">#</span>
-        <span class="c1"># F = Sum_i w_i I_i^2</span>
-        <span class="c1"># S/N = (F-Npix) / sqrt(F)</span>
-
-        <span class="n">I</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">array</span>
-        <span class="n">w</span> <span class="o">=</span> <span class="n">weight</span><span class="o">.</span><span class="n">array</span>
-        <span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">I</span><span class="p">)</span> <span class="o">&amp;</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">w</span><span class="p">)</span>
-        <span class="n">F</span> <span class="o">=</span> <span class="p">(</span><span class="n">w</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span><span class="o">*</span><span class="n">I</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
-        <span class="n">Npix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">mask</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">F</span> <span class="o">&lt;</span> <span class="n">Npix</span><span class="p">:</span>
-            <span class="k">return</span> <span class="mf">0.</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">return</span> <span class="p">(</span><span class="n">F</span> <span class="o">-</span> <span class="n">Npix</span><span class="p">)</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">F</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="Input.getWCS"><a class="viewcode-back" href="../../input.html#piff.Input.getWCS">[docs]</a>    <span class="k">def</span> <span class="nf">getWCS</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Get the WCS solutions for all the chips in the field of view.</span>
@@ -309,6 +270,14 @@
 <span class="sd">                            so this parameter limits the effective S/N of any single star.</span>
 <span class="sd">                            Basically, it adds noise to bright stars to lower their S/N down to</span>
 <span class="sd">                            this value.  [default: 100]</span>
+<span class="sd">            :max_edge_frac: Cutoff on the fraction of the flux comming from pixels on the edges of the</span>
+<span class="sd">                            postage stamp. [default: None]</span>
+<span class="sd">            :stamp_center_size: Distance from center of postage stamp (in pixels) to consider as defining</span>
+<span class="sd">                            the edge of the stamp for the purpose of the max_edge_fact cut.  (The default</span>
+<span class="sd">                            value of 13 was tuned by hand to reject a set problematic stars when</span>
+<span class="sd">                            combined with max_edge_frac cut of 0.25) [default 13].</span>
+<span class="sd">            :max_mask_pixels: If given, reject stars with more than this many masked pixels</span>
+<span class="sd">                            (i.e. those with w=0). [default: None]</span>
 <span class="sd">            :use_partial:   Whether to use stars whose postage stamps are only partially on the</span>
 <span class="sd">                            full image.  [default: False]</span>
 <span class="sd">            :hsm_size_reject: Whether to reject stars with a very different hsm-measured size than</span>
@@ -373,6 +342,9 @@
                 <span class="s1">&#39;max_snr&#39;</span> <span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
                 <span class="s1">&#39;use_partial&#39;</span> <span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
                 <span class="s1">&#39;hsm_size_reject&#39;</span> <span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                <span class="s1">&#39;max_edge_frac&#39;</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                <span class="s1">&#39;stamp_center_size&#39;</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                <span class="s1">&#39;max_mask_pixels&#39;</span> <span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
                 <span class="s1">&#39;sky&#39;</span> <span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
                 <span class="s1">&#39;noise&#39;</span> <span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
                 <span class="s1">&#39;nstars&#39;</span> <span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
@@ -565,6 +537,10 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">min_snr</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;min_snr&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">max_snr</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;max_snr&#39;</span><span class="p">,</span> <span class="mi">100</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_edge_frac</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;max_edge_frac&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_mask_pixels</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;max_mask_pixels&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stamp_center_size</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;stamp_center_size&#39;</span><span class="p">,</span> <span class="mi">13</span><span class="p">)</span>
+
         <span class="bp">self</span><span class="o">.</span><span class="n">use_partial</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;use_partial&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">hsm_size_reject</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;hsm_size_reject&#39;</span><span class="p">,</span> <span class="mf">0.</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">hsm_size_reject</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
@@ -627,7 +603,9 @@
     <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">_makeStarsFromImage</span><span class="p">(</span><span class="n">image_kwargs</span><span class="p">,</span> <span class="n">cat_kwargs</span><span class="p">,</span> <span class="n">wcs</span><span class="p">,</span> <span class="n">chipnum</span><span class="p">,</span>
                             <span class="n">stamp_size</span><span class="p">,</span> <span class="n">min_snr</span><span class="p">,</span> <span class="n">max_snr</span><span class="p">,</span> <span class="n">pointing</span><span class="p">,</span> <span class="n">use_partial</span><span class="p">,</span>
-                            <span class="n">invert_weight</span><span class="p">,</span> <span class="n">remove_signal_from_weight</span><span class="p">,</span> <span class="n">hsm_size_reject</span><span class="p">,</span> <span class="n">logger</span><span class="p">):</span>
+                            <span class="n">invert_weight</span><span class="p">,</span> <span class="n">remove_signal_from_weight</span><span class="p">,</span> <span class="n">hsm_size_reject</span><span class="p">,</span>
+                            <span class="n">max_mask_pixels</span><span class="p">,</span> <span class="n">max_edge_frac</span><span class="p">,</span> <span class="n">stamp_center_size</span><span class="p">,</span>
+                            <span class="n">logger</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Make stars from a single input image</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">image</span><span class="p">,</span> <span class="n">wt</span><span class="p">,</span> <span class="n">image_pos</span><span class="p">,</span> <span class="n">sky</span><span class="p">,</span> <span class="n">gain</span><span class="p">,</span> <span class="n">satur</span> <span class="o">=</span> <span class="n">InputFiles</span><span class="o">.</span><span class="n">_getRawImageData</span><span class="p">(</span>
@@ -636,6 +614,14 @@
 
         <span class="n">nstars_in_image</span> <span class="o">=</span> <span class="mi">0</span>
         <span class="n">stars</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">if</span> <span class="n">max_edge_frac</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">cen</span> <span class="o">=</span> <span class="p">(</span><span class="n">stamp_size</span><span class="o">-</span><span class="mf">1.</span><span class="p">)</span><span class="o">/</span><span class="mf">2.</span>            <span class="c1"># index at center of array.  May be half-integral.</span>
+            <span class="n">i</span><span class="p">,</span><span class="n">j</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ogrid</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">stamp_size</span><span class="p">,</span><span class="mi">0</span><span class="p">:</span><span class="n">stamp_size</span><span class="p">]</span>
+            <span class="n">edge_mask</span> <span class="o">=</span> <span class="p">(</span><span class="n">i</span><span class="o">-</span><span class="n">cen</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="p">(</span><span class="n">j</span><span class="o">-</span><span class="n">cen</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span> <span class="o">&gt;</span> <span class="n">stamp_center_size</span><span class="o">**</span><span class="mi">2</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">edge_mask</span> <span class="o">=</span> <span class="kc">None</span>
+
         <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">image_pos</span><span class="p">)):</span>
             <span class="n">x</span> <span class="o">=</span> <span class="n">image_pos</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">x</span>
             <span class="n">y</span> <span class="o">=</span> <span class="n">image_pos</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">y</span>
@@ -647,52 +633,63 @@
             <span class="k">if</span> <span class="ow">not</span> <span class="n">image</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">includes</span><span class="p">(</span><span class="n">bounds</span><span class="p">):</span>
                 <span class="n">bounds</span> <span class="o">=</span> <span class="n">bounds</span> <span class="o">&amp;</span> <span class="n">image</span><span class="o">.</span><span class="n">bounds</span>
                 <span class="k">if</span> <span class="ow">not</span> <span class="n">bounds</span><span class="o">.</span><span class="n">isDefined</span><span class="p">():</span>
-                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Star at position </span><span class="si">%f</span><span class="s2">,</span><span class="si">%f</span><span class="s2"> is off the edge of the image.  &quot;</span>
-                                    <span class="s2">&quot;Skipping this star.&quot;</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Star at position </span><span class="si">%f</span><span class="s2">,</span><span class="si">%f</span><span class="s2"> is off the edge of the image.&quot;</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Skipping this star.&quot;</span><span class="p">)</span>
                     <span class="k">continue</span>
                 <span class="k">if</span> <span class="n">use_partial</span><span class="p">:</span>
                     <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Star at position </span><span class="si">%f</span><span class="s2">,</span><span class="si">%f</span><span class="s2"> overlaps the edge of the image.  &quot;</span>
                                 <span class="s2">&quot;Using smaller than the full stamp size: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">bounds</span><span class="p">)</span>
                 <span class="k">else</span><span class="p">:</span>
-                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Star at position </span><span class="si">%f</span><span class="s2">,</span><span class="si">%f</span><span class="s2"> overlaps the edge of the image.  &quot;</span>
-                                    <span class="s2">&quot;Skipping this star.&quot;</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Star at position </span><span class="si">%f</span><span class="s2">,</span><span class="si">%f</span><span class="s2"> overlaps the edge of the image.&quot;</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Skipping this star.&quot;</span><span class="p">)</span>
                     <span class="k">continue</span>
-            <span class="n">stamp</span> <span class="o">=</span> <span class="n">image</span><span class="p">[</span><span class="n">bounds</span><span class="p">]</span>
-            <span class="n">wt_stamp</span> <span class="o">=</span> <span class="n">wt</span><span class="p">[</span><span class="n">bounds</span><span class="p">]</span>
+            <span class="n">stamp</span> <span class="o">=</span> <span class="n">image</span><span class="p">[</span><span class="n">bounds</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="n">wt_stamp</span> <span class="o">=</span> <span class="n">wt</span><span class="p">[</span><span class="n">bounds</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
             <span class="n">props</span> <span class="o">=</span> <span class="p">{</span> <span class="s1">&#39;chipnum&#39;</span> <span class="p">:</span> <span class="n">chipnum</span><span class="p">,</span>
-                        <span class="s1">&#39;gain&#39;</span> <span class="p">:</span> <span class="n">gain</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="p">}</span>
+                      <span class="s1">&#39;gain&#39;</span> <span class="p">:</span> <span class="n">gain</span><span class="p">[</span><span class="n">k</span><span class="p">],</span>
+                    <span class="p">}</span>
 
             <span class="c1"># if a star is totally masked, then don&#39;t add it!</span>
             <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">wt_stamp</span><span class="o">.</span><span class="n">array</span> <span class="o">==</span> <span class="mi">0</span><span class="p">):</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Star at position </span><span class="si">%f</span><span class="s2">,</span><span class="si">%f</span><span class="s2"> is completely masked.&quot;</span><span class="p">,</span><span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">)</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Star at position </span><span class="si">%f</span><span class="s2">,</span><span class="si">%f</span><span class="s2"> is completely masked.&quot;</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Skipping this star.&quot;</span><span class="p">)</span>
                 <span class="k">continue</span>
 
             <span class="c1"># If any pixels are saturated, skip it.</span>
-            <span class="k">if</span> <span class="n">satur</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">stamp</span><span class="o">.</span><span class="n">array</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">satur</span><span class="p">:</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Star at position </span><span class="si">%f</span><span class="s2">,</span><span class="si">%f</span><span class="s2"> has saturated pixels.&quot;</span><span class="p">,</span><span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">)</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Maximum value is </span><span class="si">%f</span><span class="s2">.&quot;</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">stamp</span><span class="o">.</span><span class="n">array</span><span class="p">))</span>
+            <span class="n">max_val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">stamp</span><span class="o">.</span><span class="n">array</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">satur</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">max_val</span> <span class="o">&gt;</span> <span class="n">satur</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Star at position </span><span class="si">%f</span><span class="s2">,</span><span class="si">%f</span><span class="s2"> has saturated pixels.&quot;</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Maximum value is </span><span class="si">%f</span><span class="s2">.&quot;</span><span class="p">,</span> <span class="n">max_val</span><span class="p">)</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Skipping this star.&quot;</span><span class="p">)</span>
                 <span class="k">continue</span>
 
+            <span class="c1"># here we remove stars that have been at least partially covered by a mask</span>
+            <span class="c1"># and thus have weight exactly 0 in at least a certain number of pixels of their</span>
+            <span class="c1"># postage stamp</span>
+            <span class="k">if</span> <span class="n">max_mask_pixels</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">n_masked</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="n">wt_stamp</span><span class="o">.</span><span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span><span class="n">wt_stamp</span><span class="o">.</span><span class="n">array</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">n_masked</span> <span class="o">&gt;=</span> <span class="n">max_mask_pixels</span><span class="p">:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Star at position </span><span class="si">%f</span><span class="s2">,</span><span class="si">%f</span><span class="s2"> has </span><span class="si">%i</span><span class="s2"> masked pixels, &quot;</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">n_masked</span><span class="p">)</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Skipping this star.&quot;</span><span class="p">)</span>
+                    <span class="k">continue</span>
+                
             <span class="c1"># Subtract the sky</span>
             <span class="k">if</span> <span class="n">sky</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Subtracting off sky = </span><span class="si">%f</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">sky</span><span class="p">[</span><span class="n">k</span><span class="p">])</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Median pixel value = </span><span class="si">%f</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">stamp</span><span class="o">.</span><span class="n">array</span><span class="p">))</span>
-                <span class="n">stamp</span> <span class="o">=</span> <span class="n">stamp</span> <span class="o">-</span> <span class="n">sky</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>  <span class="c1"># Don&#39;t change the original!</span>
+                <span class="n">stamp</span> <span class="o">-=</span> <span class="n">sky</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
                 <span class="n">props</span><span class="p">[</span><span class="s1">&#39;sky&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sky</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
 
             <span class="c1"># Check the snr and limit it if appropriate</span>
-            <span class="n">snr</span> <span class="o">=</span> <span class="n">InputFiles</span><span class="o">.</span><span class="n">calculateSNR</span><span class="p">(</span><span class="n">stamp</span><span class="p">,</span> <span class="n">wt_stamp</span><span class="p">)</span>
+            <span class="n">snr</span> <span class="o">=</span> <span class="n">calculateSNR</span><span class="p">(</span><span class="n">stamp</span><span class="p">,</span> <span class="n">wt_stamp</span><span class="p">)</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;SNR = </span><span class="si">%f</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">snr</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">min_snr</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">snr</span> <span class="o">&lt;</span> <span class="n">min_snr</span><span class="p">:</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Skipping star at position </span><span class="si">%f</span><span class="s2">,</span><span class="si">%f</span><span class="s2"> with snr=</span><span class="si">%f</span><span class="s2">.&quot;</span><span class="o">%</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">,</span><span class="n">snr</span><span class="p">))</span>
                 <span class="k">continue</span>
             <span class="k">if</span> <span class="n">max_snr</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">snr</span> <span class="o">&gt;</span> <span class="n">max_snr</span><span class="p">:</span>
                 <span class="n">factor</span> <span class="o">=</span> <span class="p">(</span><span class="n">max_snr</span> <span class="o">/</span> <span class="n">snr</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Scaling noise by factor of </span><span class="si">%f</span><span class="s2"> to achieve snr=</span><span class="si">%f</span><span class="s2">&quot;</span><span class="p">,</span>
-                                <span class="n">factor</span><span class="p">,</span> <span class="n">max_snr</span><span class="p">)</span>
-                <span class="n">wt_stamp</span> <span class="o">=</span> <span class="n">wt_stamp</span> <span class="o">*</span> <span class="n">factor</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Scaling noise by factor of </span><span class="si">%f</span><span class="s2"> to achieve snr=</span><span class="si">%f</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">factor</span><span class="p">,</span> <span class="n">max_snr</span><span class="p">)</span>
+                <span class="n">wt_stamp</span> <span class="o">*=</span> <span class="n">factor</span>
                 <span class="n">snr</span> <span class="o">=</span> <span class="n">max_snr</span>
             <span class="n">props</span><span class="p">[</span><span class="s1">&#39;snr&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">snr</span>
 
@@ -704,6 +701,24 @@
             <span class="k">if</span> <span class="n">g</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Adding Poisson noise to weight map according to gain=</span><span class="si">%f</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">g</span><span class="p">)</span>
                 <span class="n">star</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">addPoisson</span><span class="p">(</span><span class="n">gain</span><span class="o">=</span><span class="n">g</span><span class="p">)</span>
+
+
+            <span class="k">if</span> <span class="n">max_edge_frac</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">max_edge_frac</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">flux</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">array</span><span class="p">)</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">flux_extra</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">array</span><span class="p">[</span><span class="n">edge_mask</span><span class="p">])</span>
+                    <span class="n">flux_frac</span> <span class="o">=</span> <span class="n">flux_extra</span> <span class="o">/</span> <span class="n">flux</span>
+                <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Star at position </span><span class="si">%f</span><span class="s2">,</span><span class="si">%f</span><span class="s2"> overlaps the edge of the image and &quot;</span><span class="o">+</span>
+                                   <span class="s2">&quot;max_edge_frac cut is set.&quot;</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Skipping this star.&quot;</span><span class="p">)</span>
+                    <span class="k">continue</span>
+                <span class="k">if</span> <span class="n">flux_frac</span> <span class="o">&gt;</span> <span class="n">max_edge_frac</span><span class="p">:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Star at position </span><span class="si">%f</span><span class="s2">,</span><span class="si">%f</span><span class="s2"> fraction of flux near edge of stamp &quot;</span><span class="o">+</span>
+                                   <span class="s2">&quot;exceeds cut: </span><span class="si">%f</span><span class="s2"> &gt; </span><span class="si">%f</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">flux_frac</span><span class="p">,</span> <span class="n">max_edge_frac</span><span class="p">)</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Skipping this star.&quot;</span><span class="p">)</span>
+                    <span class="k">continue</span>
+
             <span class="n">stars</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">star</span><span class="p">)</span>
             <span class="n">nstars_in_image</span> <span class="o">+=</span> <span class="mi">1</span>
 
@@ -1132,7 +1147,7 @@
     </form>
     </div>
 </div>
-<script type="text/javascript">$('#searchbox').show(0);</script>
+<script>$('#searchbox').show(0);</script>
         </div>
       </div>
       <div class="clearer"></div>
@@ -1143,13 +1158,13 @@
         <li class="right" style="margin-right: 10px">
           <a href="../../genindex.html" title="General Index"
              >index</a></li>
-        <li class="nav-item nav-item-0"><a href="../../index.html">Piff 0.4.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">Piff 0.4 documentation</a> &#187;</li>
           <li class="nav-item nav-item-1"><a href="../index.html" >Module code</a> &#187;</li> 
       </ul>
     </div>
     <div class="footer" role="contentinfo">
         &#169; Copyright 2019.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 2.1.2.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.0.3.
     </div>
   </body>
 </html>
