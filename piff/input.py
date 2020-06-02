@@ -596,40 +596,44 @@ class InputFiles(Input):
             if not image.bounds.includes(bounds):
                 bounds = bounds & image.bounds
                 if not bounds.isDefined():
-                    logger.warning("Star at position %f,%f is off the edge of the image.  "
-                                    "Skipping this star.", x, y)
+                    logger.warning("Star at position %f,%f is off the edge of the image.", x, y)
+                    logger.warning("Skipping this star.")
                     continue
                 if use_partial:
                     logger.info("Star at position %f,%f overlaps the edge of the image.  "
                                 "Using smaller than the full stamp size: %s", x, y, bounds)
                 else:
-                    logger.warning("Star at position %f,%f overlaps the edge of the image.  "
-                                    "Skipping this star.", x, y)
+                    logger.warning("Star at position %f,%f overlaps the edge of the image.", x, y)
+                    logger.warning("Skipping this star.")
                     continue
             stamp = image[bounds].copy()
             wt_stamp = wt[bounds].copy()
             props = { 'chipnum' : chipnum,
-                        'gain' : gain[k] }
+                      'gain' : gain[k],
+                    }
 
             # if a star is totally masked, then don't add it!
             if np.all(wt_stamp.array == 0):
-                logger.warning("Star at position %f,%f is completely masked.",x,y)
+                logger.warning("Star at position %f,%f is completely masked.", x, y)
                 logger.warning("Skipping this star.")
                 continue
 
             # If any pixels are saturated, skip it.
-            if satur is not None and np.max(stamp.array) > satur:
-                logger.warning("Star at position %f,%f has saturated pixels.",x,y)
-                logger.warning("Maximum value is %f.",np.max(stamp.array))
+            max_val = np.max(stamp.array)
+            if satur is not None and max_val > satur:
+                logger.warning("Star at position %f,%f has saturated pixels.", x, y)
+                logger.warning("Maximum value is %f.", max_val)
                 logger.warning("Skipping this star.")
                 continue
 
             # here we remove stars that have been at least partially covered by a mask
-            # and thus have weight exactly 0 in at least a certain number of pixels of their postage stamp
+            # and thus have weight exactly 0 in at least a certain number of pixels of their
+            # postage stamp
             if max_mask_pixels is not None:
-                n_masked = wt_stamp.array.shape[0] * wt_stamp.array.shape[1] - np.count_nonzero(wt_stamp.array)
+                n_masked = np.prod(wt_stamp.array.shape) - np.count_nonzero(wt_stamp.array)
                 if n_masked >= max_mask_pixels:
-                    logger.warning("Star at position %f,%f has %i masked pixels, skipping this star.",x,y,n_masked)
+                    logger.warning("Star at position %f,%f has %i masked pixels, ", x, y, n_masked)
+                    logger.warning("Skipping this star.")
                     continue
                 
             # Subtract the sky
@@ -647,8 +651,7 @@ class InputFiles(Input):
                 continue
             if max_snr > 0 and snr > max_snr:
                 factor = (max_snr / snr)**2
-                logger.debug("Scaling noise by factor of %f to achieve snr=%f",
-                                factor, max_snr)
+                logger.debug("Scaling noise by factor of %f to achieve snr=%f", factor, max_snr)
                 wt_stamp *= factor
                 snr = max_snr
             props['snr'] = snr
@@ -669,10 +672,14 @@ class InputFiles(Input):
                     flux_extra = np.sum(star.image.array[edge_mask])
                     flux_frac = flux_extra / flux
                 except IndexError:
-                    logger.warning("Star at position %f,%f overlaps the edge of the image and max_edge_frac cut is set, skipping this star."%(x,y))
+                    logger.warning("Star at position %f,%f overlaps the edge of the image and "+
+                                   "max_edge_frac cut is set.", x, y)
+                    logger.warning("Skipping this star.")
                     continue
                 if flux_frac > max_edge_frac:
-                    logger.warning("Star at position %f,%f fraction of flux near edge of stamp exceeds cut: %f > %f, skipping this star."%(x,y,flux_extra/flux,max_edge_frac))
+                    logger.warning("Star at position %f,%f fraction of flux near edge of stamp "+
+                                   "exceeds cut: %f > %f", x, y, flux_frac, max_edge_frac)
+                    logger.warning("Skipping this star.")
                     continue
 
             stars.append(star)
