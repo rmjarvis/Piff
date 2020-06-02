@@ -1,6 +1,6 @@
 # Copyright (c) 2016 by Mike Jarvis and the other collaborators on GitHub at
 # https://github.com/rmjarvis/Piff  All rights reserved.
-#x
+#
 # Piff is free software: Redistribution and use in source and binary forms
 # with or without modification, are permitted provided that the following
 # conditions are met:
