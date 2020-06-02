@@ -39,10 +39,9 @@ from .interp import Interp
 from .outliers import Outliers
 from .model import ModelFitError
 from .star import Star, StarFit, StarData
-from .util import measure_snr, write_kwargs, read_kwargs
+from .util import measure_snr, write_kwargs, read_kwargs, calculateSNR
 from galsim.config import LoggerWrapper
 from galsim.image import Image
-from .input import InputFiles
 
 class wavefrontmap(object):
     """a class used to build and access a Wavefront map - zernike coefficients vs. X,Y
@@ -635,7 +634,7 @@ class OptAtmoPSF(PSF):
                 self.stars.append(star)
                 self.star_shapes.append(shape)
                 self.star_errors.append(error)
-                self.star_snrs.append(InputFiles.calculateSNR(star.data.image, star.data.weight))
+                self.star_snrs.append(calculateSNR(star.data.image, star.data.weight))
             except (ModelFitError, RuntimeError) as e:
                 # something went wrong with this star
                 logger.warning(str(e))
@@ -667,7 +666,7 @@ class OptAtmoPSF(PSF):
                 self.test_stars.append(star)
                 self.test_star_shapes.append(shape)
                 self.test_star_errors.append(error)
-                self.test_star_snrs.append(InputFiles.calculateSNR(star.data.image, star.data.weight))
+                self.test_star_snrs.append(calculateSNR(star.data.image, star.data.weight))
             except (ModelFitError, RuntimeError) as e:
                 # something went wrong with this star
                 logger.warning(str(e))
