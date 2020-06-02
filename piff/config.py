@@ -49,9 +49,7 @@ def setup_logger(verbose=1, log_file=None):
         handle = logging.StreamHandler()
     else:
         handle = logging.FileHandler(log_file)
-    formatter = logging.Formatter(
-        fmt='%(asctime)s %(levelname)-8s %(message)s',
-    )
+    formatter = logging.Formatter('%(message)s')  # Simple text output
     handle.setFormatter(formatter)
     logger.addHandler(handle)
     logger.setLevel(logging_level)
