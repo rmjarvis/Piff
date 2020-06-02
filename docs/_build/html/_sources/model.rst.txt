@@ -3,8 +3,8 @@ Models
 
 Models govern what functional form to use for the PSF at a single location.
 
-Model
------
+The Model base class
+--------------------
 
 .. autoclass:: piff.Model
    :members:

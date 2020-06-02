@@ -3,8 +3,8 @@ Interpolation Schemes
 
 Interpolators goven how the model parameters are interpolated across the field of view.
 
-Interp
-------
+The Interp base class
+---------------------
 
 .. autoclass:: piff.Interp
    :members:
@@ -40,19 +40,4 @@ GPInterp
 --------
 
 .. autoclass:: piff.GPInterp
-   :members:
-
-.. autoclass:: piff.GPInterp2pcf
-   :members:
-
-.. autoclass:: piff.ExplicitKernel
-   :members:
-
-.. autoclass:: piff.AnisotropicRBF
-   :members:
-
-.. autoclass:: piff.VonKarman
-   :members:
-
-.. autoclass:: piff.AnisotropicVonKarman
    :members:

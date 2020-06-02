@@ -898,6 +898,33 @@ def test_stars():
     print('new len is ',len(stars))
     assert len(stars) == 37
 
+    # Check the masked pixel cut
+    # This is a bit artificial, b/c 512 / 1024 of the pixels are masked in the test case
+    del config['x_col']
+    del config['y_col']
+    config['weight_hdu'] = 8
+    config['max_mask_pixels'] = 513
+    input = piff.InputFiles(config, logger=logger)
+    stars = input.makeStars(logger=logger)
+    print('new len is ',len(stars))
+    assert len(stars) == 98
+    
+    config['max_mask_pixels'] = 500
+    input = piff.InputFiles(config, logger=logger)
+    stars = input.makeStars(logger=logger)
+    print('new len is ',len(stars))
+    assert len(stars) == 0
+
+    # Check the edge fraction cut
+    # with use_partial=True to make sure it catch edge case
+    del config['max_mask_pixels']
+    config['max_edge_frac'] = 0.25
+    config['use_partial'] = True
+    input = piff.InputFiles(config, logger=logger)
+    stars = input.makeStars(logger=logger)
+    print('new len is ',len(stars))
+    assert len(stars) == 94
+
     # Check that negative snr flux yields 0, not an error (from sqrt(neg))
     # Negative flux is actually ok, since it gets squared, but if an image has negative weights
     # (which would be weird of course), then it could get to negative flux = wI^2.

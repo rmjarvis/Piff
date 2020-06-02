@@ -1,19 +1,19 @@
 
 <!DOCTYPE html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
   <head>
     <meta charset="utf-8" />
-    <title>Writing the output file &#8212; Piff 0.4.0 documentation</title>
+    <title>Writing the output file &#8212; Piff 0.4 documentation</title>
     <link rel="stylesheet" href="_static/classic.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     
-    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-    <script type="text/javascript" src="_static/jquery.js"></script>
-    <script type="text/javascript" src="_static/underscore.js"></script>
-    <script type="text/javascript" src="_static/doctools.js"></script>
-    <script type="text/javascript" src="_static/language_data.js"></script>
-    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/language_data.js"></script>
+    <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -32,7 +32,7 @@
         <li class="right" >
           <a href="interp.html" title="Interpolation Schemes"
              accesskey="P">previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Piff 0.4.0 documentation</a> &#187;</li> 
+        <li class="nav-item nav-item-0"><a href="index.html">Piff 0.4 documentation</a> &#187;</li> 
       </ul>
     </div>  
 
@@ -46,17 +46,17 @@
 <p>Output handlers govern how the final solution is handled.  The typical thing to do is to
 write to a FITS file, which is handled by the class <a class="reference internal" href="#piff.OutputFile" title="piff.OutputFile"><code class="xref py py-class docutils literal notranslate"><span class="pre">OutputFile</span></code></a>.  This is
 the default, so if you are using that, you can omit the :type: specification.</p>
-<div class="section" id="the-output-class">
-<h2>The Output class<a class="headerlink" href="#the-output-class" title="Permalink to this headline">¶</a></h2>
-<dl class="class">
+<div class="section" id="the-output-base-class">
+<h2>The Output base class<a class="headerlink" href="#the-output-base-class" title="Permalink to this headline">¶</a></h2>
+<dl class="py class">
 <dt id="piff.Output">
 <em class="property">class </em><code class="sig-prename descclassname">piff.</code><code class="sig-name descname">Output</code><a class="reference internal" href="_modules/piff/output.html#Output"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Output" title="Permalink to this definition">¶</a></dt>
 <dd><p>The base class for handling the output for writing a Piff model.</p>
 <p>This is essentially an abstract base class intended to define the methods that should be
 implemented by any derived class.</p>
-<dl class="method">
+<dl class="py method">
 <dt id="piff.Output.parseKwargs">
-<em class="property">classmethod </em><code class="sig-name descname">parseKwargs</code><span class="sig-paren">(</span><em class="sig-param">config_output</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/output.html#Output.parseKwargs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Output.parseKwargs" title="Permalink to this definition">¶</a></dt>
+<em class="property">classmethod </em><code class="sig-name descname">parseKwargs</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">config_output</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/output.html#Output.parseKwargs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Output.parseKwargs" title="Permalink to this definition">¶</a></dt>
 <dd><p>Parse the output field of a configuration dict and return the kwargs to use for
 initializing an instance of the class.</p>
 <p>The base class implementation just returns the kwargs as they are, but derived classes
@@ -74,9 +74,9 @@ might want to override this if they need to do something more sophisticated with
 </dl>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="piff.Output.process">
-<em class="property">classmethod </em><code class="sig-name descname">process</code><span class="sig-paren">(</span><em class="sig-param">config_output</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/output.html#Output.process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Output.process" title="Permalink to this definition">¶</a></dt>
+<em class="property">classmethod </em><code class="sig-name descname">process</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">config_output</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/output.html#Output.process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Output.process" title="Permalink to this definition">¶</a></dt>
 <dd><p>Parse the output field of the config dict.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -91,9 +91,9 @@ might want to override this if they need to do something more sophisticated with
 </dl>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="piff.Output.read">
-<code class="sig-name descname">read</code><span class="sig-paren">(</span><em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/output.html#Output.read"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Output.read" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">read</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/output.html#Output.read"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Output.read" title="Permalink to this definition">¶</a></dt>
 <dd><p>Read a PSF object that was written to an output file back in.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -105,9 +105,9 @@ might want to override this if they need to do something more sophisticated with
 </dl>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="piff.Output.write">
-<code class="sig-name descname">write</code><span class="sig-paren">(</span><em class="sig-param">psf</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/output.html#Output.write"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Output.write" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">write</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">psf</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/output.html#Output.write"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Output.write" title="Permalink to this definition">¶</a></dt>
 <dd><p>Write a PSF object to the output file.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -121,17 +121,20 @@ might want to override this if they need to do something more sophisticated with
 
 </dd></dl>
 
-<dl class="class">
+</div>
+<div class="section" id="outputfile">
+<h2>OutputFile<a class="headerlink" href="#outputfile" title="Permalink to this headline">¶</a></h2>
+<dl class="py class">
 <dt id="piff.OutputFile">
-<em class="property">class </em><code class="sig-prename descclassname">piff.</code><code class="sig-name descname">OutputFile</code><span class="sig-paren">(</span><em class="sig-param">file_name</em>, <em class="sig-param">dir=None</em>, <em class="sig-param">stats_list=None</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/output.html#OutputFile"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.OutputFile" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">piff.</code><code class="sig-name descname">OutputFile</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">file_name</span></em>, <em class="sig-param"><span class="n">dir</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">stats_list</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/output.html#OutputFile"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.OutputFile" title="Permalink to this definition">¶</a></dt>
 <dd><p>An Output handler that just writes to a FITS file.</p>
 <p>This is the only Output handler we have, so it doesn’t need to be specified by name
 with a <code class="docutils literal notranslate"><span class="pre">type</span></code> field.</p>
 <p>It includes specification of both the output file name as well as potentially some
 statistics to output as well.</p>
-<dl class="method">
+<dl class="py method">
 <dt id="piff.OutputFile.parseKwargs">
-<em class="property">classmethod </em><code class="sig-name descname">parseKwargs</code><span class="sig-paren">(</span><em class="sig-param">config_output</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/output.html#OutputFile.parseKwargs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.OutputFile.parseKwargs" title="Permalink to this definition">¶</a></dt>
+<em class="property">classmethod </em><code class="sig-name descname">parseKwargs</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">config_output</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/output.html#OutputFile.parseKwargs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.OutputFile.parseKwargs" title="Permalink to this definition">¶</a></dt>
 <dd><p>Parse the output field of a configuration dict and return the kwargs to use for
 initializing an instance of the class.</p>
 <dl class="field-list simple">
@@ -147,9 +150,9 @@ initializing an instance of the class.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="piff.OutputFile.write">
-<code class="sig-name descname">write</code><span class="sig-paren">(</span><em class="sig-param">psf</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/output.html#OutputFile.write"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.OutputFile.write" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">write</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">psf</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/output.html#OutputFile.write"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.OutputFile.write" title="Permalink to this definition">¶</a></dt>
 <dd><p>Write a PSF object to the output file.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -175,7 +178,8 @@ initializing an instance of the class.</p>
   <h3><a href="index.html">Table of Contents</a></h3>
   <ul>
 <li><a class="reference internal" href="#">Writing the output file</a><ul>
-<li><a class="reference internal" href="#the-output-class">The Output class</a></li>
+<li><a class="reference internal" href="#the-output-base-class">The Output base class</a></li>
+<li><a class="reference internal" href="#outputfile">OutputFile</a></li>
 </ul>
 </li>
 </ul>
@@ -202,7 +206,7 @@ initializing an instance of the class.</p>
     </form>
     </div>
 </div>
-<script type="text/javascript">$('#searchbox').show(0);</script>
+<script>$('#searchbox').show(0);</script>
         </div>
       </div>
       <div class="clearer"></div>
@@ -219,12 +223,12 @@ initializing an instance of the class.</p>
         <li class="right" >
           <a href="interp.html" title="Interpolation Schemes"
              >previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Piff 0.4.0 documentation</a> &#187;</li> 
+        <li class="nav-item nav-item-0"><a href="index.html">Piff 0.4 documentation</a> &#187;</li> 
       </ul>
     </div>
     <div class="footer" role="contentinfo">
         &#169; Copyright 2019.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 2.1.2.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.0.3.
     </div>
   </body>
 </html>

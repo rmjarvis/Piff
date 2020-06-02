@@ -441,9 +441,24 @@ def test_single():
     # Check that errors in the multiprocessing input get properly reported.
     config['input']['ra_col'] = 'invalid'
     with CaptureLog(level=2) as cl:
-        with np.testing.assert_raises(RuntimeError):
+        with np.testing.assert_raises(ValueError):
             psf = piff.process(config, cl.logger)
     assert "ra_col = invalid is not a column" in cl.output
+
+    # With nproc=1, the error is raised directly.
+    config['input']['nproc'] = 1
+    config['verbose'] = 0
+    with np.testing.assert_raises(ValueError):
+        psf = piff.process(config)
+
+    # But just the input error.  Not the one in fitting.
+    config['psf']['nproc'] = 1
+    config['input']['ra_col'] = 'ra'
+    config['verbose'] = 1
+    with CaptureLog(level=1) as cl:
+        psf = piff.process(config, logger=cl.logger)
+    assert "No stars.  Cannot find PSF model." in cl.output
+    assert "Ignoring this failure and continuing on." in cl.output
 
 
 @timer

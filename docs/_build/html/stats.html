@@ -1,19 +1,19 @@
 
 <!DOCTYPE html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
   <head>
     <meta charset="utf-8" />
-    <title>Stats &#8212; Piff 0.4.0 documentation</title>
+    <title>Stats &#8212; Piff 0.4 documentation</title>
     <link rel="stylesheet" href="_static/classic.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     
-    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-    <script type="text/javascript" src="_static/jquery.js"></script>
-    <script type="text/javascript" src="_static/underscore.js"></script>
-    <script type="text/javascript" src="_static/doctools.js"></script>
-    <script type="text/javascript" src="_static/language_data.js"></script>
-    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/language_data.js"></script>
+    <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -32,7 +32,7 @@
         <li class="right" >
           <a href="psf.html" title="PSF"
              accesskey="P">previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Piff 0.4.0 documentation</a> &#187;</li> 
+        <li class="nav-item nav-item-0"><a href="index.html">Piff 0.4 documentation</a> &#187;</li> 
       </ul>
     </div>  
 
@@ -45,23 +45,23 @@
 <h1>Stats<a class="headerlink" href="#stats" title="Permalink to this headline">¶</a></h1>
 <p>Piff can also produce some statistics about the PSF model and residuals for the stars
 used to build the model.  These are specified in a <code class="docutils literal notranslate"><span class="pre">stats</span></code> section of the config file.</p>
-<dl class="class">
+<dl class="py class">
 <dt id="piff.Stats">
 <em class="property">class </em><code class="sig-prename descclassname">piff.</code><code class="sig-name descname">Stats</code><a class="reference internal" href="_modules/piff/stats.html#Stats"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Stats" title="Permalink to this definition">¶</a></dt>
 <dd><p>The base class for getting the statistics of a set of stars.</p>
 <p>This is essentially an abstract base class intended to define the methods that should be
 implemented by any derived class.</p>
 <p>The usual code flow for using a Stats instance is:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">stats</span> <span class="o">=</span> <span class="n">SomeKindofStats</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">stats</span> <span class="o">=</span> <span class="n">SomeKindofStats</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">stats</span><span class="o">.</span><span class="n">compute</span><span class="p">(</span><span class="n">psf</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">stats</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">file_name</span><span class="o">=</span><span class="n">file_name</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>There is also a <code class="docutils literal notranslate"><span class="pre">plot</span></code> method if you want to make the matplot lib fig, ax and do something
 else with it besides just write it to a file.</p>
-<dl class="method">
+<dl class="py method">
 <dt id="piff.Stats.compute">
-<code class="sig-name descname">compute</code><span class="sig-paren">(</span><em class="sig-param">psf</em>, <em class="sig-param">stars</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/stats.html#Stats.compute"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Stats.compute" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">compute</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">psf</span></em>, <em class="sig-param"><span class="n">stars</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/stats.html#Stats.compute"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Stats.compute" title="Permalink to this definition">¶</a></dt>
 <dd><p>Compute the given statistic for a PSF solution on a set of stars.</p>
 <p>This needs to be done before the statistic is plotted or written to a file.</p>
 <dl class="field-list simple">
@@ -75,9 +75,9 @@ else with it besides just write it to a file.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="piff.Stats.measureShapes">
-<code class="sig-name descname">measureShapes</code><span class="sig-paren">(</span><em class="sig-param">psf</em>, <em class="sig-param">stars</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/stats.html#Stats.measureShapes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Stats.measureShapes" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">measureShapes</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">psf</span></em>, <em class="sig-param"><span class="n">stars</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/stats.html#Stats.measureShapes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Stats.measureShapes" title="Permalink to this definition">¶</a></dt>
 <dd><p>Compare PSF and true star shapes with HSM algorithm</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -94,9 +94,9 @@ models of stars (sigma, g1, g2)</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="piff.Stats.parseKwargs">
-<em class="property">classmethod </em><code class="sig-name descname">parseKwargs</code><span class="sig-paren">(</span><em class="sig-param">config_stats</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/stats.html#Stats.parseKwargs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Stats.parseKwargs" title="Permalink to this definition">¶</a></dt>
+<em class="property">classmethod </em><code class="sig-name descname">parseKwargs</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">config_stats</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/stats.html#Stats.parseKwargs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Stats.parseKwargs" title="Permalink to this definition">¶</a></dt>
 <dd><p>Parse the stats field of a configuration dict and return the kwargs to use for
 initializing an instance of the class.</p>
 <p>The base class implementation just returns the kwargs as they are, but derived classes
@@ -114,9 +114,9 @@ might want to override this if they need to do something more sophisticated with
 </dl>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="piff.Stats.plot">
-<code class="sig-name descname">plot</code><span class="sig-paren">(</span><em class="sig-param">logger=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/stats.html#Stats.plot"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Stats.plot" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">plot</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/stats.html#Stats.plot"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Stats.plot" title="Permalink to this definition">¶</a></dt>
 <dd><p>Make the plots for this statistic.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -131,9 +131,9 @@ might want to override this if they need to do something more sophisticated with
 </dl>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="piff.Stats.process">
-<em class="property">classmethod </em><code class="sig-name descname">process</code><span class="sig-paren">(</span><em class="sig-param">config_stats</em>, <em class="sig-param">logger</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/stats.html#Stats.process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Stats.process" title="Permalink to this definition">¶</a></dt>
+<em class="property">classmethod </em><code class="sig-name descname">process</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">config_stats</span></em>, <em class="sig-param"><span class="n">logger</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/stats.html#Stats.process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Stats.process" title="Permalink to this definition">¶</a></dt>
 <dd><p>Parse the stats field of the config dict.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -148,9 +148,9 @@ might want to override this if they need to do something more sophisticated with
 </dl>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="piff.Stats.write">
-<code class="sig-name descname">write</code><span class="sig-paren">(</span><em class="sig-param">file_name=None</em>, <em class="sig-param">logger=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/stats.html#Stats.write"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Stats.write" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">write</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">file_name</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/stats.html#Stats.write"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Stats.write" title="Permalink to this definition">¶</a></dt>
 <dd><p>Write plots to a file.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -166,9 +166,9 @@ which is typically read from the config field.]</p></li>
 
 </dd></dl>
 
-<dl class="class">
+<dl class="py class">
 <dt id="piff.ShapeHistogramsStats">
-<em class="property">class </em><code class="sig-prename descclassname">piff.</code><code class="sig-name descname">ShapeHistogramsStats</code><span class="sig-paren">(</span><em class="sig-param">bins_size=10</em>, <em class="sig-param">bins_shape=10</em>, <em class="sig-param">file_name=None</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/stats.html#ShapeHistogramsStats"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.ShapeHistogramsStats" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">piff.</code><code class="sig-name descname">ShapeHistogramsStats</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">bins_size</span><span class="o">=</span><span class="default_value">10</span></em>, <em class="sig-param"><span class="n">bins_shape</span><span class="o">=</span><span class="default_value">10</span></em>, <em class="sig-param"><span class="n">file_name</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/stats.html#ShapeHistogramsStats"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.ShapeHistogramsStats" title="Permalink to this definition">¶</a></dt>
 <dd><p>Stats class for calculating histograms of shape residuals</p>
 <p>This will compute the size and shapes of the observed stars and the PSF models and
 make histograms of both the values and the residuals.</p>
@@ -212,9 +212,9 @@ and data color coded.  The bottom row will have histograms of the differences.</
 </dd>
 </dl>
 </div></blockquote>
-<dl class="method">
+<dl class="py method">
 <dt id="piff.ShapeHistogramsStats.compute">
-<code class="sig-name descname">compute</code><span class="sig-paren">(</span><em class="sig-param">psf</em>, <em class="sig-param">stars</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/stats.html#ShapeHistogramsStats.compute"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.ShapeHistogramsStats.compute" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">compute</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">psf</span></em>, <em class="sig-param"><span class="n">stars</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/stats.html#ShapeHistogramsStats.compute"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.ShapeHistogramsStats.compute" title="Permalink to this definition">¶</a></dt>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
@@ -226,9 +226,9 @@ and data color coded.  The bottom row will have histograms of the differences.</
 </dl>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="piff.ShapeHistogramsStats.plot">
-<code class="sig-name descname">plot</code><span class="sig-paren">(</span><em class="sig-param">logger=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/stats.html#ShapeHistogramsStats.plot"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.ShapeHistogramsStats.plot" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">plot</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/stats.html#ShapeHistogramsStats.plot"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.ShapeHistogramsStats.plot" title="Permalink to this definition">¶</a></dt>
 <dd><p>Make the plots.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -245,9 +245,9 @@ and data color coded.  The bottom row will have histograms of the differences.</
 
 </dd></dl>
 
-<dl class="class">
+<dl class="py class">
 <dt id="piff.RhoStats">
-<em class="property">class </em><code class="sig-prename descclassname">piff.</code><code class="sig-name descname">RhoStats</code><span class="sig-paren">(</span><em class="sig-param">min_sep=0.5</em>, <em class="sig-param">max_sep=300</em>, <em class="sig-param">bin_size=0.1</em>, <em class="sig-param">file_name=None</em>, <em class="sig-param">logger=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/stats.html#RhoStats"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.RhoStats" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">piff.</code><code class="sig-name descname">RhoStats</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">min_sep</span><span class="o">=</span><span class="default_value">0.5</span></em>, <em class="sig-param"><span class="n">max_sep</span><span class="o">=</span><span class="default_value">300</span></em>, <em class="sig-param"><span class="n">bin_size</span><span class="o">=</span><span class="default_value">0.1</span></em>, <em class="sig-param"><span class="n">file_name</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/stats.html#RhoStats"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.RhoStats" title="Permalink to this definition">¶</a></dt>
 <dd><p>Stats class for calculating rho statistics.</p>
 <p>This will plot the 5 rho statistics described in Jarvis et al, 2015, section 3.4.</p>
 <p>e = e_psf; de = e_psf - e_model
@@ -284,9 +284,9 @@ plotted, since the imaginary parts are uninteresting.</p>
 <p>The value of the canonical rho statistic is in the <code class="docutils literal notranslate"><span class="pre">xip</span></code> attribute of each of the above
 TreeCorr GGCorrelation instances.  But there are other quantities that may be of interest
 in some cases, so we provide access to the full object.</p>
-<dl class="method">
+<dl class="py method">
 <dt id="piff.RhoStats.compute">
-<code class="sig-name descname">compute</code><span class="sig-paren">(</span><em class="sig-param">psf</em>, <em class="sig-param">stars</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/stats.html#RhoStats.compute"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.RhoStats.compute" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">compute</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">psf</span></em>, <em class="sig-param"><span class="n">stars</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/stats.html#RhoStats.compute"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.RhoStats.compute" title="Permalink to this definition">¶</a></dt>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
@@ -298,9 +298,9 @@ in some cases, so we provide access to the full object.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="piff.RhoStats.plot">
-<code class="sig-name descname">plot</code><span class="sig-paren">(</span><em class="sig-param">logger=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/stats.html#RhoStats.plot"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.RhoStats.plot" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">plot</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/stats.html#RhoStats.plot"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.RhoStats.plot" title="Permalink to this definition">¶</a></dt>
 <dd><p>Make the plots.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -318,9 +318,9 @@ in some cases, so we provide access to the full object.</p>
 
 </dd></dl>
 
-<dl class="class">
+<dl class="py class">
 <dt id="piff.TwoDHistStats">
-<em class="property">class </em><code class="sig-prename descclassname">piff.</code><code class="sig-name descname">TwoDHistStats</code><span class="sig-paren">(</span><em class="sig-param">number_bins_u=11</em>, <em class="sig-param">number_bins_v=22</em>, <em class="sig-param">reducing_function='np.median'</em>, <em class="sig-param">file_name=None</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/twod_stats.html#TwoDHistStats"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.TwoDHistStats" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">piff.</code><code class="sig-name descname">TwoDHistStats</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">number_bins_u</span><span class="o">=</span><span class="default_value">11</span></em>, <em class="sig-param"><span class="n">number_bins_v</span><span class="o">=</span><span class="default_value">22</span></em>, <em class="sig-param"><span class="n">reducing_function</span><span class="o">=</span><span class="default_value">'np.median'</span></em>, <em class="sig-param"><span class="n">file_name</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/twod_stats.html#TwoDHistStats"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.TwoDHistStats" title="Permalink to this definition">¶</a></dt>
 <dd><p>Statistics class that can make pretty colormaps where each bin has some
 arbitrary function applied to it.</p>
 <p>By default this will make a color map based on u and v coordinates of the
@@ -338,9 +338,9 @@ the objects in particular u-v voxel.</p>
 </div></blockquote>
 <p>These histograms are two dimensional masked arrays where the value of the
 pixel corresponds to reducing_function([objects in u-v voxel])</p>
-<dl class="method">
+<dl class="py method">
 <dt id="piff.TwoDHistStats.compute">
-<code class="sig-name descname">compute</code><span class="sig-paren">(</span><em class="sig-param">psf</em>, <em class="sig-param">stars</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/twod_stats.html#TwoDHistStats.compute"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.TwoDHistStats.compute" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">compute</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">psf</span></em>, <em class="sig-param"><span class="n">stars</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/twod_stats.html#TwoDHistStats.compute"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.TwoDHistStats.compute" title="Permalink to this definition">¶</a></dt>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
@@ -352,9 +352,9 @@ pixel corresponds to reducing_function([objects in u-v voxel])</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="piff.TwoDHistStats.plot">
-<code class="sig-name descname">plot</code><span class="sig-paren">(</span><em class="sig-param">logger=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/twod_stats.html#TwoDHistStats.plot"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.TwoDHistStats.plot" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">plot</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/twod_stats.html#TwoDHistStats.plot"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.TwoDHistStats.plot" title="Permalink to this definition">¶</a></dt>
 <dd><p>Make the plots.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -372,9 +372,9 @@ pixel corresponds to reducing_function([objects in u-v voxel])</p>
 
 </dd></dl>
 
-<dl class="class">
+<dl class="py class">
 <dt id="piff.WhiskerStats">
-<em class="property">class </em><code class="sig-prename descclassname">piff.</code><code class="sig-name descname">WhiskerStats</code><span class="sig-paren">(</span><em class="sig-param">number_bins_u=11</em>, <em class="sig-param">number_bins_v=22</em>, <em class="sig-param">reducing_function='np.median'</em>, <em class="sig-param">file_name=None</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/twod_stats.html#WhiskerStats"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.WhiskerStats" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">piff.</code><code class="sig-name descname">WhiskerStats</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">number_bins_u</span><span class="o">=</span><span class="default_value">11</span></em>, <em class="sig-param"><span class="n">number_bins_v</span><span class="o">=</span><span class="default_value">22</span></em>, <em class="sig-param"><span class="n">reducing_function</span><span class="o">=</span><span class="default_value">'np.median'</span></em>, <em class="sig-param"><span class="n">file_name</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/twod_stats.html#WhiskerStats"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.WhiskerStats" title="Permalink to this definition">¶</a></dt>
 <dd><p>Statistics class that can make whiskerplots.</p>
 <p>By default this will make a whisker plot based on u and v coordinates of
 the input stars. The whisker scale is based on (by default) the median
@@ -402,9 +402,9 @@ w2 = r sin(theta)</p>
 </div></blockquote>
 </div>
 <p>Because e1, e2 do not have units, w does not either.</p>
-<dl class="method">
+<dl class="py method">
 <dt id="piff.WhiskerStats.compute">
-<code class="sig-name descname">compute</code><span class="sig-paren">(</span><em class="sig-param">psf</em>, <em class="sig-param">stars</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/twod_stats.html#WhiskerStats.compute"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.WhiskerStats.compute" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">compute</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">psf</span></em>, <em class="sig-param"><span class="n">stars</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/twod_stats.html#WhiskerStats.compute"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.WhiskerStats.compute" title="Permalink to this definition">¶</a></dt>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
@@ -416,9 +416,9 @@ w2 = r sin(theta)</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="piff.WhiskerStats.plot">
-<code class="sig-name descname">plot</code><span class="sig-paren">(</span><em class="sig-param">logger=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/twod_stats.html#WhiskerStats.plot"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.WhiskerStats.plot" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">plot</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/twod_stats.html#WhiskerStats.plot"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.WhiskerStats.plot" title="Permalink to this definition">¶</a></dt>
 <dd><p>Make the plots.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -436,9 +436,9 @@ w2 = r sin(theta)</p>
 
 </dd></dl>
 
-<dl class="class">
+<dl class="py class">
 <dt id="piff.StarStats">
-<em class="property">class </em><code class="sig-prename descclassname">piff.</code><code class="sig-name descname">StarStats</code><span class="sig-paren">(</span><em class="sig-param">number_plot=5</em>, <em class="sig-param">adjust_stars=False</em>, <em class="sig-param">file_name=None</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/star_stats.html#StarStats"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.StarStats" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">piff.</code><code class="sig-name descname">StarStats</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">number_plot</span><span class="o">=</span><span class="default_value">5</span></em>, <em class="sig-param"><span class="n">adjust_stars</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">file_name</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/star_stats.html#StarStats"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.StarStats" title="Permalink to this definition">¶</a></dt>
 <dd><p>This Statistics class can take stars and make a set of plots of them as
 well as their models and residuals.</p>
 <p>By default this will draw 5 random stars, make psf stars, and plot the
@@ -457,9 +457,9 @@ residual of the two.</p>
 </dd>
 </dl>
 </div></blockquote>
-<dl class="method">
+<dl class="py method">
 <dt id="piff.StarStats.compute">
-<code class="sig-name descname">compute</code><span class="sig-paren">(</span><em class="sig-param">psf</em>, <em class="sig-param">stars</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/star_stats.html#StarStats.compute"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.StarStats.compute" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">compute</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">psf</span></em>, <em class="sig-param"><span class="n">stars</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/star_stats.html#StarStats.compute"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.StarStats.compute" title="Permalink to this definition">¶</a></dt>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
@@ -471,9 +471,9 @@ residual of the two.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="piff.StarStats.fit_star">
-<code class="sig-name descname">fit_star</code><span class="sig-paren">(</span><em class="sig-param">star</em>, <em class="sig-param">psf</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/star_stats.html#StarStats.fit_star"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.StarStats.fit_star" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">fit_star</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">star</span></em>, <em class="sig-param"><span class="n">psf</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/star_stats.html#StarStats.fit_star"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.StarStats.fit_star" title="Permalink to this definition">¶</a></dt>
 <dd><p>Adjust star.fit.flux and star.fit.center</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -489,9 +489,9 @@ residual of the two.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="piff.StarStats.plot">
-<code class="sig-name descname">plot</code><span class="sig-paren">(</span><em class="sig-param">logger=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/star_stats.html#StarStats.plot"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.StarStats.plot" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">plot</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/star_stats.html#StarStats.plot"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.StarStats.plot" title="Permalink to this definition">¶</a></dt>
 <dd><p>Make the plots.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -538,7 +538,7 @@ residual of the two.</p>
     </form>
     </div>
 </div>
-<script type="text/javascript">$('#searchbox').show(0);</script>
+<script>$('#searchbox').show(0);</script>
         </div>
       </div>
       <div class="clearer"></div>
@@ -555,12 +555,12 @@ residual of the two.</p>
         <li class="right" >
           <a href="psf.html" title="PSF"
              >previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Piff 0.4.0 documentation</a> &#187;</li> 
+        <li class="nav-item nav-item-0"><a href="index.html">Piff 0.4 documentation</a> &#187;</li> 
       </ul>
     </div>
     <div class="footer" role="contentinfo">
         &#169; Copyright 2019.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 2.1.2.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.0.3.
     </div>
   </body>
 </html>
