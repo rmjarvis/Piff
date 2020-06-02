@@ -752,7 +752,6 @@ def test_stars():
                 'gain_col' : 'gain',
                 'max_snr' : 0,
                 'use_partial' : True,
-                'nproc' : 1
              }
     input = piff.InputFiles(config, logger=logger)
     stars = input.makeStars(logger=logger)
