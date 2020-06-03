@@ -53,6 +53,15 @@ def test_optical(model=None):
     assert star_copy.image.array[0,0] != star.image.array[0,0]
     assert star_copy.image.array[1,1] == star.image.array[1,1]
 
+    with np.testing.assert_raises(TypeError):
+        piff.Optical(template='des', invalid=True)
+    with np.testing.assert_raises(TypeError):
+        piff.Optical(lam=700)  # missing diam
+    with np.testing.assert_raises(TypeError):
+        piff.Optical(diam=4)  # missing lam
+    with np.testing.assert_raises(ValueError):
+        piff.Optical(template='invalid')
+
 @timer
 def test_pupil_im(pupil_plane_file='input/DECam_pupil_128.fits'):
     import galsim
