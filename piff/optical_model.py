@@ -213,9 +213,6 @@ class Optical(Model):
             prof.append(optics)
             # convolve together
 
-        if len(prof) == 0:
-            raise RuntimeError('No profile returned by model!')
-
         if len(prof) == 1:
             prof = prof[0]
         else:
