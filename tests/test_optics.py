@@ -160,9 +160,9 @@ def test_disk():
     for key in model.optical_psf_kwargs:
         assert key in model2.optical_psf_kwargs, 'key %r missing from model2 optical_psf_kwargs'%key
         assert model.optical_psf_kwargs[key] == model2.optical_psf_kwargs[key], 'key %r mismatch'%key
-    for key in model.kolmogorov_kwargs:
-        assert key in model2.kolmogorov_kwargs, 'key %r missing from model2 kolmogorov_kwargs'%key
-        assert model.kolmogorov_kwargs[key] == model2.kolmogorov_kwargs[key], 'key %r mismatch'%key
+    for key in model.atm_kwargs:
+        assert key in model2.atm_kwargs, 'key %r missing from model2 atm_kwargs'%key
+        assert model.atm_kwargs[key] == model2.atm_kwargs[key], 'key %r mismatch'%key
     assert model.sigma == model2.sigma,'sigma mismatch'
     assert model.g1 == model2.g1,'g1 mismatch'
     assert model.g2 == model2.g2,'g2 mismatch'
