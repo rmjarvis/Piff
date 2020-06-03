@@ -239,9 +239,12 @@ class SimplePSF(PSF):
         :returns:           List of Star instances with its image filled with
                             rendered PSF
         """
-        stars_interpolated = self.interp.interpolateList(stars)
-        stars_drawn = [self.model.draw(star, copy_image=copy_image) for star in stars_interpolated]
-        return stars_drawn
+        if any(star.fit is None or star.fit.params is None for star in stars):
+            stars = self.interp.interpolateList(stars)
+            for star in stars:
+                self.model.normalize(star)
+        stars = [self.model.draw(star, copy_image=copy_image) for star in stars]
+        return stars
 
     def drawStar(self, star, copy_image=True):
         """Generate PSF image for a given star.
@@ -254,9 +257,10 @@ class SimplePSF(PSF):
 
         :returns:           Star instance with its image filled with rendered PSF
         """
-        # Interpolate parameters to this position/properties:
-        star = self.interp.interpolate(star)
-        self.model.normalize(star)
+        # Interpolate parameters to this position/properties (if not already done):
+        if star.fit is None or star.fit.params is None:
+            star = self.interp.interpolate(star)
+            self.model.normalize(star)
         # Render the image
         return self.model.draw(star, copy_image=copy_image)
 
