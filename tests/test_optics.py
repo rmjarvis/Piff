@@ -98,6 +98,21 @@ def test_kolmogorov():
 
 
 @timer
+def test_vonkarman():
+    # Like above, but using L0.
+    star = make_empty_star()
+
+    model = piff.Optical(r0=0.1, L0=20, template='des')
+    star = model.draw(star)
+
+    model2 = piff.Optical(r0=0.1, L0=40, template='des')
+    star2 = model2.draw(star)
+
+    chi2 = np.std((star.image - star2.image).array)
+    assert chi2 != 0,'chi2 is zero!?'
+
+
+@timer
 def test_shearing():
     print('test shearing')
     # make sure if we put in common mode ellipticities that things change
@@ -211,6 +226,7 @@ if __name__ == '__main__':
     test_pupil_im(pupil_plane_file='input/DECam_pupil_128.fits')
     test_pupil_im(pupil_plane_file='input/DECam_pupil_512.fits')
     test_kolmogorov()
+    test_vonkarman()
     test_shearing()
     test_gaussian()
     test_disk()

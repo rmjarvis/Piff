@@ -70,13 +70,15 @@ class Optical(Model):
         :param pupil_plane_im:  The name of a file containing the pupil plane image to use instead
                                 of creating one from obscuration, struts, etc. [default: None]
 
-        Second, there may be an atmospheric component, which uses a galsim.Kolmogorov to
-        model the profile.
+        Second, there may be an atmospheric component, which uses either a galsim.Kolmogorov or
+        galsim.VonKarman to model the profile.
 
         :param fwhm:            The full-width half-max of the atmospheric part of the PSF.
                                 [default: None]
-        :param r0:              The Fried parameter in units of meters to use to calculate fwhm
-                                as fwhm = 0.976 lam / r0. [default: None]
+        :param r0:              The Fried parameter in units of meters to use for the Kolmogorov
+                                profile. [default: None]
+        :param L0:              The outer scale in units of meters if desired, in which case
+                                the atmospheric part will be a VonKarman. [default: None]
 
         Finall, there is allowed to be a final Gaussian component and an applied shear.
 
@@ -131,9 +133,8 @@ class Optical(Model):
             self.optical_psf_kwargs['pupil_plane_im'] = pupil_plane_im
 
         atm_keys = ('lam', 'r0', 'lam_over_r0', 'scale_unit',
-                           'fwhm', 'half_light_radius', 'r0_500')
-        self.atm_kwargs = { key : self.kwargs[key] for key in self.kwargs
-                                                          if key in atm_keys }
+                    'fwhm', 'half_light_radius', 'r0_500', 'L0')
+        self.atm_kwargs = { key : self.kwargs[key] for key in self.kwargs if key in atm_keys }
         # If lam is the only one, then remove it -- we don't have a Kolmogorov component then.
         if self.atm_kwargs.keys() == ['lam']:
             self.atm_kwargs = {}
@@ -197,7 +198,10 @@ class Optical(Model):
             prof.append(gaussian)
         # atmosphere
         if len(self.atm_kwargs) > 0:
-            atm = galsim.Kolmogorov(**self.atm_kwargs)
+            if 'L0' in self.atm_kwargs and self.atm_kwargs['L0'] is not None:
+                atm = galsim.VonKarman(**self.atm_kwargs)
+            else:
+                atm = galsim.Kolmogorov(**self.atm_kwargs)
             prof.append(atm)
         # optics
         if params is None or len(params) == 0:
