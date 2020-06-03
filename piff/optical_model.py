@@ -130,16 +130,16 @@ class Optical(Model):
                 pupil_plane_im = galsim.fits.read(pupil_plane_im)
             self.optical_psf_kwargs['pupil_plane_im'] = pupil_plane_im
 
-        kolmogorov_keys = ('lam', 'r0', 'lam_over_r0', 'scale_unit',
+        atm_keys = ('lam', 'r0', 'lam_over_r0', 'scale_unit',
                            'fwhm', 'half_light_radius', 'r0_500')
-        self.kolmogorov_kwargs = { key : self.kwargs[key] for key in self.kwargs
-                                                          if key in kolmogorov_keys }
+        self.atm_kwargs = { key : self.kwargs[key] for key in self.kwargs
+                                                          if key in atm_keys }
         # If lam is the only one, then remove it -- we don't have a Kolmogorov component then.
-        if self.kolmogorov_kwargs.keys() == ['lam']:
-            self.kolmogorov_kwargs = {}
-        # Also, let r0=0 or None indicate that there is no kolmogorov component
-        if 'r0' in self.kolmogorov_kwargs and not self.kolmogorov_kwargs['r0']:
-            self.kolmogorov_kwargs = {}
+        if self.atm_kwargs.keys() == ['lam']:
+            self.atm_kwargs = {}
+        # Also, let r0=0 or None indicate that there is no atm component
+        if 'r0' in self.atm_kwargs and not self.atm_kwargs['r0']:
+            self.atm_kwargs = {}
 
         # Store the Gaussian and shear parts
         self.sigma = kwargs.pop('sigma',None)
@@ -147,7 +147,7 @@ class Optical(Model):
         self.g2 = kwargs.pop('g2',None)
 
         # Check that no unexpected parameters were passed in:
-        extra_kwargs = [k for k in kwargs if k not in optical_psf_keys and k not in kolmogorov_keys]
+        extra_kwargs = [k for k in kwargs if k not in optical_psf_keys and k not in atm_keys]
         if len(extra_kwargs) > 0:
             raise TypeError('__init__() got an unexpected keyword argument %r'%extra_kwargs[0])
 
@@ -196,8 +196,8 @@ class Optical(Model):
             gaussian = galsim.Gaussian(sigma=self.sigma)
             prof.append(gaussian)
         # atmosphere
-        if len(self.kolmogorov_kwargs) > 0:
-            atm = galsim.Kolmogorov(**self.kolmogorov_kwargs)
+        if len(self.atm_kwargs) > 0:
+            atm = galsim.Kolmogorov(**self.atm_kwargs)
             prof.append(atm)
         # optics
         if params is None or len(params) == 0:
