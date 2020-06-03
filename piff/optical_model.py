@@ -116,13 +116,12 @@ class Optical(Model):
         self.kwargs.update(kwargs)
 
         # Some of these aren't documented above, but allow them anyway.
-        optical_psf_keys = ('lam', 'diam', 'lam_over_diam', 'scale_unit',
-                            'circular_pupil', 'obscuration', 'interpolant',
-                            'oversampling', 'pad_factor', 'suppress_warning',
-                            'nstruts', 'strut_thick', 'strut_angle',
-                            'pupil_angle', 'pupil_plane_scale', 'pupil_plane_size')
-        self.optical_psf_kwargs = { key : self.kwargs[key] for key in self.kwargs
-                                                           if key in optical_psf_keys }
+        opt_keys = ('lam', 'diam', 'lam_over_diam', 'scale_unit',
+                    'circular_pupil', 'obscuration', 'interpolant',
+                    'oversampling', 'pad_factor', 'suppress_warning',
+                    'nstruts', 'strut_thick', 'strut_angle',
+                    'pupil_angle', 'pupil_plane_scale', 'pupil_plane_size')
+        self.opt_kwargs = { key : self.kwargs[key] for key in self.kwargs if key in opt_keys }
 
         # Deal with the pupil plane image now so it only needs to be loaded from disk once.
         if 'pupil_plane_im' in kwargs:
@@ -130,7 +129,7 @@ class Optical(Model):
             if isinstance(pupil_plane_im, str):
                 logger.debug('Loading pupil_plane_im from {0}'.format(pupil_plane_im))
                 pupil_plane_im = galsim.fits.read(pupil_plane_im)
-            self.optical_psf_kwargs['pupil_plane_im'] = pupil_plane_im
+            self.opt_kwargs['pupil_plane_im'] = pupil_plane_im
 
         atm_keys = ('lam', 'r0', 'lam_over_r0', 'scale_unit',
                     'fwhm', 'half_light_radius', 'r0_500', 'L0')
@@ -148,14 +147,14 @@ class Optical(Model):
         self.g2 = kwargs.pop('g2',None)
 
         # Check that no unexpected parameters were passed in:
-        extra_kwargs = [k for k in kwargs if k not in optical_psf_keys and k not in atm_keys]
+        extra_kwargs = [k for k in kwargs if k not in opt_keys and k not in atm_keys]
         if len(extra_kwargs) > 0:
             raise TypeError('__init__() got an unexpected keyword argument %r'%extra_kwargs[0])
 
         # Check for some required parameters.
-        if 'diam' not in self.optical_psf_kwargs:
+        if 'diam' not in self.opt_kwargs:
             raise TypeError("Required keyword argument 'diam' not found")
-        if 'lam' not in self.optical_psf_kwargs:
+        if 'lam' not in self.opt_kwargs:
             raise TypeError("Required keyword argument 'lam' not found")
 
         # pupil_angle and strut_angle won't serialize properly, so repr them now in self.kwargs.
@@ -209,7 +208,7 @@ class Optical(Model):
             pass
         else:
             aberrations = [0,0,0,0] + list(params)
-            optics = galsim.OpticalPSF(aberrations=aberrations, **self.optical_psf_kwargs)
+            optics = galsim.OpticalPSF(aberrations=aberrations, **self.opt_kwargs)
             prof.append(optics)
             # convolve together
 
