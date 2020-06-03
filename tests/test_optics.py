@@ -141,6 +141,13 @@ def test_gaussian():
     # insert assert statement about sigma
     np.testing.assert_almost_equal(gaussian.fit(star).fit.params[0], sigma, 5)
 
+    # omitting atm params is equivalent
+    kwargs = piff.optical_model.optical_templates['des'].copy()
+    del kwargs['r0']
+    model2 = piff.Optical(sigma=sigma, **kwargs)
+    star2 = model2.draw(star)
+    assert star.image == star2.image
+
     # gaussian and shear
     model = piff.Optical(r0=0, sigma=sigma, g1=g1, g2=g2, template='des')
     star = model.draw(star)

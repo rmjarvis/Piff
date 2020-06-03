@@ -135,7 +135,7 @@ class Optical(Model):
                     'fwhm', 'half_light_radius', 'r0_500', 'L0')
         self.atm_kwargs = { key : self.kwargs[key] for key in self.kwargs if key in atm_keys }
         # If lam is the only one, then remove it -- we don't have a Kolmogorov component then.
-        if self.atm_kwargs.keys() == ['lam']:
+        if list(self.atm_kwargs.keys()) == ['lam']:
             self.atm_kwargs = {}
         # Also, let r0=0 or None indicate that there is no atm component
         if 'r0' in self.atm_kwargs and not self.atm_kwargs['r0']:
@@ -202,6 +202,7 @@ class Optical(Model):
             else:
                 atm = galsim.Kolmogorov(**self.atm_kwargs)
             prof.append(atm)
+
         # optics
         if params is None or len(params) == 0:
             # no optics here
