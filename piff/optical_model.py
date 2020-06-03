@@ -195,6 +195,7 @@ class Optical(Model):
         if self.sigma is not None:
             gaussian = galsim.Gaussian(sigma=self.sigma)
             prof.append(gaussian)
+
         # atmosphere
         if len(self.atm_kwargs) > 0:
             if 'L0' in self.atm_kwargs and self.atm_kwargs['L0'] is not None:
@@ -205,13 +206,14 @@ class Optical(Model):
 
         # optics
         if params is None or len(params) == 0:
-            # no optics here
-            pass
+            # no aberrations.  Just the basic opt_kwargs
+            optics = galsim.OpticalPSF(**self.opt_kwargs)
         else:
             aberrations = [0,0,0,0] + list(params)
             optics = galsim.OpticalPSF(aberrations=aberrations, **self.opt_kwargs)
-            prof.append(optics)
-            # convolve together
+
+        # convolve together
+        prof.append(optics)
 
         if len(prof) == 1:
             prof = prof[0]
