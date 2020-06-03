@@ -39,6 +39,7 @@ def test_twodstats():
     stars, true_model = generate_starlist(100)
     psf = piff.SimplePSF(model, interp)
     psf.fit(stars, None, None)
+    stars = psf.stars  # These have the right fit parameters
 
     # check the coeffs of sigma and g2, which are actually linear fits
     # skip g1 since it is actually a 2d parabola
