@@ -157,7 +157,7 @@ class SimplePSF(PSF):
 
             logger.warning("Iteration %d: Fitting %d stars", iteration+1, len(self.stars))
 
-
+            # Perform the fit or compute design matrix as appropriate
             fit_fn = self.model.chisq if quadratic_chisq else self.model.fit
 
             nremoved = 0
@@ -173,18 +173,20 @@ class SimplePSF(PSF):
                     new_stars.append(new_star)
             self.stars = new_stars
 
+            # Perform the interpolation
             logger.debug("             Calculating the interpolation")
             self.interp.solve(self.stars, logger=logger)
+            self.stars = self.interp.interpolateList(self.stars)
+
+            # Update estimated poisson noise
+            signals = self.drawStarList(self.stars)
+            self.stars = [s.addPoisson(signal) for s, signal in zip(self.stars, signals)]
 
             # Refit and recenter all stars, collect stats
             logger.debug("             Re-fluxing stars")
-
             if hasattr(self.model, 'reflux'):
                 new_stars = []
-                signals = self.drawStarList(self.stars)
-                signalized_stars = [s.addPoisson(signal) for s, signal in zip(self.stars, signals)]
-                interpolated_stars = self.interp.interpolateList(signalized_stars)
-                for s in interpolated_stars:
+                for s in self.stars:
                     try:
                         new_star = self.model.reflux(s, logger=logger)
                     except Exception as e:  # pragma: no cover
@@ -196,8 +198,8 @@ class SimplePSF(PSF):
                         new_stars.append(new_star)
                 self.stars = new_stars
 
+            # Perform outlier rejection, but not on first iteration for degenerate solvers.
             if self.outliers and (iteration > 0 or not degenerate_points):
-                # Perform outlier rejection, but not on first iteration for degenerate solvers.
                 logger.debug("             Looking for outliers")
                 self.stars, nremoved1 = self.outliers.removeOutliers(self.stars, logger=logger)
                 if nremoved1 == 0:
