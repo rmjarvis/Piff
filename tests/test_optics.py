@@ -71,13 +71,13 @@ def test_pupil_im(pupil_plane_file='input/DECam_pupil_128.fits'):
         pupil_plane_im.scale = ref_psf._psf.aper.pupil_plane_scale
         pupil_plane_im.write(pupil_plane_file)
 
-    model_pupil_plane_im = model.optical_psf_kwargs['pupil_plane_im']
+    model_pupil_plane_im = model.opt_kwargs['pupil_plane_im']
     np.testing.assert_array_equal(pupil_plane_im.array, model_pupil_plane_im.array)
 
     # test passing a different optical template that includes diam
     piff.optical_model.optical_templates['test'] = {'diam': 2, 'lam':500, 'r0':0.1}
     model = piff.Optical(pupil_plane_im=pupil_plane_im, template='test')
-    model_pupil_plane_im = model.optical_psf_kwargs['pupil_plane_im']
+    model_pupil_plane_im = model.opt_kwargs['pupil_plane_im']
     np.testing.assert_array_equal(pupil_plane_im.array, model_pupil_plane_im.array)
 
 
@@ -172,9 +172,9 @@ def test_disk():
     for key in model.kwargs:
         assert key in model2.kwargs, 'key %r missing from model2 kwargs'%key
         assert model.kwargs[key] == model2.kwargs[key], 'key %r mismatch'%key
-    for key in model.optical_psf_kwargs:
-        assert key in model2.optical_psf_kwargs, 'key %r missing from model2 optical_psf_kwargs'%key
-        assert model.optical_psf_kwargs[key] == model2.optical_psf_kwargs[key], 'key %r mismatch'%key
+    for key in model.opt_kwargs:
+        assert key in model2.opt_kwargs, 'key %r missing from model2 opt_kwargs'%key
+        assert model.opt_kwargs[key] == model2.opt_kwargs[key], 'key %r mismatch'%key
     for key in model.atm_kwargs:
         assert key in model2.atm_kwargs, 'key %r missing from model2 atm_kwargs'%key
         assert model.atm_kwargs[key] == model2.atm_kwargs[key], 'key %r mismatch'%key
