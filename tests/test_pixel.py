@@ -947,12 +947,14 @@ def test_des_image():
             'ra' : 'TELRA',
             'dec' : 'TELDEC',
             'gain' : 'GAINA',
+            'reserve_frac' : 0.2,
+            'seed' : 1234,
             # Test explicitly specifying the wcs (although it is the same here as what is in the
             # image anyway).
             'wcs' : {
                 'type': 'Fits',
                 'file_name': image_file
-            }
+            },
         },
         'output' : {
             'file_name' : psf_file,
@@ -972,7 +974,7 @@ def test_des_image():
                 'type' : 'Chisq',
                 'nsigma' : nsigma,
                 'max_remove' : 3
-            }
+            },
         },
     }
     if __name__ == '__main__':
