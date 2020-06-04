@@ -142,13 +142,14 @@ def test_gaussian():
     print('test gaussian')
     star = make_empty_star()
     # test gaussian alone
-    sigma = 1
+    sigma = 1.7
     g1 = -0.1
     g2 = 0.05
     model = piff.Optical(r0=0, sigma=sigma, template='des')
     star = model.draw(star)
     # insert assert statement about sigma
-    np.testing.assert_almost_equal(gaussian.fit(star).fit.params[0], sigma, 5)
+    # We don't expect sigma to match.  But it should be the biggest component, so close-ish
+    np.testing.assert_allclose(gaussian.fit(star).fit.params[0], sigma, rtol=1.e-2)
 
     # omitting atm params is equivalent
     kwargs = piff.optical_model.optical_templates['des'].copy()
@@ -161,9 +162,10 @@ def test_gaussian():
     model = piff.Optical(r0=0, sigma=sigma, g1=g1, g2=g2, template='des')
     star = model.draw(star)
     params = gaussian.fit(star).fit.params
-    np.testing.assert_almost_equal(params[0], sigma, 5)
-    np.testing.assert_almost_equal(params[1], g1, 5)
-    np.testing.assert_almost_equal(params[2], g2, 5)
+    np.testing.assert_allclose(gaussian.fit(star).fit.params[0], sigma, rtol=1.e-2)
+    # Shears are much closer, since the optical part is round.
+    np.testing.assert_allclose(params[1], g1, rtol=1.e-4)
+    np.testing.assert_allclose(params[2], g2, rtol=1.e-4)
 
     # now gaussian, shear, aberration, r0
     star = make_empty_star(params=[0.5, 0.8, -0.7, 0.5, -0.2, 0.9, -1, 2.0])
