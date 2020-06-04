@@ -159,6 +159,9 @@ class SimplePSF(PSF):
                 raise RuntimeError("No stars.  Cannot find PSF model.")
 
             logger.warning("Iteration %d: Fitting %d stars", iteration+1, len(use_stars))
+            if len(use_stars) != len(self.stars):
+                logger.warning("             (%d stars are reserved)",
+                               len(self.stars)-len(use_stars))
 
             # Perform the fit or compute design matrix as appropriate using just non-reserve stars
             fit_fn = self.model.chisq if quadratic_chisq else self.model.fit
