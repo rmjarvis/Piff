@@ -152,30 +152,38 @@ class SimplePSF(PSF):
         # Begin iterations.  Very simple convergence criterion right now.
         oldchisq = 0.
         for iteration in range(self.max_iter):
-            if len(self.stars) == 0:
+            # Select the non-reserve stars for performing the fit
+            use_stars = [star for star in self.stars if not star.is_reserve]
+
+            if len(use_stars) == 0:
                 raise RuntimeError("No stars.  Cannot find PSF model.")
 
-            logger.warning("Iteration %d: Fitting %d stars", iteration+1, len(self.stars))
+            logger.warning("Iteration %d: Fitting %d stars", iteration+1, len(use_stars))
 
-            # Perform the fit or compute design matrix as appropriate
+            # Perform the fit or compute design matrix as appropriate using just non-reserve stars
             fit_fn = self.model.chisq if quadratic_chisq else self.model.fit
 
             nremoved = 0
-            new_stars = []
-            for s in self.stars:
+            new_use_stars = []
+            for star in use_stars:
                 try:
-                    new_star = fit_fn(s, logger=logger)
+                    star = fit_fn(star, logger=logger)
                 except ModelFitError as e:  # pragma: no cover
-                    logger.warning("Failed fitting star at %s.  Excluding it.", s.image_pos)
+                    logger.warning("Failed fitting star at %s.", star.image_pos)
+                    logger.warning("Excluding it from this iteration.")
                     logger.warning("  -- Caught exception: %s", e)
                     nremoved += 1
                 else:
-                    new_stars.append(new_star)
-            self.stars = new_stars
+                    new_use_stars.append(star)
+            use_stars = new_use_stars
 
-            # Perform the interpolation
+            # Perform the interpolation, again using just non-reserve stars
             logger.debug("             Calculating the interpolation")
-            self.interp.solve(self.stars, logger=logger)
+            self.interp.solve(use_stars, logger=logger)
+
+            # Note: From here forward, we are back to using self.stars, rather than use_stars.
+            # We want to run the interpolation on everything and refit/recenter everything,
+            # so reserve stars may get outlier rejected as well as non-reserve stars.
             self.stars = self.interp.interpolateList(self.stars)
 
             # Update estimated poisson noise
@@ -208,8 +216,8 @@ class SimplePSF(PSF):
                     logger.info("             Removed %d outliers", nremoved1)
                 nremoved += nremoved1
 
-            chisq = np.sum([s.fit.chisq for s in self.stars])
-            dof   = np.sum([s.fit.dof for s in self.stars])
+            chisq = np.sum([s.fit.chisq for s in self.stars if not s.is_reserve])
+            dof   = np.sum([s.fit.dof for s in self.stars if not s.is_reserve])
             logger.warning("             Total chisq = %.2f / %d dof", chisq, dof)
 
             # Save these so we can write them to the output file.
