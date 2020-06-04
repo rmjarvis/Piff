@@ -103,14 +103,32 @@ class Input(object):
                       hsm_size_reject=self.hsm_size_reject,
                       max_mask_pixels=self.max_mask_pixels,
                       max_edge_frac=self.max_edge_frac,
-                      stamp_center_size=self.stamp_center_size,
-                      reserve_frac=self.reserve_frac)
+                      stamp_center_size=self.stamp_center_size)
 
-        stars = run_multi(call_makeStarsFromImage, self.nproc, raise_except=True,
-                          args=args, logger=logger, kwargs=kwargs)
+        all_stars = run_multi(call_makeStarsFromImage, self.nproc, raise_except=True,
+                              args=args, logger=logger, kwargs=kwargs)
+
+        # Apply the reserve separately on each ccd, so they each reserve 20% of their stars
+        # (or whatever fraction).  We wouldn't want to accidentally reserve all the stars on
+        # one of the ccds by accident, for instance.
+        if self.reserve_frac != 0:
+            for stars in all_stars:
+                if stars is None or len(stars) == 0:
+                    continue
+                # Mark a fraction of the stars as reserve stars
+                nreserve = int(self.reserve_frac * len(stars))  # round down
+                logger.info("Reserve %s of %s (reserve_frac=%s) input stars",
+                            nreserve, len(stars), self.reserve_frac)
+                reserve_list = self.rng.choice(len(stars), nreserve, replace=False)
+                # Set them all to False, then update the reserve fraction to True.
+                # This makes sure they all have this value in the properties dict.
+                for star in stars:
+                    star.data.properties['is_reserve'] = False
+                for i in reserve_list:
+                    stars[i].data.properties['is_reserve'] = True
 
         # Concatenate the star lists into a single list
-        stars = [s for slist in stars if slist is not None for s in slist if slist]
+        stars = [s for slist in all_stars if slist is not None for s in slist if slist]
 
         logger.warning("Read a total of %d stars from %d image%s",len(stars),self.nimages,
                        "s" if self.nimages > 1 else "")
@@ -260,7 +278,8 @@ class InputFiles(Input):
                             have outlier rejection performed along with the regular stars, but
                             will not be used to constrain the PSF model.  The output files
                             will contain the reserve stars, flagged as such.  Generally 0.2 is a
-                            good choice if you are going to use this.  [default: 0.]
+                            good choice if you are going to use this. [default: 0.]
+            :seed:          A seed to use for numpy.random.default_rng, if desired. [default: None]
 
             :wcs:           Normally, the wcs is automatically read in when reading the image.
                             However, this parameter allows you to optionally provide a different
@@ -320,6 +339,7 @@ class InputFiles(Input):
                 'noise' : float,
                 'nstars' : int,
                 'reserve_frac' : float,
+                'seed' : int,
               }
         ignore = [ 'nproc', 'nimages', 'ra', 'dec', 'wcs' ]  # These are parsed separately
 
@@ -432,6 +452,7 @@ class InputFiles(Input):
         self.remove_signal_from_weight = config.get('remove_signal_from_weight', False)
         self.invert_weight = config.get('invert_weight', False)
         self.reserve_frac = config.get('reserve_frac', 0.)
+        self.rng = np.random.default_rng(config.get('seed', None))
 
         logger.info("Reading in %d images",nimages)
         for image_num in range(nimages):
@@ -578,7 +599,7 @@ class InputFiles(Input):
                             stamp_size, min_snr, max_snr, pointing, use_partial,
                             invert_weight, remove_signal_from_weight, hsm_size_reject,
                             max_mask_pixels, max_edge_frac, stamp_center_size,
-                            reserve_frac, logger):
+                            logger):
         """Make stars from a single input image
         """
         image, wt, image_pos, sky, gain, satur = InputFiles._getRawImageData(
@@ -710,17 +731,6 @@ class InputFiles(Input):
                 del stars[k]
                 med_sigma = np.median(sigma)
                 iqr_sigma = scipy.stats.iqr(sigma)
-
-        if reserve_frac != 0:
-            # Mark a fraction of the stars as reserve stars
-            nreserve = int(reserve_frac * len(stars))  # round down
-            reserve_list = np.random.choice(len(stars), nreserve, replace=False)
-            # Set them all to False, then update the reserve fraction to True.
-            # This makes sure they all have this value in the properties dict.
-            for star in stars:
-                star.data.properties['is_reserve'] = False
-            for i in reserve_list:
-                stars[i].data.properties['is_reserve'] = True
 
         return stars
 
