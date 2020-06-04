@@ -233,12 +233,13 @@ class InputFiles(Input):
                             so this parameter limits the effective S/N of any single star.
                             Basically, it adds noise to bright stars to lower their S/N down to
                             this value.  [default: 100]
-            :max_edge_frac: Cutoff on the fraction of the flux comming from pixels on the edges of the
-                            postage stamp. [default: None]
-            :stamp_center_size: Distance from center of postage stamp (in pixels) to consider as defining
-                            the edge of the stamp for the purpose of the max_edge_fact cut.  (The default
-                            value of 13 was tuned by hand to reject a set problematic stars when
-                            combined with max_edge_frac cut of 0.25) [default 13].
+            :max_edge_frac: Cutoff on the fraction of the flux comming from pixels on the edges of
+                            the postage stamp. [default: None]
+            :stamp_center_size: Distance from center of postage stamp (in pixels) to consider as
+                            defining the edge of the stamp for the purpose of the max_edge_fact cut.
+                            The default value of 13 is most of the radius of a 32x32 stamp size.
+                            If you change stamp_size, you should consider what makes sense here.
+                            [default 13].
             :max_mask_pixels: If given, reject stars with more than this many masked pixels
                             (i.e. those with w=0). [default: None]
             :use_partial:   Whether to use stars whose postage stamps are only partially on the
