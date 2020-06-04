@@ -70,6 +70,7 @@ class Star(object):
         star.chipnum    The chip number where this star was observed (or would be observed)
         star.flux       The flux of the object
         star.center     The nominal center of the object (not necessarily the centroid)
+        star.is_reserve Whether the star is reserved from being used to fit the PSF
     """
     def __init__(self, data, fit):
         """Constructor for Star instance.
@@ -144,10 +145,7 @@ class Star(object):
 
     @property
     def chipnum(self):
-        if 'chipnum' in self.data.properties:
-            return self.data.properties['chipnum']
-        else:
-            return 0
+        return self.data.properties.get('chipnum',0)
 
     @property
     def flux(self):
@@ -156,6 +154,10 @@ class Star(object):
     @property
     def center(self):
         return self.fit.center
+
+    @property
+    def is_reserve(self):
+        return self.data.properties.get('is_reserve',False)
 
     @classmethod
     def makeTarget(cls, x=None, y=None, u=None, v=None, properties={}, wcs=None, scale=None,
@@ -410,7 +412,8 @@ class Star(object):
         wcs_list = [ w.withOrigin(p, wp) for w,p,wp in zip(wcs_list, pos_list, wpos_list) ]
         bounds_list = [ galsim.BoundsI(*b) for b in zip(xmin,xmax,ymin,ymax) ]
         image_list = [ galsim.Image(bounds=b, wcs=w) for b,w in zip(bounds_list, wcs_list) ]
-        weight_list = [ galsim.Image(init_value=1.0, bounds=b, wcs=w) for b,w in zip(bounds_list, wcs_list) ]
+        weight_list = [ galsim.Image(init_value=1.0, bounds=b, wcs=w)
+                        for b,w in zip(bounds_list, wcs_list) ]
         data_list = [ StarData(im, pos, weight=w, properties=prop, pointing=point)
                       for im,pos,w,prop,point in zip(image_list, pos_list, weight_list,
                                                      prop_list, pointing_list) ]
@@ -955,7 +958,8 @@ class StarFit(object):
         """Return new StarFit that has the array params installed as new parameters.
 
         :param params:  A 1d array holding new parameters; must match size of current ones
-        :param kwargs:  Any other additional properties for the star. Takes current flux and center if not provided, and otherwise puts in None
+        :param kwargs:  Any other additional properties for the star. Takes current flux and center
+                        if not provided, and otherwise puts in None
 
         :returns:  New StarFit object with altered parameters.  All chisq-related parameters
                    are set to None since they are no longer valid.

@@ -103,7 +103,8 @@ class Input(object):
                       hsm_size_reject=self.hsm_size_reject,
                       max_mask_pixels=self.max_mask_pixels,
                       max_edge_frac=self.max_edge_frac,
-                      stamp_center_size=self.stamp_center_size)
+                      stamp_center_size=self.stamp_center_size,
+                      reserve_frac=self.reserve_frac)
 
         stars = run_multi(call_makeStarsFromImage, self.nproc, raise_except=True,
                           args=args, logger=logger, kwargs=kwargs)
@@ -254,6 +255,12 @@ class InputFiles(Input):
                             separately to each input catalog.)  [default: None]
             :nproc:         How many multiprocessing processes to use for reading in data from
                             multiple files at once. [default: 1]
+            :reserve_frac:  Reserve a fraction of the stars from the PSF calculations, so they
+                            can serve as fair points for diagnostic testing.  These stars will
+                            have outlier rejection performed along with the regular stars, but
+                            will not be used to constrain the PSF model.  The output files
+                            will contain the reserve stars, flagged as such.  Generally 0.2 is a
+                            good choice if you are going to use this.  [default: 0.]
 
             :wcs:           Normally, the wcs is automatically read in when reading the image.
                             However, this parameter allows you to optionally provide a different
@@ -312,6 +319,7 @@ class InputFiles(Input):
                 'sky' : str,
                 'noise' : float,
                 'nstars' : int,
+                'reserve_frac' : float,
               }
         ignore = [ 'nproc', 'nimages', 'ra', 'dec', 'wcs' ]  # These are parsed separately
 
@@ -423,6 +431,7 @@ class InputFiles(Input):
 
         self.remove_signal_from_weight = config.get('remove_signal_from_weight', False)
         self.invert_weight = config.get('invert_weight', False)
+        self.reserve_frac = config.get('reserve_frac', 0.)
 
         logger.info("Reading in %d images",nimages)
         for image_num in range(nimages):
@@ -569,7 +578,7 @@ class InputFiles(Input):
                             stamp_size, min_snr, max_snr, pointing, use_partial,
                             invert_weight, remove_signal_from_weight, hsm_size_reject,
                             max_mask_pixels, max_edge_frac, stamp_center_size,
-                            logger):
+                            reserve_frac, logger):
         """Make stars from a single input image
         """
         image, wt, image_pos, sky, gain, satur = InputFiles._getRawImageData(
@@ -701,6 +710,17 @@ class InputFiles(Input):
                 del stars[k]
                 med_sigma = np.median(sigma)
                 iqr_sigma = scipy.stats.iqr(sigma)
+
+        if reserve_frac != 0:
+            # Mark a fraction of the stars as reserve stars
+            nreserve = int(reserve_frac * len(stars))  # round down
+            reserve_list = np.random.choice(len(stars), nreserve, replace=False)
+            # Set them all to False, then update the reserve fraction to True.
+            # This makes sure they all have this value in the properties dict.
+            for star in stars:
+                star.data.properties['is_reserve'] = False
+            for i in reserve_list:
+                stars[i].data.properties['is_reserve'] = True
 
         return stars
 
