@@ -179,7 +179,7 @@ class PixelGrid(Model):
         #
         #    A dp = b
         #
-        # Even if the solutionis degenerate, gelsy works fine using QRP decomposition.
+        # Even if the solution is degenerate, gelsy works fine using QRP decomposition.
         # And it's much faster than SVD.
         dparam = scipy.linalg.lstsq(star1.fit.A, star1.fit.b,
                                     check_finite=False, cond=1.e-6,

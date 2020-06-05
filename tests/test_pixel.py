@@ -47,10 +47,10 @@ def make_gaussian_data(sigma, u0, v0, flux, noise=0., du=1., fpu=0., fpv=0., nsi
     star = piff.Star.makeTarget(x=nside/2+nom_u0/du, y=nside/2+nom_v0/du,
                                 u=fpu, v=fpv, scale=du, stamp_size=nside, weight=weight)
     star.image.setOrigin(0,0)
-    
+
     g.drawImage(star.image, method='no_pixel', use_true_center=False,
                 offset=galsim.PositionD(nom_u0/du,nom_v0/du))
-    
+
     if noise != 0:
         gn = galsim.GaussianNoise(sigma=noise, rng=rng)
         star.image.addNoise(gn)
@@ -1129,6 +1129,27 @@ def test_des2():
     import os
     import fitsio
 
+    if __name__ == '__main__':
+        verbose = 2
+        nstars_qr = None
+        order_qr = 3
+        tol = 1.e-3
+        nstars_qrp = 6
+        order_qrp = 2
+        tol_qrp = 0.1
+    else:
+        # When running from nosetests, use fewer stars and lower order to speed up the
+        # non-standard (and much slower) ways of running the code.
+        # We still run the main test that the checkerboard isn't present at the full
+        # order and using all stars to make that a fair regression test.
+        verbose = 0
+        nstars_qr = 10
+        order_qr = 1
+        tol = 0.03
+        nstars_qrp = 3
+        order_qrp = 1
+        tol_qrp = 0.1
+
     image_file = 'input/D00362921_r_c57_r2331p02_immasked.fits.fz'
     cat_file = 'input/D00362921_r_c57_r2331p02_use_stars.fits'
     orig_image = galsim.fits.read(image_file)
@@ -1174,11 +1195,8 @@ def test_des2():
                 'max_remove' : 0.01
             }
         },
+        'verbose' : verbose,
     }
-    if __name__ == '__main__':
-        config['verbose'] = 2
-    else:
-        config['verbose'] = 0
 
     t0 = time.time()
     piff.piffify(config)
@@ -1213,16 +1231,19 @@ def test_des2():
 
     # Repeat with QR solution
     config['psf']['interp']['use_qr'] = True
+    config['psf']['interp']['order'] = order_qr
+    config['input']['nstars'] = nstars_qr
     t2 = time.time()
     piff.piffify(config)
     t3 = time.time()
     print('Time for QR solution = ',t3-t2)
     psf = piff.read(psf_file)
     test_stamp = psf.draw(x=test_x, y=test_y, stamp_size=25)
-    np.testing.assert_almost_equal(test_stamp.array, check_stamp.array, decimal=2)
+    np.testing.assert_allclose(test_stamp.array, check_stamp.array, rtol=tol, atol=tol)
 
     # With only 10 stars (or fewer), there are not enough constraints for a 3rd order solution
     config['input']['nstars'] = 10
+    config['psf']['interp']['order'] = 3
     with np.testing.assert_raises(RuntimeError):
         piff.piffify(config)
 
@@ -1230,29 +1251,29 @@ def test_des2():
     # I manually duplicated some of the entries in the catalog, so the solution is singular.
     # Also, reduce the order to only 2 and nstars to 6 so it doesn't take too long.
     config['input']['cat_file_name'] = 'input/des2_qrp_cat.fits'
-    config['psf']['interp']['order'] = 2
-    config['input']['nstars'] = 6
+    config['psf']['interp']['order'] = order_qrp
+    config['input']['nstars'] = nstars_qrp
     t4 = time.time()
     piff.piffify(config)
     t5 = time.time()
-    print('Time for QRP solution (with order=2 and nstars=6) = ',t5-t4)
+    print('Time for QRP solution (with order=%s and nstars=%s) = %s'%(order_qrp,nstars_qrp,t5-t4))
     psf = piff.read(psf_file)
     test_stamp = psf.draw(x=test_x, y=test_y, stamp_size=25)
     # This wouldn't be expected to match precisely anymore, but at 1 d.p. it still does.
     # Basically saying the solution doesn't go completely haywire.
-    np.testing.assert_almost_equal(test_stamp.array, check_stamp.array, decimal=1)
+    np.testing.assert_allclose(test_stamp.array, check_stamp.array, rtol=tol_qrp, atol=tol_qrp)
 
     # Also exercise the SVD fallback to the non-QR method.
     config['psf']['interp']['use_qr'] = False
     t6 = time.time()
     piff.piffify(config)
     t7 = time.time()
-    print('Time for SVD solution (with order=2 and nstars=6) = ',t7-t6)
+    print('Time for SVD solution (with order=%s and nstars=%s) = %s'%(order_qrp,nstars_qrp,t7-t6))
     psf = piff.read(psf_file)
     test_stamp = psf.draw(x=test_x, y=test_y, stamp_size=25)
     # This wouldn't be expected to match precisely anymore, but at 1 d.p. it still does.
     # Basically saying the solution doesn't go completely haywire.
-    np.testing.assert_almost_equal(test_stamp.array, check_stamp.array, decimal=1)
+    np.testing.assert_allclose(test_stamp.array, check_stamp.array, rtol=tol_qrp, atol=tol_qrp)
 
 @timer
 def test_var():
