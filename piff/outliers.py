@@ -209,20 +209,29 @@ class ChisqOutliers(Outliers):
            chisq distribution to give the equivalent rejection probability that corresponds
            to that many sigma.
     """
-    def __init__(self, thresh=None, ndof=None, prob=None, nsigma=None, max_remove=None):
+    def __init__(self, thresh=None, ndof=None, prob=None, nsigma=None, max_remove=None,
+                 include_reserve=False):
         """
         Exactly one of thresh, ndof, nsigma, prop must be provided.
 
-        :param thresh:      The threshold in chisq above which an object is declared an outlier.
-        :param ndof:        The threshold as a multiple of the model's dof.
-        :param prob:        The probability limit that a chisq distribution with the model's dof
-                            would exceed the given value.
-        :param nsigma:      The number of sigma equivalent for the probability that a chisq
-                            distribution would exceed the given value.
-        :param max_remove:  The maximum number of outliers to remove on each iteration.  If this
-                            is a float < 1.0, then this is interpreted as a maximum fraction of
-                            stars to remove.  e.g. 0.01 will remove at most 1% of the stars.
-                            [default: None]
+        There is an option to include reserve stars in the outlier rejection, which is enabled
+        by setting ``include_reserve=True``.  This is probably not a good idea normally.
+        Reserve stars are often preferentially targeted by the outlier removal, which somewhat
+        lessens their case as fair test points for diagnostics.  However, it is still an option
+        in case you want to use it.
+
+        :param thresh:          The threshold in chisq above which an object is declared an outlier.
+        :param ndof:            The threshold as a multiple of the model's dof.
+        :param prob:            The probability limit that a chisq distribution with the model's dof
+                                would exceed the given value.
+        :param nsigma:          The number of sigma equivalent for the probability that a chisq
+                                distribution would exceed the given value.
+        :param max_remove:      The maximum number of outliers to remove on each iteration.  If this
+                                is a float < 1.0, then this is interpreted as a maximum fraction of
+                                stars to remove.  e.g. 0.01 will remove at most 1% of the stars.
+                                [default: None]
+        :param include_reserve: Whether to include reserve stars as potential stars to be
+                                removed as outliers. [default: False]
         """
         if all( (thresh is None, ndof is None, prob is None, nsigma is None) ):
             raise TypeError("One of thresh, ndof, prob, or nsigma is required.")
@@ -242,12 +251,14 @@ class ChisqOutliers(Outliers):
         self.ndof = ndof
         self.prob = prob
         self.max_remove = max_remove
+        self.include_reserve = include_reserve
 
         self.kwargs = {
             'thresh' : thresh,
             'ndof' : ndof,
             'prob' : prob,
             'max_remove' : max_remove,
+            'include_reserve' : include_reserve,
         }
 
     def _get_thresh(self, dof):
@@ -268,11 +279,17 @@ class ChisqOutliers(Outliers):
                                     were removed.
         """
         logger = galsim.config.LoggerWrapper(logger)
-        nstars = len(stars)
+
+        if self.include_reserve:
+            use_stars = stars
+        else:
+            use_stars = [ s for s in stars if not s.is_reserve ]
+
+        nstars = len(use_stars)
         logger.debug("Checking %d stars for outliers", nstars)
 
-        chisq = np.array([ s.fit.chisq for s in stars ])
-        dof = np.array([ s.fit.dof for s in stars ])
+        chisq = np.array([ s.fit.chisq for s in use_stars ])
+        dof = np.array([ s.fit.dof for s in use_stars ])
 
         # Scale up threshold by global chisq/dof.
         factor = np.sum(chisq) / np.sum(dof)
@@ -306,7 +323,7 @@ class ChisqOutliers(Outliers):
 
         if max_remove is None or nremoved <= max_remove:
             good = chisq <= thresh
-            good_stars = [ s for g, s in zip(good, stars) if g ]
+            good_stars = [ s for g, s in zip(good, use_stars) if g ]
         else:
             # Since the thresholds are not necessarily all equal, this might be tricky to
             # figure out which ones should be removed.
@@ -321,7 +338,11 @@ class ChisqOutliers(Outliers):
             new_thresh_index = np.argpartition(diff, -nremoved)[-nremoved]
             new_thresh = diff[new_thresh_index]
             good = diff < new_thresh
-            good_stars = [ s for g, s in zip(good, stars) if g ]
+            good_stars = [ s for g, s in zip(good, use_stars) if g ]
+
+        # Add back the reserve stars if we aren't including them in the cut.
+        if not self.include_reserve:
+            good_stars += [ s for s in stars if s.is_reserve ]
 
         if nremoved > 0:
             logger.debug("chisq = %s",chisq[~(chisq <= thresh)])
