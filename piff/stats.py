@@ -552,7 +552,7 @@ class HSMCatalogStats(Stats):
         :T_model:   The size of the PSF model at the same locations as the star.
         :g1_model:  The g1 component of the PSF model.
         :g2_model:  The g2 component of the PSF model.
-        :reserve:   Whether the star was a reserve star. (Placeholder -- always false now.)
+        :reserve:   Whether the star was a reserve star.
     """
     def __init__(self, file_name=None, logger=None):
         """
@@ -580,7 +580,10 @@ class HSMCatalogStats(Stats):
         self.u = positions[mask, 0]
         self.v = positions[mask, 1]
         self.flux = shapes_truth[mask, 0]
-        self.reserve = np.zeros_like(self.u, dtype=bool)  # For now, all reserve = False
+        self.reserve = np.zeros_like(self.u, dtype=bool)
+        for i,s in enumerate(stars):
+            if s.is_reserve:
+                self.reserve[i] = True
         self.T_data = shapes_truth[mask, 3]
         self.g1_data = shapes_truth[mask, 4]
         self.g2_data = shapes_truth[mask, 5]
