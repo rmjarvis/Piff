@@ -916,7 +916,7 @@ def test_des_image():
 
     if __name__ == '__main__':
         # These match what Gary used in fit_des.py
-        nstars = None
+        nstars = 117  # This is all of them.
         scale = 0.15
         size = 31
         order = 2
@@ -973,7 +973,8 @@ def test_des_image():
             'outliers' : {
                 'type' : 'Chisq',
                 'nsigma' : nsigma,
-                'max_remove' : 3
+                'max_remove' : 3,
+                'include_reserve' : False,
             },
         },
     }
@@ -1063,6 +1064,14 @@ def test_des_image():
     stars, wcs, pointing = piff.Input.process(config['input'])
     print('read psf')
     psf = piff.read(psf_file)
+    nreserve = len([s for s in psf.stars if s.is_reserve])
+    ntot = len(psf.stars)
+    print('nremoved = ',psf.nremoved)
+    print('nreserve = ',nreserve)
+    print('ntot = ',ntot)
+    assert nreserve == int(0.2 * nstars)
+    assert ntot == nstars - psf.nremoved
+
     stars = [psf.model.initialize(s) for s in stars]
     flux = stars[0].fit.flux
     offset = stars[0].center_to_offset(stars[0].fit.center)
@@ -1093,6 +1102,24 @@ def test_des_image():
                              flux=flux, offset=offset)
         orig_stamp = orig_image[stars[0].image.bounds] - stars[0]['sky']
         np.testing.assert_almost_equal(fit_stamp.array/flux, orig_stamp.array/flux, decimal=2)
+
+    # Repeat with include_reserve=True to see how that goes.
+    # It seems to remove more reserve stars than non-reserve, so I'm not sure it's a great idea.
+    # That's why the default is False.
+    print('Repeat with include_reserve=True')
+    config['psf']['outliers']['include_reserve'] = True
+    piff.piffify(config)
+    psf = piff.read(psf_file)
+    nreserve = len([s for s in psf.stars if s.is_reserve])
+    ntot = len(psf.stars)
+    print('nremoved = ',psf.nremoved)
+    print('nreserve = ',nreserve)
+    print('ntot = ',ntot)
+    assert nreserve < int(0.2 * nstars)  # I.e. some reserve stars are removed.
+    assert ntot == nstars - psf.nremoved
+    assert nreserve < 0.2 * ntot  # This isn't a priori required, but evidence that reserve
+                                  # stars are preferentially targeted by the outlier rejection.
+
 
 @timer
 def test_des2():
