@@ -118,7 +118,7 @@ class SimplePSF(PSF):
 
         logger.debug("Initializing models")
         # model.initialize may fail
-        nremoved = 0
+        self.nremoved = 0
         new_stars = []
         for s in self.stars:
             try:
@@ -126,13 +126,13 @@ class SimplePSF(PSF):
             except Exception as e:  # pragma: no cover
                 logger.warning("Failed initializing star at %s. Excluding it.", s.image_pos)
                 logger.warning("  -- Caught exception: %s",e)
-                nremoved += 1
+                self.nremoved += 1
             else:
                 new_stars.append(new_star)
-        if nremoved == 0:
+        if self.nremoved == 0:
             logger.debug("No stars removed in initialize step")
         else:
-            logger.info("Removed %d stars in initialize", nremoved)
+            logger.info("Removed %d stars in initialize", self.nremoved)
         self.stars = new_stars
 
         logger.debug("Initializing interpolator")
@@ -166,7 +166,7 @@ class SimplePSF(PSF):
             # Perform the fit or compute design matrix as appropriate using just non-reserve stars
             fit_fn = self.model.chisq if quadratic_chisq else self.model.fit
 
-            nremoved = 0
+            nremoved = 0  # For this iteration
             new_use_stars = []
             for star in use_stars:
                 try:
@@ -227,7 +227,7 @@ class SimplePSF(PSF):
             self.chisq = chisq
             self.last_delta_chisq = oldchisq-chisq
             self.dof = dof
-            self.nremoved = nremoved
+            self.nremoved += nremoved  # Keep track of the total number removed in all iterations.
 
             # Very simple convergence test here:
             # Note, the lack of abs here means if chisq increases, we also stop.
