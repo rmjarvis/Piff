@@ -164,38 +164,6 @@ def read_kwargs(fits, extname):
                 pass
     return kwargs
 
-def hsm(star):
-    """ Use HSM to measure moments of star image.
-    """
-    image, weight, image_pos = star.data.getImage()
-    # Note that FindAdaptiveMom only respects the weight function in a binary sense.  I.e., pixels
-    # with non-zero weight will be included in the moment measurement, those with weight=0.0 will be
-    # excluded.
-    mom = image.FindAdaptiveMom(weight=weight, strict=False)
-
-    sigma = mom.moments_sigma
-    shape = mom.observed_shape
-    # These are in pixel coordinates.  Need to convert to world coords.
-    jac = image.wcs.jacobian(image_pos=image_pos)
-    scale, shear, theta, flip = jac.getDecomposition()
-    # Fix sigma
-    sigma *= scale
-    # Fix shear.  First the flip, if any.
-    if flip:
-        shape = galsim.Shear(g1 = -shape.g1, g2 = shape.g2)
-    # Next the rotation
-    shape = galsim.Shear(g = shape.g, beta = shape.beta + theta)
-    # Finally the shear
-    shape = shear + shape
-
-    flux = mom.moments_amp
-
-    localwcs = image.wcs.local(image_pos)
-    center = localwcs.toWorld(mom.moments_centroid) - localwcs.toWorld(image_pos)
-    flag = mom.moments_status
-
-    return flux, center.x, center.y, sigma, shape.g1, shape.g2, flag
-
 def estimate_cov_from_jac(jac):
     """Estimate a covariance matrix from a jacobian as returned by scipy.optimize.least_squares
     .. math::

@@ -154,7 +154,7 @@ class Stats(object):
         logger = galsim.config.LoggerWrapper(logger)
         # measure moments with Gaussian on image
         logger.debug("Measuring shapes of real stars")
-        shapes_truth = np.array([ piff.util.hsm(star) for star in stars ])
+        shapes_truth = np.array([ star.hsm for star in stars ])
         for star, shape in zip(stars, shapes_truth):
             logger.debug("real shape for star at %s is %s",star.image_pos, shape)
 
@@ -164,7 +164,7 @@ class Stats(object):
 
         # generate the model stars and measure moments
         logger.debug("Generating and Measuring Model Stars")
-        shapes_model = np.array([ piff.util.hsm(star) for star in psf.drawStarList(stars)])
+        shapes_model = np.array([ star.hsm for star in psf.drawStarList(stars)])
         for star, shape in zip(stars, shapes_model):
             logger.debug("model shape for star at %s is %s",star.image_pos, shape)
 

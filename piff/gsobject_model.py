@@ -21,7 +21,7 @@ import galsim
 
 from .model import Model
 from .star import Star, StarFit
-from .util import hsm, estimate_cov_from_jac
+from .util import estimate_cov_from_jac
 
 
 class GSObjectModel(Model):
@@ -61,10 +61,12 @@ class GSObjectModel(Model):
 
     def moment_fit(self, star, logger=None):
         """Estimate transformations needed to bring self.gsobj towards given star."""
-        flux, cenu, cenv, size, g1, g2 = star.data.properties['hsm']
+        flux, cenu, cenv, size, g1, g2, flag = star.hsm
+        if flag != 0:
+            raise RuntimeError("Error initializing star fit values using hsm.")
         shape = galsim.Shear(g1=g1, g2=g2)
 
-        ref_flux, ref_cenu, ref_cenv, ref_size, ref_g1, ref_g2, flag = hsm(self.draw(star))
+        ref_flux, ref_cenu, ref_cenv, ref_size, ref_g1, ref_g2, flag = self.draw(star).hsm
         ref_shape = galsim.Shear(g1=ref_g1, g2=ref_g2)
         if flag != 0:
             raise RuntimeError("Error calculating model moments for this star.")
@@ -218,17 +220,6 @@ class GSObjectModel(Model):
         logger.debug("Done.  Elapsed time: {0}".format(time.time() - t0))
         return flux, du, dv, scale, g1, g2, var
 
-    @staticmethod
-    def with_hsm(star):
-        if not hasattr(star.data.properties, 'hsm'):
-            flux, cenu, cenv, size, g1, g2, flag = hsm(star)
-            if flag != 0:
-                raise RuntimeError("Error initializing star fit values using hsm.")
-            sd = star.data.copy()
-            sd.properties['hsm'] = flux, cenu, cenv, size, g1, g2
-            return Star(sd, star.fit)
-        return star
-
     def fit(self, star, fastfit=None, logger=None):
         """Fit the image either using HSM or least-squares minimization.
 
@@ -247,9 +238,6 @@ class GSObjectModel(Model):
         """
         if fastfit is None:
             fastfit = self._fastfit
-
-        if not hasattr(star.data.properties, 'hsm'):
-            star = self.with_hsm(star)
 
         if fastfit:
             flux, du, dv, scale, g1, g2, var = self.moment_fit(star, logger=logger)
@@ -286,7 +274,6 @@ class GSObjectModel(Model):
 
         :returns: a new initialized Star.
         """
-        star = self.with_hsm(star)
         if star.fit.params is None:
             if self._centered:
                 params = np.array([ 1.0, 0.0, 0.0])

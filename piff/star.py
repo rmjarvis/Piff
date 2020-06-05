@@ -71,6 +71,7 @@ class Star(object):
         star.flux       The flux of the object
         star.center     The nominal center of the object (not necessarily the centroid)
         star.is_reserve Whether the star is reserved from being used to fit the PSF
+        star.hsm        HSM measurements for this star as a tuple: (flux, cenu, cenv, size, g1, g2)
     """
     def __init__(self, data, fit):
         """Constructor for Star instance.
@@ -158,6 +159,50 @@ class Star(object):
     @property
     def is_reserve(self):
         return self.data.properties.get('is_reserve',False)
+
+    def run_hsm(self):
+        """Use HSM to measure moments of star image.
+
+        This usually isn't called directly.  The results (without flag) are accessible as star.hsm,
+        which caches the results, so repeated access is efficient.
+
+        :returns: (flux, cenu, cenv, size, g1, g2, flag)
+        """
+        image, weight, image_pos = self.data.getImage()
+        # Note that FindAdaptiveMom only respects the weight function in a binary sense.
+        # I.e., pixels with non-zero weight will be included in the moment measurement, those
+        # with weight=0.0 will be excluded.
+        mom = image.FindAdaptiveMom(weight=weight, strict=False)
+
+        sigma = mom.moments_sigma
+        shape = mom.observed_shape
+        # These are in pixel coordinates.  Need to convert to world coords.
+        jac = image.wcs.jacobian(image_pos=image_pos)
+        scale, shear, theta, flip = jac.getDecomposition()
+        # Fix sigma
+        sigma *= scale
+        # Fix shear.  First the flip, if any.
+        if flip:
+            shape = galsim.Shear(g1 = -shape.g1, g2 = shape.g2)
+        # Next the rotation
+        shape = galsim.Shear(g = shape.g, beta = shape.beta + theta)
+        # Finally the shear
+        shape = shear + shape
+
+        flux = mom.moments_amp
+
+        localwcs = image.wcs.local(image_pos)
+        center = localwcs.toWorld(mom.moments_centroid) - localwcs.toWorld(image_pos)
+        flag = mom.moments_status
+
+        return flux, center.x, center.y, sigma, shape.g1, shape.g2, flag
+
+    @property
+    def hsm(self):
+        if not hasattr(self, '_hsm'):
+            flux, cenu, cenv, size, g1, g2, flag = self.run_hsm()
+            self._hsm = flux, cenu, cenv, size, g1, g2, flag
+        return self._hsm
 
     @classmethod
     def makeTarget(cls, x=None, y=None, u=None, v=None, properties={}, wcs=None, scale=None,
