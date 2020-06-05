@@ -24,7 +24,7 @@ import glob
 import os
 import galsim
 
-from .util import hsm, run_multi, calculateSNR
+from .util import run_multi, calculateSNR
 from .star import Star, StarData
 
 class Input(object):
@@ -717,7 +717,7 @@ class InputFiles(Input):
 
         if hsm_size_reject != 0:
             # Calculate the hsm size for each star and throw out extreme outliers.
-            sigma = [hsm(star)[3] for star in stars]
+            sigma = [star.hsm[3] for star in stars]
             med_sigma = np.median(sigma)
             iqr_sigma = scipy.stats.iqr(sigma)
             logger.debug("Doing hsm sigma rejection.")

@@ -228,7 +228,7 @@ def test_center():
 
         # Measured centroid of PSF model should be close to 0,0
         star3 = mod.draw(star.withFlux(influx, (0,0)))
-        flux, cenx, ceny, sigma, e1, e2, flag = piff.util.hsm(star3)
+        flux, cenx, ceny, sigma, e1, e2, flag = star3.hsm
         print('HSM measurements: ',flux, cenx, ceny, sigma, g1, g2, flag)
         np.testing.assert_allclose(cenx, 0, atol=1.e-4)
         np.testing.assert_allclose(ceny, 0, atol=1.e-4)
@@ -282,7 +282,7 @@ def test_uncentered():
 
         # Measured centroid of PSF model should be close to u0, v0
         star3 = mod.draw(star.withFlux(influx, (0,0)))
-        flux, cenx, ceny, sigma, e1, e2, flag = piff.util.hsm(star3)
+        flux, cenx, ceny, sigma, e1, e2, flag = star3.hsm
         print('HSM measurements: ',flux, cenx, ceny, sigma, g1, g2, flag)
         np.testing.assert_allclose(cenx, u0, rtol=1.e-4)
         np.testing.assert_allclose(ceny, v0, rtol=1.e-4)
