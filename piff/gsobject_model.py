@@ -19,7 +19,7 @@
 import numpy as np
 import galsim
 
-from .model import Model, ModelFitError
+from .model import Model
 from .star import Star, StarFit
 from .util import hsm, estimate_cov_from_jac
 
@@ -66,8 +66,8 @@ class GSObjectModel(Model):
 
         ref_flux, ref_cenu, ref_cenv, ref_size, ref_g1, ref_g2, flag = hsm(self.draw(star))
         ref_shape = galsim.Shear(g1=ref_g1, g2=ref_g2)
-        if flag:
-            raise ModelFitError("Error calculating model moments for this star.")
+        if flag != 0:
+            raise RuntimeError("Error calculating model moments for this star.")
 
         param_flux = star.fit.flux
         if star.fit.params is None:

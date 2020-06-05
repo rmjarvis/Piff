@@ -21,7 +21,7 @@ from __future__ import print_function
 import numpy as np
 import galsim
 
-from .model import Model, ModelFitError
+from .model import Model
 from .interp import Interp
 from .outliers import Outliers
 from .psf import PSF
@@ -171,7 +171,7 @@ class SimplePSF(PSF):
             for star in use_stars:
                 try:
                     star = fit_fn(star, logger=logger)
-                except ModelFitError as e:  # pragma: no cover
+                except Exception as e:  # pragma: no cover
                     logger.warning("Failed fitting star at %s.", star.image_pos)
                     logger.warning("Excluding it from this iteration.")
                     logger.warning("  -- Caught exception: %s", e)
