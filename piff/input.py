@@ -454,7 +454,7 @@ class InputFiles(Input):
         self.reserve_frac = config.get('reserve_frac', 0.)
         try:
             self.rng = np.random.default_rng(config.get('seed', None))
-        except AttributError:  # pragma: no cover
+        except AttributeError:  # pragma: no cover
             # numpy <= 1.16 doesn't have this yet.  But RandomState is fine.
             self.rng = np.random.RandomState(config.get('seed', None))
 
