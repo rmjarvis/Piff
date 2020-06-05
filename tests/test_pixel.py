@@ -1108,6 +1108,7 @@ def test_des_image():
     # That's why the default is False.
     print('Repeat with include_reserve=True')
     config['psf']['outliers']['include_reserve'] = True
+    config['psf']['outliers']['max_remove'] = 0.01
     piff.piffify(config)
     psf = piff.read(psf_file)
     nreserve = len([s for s in psf.stars if s.is_reserve])
