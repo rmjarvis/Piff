@@ -576,7 +576,9 @@ def test_hsmcatalog():
         'input' : {
             'image_file_name' : image_file,
             'cat_file_name' : cat_file,
-            'stamp_size' : 48
+            'stamp_size' : 48,
+            'reserve_frac' : 0.2,
+            'seed' : 123
         },
         'psf' : {
             'model' : { 'type' : 'Gaussian',
@@ -608,7 +610,10 @@ def test_hsmcatalog():
     np.testing.assert_allclose(data['x'], true_data['x'])
     np.testing.assert_allclose(data['y'], true_data['y'])
     np.testing.assert_allclose(data['flux'], 123.45, atol=0.001)
-    np.testing.assert_array_equal(data['reserve'], False)
+    print('reserve = ',data['reserve'])
+    print('nreserve = ',np.sum(data['reserve']))
+    print('ntot = ',len(data['reserve']))
+    assert np.sum(data['reserve']) == int(0.2 * len(data['reserve']))
     np.testing.assert_allclose(data['T_model'], data['T_data'], rtol=1.e-4)
     np.testing.assert_allclose(data['g1_model'], data['g1_data'], rtol=1.e-4)
     np.testing.assert_allclose(data['g2_model'], data['g2_data'], rtol=1.e-4)
