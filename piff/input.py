@@ -120,12 +120,8 @@ class Input(object):
                 logger.info("Reserve %s of %s (reserve_frac=%s) input stars",
                             nreserve, len(stars), self.reserve_frac)
                 reserve_list = self.rng.choice(len(stars), nreserve, replace=False)
-                # Set them all to False, then update the reserve fraction to True.
-                # This makes sure they all have this value in the properties dict.
-                for star in stars:
-                    star.data.properties['is_reserve'] = False
-                for i in reserve_list:
-                    stars[i].data.properties['is_reserve'] = True
+                for i, star in enumerate(stars):
+                    star.data.properties['is_reserve'] = i in reserve_list
 
         # Concatenate the star lists into a single list
         stars = [s for slist in all_stars if slist is not None for s in slist if slist]
@@ -275,9 +271,8 @@ class InputFiles(Input):
                             multiple files at once. [default: 1]
             :reserve_frac:  Reserve a fraction of the stars from the PSF calculations, so they
                             can serve as fair points for diagnostic testing.  These stars will
-                            have outlier rejection performed along with the regular stars, but
-                            will not be used to constrain the PSF model.  The output files
-                            will contain the reserve stars, flagged as such.  Generally 0.2 is a
+                            not be used to constrain the PSF model, but the output files will
+                            contain the reserve stars, flagged as such.  Generally 0.2 is a
                             good choice if you are going to use this. [default: 0.]
             :seed:          A seed to use for numpy.random.default_rng, if desired. [default: None]
 

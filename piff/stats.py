@@ -580,10 +580,7 @@ class HSMCatalogStats(Stats):
         self.u = positions[mask, 0]
         self.v = positions[mask, 1]
         self.flux = shapes_truth[mask, 0]
-        self.reserve = np.zeros_like(self.u, dtype=bool)
-        for i,s in enumerate(stars):
-            if s.is_reserve:
-                self.reserve[i] = True
+        self.reserve = np.array([s.is_reserve for s in stars], dtype=bool)
         self.T_data = shapes_truth[mask, 3]
         self.g1_data = shapes_truth[mask, 4]
         self.g2_data = shapes_truth[mask, 5]
