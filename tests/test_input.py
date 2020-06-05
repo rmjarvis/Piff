@@ -165,6 +165,39 @@ def test_basic():
         _, _, image_pos, _, _, _ = input.getRawImageData(i)
         assert len(image_pos) == 37
 
+    # Can limit stars differently on each chip
+    config['nstars'] = '$0 if @image_num == 1 else 20 if @image_num == 2 else 40'
+    input = piff.InputFiles(config, logger=logger)
+    assert input.nimages == 3
+    for i in range(3):
+        _, _, image_pos, _, _, _ = input.getRawImageData(i)
+        if i == 0:
+            assert len(image_pos) == 40
+        elif i == 1:
+            assert len(image_pos) == 0
+        else:
+            assert len(image_pos) == 20
+
+    # Semi-gratuitous use of reserve_frac when one image has no stars for coverage
+    config['reserve_frac'] = 0.2
+    config['use_partial'] = True
+    config['ra'] = 6.0
+    config['dec'] = -30.0
+    input = piff.InputFiles(config, logger=logger)
+    assert input.nimages == 3
+    stars = input.makeStars(logger=logger)
+    print('stars = ',stars)
+    print('len stars = ',len(stars))
+    assert len(stars) == 60
+    assert len([s for s in stars if s.chipnum == 0]) == 40
+    assert len([s for s in stars if s.chipnum == 1]) == 0
+    assert len([s for s in stars if s.chipnum == 2]) == 20
+    reserve_stars = [s for s in stars if s.is_reserve]
+    assert len(reserve_stars) == 12
+    assert len([s for s in reserve_stars if s['chipnum'] == 0]) == 8
+    assert len([s for s in reserve_stars if s['chipnum'] == 1]) == 0
+    assert len([s for s in reserve_stars if s['chipnum'] == 2]) == 4
+
 
 @timer
 def test_invalid():
