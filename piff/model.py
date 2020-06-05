@@ -23,11 +23,6 @@ from .util import write_kwargs, read_kwargs
 from .star import Star, StarData
 
 
-# Raise this if there's a failure in the Model.fit() method.
-class ModelFitError(Exception):
-    pass
-
-
 class Model(object):
     """The base class for modeling a single PSF (i.e. no interpolation yet)
 
