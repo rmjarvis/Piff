@@ -231,8 +231,8 @@ def meanify(config, logger=None):
 
     if 'statistic' in config['hyper']:
         if config['hyper']['statistic'] not in ['mean', 'median']:
-            raise ValueError("%s is not a suported statistic (only mean and median are currently suported)"
-                             %config['hyper']['statistic'])
+            raise ValueError("%s is not a suported statistic (only mean and median are currently "
+                             "suported)"%config['hyper']['statistic'])
         else:
             stat_used = config['hyper']['statistic']
     else:
@@ -256,15 +256,14 @@ def meanify(config, logger=None):
             file_name = os.path.join(dir, file_name)
         psf_list = sorted(glob.glob(file_name))
         if len(psf_list) == 0:
-            raise ValueError("No files found corresponding to "+config['file_name'])
-    elif not isinstance(config['file_name'], dict):
-        raise ValueError("file_name should be either a dict or a string")
+            raise ValueError("No files found corresponding to "+config['output']['file_name'])
+    else:
+        raise ValueError("file_name should be either a list or a string")
 
-    if psf_list is not None:
-        logger.debug('psf_list = %s',psf_list)
-        npsfs = len(psf_list)
-        logger.debug('npsfs = %d',npsfs)
-        config['output']['file_name'] = psf_list
+    logger.debug('psf_list = %s',psf_list)
+    npsfs = len(psf_list)
+    logger.debug('npsfs = %d',npsfs)
+    config['output']['file_name'] = psf_list
 
     file_name_in = config['output']['file_name']
     logger.info("Looking for PSF at %s", file_name_in)

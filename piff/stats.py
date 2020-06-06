@@ -40,11 +40,11 @@ class Stats(object):
     else with it besides just write it to a file.
     """
     @classmethod
-    def process(cls, config_stats, logger):
+    def process(cls, config_stats, logger=None):
         """Parse the stats field of the config dict.
 
         :param config_stats:    The configuration dict for the stats field.
-        :param logger:          A logger object for logging debug info.
+        :param logger:          A logger object for logging debug info. [default: None]
 
         :returns: a Stats instance
         """
@@ -250,9 +250,6 @@ class ShapeHistogramsStats(Stats):
 
         :returns: fig, ax
         """
-        if not hasattr(self, 'T'):
-            raise RuntimeError("Shape Histogram has not been computed yet.  Cannot plot.")
-
         from matplotlib.figure import Figure
         fig = Figure(figsize = (15,10))
         # In matplotlib 2.0, this will be
@@ -273,6 +270,9 @@ class ShapeHistogramsStats(Stats):
         axs[1, 2].set_xlabel(r'$g_{2, data} - g_{2, model}$')
         if self.skip:
             return fig, axs
+
+        if not hasattr(self, 'T'):
+            raise RuntimeError("Must call compute before calling plot or write")
 
         # some defaults for the kwargs
         if 'histtype' not in kwargs:
@@ -513,6 +513,9 @@ class RhoStats(Stats):
         if self.skip:
             return fig,axs
 
+        if not hasattr(self, 'rho1'):
+            raise RuntimeError("Must call compute before calling plot or write")
+
         # Left plot is rho1,3,4
         rho1 = self._plot_single(axs[0], self.rho1, 'blue', 'o')
         rho3 = self._plot_single(axs[0], self.rho3, 'green', 's', 0.1)
@@ -609,6 +612,8 @@ class HSMCatalogStats(Stats):
             file_name = self.file_name
         if file_name is None:
             raise ValueError("No file_name specified for %s"%self.__class__.__name__)
+        if not hasattr(self, 'u'):
+            raise RuntimeError("Must call compute before calling write")
 
         logger.warning("Writing HSM catalog to file %s",file_name)
 

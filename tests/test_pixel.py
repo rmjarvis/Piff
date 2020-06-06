@@ -20,6 +20,7 @@ import yaml
 import subprocess
 import time
 import os
+import fitsio
 
 from piff_test_helper import get_script_name, timer
 
@@ -93,6 +94,10 @@ def test_simplest():
     print('max image abs diff = ',np.max(np.abs(star2.image.array-s.image.array)))
     print('max image abs value = ',np.max(np.abs(s.image.array)))
     np.testing.assert_almost_equal(star2.image.array, s.image.array, decimal=7)
+
+    # size <= 0 is invalid
+    np.testing.assert_raises(ValueError, piff.PixelGrid, du, 0)
+    np.testing.assert_raises(ValueError, piff.PixelGrid, du, -32)
 
 
 @timer
@@ -272,6 +277,62 @@ def test_interp():
     print('max image abs value = ',np.max(np.abs(s0.image.array)))
     peak = np.max(np.abs(s0.image.array))
     np.testing.assert_almost_equal(s1.image.array/peak, s0.image.array/peak, decimal=2)
+
+
+@timer
+def test_basis_interp():
+    """Test BasisInterp class
+    """
+    # Most of the correctness tests are interspersed with the PixelGrid tests, since they
+    # are pretty coupled, at least in terms of how they were developed.
+    # Here we just check some interface details about the base class.
+
+    # Users shouldn't ever make a BasisInterp base class directly.
+    # But it's not actually an error until they try to do something non-trivial.
+    basis = piff.BasisInterp()
+    assert not basis.use_qr
+    assert basis.q == None
+
+    np.testing.assert_raises(NotImplementedError, basis.basis, None)
+    np.testing.assert_raises(NotImplementedError, basis.constant)
+
+    # The BaisPolynomial class is the real thing that gets made in practice
+    basis = piff.BasisPolynomial(order=0)
+    assert not basis.use_qr
+
+    star = make_gaussian_data(2.0, 0., 0., flux=100, du=0.2, fpu=2, fpv=3)
+    assert star.u == 2
+    assert star.v == 3
+    assert basis.basis(star) == [1]  # order=0 is just a constant == u^0 v^0
+
+    # Invalid to do much of anything without initializing.
+    np.testing.assert_raises(RuntimeError, basis.solve, [star])
+    np.testing.assert_raises(RuntimeError, basis.interpolate, star)
+    file_name = os.path.join('output','test_basis_interp.fits')
+    with fitsio.FITS(file_name,'rw',clobber=True) as fout:
+        with np.testing.assert_raises(RuntimeError):
+            basis.write(fout, extname='basis')
+
+    # Other options for order
+    basis = piff.BasisPolynomial(order=2)
+    print('basis = ',basis.basis(star))
+    np.testing.assert_equal(basis.basis(star), [1, 3, 9, 2, 6, 4])
+    basis = piff.BasisPolynomial(order=[2,2])
+    print('basis = ',basis.basis(star))
+    np.testing.assert_equal(basis.basis(star), [1, 3, 9, 2, 6, 4])
+    basis = piff.BasisPolynomial(order=[2,2], max_order=2)
+    print('basis = ',basis.basis(star))
+    np.testing.assert_equal(basis.basis(star), [1, 3, 9, 2, 6, 4])
+    basis = piff.BasisPolynomial(order=[2,2], max_order=4)
+    np.testing.assert_equal(basis.basis(star), [1, 3, 9, 2, 6, 18, 4, 12, 36])
+    basis = piff.BasisPolynomial(order=[2,2], max_order=3)
+    np.testing.assert_equal(basis.basis(star), [1, 3, 9, 2, 6, 18, 4, 12])
+
+    np.testing.assert_raises(ValueError, piff.BasisPolynomial, order=[3,3,3])
+    np.testing.assert_raises(ValueError, piff.BasisPolynomial, order=[-1,0])
+    np.testing.assert_raises(ValueError, piff.BasisPolynomial, order=[-4,-1])
+    np.testing.assert_raises(ValueError, piff.BasisPolynomial, order=-2)
+    np.testing.assert_raises(ValueError, piff.BasisPolynomial, order=[3,3], max_order=-1)
 
 
 @timer
@@ -1324,6 +1385,7 @@ if __name__ == '__main__':
     test_oversample()
     test_center()
     test_interp()
+    test_basis_interp()
     test_missing()
     test_gradient()
     test_undersamp()

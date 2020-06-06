@@ -17,9 +17,11 @@ import galsim
 import numpy as np
 import piff
 import os
+import sys
 import subprocess
 import yaml
 import fitsio
+import copy
 
 from piff_test_helper import get_script_name, timer, CaptureLog
 
@@ -371,6 +373,66 @@ def test_single_image():
     assert 'PSF fit did not converge' in cl.output
 
 @timer
+def test_invalid_config():
+    # Test a few invalid uses of the config parsing.
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(verbose=2)
+    else:
+        logger = piff.config.setup_logger(log_file='output/test_invalid_config.log')
+    image_file = os.path.join('output','simple_image.fits')
+    cat_file = os.path.join('output','simple_cat.fits')
+    psf_file = os.path.join('output','simple_psf.fits')
+    config = {
+        'input' : {
+            'image_file_name' : image_file,
+            'cat_file_name' : cat_file,
+            'flag_col' : 'flag',
+            'use_flag' : 1,
+            'skip_flag' : 4,
+        },
+        'psf' : {
+            'model' : { 'type' : 'Gaussian',
+                        'fastfit': True,
+                        'include_pixel': False},
+            'interp' : { 'type' : 'Mean' },
+            'max_iter' : 10,
+            'chisq_thresh' : 0.2,
+        },
+        'output' : { 'file_name' : psf_file },
+    }
+    # Invalid variable specification
+    with np.testing.assert_raises(ValueError):
+        piff.parse_variables(config, ['verbose:0'], logger=logger)
+    # process needs both input and psf
+    with np.testing.assert_raises(ValueError):
+        piff.process(config={'input':config['input']}, logger=logger)
+    with np.testing.assert_raises(ValueError):
+        piff.process(config={'psf':config['psf']}, logger=logger)
+    # piffify also needs output
+    with np.testing.assert_raises(ValueError):
+        piff.piffify(config={'input':config['input']}, logger=logger)
+    with np.testing.assert_raises(ValueError):
+        piff.piffify(config={'psf':config['psf']}, logger=logger)
+    with np.testing.assert_raises(ValueError):
+        piff.piffify(config={'input':config['input'], 'psf':config['psf']}, logger=logger)
+    # plotify doesn't need psf, but needs a 'file_name' in output
+    with np.testing.assert_raises(ValueError):
+        piff.plotify(config={'input':config['input']}, logger=logger)
+    with np.testing.assert_raises(ValueError):
+        piff.plotify(config={'input':config['input'], 'output':{}}, logger=logger)
+
+    # Error if missing either model or interp
+    config2 = copy.deepcopy(config)
+    del config2['psf']['model']
+    with np.testing.assert_raises(ValueError):
+        piff.piffify(config2, logger)
+    config2['psf']['model'] = config['psf']['model']
+    del config2['psf']['interp']
+    with np.testing.assert_raises(ValueError):
+        piff.piffify(config2, logger)
+
+
+@timer
 def test_reserve():
     """Test the reserve_frac option.
     """
@@ -443,9 +505,93 @@ def test_reserve():
         # Fits should be good for both reserve and non-reserve stars
         np.testing.assert_almost_equal(star.fit.params, true_params, decimal=4)
 
+@timer
+def test_model():
+    """Test Model base class
+    """
+    # type is required
+    config = { 'include_pixel': False }
+    with np.testing.assert_raises(ValueError):
+        model = piff.Model.process(config)
+
+    # Can't do much with a base Model class
+    model = piff.Model()
+    np.testing.assert_raises(NotImplementedError, model.initialize, None)
+    np.testing.assert_raises(NotImplementedError, model.fit, None)
+
+    # Invalid to read a type that isn't a piff.Model type.
+    # Mock this by pretending that Gaussian is the only subclass of Model.
+    if sys.version_info < (3,): return  # mock only available on python 3
+    from unittest import mock
+    filename = os.path.join('input','D00240560_r_c01_r2362p01_piff.fits')
+    with mock.patch('piff.util.get_all_subclasses', return_value=[piff.Gaussian]):
+        with fitsio.FITS(filename,'r') as f:
+            np.testing.assert_raises(ValueError, piff.Model.read, f, extname='psf_model')
+
+
+@timer
+def test_interp():
+    """Test Interp base class
+    """
+    # type is required
+    config = { 'order' : 0, }
+    with np.testing.assert_raises(ValueError):
+        interp = piff.Interp.process(config)
+
+    # Can't do much with a base Interp class
+    interp = piff.Interp()
+    np.testing.assert_raises(NotImplementedError, interp.solve, None)
+    np.testing.assert_raises(NotImplementedError, interp.interpolate, None)
+    np.testing.assert_raises(NotImplementedError, interp.interpolateList, [None])
+
+    filename1 = os.path.join('output','test_interp.fits')
+    with fitsio.FITS(filename1,'rw',clobber=True) as f:
+        np.testing.assert_raises(NotImplementedError, interp._finish_write, f, extname='interp')
+    filename2 = os.path.join('input','D00240560_r_c01_r2362p01_piff.fits')
+    with fitsio.FITS(filename2,'r') as f:
+        np.testing.assert_raises(NotImplementedError, interp._finish_read, f, extname='interp')
+
+    # Invalid to read a type that isn't a piff.Interp type.
+    # Mock this by pretending that Mean is the only subclass of Interp.
+    if sys.version_info < (3,): return  # mock only available on python 3
+    from unittest import mock
+    with mock.patch('piff.util.get_all_subclasses', return_value=[piff.Mean]):
+        with fitsio.FITS(filename2,'r') as f:
+            np.testing.assert_raises(ValueError, piff.Interp.read, f, extname='psf_interp')
+
+
+@timer
+def test_psf():
+    """Test PSF base class
+    """
+    # Need a dummy star for the below calls
+    image = galsim.Image(1,1,scale=1)
+    stardata = piff.StarData(image, image.true_center)
+    star = piff.Star(stardata, None)
+
+    # Can't do much with a base PSF class
+    psf = piff.PSF()
+    np.testing.assert_raises(NotImplementedError, psf.parseKwargs, None)
+    np.testing.assert_raises(NotImplementedError, psf.interpolateStar, star)
+    np.testing.assert_raises(NotImplementedError, psf.interpolateStarList, [star])
+    np.testing.assert_raises(NotImplementedError, psf.drawStar, star)
+    np.testing.assert_raises(NotImplementedError, psf.drawStarList, [star])
+
+    # Invalid to read a type that isn't a piff.PSF type.
+    # Mock this by pretending that SingleChip is the only subclass of PSF.
+    if sys.version_info < (3,): return  # mock only available on python 3
+    from unittest import mock
+    filename = os.path.join('input','D00240560_r_c01_r2362p01_piff.fits')
+    with mock.patch('piff.util.get_all_subclasses', return_value=[piff.SingleChipPSF]):
+        np.testing.assert_raises(ValueError, piff.PSF.read, filename)
+
 
 if __name__ == '__main__':
     test_Gaussian()
     test_Mean()
     test_single_image()
+    test_invalid_config()
     test_reserve()
+    test_model()
+    test_interp()
+    test_psf()

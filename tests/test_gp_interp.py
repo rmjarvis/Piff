@@ -19,6 +19,7 @@ import numpy as np
 import piff
 import os
 import copy
+import fitsio
 from scipy.linalg import cholesky, cho_solve
 from sklearn.model_selection import train_test_split
 
@@ -207,6 +208,29 @@ def check_gp(stars_training, stars_validation, kernel, optimizer,
                                    np.mean(truth_hyperparameters, axis=0),
                                    rtol=rtol)
 
+    # Invalid kernel (can't use an instantiated kernel object for the kernel here)
+    with np.testing.assert_raises(TypeError):
+        piff.GPInterp(kernel=interp.gps[0].kernel, optimizer=optimizer)
+    # Invalid optimizer
+    with np.testing.assert_raises(ValueError):
+        piff.GPInterp(kernel=kernel, optimizer='invalid')
+    # Invalid number of kernels. (Can't tell until initialize)
+    if isinstance(kernel, str):
+        interp2 = piff.GPInterp(kernel=[kernel] * 4, optimizer=optimizer)
+        with np.testing.assert_raises(ValueError):
+            interp2.initialize(stars_training)
+
+    # Check I/O.
+    file_name = os.path.join('output', 'test_gp.fits')
+    with fitsio.FITS(file_name,'rw',clobber=True) as fout:
+        interp.write(fout, extname='gp')
+    with fitsio.FITS(file_name,'r') as fin:
+        interp2 = piff.Interp.read(fin, extname='gp')
+
+    stars_test = interp2.interpolateList(stars_validation)
+    y_test = np.array([star.fit.params for star in stars_test])
+    np.testing.assert_allclose(y_test, y_validation, atol=atol)
+
     if plotting:
         import matplotlib.pyplot as plt
         title = ["size", "$g_1$", "$g_2$"]
@@ -305,10 +329,10 @@ def test_gp_interp_isotropic():
         else:
             K = kernels[i][0]
 
-        stars_training, stars_validation = make_gaussian_random_fields(K, nstars[i],
-                                                                       xlim=-LIM[i], ylim=LIM[i],
-                                                                       seed=30352010, vmax=4e-2,
-                                                                       noise_level=noise_level)
+        stars_training, stars_validation = make_gaussian_random_fields(
+                K, nstars[i], xlim=-LIM[i], ylim=LIM[i],
+                seed=30352010, vmax=4e-2, noise_level=noise_level)
+
         check_gp(stars_training, stars_validation, kernels[i],
                  optimizer[i], rows=rows[i],
                  atol=atol, rtol=rtol, test_star_fit=test_star_fit[i],
@@ -421,8 +445,8 @@ def test_yaml():
     test_star = psf.interp.interpolate(piff.Star(target.data,None))
     np.testing.assert_almost_equal(test_star.fit.params, target.fit.params, decimal=3)
 
-if __name__ == "__main__":
 
+if __name__ == "__main__":
     test_gp_interp_isotropic()
     test_gp_interp_anisotropic()
     test_yaml()

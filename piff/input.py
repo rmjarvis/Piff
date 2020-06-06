@@ -369,7 +369,7 @@ class InputFiles(Input):
             del config['dir']
 
         if 'image_file_name' not in config:
-            raise AttributeError('Attribute image_file_name is required')
+            raise TypeError('Parameter image_file_name is required')
         elif isinstance(config['image_file_name'], list):
             image_list = config['image_file_name']
             if len(image_list) == 0:
@@ -385,7 +385,7 @@ class InputFiles(Input):
                 raise ValueError("No files found corresponding to "+config['image_file_name'])
         elif isinstance(config['image_file_name'], dict):
             if nimages is None:
-                raise ValueError(
+                raise TypeError(
                     'input.nimages is required if not using a list or simple string for ' +
                     'file names')
         else:
@@ -406,7 +406,7 @@ class InputFiles(Input):
         assert nimages is not None
 
         if 'cat_file_name' not in config:
-            raise AttributeError('Attribute cat_file_name is required')
+            raise TypeError('Parameter cat_file_name is required')
         elif isinstance(config['cat_file_name'], list):
             cat_list = config['cat_file_name']
             if len(cat_list) == 0:

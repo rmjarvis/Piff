@@ -137,11 +137,10 @@ class GPInterp(Interp):
 
         if isinstance(kernel,str):
             self.kernel_template = [kernel]
+        elif isinstance(kernel, (list, np.ndarray)):
+            self.kernel_template = [ker for ker in kernel]
         else:
-            if type(kernel) is not list and type(kernel) is not np.ndarray:
-                raise TypeError("kernel should be a string a list or a numpy.ndarray of string")
-            else:
-                self.kernel_template = [ker for ker in kernel]
+            raise TypeError("kernel should be a string a list or a numpy.ndarray of string")
 
         if self.optimizer not in ['anisotropic', 'isotropic', 'likelihood', 'none']:
             raise ValueError("Only anisotropic, isotropic, likelihood, and " \
@@ -191,16 +190,16 @@ class GPInterp(Interp):
             self.rows = np.arange(0, self.nparams, 1).astype(int)
         else:
             self.nparams = len(self.rows)
+            self.rows = np.array(self.rows)
 
         if len(self.kernel_template)==1:
             self.kernels = [self.kernel_template[0] for i in range(self.nparams)]
+        elif len(self.kernel_template) == self.nparams:
+            self.kernels = [ker for ker in self.kernel_template]
         else:
-            if len(self.kernel_template)!= self.nparams:
-                raise ValueError("numbers of kernel provided should be 1 (same for all parameters) or " \
-                                 "equal to the number of params (%i), number kernel provided: %i" \
-                                 %((self.nparams,len(self.kernel_template))))
-            else:
-                self.kernels = [copy.deepcopy(ker) for ker in self.kernel_template]
+            raise ValueError("numbers of kernel provided should be 1 (same for all parameters) "
+                             "or equal to the number of params (%i), number kernel provided: %i"
+                                %((self.nparams,len(self.kernel_template))))
         self.gps = []
 
         for i in range(self.nparams):
@@ -211,7 +210,8 @@ class GPInterp(Interp):
                                         p0=[self.l0, 0, 0], white_noise=self.white_noise,
                                         n_neighbors=self.n_neighbors,
                                         average_fits=self.average_fits, indice_meanify = i,
-                                        nbins=self.nbins, min_sep=self.min_sep, max_sep=self.max_sep)
+                                        nbins=self.nbins,
+                                        min_sep=self.min_sep, max_sep=self.max_sep)
             self.gps.append(gp)
 
         self._init_theta = np.array([gp.kernel_template.theta for gp in self.gps])
@@ -320,15 +320,9 @@ class GPInterp(Interp):
         self.optimizer = data['OPTIMIZER'][0]
 
         if len(self.kernel_template)==1:
-            self.kernels = [copy.deepcopy(self.kernel_template[0]) for i in range(self.nparams)]
+            self.kernels = [self.kernel_template[0] for i in range(self.nparams)]
         else:
-            if len(self.kernel_template)!= self.nparams:
-                raise ValueError(
-                    "numbers of kernel provided should be 1 (same for all parameters) or " +
-                    "equal to the number of params (%i), number kernel provided: %i"%(
-                        (self.nparams,len(self.kernel_template))))
-            else:
-                self.kernels = [copy.deepcopy(ker) for ker in self.kernel_template]
+            self.kernels = [ker for ker in self.kernel_template]
 
         self.gps = []
         for i in range(self.nparams):

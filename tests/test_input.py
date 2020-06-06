@@ -198,6 +198,12 @@ def test_basic():
     assert len([s for s in reserve_stars if s['chipnum'] == 1]) == 0
     assert len([s for s in reserve_stars if s['chipnum'] == 2]) == 4
 
+    # If no stars, raise error
+    # (normally because all stars have errors, but easier to just limit to 0 to test this.)
+    config['nstars'] = 0
+    with np.testing.assert_raises(RuntimeError):
+        input = piff.Input.process(config, logger=logger)
+
 
 @timer
 def test_invalid():
@@ -209,9 +215,9 @@ def test_invalid():
 
     # Leaving off either image_file_name or cat_file_name is an error
     config = { 'image_file_name' : os.path.join('input',image_file) }
-    np.testing.assert_raises(AttributeError, piff.InputFiles, config)
+    np.testing.assert_raises(TypeError, piff.InputFiles, config)
     config = { 'cat_file_name': os.path.join('input',cat_file) }
-    np.testing.assert_raises(AttributeError, piff.InputFiles, config)
+    np.testing.assert_raises(TypeError, piff.InputFiles, config)
 
     # Invalid values for image or cat name
     config = { 'image_file_name' : os.path.join('input',image_file), 'cat_file_name' : 17 }
@@ -250,6 +256,10 @@ def test_invalid():
     np.testing.assert_raises(ValueError, piff.InputFiles, config)
     config = { 'dir' : 'input', 'image_file_name' : image_file, 'cat_file_name' : [] }
     np.testing.assert_raises(ValueError, piff.InputFiles, config)
+
+    # Missing nimages (required when using dict)
+    config = { 'image_file_name' : image_files_1, 'cat_file_name': cat_files }
+    np.testing.assert_raises(TypeError, piff.InputFiles, config)
 
 
 @timer
@@ -476,6 +486,8 @@ def test_cols():
     input = piff.InputFiles(dict(sky='sky', **base_config))
     np.testing.assert_raises(KeyError, input.getRawImageData, 0)
     input = piff.InputFiles(dict(gain='gain', **base_config))
+    np.testing.assert_raises(KeyError, input.getRawImageData, 0)
+    input = piff.InputFiles(dict(satur='satur', **base_config))
     np.testing.assert_raises(KeyError, input.getRawImageData, 0)
 
 

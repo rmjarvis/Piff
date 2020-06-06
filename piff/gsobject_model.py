@@ -18,6 +18,7 @@
 
 import numpy as np
 import galsim
+import scipy
 
 from .model import Model
 from .star import Star, StarFit
@@ -35,10 +36,11 @@ class GSObjectModel(Model):
                         position is fixed at input value and the fitted PSF may be off-center.
                         [default: True]
     :param include_pixel: Include integration over pixel when drawing?  [default: True]
+    :param scipy_kwargs: Optional kwargs to pass to scipy.optimize.least_squares [default: None]
     :param logger:      A logger object for logging debug info. [default: None]
     """
     def __init__(self, gsobj, fastfit=False, centered=True, include_pixel=True,
-                 logger=None):
+                 scipy_kwargs=None, logger=None):
         if isinstance(gsobj, str):
             gsobj = eval(gsobj)
 
@@ -52,6 +54,8 @@ class GSObjectModel(Model):
         self._fastfit = fastfit
         self._centered = centered
         self._method = 'auto' if include_pixel else 'no_pixel'
+        self._scipy_kwargs = scipy_kwargs if scipy_kwargs is not None else {}
+
         # Params are [du, dv], scale, g1, g2, i.e., transformation parameters that bring the
         # fiducial gsobject towards the data.
         if self._centered:
@@ -149,11 +153,17 @@ class GSObjectModel(Model):
         image, weight, image_pos = star.data.getImage()
         flux, du, dv, scale, g1, g2 = params
 
+        # Make sure the shear is sane.
+        g = g1 + 1j * g2
+        if np.abs(g) >= 1.:
+            # Return "infinity"
+            return np.ones_like(image.array.ravel()) * 1.e300
+
         # We shear/dilate/shift the profile as follows.
         #    prof = self.gsobj.dilate(scale).shear(g1=g1, g2=g2).shift(du, dv) * flux
         # However, it is a bit faster to do all these operations at once to avoid some superfluous
         # calculations that GalSim does for each of these steps when done separately.
-        jac = galsim._Shear(g1 + 1j*g2).getMatrix()
+        jac = galsim._Shear(g).getMatrix()
         jac[:,:] *= scale
         flux /= scale**2
         prof = galsim._Transform(self.gsobj, jac.ravel(), offset=galsim.PositionD(du,dv),
@@ -199,25 +209,20 @@ class GSObjectModel(Model):
 
         :returns: (flux, dx, dy, scale, g1, g2, flag)
         """
-        import scipy
-        import time
-
         logger = galsim.config.LoggerWrapper(logger)
         logger.debug("Start least_squares")
-        t0 = time.time()
         params = self._get_params(star)
 
-        results = scipy.optimize.least_squares(self._resid, params, args=(star,))
+        results = scipy.optimize.least_squares(self._resid, params, args=(star,),
+                                               **self._scipy_kwargs)
         if logger:
             logger.debug(results)
         if not results.success:
             raise RuntimeError("Error finding the full nonlinear solution")
 
         flux, du, dv, scale, g1, g2 = results.x
-
         var = np.diagonal(estimate_cov_from_jac(results.jac))
 
-        logger.debug("Done.  Elapsed time: {0}".format(time.time() - t0))
         return flux, du, dv, scale, g1, g2, var
 
     def fit(self, star, fastfit=None, logger=None):
@@ -350,11 +355,13 @@ class Gaussian(GSObjectModel):
                         position is fixed at input value and the fitted PSF may be off-center.
                         [default: True]
     :param include_pixel: Include integration over pixel when drawing?  [default: True]
+    :param scipy_kwargs: Optional kwargs to pass to scipy.optimize.least_squares [default: None]
     :param logger:      A logger object for logging debug info. [default: None]
     """
-    def __init__(self, fastfit=False, centered=True, include_pixel=True, logger=None):
+    def __init__(self, fastfit=False, centered=True, include_pixel=True,
+                 scipy_kwargs=None, logger=None):
         gsobj = galsim.Gaussian(sigma=1.0)
-        GSObjectModel.__init__(self, gsobj, fastfit, centered, include_pixel, logger)
+        GSObjectModel.__init__(self, gsobj, fastfit, centered, include_pixel, scipy_kwargs, logger)
         # We'd need self.kwargs['gsobj'] if we were reconstituting via the GSObjectModel
         # constructor, but since config['type'] for this will be Gaussian, it gets reconstituted
         # here, where there is no `gsobj` argument.  So remove `gsobj` from kwargs.
@@ -370,11 +377,13 @@ class Kolmogorov(GSObjectModel):
                         position is fixed at input value and the fitted PSF may be off-center.
                         [default: True]
     :param include_pixel: Include integration over pixel when drawing?  [default: True]
+    :param scipy_kwargs: Optional kwargs to pass to scipy.optimize.least_squares [default: None]
     :param logger:      A logger object for logging debug info. [default: None]
     """
-    def __init__(self, fastfit=False, centered=True, include_pixel=True, logger=None):
+    def __init__(self, fastfit=False, centered=True, include_pixel=True,
+                 scipy_kwargs=None, logger=None):
         gsobj = galsim.Kolmogorov(half_light_radius=1.0)
-        GSObjectModel.__init__(self, gsobj, fastfit, centered, include_pixel, logger)
+        GSObjectModel.__init__(self, gsobj, fastfit, centered, include_pixel, scipy_kwargs, logger)
         # We'd need self.kwargs['gsobj'] if we were reconstituting via the GSObjectModel
         # constructor, but since config['type'] for this will be Kolmogorov, it gets reconstituted
         # here, where there is no `gsobj` argument.  So remove `gsobj` from kwargs.
@@ -393,12 +402,13 @@ class Moffat(GSObjectModel):
                         position is fixed at input value and the fitted PSF may be off-center.
                         [default: True]
     :param include_pixel: Include integration over pixel when drawing?  [default: True]
+    :param scipy_kwargs: Optional kwargs to pass to scipy.optimize.least_squares [default: None]
     :param logger:      A logger object for logging debug info. [default: None]
     """
     def __init__(self, beta, trunc=0., fastfit=False, centered=True, include_pixel=True,
-                 logger=None):
+                 scipy_kwargs=None, logger=None):
         gsobj = galsim.Moffat(half_light_radius=1.0, beta=beta, trunc=trunc)
-        GSObjectModel.__init__(self, gsobj, fastfit, centered, include_pixel, logger)
+        GSObjectModel.__init__(self, gsobj, fastfit, centered, include_pixel, scipy_kwargs, logger)
         # We'd need self.kwargs['gsobj'] if we were reconstituting via the GSObjectModel
         # constructor, but since config['type'] for this will be Moffat, it gets reconstituted
         # here, where there is no `gsobj` argument.  So remove `gsobj` from kwargs.

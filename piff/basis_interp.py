@@ -357,7 +357,7 @@ class BasisPolynomial(BasisInterp):
         super(BasisPolynomial, self).__init__()
 
         self._keys = keys
-        if hasattr(order,'len'):
+        if hasattr(order,'__len__'):
             if not len(order)==len(keys):
                 raise ValueError('Number of provided orders does not match number of keys')
             self._orders = order

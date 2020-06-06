@@ -15,6 +15,7 @@
 from __future__ import print_function
 import os
 import shutil
+import numpy as np
 import piff
 
 from piff_test_helper import timer
@@ -53,5 +54,23 @@ def test_ensure_dir():
     assert s == 'test'
 
 
+@timer
+def test_base_output():
+    """Test the base Output class.
+    """
+    # A bit gratuitous, since no one should ever call these, but just check that the
+    # trivial implementation (or NotImplementedErrors) in the base class work as expected.
+    config = { 'file_name' : 'dummy_file' }
+
+    out = piff.Output()
+
+    kwargs = out.parseKwargs(config)
+    assert kwargs == config
+
+    np.testing.assert_raises(NotImplementedError, out.write, None)
+    np.testing.assert_raises(NotImplementedError, out.read)
+
+
 if __name__ == '__main__':
     test_ensure_dir()
+    test_base_output()

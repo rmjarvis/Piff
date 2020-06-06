@@ -15,6 +15,9 @@
 from __future__ import print_function
 import numpy as np
 import piff
+import os
+import tempfile
+import fitsio
 
 from piff_test_helper import timer
 
@@ -333,9 +336,6 @@ def poly_load_save_sub(type1, type2, fname):
     stars = [ piff.Star(d, f) for d,f in zip(data, fit) ]
     interp.solve(stars)
 
-    import tempfile
-    import os
-    import fitsio
     extname = "interp"
     dirname = 'output'
     filename=os.path.join(dirname, fname)
@@ -380,10 +380,18 @@ def test_poly_raise():
     data = [ piff.Star.makeTarget(u=p[0], v=p[1]).data for p in pos ]
     fit = [ piff.StarFit(v) for v in vectors ]
     stars = [ piff.Star(d, f) for d,f in zip(data, fit) ]
-    try:
-        np.testing.assert_raises(ValueError, interp.solve, stars)
-    except ImportError:
-        pass
+    np.testing.assert_raises(ValueError, interp.solve, stars)
+
+    # Invalid construction
+    np.testing.assert_raises(TypeError, piff.Polynomial)
+    np.testing.assert_raises(TypeError, piff.Polynomial, order=3, orders=[1,2,3])
+    np.testing.assert_raises(ValueError, piff.Polynomial, order=3, poly_type='invalid')
+
+    # Cannot write before running fit.
+    filename = 'output/test_invalid.fits'
+    with fitsio.FITS(filename,'rw',clobber=True) as f:
+        with np.testing.assert_raises(RuntimeError):
+            interp.write(f, extname='junk')
 
 
 @timer
@@ -398,7 +406,6 @@ def test_poly_load_err():
         for poly_type2 in PolynomialsTypes:
             if poly_type1!=poly_type2:
                 poly_load_save_sub(poly_type1, poly_type2, 'poly_test_load_err.fits')
-
 
 if __name__ == '__main__':
     test_poly_indexing()

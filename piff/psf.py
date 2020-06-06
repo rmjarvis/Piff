@@ -86,7 +86,7 @@ class PSF(object):
         return psf
 
     @classmethod
-    def parseKwargs(cls, config_psf, logger):
+    def parseKwargs(cls, config_psf, logger=None):
         """Parse the psf field of a configuration dict and return the kwargs to use for
         initializing an instance of the class.
 
@@ -98,10 +98,7 @@ class PSF(object):
 
         :returns: a kwargs dict to pass to the initializer
         """
-        kwargs = {}
-        kwargs.update(config_psf)
-        kwargs.pop('type',None)
-        return kwargs
+        raise NotImplementedError("Derived classes must define the parseKwargs function")
 
     def draw(self, x, y, chipnum=0, flux=1.0, offset=(0,0), stamp_size=48, image=None,
              logger=None, **kwargs):
@@ -288,22 +285,6 @@ class PSF(object):
         psf._finish_read(fits, extname, logger)
 
         return psf
-
-    def _finish_read(self, fits, extname, logger):
-        """Finish up the read process
-
-        In the base class, this is a no op, but for classes that need to do something else at
-        the end of the read process, this hook is available to be overridden.
-
-        (E.g. composite psf classes might copy the stars, wcs, pointing information into the
-        various components.)
-
-        :param fits:        An open fitsio.FITS object
-        :param extname:     The name of the extension with the psf information.
-        :param logger:      A logger object for logging debug info.
-        """
-        pass
-
 
     def writeWCS(self, fits, extname, logger):
         """Write the WCS information to a FITS file.

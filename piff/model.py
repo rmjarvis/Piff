@@ -81,12 +81,7 @@ class Model(object):
 
         :returns:       Star instance with the appropriate initial fit values
         """
-        # If implemented, update the flux to something close to right.
-        if hasattr(self, 'reflux'):
-            star = self.reflux(star, fit_center=False, logger=logger)
-        else:
-            star = star.withFlux(np.sum(star.data.image.array))
-        return star
+        raise NotImplementedError("Derived classes must define the initialize function")
 
     def normalize(self, star):
         """Make sure star.fit.params are normalized properly.

@@ -375,12 +375,14 @@ class Star(object):
 
         :returns: the arrays coords and params
         """
-        if extname not in fits: raise RuntimeError('{0} not found in FITS object'.format(extname))
+        if extname not in fits:
+            raise IOError('{0} not found in FITS object'.format(extname))
         colnames = fits[extname].get_colnames()
 
         columns = ['u', 'v', 'params']
         for key in columns:
-            if key not in colnames: raise RuntimeError('{0} not found in table'.format(key))
+            if key not in colnames:
+                raise IOError('{0} not found in table'.format(key))
 
         data = fits[extname].read(columns=columns)
         coords = np.array([data['u'], data['v']]).T
@@ -698,7 +700,7 @@ class StarData(object):
         # Make sure the user didn't provide their own x,y,u,v in properties.
         for key in ['x', 'y', 'u', 'v']:
             if properties is not None and key in properties and not _xyuv_set:
-                raise AttributeError("Cannot provide property %s in properties dict."%key)
+                raise TypeError("Cannot provide property %s in properties dict."%key)
 
         self.properties['x'] = self.image_pos.x
         self.properties['y'] = self.image_pos.y
@@ -727,7 +729,7 @@ class StarData(object):
         # Calculate the field_pos, the position in the fov coordinates
         if wcs.isCelestial():
             if pointing is None:
-                raise AttributeError("If the image uses a CelestialWCS then pointing is required.")
+                raise TypeError("If the image uses a CelestialWCS then pointing is required.")
             sky_pos = wcs.toWorld(image_pos)
             if properties is not None:
                 if 'ra' not in properties:
@@ -924,7 +926,7 @@ class StarFit(object):
         """
         npp = np.array(params)
         if self.params is not None and npp.shape != self.params.shape:
-            raise TypeError('new StarFit parameters do not match dimensions of old ones')
+            raise ValueError('new StarFit parameters do not match dimensions of old ones')
         flux = kwargs.pop('flux', self.flux)
         center = kwargs.pop('center', self.center)
         return StarFit(npp, flux=flux, center=center, **kwargs)

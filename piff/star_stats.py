@@ -142,6 +142,8 @@ class StarStats(Stats):
 
         :returns: fig, ax
         """
+        if not hasattr(self, 'indices'):
+            raise RuntimeError("Must call compute before calling plot or write")
 
         # make figure
         from matplotlib.figure import Figure
