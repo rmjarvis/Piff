@@ -244,7 +244,7 @@ class Star(object):
         # Check that input parameters are valid
         for param in ['x', 'y', 'u', 'v']:
             if eval(param) is not None and param in properties:
-                raise AttributeError("%s may not be given both as a kwarg and in properties"%param)
+                raise TypeError("%s may not be given both as a kwarg and in properties"%param)
         properties = properties.copy()  # So we can modify it and not mess up the caller.
         x = properties.pop('x', x)
         y = properties.pop('y', y)
@@ -252,13 +252,13 @@ class Star(object):
         v = properties.pop('v', v)
         properties.update(kwargs)  # Add any extra kwargs into properties
         if (x is None) != (y is None):
-            raise AttributeError("Either x and y must both be given, or neither.")
+            raise TypeError("Either x and y must both be given, or neither.")
         if (u is None) != (v is None):
-            raise AttributeError("Either u and v must both be given, or neither.")
+            raise TypeError("Either u and v must both be given, or neither.")
         if x is None and u is None:
-            raise AttributeError("Some kind of position must be given.")
+            raise TypeError("Some kind of position must be given.")
         if wcs is not None and scale is not None:
-            raise AttributeError("Scale is invalid when also providing wcs.")
+            raise TypeError("Scale is invalid when also providing wcs.")
 
         # Figure out what the wcs should be if not provided
         if wcs is None:
@@ -289,10 +289,9 @@ class Star(object):
         if image.wcs is None:
             image.wcs = wcs
         if weight is not None:
-            weight = galsim.Image(weight.array.copy(), scale=image.scale)
+            weight = galsim.Image(weight.array.copy(), wcs=image.wcs)
             weight.setCenter(int(x+0.5), int(y+0.5))
 
-            
         # Build the StarData instance
         data = StarData(image, image_pos, field_pos=field_pos, properties=properties, 
                         pointing=pointing, weight=weight)        
@@ -904,7 +903,6 @@ class StarFit(object):
         self.b = b
         self.chisq = chisq
         self.dof = dof
-        return
 
     @property
     def alpha(self):
