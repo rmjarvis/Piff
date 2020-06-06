@@ -676,11 +676,8 @@ class StarData(object):
             self.weight = galsim.Image(image.bounds, init_value=1, wcs=image.wcs, dtype=float)
         elif type(weight) in [int, float]:
             self.weight = galsim.Image(image.bounds, init_value=weight, wcs=image.wcs, dtype=float)
-        elif isinstance(weight, galsim.Image):
-            # Work-around for bug in GalSim 1.3
-            self.weight = galsim.Image(weight, dtype=float, wcs=weight.wcs)
         else:
-            self.weight = galsim.Image(weight, dtype=float)
+            self.weight = galsim.Image(weight, dtype=float, wcs=weight.wcs)
 
         if orig_weight is None:
             self.orig_weight = self.weight
@@ -738,11 +735,8 @@ class StarData(object):
                     properties['ra'] = sky_pos.ra / galsim.hours
                 if 'dec' not in properties:
                     properties['dec'] = sky_pos.dec / galsim.degrees
-            if galsim.__version__ >= '2.0':
-                u, v = pointing.project(sky_pos)
-                return galsim.PositionD(u/galsim.arcsec, v/galsim.arcsec)
-            else:
-                return pointing.project(sky_pos)
+            u, v = pointing.project(sky_pos)
+            return galsim.PositionD(u/galsim.arcsec, v/galsim.arcsec)
         else:
             return wcs.toWorld(image_pos)
 
