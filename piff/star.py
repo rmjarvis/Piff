@@ -852,48 +852,6 @@ class StarData(object):
                         properties=dict(self.properties, gain=gain),
                         _xyuv_set = True)
 
-    def maskPixels(self, mask):
-        """Return new StarData with weight nulled at pixels marked as False in the mask.
-        Note that this cannot un-mask any previously nulled pixels.
-
-        :param mask:      Boolean array with False marked in pixels that should henceforth
-                          be ignored in fitting.
-                          If this is a 2d array it is assumed to match the weight image.
-                          If it is a 1d array, it is assumed to match the vectors returned by
-                          getDataVector().  If None, the self.image is used, clipped from below
-
-        :returns:         A new StarData instance with updated weight array.
-        """
-
-        # Mark the pixels that are not already worthless
-        use = self.weight.array!=0.
-
-        # Get the signal data
-        if len(mask.shape)==2:
-            m = mask[use]
-        else:
-            # Insert 1d vector into currently valid pixels
-            m = mask
-
-        # Zero appropriate weight pixels in new copy
-        weight = self.weight.copy()
-        weight.array[use] = np.where(m, self.weight.array[use], 0.)
-
-        if self.orig_weight != self.weight:
-            orig_weight = self.orig_weight.copy()
-            orig_weight.array[use] = np.where(m, self.orig_weight.array[use], 0.)
-        else:
-            orig_weight = weight
-
-        # Return new object
-        return StarData(image=self.image,
-                        image_pos=self.image_pos,
-                        weight=weight,
-                        orig_weight=orig_weight,
-                        pointing=self.pointing,
-                        properties=self.properties,
-                        _xyuv_set=True)
-
 
 class StarFit(object):
     """Class to hold the results of fitting a Model to some StarData, or specify
