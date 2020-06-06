@@ -47,9 +47,10 @@ def test_init():
     # Just draw something so it has non-trivial pixel values.
     galsim.Gaussian(sigma=5).drawImage(image)
 
-    weight = galsim.ImageI(image.bounds, init_value=1)  # all weights = 1
+    weight = galsim.ImageF(image.bounds, init_value=1)  # all weights = 1
     # To make below tests of weight pixel values useful, add the image to weight, so pixel
     # values are not all identical.
+    weight += 0.2 * image
 
     image_pos = image.center
 
@@ -100,8 +101,6 @@ def test_init():
         # Numpy arrays access elements as [y,x]
         np.testing.assert_equal(data, image.array[jv+size//2, iu+size//2])
         np.testing.assert_equal(wt, weight.array[jv+size//2, iu+size//2])
-
-    print("Passed basic initialization of StarData")
 
 
 @timer
@@ -246,6 +245,72 @@ def test_celestial():
     print("Passed tests of StarData with CelestialWCS")
 
 
+
+@timer
+def test_add_poisson():
+    """Test the addPoisson() method
+    """
+    size = 23
+    icen = 598
+    jcen = 109
+    image = galsim.Image(size,size, scale=0.25)
+    image.setCenter(icen, jcen)
+    image_pos = image.center
+
+    # Make a signal image
+    galsim.Gaussian(sigma=1.1, flux=100).drawImage(image)
+    stardata1 = piff.StarData(image, image_pos, weight=4)
+
+    # Make another stardata with a blank image
+    image2 = galsim.ImageF(image.bounds, init_value=0)
+    weight = galsim.ImageF(image.bounds, init_value=0.025)
+    stardata2 = piff.StarData(image, image_pos, weight=weight)
+
+    # Add poisson noise with gain=1
+    test = stardata2.addPoisson(stardata1, gain=1)
+    np.testing.assert_allclose(1./test.weight.array, 1./weight.array + image.array)
+
+    # Note repeated application always adds to the original weight map, not the current one.
+    test = test.addPoisson(stardata1, gain=3)
+    np.testing.assert_allclose(1./test.weight.array, 1./weight.array + image.array/3)
+
+    test = test.addPoisson(stardata1, gain=2)
+    np.testing.assert_allclose(1./test.weight.array, 1./weight.array + image.array/2)
+
+    # gain=None means don't change anything
+    test = stardata2.addPoisson(stardata1)
+    np.testing.assert_allclose(test.weight.array, stardata2.weight.array)
+
+    # signal=None means use self for signal
+    test = stardata1.addPoisson(gain=2)
+    np.testing.assert_allclose(1./test.weight.array, 1./stardata1.weight.array + image.array/2)
+
+    # If gain is in properties, use that
+    stardata3 = piff.StarData(image, image_pos, weight=weight, properties=dict(gain=4))
+    test = stardata3.addPoisson(stardata1)
+    np.testing.assert_allclose(1./test.weight.array, 1./weight.array + image.array/4)
+
+    # But explicit gain takes precedence
+    test = stardata3.addPoisson(stardata1, gain=0.3)
+    np.testing.assert_allclose(1./test.weight.array, 1./weight.array + image.array/0.3)
+
+    # After one application with gain, the star remembers that value.
+    test = stardata2.addPoisson(stardata2, gain=2)
+    test = test.addPoisson(stardata1)
+    np.testing.assert_allclose(1./test.weight.array, 1./weight.array + image.array/2)
+
+    # Error if signal is different shape
+    small_image = galsim.Image(15,15, scale=0.25)
+    stardata4 = piff.StarData(small_image, image_pos)
+    with np.testing.assert_raises(ValueError):
+        stardata2.addPoisson(stardata4, gain=1)
+
+    # Equivalent to access function from Star class
+    star = piff.Star(stardata2, None)
+    test = star.addPoisson(stardata1, gain=3)
+    np.testing.assert_allclose(1./test.weight.array, 1./weight.array + image.array/3)
+
+
 @timer
 def test_io():
     np_rng = np.random.RandomState(1234)
@@ -337,4 +402,5 @@ if __name__ == '__main__':
     test_init()
     test_euclidean()
     test_celestial()
+    test_add_poisson()
     test_io()
