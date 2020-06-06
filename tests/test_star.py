@@ -59,7 +59,7 @@ def test_init():
         'dec' : -15.567,
         'color_ri' : 0.5,
         'color_iz' : -0.2,
-        'ccdnum' : 3
+        'chipnum' : 3
     }
 
     stardata = piff.StarData(image, image_pos, weight=weight, properties=properties)
@@ -123,13 +123,17 @@ def test_euclidean():
     size = 64   # This time, use an even size.
     image_pos = galsim.PositionD(1083.9, 617.3)
     field_pos = wcs.toWorld(image_pos)
-    icen = int(image_pos.x)
-    jcen = int(image_pos.y)
+    icen = int(image_pos.x+0.5)
+    jcen = int(image_pos.y+0.5)
 
-    bounds = galsim.BoundsI(icen-size//2+1, icen+size//2, jcen-size//2+1, jcen+size//2)
+    bounds = galsim.BoundsI(icen-size//2-1, icen+size//2, jcen-size//2-1, jcen+size//2)
+    print('bounds center = ',bounds.center)
+    print('icen, jcen = ',icen,jcen)
+    assert bounds.center.x == icen
+    assert bounds.center.y == jcen
+
     image = full_image[bounds]
     weight = full_weight[bounds]
-
     print('image_pos = ',image_pos)
     print('field pos (u,v) = ',field_pos)
     print('origin of ps image is at u,v = ',image.wcs.toWorld(image.origin))
@@ -150,6 +154,10 @@ def test_euclidean():
     # Shouldn't matter whether we use the original wcs or the one in the postage stamp.
     np.testing.assert_equal(stardata['u'], image.wcs.toWorld(image_pos).x)
     np.testing.assert_equal(stardata['v'], image.wcs.toWorld(image_pos).y)
+    print('image.wcs = ',image.wcs)
+    print('image_pos = ',image_pos)
+    print('field_pos = ',field_pos)
+    print('image.wcs.toWorld(image_pos) = ',image.wcs.toWorld(image_pos))
 
     # Test access via getImage method:
     im, wt, pos = stardata.getImage()
@@ -167,8 +175,6 @@ def test_euclidean():
         jy = int(round(xy.y))
         np.testing.assert_equal(data, image(ix,jy))
         np.testing.assert_equal(wt, weight(ix,jy))
-
-    print("Passed tests of StarData with EuclideanWCS")
 
 
 @timer
@@ -220,6 +226,10 @@ def test_celestial():
     np.testing.assert_equal(stardata['v'], field_pos.y)
     np.testing.assert_equal(stardata['ra'], sky_pos.ra/galsim.hours)
     np.testing.assert_equal(stardata['dec'], sky_pos.dec/galsim.degrees)
+
+    # Can use calculateFieldPos directly. (Although seems unlikely people would do so.)
+    field_pos2 = stardata.calculateFieldPos(image_pos, image.wcs, pointing)
+    assert field_pos2 == field_pos
 
     # Test access via getImage method:
     im, wt, pos = stardata.getImage()
@@ -309,6 +319,106 @@ def test_add_poisson():
     star = piff.Star(stardata2, None)
     test = star.addPoisson(stardata1, gain=3)
     np.testing.assert_allclose(1./test.weight.array, 1./weight.array + image.array/3)
+
+
+@timer
+def test_star():
+    # Star class is a pretty thin wrapper of StarData and StarFit classes.
+
+    # Same setup as for test_euclidean
+    wcs = galsim.AffineTransform(0.26, -0.02, 0.03, 0.28,
+                                 world_origin=galsim.PositionD(912.4, -833.1))
+    size = 64
+    image_pos = galsim.PositionD(1083.9, 617.3)
+    field_pos = wcs.toWorld(image_pos)
+    icen = int(image_pos.x+0.5)
+    jcen = int(image_pos.y+0.5)
+    bounds = galsim.BoundsI(icen-size//2-1, icen+size//2, jcen-size//2-1, jcen+size//2)
+    image = galsim.Image(bounds, wcs=wcs)
+    weight = galsim.ImageS(bounds, wcs=wcs, init_value=1)
+    galsim.Gaussian(sigma=5).drawImage(image)
+    weight += image
+
+    properties = {
+        'ra' : 34.1234,
+        'dec' : -15.567,
+        'color_ri' : 0.5,
+        'color_iz' : -0.2,
+        'chipnum' : 3
+    }
+
+    stardata = piff.StarData(image, image_pos, weight=weight, properties=properties)
+
+    # Check access via star class
+    star = piff.Star(stardata, None)  # fit is optional, but must be explicitly None
+    for key, value in stardata.properties.items():
+        np.testing.assert_equal(star[key], value)
+    np.testing.assert_equal(star.image.array, image.array)
+    np.testing.assert_equal(star.weight.array, weight.array)
+    assert star.image_pos == image_pos
+    print('field_pos = ',field_pos)
+    print('star.field_pos = ',star.field_pos)
+    assert star.field_pos == field_pos
+    assert star.x == image_pos.x
+    assert star.y == image_pos.y
+    assert star.u == field_pos.x
+    assert star.v == field_pos.y
+    assert star.chipnum == 3
+    assert star.flux == 1.
+    assert star.center == (0,0)
+    assert star.is_reserve == False
+
+    star = star.withFlux(7)
+    assert star.flux == 7.
+    assert star.center == (0,0)
+
+    star = star.withFlux(17, center=(102,22))
+    assert star.flux == 17.
+    assert star.center == (102,22)
+
+    star = star.withFlux(center=(12,20))
+    assert star.flux == 17.
+    assert star.center == (12,20)
+
+    star = star.withFlux(flux=2)
+    assert star.flux == 2.
+    assert star.center == (12,20)
+
+    # Test using makeTarget
+    star = piff.Star.makeTarget(properties=stardata.properties, image=image, weight=weight)
+    np.testing.assert_equal(star.data['x'], image_pos.x)
+    np.testing.assert_equal(star.data['y'], image_pos.y)
+    np.testing.assert_equal(star.data['u'], field_pos.x)
+    np.testing.assert_equal(star.data['v'], field_pos.y)
+    # Shouldn't matter whether we use the original wcs or the one in the postage stamp.
+    print('image.wcs = ',image.wcs)
+    print('image_pos = ',image_pos)
+    print('field_pos = ',field_pos)
+    print('image.wcs.toWorld(image_pos) = ',image.wcs.toWorld(image_pos))
+    print('in star.data: ',star.data['u'])
+    print('in star.data: ',star.data['v'])
+    np.testing.assert_equal(star.data['u'], image.wcs.toWorld(image_pos).x)
+    np.testing.assert_equal(star.data['v'], image.wcs.toWorld(image_pos).y)
+    im, wt, pos = star.data.getImage()
+    np.testing.assert_array_equal(im.array, image.array)
+    np.testing.assert_array_equal(wt.array, weight.array)
+    np.testing.assert_equal(pos, image_pos)
+
+    # Some invalid parameter checks
+    np.testing.assert_raises(TypeError, piff.Star.makeTarget, x=1, properties=stardata.properties,
+                             image=image, weight=weight)
+    np.testing.assert_raises(TypeError, piff.Star.makeTarget, y=1, properties=stardata.properties,
+                             image=image, weight=weight)
+    np.testing.assert_raises(TypeError, piff.Star.makeTarget, u=1, properties=stardata.properties,
+                             image=image, weight=weight)
+    np.testing.assert_raises(TypeError, piff.Star.makeTarget, v=1, properties=stardata.properties,
+                             image=image, weight=weight)
+    np.testing.assert_raises(TypeError, piff.Star.makeTarget, x=1, image=image, weight=weight)
+    np.testing.assert_raises(TypeError, piff.Star.makeTarget, y=1, image=image, weight=weight)
+    np.testing.assert_raises(TypeError, piff.Star.makeTarget, u=1, image=image, weight=weight)
+    np.testing.assert_raises(TypeError, piff.Star.makeTarget, image=image, weight=weight)
+    np.testing.assert_raises(TypeError, piff.Star.makeTarget, x=1, y=2, scale=4, wcs=image.wcs,
+                             image=image, weight=weight)
 
 
 @timer
@@ -403,4 +513,5 @@ if __name__ == '__main__':
     test_euclidean()
     test_celestial()
     test_add_poisson()
+    test_star()
     test_io()
