@@ -781,7 +781,7 @@ def test_var():
         # Save this one without noise.
 
         image1 = image.copy()
-        image1.addNoise(galsim.GaussianNoise(sigma=0.2))
+        image1.addNoise(galsim.GaussianNoise(sigma=noise))
 
         # Make a StarData instance for this image
         stardata = piff.StarData(image, image.true_center, weight)
@@ -822,6 +822,58 @@ def test_var():
         #       The fastfit=True estimates are much rougher.  Especially size.  Need rtol=0.3.
         np.testing.assert_allclose(fit.params_var, var, rtol=0.3)
 
+def test_fail():
+    # Some vv noisy images that result in errors in the fit to check the error reporting.
+
+    scale = 1.3
+    g1 = 0.33
+    g2 = -0.27
+    flux = 15
+    noise = 2
+    seed = 1234
+
+    psf = galsim.Moffat(half_light_radius=1.0, beta=2.5, trunc=3.0)
+    psf = psf.dilate(scale).shear(g1=g1, g2=g2).withFlux(flux)
+    image = psf.drawImage(nx=64, ny=64, scale=0.3)
+
+    weight = image.copy()
+    weight.fill(1/noise**2)
+    noisy_image = image.copy()
+    rng = galsim.BaseDeviate(seed)
+    noisy_image.addNoise(galsim.GaussianNoise(sigma=noise, rng=rng))
+
+    star1 = piff.Star(piff.StarData(image, image.true_center, weight), None)
+    star2 = piff.Star(piff.StarData(noisy_image, image.true_center, weight), None)
+
+    model1 = piff.Moffat(fastfit=True, beta=2.5)
+    with np.testing.assert_raises(RuntimeError):
+        model1.initialize(star2)
+    with np.testing.assert_raises(RuntimeError):
+        model1.fit(star2)
+    star3 = model1.initialize(star1)
+    star3 = model1.fit(star3)
+    star3 = piff.Star(star2.data, star3.fit)
+    with np.testing.assert_raises(RuntimeError):
+        model1.fit(star3)
+
+    # This is contrived to hit the fit failure for the reference.
+    # I'm not sure what realistic use case would actually hit it, but at least it's
+    # theoretically possible to fail there.
+    model2 = piff.GSObjectModel(galsim.InterpolatedImage(noisy_image), fastfit=True)
+    with np.testing.assert_raises(RuntimeError):
+        model2.initialize(star1)
+
+    model3 = piff.Moffat(fastfit=False, beta=2.5, scipy_kwargs={'max_nfev':10})
+    with np.testing.assert_raises(RuntimeError):
+        model3.initialize(star2)
+    with np.testing.assert_raises(RuntimeError):
+        model3.fit(star2).fit
+    star3 = model3.initialize(star1)
+    star3 = model3.fit(star3)
+    star3 = piff.Star(star2.data, star3.fit)
+    with np.testing.assert_raises(RuntimeError):
+        model3.fit(star3)
+
 
 if __name__ == '__main__':
     test_simple()
@@ -832,3 +884,4 @@ if __name__ == '__main__':
     test_gradient_center()
     test_direct()
     test_var()
+    test_fail()

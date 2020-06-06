@@ -83,6 +83,10 @@ def test_init():
         np.testing.assert_equal(stardata.properties[key], value)
         np.testing.assert_equal(stardata[key], value)
 
+    # Can't have x,y,u,v in properties dict here.
+    np.testing.assert_raises(TypeError, piff.StarData, image, image_pos, weight=weight,
+                             properties=stardata.properties)
+
     # Test access via getImage method:
     im, wt, pos = stardata.getImage()
     np.testing.assert_array_equal(im.array, image.array)
@@ -252,8 +256,8 @@ def test_celestial():
         np.testing.assert_equal(data, image(ix,jy))
         np.testing.assert_equal(wt, weight(ix,jy))
 
-    print("Passed tests of StarData with CelestialWCS")
-
+    # Missing pointing
+    np.testing.assert_raises(TypeError, piff.StarData, image, image_pos, weight=weight)
 
 
 @timer
@@ -458,6 +462,9 @@ def test_io():
                 assert star.fit.flux == f
                 assert star.fit.flux != old_flux
                 assert star.fit.center == old_center
+                # Invalid for new params to be different length than old.
+                np.testing.assert_raises(ValueError, star.fit.newParams, p[:2])
+                np.testing.assert_raises(ValueError, star.fit.newParams, np.arange(4))
 
         file_name = os.path.join('output','star_io.fits')
         print('Writing stars to ',file_name)
@@ -503,10 +510,15 @@ def test_io():
             np.testing.assert_array_equal(s2coords, s2coords_manual)
             np.testing.assert_array_equal(s2params, s2params_manual)
         else:
-            # reading read_coords_params should fail with a RuntimeError if there is no params
-            with np.testing.assert_raises(RuntimeError):
+            # reading read_coords_params should fail if there is no params
+            with np.testing.assert_raises(IOError):
                 with fitsio.FITS(file_name, 'r') as fin:
                     s2coords, s2params = piff.Star.read_coords_params(fin, 'stars')
+
+        with np.testing.assert_raises(IOError):
+            with fitsio.FITS(file_name, 'r') as fin:
+                s2coords, s2params = piff.Star.read_coords_params(fin, 'invalid')
+
 
 if __name__ == '__main__':
     test_init()

@@ -20,7 +20,6 @@ import piff
 import os
 import fitsio
 import glob
-import os
 
 from piff_test_helper import get_script_name, timer
 
@@ -92,7 +91,7 @@ def make_average(coord=None, gp=True):
     else:
         x = coord[:,0]
         y = coord[:,1]
-    
+
     average = 0.02 + 5e-8*(x-1024)**2 + 5e-8*(y-1024)**2
     params = np.recarray((len(x),), dtype=star_type)
 
@@ -107,7 +106,7 @@ def make_average(coord=None, gp=True):
     if gp:
         from scipy.spatial.distance import pdist, squareform
         dists = squareform(pdist(np.array([x, y]).T))
-        cov = 0.03**2 * np.exp(-0.5*dists**2/300.**2) 
+        cov = 0.03**2 * np.exp(-0.5*dists**2/300.**2)
 
         # avoids to print warning from numpy when generated uge gaussian random fields.
         with warnings.catch_warnings():
@@ -265,7 +264,7 @@ def test_meanify():
                 np.testing.assert_allclose(params0[key], average['PARAMS0'][0][:,i],
                                            rtol=rtol, atol=atol)
 
-    ## gaussian process testing of meanify 
+    ## gaussian process testing of meanify
     np.random.seed(68)
     x = np.random.uniform(0, 2048, size=1000)
     y = np.random.uniform(0, 2048, size=1000)
@@ -289,6 +288,65 @@ def test_meanify():
         params_training = np.array([s.fit.params for s in stars_training])
         np.testing.assert_allclose(params_interp, params_validation, rtol=rtol, atol=atol)
 
+
+@timer
+def test_invalid():
+
+    psf_file = 'test_mean_*.piff'
+    average_file = 'average.fits'
+
+    psfs_list = os.path.join('output', 'test_mean_*.piff')
+
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(verbose=2)
+    else:
+        logger = piff.config.setup_logger(log_file='output/test_invalid_config.log')
+
+    config = {
+        'output' : {
+            'file_name' : psfs_list,
+        },
+        'hyper' : {
+            'file_name' : 'output/'+average_file,
+            'bin_spacing' : 30,
+            'statistic' : 'mean',
+            'params_fitted': [0, 2]
+        }}
+
+    # Both output and hyper are required
+    with np.testing.assert_raises(ValueError):
+        piff.meanify(config={'output':config['output']}, logger=logger)
+    with np.testing.assert_raises(ValueError):
+        piff.meanify(config={'hyper':config['hyper']}, logger=logger)
+    # Both require file_name
+    with np.testing.assert_raises(ValueError):
+        piff.meanify(config={'output':config['output'], 'hyper':{}}, logger=logger)
+    with np.testing.assert_raises(ValueError):
+        piff.meanify(config={'hyper':config['hyper'], 'output':{}}, logger=logger)
+    # Invalid statistic
+    config['hyper']['statistic'] = 'invalid'
+    with np.testing.assert_raises(ValueError):
+        piff.meanify(config=config, logger=logger)
+    config['hyper']['statistic'] = 'mean'
+    # Invalid params_fitted
+    config['hyper']['params_fitted'] = 0
+    with np.testing.assert_raises(TypeError):
+        piff.meanify(config=config, logger=logger)
+    config['hyper']['params_fitted'] = [0,2]
+    # Invalid file_name
+    config['output']['file_name'] = []
+    with np.testing.assert_raises(ValueError):
+        piff.meanify(config=config, logger=logger)
+    config['output']['file_name'] = os.path.join('output', 'invalid_*.piff')
+    with np.testing.assert_raises(ValueError):
+        piff.meanify(config=config, logger=logger)
+    config['output']['file_name'] = 7
+    with np.testing.assert_raises(ValueError):
+        piff.meanify(config=config, logger=logger)
+    config['output']['file_name'] = psfs_list
+
+
 if __name__ == '__main__':
     setup()
     test_meanify()
+    test_invalid()
