@@ -405,8 +405,5 @@ class Polynomial(Interp):
         """
         pos = self.getProperties(star)
         p = [self._interpolationModel(pos, coeff) for coeff in self.coeffs]
-        if star.fit is None:
-            fit = StarFit(p)
-        else:
-            fit = star.fit.newParams(p)
+        fit = star.fit.newParams(p)
         return Star(star.data, fit)

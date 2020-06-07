@@ -344,10 +344,9 @@ class ChisqOutliers(Outliers):
         if not self.include_reserve:
             good_stars += [ s for s in stars if s.is_reserve ]
 
-        if nremoved > 0:
-            logger.debug("chisq = %s",chisq[~(chisq <= thresh)])
-            logger.debug("thresh = %s",thresh[~(chisq <= thresh)])
-            logger.debug("flux = %s",[s.flux for g,s in zip(good,stars) if not g])
+        logger.debug("chisq = %s",chisq[~(chisq <= thresh)])
+        logger.debug("thresh = %s",thresh[~(chisq <= thresh)])
+        logger.debug("flux = %s",[s.flux for g,s in zip(good,stars) if not g])
 
         assert nremoved == len(stars) - len(good_stars)
         return good_stars, nremoved

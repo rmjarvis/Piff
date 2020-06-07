@@ -50,7 +50,7 @@ def test_twodstats():
                                    np.array([-0.1 * 1000 / 2048, 0, 0.1 / (0.263 * 2048), 0]),
                                    decimal=4)
 
-    stats = piff.TwoDHistStats(number_bins_u=5, number_bins_v=5, reducing_function='np.mean')
+    stats = piff.TwoDHistStats(number_bins_u=5, number_bins_v=5)  # implicitly np.median
     stats.compute(psf, stars, logger=logger)
     # check the twodhists
     # get the average value in the bin
@@ -83,6 +83,14 @@ def test_twodstats():
     # Test the plotting and writing
     twodstats_file = os.path.join('output','whiskerstats.pdf')
     stats.write(twodstats_file)
+
+    # With large number of bins, many will have no objects.  This is ok.
+    # Also, can use other np functions like max, std, instead to get different stats
+    # Not sure when these would be useful, but they are allowed.
+    stats = piff.TwoDHistStats(number_bins_u=50, number_bins_v=50, reducing_function='np.max')
+    stats.compute(psf, stars, logger=logger)
+    stats = piff.WhiskerStats(number_bins_u=100, number_bins_v=100, reducing_function='np.std')
+    stats.compute(psf, stars)
 
 @timer
 def test_shift_cmap():

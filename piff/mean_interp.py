@@ -51,8 +51,6 @@ class Mean(Interp):
         """
         if self.mean is None:
             return star
-        elif star.fit is None:
-            fit = StarFit(self.mean)
         else:
             fit = star.fit.newParams(self.mean)
         return Star(star.data, fit)
