@@ -123,19 +123,22 @@ class SingleChipPSF(PSF):
         # update stars from psf outlier rejection
         self.stars = [ star for chipnum in chipnums for star in self.psf_by_chip[chipnum].stars ]
 
-    def drawStar(self, star, copy_image=True):
-        """Generate PSF image for a given star.
+    def interpolateStar(self, star):
+        """Update the star to have the current interpolated fit parameters according to the
+        current PSF model.
 
-        :param star:        Star instance holding information needed for interpolation as
-                            well as an image/WCS into which PSF will be rendered.
-        :param copy_image:          If False, will use the same image object.
-                                    If True, will copy the image and then overwrite it.
-                                    [default: True]
+        :param star:        Star instance to update.
 
-        :returns:           Star instance with its image filled with rendered PSF
+        :returns:           Star instance with its fit parameters updated.
         """
         if 'chipnum' not in star.data.properties:
-            raise ValueError("SingleChip drawStar requires the star to have a chipnum property")
+            raise ValueError("SingleChip requires the star to have a chipnum property")
+        chipnum = star['chipnum']
+        return self.psf_by_chip[chipnum].interpolateStar(star)
+
+    def _drawStar(self, star, copy_image=True):
+        if 'chipnum' not in star.data.properties:
+            raise ValueError("SingleChip requires the star to have a chipnum property")
         chipnum = star['chipnum']
         return self.psf_by_chip[chipnum].drawStar(star, copy_image=copy_image)
 

@@ -263,60 +263,7 @@ class SimplePSF(PSF):
         self.model.normalize(star)
         return star
 
-    def drawStarList(self, stars, copy_image=True):
-        """Generate PSF images for given stars. Takes advantage of
-        interpolateList for significant speedup with some interpolators.
-
-        .. note::
-
-            If the stars already have the fit parameters calculated, then this will trust
-            those values and not redo the interpolation.  If this might be a concern, you can
-            force the interpolation to be redone by running
-
-                >>> stars = psf.interpolateList(stars)
-
-            before running `drawStarList`.
-
-        :param stars:       List of Star instances holding information needed
-                            for interpolation as well as an image/WCS into
-                            which PSF will be rendered.
-        :param copy_image:  If False, will use the same image object.
-                            If True, will copy the image and then overwrite it.
-                            [default: True]
-
-        :returns:           List of Star instances with its image filled with
-                            rendered PSF
-        """
-        if any(star.fit is None or star.fit.params is None for star in stars):
-            stars = self.interpolateStarList(stars)
-        stars = [self.model.draw(star, copy_image=copy_image) for star in stars]
-        return stars
-
-    def drawStar(self, star, copy_image=True):
-        """Generate PSF image for a given star.
-
-        .. note::
-
-            If the star already has the fit parameters calculated, then this will trust
-            those values and not redo the interpolation.  If this might be a concern, you can
-            force the interpolation to be redone by running
-
-                >>> star = psf.interpolateList(star)
-
-            before running `drawStar`.
-
-        :param star:        Star instance holding information needed for interpolation as
-                            well as an image/WCS into which PSF will be rendered.
-        :param copy_image:  If False, will use the same image object.
-                            If True, will copy the image and then overwrite it.
-                            [default: True]
-
-        :returns:           Star instance with its image filled with rendered PSF
-        """
-        # Interpolate parameters to this position/properties (if not already done):
-        if star.fit is None or star.fit.params is None:
-            star = self.interpolateStar(star)
-        # Render the image
+    def _drawStar(self, star, copy_image=True):
         return self.model.draw(star, copy_image=copy_image)
 
     def _finish_write(self, fits, extname, logger):
