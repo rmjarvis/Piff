@@ -285,10 +285,10 @@ class TwoDHistStats(Stats):
             ui, vi = unique
 
             sample = z[(indx_u == ui) & (indx_v == vi)]
-            if len(sample) > 0:
-                value = self.reducing_function(sample)
-                C[vi, ui] = value
-                C.mask[vi, ui] = 0
+            assert len(sample) > 0  # This is ensured by how we calculate unique_indx
+            value = self.reducing_function(sample)
+            C[vi, ui] = value
+            C.mask[vi, ui] = 0
 
         return C
 
@@ -590,9 +590,9 @@ class WhiskerStats(Stats):
             ui, vi = unique
 
             sample = z[(indx_u == ui) & (indx_v == vi)]
-            if len(sample) > 0:
-                value = self.reducing_function(sample)
-                C[vi, ui] = value
-                C.mask[vi, ui] = 0
+            assert len(sample) > 0
+            value = self.reducing_function(sample)
+            C[vi, ui] = value
+            C.mask[vi, ui] = 0
 
         return C

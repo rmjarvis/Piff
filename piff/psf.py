@@ -319,17 +319,10 @@ class PSF(object):
             import pickle
         logger = galsim.config.LoggerWrapper(logger)
 
-        # Start with the chipnums, which may be int or str type.
-        # Assume they are all the same type at least.
+        # Start with the chipnums
         chipnums = list(self.wcs.keys())
         cols = [ chipnums ]
-        if np.dtype(type(chipnums[0])).kind in np.typecodes['AllInteger']:
-            dtypes = [ ('chipnums', int) ]
-        else:
-            # coerce to string, just in case it's something else.
-            chipnums = [ str(c) for c in chipnums ]
-            max_len = np.max([ len(c) for c in chipnums ])
-            dtypes = [ ('chipnums', bytes, max_len) ]
+        dtypes = [ ('chipnums', int) ]
 
         # GalSim WCS objects can be serialized via pickle
         wcs_str = [ base64.b64encode(pickle.dumps(w)) for w in self.wcs.values() ]
@@ -341,8 +334,6 @@ class PSF(object):
         nchunks = max_len // chunk_size + 1
         cols.append( [nchunks]*len(chipnums) )
         dtypes.append( ('nchunks', int) )
-        if nchunks > 1:
-            logger.debug('Using %d chunks for the wcs pickle string',nchunks)
 
         # Update to size of chunk we actually need.
         chunk_size = (max_len + nchunks - 1) // nchunks

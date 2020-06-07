@@ -141,11 +141,7 @@ class kNNInterp(Interp):
             if star.fit is None:
                 fit = StarFit(yi)
             else:
-                try:
-                    fit = star.fit.newParams(yi)
-                except TypeError:
-                    logger.info('Warning, stars interpolated to wrong number of params! %s', len(fit))
-                    fit = StarFit(yi)
+                fit = star.fit.newParams(yi)
             star_list_fitted.append(Star(star.data, fit))
         return star_list_fitted
 
