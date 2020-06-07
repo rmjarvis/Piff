@@ -333,7 +333,12 @@ def test_rhostats_config():
             'file_name' : psf_file,
             'stats' : {  # Note: stats doesn't have to be a list.
                 'type': 'Rho',
-                'file_name': rho_file
+                'file_name': rho_file,
+                'min_sep': 30,
+                'max_sep': 600,
+                'sep_units': 'arcsec',
+                'bin_type': 'Linear',
+                'bin_size': 30,
             }
         },
     }
@@ -445,6 +450,7 @@ def test_shapestats_config():
     shapeStats = piff.ShapeHistogramsStats()
     orig_stars, wcs, pointing = piff.Input.process(config['input'], logger)
     shapeStats.compute(psf, orig_stars)
+    shapeStats.plot(psf, histtype='bar', log=True)  # can supply additional args for matplotlib
 
     # test their characteristics
     sigma = 1.3  # (copied from setup())

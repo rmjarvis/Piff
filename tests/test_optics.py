@@ -17,16 +17,24 @@ import numpy as np
 import piff
 import os
 import fitsio
+import galsim
 
 from piff_test_helper import timer
 
 
 @timer
 def test_init():
-    print('test init')
     # make sure we can init with defaults
     model = piff.Optical(template='des')
-    return model
+    prof = model.getProfile([])
+    print('prof = ',prof)
+    assert isinstance(prof, galsim.Convolution)
+
+    # make a simple optical-only model
+    model = piff.Optical(diam=4, lam=700)
+    prof = model.getProfile([])
+    print('prof = ',prof)
+    assert isinstance(prof, galsim.OpticalPSF)
 
 
 @timer

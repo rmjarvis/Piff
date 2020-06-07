@@ -21,7 +21,7 @@ import subprocess
 import yaml
 import fitsio
 
-from piff_test_helper import get_script_name, timer
+from piff_test_helper import get_script_name, timer, CaptureLog
 
 
 @timer
@@ -228,7 +228,8 @@ def test_single_image():
     u,v = world_pos.x, world_pos.y
     stamp_size = config['stamp_size']
 
-    target = piff.Star.makeTarget(x=x, y=y, u=u, v=v, wcs=orig_wcs, stamp_size=stamp_size, pointing=orig_pointing)
+    target = piff.Star.makeTarget(x=x, y=y, u=u, v=v, wcs=orig_wcs, stamp_size=stamp_size,
+                                  pointing=orig_pointing)
     true_params = [ sigma, g1, g2 ]
     test_star = interp.interpolate(target)
     np.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=4)
@@ -281,11 +282,13 @@ def test_single_image():
 
     # test copy_image property of drawStar and draw
     for draw in [psf.drawStar, psf.model.draw]:
-        target_star_copy = psf.interp.interpolate(piff.Star(target.data.copy(), target.fit.copy()))  # interp is so that when we do psf.model.draw we have fit.params to work with
+        target_star_copy = psf.interp.interpolate(piff.Star(target.data.copy(), target.fit.copy()))
+        # interp is so that when we do psf.model.draw we have fit.params to work with
 
         test_star_copy = draw(target_star_copy, copy_image=True)
         test_star_nocopy = draw(target_star_copy, copy_image=False)
-        # if we modify target_star_copy, then test_star_nocopy should be modified, but not test_star_copy
+        # if we modify target_star_copy, then test_star_nocopy should be modified,
+        # but not test_star_copy
         target_star_copy.image.array[0,0] = 23456
         assert test_star_nocopy.image.array[0,0] == target_star_copy.image.array[0,0]
         assert test_star_copy.image.array[0,0] != target_star_copy.image.array[0,0]
@@ -294,11 +297,13 @@ def test_single_image():
         assert test_star_copy.image.array[1,1] == target_star_copy.image.array[1,1]
 
     # test that draw works
-    test_image = psf.draw(x=target['x'], y=target['y'], stamp_size=config['input']['stamp_size'], flux=target.fit.flux, offset=target.fit.center)
+    test_image = psf.draw(x=target['x'], y=target['y'], stamp_size=config['input']['stamp_size'],
+                          flux=target.fit.flux, offset=target.fit.center)
     # this image should be the same values as test_star
     assert test_image == test_star.image
     # test that draw does not copy the image
-    image_ref = psf.draw(x=target['x'], y=target['y'], stamp_size=config['input']['stamp_size'], flux=target.fit.flux, offset=target.fit.center, image=test_image)
+    image_ref = psf.draw(x=target['x'], y=target['y'], stamp_size=config['input']['stamp_size'],
+                         flux=target.fit.flux, offset=target.fit.center, image=test_image)
     image_ref.array[0,0] = 123456789
     assert test_image.array[0,0] == image_ref.array[0,0]
     assert test_star.image.array[0,0] != test_image.array[0,0]
@@ -358,6 +363,12 @@ def test_single_image():
     assert psf4.nremoved == psf.nremoved
     test_star = psf4.interp.interpolate(target)
     np.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=4)
+
+    # With very low max_iter, we hit the warning about non-convergence
+    config['psf']['max_iter'] = 1
+    with CaptureLog(level=1) as cl:
+        piff.piffify(config, cl.logger)
+    assert 'PSF fit did not converge' in cl.output
 
 @timer
 def test_reserve():
