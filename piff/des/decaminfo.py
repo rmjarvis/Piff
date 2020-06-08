@@ -135,7 +135,7 @@ class DECamInfo(object):
         self.infoLowerLeftCorner = self.infoArr - pixHalfSize
         self.infoUpperRightCorner = self.infoArr + pixHalfSize
 
-    def getPosition_chipnum(self, chipnums, ix, iy):
+    def getPosition(self, chipnums, ix, iy):
         """Given chipnum and pixel coordinates return focal_plane coordinates [mm]
 
         :param chipnums:        Array of ccd numbers.
@@ -179,71 +179,8 @@ class DECamInfo(object):
 
         return ix, iy
 
-    def getPosition_extname(self, extname, ix, iy):
-        """Given extname and pixel coordinates return focal_plane coordinates [mm]
-
-        :param extname:         Single extension name (string)
-        :param ix, iy:          Arrays of x and y coordinates, in pixels on a ccd.
-
-        :returns xPos yPos:     Arrays of x and y coordinates in mm on the focal plane.
-        """
-        # return the x,y position in [mm] for a given CCD and pixel number
-        # note that the ix,iy are Image pixels - overscans removed - and start at zero
-
-        ccdinfo = self.infoDict[extname]
-
-        # CCD size in pixels
-        if ccdinfo["FAflag"]:
-            xpixHalfSize = 1024.
-            ypixHalfSize = 1024.
-        else:
-            xpixHalfSize = 1024.
-            ypixHalfSize = 2048.
-
-        # calculate positions
-        xPos = ccdinfo["xCenter"] + (ix-xpixHalfSize+0.5)*self.mmperpixel
-        yPos = ccdinfo["yCenter"] + (iy-ypixHalfSize+0.5)*self.mmperpixel
-
-        return xPos, yPos
-
-    def getPixel_extname(self, extname, xPos, yPos):
-        """Given extname and focal_plane coordinates [mm] return pixel coordinates
-
-        :param extname:     Single extension name (string)
-        :param xPos, yPos:  Arrays of x and y coordinates, in mm on the focal plane
-
-        :returns ix, iy:    Arrays of x and y coordinates in pixels
-        """
-        # given a coordinate in [mm], return pixel number
-
-        ccdinfo = self.infoDict[extname]
-
-        # CCD size in pixels
-        if ccdinfo["FAflag"]:
-            xpixHalfSize = 1024.
-            ypixHalfSize = 1024.
-        else:
-            xpixHalfSize = 1024.
-            ypixHalfSize = 2048.
-
-        # calculate positions
-        ix = (xPos - ccdinfo["xCenter"]) / self.mmperpixel + xpixHalfSize - 0.5
-        iy = (yPos - ccdinfo["yCenter"]) / self.mmperpixel + ypixHalfSize - 0.5
-
-        return ix, iy
-
-    def getPosition(self, chipnums, ix, iy):
-        """Given chipnum and pixel coordinates return focal_plane coordinates [mm]
-
-        :param chipnums:        Array of ccd numbers.
-        :param ix, iy:          Arrays of x and y coordinates, in pixels on a ccd.
-
-        :returns xPos, yPos:    Arrays of x and y coordinates in mm on the focal plane.
-        """
-        return self.getPosition_chipnum(chipnums, ix, iy)
-
     def getPixel(self, xPos, yPos):
-        """Given extname and focal_plane coordinates [mm] return pixel coordinates
+        """Given focal_plane coordinates [mm] return pixel coordinates
 
         :param xPos, yPos:          Arrays of x and y coordinates, in mm on the focal plane
 
@@ -270,7 +207,7 @@ class DECamInfo(object):
         :returns stardata:  New stardata with updated properties
         """
         # stardata needs to have chipnum as a property!
-        focal_x, focal_y = self.getPosition_chipnum(
+        focal_x, focal_y = self.getPosition(
             np.array([stardata['chipnum']]), np.array([stardata['x']]), np.array([stardata['y']]))
         properties = stardata.properties.copy()
         properties['focal_x'] = focal_x[0]
@@ -300,7 +237,7 @@ class DECamInfo(object):
 
         :returns starsl:  New stars with updated properties
         """
-        return [Star(self.pixel_to_focal_stardata(star.data), star.fit) for star in stars]
+        return [self.pixel_to_focal(star) for star in stars]
 
     def get_nominal_wcs(self, chipnum):
         """Given a chip, return a galsim wcs object with reasonable values.
