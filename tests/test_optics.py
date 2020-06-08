@@ -53,6 +53,14 @@ def test_optical(model=None):
     np.testing.assert_almost_equal(star_fitted.fit.flux, star.fit.flux)
     np.testing.assert_almost_equal(star_fitted.fit.params, star.fit.params)
 
+    # Reflux actually updates these to something reasonable.
+    logger = piff.config.setup_logger(verbose=2)
+    star_wrong = star.withFlux(2, (0.1,0.2))
+    star_reflux = model.reflux(star_wrong, logger=logger)
+    # There is no noise, but this is still not completely perfect.
+    assert star_reflux.fit.chisq < 1.e-2
+    np.testing.assert_allclose(star_reflux.fit.flux, 1.0, rtol=0.1)
+
     # test copy_image
     star_copy = model.draw(star, copy_image=True)
     star_nocopy = model.draw(star, copy_image=False)
