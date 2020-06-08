@@ -337,6 +337,8 @@ class GSObjectModel(Model):
         # new_chisq ignores centroid shift, but close enough.
         new_chisq = np.sum(weight * (image - flux_ratio*model)**2)
         new_dof = np.count_nonzero(weight) - 6
+        logger.debug("    new_chisq = %s",new_chisq)
+        logger.debug("    new_dof = %s",new_dof)
 
         return Star(star.data, StarFit(star.fit.params,
                                        flux = star.fit.flux * flux_ratio,
