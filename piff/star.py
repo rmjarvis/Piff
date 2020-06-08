@@ -469,7 +469,7 @@ class Star(object):
 
     @staticmethod
     def load_images(stars, file_name, pointing=None,
-                    image_hdu=None, weight_hdu=None, badpix_hdu=None, sky=None,
+                    image_hdu=None, weight_hdu=None, badpix_hdu=None, noise=None, sky=None,
                     logger=None):
         """Load the image data into a list of Stars.
 
@@ -485,54 +485,23 @@ class Star(object):
                                 either 0 or 1 as appropriate according to the compression.]
         :param weight_hdu:      The hdu to use for the weight image. [default: None]
         :param badpix_hdu:      The hdu to use for the bad pixel mask. [default: None]
+        :param noise:           A constant noise value to use in lieu of a weight map
+                                [default: None]
         :param sky:             Optional sky image or float value to subtract from the main
                                 image. [default: None]
         :param logger:          A logger object for logging debug info. [default: None]
 
         :returns: a new list of Stars with the images information loaded.
         """
-        # TODO: This is largely copied from InputHandler.readImages.
-        #       This should probably be refactored a bit to avoid the duplicated code.
+        from .input import InputFiles
+
         logger = galsim.config.LoggerWrapper(logger)
         logger.info("Loading image information from file %s",file_name)
-        image = galsim.fits.read(file_name, hdu=image_hdu)
 
-        if sky is not None:
-            image = image - sky
-
-        # Either read in the weight image, or build a dummy one
-        if weight_hdu is None:
-            logger.debug("Making trivial (wt==1) weight image")
-            weight = galsim.ImageI(image.bounds, init_value=1)
-        else:
-            logger.info("Reading weight image from hdu %d.", weight_hdu)
-            weight = galsim.fits.read(file_name, hdu=weight_hdu)
-            if np.all(weight.array == 0):
-                logger.error("According to the weight mask in %s, all pixels have zero weight!",
-                             file_name)
-
-        # If requested, set wt=0 for any bad pixels
-        if badpix_hdu is not None:
-            logger.info("Reading badpix image from hdu %d.", badpix_hdu)
-            badpix = galsim.fits.read(file_name, hdu=badpix_hdu)
-            # The badpix image may be offset by 32768 from the true value.
-            # If so, subtract it off.
-            if np.any(badpix.array > 32767):
-                logger.debug('min(badpix) = %s',np.min(badpix.array))
-                logger.debug('max(badpix) = %s',np.max(badpix.array))
-                logger.debug("subtracting 32768 from all values in badpix image")
-                badpix -= 32768
-            if np.any(badpix.array < -32767):
-                logger.debug('min(badpix) = %s',np.min(badpix.array))
-                logger.debug('max(badpix) = %s',np.max(badpix.array))
-                logger.debug("adding 32768 to all values in badpix image")
-                badpix += 32768
-            # Also, convert to int16, in case it isn't by default.
-            badpix = galsim.ImageS(badpix)
-            if np.all(badpix.array != 0):
-                logger.error("According to the bad pixel array in %s, all pixels are masked!",
-                                file_name)
-            weight.array[badpix.array != 0] = 0
+        image, weight = InputFiles.readImage(file_name, image_hdu, weight_hdu, badpix_hdu,
+                                             noise=noise, logger=logger)
+        if sky:
+            image -= sky
 
         stars = [ Star(data = StarData(image=image[star.data.image.bounds].copy(),
                                        image_pos=star.data.image_pos,

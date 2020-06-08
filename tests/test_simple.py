@@ -631,6 +631,65 @@ def test_extra_interp():
     with np.testing.assert_raises(TypeError):
         psf2.draw(x=5, y=7, chipnum=0)
 
+@timer
+def test_load_images():
+    """Test the load_images function
+    """
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(verbose=2)
+    else:
+        logger = piff.config.setup_logger(log_file='output/test_load_image2.log')
+
+    # Same setup as test_single_image, but without flags
+    image = galsim.Image(2048, 2048, scale=0.26)
+    x_list = [ 123.12, 345.98, 567.25, 1094.94, 924.15, 1532.74, 1743.11, 888.39, 1033.29, 1409.31 ]
+    y_list = [ 345.43, 567.45, 1094.32, 924.29, 1532.92, 1743.83, 888.83, 1033.19, 1409.20, 123.11 ]
+    sigma = 1.3
+    g1 = 0.23
+    g2 = -0.17
+    psf = galsim.Gaussian(sigma=sigma).shear(g1=g1, g2=g2)
+    for x,y in zip(x_list, y_list):
+        bounds = galsim.BoundsI(int(x-31), int(x+32), int(y-31), int(y+32))
+        psf.drawImage(image[bounds], center=galsim.PositionD(x,y), method='no_pixel')
+    image.addNoise(galsim.GaussianNoise(rng=galsim.BaseDeviate(1234), sigma=1e-6))
+    image_file = os.path.join('output','test_load_images_im.fits')
+    image.write(image_file)
+
+    dtype = [ ('x','f8'), ('y','f8') ]
+    data = np.empty(len(x_list), dtype=dtype)
+    data['x'] = x_list
+    data['y'] = y_list
+    cat_file = os.path.join('output','test_load_images_cat.fits')
+    fitsio.write(cat_file, data, clobber=True)
+
+    # Make star data
+    config = { 'image_file_name' : image_file,
+               'cat_file_name': cat_file }
+    orig_stars, wcs, pointing = piff.Input.process(config, logger)
+
+    # Fit these with a simple Mean, Gaussian
+    model = piff.Gaussian()
+    interp = piff.Mean()
+    psf = piff.SimplePSF(model, interp)
+    psf.fit(orig_stars, wcs, pointing, logger=logger)
+    psf_file = os.path.join('output','test_load_images_psf.fits')
+    psf.write(psf_file, logger)
+
+    # Read this file back in.  It has the star data, but the images are blank.
+    psf2 = piff.read(psf_file, logger)
+    assert len(psf2.stars) == 10
+    for star in psf2.stars:
+        np.testing.assert_array_equal(star.image.array, 0.)
+
+    loaded_stars = piff.Star.load_images(psf2.stars, image_file)
+    for star, orig in zip(loaded_stars, psf.stars):
+        np.testing.assert_array_equal(star.image.array, orig.image.array)
+
+    # Can optionally supply sky to subtract
+    loaded_stars = piff.Star.load_images(psf2.stars, image_file, sky=10)
+    for star, orig in zip(loaded_stars, psf.stars):
+        np.testing.assert_array_equal(star.image.array, orig.image.array-10)
+
 
 if __name__ == '__main__':
     test_Gaussian()
@@ -641,3 +700,4 @@ if __name__ == '__main__':
     test_model()
     test_interp()
     test_psf()
+    test_load_images()
