@@ -18,9 +18,10 @@
 
 from __future__ import print_function
 import numpy as np
+import galsim
 
 from .util import write_kwargs, read_kwargs
-from .star import Star, StarData
+from .star import Star, StarData, StarFit
 
 
 class Model(object):
@@ -103,6 +104,61 @@ class Model(object):
         :returns:      New Star instance with updated fit information
         """
         raise NotImplementedError("Derived classes must define the fit function")
+
+    def reflux(self, star, fit_center=True, logger=None):
+        """Fit the Model to the star's data, varying only the flux (and
+        center, if it is free).  Flux and center are updated in the Star's
+        attributes.  This is a single-step solution if only solving for flux,
+        otherwise an iterative operation.  DOF in the result assume
+        only flux (& center) are free parameters.
+
+        :param star:        A Star instance
+        :param fit_center:  If False, disable any motion of center
+        :param logger:      A logger object for logging debug info. [default: None]
+
+        :returns:           New Star instance, with updated flux, center, chisq, dof
+        """
+        logger = galsim.config.LoggerWrapper(logger)
+        logger.debug("Reflux for star:")
+        logger.debug("    flux = %s",star.fit.flux)
+        logger.debug("    center = %s",star.fit.center)
+        logger.debug("    props = %s",star.data.properties)
+        logger.debug("    image = %s",star.data.image)
+        #logger.debug("    image = %s",star.data.image.array)
+        #logger.debug("    weight = %s",star.data.weight.array)
+        logger.debug("    image center = %s",star.data.image(star.data.image.center))
+        logger.debug("    weight center = %s",star.data.weight(star.data.weight.center))
+
+        image, weight, u, v = star.data.getDataVector(include_zero_weight=True)
+        model = self.draw(star).image.array.flatten()
+
+        WIM = weight * image * model
+        WMM = weight * model**2
+
+        f_data = np.sum(WIM)
+        f_model = np.sum(WMM)
+        flux_ratio = f_data / f_model
+
+        if fit_center and self._centered:
+            ushift = np.sum(WIM * u)/f_data - np.sum(WMM * u)/f_model
+            vshift = np.sum(WIM * v)/f_data - np.sum(WMM * v)/f_model
+            new_center = (star.fit.center[0] + ushift,
+                          star.fit.center[1] + vshift)
+        else:
+            new_center = star.fit.center
+
+        # new_chisq ignores centroid shift, but close enough.
+        new_chisq = np.sum(weight * (image - flux_ratio*model)**2)
+        new_dof = np.count_nonzero(weight) - 6
+        logger.debug("    new_chisq = %s",new_chisq)
+        logger.debug("    new_dof = %s",new_dof)
+
+        return Star(star.data, StarFit(star.fit.params,
+                                       flux = star.fit.flux * flux_ratio,
+                                       center = new_center,
+                                       chisq = new_chisq,
+                                       dof = new_dof,
+                                       params_var = star.fit.params_var))
 
     def draw(self, star, copy_image=True):
         """Draw the model on the given image.

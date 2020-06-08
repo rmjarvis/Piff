@@ -195,19 +195,18 @@ class SimplePSF(PSF):
 
             # Refit and recenter all stars, collect stats
             logger.debug("             Re-fluxing stars")
-            if hasattr(self.model, 'reflux'):
-                new_stars = []
-                for s in self.stars:
-                    try:
-                        new_star = self.model.reflux(s, logger=logger)
-                    except Exception as e:  # pragma: no cover
-                        logger.warning("Failed trying to reflux star at %s.  Excluding it.",
-                                       s.image_pos)
-                        logger.warning("  -- Caught exception: %s", e)
-                        nremoved += 1
-                    else:
-                        new_stars.append(new_star)
-                self.stars = new_stars
+            new_stars = []
+            for s in self.stars:
+                try:
+                    new_star = self.model.reflux(s, logger=logger)
+                except Exception as e:  # pragma: no cover
+                    logger.warning("Failed trying to reflux star at %s.  Excluding it.",
+                                    s.image_pos)
+                    logger.warning("  -- Caught exception: %s", e)
+                    nremoved += 1
+                else:
+                    new_stars.append(new_star)
+            self.stars = new_stars
 
             # Perform outlier rejection, but not on first iteration for degenerate solvers.
             if self.outliers and (iteration > 0 or not degenerate_points):
