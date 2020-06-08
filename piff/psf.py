@@ -144,7 +144,7 @@ class PSF(object):
         for key in self.extra_interp_properties:
             if key not in kwargs:
                 raise TypeError("Extra interpolation property %r is required"%key)
-            properties = kwags.pop(key)
+            properties[key] = kwargs.pop(key)
         if len(kwargs) != 0:
             raise TypeError("draw got an unexpecte keyword argument %r"%kwargs.keys()[0])
 

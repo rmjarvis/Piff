@@ -585,6 +585,52 @@ def test_psf():
     with mock.patch('piff.util.get_all_subclasses', return_value=[piff.SingleChipPSF]):
         np.testing.assert_raises(ValueError, piff.PSF.read, filename)
 
+@timer
+def test_extra_interp():
+    # Test that specifying extra_interp_properties works properly
+    # TODO: This is a very bare bones test of the interface.  There is basically no test of
+    #       this functionality at all yet.  TBD!
+
+    sigma = 1.3
+    g1 = 0.23
+    g2 = -0.17
+    psf = galsim.Gaussian(sigma=sigma).shear(g1=g1, g2=g2)
+    wcs = galsim.JacobianWCS(0.26, 0.05, -0.08, -0.29)
+    image = galsim.Image(64,64, wcs=wcs)
+    psf.drawImage(image, method='no_pixel')
+
+    # use g-i color as an extra property for interpolation.
+    props = dict(gi_color=0.3)
+    print('props = ',props)
+    star = piff.Star(piff.StarData(image, image.true_center, properties=props), None)
+
+    model = piff.Gaussian(fastfit=True, include_pixel=False)
+    interp = piff.Mean()
+    psf = piff.SimplePSF(model, interp, extra_interp_properties=['gi_color'])
+    assert psf.extra_interp_properties == ['gi_color']
+
+    # Note: Mean doesn't actually do anything useful with the extra properties, so this
+    #       isn't really testing anything other than that the code doesn't completely break.
+    pointing = galsim.CelestialCoord(-5 * galsim.arcmin, -25 * galsim.degrees)
+    psf.fit([star], wcs={0 : wcs}, pointing=pointing)
+
+    # Not much of a check here.  Just check that it actually draws something with flux ~= 1
+    im = psf.draw(x=5, y=7, gi_color=0.3)
+    np.testing.assert_allclose(im.array.sum(), 1.0, rtol=1.e-3)
+
+    # Check missing or extra properties
+    with np.testing.assert_raises(TypeError):
+        psf.draw(x=5, y=7)
+    with np.testing.assert_raises(TypeError):
+        psf.draw(x=5, y=7, gi_color=0.3, ri_color=3)
+
+    # Also for SingleChipPSf
+    psf2 = piff.SingleChipPSF(psf, extra_interp_properties=['gi_color'])
+    assert psf2.extra_interp_properties == ['gi_color']
+
+    with np.testing.assert_raises(TypeError):
+        psf2.draw(x=5, y=7, chipnum=0)
+
 
 if __name__ == '__main__':
     test_Gaussian()

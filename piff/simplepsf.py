@@ -42,8 +42,7 @@ class SimplePSF(PSF):
         :param outliers:    Optionally, an Outliers instance used to remove outliers.
                             [default: None]
         :param extra_interp_properties: A list of any extra properties that will be used for
-                            the interpolation in addition to (u,v).
-                            [default: None]
+                                        the interpolation in addition to (u,v). [default: None]
         :param chisq_thresh: Change in reduced chisq at which iteration will terminate.
                             [default: 0.1]
         :param max_iter:    Maximum number of iterations to try. [default: 30]
@@ -58,7 +57,7 @@ class SimplePSF(PSF):
         self.chisq_thresh = chisq_thresh
         self.max_iter = max_iter
         self.kwargs = {
-            # These are junk entries that will be overwritten.
+            # model and interp are junk entries that will be overwritten.
             # TODO: Come up with a nicer mechanism for specifying items that can be overwritten
             #       in the _finish_read function.
             'model': 0,
