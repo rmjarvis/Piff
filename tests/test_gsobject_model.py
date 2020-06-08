@@ -829,7 +829,7 @@ def test_fail():
     g1 = 0.33
     g2 = -0.27
     flux = 15
-    noise = 2
+    noise = 2.
     seed = 1234
 
     psf = galsim.Moffat(half_light_radius=1.0, beta=2.5, trunc=3.0)
