@@ -49,9 +49,8 @@ class SingleChipPSF(PSF):
                             (This will be turned into nchips copies of the provided object.)
         :param nproc:       How many multiprocessing processes to use for running multiple
                             chips at once. [default: 1]
-        :param extra_interp_properties:     A list of any extra properties that will be used for
-                                            the interpolation in addition to (u,v).
-                                            [default: None]
+        :param extra_interp_properties: A list of any extra properties that will be used for
+                                        the interpolation in addition to (u,v). [default: None]
         """
         self.single_psf = single_psf
         self.nproc = nproc
