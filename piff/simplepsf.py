@@ -66,6 +66,10 @@ class SimplePSF(PSF):
             'chisq_thresh': self.chisq_thresh,
             'max_iter': self.max_iter,
         }
+        self.chisq = 0.
+        self.last_delta_chisq = 0.
+        self.dof = 0
+        self.nremoved = 0
 
     @classmethod
     def parseKwargs(cls, config_psf, logger):
@@ -272,15 +276,12 @@ class SimplePSF(PSF):
         :param logger:      A logger object for logging debug info.
         """
         logger = galsim.config.LoggerWrapper(logger)
-        if hasattr(self, 'chisq'):
-            chisq_dict = {
-                'chisq' : self.chisq,
-                'last_delta_chisq' : self.last_delta_chisq,
-                'dof' : self.dof,
-                'nremoved' : self.nremoved,
-            }
-        else:
-            chisq_dict = {}
+        chisq_dict = {
+            'chisq' : self.chisq,
+            'last_delta_chisq' : self.last_delta_chisq,
+            'dof' : self.dof,
+            'nremoved' : self.nremoved,
+        }
         write_kwargs(fits, extname + '_chisq', chisq_dict)
         logger.debug("Wrote the chisq info to extension %s",extname + '_chisq')
         self.model.write(fits, extname + '_model')
