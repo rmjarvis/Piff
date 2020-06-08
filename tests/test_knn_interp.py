@@ -169,7 +169,7 @@ def test_decam_wavefront():
     if __name__ == '__main__':
         logger = piff.config.setup_logger(verbose=2)
     else:
-        logger = None
+        logger = piff.config.setup_logger(log_file='output/test_decamlog')
     knn = piff.des.DECamWavefront(file_name, extname, logger=logger)
 
     n_samples = 2000
@@ -212,6 +212,14 @@ def test_decam_wavefront():
     np.testing.assert_array_almost_equal(y_predicted[:,0], y_misaligned[:,0] - misalignment['z04d'])
     np.testing.assert_array_almost_equal(y_predicted[:,5], y_misaligned[:,5] - misalignment['z09y'] * X[:,0])
     np.testing.assert_array_almost_equal(y_predicted[:,6], y_misaligned[:,6] - misalignment['z10x'] * X[:,1])
+
+    # Check shape of misalignment if array
+    np.testing.assert_raises(ValueError, knn.misalign_wavefront, knn.misalignment[:,:2])
+    np.testing.assert_raises(ValueError, knn.misalign_wavefront, knn.misalignment[:-1,:])
+
+    # empty dict is equivalent to no misalignment
+    knn.misalign_wavefront({})
+    np.testing.assert_equal(knn.misalignment, 0.)
 
 
 @timer
