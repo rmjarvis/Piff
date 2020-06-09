@@ -1,7 +1,6 @@
 branches:
     only:
         - master
-        - coverage
 
 language: python
 python:
