@@ -10,7 +10,7 @@ coverage:
     project:
       default:
         enabled: yes
-        target: 70%
+        target: 100%
         threshold: 1%
         branches: null
 
