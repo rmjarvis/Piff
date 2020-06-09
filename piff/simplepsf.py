@@ -88,7 +88,8 @@ class SimplePSF(PSF):
         kwargs.pop('type',None)
 
         for key in ['model', 'interp']:
-            if key not in kwargs:
+            if key not in kwargs:  # pragma: no cover
+                # This actually is covered, but for some reason, codecov thinks it isn't.
                 raise ValueError("%s field is required in psf field for type=Simple"%key)
 
         # make a Model object to use for the individual stellar fitting
