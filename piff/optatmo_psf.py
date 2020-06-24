@@ -211,6 +211,11 @@ class OptAtmoPSF(PSF):
         self.min_optfit_snr = min_optfit_snr
         self.n_optfit_stars = n_optfit_stars
 
+        # This mask cuts out the values that were added the the new version of calculate moment
+        #self.mask_moments_new_to_old = np.array([False, False, False, True, True, True, True, True,
+        #                                         True, True, True, True, True])
+
+
         #####
         # setup double zernike piece
         #####
@@ -630,7 +635,7 @@ class OptAtmoPSF(PSF):
                 # moments up to eighth moments
                 star.data.properties['shape'] = shape
                 star.data.properties['shape_error'] = error
-                
+
                 self.stars.append(star)
                 self.star_shapes.append(shape)
                 self.star_errors.append(error)
@@ -1347,7 +1352,7 @@ class OptAtmoPSF(PSF):
         if return_error:
             if True:
                 errors[0] *= (hsm[0] * pix_area * star.data.weight.array.mean())**2
-                errors[3:] *= 4
+                errors *= 4
 
             logger.debug('Measured Error is {0}'.format(str(errors)))
             return values, np.sqrt(errors)
@@ -1405,7 +1410,7 @@ class OptAtmoPSF(PSF):
             from .util import hsm
             hsm = hsm(star)
             errors[0] *= (hsm[0] * star.data.pixel_area * star.data.weight.array.mean())**2
-            errors[3:] *= 4
+            errors *= 4
 
         return np.sqrt(errors)
 
@@ -1456,8 +1461,9 @@ class OptAtmoPSF(PSF):
 
         # values = flux, u0, v0, e0, e1, e2, zeta1, zeta2, delta1, delta2, xi4, xi6, xi8
         values = star.calculate_moments(logger=logger, third_order=True, radial=True)
-        values = np.array(values)
-
+        #values = np.array(values)[self.mask_moments_new_to_old]
+        values = np.array(values)[3:]
+        
         if True:
             # This converts from natural moments to the version Ares had
             # The tests pass without this, but I think that just means they weren't really
@@ -1496,8 +1502,10 @@ class OptAtmoPSF(PSF):
         #          sigma_zeta1, sigma_zeta2, sigma_delta1, sigma_delta2,
         #          sigma_orth4, sigma_orth6, sigma_orth8
         values = star.calculate_moments(logger=logger, third_order=True, radial=True, errors=True)
-        errors = np.array(values[13:])
-
+        #errors = np.array(values[13:])[self.mask_moments_new_to_old]
+        nvals = int(len(values)/2)
+        errors = np.array(values[nvals:])[3:]
+        
         if True:
             from .util import hsm
             hsm = hsm(star)
@@ -1915,7 +1923,7 @@ class OptAtmoPSF(PSF):
                 )
                 slack_factor = 0.8
                 self._force_vk_stepk = vk.stepk * slack_factor
-        
+
         # Make sure everything is 64 bit, otherwise least_squares fails
         star_image_copy = Image(star.image.copy(), dtype=np.float64, copy=True)
         new_star_data = StarData(image=star_image_copy,
@@ -2287,7 +2295,7 @@ class OptAtmoPSF(PSF):
                 shape_model = shape
 
             # don't care about flux, du, dv here
-            chi_i = self._shape_weights * (((shape_model - shape) / error)[3:])
+            chi_i = self._shape_weights * (((shape_model - shape) / error))
             chi = np.hstack((chi, chi_i))
 
         self.final_optical_chi = chi

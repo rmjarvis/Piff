@@ -384,6 +384,7 @@ def test_fit():
 
     # do fit
     test_modes = ['shape', 'pixel']
+    #test_modes = ['pixel', 'shape']
     for fit_optics_mode in test_modes:
 
         if fit_optics_mode == 'shape':
@@ -418,13 +419,14 @@ def test_fit():
         for key in sorted(optatmo_psf_kwargs_values):
             train = optatmo_psf_kwargs_values[key]
             fit = psf_train.optatmo_psf_kwargs[key]
-            logger.info('{0}: {1:+.3f}, {2:+.3f}, {3:+.3f}'.format(key, train, fit, train - fit))
+            logger.warn('{0}: {1:+.3f}, {2:+.3f}, {3:+.3f}'.format(key, train, fit, train - fit))
         for key in sorted(optatmo_psf_kwargs_values):
             train = optatmo_psf_kwargs_values[key]
             fit = psf_train.optatmo_psf_kwargs[key]
             assert np.isclose(fit, train, rtol=tol),\
                     'failed to fit {0} to tolerance {4}: {1:+.3f}, {2:+.3f}, {3:+.3f}'.format(
                             key, train, fit, train - fit, tol)
+
 
 @timer
 def test_atmo_model_fit():
@@ -640,6 +642,7 @@ def test_snr_and_shapes():
         # let's get the SNR back to within 10
         np.testing.assert_allclose(snrs, snr, atol=10)
         # Note: the above goal had to be loosened to 30 percent
+        print(std_shapes/mean_errors)
         np.testing.assert_allclose(std_shapes, mean_errors, rtol=0.3)
 
 
@@ -878,7 +881,7 @@ if __name__ == '__main__':
     test_snr_and_shapes()
     test_roundtrip()
     test_fit()
-    test_moments()
+    #test_moments()
     #test_moments_errors()
     #pr.disable()
     #pr.dump_stats('prof.out')

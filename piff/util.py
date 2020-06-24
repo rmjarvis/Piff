@@ -586,7 +586,7 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
         M33n = M33/(M11**3)
         M44n = M44/(M11**4)
 
-        ret += (M22, M33, M44)
+        #ret += (M22, M33, M44)
         ret += (M22n,M33n,M44n)
 
     if errors:
@@ -674,7 +674,7 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
             varM33n *= (0.88**2)
             varM44n *= (0.86**2)
 
-            ret_err += (varM22, varM33, varM44)
+            #ret_err += (varM22, varM33, varM44)
             ret_err += (varM22n, varM33n, varM44n)
 
     if errors:
