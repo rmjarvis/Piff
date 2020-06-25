@@ -50,7 +50,7 @@ def adrawProfile(star, prof, params, use_fit=True, copy_image=True):
     return Star(data, fit)
 
 
-def makeStarsMoffat(nstar=100, beta=5., forcefail=False, test_return_error=False):
+def makeStarsMoffat(nstar=100, beta=5., forcefail=False, test_return_error=False, test_mask=False):
 
     # Moffat
     psf = piff.Moffat(beta)
@@ -132,13 +132,23 @@ def makeStarsMoffat(nstar=100, beta=5., forcefail=False, test_return_error=False
 
         if forcefail:
             noisy_star.data.weight *= 0.
-
+            
+             
         noisy_stars.append(noisy_star)
 
         # moments
         moments = calculate_moments(star=noiseless_stars[i],errors=True, third_order=True, fourth_order=True, radial=True)
         moments_noise = calculate_moments(star=noisy_stars[i],errors=True, third_order=True, fourth_order=True, radial=True)
 
+        if test_mask:
+            copy_star = piff.Star(noisy_star.data, noisy_star.fit)
+            # mask out a pixel that is not too close to the center of the stamp.  
+            copy_star.data.weight[x[i]+5, y[i]+5] = 0
+            test_moments =  calculate_moments(star=copy_star,errors=True, third_order=True, fourth_order=True, radial=True)
+            # make sure that they did actually change
+            assert (np.array(moments_noise) != np.array(test_moments)).all()
+
+            
         if test_return_error:
             moments_check = calculate_moments(star=noiseless_stars[i],errors=False, third_order=True, fourth_order=True, radial=True)
             nval = len(moments_check)
@@ -179,6 +189,15 @@ def test_moments_return():
     np.random.seed(12345)
     rng = galsim.BaseDeviate(12345)
     dft = makeStarsMoffat(nstar=1,beta=5.,test_return_error=True)
+
+
+
+@timer
+def test_moments_mask():
+
+    np.random.seed(12345)
+    rng = galsim.BaseDeviate(12345)
+    dft = makeStarsMoffat(nstar=20,beta=5.,test_mask=True)
 
 
 
