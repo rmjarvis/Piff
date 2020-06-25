@@ -132,15 +132,16 @@ class WF_Sum(WF):
 
 # Calculate Zernikes from donut reference wavefront files.
 class lower_order_reference_WF(WF):
-    def __init__(self, reference_wavefront, reference_wavefront_zernikes_list):
+    def __init__(self, reference_wavefront_dictionary):
         # Do whatever work is needed to initialize.  E.g., open appropriate
         # file, setup NearestNeighbors interpolator(s), etc.
-        self.reference_wavefront = reference_wavefront
-        self.reference_wavefront_zernikes_list = reference_wavefront_zernikes_list
+        self.reference_wavefront_zernikes_list = reference_wavefront_dictionary["zernikes_list"]
+        del reference_wavefront_dictionary["zernikes_list"]
+        self.reference_wavefront_interpolator = Interp.process(reference_wavefront_dictionary)
 
     def get_zernikes_all_stars(self, stars):
         clean_stars = [Star(star.data, None) for star in stars]
-        interp_stars = self.reference_wavefront.interpolateList(clean_stars)
+        interp_stars = self.reference_wavefront_interpolator.interpolateList(clean_stars)
         aberrations_reference_wavefront = np.array(
             [star_interpolated.fit.params for star_interpolated in interp_stars])
 
@@ -155,11 +156,10 @@ class higher_order_reference_WF(WF):
     #         Aaron Roodman (C) SLAC National Accelerator Laboratory, Stanford University 2018.
 
 
-    #def __init__(self, higher_order_reference_wavefront, higher_order_reference_wavefront_zernikes_list):
-    def __init__(self, higher_order_reference_wavefront_file, higher_order_reference_wavefront_zernikes_list):
+    def __init__(self, higher_order_reference_wavefront_dictionary):
         # Again, do any setup work required.
-        self.higher_order_reference_wavefront_file = higher_order_reference_wavefront_file
-        self.higher_order_reference_wavefront_zernikes_list = higher_order_reference_wavefront_zernikes_list
+        higher_order_reference_wavefront_file = higher_order_reference_wavefront_dictionary["file_name"]
+        self.higher_order_reference_wavefront_zernikes_list = higher_order_reference_wavefront_dictionary["zernikes_list"]
 
 
         from scipy.interpolate import Rbf
@@ -172,9 +172,9 @@ class higher_order_reference_WF(WF):
 
         self.nZernikeLast = self.zcoeff.shape[1]
 
-        self.interpDict = {}
+        self.higher_order_reference_wavefront_interpolator_dictionary = {}
         for iZ in range(3,self.nZernikeLast):    # numbering is such that iZ=3 is z4 (defocus)
-            self.interpDict[iZ] = Rbf(self.x, self.y, self.zcoeff[:,iZ])
+            self.higher_order_reference_wavefront_interpolator_dictionary[iZ] = Rbf(self.x, self.y, self.zcoeff[:,iZ])
 
 
     def get_zernikes_one_star(self,x,y):
@@ -187,7 +187,7 @@ class higher_order_reference_WF(WF):
         out_one_star = np.zeros((self.nZernikeLast-nZernikeFirst+1))
         for iZactual in range(nZernikeFirst,self.nZernikeLast+1):
             iZ = iZactual-1
-            out_one_star[iZactual-nZernikeFirst] = self.interpDict[iZ](x,y)
+            out_one_star[iZactual-nZernikeFirst] = self.higher_order_reference_wavefront_interpolator_dictionary[iZ](x,y)
         return out_one_star
 
     def get_zernikes_all_stars(self, stars):
@@ -239,8 +239,31 @@ class OptAtmoPSF(PSF):
                                     interpolant
     :param optical_psf_kwargs:      Arguments to pass into galsim opticalpsf object
     :param kolmogorov_kwargs:       Arguments to pass into galsim kolmogorov or vonkarman object
-    :param reference_wavefront:     Reference interpolator for the optical wavefront. Takes in
-                                    stars, returns aberrations. Default is to not include.
+    :param reference_wavefront_file: A string with the path and filename of the
+                                    fits file containing the lower order reference wavefront.
+                                    The lower order reference wavefront is the reference interpolator
+                                    for the optical wavefront. This interpolator takes in stars and
+                                    returns aberrations.
+                                    [default: None]
+    :param reference_wavefront_type: A string with the type of the lower order reference wavefront.
+                                    [default: None]
+    :param reference_wavefront_extname: An int with the extname of the lower order reference wavefront
+                                    fits file.
+                                    [default: None]
+    :param reference_wavefront_n_neighbors: An int with the number of neighbors for the lower order 
+                                    reference wavefront interpolation.
+                                    [default: None]
+    :param reference_wavefront_weights: A string with the weights for the lower order reference
+                                    wavefront.
+                                    [default: None]
+    :param reference_wavefront_algorithm: A string with the algorithm for the lower order reference
+                                    wavefront.
+                                    [default: None]
+    :param reference_wavefront_p:   An int with the p for the lower order reference wavefront.
+                                    [default: None]
+    :param reference_wavefront_zernikes_list: A list with the zernikes for the lower order reference
+                                    wavefront.
+                                    [default: []]
     :param n_optfit_stars:          If > 0, randomly sample only n_optfit_stars for the optical fit.
                                     Only use n_optfit_stars if doing a test run, not a serious fit.
                                     [default: 0]
@@ -256,6 +279,9 @@ class OptAtmoPSF(PSF):
     :param higher_order_reference_wavefront_file: A string with the path and filename of the
                                     pickle containing the higher order reference wavefront.
                                     [default: None]
+    :param higher_order_reference_wavefront_zernikes_list: A list with the zernikes for the higher order
+                                    reference wavefront.
+                                    [default: []]
     :param init_with_rf:            Initialize the fit with the random_forest? [default: False;
                                     invalid for py2.7]
     :param random_forest_shapes_model_pickles_location: A string with the path to the folder
@@ -311,7 +337,10 @@ class OptAtmoPSF(PSF):
             position (u_i, v_i).
     """
     def __init__(self, atmo_interp=None, outliers=None, optatmo_psf_kwargs={},
-                 optical_psf_kwargs={}, kolmogorov_kwargs={}, reference_wavefront=None,
+                 optical_psf_kwargs={}, kolmogorov_kwargs={}, reference_wavefront_file=None,
+                 reference_wavefront_type=None, reference_wavefront_extname=None,
+                 reference_wavefront_n_neighbors=None, reference_wavefront_weights=None,
+                 reference_wavefront_algorithm=None, reference_wavefront_p=None,
                  n_optfit_stars=0, fov_radius=4500., jmax_pupil=11,
                  jmax_focal=10, min_optfit_snr=0, fit_optics_mode='pixel',
                  higher_order_reference_wavefront_file=None, init_with_rf=False,
@@ -344,7 +373,18 @@ class OptAtmoPSF(PSF):
         self.atmo_interp = atmo_interp
         self.optical_psf_kwargs = optical_psf_kwargs
         self.kolmogorov_kwargs = kolmogorov_kwargs
-        self.reference_wavefront = reference_wavefront
+
+        self.reference_wavefront_file = reference_wavefront_file
+        self.reference_wavefront_type = reference_wavefront_type
+        self.reference_wavefront_extname = reference_wavefront_extname
+        self.reference_wavefront_n_neighbors = reference_wavefront_n_neighbors
+        self.reference_wavefront_weights = reference_wavefront_weights
+        self.reference_wavefront_algorithm = reference_wavefront_algorithm
+        self.reference_wavefront_p = reference_wavefront_p
+        if self.reference_wavefront_file in [None, 'none', 'None', 'NONE']:
+            self.reference_wavefront = False
+        else:
+            self.reference_wavefront = True
         self.higher_order_reference_wavefront_file = higher_order_reference_wavefront_file
         if self.higher_order_reference_wavefront_file in [None, 'none', 'None', 'NONE']:
             self.higher_order_reference_wavefront = False
@@ -516,6 +556,13 @@ class OptAtmoPSF(PSF):
             'min_optfit_snr': self.min_optfit_snr,
             'n_optfit_stars': self.n_optfit_stars,
             'fit_optics_mode': self.fit_optics_mode,
+            'reference_wavefront_file': self.reference_wavefront_file,
+            'reference_wavefront_type': self.reference_wavefront_type,
+            'reference_wavefront_extname': self.reference_wavefront_extname,
+            'reference_wavefront_n_neighbors': self.reference_wavefront_n_neighbors,
+            'reference_wavefront_weights': self.reference_wavefront_weights,
+            'reference_wavefront_algorithm': self.reference_wavefront_algorithm,
+            'reference_wavefront_p': self.reference_wavefront_p,
             'higher_order_reference_wavefront_file': self.higher_order_reference_wavefront_file,
             'init_with_rf': self.init_with_rf,
             'random_forest_shapes_model_pickles_location':
@@ -526,7 +573,6 @@ class OptAtmoPSF(PSF):
             # junk entries to be overwritten in _finish_read function
             'optatmo_psf_kwargs': 0,
             'atmo_interp': 0,
-            'reference_wavefront': 0,
             'optical_psf_kwargs': 0,
             'kolmogorov_kwargs': 0,
             'outliers': 0,
@@ -582,21 +628,6 @@ class OptAtmoPSF(PSF):
         else:
             kwargs['atmo_interp'] = None
 
-        # process reference_wavefront kwargs
-        reference_wavefront_kwargs = {}
-        if 'reference_wavefront' in config_psf:
-            if config_psf['reference_wavefront'] in [None, 'none', 'None', 'NONE']:
-                logger.info("Skipping reference wavefront")
-                reference_wavefront = None
-            else:
-                reference_wavefront_kwargs.update(config_psf['reference_wavefront'])
-                logger.info("Making reference wavefront")
-                reference_wavefront = Interp.process(reference_wavefront_kwargs, logger=logger)
-        else:
-            logger.info("Skipping reference wavefront")
-            reference_wavefront = None
-        kwargs['reference_wavefront'] = reference_wavefront
-
         if 'outliers' in kwargs:
             outliers = Outliers.process(kwargs.pop('outliers'), logger=logger)
             kwargs['outliers'] = outliers
@@ -618,10 +649,6 @@ class OptAtmoPSF(PSF):
         if self.outliers:
             self.outliers.write(fits, extname + '_outliers')
             logger.debug("Wrote the PSF outliers to extension %s",extname + '_outliers')
-
-        # write reference wavefront if it exists
-        if self.reference_wavefront:
-            self.reference_wavefront.write(fits, extname + '_reference_wavefront')
 
         # write optical_psf_kwargs
         # pupil_angle and strut_angle won't serialize properly, so repr them now in
@@ -679,12 +706,6 @@ class OptAtmoPSF(PSF):
         self.kolmogorov_kwargs = read_kwargs(fits, extname=extname + '_kolmogorov_kwargs')
         logger.info('Reloading optatmopsf atmo model')
 
-        # read reference wavefront
-        if extname + '_reference_wavefront' in fits:
-            self.reference_wavefront = Interp.read(fits, extname + '_reference_wavefront')
-        else:
-            self.reference_wavefront = None
-
         # read the final state, update the psf
         data = fits[extname + '_solution'].read()
         for key in data.dtype.names:
@@ -729,6 +750,10 @@ class OptAtmoPSF(PSF):
             else:
                 train_stars.append(star)
 
+        if self.reference_wavefront_file in [None, 'none', 'None', 'NONE']:
+            self.reference_wavefront = False
+        else:
+            self.reference_wavefront = True
         if self.higher_order_reference_wavefront_file in [None, 'none', 'None', 'NONE']:
             self.higher_order_reference_wavefront = False
         else:
@@ -1075,20 +1100,40 @@ class OptAtmoPSF(PSF):
                 if not self.reference_wavefront and not self.higher_order_reference_wavefront:
                     aberrations_reference_wavefronts = np.zeros([len(stars),34])
                 elif self.reference_wavefront and not self.higher_order_reference_wavefront:
-                    l_order_reference_WF = lower_order_reference_WF(self.reference_wavefront, self._reference_wavefront_zernikes_list)
+                    reference_wavefront_dictionary = {}
+                    reference_wavefront_dictionary["file_name"] = self.reference_wavefront_file
+                    reference_wavefront_dictionary["type"] = self.reference_wavefront_type
+                    reference_wavefront_dictionary["extname"] = self.reference_wavefront_extname
+                    reference_wavefront_dictionary["n_neighbors"] = self.reference_wavefront_n_neighbors
+                    reference_wavefront_dictionary["weights"] = self.reference_wavefront_weights
+                    reference_wavefront_dictionary["algorithm"] = self.reference_wavefront_algorithm
+                    reference_wavefront_dictionary["p"] = self.reference_wavefront_p
+                    reference_wavefront_dictionary["zernikes_list"] = self._reference_wavefront_zernikes_list
+                    l_order_reference_WF = lower_order_reference_WF(reference_wavefront_dictionary)
                     aberrations_reference_wavefronts = l_order_reference_WF.get_zernikes_all_stars(stars)
                 elif not self.reference_wavefront and self.higher_order_reference_wavefront:
-                    h_order_reference_WF = higher_order_reference_WF(self.higher_order_reference_wavefront_file, self._higher_order_reference_wavefront_zernikes_list)
+                    higher_order_reference_wavefront_dictionary = {}
+                    higher_order_reference_wavefront_dictionary["file_name"] = self.higher_order_reference_wavefront_file
+                    higher_order_reference_wavefront_dictionary["zernikes_list"] = self._higher_order_reference_wavefront_zernikes_list
+                    h_order_reference_WF = higher_order_reference_WF(higher_order_reference_wavefront_dictionary)
                     aberrations_reference_wavefronts = h_order_reference_WF.get_zernikes_all_stars(stars)
                 else:
-                    l_order_reference_WF = lower_order_reference_WF(self.reference_wavefront, self._reference_wavefront_zernikes_list)
-                    h_order_reference_WF = higher_order_reference_WF(self.higher_order_reference_wavefront_file, self._higher_order_reference_wavefront_zernikes_list)
+                    reference_wavefront_dictionary = {}
+                    reference_wavefront_dictionary["file_name"] = self.reference_wavefront_file
+                    reference_wavefront_dictionary["type"] = self.reference_wavefront_type
+                    reference_wavefront_dictionary["extname"] = self.reference_wavefront_extname
+                    reference_wavefront_dictionary["n_neighbors"] = self.reference_wavefront_n_neighbors
+                    reference_wavefront_dictionary["weights"] = self.reference_wavefront_weights
+                    reference_wavefront_dictionary["algorithm"] = self.reference_wavefront_algorithm
+                    reference_wavefront_dictionary["p"] = self.reference_wavefront_p
+                    reference_wavefront_dictionary["zernikes_list"] = self._reference_wavefront_zernikes_list
+                    l_order_reference_WF = lower_order_reference_WF(reference_wavefront_dictionary)
+                    higher_order_reference_wavefront_dictionary = {}
+                    higher_order_reference_wavefront_dictionary["file_name"] = self.higher_order_reference_wavefront_file
+                    higher_order_reference_wavefront_dictionary["zernikes_list"] = self._higher_order_reference_wavefront_zernikes_list
+                    h_order_reference_WF = higher_order_reference_WF(higher_order_reference_wavefront_dictionary)
                     reference_WF = l_order_reference_WF + h_order_reference_WF
                     aberrations_reference_wavefronts = reference_WF.get_zernikes_all_stars(stars)
-                    clean_stars = [Star(star.data, None) for star in stars]
-                    interp_stars = self.reference_wavefront.interpolateList(clean_stars)
-                    old_aberrations_reference_wavefront = np.array(
-                        [star_interpolated.fit.params for star_interpolated in interp_stars])
 
 
             # put aberrations_reference_wavefronts
@@ -2602,18 +2647,42 @@ class OptAtmoPSF(PSF):
             self._aberrations_reference_wavefronts = None
         elif self.reference_wavefront and not self.higher_order_reference_wavefront:
             self._caches = True
-            l_order_reference_WF = lower_order_reference_WF(self.reference_wavefront, self._reference_wavefront_zernikes_list)
+            reference_wavefront_dictionary = {}
+            reference_wavefront_dictionary["file_name"] = self.reference_wavefront_file
+            reference_wavefront_dictionary["type"] = self.reference_wavefront_type
+            reference_wavefront_dictionary["extname"] = self.reference_wavefront_extname
+            reference_wavefront_dictionary["n_neighbors"] = self.reference_wavefront_n_neighbors
+            reference_wavefront_dictionary["weights"] = self.reference_wavefront_weights
+            reference_wavefront_dictionary["algorithm"] = self.reference_wavefront_algorithm
+            reference_wavefront_dictionary["p"] = self.reference_wavefront_p
+            reference_wavefront_dictionary["zernikes_list"] = self._reference_wavefront_zernikes_list
+            l_order_reference_WF = lower_order_reference_WF(reference_wavefront_dictionary)
             aberrations_reference_wavefronts = l_order_reference_WF.get_zernikes_all_stars(stars)
             self._aberrations_reference_wavefronts = aberrations_reference_wavefronts
         elif not self.reference_wavefront and self.higher_order_reference_wavefront:
             self._caches = True
-            h_order_reference_WF = higher_order_reference_WF(self.higher_order_reference_wavefront_file, self._higher_order_reference_wavefront_zernikes_list)
+            higher_order_reference_wavefront_dictionary = {}
+            higher_order_reference_wavefront_dictionary["file_name"] = self.higher_order_reference_wavefront_file
+            higher_order_reference_wavefront_dictionary["zernikes_list"] = self._higher_order_reference_wavefront_zernikes_list
+            h_order_reference_WF = higher_order_reference_WF(higher_order_reference_wavefront_dictionary)
             aberrations_reference_wavefronts = h_order_reference_WF.get_zernikes_all_stars(stars)
             self._aberrations_reference_wavefronts = aberrations_reference_wavefronts
         else:
             self._caches = True
-            l_order_reference_WF = lower_order_reference_WF(self.reference_wavefront, self._reference_wavefront_zernikes_list)
-            h_order_reference_WF = higher_order_reference_WF(self.higher_order_reference_wavefront_file, self._higher_order_reference_wavefront_zernikes_list)
+            reference_wavefront_dictionary = {}
+            reference_wavefront_dictionary["file_name"] = self.reference_wavefront_file
+            reference_wavefront_dictionary["type"] = self.reference_wavefront_type
+            reference_wavefront_dictionary["extname"] = self.reference_wavefront_extname
+            reference_wavefront_dictionary["n_neighbors"] = self.reference_wavefront_n_neighbors
+            reference_wavefront_dictionary["weights"] = self.reference_wavefront_weights
+            reference_wavefront_dictionary["algorithm"] = self.reference_wavefront_algorithm
+            reference_wavefront_dictionary["p"] = self.reference_wavefront_p
+            reference_wavefront_dictionary["zernikes_list"] = self._reference_wavefront_zernikes_list
+            l_order_reference_WF = lower_order_reference_WF(reference_wavefront_dictionary)
+            higher_order_reference_wavefront_dictionary = {}
+            higher_order_reference_wavefront_dictionary["file_name"] = self.higher_order_reference_wavefront_file
+            higher_order_reference_wavefront_dictionary["zernikes_list"] = self._higher_order_reference_wavefront_zernikes_list
+            h_order_reference_WF = higher_order_reference_WF(higher_order_reference_wavefront_dictionary)
             reference_WF = l_order_reference_WF + h_order_reference_WF
             aberrations_reference_wavefronts = reference_WF.get_zernikes_all_stars(stars)
             self._aberrations_reference_wavefronts = aberrations_reference_wavefronts

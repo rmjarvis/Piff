@@ -37,7 +37,7 @@ Full Fit (Optics (moments-based chisq), Atmo, Gaussian Process, but no meanify):
 
 2. Edit the file "psf_optatmo.yaml" in the PIFF fitting pipeline so that you delete the line that specifies the "random_forest_shapes_model_pickles_location"
 
-3. Edit the file "psf_optatmo.yaml" in the PIFF fitting pipeline so that the sub-entry "file_name" within the entry "reference_wavefront" now has the path to the lower order reference wavefront file where you put it.
+3. Edit the file "psf_optatmo.yaml" in the PIFF fitting pipeline so that the entry "reference_wavefront_file" now has the path to the lower order reference wavefront file where you put it.
 
 4. Edit the file "psf_optatmo.yaml" in the PIFF fitting pipeline so that the entry "higher_order_reference_wavefront_file" now has the path to the higher order reference wavefront file where you put it.
 
@@ -56,7 +56,7 @@ Full Fit (Optics (pixel-based chisq), Atmo, Gaussian Process, but no meanify):
 
 3. Edit the file "psf_optatmo.yaml" in the PIFF fitting pipeline so that you delete the line that specifies the "random_forest_shapes_model_pickles_location"
 
-4. Edit the file "psf_optatmo.yaml" in the PIFF fitting pipeline so that the sub-entry "file_name" within the entry "reference_wavefront" now has the path to the lower order reference wavefront file where you put it.
+4. Edit the file "psf_optatmo.yaml" in the PIFF fitting pipeline so that the entry "reference_wavefront_file" now has the path to the lower order reference wavefront file where you put it.
 
 5. Edit the file "psf_optatmo.yaml" in the PIFF fitting pipeline so that the entry "higher_order_reference_wavefront_file" now has the path to the higher order reference wavefront file where you put it.
 
