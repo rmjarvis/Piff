@@ -198,7 +198,7 @@ class higher_order_reference_WF(WF):
             y_value = star.data.local_wcs._y(star.data['u'], star.data['v'])
             x_value = x_value * (15.0/1000.0)
             y_value = y_value * (15.0/1000.0)
-            higher_order_aberrations_reference_wavefront_one_star[0:len(self.higher_order_reference_wavefront.get_zernikes_one_star(x_value, y_value))] += self.higher_order_reference_wavefront.get_zernikes_one_star(x_value, y_value)
+            higher_order_aberrations_reference_wavefront_one_star[0:len(self.get_zernikes_one_star(x_value, y_value))] += self.get_zernikes_one_star(x_value, y_value)
             higher_order_aberrations_reference_wavefront.append(higher_order_aberrations_reference_wavefront_one_star)
 
         higher_order_aberrations_reference_wavefront = np.array(higher_order_aberrations_reference_wavefront)
