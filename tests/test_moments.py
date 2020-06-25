@@ -50,7 +50,7 @@ def adrawProfile(star, prof, params, use_fit=True, copy_image=True):
     return Star(data, fit)
 
 
-def makeStarsMoffat(nstar=100, beta=5., forcefail=False):
+def makeStarsMoffat(nstar=100, beta=5., forcefail=False, test_return_error=False):
 
     # Moffat
     psf = piff.Moffat(beta)
@@ -132,12 +132,18 @@ def makeStarsMoffat(nstar=100, beta=5., forcefail=False):
 
         if forcefail:
             noisy_star.data.weight *= 0.
-        
+
         noisy_stars.append(noisy_star)
-                
+
         # moments
         moments = calculate_moments(star=noiseless_stars[i],errors=True, third_order=True, fourth_order=True, radial=True)
         moments_noise = calculate_moments(star=noisy_stars[i],errors=True, third_order=True, fourth_order=True, radial=True)
+
+        if test_return_error:
+            moments_check = calculate_moments(star=noiseless_stars[i],errors=False, third_order=True, fourth_order=True, radial=True)
+            nval = len(moments_check)
+            np.testing.assert_equal(np.array(moments)[0:nval], np.array(moments_check))
+
 
         all_moments =  moments + moments_noise + tuple(fit_params)
         all_star_moments.append(all_moments)
@@ -166,6 +172,16 @@ def makepulldist(dft, beta, vname):
     return pull
 
 
+
+@timer
+def test_moments_return():
+
+    np.random.seed(12345)
+    rng = galsim.BaseDeviate(12345)
+    dft = makeStarsMoffat(nstar=1,beta=5.,test_return_error=True)
+
+
+
 @timer
 def test_moments_fail():
 
@@ -176,9 +192,7 @@ def test_moments_fail():
         assert False
     except galsim.errors.GalSimHSMError:
         pass
-    return
-        
-    
+
 
 @timer
 def test_moments(dftlist=None):
