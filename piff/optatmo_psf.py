@@ -51,7 +51,7 @@ from galsim.image import Image
 
 
 
-
+# Note that the skeleton for the WF class hierarchy and (most) comments below were made by Josh.
 
 # Here's a skeleton for a wavefront evaluation class hierarchy.
 
@@ -150,24 +150,56 @@ class lower_order_reference_WF(WF):
 
 # Some completely different way of computing the Zemax reference wavefront Zernikes
 class higher_order_reference_WF(WF):
-    def __init__(self, higher_order_reference_wavefront, higher_order_reference_wavefront_zernikes_list):
+    # Note that most of the __init__() and get() functions below are based on code written for the old wavefrontmap class by Aaron, which had this description:
+    #         a class used to build and access a Wavefront map - zernike coefficients vs. X,Y
+    #         Aaron Roodman (C) SLAC National Accelerator Laboratory, Stanford University 2018.
+
+
+    #def __init__(self, higher_order_reference_wavefront, higher_order_reference_wavefront_zernikes_list):
+    def __init__(self, higher_order_reference_wavefront_file, higher_order_reference_wavefront_zernikes_list):
         # Again, do any setup work required.
-        self.higher_order_reference_wavefront = higher_order_reference_wavefront
+        self.higher_order_reference_wavefront_file = higher_order_reference_wavefront_file
         self.higher_order_reference_wavefront_zernikes_list = higher_order_reference_wavefront_zernikes_list
+
+
+        from scipy.interpolate import Rbf
+        # init contains all initializations which are done only once for all fits
+
+        mapdict = pickle.load(open(higher_order_reference_wavefront_file,'rb'))
+        self.x = mapdict['x']
+        self.y = mapdict['y']
+        self.zcoeff = mapdict['zcoeff']
+
+        self.nZernikeLast = self.zcoeff.shape[1]
+
+        self.interpDict = {}
+        for iZ in range(3,self.nZernikeLast):    # numbering is such that iZ=3 is z4 (defocus)
+            self.interpDict[iZ] = Rbf(self.x, self.y, self.zcoeff[:,iZ])
+
+
+    def get_zernikes_one_star(self,x,y):
+        # start with z4 (defocus) and go up to the highest zernike found in the higher order
+        # reference wavefront here
+        # fill an array with Zernike coefficients for this x,y in the Map
+
+        nZernikeFirst=4
+
+        out_one_star = np.zeros((self.nZernikeLast-nZernikeFirst+1))
+        for iZactual in range(nZernikeFirst,self.nZernikeLast+1):
+            iZ = iZactual-1
+            out_one_star[iZactual-nZernikeFirst] = self.interpDict[iZ](x,y)
+        return out_one_star
 
     def get_zernikes_all_stars(self, stars):
         higher_order_aberrations_reference_wavefront = []
         for s, star in enumerate(stars):
-            higher_order_aberrations_reference_wavefront_for_star = np.zeros(34)
+            higher_order_aberrations_reference_wavefront_one_star = np.zeros(34)
             x_value = star.data.local_wcs._x(star.data['u'], star.data['v'])
             y_value = star.data.local_wcs._y(star.data['u'], star.data['v'])
             x_value = x_value * (15.0/1000.0)
             y_value = y_value * (15.0/1000.0)
-            if s > 0:
-                higher_order_aberrations_reference_wavefront_for_star[0:len(self.higher_order_reference_wavefront.get(x_value, y_value))] += self.higher_order_reference_wavefront.get(x_value, y_value)
-            else:
-                higher_order_aberrations_reference_wavefront_for_star[0:len(self.higher_order_reference_wavefront.get(x_value, y_value))] += self.higher_order_reference_wavefront.get(x_value, y_value)
-            higher_order_aberrations_reference_wavefront.append(higher_order_aberrations_reference_wavefront_for_star)
+            higher_order_aberrations_reference_wavefront_one_star[0:len(self.higher_order_reference_wavefront.get_zernikes_one_star(x_value, y_value))] += self.higher_order_reference_wavefront.get_zernikes_one_star(x_value, y_value)
+            higher_order_aberrations_reference_wavefront.append(higher_order_aberrations_reference_wavefront_one_star)
 
         higher_order_aberrations_reference_wavefront = np.array(higher_order_aberrations_reference_wavefront)
 
@@ -193,45 +225,6 @@ class fitting_WF(WF):
 
 
 
-
-
-class wavefrontmap(object):
-    """a class used to build and access a Wavefront map - zernike coefficients vs. X,Y
-
-    Aaron Roodman (C) SLAC National Accelerator Laboratory, Stanford University 2018.
-    """
-    _cache = {}
-
-    def __init__(self, fname):
-        self.fname = fname
-        if fname in self._cache:
-            self.x, self.y, self.zcoeff, self.nZernikeLast, self.interpDict = self._cache[fname]
-        else:
-            from scipy.interpolate import Rbf
-            # init contains all initializations which are done only once for all fits
-
-            mapdict = pickle.load(open(fname,'rb'))
-            self.x = mapdict['x']
-            self.y = mapdict['y']
-            self.zcoeff = mapdict['zcoeff']
-
-            self.nZernikeLast = self.zcoeff.shape[1]
-
-            self.interpDict = {}
-            for iZ in range(3,self.nZernikeLast):    # numbering is such that iZ=3 is zern4
-                self.interpDict[iZ] = Rbf(self.x, self.y, self.zcoeff[:,iZ])
-            self._cache[fname] = (self.x, self.y, self.zcoeff, self.nZernikeLast, self.interpDict)
-
-    def get(self,x,y,nZernikeFirst=4):
-        # start with defocus (zern4) and go up to the highest zernike found in the higher order
-        # reference wavefront here
-        # fill an array with Zernike coefficients for this x,y in the Map
-
-        zout = np.zeros((self.nZernikeLast-nZernikeFirst+1))
-        for iZactual in range(nZernikeFirst,self.nZernikeLast+1):
-            iZ = iZactual-1
-            zout[iZactual-nZernikeFirst] = self.interpDict[iZ](x,y)
-        return zout
 
 class OptAtmoPSF(PSF):
     """Combine Optical and Atmospheric PSFs together
@@ -354,12 +347,9 @@ class OptAtmoPSF(PSF):
         self.reference_wavefront = reference_wavefront
         self.higher_order_reference_wavefront_file = higher_order_reference_wavefront_file
         if self.higher_order_reference_wavefront_file in [None, 'none', 'None', 'NONE']:
-            # here we save the specified higher order reference wavefront as an instance of the
-            # wavefrontmap class.
-            self.higher_order_reference_wavefront = None
+            self.higher_order_reference_wavefront = False
         else:
-            self.higher_order_reference_wavefront = wavefrontmap(
-                self.higher_order_reference_wavefront_file)
+            self.higher_order_reference_wavefront = True
         self.min_optfit_snr = min_optfit_snr
         self.n_optfit_stars = n_optfit_stars
 
@@ -477,15 +467,14 @@ class OptAtmoPSF(PSF):
                 raise ValueError('Zernike {0} from reference_wavefront_zernike_list also found in '
                                  'higher_order_reference_wavefront_zernikes_list, but these lists '
                                  'cannot overlap!'.format(reference_wavefront_zernike))
+        for hiz in reference_wavefront_zernikes_list:
+            if hiz > 37:
+                raise ValueError('Zernike {0} from reference_wavefront_zernike_list found; '
+                                 'cannot use lower order reference wavefront with zernikes > z37 ')
         for hiz in higher_order_reference_wavefront_zernikes_list:
             if hiz > 37:
                 raise ValueError('Zernike {0} from higher_reference_wavefront_zernike_list found; '
-                                 'cannot use higher order reference wavefront with zernikes > z37 '
-                                 'because conversion from zout_camera (AOS system) coordinates to '
-                                 'zout_sky (Galsim) coordinates (inspired by thesis of Chris '
-                                 'Davis) for higher order reference wavefront values are not '
-                                 'recorded here above z37'.format(
-                                    higher_order_reference_wavefront_zernike))
+                                 'cannot use higher order reference wavefront with zernikes > z37 ')
         # reference wavefront zernikes list
         self._reference_wavefront_zernikes_list = list(range(4, 12)) + [14, 15]
         if len(reference_wavefront_zernikes_list) > 0:
@@ -741,14 +730,9 @@ class OptAtmoPSF(PSF):
                 train_stars.append(star)
 
         if self.higher_order_reference_wavefront_file in [None, 'none', 'None', 'NONE']:
-            # here we save the specified higher order reference wavefront as an instance of the
-            # wavefrontmap class. Note that this step is necessary here in case fit() is called by
-            # itself and the creation of the higher order reference wavefront was not done
-            # elsewhere.
-            self.higher_order_reference_wavefront = None
+            self.higher_order_reference_wavefront = False
         else:
-            self.higher_order_reference_wavefront = wavefrontmap(
-                self.higher_order_reference_wavefront_file)
+            self.higher_order_reference_wavefront = True
         self.wcs = wcs
         self.pointing = pointing
 
@@ -1094,11 +1078,11 @@ class OptAtmoPSF(PSF):
                     l_order_reference_WF = lower_order_reference_WF(self.reference_wavefront, self._reference_wavefront_zernikes_list)
                     aberrations_reference_wavefronts = l_order_reference_WF.get_zernikes_all_stars(stars)
                 elif not self.reference_wavefront and self.higher_order_reference_wavefront:
-                    h_order_reference_WF = higher_order_reference_WF(self.higher_order_reference_wavefront, self._higher_order_reference_wavefront_zernikes_list)
+                    h_order_reference_WF = higher_order_reference_WF(self.higher_order_reference_wavefront_file, self._higher_order_reference_wavefront_zernikes_list)
                     aberrations_reference_wavefronts = h_order_reference_WF.get_zernikes_all_stars(stars)
                 else:
                     l_order_reference_WF = lower_order_reference_WF(self.reference_wavefront, self._reference_wavefront_zernikes_list)
-                    h_order_reference_WF = higher_order_reference_WF(self.higher_order_reference_wavefront, self._higher_order_reference_wavefront_zernikes_list)
+                    h_order_reference_WF = higher_order_reference_WF(self.higher_order_reference_wavefront_file, self._higher_order_reference_wavefront_zernikes_list)
                     reference_WF = l_order_reference_WF + h_order_reference_WF
                     aberrations_reference_wavefronts = reference_WF.get_zernikes_all_stars(stars)
                     clean_stars = [Star(star.data, None) for star in stars]
@@ -2623,13 +2607,13 @@ class OptAtmoPSF(PSF):
             self._aberrations_reference_wavefronts = aberrations_reference_wavefronts
         elif not self.reference_wavefront and self.higher_order_reference_wavefront:
             self._caches = True
-            h_order_reference_WF = higher_order_reference_WF(self.higher_order_reference_wavefront, self._higher_order_reference_wavefront_zernikes_list)
+            h_order_reference_WF = higher_order_reference_WF(self.higher_order_reference_wavefront_file, self._higher_order_reference_wavefront_zernikes_list)
             aberrations_reference_wavefronts = h_order_reference_WF.get_zernikes_all_stars(stars)
             self._aberrations_reference_wavefronts = aberrations_reference_wavefronts
         else:
             self._caches = True
             l_order_reference_WF = lower_order_reference_WF(self.reference_wavefront, self._reference_wavefront_zernikes_list)
-            h_order_reference_WF = higher_order_reference_WF(self.higher_order_reference_wavefront, self._higher_order_reference_wavefront_zernikes_list)
+            h_order_reference_WF = higher_order_reference_WF(self.higher_order_reference_wavefront_file, self._higher_order_reference_wavefront_zernikes_list)
             reference_WF = l_order_reference_WF + h_order_reference_WF
             aberrations_reference_wavefronts = reference_WF.get_zernikes_all_stars(stars)
             self._aberrations_reference_wavefronts = aberrations_reference_wavefronts
