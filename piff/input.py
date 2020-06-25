@@ -662,6 +662,7 @@ class InputFiles(Input):
         """
         image, wt, image_pos, sky, gain, satur = InputFiles._getRawImageData(
                 image_kwargs, cat_kwargs, wcs, invert_weight, remove_signal_from_weight, logger)
+        
         logger.info("Processing catalog %s with %d stars",chipnum,len(image_pos))
 
         nstars_in_image = 0

@@ -43,6 +43,158 @@ from .util import measure_snr, write_kwargs, read_kwargs
 from galsim.config import LoggerWrapper
 from galsim.image import Image
 
+
+
+
+
+
+
+
+
+
+
+# Here's a skeleton for a wavefront evaluation class hierarchy.
+
+# I made an Abstract Base Class (ABC) called WF that all the subclasses will
+# derive from.  Note that in python, ABCs often aren't actually necessary, since
+# python has "duck" typing.  I.e., if it sounds like a duck and looks like a
+# duck then it's a duck.  What this means in practice is that as long as two
+# classes share the same interface (have the same methods with the same
+# signatures), they can be used interchangeably, even if they're not derived
+# from the same parent class.  So if all our work-horse classes have a
+# .wf(j, x, y) method, they can all be used in the same places, even without
+# being derived from the same parent class.
+
+# I want to be fancy though and enable the `+` operator to add together classes
+# of different types, which as far as I know, requires actual subclassing.  If
+# you want, you can skip the WF and WFSum classes though and go straight to
+# DonutReferenceWF()
+
+class WF:
+    # No __init__ since this is purely abstract
+
+    # We'll define a "special" __add__ method though, which will get called when
+    # we use the '+' operator on any instances of this class (or subclasses).
+    # This way, we can write code that looks like
+    #     wf_realizer = DonutReferenceWF(stuff) + FittingWF(other_stuff)
+    #     z4 = wf_realizer.wf(4, x, y)
+    # and the result will be the sum of both subclasses.
+    def __add__(self, summands):
+        return WF_Sum([self, summands])
+
+    # This will be the main interface of our class hierarchy.
+    # input:
+    #   j : int
+    #     Noll index
+    #   x, y : float or array of float
+    #     Location(s) on focal plane
+    # output:
+    #   (array of) Zernike coefficients
+    def get_zernikes_all_stars(self, stars):
+        raise NotImplementedError("Subclasses should override this method!")
+
+    def find_camera_index_given_sky_index(self, sky_index_minus_four):
+        #TODO: when I get a lower order reference wavefront file created without any coordinate conversions, I should use the commented out camera_indices list below instead of the one currently used
+        #camera_indices = [4, 5,6, 8,7, 10,9, 11, 12,13, 14,15, 17,16, 19,18, 21,20, 22, 23,24, 25,26, 27,28, 30,29, 32,31, 34,33, 36,35, 37]
+        camera_indices = [4, 5,6, 7,8, 9,10, 11, 12,13, 14,15, 17,16, 19,18, 21,20, 22, 23,24, 25,26, 27,28, 30,29, 32,31, 34,33, 36,35, 37]
+        return camera_indices[sky_index_minus_four]
+
+    def find_if_positive_given_sky_index(self, sky_index_minus_four):
+        #TODO: when I get a lower order reference wavefront file created without any coordinate conversions, I should use the commented out true_falses list below instead of the one currently used
+        #true_falses = [True,   True,False,   True,True,   False,False,   True,   False,True,   True,False,   True,True,   False,False,   True,True,   True,   True,False,   False,True,   True,False,   True,True,   False,False,   True,True,   False,False,   True]
+        true_falses = [True,   True,True,   True,True,   True,True,   True,   False,True,   True,True,   True,True,   False,False,   True,True,   True,   True,False,   False,True,   True,False,   True,True,   False,False,   True,True,   False,False,   True]
+        return true_falses[sky_index_minus_four]
+
+    def get_out_given_stars_aberrations_reference_wavefront_and_zernikes_list(self, stars, aberrations_reference_wavefront, zernikes_list):
+        out = np.zeros([len(stars), 34])
+        for zle in zernikes_list:
+            out_index = zle - 4
+            camera_index_minus_four = self.find_camera_index_given_sky_index(out_index) - 4
+            if self.find_if_positive_given_sky_index(out_index):
+                out[:,out_index] += aberrations_reference_wavefront[:,camera_index_minus_four]
+            else:
+                out[:,out_index] -= aberrations_reference_wavefront[:,camera_index_minus_four]
+        return out
+
+
+
+# This is the object that gets created by WF.__add__() if we use the `+`
+# operator on any subclasses of WF.
+class WF_Sum(WF):
+    def __init__(self, summands):
+        self.summands = summands
+
+    def get_zernikes_all_stars(self, stars):
+        out = np.zeros([len(stars), 34])
+        for summand in self.summands:
+            out += summand.get_zernikes_all_stars(stars)
+        return out
+
+# Calculate Zernikes from donut reference wavefront files.
+class lower_order_reference_WF(WF):
+    def __init__(self, reference_wavefront, reference_wavefront_zernikes_list):
+        # Do whatever work is needed to initialize.  E.g., open appropriate
+        # file, setup NearestNeighbors interpolator(s), etc.
+        self.reference_wavefront = reference_wavefront
+        self.reference_wavefront_zernikes_list = reference_wavefront_zernikes_list
+
+    def get_zernikes_all_stars(self, stars):
+        clean_stars = [Star(star.data, None) for star in stars]
+        interp_stars = self.reference_wavefront.interpolateList(clean_stars)
+        aberrations_reference_wavefront = np.array(
+            [star_interpolated.fit.params for star_interpolated in interp_stars])
+
+        out = self.get_out_given_stars_aberrations_reference_wavefront_and_zernikes_list(stars, aberrations_reference_wavefront, self.reference_wavefront_zernikes_list)
+        return out
+
+
+# Some completely different way of computing the Zemax reference wavefront Zernikes
+class higher_order_reference_WF(WF):
+    def __init__(self, higher_order_reference_wavefront, higher_order_reference_wavefront_zernikes_list):
+        # Again, do any setup work required.
+        self.higher_order_reference_wavefront = higher_order_reference_wavefront
+        self.higher_order_reference_wavefront_zernikes_list = higher_order_reference_wavefront_zernikes_list
+
+    def get_zernikes_all_stars(self, stars):
+        higher_order_aberrations_reference_wavefront = []
+        for s, star in enumerate(stars):
+            higher_order_aberrations_reference_wavefront_for_star = np.zeros(34)
+            x_value = star.data.local_wcs._x(star.data['u'], star.data['v'])
+            y_value = star.data.local_wcs._y(star.data['u'], star.data['v'])
+            x_value = x_value * (15.0/1000.0)
+            y_value = y_value * (15.0/1000.0)
+            if s > 0:
+                higher_order_aberrations_reference_wavefront_for_star[0:len(self.higher_order_reference_wavefront.get(x_value, y_value))] += self.higher_order_reference_wavefront.get(x_value, y_value)
+            else:
+                higher_order_aberrations_reference_wavefront_for_star[0:len(self.higher_order_reference_wavefront.get(x_value, y_value))] += self.higher_order_reference_wavefront.get(x_value, y_value)
+            higher_order_aberrations_reference_wavefront.append(higher_order_aberrations_reference_wavefront_for_star)
+
+        higher_order_aberrations_reference_wavefront = np.array(higher_order_aberrations_reference_wavefront)
+
+        out = self.get_out_given_stars_aberrations_reference_wavefront_and_zernikes_list(stars, higher_order_aberrations_reference_wavefront, self.higher_order_reference_wavefront_zernikes_list)
+        return out
+
+# The optical "fit" part of the wavefront
+
+class fitting_WF(WF):
+    def __init__(self, fit_params):
+        self.fit_params = fit_params
+
+    def get_zernikes_all_stars(self, stars):
+        out = np.zeros([len(stars), 34])
+
+        return out
+
+
+
+
+
+
+
+
+
+
+
 class wavefrontmap(object):
     """a class used to build and access a Wavefront map - zernike coefficients vs. X,Y
 
@@ -62,6 +214,7 @@ class wavefrontmap(object):
             self.x = mapdict['x']
             self.y = mapdict['y']
             self.zcoeff = mapdict['zcoeff']
+
             self.nZernikeLast = self.zcoeff.shape[1]
 
             self.interpDict = {}
@@ -78,7 +231,6 @@ class wavefrontmap(object):
         for iZactual in range(nZernikeFirst,self.nZernikeLast+1):
             iZ = iZactual-1
             zout[iZactual-nZernikeFirst] = self.interpDict[iZ](x,y)
-
         return zout
 
 class OptAtmoPSF(PSF):
@@ -936,54 +1088,25 @@ class OptAtmoPSF(PSF):
                 aberrations_reference_wavefronts = self._aberrations_reference_wavefronts
             else:
                 # obtain reference wavefront zernike values for all stars
-                if self.reference_wavefront:
-                    logger.debug('Getting reference wavefront aberrations')
+                if not self.reference_wavefront and not self.higher_order_reference_wavefront:
+                    aberrations_reference_wavefronts = np.zeros([len(stars),34])
+                elif self.reference_wavefront and not self.higher_order_reference_wavefront:
+                    l_order_reference_WF = lower_order_reference_WF(self.reference_wavefront, self._reference_wavefront_zernikes_list)
+                    aberrations_reference_wavefronts = l_order_reference_WF.get_zernikes_all_stars(stars)
+                elif not self.reference_wavefront and self.higher_order_reference_wavefront:
+                    h_order_reference_WF = higher_order_reference_WF(self.higher_order_reference_wavefront, self._higher_order_reference_wavefront_zernikes_list)
+                    aberrations_reference_wavefronts = h_order_reference_WF.get_zernikes_all_stars(stars)
+                else:
+                    l_order_reference_WF = lower_order_reference_WF(self.reference_wavefront, self._reference_wavefront_zernikes_list)
+                    h_order_reference_WF = higher_order_reference_WF(self.higher_order_reference_wavefront, self._higher_order_reference_wavefront_zernikes_list)
+                    reference_WF = l_order_reference_WF + h_order_reference_WF
+                    aberrations_reference_wavefronts = reference_WF.get_zernikes_all_stars(stars)
                     clean_stars = [Star(star.data, None) for star in stars]
                     interp_stars = self.reference_wavefront.interpolateList(clean_stars)
-                    aberrations_reference_wavefront = np.array(
+                    old_aberrations_reference_wavefront = np.array(
                         [star_interpolated.fit.params for star_interpolated in interp_stars])
-                else:
-                    aberrations_reference_wavefront = None
-                if self.higher_order_reference_wavefront:
-                    logger.debug('Getting higher order reference wavefront aberrations')
-                    aberrations_higher_order_reference_wavefront = np.zeros([len(stars), 34])
-                    for s, star in enumerate(stars):
-                        aberrations_higher_order_reference_wavefront[s] = \
-                            self.get_aberrations_higher_order_reference_wavefront_for_one_star(star)
-                else:
-                    aberrations_higher_order_reference_wavefront = None
-                # combine obtained zernike values from both reference wavefront and higher order
-                # reference wavefront
-                if (aberrations_reference_wavefront is not None and
-                    aberrations_higher_order_reference_wavefront is not None):
-                    highest_zernike = int(np.max(
-                        self._reference_wavefront_zernikes_list +
-                        self._higher_order_reference_wavefront_zernikes_list))
-                elif aberrations_reference_wavefront is not None:
-                    highest_zernike = np.max(self._reference_wavefront_zernikes_list)
-                elif aberrations_higher_order_reference_wavefront is not None:
-                    highest_zernike = np.max(self._higher_order_reference_wavefront_zernikes_list)
-                aberrations_reference_wavefronts = np.zeros([len(stars), highest_zernike - 3])
-                # the shape of this is [number of stars, number of zernikes up to highest zernike
-                # requested from one of the reference wavefronts]; note that the 3 is here because
-                # we start with defocus (z4) first, fill in zernikes from the reference wavefront;
-                # which zernikes you want from the reference wavefront are can be specified in the
-                # yaml file
-                if aberrations_reference_wavefront is not None:
-                    for reference_wavefront_zernike in self._reference_wavefront_zernikes_list:
-                        aberrations_reference_wavefronts[:,reference_wavefront_zernike - 4] = \
-                            aberrations_reference_wavefront[:,reference_wavefront_zernike - 4]
-                        # the 4 is here because we start with defocus (z4)
-                # second, fill in zernikes from the higher order reference wavefront;
-                # which zernikes you want from the higher order reference wavefront can also be
-                # specified in the yaml file
-                if aberrations_higher_order_reference_wavefront is not None:
-                    for higher_order_reference_wavefront_zernike in \
-                            self._higher_order_reference_wavefront_zernikes_list:
-                        max_zern = higher_order_reference_wavefront_zernike - 4
-                        # the 4 is here because we start with defocus (z4)
-                        aberrations_reference_wavefronts[:,max_zern] = \
-                            aberrations_higher_order_reference_wavefront[:,max_zern]
+
+
             # put aberrations_reference_wavefronts
             # reference wavefronts start at z4 but may not span full range of aberrations used
             n_reference_aberrations = aberrations_reference_wavefronts.shape[1]
@@ -1408,37 +1531,6 @@ class OptAtmoPSF(PSF):
             errors[3:] *= 4
 
         return np.sqrt(errors)
-
-    def get_aberrations_higher_order_reference_wavefront_for_one_star(self, star):
-        """Gets higher order reference wavefront zernike values for star. Then, converts
-        them from zout_camera (AOS system) coordinates to zout_sky (Galsim) coordinates,
-        inspired by thesis of Chris Davis.
-
-        :param star:            Star instance to find higher order reference wavefront zernike
-                                values
-
-        :returns:               Zernike values from higher order reference wavefront
-        """
-        x_value = star.data.local_wcs._x(star.data['u'], star.data['v'])
-        y_value = star.data.local_wcs._y(star.data['u'], star.data['v'])
-        x_value = x_value * (15.0/1000.0)
-        y_value = y_value * (15.0/1000.0)
-        zout_camera = self.higher_order_reference_wavefront.get(x=x_value, y=y_value)
-        if len(zout_camera) < 34:
-            zout_camera_zeros = np.zeros(34)
-            zout_camera_zeros += zout_camera
-            zout_camera = zout_camera_zeros
-        zout_sky = np.array([
-            zout_camera[0], zout_camera[1], -zout_camera[2], zout_camera[4],
-            zout_camera[3], -zout_camera[6], -zout_camera[5], zout_camera[7],
-            -zout_camera[8], zout_camera[9], zout_camera[10], -zout_camera[11],
-            zout_camera[13], zout_camera[12], -zout_camera[15], -zout_camera[14],
-            zout_camera[17], zout_camera[16], zout_camera[18], zout_camera[19],
-            -zout_camera[20], -zout_camera[21], zout_camera[22], zout_camera[23],
-            -zout_camera[24], zout_camera[26], zout_camera[25], -zout_camera[28],
-            -zout_camera[27], zout_camera[30], zout_camera[29], -zout_camera[32],
-            -zout_camera[31], zout_camera[33]])
-        return zout_sky
 
     def measure_shape_orthogonal(self, star, logger=None):
         """Measure the shape of a star using the HSM algorithm.
@@ -2517,71 +2609,30 @@ class OptAtmoPSF(PSF):
         :param stars:   A list of stars
         :param logger:  A logger object for logging debug info [default: None]
         """
-        cacheless_counter = 0
+
         # obtain reference wavefront zernike values for all stars
-        if self.reference_wavefront:
-            logger.debug('Caching reference aberrations')
-            self._caches = True
-            clean_stars = [Star(star.data, None) for star in stars]
-            interp_stars = self.reference_wavefront.interpolateList(clean_stars)
-            aberrations_reference_wavefront = np.array(
-                [star_interpolated.fit.params for star_interpolated in interp_stars])
-        else:
-            logger.debug('Cache called, but no reference wavefront. Skipping')
-            cacheless_counter = cacheless_counter + 1
-            aberrations_reference_wavefront = None
-        # obtain higher order reference wavefront zernike values for all stars
-        if self.higher_order_reference_wavefront:
-            logger.debug('Caching higher order reference aberrations')
-            self._caches = True
-            aberrations_higher_order_reference_wavefront = np.zeros([len(stars), 34])
-            for s, star in enumerate(stars):
-                aberrations_higher_order_reference_wavefront[s] = \
-                    self.get_aberrations_higher_order_reference_wavefront_for_one_star(star)
-        else:
-            logger.debug('Higher order cache called, but no higher order reference wavefront.'
-                         'Skipping')
-            cacheless_counter = cacheless_counter + 1
-            aberrations_higher_order_reference_wavefront = None
-        # cache zernike values for all stars from both reference wavefront and higher order
-        # reference wavefront
-        if cacheless_counter == 2:
+        if not self.reference_wavefront and not self.higher_order_reference_wavefront:
             # only set self._caches and self._aberrations_reference_wavefronts to False if have
             # neither reference wavefront nor higher order reference wavefront
             self._caches = False
             self._aberrations_reference_wavefronts = None
-            highest_zernike = 0
+        elif self.reference_wavefront and not self.higher_order_reference_wavefront:
+            self._caches = True
+            l_order_reference_WF = lower_order_reference_WF(self.reference_wavefront, self._reference_wavefront_zernikes_list)
+            aberrations_reference_wavefronts = l_order_reference_WF.get_zernikes_all_stars(stars)
+            self._aberrations_reference_wavefronts = aberrations_reference_wavefronts
+        elif not self.reference_wavefront and self.higher_order_reference_wavefront:
+            self._caches = True
+            h_order_reference_WF = higher_order_reference_WF(self.higher_order_reference_wavefront, self._higher_order_reference_wavefront_zernikes_list)
+            aberrations_reference_wavefronts = h_order_reference_WF.get_zernikes_all_stars(stars)
+            self._aberrations_reference_wavefronts = aberrations_reference_wavefronts
         else:
-            if (aberrations_reference_wavefront is not None and
-                aberrations_higher_order_reference_wavefront is not None):
-                highest_zernike = int(np.max(self._reference_wavefront_zernikes_list +
-                                             self._higher_order_reference_wavefront_zernikes_list))
-            elif aberrations_reference_wavefront is not None:
-                highest_zernike = np.max(self._reference_wavefront_zernikes_list)
-            elif aberrations_higher_order_reference_wavefront is not None:
-                highest_zernike = np.max(self._higher_order_reference_wavefront_zernikes_list)
-            self._aberrations_reference_wavefronts = np.zeros([len(stars), highest_zernike - 3])
-            # the shape of this is [number of stars, number of zernikes up to highest zernike
-            # requested from one of the reference wavefronts]; note that the 3 is here because we
-            # start with defocus (z4)
-            # first, fill in zernikes from the reference wavefront; which zernikes you want from
-            # the reference wavefront are can be specified in the yaml file
-            if aberrations_reference_wavefront is not None:
-                for reference_wavefront_zernike in self._reference_wavefront_zernikes_list:
-                    max_zern = reference_wavefront_zernike - 4
-                    # the 4 is here because we start with defocus (z4)
-                    self._aberrations_reference_wavefronts[:,max_zern] = \
-                        aberrations_reference_wavefront[:,max_zern]
-            # second, fill in zernikes from the higher order reference wavefront; which zernikes
-            # you want from the higher order reference wavefront can also be specified in the yaml
-            # file
-            if aberrations_higher_order_reference_wavefront is not None:
-                for higher_order_reference_wavefront_zernike in \
-                        self._higher_order_reference_wavefront_zernikes_list:
-                    max_zern = higher_order_reference_wavefront_zernike - 4
-                    # the 4 is here because we start with defocus (z4)
-                    self._aberrations_reference_wavefronts[:,max_zern] = \
-                        aberrations_higher_order_reference_wavefront[:,max_zern]
+            self._caches = True
+            l_order_reference_WF = lower_order_reference_WF(self.reference_wavefront, self._reference_wavefront_zernikes_list)
+            h_order_reference_WF = higher_order_reference_WF(self.higher_order_reference_wavefront, self._higher_order_reference_wavefront_zernikes_list)
+            reference_WF = l_order_reference_WF + h_order_reference_WF
+            aberrations_reference_wavefronts = reference_WF.get_zernikes_all_stars(stars)
+            self._aberrations_reference_wavefronts = aberrations_reference_wavefronts
 
     def _delete_caches(self, logger=None):
         """Delete reference wavefront cache.
