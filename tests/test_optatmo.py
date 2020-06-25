@@ -419,7 +419,7 @@ def test_fit():
         for key in sorted(optatmo_psf_kwargs_values):
             train = optatmo_psf_kwargs_values[key]
             fit = psf_train.optatmo_psf_kwargs[key]
-            logger.warn('{0}: {1:+.3f}, {2:+.3f}, {3:+.3f}'.format(key, train, fit, train - fit))
+            logger.info('{0}: {1:+.3f}, {2:+.3f}, {3:+.3f}'.format(key, train, fit, train - fit))
         for key in sorted(optatmo_psf_kwargs_values):
             train = optatmo_psf_kwargs_values[key]
             fit = psf_train.optatmo_psf_kwargs[key]

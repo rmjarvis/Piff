@@ -1352,7 +1352,7 @@ class OptAtmoPSF(PSF):
         if return_error:
             if True:
                 errors[0] *= (hsm[0] * pix_area * star.data.weight.array.mean())**2
-                errors *= 4
+                errors[3:] *= 4
 
             logger.debug('Measured Error is {0}'.format(str(errors)))
             return values, np.sqrt(errors)
@@ -1410,7 +1410,7 @@ class OptAtmoPSF(PSF):
             from .util import hsm
             hsm = hsm(star)
             errors[0] *= (hsm[0] * star.data.pixel_area * star.data.weight.array.mean())**2
-            errors *= 4
+            errors[3:] *= 4
 
         return np.sqrt(errors)
 
@@ -1462,7 +1462,8 @@ class OptAtmoPSF(PSF):
         # values = flux, u0, v0, e0, e1, e2, zeta1, zeta2, delta1, delta2, xi4, xi6, xi8
         values = star.calculate_moments(logger=logger, third_order=True, radial=True)
         #values = np.array(values)[self.mask_moments_new_to_old]
-        values = np.array(values)[3:]
+        #values = np.array(values)[3:]
+        values = np.array(values)
         
         if True:
             # This converts from natural moments to the version Ares had
@@ -1504,7 +1505,7 @@ class OptAtmoPSF(PSF):
         values = star.calculate_moments(logger=logger, third_order=True, radial=True, errors=True)
         #errors = np.array(values[13:])[self.mask_moments_new_to_old]
         nvals = int(len(values)/2)
-        errors = np.array(values[nvals:])[3:]
+        errors = np.array(values[nvals:])
         
         if True:
             from .util import hsm
@@ -2295,7 +2296,8 @@ class OptAtmoPSF(PSF):
                 shape_model = shape
 
             # don't care about flux, du, dv here
-            chi_i = self._shape_weights * (((shape_model - shape) / error))
+            print(shape_model.shape, shape.shape, error.shape, self._shape_weights.shape)
+            chi_i = self._shape_weights * (((shape_model - shape) / error))[3:]
             chi = np.hstack((chi, chi_i))
 
         self.final_optical_chi = chi
