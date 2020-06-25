@@ -2296,7 +2296,6 @@ class OptAtmoPSF(PSF):
                 shape_model = shape
 
             # don't care about flux, du, dv here
-            print(shape_model.shape, shape.shape, error.shape, self._shape_weights.shape)
             chi_i = self._shape_weights * (((shape_model - shape) / error))[3:]
             chi = np.hstack((chi, chi_i))
 
