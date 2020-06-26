@@ -50,7 +50,7 @@ def adrawProfile(star, prof, params, use_fit=True, copy_image=True):
     return Star(data, fit)
 
 
-def makeStarsMoffat(nstar=100, beta=5., forcefail=False, test_return_error=False, test_mask=False):
+def makeStarsMoffat(nstar=100, beta=5., forcefail=False, test_return_error=False, test_mask=False, test_options=False):
 
     # Moffat
     psf = piff.Moffat(beta)
@@ -140,6 +140,22 @@ def makeStarsMoffat(nstar=100, beta=5., forcefail=False, test_return_error=False
         moments = calculate_moments(star=noiseless_stars[i],errors=True, third_order=True, fourth_order=True, radial=True)
         moments_noise = calculate_moments(star=noisy_stars[i],errors=True, third_order=True, fourth_order=True, radial=True)
 
+        if test_options:
+            moments_34 = calculate_moments(star=noiseless_stars[i], errors=True, third_order=True, fourth_order=True, radial=False)
+            mask_34 = [True, True, True, True, True, True, True, True, True, True, True, True, True, True, True, False, False, False,
+                       True, True, True, True, True, True, True, True, True, True, True, True, True, True, True, False, False, False]
+            np.testing.assert_equal(np.array(moments)[mask_34], np.array(moments_34))
+
+            moments_3r = calculate_moments(star=noiseless_stars[i], errors=True, third_order=True, fourth_order=False, radial=True)
+            mask_3r = [True, True, True, True, True, True, True, True, True, True, False, False, False, False, False, True, True, True,
+                       True, True, True, True, True, True, True, True, True, True, False, False, False, False, False, True, True, True]
+            np.testing.assert_equal(np.array(moments)[mask_3r], np.array(moments_3r))
+
+            moments_4r = calculate_moments(star=noiseless_stars[i], errors=True, third_order=False, fourth_order=True, radial=True)
+            mask_4r = [True, True, True, True, True, True, False, False, False, False, True, True, True, True, True, True, True, True,
+                       True, True, True, True, True, True, False, False, False, False, True, True, True, True, True, True, True, True]
+            np.testing.assert_equal(np.array(moments)[mask_4r], np.array(moments_4r))
+        
         if test_mask:
             copy_star = piff.Star(noisy_star.data, noisy_star.fit)
             # mask out a pixel that is not too close to the center of the stamp.  
@@ -199,6 +215,13 @@ def test_moments_mask():
     rng = galsim.BaseDeviate(12345)
     dft = makeStarsMoffat(nstar=20,beta=5.,test_mask=True)
 
+
+@timer
+def test_moments_options():
+
+    np.random.seed(12345)
+    rng = galsim.BaseDeviate(12345)
+    dft = makeStarsMoffat(nstar=2, beta=5.,test_options=True)
 
 
 @timer
