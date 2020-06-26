@@ -1,6 +1,22 @@
 import numpy as np
 import piff
 import galsim
+# Copyright (c) 2016 by Mike Jarvis and the other collaborators on GitHub at
+# https://github.com/rmjarvis/Piff  All rights reserved.
+#
+# Piff is free software: Redistribution and use in source and binary forms
+# with or without modification, are permitted provided that the following
+# conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice, this
+#    list of conditions and the disclaimer given in the accompanying LICENSE
+#    file.
+# 2. Redistributions in binary form must reproduce the above copyright notice,
+#    this list of conditions and the disclaimer given in the documentation
+#    and/or other materials provided with the distribution.
+
+
+
 import copy
 from piff.star import Star, StarFit, StarData
 from piff.util import calculate_moments
@@ -115,9 +131,9 @@ def makeStarsMoffat(nstar=100, beta=5., forcefail=False, test_return_error=False
 
         noiseless_stars.append(noiseless_star)
 
-        # scale the image's pixel_sum, work with a copy
-        im = copy.deepcopy(noiseless_star.image) * pixel_sum
-
+        # scale the image's pixel_sum
+        im = noiseless_star.image * pixel_sum
+        
         # Generate a Poisson noise model, with some foreground (assumes that this foreground was already subtracted)
         poisson_noise = galsim.PoissonNoise(rng,sky_level=foreground)
         im.addNoise(poisson_noise)  # adds in place
@@ -127,8 +143,9 @@ def makeStarsMoffat(nstar=100, beta=5., forcefail=False, test_return_error=False
         weight = 1.0/inverse_weight
 
         # make new noisy star by resetting data in the noiseless star
-        noisy_star = piff.Star(noiseless_star.data.setData(im.array.flatten(),True), noiseless_star.fit)
-        noisy_star.data.weight = weight   # overwrite weight inside star
+        noisy_star = copy.deepcopy(noiseless_star)
+        noisy_star.data.image = im
+        noisy_star.data.weight = weight
 
         if forcefail:
             noisy_star.data.weight *= 0.
@@ -142,22 +159,25 @@ def makeStarsMoffat(nstar=100, beta=5., forcefail=False, test_return_error=False
 
         if test_options:
             moments_34 = calculate_moments(star=noiseless_stars[i], errors=True, third_order=True, fourth_order=True, radial=False)
+            # No radial moments, skip items 16-18 of moments and errors
             mask_34 = [True, True, True, True, True, True, True, True, True, True, True, True, True, True, True, False, False, False,
                        True, True, True, True, True, True, True, True, True, True, True, True, True, True, True, False, False, False]
             np.testing.assert_equal(np.array(moments)[mask_34], np.array(moments_34))
 
             moments_3r = calculate_moments(star=noiseless_stars[i], errors=True, third_order=True, fourth_order=False, radial=True)
+            # No third order moments, skip items 11-15 of moments and errors            
             mask_3r = [True, True, True, True, True, True, True, True, True, True, False, False, False, False, False, True, True, True,
                        True, True, True, True, True, True, True, True, True, True, False, False, False, False, False, True, True, True]
             np.testing.assert_equal(np.array(moments)[mask_3r], np.array(moments_3r))
 
             moments_4r = calculate_moments(star=noiseless_stars[i], errors=True, third_order=False, fourth_order=True, radial=True)
+            # No third order moments, skip items 7-10 of moments and errors
             mask_4r = [True, True, True, True, True, True, False, False, False, False, True, True, True, True, True, True, True, True,
                        True, True, True, True, True, True, False, False, False, False, True, True, True, True, True, True, True, True]
             np.testing.assert_equal(np.array(moments)[mask_4r], np.array(moments_4r))
         
         if test_mask:
-            copy_star = piff.Star(noisy_star.data, noisy_star.fit)
+            copy_star = copy.deepcopy(noisy_star)
             # mask out a pixel that is not too close to the center of the stamp.  
             copy_star.data.weight[x[i]+5, y[i]+5] = 0
             test_moments =  calculate_moments(star=copy_star,errors=True, third_order=True, fourth_order=True, radial=True)
@@ -229,15 +249,11 @@ def test_moments_fail():
 
     np.random.seed(12345)
     rng = galsim.BaseDeviate(12345)
-    try:
-        dft = makeStarsMoffat(nstar=1,beta=5.,forcefail=True)
-        assert False
-    except galsim.errors.GalSimHSMError:
-        pass
-
+    with np.testing.assert_raises(galsim.GalSimHSMError):
+        makeStarsMoffat(nstar=1,beta=5.,forcefail=True)
 
 @timer
-def test_moments(dftlist=None):
+def test_moments():
 
     # always run this
     np.random.seed(12345)
@@ -245,8 +261,7 @@ def test_moments(dftlist=None):
 
     betalist = [1.5, 2.5, 5.]
     keylist = ["1p5", "2p5", "5"]
-    if dftlist is None:
-        dftlist = [makeStarsMoffat(nstar=1000,beta=betaval) for betaval in betalist]
+    dftlist = [makeStarsMoffat(nstar=1000,beta=betaval) for betaval in betalist]
     momentlist = ['M10','M01','M11','M20','M02','M21','M12','M30','M03','M31','M13','M40','M04','M22n','M33n','M44n']
 
     rmsval_dict = dict(M10=[1.024323, 0.996639,0.986769],
@@ -270,8 +285,19 @@ def test_moments(dftlist=None):
     for i, (dft, beta, key) in enumerate(zip(dftlist, betalist, keylist)):
         stacked = np.vstack([ makepulldist(dft, beta, amoment) for amoment in momentlist])
         testvals = np.array([ rmsval_dict[amoment][i] for amoment in momentlist])
-        mean_pull = stacked.mean(1)
-        rms_pull = stacked.std(1)
+        mean_pull = stacked.mean(axis=1)
+        rms_pull = stacked.std(axis=1)
         failmask = np.fabs(rms_pull-testvals) > 0.1
         np.testing.assert_allclose(mean_pull, 0., atol=0.1)
         np.testing.assert_allclose(rms_pull, testvals, rtol=0.2)
+
+
+
+if __name__ == "__main__":
+
+    test_moments_return()
+    test_moments_mask()
+    test_moments_options()
+    test_moments_fail()
+    test_moments_moments()
+

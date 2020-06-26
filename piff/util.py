@@ -371,7 +371,7 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
         M_31 &= \sum W(u,v) I(u,v) (du^2 + dv^2) (du^2 - dv^2) \\
         M_13 &= \sum W(u,v) I(u,v) (du^2 + dv^2) (2 du dv) \\
         M_40 &= \sum W(u,v) I(u,v) (du^4 - 6 du^2 dv^2 + dv^4) \\
-        M_04 &= \sum W(u,v) I(u,v) (du^2 - dv^2) (4 du dv) \\
+        M_04 &= \sum W(u,v) I(u,v) (du^2 - dv^2) (4 du dv) 
 
     Higher order radial moments both unnormalized and normalized (4th through 8th, even) are calculated if ``radial``
     is set to True:
@@ -379,12 +379,13 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
     .. math::
 
         r^2 &\equiv du^2 + dv^2 \\
-        M_22 &= \sum W(u,v) I(u,v) r^4
-        M_33 &= \sum W(u,v) I(u,v) r^6
-        M_44 &= \sum W(u,v) I(u,v) r^8
-        M_22n &= M_22/M_11^2
-        M_33n &= M_33/M_11^3
-        M_44n &= M_44/M_11^4
+        M_22 &= \sum W(u,v) I(u,v) r^4 \\
+        M_33 &= \sum W(u,v) I(u,v) r^6 \\ 
+        M_44 &= \sum W(u,v) I(u,v) r^8  \\
+        M_22n &= M_22/M_11^2 \\
+        M_33n &= M_33/M_11^3 \\
+        M_44n &= M_44/M_11^4 
+
     For all of these, one can also have error estimates returned if ``errors`` is set to True.
 
     :param star:            Input star, with stamp, weight
@@ -417,10 +418,9 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
         raise RuntimeError("HSM failed with flag %s" % flag)
 
     # build the HSM weight, writing into image
-    #profile = galsim.Gaussian(sigma=sigma_m, flux=1.0).shear(e1=e1, e2=e2).shift(u0, v0)
     profile = galsim.Gaussian(sigma=sigma_m, flux=1.0).shear(g1=g1, g2=g2).shift(u0, v0)
 
-    image = galsim.Image(star.image.copy(), dtype=float)
+    image = galsim.Image(star.image, dtype=float)
     profile.drawImage(image, method='sb', center=star.image_pos)
 
     # convert image into kernel
@@ -431,9 +431,10 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
     if np.any(mask):
         data[mask] = kernel[mask] * np.sum(data[~mask])/np.sum(kernel[~mask])
 
-    # This is the weighted image values, which we use in all the sums below.
+    # These are masked image values, which we use in all the sums below.
+    # The mask is defined in the line above, taking all pixels with non-zero weight
     # Notation:
-    #   W = weight * kernel
+    #   W = kernel    
     #   I = data
     #   V = var(data) -- used below.
     WI = kernel * data
@@ -441,10 +442,6 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
     M00 = np.sum(WI)
     norm = M00            # This is the normalization for all other moments.
     WI /= norm
-
-    # centroids
-    M10 = np.sum(WI * u)
-    M01 = np.sum(WI * v)
 
     # now subtract off centroid
     u -= u0
@@ -468,6 +465,10 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
     rsq3 = rsq2 * rsq
     rsq4 = rsq3 * rsq
 
+    # centroids
+    M10 = np.sum(WIu) + u0
+    M01 = np.sum(WIv) + v0
+    
     # 2nd moments
     M11 = np.sum(WIrsq)
     M20 = np.sum(WIusqmvsq)
@@ -505,7 +506,6 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
         M33n = M33/(M11**3)
         M44n = M44/(M11**4)
 
-        #ret += (M22, M33, M44)
         ret += (M22n,M33n,M44n)
 
     if errors:
