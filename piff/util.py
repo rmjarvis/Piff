@@ -414,7 +414,7 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
     e1 = s.e1
     e2 = s.e2
 
-    if flag:
+    if flag: #pragma: no cover 
         raise RuntimeError("HSM failed with flag %s" % flag)
 
     # build the HSM weight, writing into image
