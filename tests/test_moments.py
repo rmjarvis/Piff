@@ -22,8 +22,6 @@ from piff.star import Star, StarFit, StarData
 from piff.util import calculate_moments
 
 from piff_test_helper import timer
-from piff.util import hsm
-
 
 
 
