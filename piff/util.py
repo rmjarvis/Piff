@@ -406,7 +406,7 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
     # get vectors for data, weight and u, v
     data, weight, u, v = star.data.getDataVector()
     # also get the values for the HSM kernel, which is just the fitted hsm model
-    f, u0, v0, sigma_m, g1, g2, flag = hsm(star)
+    f, u0, v0, sigma_m, g1, g2, flag = star.hsm
     # flux, u0,v0 (centroid in sky coord), sigma_m (detM^1/4 in sky coord), e1,e2, flag
 
     # convert g1,g2 to e1,e2
