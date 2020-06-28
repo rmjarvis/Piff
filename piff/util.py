@@ -153,7 +153,9 @@ def read_kwargs(fits, extname):
 def estimate_cov_from_jac(jac):
     """Estimate a covariance matrix from a jacobian as returned by scipy.optimize.least_squares
     .. math::
+
         C = (J^T J)^{-1}
+
     This is computed using Moore-Penrose inversion to discard singular values.
 
     :param jac:     The Jacobian as a 2d numpy array
@@ -217,7 +219,7 @@ def run_multi(func, nproc, raise_except, args, logger, kwargs=None):
     be pickled, so it cannot be passed to the function being run by the workers).
 
     :param func:        The function to run.  Signature should be:
-                            func(*args, logger=logger, **kwargs)
+                            func(\*args, logger=logger, \*\*kwargs)
     :param nproc:       How many processes to run.  If nproc=1, no multiprocessing is done.
                         nproc <= 0 means use all the cores.
     :param raise_except: Whether to raise any exceptions that happen in individual jobs.
@@ -226,7 +228,7 @@ def run_multi(func, nproc, raise_except, args, logger, kwargs=None):
     :param kwargs:      a list of kwargs for func for each job to run.  May also be a single dict
                         to use for all jobs. [default: None]
 
-    :returns:   The output of func(*args[i], **kwargs[i]) for each item in the args, kwargs lists.
+    :returns:   The output of func(\*args[i], \*\*kwargs[i]) for each item in the args, kwargs lists.
     """
     from multiprocessing import Pool
 
