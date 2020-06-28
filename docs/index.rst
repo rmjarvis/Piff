@@ -16,7 +16,7 @@ Piff Documentation
    output
    stats
    star
-
+   util
 
 * :ref:`genindex`
 * :ref:`modindex`
