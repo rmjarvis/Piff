@@ -754,88 +754,91 @@ def test_draw():
         # The total flux should be close to 1.
         np.testing.assert_allclose(im1.array.sum(), 1.0, rtol=1.e-3)
 
-        # Offset will draw the star offset at an arbitrary offset from the nominal position.
-        # This can be any float, but if integer, then it's easy to check that the same
-        # profile is being drawn.
+        # We can center the star at an arbitrary location on the image.
+        # The default is equivalent to center=(x,y).  So check that this is equivalent.
         # Also, 48 is the default stamp size, so that can be omitted here.
-        im2 = psf.draw(x, y, chipnum, offset=(1,3))
+        im2 = psf.draw(x, y, chipnum, center=(x,y))
         assert im2.bounds == im1.bounds
+        np.testing.assert_allclose(im2.array, im1.array, rtol=1.e-14, atol=1.e-14)
+
+        # Moving by an integer number of pixels should be very close to the same image
+        # over a different slice of the array.
+        im3 = psf.draw(x, y, chipnum, center=(x+1, y+3))
+        assert im3.bounds == im1.bounds
         # (Remember -- numpy indexing is y,x!)
-        # Also, the FFTs will be different in detail, so only match to 1.e-5.
+        # Also, the FFTs will be different in detail, so only match to 1.e-6.
         #print('im1 argmax = ',np.unravel_index(np.argmax(im1.array),im1.array.shape))
-        #print('im2 argmax = ',np.unravel_index(np.argmax(im2.array),im2.array.shape))
-        np.testing.assert_allclose(im2.array[3:,1:], im1.array[:-3,:-1], rtol=1.e-5, atol=1.e-5)
-        hsm = im2.FindAdaptiveMom()
+        #print('im3 argmax = ',np.unravel_index(np.argmax(im3.array),im3.array.shape))
+        np.testing.assert_allclose(im3.array[3:,1:], im1.array[:-3,:-1], rtol=1.e-6, atol=1.e-6)
+        hsm = im3.FindAdaptiveMom()
         np.testing.assert_allclose(hsm.moments_centroid.x, x+1, atol=0.01)
         np.testing.assert_allclose(hsm.moments_centroid.y, y+3, atol=0.01)
 
-        # Non-integral offset won't match well in the image, but the centroids from hsm should
-        # still be good.
-        im3 = psf.draw(x, y, chipnum, offset=(1.3,-0.8))
-        assert im3.bounds == im1.bounds
-        hsm = im3.FindAdaptiveMom()
-        np.testing.assert_allclose(hsm.moments_centroid.x, x+1.3, atol=0.01)
-        np.testing.assert_allclose(hsm.moments_centroid.y, y-0.8, atol=0.01)
-
-        # Check non-even stamp size.  Also, not unit flux while we're at it.
-        im4 = psf.draw(x, y, chipnum, offset=(1.3,-0.8), stamp_size=43, flux=23.7)
-        assert im4.array.shape == (43,43)
-        np.testing.assert_allclose(im4.bounds.true_center.x, x, atol=0.5)
-        np.testing.assert_allclose(im4.bounds.true_center.y, y, atol=0.5)
-        np.testing.assert_allclose(im4.array.sum(), 23.7, rtol=1.e-3)
+        # Can center at other locations, and the hsm centroids should come out centered pretty
+        # close to that location.
+        # (Of course the array will be different here, so can't test that.)
+        im4 = psf.draw(x, y, chipnum, center=(x+1.3,y-0.8))
+        assert im4.bounds == im1.bounds
         hsm = im4.FindAdaptiveMom()
         np.testing.assert_allclose(hsm.moments_centroid.x, x+1.3, atol=0.01)
         np.testing.assert_allclose(hsm.moments_centroid.y, y-0.8, atol=0.01)
 
-        # Can't do mixed even/odd shape with stamp_size, but it will respect a provided image.
-        im5 = galsim.Image(43,44)
-        im5.setCenter(x,y)  # It will respect the given bounds, so put it near the right place.
-        psf.draw(x, y, chipnum, offset=(1.3,-0.8), image=im5, flux=23.7)
-        assert im5.array.shape == (44,43)
-        np.testing.assert_allclose(im5.array.sum(), 23.7, rtol=1.e-3)
+        # Also allowed is center='image' to place in the center of the image.
+        im5 = psf.draw(x, y, chipnum, center='image')
+        assert im5.bounds == im1.bounds
+        assert im5.array.shape == (48,48)
+        np.testing.assert_allclose(im5.bounds.true_center.x, x, atol=0.5)
+        np.testing.assert_allclose(im5.bounds.true_center.y, y, atol=0.5)
+        np.testing.assert_allclose(im5.array.sum(), 1., rtol=1.e-3)
         hsm = im5.FindAdaptiveMom()
-        np.testing.assert_allclose(hsm.moments_centroid.x, x+1.3, atol=0.01)
-        np.testing.assert_allclose(hsm.moments_centroid.y, y-0.8, atol=0.01)
-
-        # Using center will draw the profile at the given center
-        # First, the default is equivalent to center=(x,y)
-        im6 = psf.draw(x, y, chipnum, center=(x,y))
-        assert im6.bounds == im1.bounds
-        np.testing.assert_allclose(im6.array, im1.array, rtol=1.e-14, atol=1.e-14)
-
-        # Other locations are equivalent to offset = center - image_pos
-        im7 = psf.draw(x, y, chipnum, center=(x+1.3,y-0.8))
-        assert im7.bounds == im1.bounds
-        np.testing.assert_allclose(im7.array, im3.array, rtol=1.e-14, atol=1.e-14)
-
-        # Also allowed it center='image' to place in the center of the image.
-        im8 = psf.draw(x, y, chipnum, center='image')
-        assert im8.bounds == im1.bounds
-        assert im8.array.shape == (48,48)
-        np.testing.assert_allclose(im8.bounds.true_center.x, x, atol=0.5)
-        np.testing.assert_allclose(im8.bounds.true_center.y, y, atol=0.5)
-        np.testing.assert_allclose(im8.array.sum(), 1., rtol=1.e-3)
-        hsm = im8.FindAdaptiveMom()
-        center = im8.true_center
+        center = im5.true_center
         np.testing.assert_allclose(hsm.moments_centroid.x, center.x, atol=0.01)
         np.testing.assert_allclose(hsm.moments_centroid.y, center.y, atol=0.01)
 
         # Some invalid ways to try to do this. (Must be either 'image' or a tuple.)
         np.testing.assert_raises(ValueError, psf.draw, x, y, chipnum, center='imgae')
-        np.testing.assert_raises(ValueError, psf.draw, x, y, chipnum, center=im8.true_center)
+        np.testing.assert_raises(ValueError, psf.draw, x, y, chipnum, center=im5.true_center)
 
         # If providing your own image with bounds far away from the star (say centered at 0),
         # then center='image' works fine to draw in the center of that image.
-        im9 = im8.copy()
-        im9.setCenter(0,0)
-        psf.draw(x, y, chipnum, center='image', image=im9)
-        assert im9.bounds.center == galsim.PositionI(0,0)
-        np.testing.assert_allclose(im9.array.sum(), 1., rtol=1.e-3)
-        hsm = im9.FindAdaptiveMom()
-        center = im9.true_center
+        im6 = im5.copy()
+        im6.setCenter(0,0)
+        psf.draw(x, y, chipnum, center='image', image=im6)
+        assert im6.bounds.center == galsim.PositionI(0,0)
+        np.testing.assert_allclose(im6.array.sum(), 1., rtol=1.e-3)
+        hsm = im6.FindAdaptiveMom()
+        center = im6.true_center
         np.testing.assert_allclose(hsm.moments_centroid.x, center.x, atol=0.01)
         np.testing.assert_allclose(hsm.moments_centroid.y, center.y, atol=0.01)
-        np.testing.assert_allclose(im9.array, im8.array, rtol=1.e-14, atol=1.e-14)
+        np.testing.assert_allclose(im6.array, im5.array, rtol=1.e-14, atol=1.e-14)
+
+        # Check non-even stamp size.  Also, not unit flux while we're at it.
+        im7 = psf.draw(x, y, chipnum, center=(x+1.3,y-0.8), stamp_size=43, flux=23.7)
+        assert im7.array.shape == (43,43)
+        np.testing.assert_allclose(im7.bounds.true_center.x, x, atol=0.5)
+        np.testing.assert_allclose(im7.bounds.true_center.y, y, atol=0.5)
+        np.testing.assert_allclose(im7.array.sum(), 23.7, rtol=1.e-3)
+        hsm = im7.FindAdaptiveMom()
+        np.testing.assert_allclose(hsm.moments_centroid.x, x+1.3, atol=0.01)
+        np.testing.assert_allclose(hsm.moments_centroid.y, y-0.8, atol=0.01)
+
+        # Can't do mixed even/odd shape with stamp_size, but it will respect a provided image.
+        im8 = galsim.Image(43,44)
+        im8.setCenter(x,y)  # It will respect the given bounds, so put it near the right place.
+        psf.draw(x, y, chipnum, center=(x+1.3,y-0.8), image=im8, flux=23.7)
+        assert im8.array.shape == (44,43)
+        np.testing.assert_allclose(im8.array.sum(), 23.7, rtol=1.e-3)
+        hsm = im8.FindAdaptiveMom()
+        np.testing.assert_allclose(hsm.moments_centroid.x, x+1.3, atol=0.01)
+        np.testing.assert_allclose(hsm.moments_centroid.y, y-0.8, atol=0.01)
+
+        # Finally, test the old offset parameter, now deprecated.
+        im9 = psf.draw(x, y, chipnum, offset=(1.3,-0.8))
+        assert im9.bounds == im1.bounds
+        hsm = im9.FindAdaptiveMom()
+        np.testing.assert_allclose(hsm.moments_centroid.x, x+1.3, atol=0.01)
+        np.testing.assert_allclose(hsm.moments_centroid.y, y-0.8, atol=0.01)
+        np.testing.assert_allclose(im9.array, im4.array, rtol=1.e-14, atol=1.e-14)
 
 
 
