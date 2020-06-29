@@ -808,6 +808,22 @@ def test_draw():
         assert im7.bounds == im1.bounds
         np.testing.assert_allclose(im7.array, im3.array, rtol=1.e-14, atol=1.e-14)
 
+        # Also allowed it center='image' to place in the center of the image.
+        im8 = psf.draw(x, y, chipnum, center='image')
+        assert im8.bounds == im1.bounds
+        assert im8.array.shape == (48,48)
+        np.testing.assert_allclose(im8.bounds.true_center.x, x, atol=0.5)
+        np.testing.assert_allclose(im8.bounds.true_center.y, y, atol=0.5)
+        np.testing.assert_allclose(im8.array.sum(), 1., rtol=1.e-3)
+        hsm = im8.FindAdaptiveMom()
+        center = im8.true_center
+        np.testing.assert_allclose(hsm.moments_centroid.x, center.x, atol=0.01)
+        np.testing.assert_allclose(hsm.moments_centroid.y, center.y, atol=0.01)
+
+        # Some invalid ways to try to do this. (Must be either 'image' or a tuple.)
+        np.testing.assert_raises(ValueError, psf.draw, x, y, chipnum, center='imgae')
+        np.testing.assert_raises(ValueError, psf.draw, x, y, chipnum, center=im8.true_center)
+
 
 
 if __name__ == '__main__':

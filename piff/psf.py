@@ -132,8 +132,9 @@ class PSF(object):
         :param offset:      (dx,dy) tuple giving offset of stellar center relative
                             to star.data.image_pos [default: (0,0)]
         :param center:      (x0,y0) tuple giving the location on the image where you want the
-                            nominal center of the profile to be drawn. [default: None, which means
-                            draw at the position (x,y) of the star.]
+                            nominal center of the profile to be drawn.  Also allowed is the
+                            string center='image' to place in the center of the image.
+                            [default: None, which means draw at the position (x,y) of the star.]
         :param stamp_size:  The size of the image to construct if no image is provided.
                             [default: 48]
         :param image:       An existing image on which to draw, if desired. [default: None]
@@ -170,6 +171,12 @@ class PSF(object):
         # Handle the input center
         if center is None:
             center = (x, y)
+        elif center == 'image':
+            center = star.data.image.true_center
+            center = (center.x, center.y)
+        elif not isinstance(center, tuple):
+            raise ValueError("Invalid center parameter: %r. Must be tuple or None or 'image'"%(
+                             center))
 
         # Convert to centroid shift in (u,v) coordinates
         offset = (center[0] - x + offset[0], center[1] - y + offset[1])
