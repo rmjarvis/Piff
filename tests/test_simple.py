@@ -797,6 +797,16 @@ def test_draw():
         np.testing.assert_allclose(hsm.moments_centroid.x, x+1.3, atol=0.01)
         np.testing.assert_allclose(hsm.moments_centroid.y, y-0.8, atol=0.01)
 
+        # Using center will draw the profile at the given center
+        # First, the default is equivalent to center=(x,y)
+        im6 = psf.draw(x, y, chipnum, center=(x,y))
+        assert im6.bounds == im1.bounds
+        np.testing.assert_allclose(im6.array, im1.array, rtol=1.e-14, atol=1.e-14)
+
+        # Other locations are equivalent to offset = center - image_pos
+        im7 = psf.draw(x, y, chipnum, center=(x+1.3,y-0.8))
+        assert im7.bounds == im1.bounds
+        np.testing.assert_allclose(im7.array, im3.array, rtol=1.e-14, atol=1.e-14)
 
 
 
