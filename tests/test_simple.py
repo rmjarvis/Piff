@@ -824,6 +824,20 @@ def test_draw():
         np.testing.assert_raises(ValueError, psf.draw, x, y, chipnum, center='imgae')
         np.testing.assert_raises(ValueError, psf.draw, x, y, chipnum, center=im8.true_center)
 
+        # If providing your own image with bounds far away from the star (say centered at 0),
+        # then center='image' works fine to draw in the center of that image.
+        im9 = im8.copy()
+        im9.setCenter(0,0)
+        psf.draw(x, y, chipnum, center='image', image=im9)
+        assert im9.bounds.center == galsim.PositionI(0,0)
+        np.testing.assert_allclose(im9.array.sum(), 1., rtol=1.e-3)
+        hsm = im9.FindAdaptiveMom()
+        center = im9.true_center
+        np.testing.assert_allclose(hsm.moments_centroid.x, center.x, atol=0.01)
+        np.testing.assert_allclose(hsm.moments_centroid.y, center.y, atol=0.01)
+        np.testing.assert_allclose(im9.array, im8.array, rtol=1.e-14, atol=1.e-14)
+
+
 
 
 if __name__ == '__main__':

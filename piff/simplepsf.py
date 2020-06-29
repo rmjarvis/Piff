@@ -266,8 +266,8 @@ class SimplePSF(PSF):
         self.model.normalize(star)
         return star
 
-    def _drawStar(self, star, copy_image=True):
-        return self.model.draw(star, copy_image=copy_image)
+    def _drawStar(self, star, copy_image=True, center=None):
+        return self.model.draw(star, copy_image=copy_image, center=center)
 
     def _finish_write(self, fits, extname, logger):
         """Finish the writing process with any class-specific steps.

@@ -178,19 +178,19 @@ class PSF(object):
             raise ValueError("Invalid center parameter: %r. Must be tuple or None or 'image'"%(
                              center))
 
-        # Convert to centroid shift in (u,v) coordinates
-        offset = (center[0] - x + offset[0], center[1] - y + offset[1])
-        center = star.offset_to_center(offset)
+        # Handle offset if given
+        if offset is not None:
+            center = (center[0] + offset[0], center[1] + offset[1])
 
-        # Adjust the flux, center of the star.
-        star = star.withFlux(flux, center)
+        # Adjust the flux of the star.
+        star = star.withFlux(flux)
 
         # if a user specifies an image, then we want to preserve that image, so
         # copy_image = False. If a user doesn't specify an image, then it
         # doesn't matter if we overwrite it, so use copy_image=False
         copy_image = False
         # Draw the star and return the image
-        star = self.drawStar(star, copy_image=copy_image)
+        star = self.drawStar(star, copy_image=copy_image, center=center)
         return star.data.image
 
     def interpolateStarList(self, stars):
@@ -241,7 +241,7 @@ class PSF(object):
             stars = self.interpolateStarList(stars)
         return [self._drawStar(star, copy_image=copy_image) for star in stars]
 
-    def drawStar(self, star, copy_image=True):
+    def drawStar(self, star, copy_image=True, center=None):
         """Generate PSF image for a given star.
 
         .. note::
@@ -259,6 +259,8 @@ class PSF(object):
         :param copy_image:  If False, will use the same image object.
                             If True, will copy the image and then overwrite it.
                             [default: True]
+        :param center:      An optional tuple (x,y) location for where to center the drawn profile
+                            in the image. [default: None, which draws at the star's location.]
 
         :returns:           Star instance with its image filled with rendered PSF
         """
@@ -266,9 +268,9 @@ class PSF(object):
         if star.fit is None or star.fit.params is None:
             star = self.interpolateStar(star)
         # Render the image
-        return self._drawStar(star, copy_image=copy_image)
+        return self._drawStar(star, copy_image=copy_image, center=center)
 
-    def _drawStar(self, star, copy_image=True):
+    def _drawStar(self, star, copy_image=True, center=None):
         # Derived classes may choose to override any of the above functions
         # But they have to at least override this one and interpolateStar to implement
         # their actual PSF model.

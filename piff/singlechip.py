@@ -135,11 +135,11 @@ class SingleChipPSF(PSF):
         chipnum = star['chipnum']
         return self.psf_by_chip[chipnum].interpolateStar(star)
 
-    def _drawStar(self, star, copy_image=True):
+    def _drawStar(self, star, copy_image=True, center=None):
         if 'chipnum' not in star.data.properties:
             raise ValueError("SingleChip requires the star to have a chipnum property")
         chipnum = star['chipnum']
-        return self.psf_by_chip[chipnum].drawStar(star, copy_image=copy_image)
+        return self.psf_by_chip[chipnum].drawStar(star, copy_image=copy_image, center=center)
 
     def _finish_write(self, fits, extname, logger):
         """Finish the writing process with any class-specific steps.
