@@ -100,8 +100,8 @@ class PSF(object):
         """
         raise NotImplementedError("Derived classes must define the parseKwargs function")
 
-    def draw(self, x, y, chipnum=0, flux=1.0, offset=(0,0), stamp_size=48, image=None,
-             logger=None, **kwargs):
+    def draw(self, x, y, chipnum=0, flux=1.0, offset=(0,0), center=None, stamp_size=48,
+             image=None, logger=None, **kwargs):
         r"""Draws an image of the PSF at a given location.
 
         The normal usage would be to specify (chipnum, x, y), in which case Piff will use the
@@ -131,6 +131,9 @@ class PSF(object):
         :param flux:        Flux of PSF to be drawn [default: 1.0]
         :param offset:      (dx,dy) tuple giving offset of stellar center relative
                             to star.data.image_pos [default: (0,0)]
+        :param center:      (x0,y0) tuple giving the location on the image where you want the
+                            nominal center of the profile to be drawn. [default: None, which means
+                            draw at the position (x,y) of the star.]
         :param stamp_size:  The size of the image to construct if no image is provided.
                             [default: 48]
         :param image:       An existing image on which to draw, if desired. [default: None]
@@ -146,7 +149,7 @@ class PSF(object):
                 raise TypeError("Extra interpolation property %r is required"%key)
             properties[key] = kwargs.pop(key)
         if len(kwargs) != 0:
-            raise TypeError("draw got an unexpecte keyword argument %r"%kwargs.keys()[0])
+            raise TypeError("draw got an unexpecte keyword argument %r"%list(kwargs.keys())[0])
 
         image_pos = galsim.PositionD(x,y)
         world_pos = StarData.calculateFieldPos(image_pos, self.wcs[chipnum], self.pointing,
@@ -164,8 +167,15 @@ class PSF(object):
                                stamp_size=stamp_size, image=image, pointing=self.pointing)
         logger.debug("Drawing star at (%s,%s) on chip %s", x, y, chipnum)
 
-        # Adjust the flux, center
+        # Handle the input center
+        if center is None:
+            center = (x, y)
+
+        # Convert to centroid shift in (u,v) coordinates
+        offset = (center[0] - x + offset[0], center[1] - y + offset[1])
         center = star.offset_to_center(offset)
+
+        # Adjust the flux, center of the star.
         star = star.withFlux(flux, center)
 
         # if a user specifies an image, then we want to preserve that image, so
