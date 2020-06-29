@@ -100,7 +100,7 @@ class PSF(object):
         """
         raise NotImplementedError("Derived classes must define the parseKwargs function")
 
-    def draw(self, x, y, chipnum=0, flux=1.0, offset=(0,0), center=None, stamp_size=48,
+    def draw(self, x, y, chipnum=0, flux=1.0, center=None, offset=None, stamp_size=48,
              image=None, logger=None, **kwargs):
         r"""Draws an image of the PSF at a given location.
 
@@ -129,12 +129,12 @@ class PSF(object):
         :param chipnum:     Which chip to use for WCS information. [default: 0, which is
                             appropriate if only using a single chip]
         :param flux:        Flux of PSF to be drawn [default: 1.0]
-        :param offset:      (dx,dy) tuple giving offset of stellar center relative
-                            to star.data.image_pos [default: (0,0)]
         :param center:      (x0,y0) tuple giving the location on the image where you want the
                             nominal center of the profile to be drawn.  Also allowed is the
                             string center='image' to place in the center of the image.
                             [default: None, which means draw at the position (x,y) of the star.]
+        :param offset:      Optional (dx,dy) tuple giving an additional offset relative to the
+                            center. [default: None]
         :param stamp_size:  The size of the image to construct if no image is provided.
                             [default: 48]
         :param image:       An existing image on which to draw, if desired. [default: None]
