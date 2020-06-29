@@ -48,6 +48,7 @@ def make_gaussian_data(sigma, u0, v0, flux, noise=0., du=1., fpu=0., fpv=0., nsi
     star = piff.Star.makeTarget(x=nside/2+nom_u0/du, y=nside/2+nom_v0/du,
                                 u=fpu, v=fpv, scale=du, stamp_size=nside, weight=weight)
     star.image.setOrigin(0,0)
+    star.weight.setOrigin(0,0)
 
     g.drawImage(star.image, method='no_pixel', use_true_center=False,
                 offset=galsim.PositionD(nom_u0/du,nom_v0/du))

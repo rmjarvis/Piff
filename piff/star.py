@@ -266,10 +266,6 @@ class Star(object):
                 scale = 1.
             wcs = galsim.PixelScale(scale)
 
-        # Make the blank image
-        if image is None:
-            image = galsim.Image(stamp_size, stamp_size, dtype=float)
-
         # Make field_pos if we have u,v
         if u is not None:
             field_pos = galsim.PositionD(float(u),float(v))
@@ -284,13 +280,17 @@ class Star(object):
         else:
             image_pos = galsim.PositionD(float(x),float(y))
 
-        # Make the center of the image (close to) the image_pos
-        image.setCenter(int(x+0.5), int(y+0.5))
+        # Make the blank image
+        if image is None:
+            image = galsim.Image(stamp_size, stamp_size, dtype=float)
+            # Make the center of the image (close to) the image_pos
+            xcen = int(np.ceil(x - (0.5 if image.array.shape[1] % 2 == 1 else 0)))
+            ycen = int(np.ceil(y - (0.5 if image.array.shape[0] % 2 == 1 else 0)))
+            image.setCenter(xcen, ycen)
         if image.wcs is None:
             image.wcs = wcs
         if weight is not None:
-            weight = galsim.Image(weight.array.copy(), wcs=image.wcs)
-            weight.setCenter(int(x+0.5), int(y+0.5))
+            weight = galsim.Image(weight.array, wcs=image.wcs, copy=True, bounds=image.bounds)
 
         # Build the StarData instance
         data = StarData(image, image_pos, field_pos=field_pos, properties=properties, 
