@@ -169,7 +169,7 @@ def test_decam_wavefront():
     if __name__ == '__main__':
         logger = piff.config.setup_logger(verbose=2)
     else:
-        logger = piff.config.setup_logger(log_file='output/test_decamlog')
+        logger = piff.config.setup_logger(log_file='output/test_decam.log')
     knn = piff.des.DECamWavefront(file_name, extname, logger=logger)
 
     n_samples = 2000
