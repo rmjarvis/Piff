@@ -832,15 +832,20 @@ def test_draw():
         np.testing.assert_allclose(hsm.moments_centroid.x, x+1.3, atol=0.01)
         np.testing.assert_allclose(hsm.moments_centroid.y, y-0.8, atol=0.01)
 
-        # Finally, test the old offset parameter, now deprecated.
+        # The offset parameter can add an additional to whatever center is used.
+        # Here center=None, so this is equivalent to im4 above.
         im9 = psf.draw(x, y, chipnum, offset=(1.3,-0.8))
         assert im9.bounds == im1.bounds
         hsm = im9.FindAdaptiveMom()
-        np.testing.assert_allclose(hsm.moments_centroid.x, x+1.3, atol=0.01)
-        np.testing.assert_allclose(hsm.moments_centroid.y, y-0.8, atol=0.01)
         np.testing.assert_allclose(im9.array, im4.array, rtol=1.e-14, atol=1.e-14)
 
-
+        # With both, they are effectively added together.  Not sure if there would be a likely
+        # use for this, but it's allowed.  (The above with default center is used in unit
+        # tests a number of times, so that version at least is useful if only for us.
+        # I'm hard pressed to imaging end users wanting to specify things this way though.)
+        im10 = psf.draw(x, y, chipnum, center=(x+0.8, y-0.3), offset=(0.5,-0.5))
+        assert im10.bounds == im1.bounds
+        np.testing.assert_allclose(im10.array, im4.array, rtol=1.e-14, atol=1.e-14)
 
 
 if __name__ == '__main__':
