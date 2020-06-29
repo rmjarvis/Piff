@@ -601,7 +601,10 @@ def test_olddes():
     regression_array = np.array([[0.02920381, 0.03528429, 0.03267081],
                                  [0.03597827, 0.04419591, 0.04229439],
                                  [0.03001573, 0.03743261, 0.03300782]])
-    np.testing.assert_allclose(image.array[23:26,23:26], regression_array, rtol=1.e-5)
+    # Note: the centering mechanics have changed since this regression was set up to make the
+    # nominal PSF center closer to the image center.  So the second slice changed from
+    # 23:26 -> 22:25.
+    np.testing.assert_allclose(image.array[23:26,22:25], regression_array, rtol=1.e-5)
 
     # Also check that it is picklable.
     psf2 = copy.deepcopy(psf)
@@ -653,7 +656,10 @@ def test_newdes():
     regression_array = np.array([[0.03305565, 0.04500969, 0.0395154],
                                  [0.03765249, 0.05419811, 0.04867231],
                                  [0.02734579, 0.0418797, 0.03928504]])
-    np.testing.assert_allclose(image.array[23:26,23:26], regression_array, rtol=1.e-5)
+    # Note: the centering mechanics have changed since this regression was set up to make the
+    # nominal PSF center closer to the image center.  So the second slice changed from
+    # 23:26 -> 22:25.
+    np.testing.assert_allclose(image.array[23:26,22:25], regression_array, rtol=1.e-5)
 
     # Also check that it is picklable.
     psf2 = copy.deepcopy(psf)
