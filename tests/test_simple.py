@@ -691,6 +691,114 @@ def test_load_images():
     for star, orig in zip(loaded_stars, psf.stars):
         np.testing.assert_array_equal(star.image.array, orig.image.array-10)
 
+@timer
+def test_draw():
+    """Test the various options of the PSF.draw command.
+    """
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(verbose=2)
+    else:
+        logger = piff.config.setup_logger(log_file='output/test_draw.log')
+
+    # Use an existing Piff solution to match as closely as possible how users would actually
+    # use this function.
+    psf = piff.read('input/test_single_py27.piff', logger=logger)
+
+    # Data that was used to make that file.
+    wcs = galsim.TanWCS(
+            galsim.AffineTransform(0.26, 0.05, -0.08, -0.24, galsim.PositionD(1024,1024)),
+            galsim.CelestialCoord(-5 * galsim.arcmin, -25 * galsim.degrees)
+            )
+    data = fitsio.read('input/test_single_cat1.fits')
+    field_center = galsim.CelestialCoord(0 * galsim.degrees, -25 * galsim.degrees)
+    chipnum = 1
+
+    for k in range(len(data)):
+        x = data['x'][k]
+        y = data['y'][k]
+        e1 = data['e1'][k]
+        e2 = data['e2'][k]
+        s = data['s'][k]
+        print('k,x,y = ',k,x,y)
+        #print('  true s,e1,e2 = ',s,e1,e2)
+
+        # First, the same test with this file that is in test_wcs.py:test_pickle()
+        image_pos = galsim.PositionD(x,y)
+        star = piff.Star.makeTarget(x=x, y=y, wcs=wcs, stamp_size=48, pointing=field_center,
+                                    chipnum=chipnum)
+        star = psf.drawStar(star)
+        #print('  fitted s,e1,e2 = ',star.fit.params)
+        np.testing.assert_almost_equal(star.fit.params, [s,e1,e2], decimal=6)
+
+        # Now use the regular PSF.draw() command.  This version is equivalent to the above.
+        # (It's not equal all the way to machine precision, but pretty close.)
+        im1 = psf.draw(x, y, chipnum, stamp_size=48)
+        np.testing.assert_allclose(im1.array, star.data.image.array, rtol=1.e-14, atol=1.e-14)
+
+        # The wcs in the image is the wcs of the original image
+        assert im1.wcs == psf.wcs[1]
+
+        # The image is 48 x 48
+        assert im1.array.shape == (48, 48)
+
+        # The bounds are centered close to x,y.  Within 0.5 pixel.
+        np.testing.assert_allclose(im1.bounds.true_center.x, x, atol=0.5)
+        np.testing.assert_allclose(im1.bounds.true_center.y, y, atol=0.5)
+
+        # This version draws the star centered at (x,y).  Check the hsm centroid.
+        hsm = im1.FindAdaptiveMom()
+        #print('hsm = ',hsm)
+        np.testing.assert_allclose(hsm.moments_centroid.x, x, atol=0.01)
+        np.testing.assert_allclose(hsm.moments_centroid.y, y, atol=0.01)
+
+        # The total flux should be close to 1.
+        np.testing.assert_allclose(im1.array.sum(), 1.0, rtol=1.e-3)
+
+        # Offset will draw the star offset at an arbitrary offset from the nominal position.
+        # This can be any float, but if integer, then it's easy to check that the same
+        # profile is being drawn.
+        # Also, 48 is the default stamp size, so that can be omitted here.
+        im2 = psf.draw(x, y, chipnum, offset=(1,3))
+        assert im2.bounds == im1.bounds
+        # (Remember -- numpy indexing is y,x!)
+        # Also, the FFTs will be different in detail, so only match to 1.e-5.
+        #print('im1 argmax = ',np.unravel_index(np.argmax(im1.array),im1.array.shape))
+        #print('im2 argmax = ',np.unravel_index(np.argmax(im2.array),im2.array.shape))
+        np.testing.assert_allclose(im2.array[3:,1:], im1.array[:-3,:-1], rtol=1.e-5, atol=1.e-5)
+        hsm = im2.FindAdaptiveMom()
+        np.testing.assert_allclose(hsm.moments_centroid.x, x+1, atol=0.01)
+        np.testing.assert_allclose(hsm.moments_centroid.y, y+3, atol=0.01)
+
+        # Non-integral offset won't match well in the image, but the centroids from hsm should
+        # still be good.
+        im3 = psf.draw(x, y, chipnum, offset=(1.3,-0.8))
+        assert im3.bounds == im1.bounds
+        hsm = im3.FindAdaptiveMom()
+        np.testing.assert_allclose(hsm.moments_centroid.x, x+1.3, atol=0.01)
+        np.testing.assert_allclose(hsm.moments_centroid.y, y-0.8, atol=0.01)
+
+        # Check non-even stamp size.  Also, not unit flux while we're at it.
+        im4 = psf.draw(x, y, chipnum, offset=(1.3,-0.8), stamp_size=43, flux=23.7)
+        assert im4.array.shape == (43,43)
+        np.testing.assert_allclose(im4.bounds.true_center.x, x, atol=0.5)
+        np.testing.assert_allclose(im4.bounds.true_center.y, y, atol=0.5)
+        np.testing.assert_allclose(im4.array.sum(), 23.7, rtol=1.e-3)
+        hsm = im4.FindAdaptiveMom()
+        np.testing.assert_allclose(hsm.moments_centroid.x, x+1.3, atol=0.01)
+        np.testing.assert_allclose(hsm.moments_centroid.y, y-0.8, atol=0.01)
+
+        # Can't do mixed even/odd shape with stamp_size, but it will respect a provided image.
+        im5 = galsim.Image(43,44)
+        im5.setCenter(x,y)  # It will respect the given bounds, so put it near the right place.
+        psf.draw(x, y, chipnum, offset=(1.3,-0.8), image=im5, flux=23.7)
+        assert im5.array.shape == (44,43)
+        np.testing.assert_allclose(im5.array.sum(), 23.7, rtol=1.e-3)
+        hsm = im5.FindAdaptiveMom()
+        np.testing.assert_allclose(hsm.moments_centroid.x, x+1.3, atol=0.01)
+        np.testing.assert_allclose(hsm.moments_centroid.y, y-0.8, atol=0.01)
+
+
+
 
 if __name__ == '__main__':
     test_Gaussian()
@@ -702,3 +810,4 @@ if __name__ == '__main__':
     test_interp()
     test_psf()
     test_load_images()
+    test_draw()
