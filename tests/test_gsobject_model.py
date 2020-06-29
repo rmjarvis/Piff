@@ -52,6 +52,7 @@ def make_data(gsobject, scale, g1, g2, u0, v0, flux, noise=0., pix_scale=1., fpu
     star = piff.Star.makeTarget(x=nside/2+nom_u0/pix_scale, y=nside/2+nom_v0/pix_scale,
                                 u=fpu, v=fpv, scale=pix_scale, stamp_size=nside, weight=weight)
     star.image.setOrigin(0,0)
+    star.weight.setOrigin(0,0)
     method = 'auto' if include_pixel else 'no_pixel'
     k.drawImage(star.image, method=method,
                 offset=galsim.PositionD(nom_u0/pix_scale, nom_v0/pix_scale), use_true_center=False)
