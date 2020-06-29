@@ -124,15 +124,39 @@ class PSF(object):
         sky coordinates rather than image coordinates, you can provide an image with just a
         pixel scale for the WCS.
 
-        :param x:           The image x position.
-        :param y:           The image y position.
+        When drawing the PSF, there are a few options regarding how the profile will be
+        centered on the image.
+
+        1. The default behavior (``center==None``) is to draw the profile centered at the same
+           (x,y) as you requested for the location of the PSF in the original image coordinates.
+           The returned image will not (normally) be as large as the full image -- it will just be
+           a postage stamp centered roughly around (x,y).  The image.bounds give the bounding box
+           of this stamp, and within this, the PSF will be centered at position (x,y).
+        2. If you want to center the profile at some other arbitrary position, you may provide
+           a ``center`` parameter, which should be a tuple (xc,yc) giving the location at which
+           you want the PSF to be centered.  The bounding box will still be around the nominal
+           (x,y) position, so this should only be used for small adjustments to the (x,y) value
+           if you want it centered at a slightly different location.
+        3. If you provide your own image with the `image` parameter, then you may set the ``center``
+           to any location in this box (or technically off it -- it doesn't check that the center
+           is actually inside the bounding box).  This may be useful if you want to draw on an
+           image with origin at (0,0) or (1,1) and just put the PSF at the location you want.
+        4. If you want the PSf centered exactly in the center of the image, then you can use
+           ``center='image'``.  This will work for either an automatically built image or one
+           that you provide.
+        5. With any of the above options you may additionally supply an ``offset`` parameter, which
+           will apply a slight offset to the calculated center.  This is probably only useful in
+           conjunction with the default ``center=None`` or ``center='image'``.
+
+        :param x:           The x position of the desired PSF in the original image coordinates.
+        :param y:           The y position of the desired PSF in the original image coordinates.
         :param chipnum:     Which chip to use for WCS information. [default: 0, which is
                             appropriate if only using a single chip]
         :param flux:        Flux of PSF to be drawn [default: 1.0]
-        :param center:      (x0,y0) tuple giving the location on the image where you want the
+        :param center:      (xc,yc) tuple giving the location on the image where you want the
                             nominal center of the profile to be drawn.  Also allowed is the
                             string center='image' to place in the center of the image.
-                            [default: None, which means draw at the position (x,y) of the star.]
+                            [default: None, which means draw at the position (x,y) of the PSF.]
         :param offset:      Optional (dx,dy) tuple giving an additional offset relative to the
                             center. [default: None]
         :param stamp_size:  The size of the image to construct if no image is provided.
