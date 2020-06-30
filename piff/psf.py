@@ -142,11 +142,11 @@ class PSF(object):
            is actually inside the bounding box).  This may be useful if you want to draw on an
            image with origin at (0,0) or (1,1) and just put the PSF at the location you want.
         4. If you want the PSf centered exactly in the center of the image, then you can use
-           ``center='image'``.  This will work for either an automatically built image or one
+           ``center=True``.  This will work for either an automatically built image or one
            that you provide.
         5. With any of the above options you may additionally supply an ``offset`` parameter, which
            will apply a slight offset to the calculated center.  This is probably only useful in
-           conjunction with the default ``center=None`` or ``center='image'``.
+           conjunction with the default ``center=None`` or ``center=True``.
 
         :param x:           The x position of the desired PSF in the original image coordinates.
         :param y:           The y position of the desired PSF in the original image coordinates.
@@ -155,7 +155,7 @@ class PSF(object):
         :param flux:        Flux of PSF to be drawn [default: 1.0]
         :param center:      (xc,yc) tuple giving the location on the image where you want the
                             nominal center of the profile to be drawn.  Also allowed is the
-                            string center='image' to place in the center of the image.
+                            string center=True to place in the center of the image.
                             [default: None, which means draw at the position (x,y) of the PSF.]
         :param offset:      Optional (dx,dy) tuple giving an additional offset relative to the
                             center. [default: None]
@@ -195,11 +195,11 @@ class PSF(object):
         # Handle the input center
         if center is None:
             center = (x, y)
-        elif center == 'image':
+        elif center is True:
             center = star.data.image.true_center
             center = (center.x, center.y)
         elif not isinstance(center, tuple):
-            raise ValueError("Invalid center parameter: %r. Must be tuple or None or 'image'"%(
+            raise ValueError("Invalid center parameter: %r. Must be tuple or None or True"%(
                              center))
 
         # Handle offset if given
