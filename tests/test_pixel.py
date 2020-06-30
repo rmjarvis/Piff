@@ -1275,6 +1275,10 @@ def test_des2():
     orig_stamp = orig_image[stars[0].image.bounds] - stars[0]['sky']
     np.testing.assert_almost_equal(fit_stamp.array/flux, orig_stamp.array/flux, decimal=2)
 
+    # Test the offset_to_center function, which we don't use in code anymore.
+    # Not sure if it's still particularly useful, but might as well test it.
+    np.testing.assert_allclose(stars[0].fit.center, stars[0].offset_to_center(offset))
+
     # Now check a location far from any input stars where this used to get a checkerboard pattern.
     test_x = 2200
     test_y = 0
