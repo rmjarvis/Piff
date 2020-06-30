@@ -349,7 +349,7 @@ def poly_load_save_sub(type1, type2, fname):
     assert interp2.order==interp.order
     np.testing.assert_array_equal(interp2.orders,interp.orders)
     assert interp2.nvariables==interp.nvariables
-    np.testing.assert_array_equal(interp2.indices,interp.indices)
+    assert interp2.indices == interp.indices
 
     # Check that the old and new interpolators generate the same
     # value
