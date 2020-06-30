@@ -783,8 +783,8 @@ def test_draw():
         np.testing.assert_allclose(hsm.moments_centroid.x, x+1.3, atol=0.01)
         np.testing.assert_allclose(hsm.moments_centroid.y, y-0.8, atol=0.01)
 
-        # Also allowed is center='image' to place in the center of the image.
-        im5 = psf.draw(x, y, chipnum, center='image')
+        # Also allowed is center=True to place in the center of the image.
+        im5 = psf.draw(x, y, chipnum, center=True)
         assert im5.bounds == im1.bounds
         assert im5.array.shape == (48,48)
         np.testing.assert_allclose(im5.bounds.true_center.x, x, atol=0.5)
@@ -795,15 +795,15 @@ def test_draw():
         np.testing.assert_allclose(hsm.moments_centroid.x, center.x, atol=0.01)
         np.testing.assert_allclose(hsm.moments_centroid.y, center.y, atol=0.01)
 
-        # Some invalid ways to try to do this. (Must be either 'image' or a tuple.)
-        np.testing.assert_raises(ValueError, psf.draw, x, y, chipnum, center='imgae')
+        # Some invalid ways to try to do this. (Must be either True or a tuple.)
+        np.testing.assert_raises(ValueError, psf.draw, x, y, chipnum, center='image')
         np.testing.assert_raises(ValueError, psf.draw, x, y, chipnum, center=im5.true_center)
 
         # If providing your own image with bounds far away from the star (say centered at 0),
-        # then center='image' works fine to draw in the center of that image.
+        # then center=True works fine to draw in the center of that image.
         im6 = im5.copy()
         im6.setCenter(0,0)
-        psf.draw(x, y, chipnum, center='image', image=im6)
+        psf.draw(x, y, chipnum, center=True, image=im6)
         assert im6.bounds.center == galsim.PositionI(0,0)
         np.testing.assert_allclose(im6.array.sum(), 1., rtol=1.e-3)
         hsm = im6.FindAdaptiveMom()
