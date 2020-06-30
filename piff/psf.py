@@ -155,7 +155,7 @@ class PSF(object):
         :param flux:        Flux of PSF to be drawn [default: 1.0]
         :param center:      (xc,yc) tuple giving the location on the image where you want the
                             nominal center of the profile to be drawn.  Also allowed is the
-                            string center=True to place in the center of the image.
+                            value center=True to place in the center of the image.
                             [default: None, which means draw at the position (x,y) of the PSF.]
         :param offset:      Optional (dx,dy) tuple giving an additional offset relative to the
                             center. [default: None]
