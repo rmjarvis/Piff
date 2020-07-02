@@ -1025,6 +1025,27 @@ class OptAtmoPSF(PSF):
                 self.chisq_all_stars_optical[s] = np.sum(np.square(
                     self.final_optical_chi[s*self.length_of_moments_list :
                                            s*self.length_of_moments_list+self.length_of_moments_list]))
+
+        # save optical params inside the stars
+        new_stars = []
+        new_star_params = self.getParamsList(self.stars)
+        for star, param in zip(self.stars, new_star_params):
+            fit = StarFit(param, params_var=star.fit.params_var, flux=star.fit.flux, center=star.fit.center, chisq=star.fit.chisq, dof=star.fit.dof)
+            new_stars.append(Star(star.data, fit))
+        self.stars = copy.deepcopy(new_stars)
+        new_stars = []
+        new_star_params = self.getParamsList(self.test_stars)
+        for star, param in zip(self.test_stars, new_star_params):
+            fit = StarFit(param, params_var=star.fit.params_var, flux=star.fit.flux, center=star.fit.center, chisq=star.fit.chisq, dof=star.fit.dof)
+            new_stars.append(Star(star.data, fit))
+        self.test_stars = copy.deepcopy(new_stars)
+        new_stars = []
+        new_star_params = self.getParamsList(self.fit_optics_stars)
+        for star, param in zip(self.fit_optics_stars, new_star_params):
+            fit = StarFit(param, params_var=star.fit.params_var, flux=star.fit.flux, center=star.fit.center, chisq=star.fit.chisq, dof=star.fit.dof)
+            new_stars.append(Star(star.data, fit))
+        self.fit_optics_stars = copy.deepcopy(new_stars)
+
         # this is the "atmospheric" fit.
         # we start here with the optical fit parameters and the average values of the atmospheric
         # parameters found in the optical fit and hold those fixed.
@@ -1078,36 +1099,12 @@ class OptAtmoPSF(PSF):
             aberrations_pupil[i,:] = res.real
         return aberrations_pupil.T
 
-    def getParamsList(self, stars, return_stars_with_atmo_params_from_psf=False, trust_atmo_params_stored_in_stars=False, logger=None):
-        """Get params for a list of stars.
-        :param stars:       List of Star instances holding information needed
-                            for interpolation as well as an image/WCS into
-                            which PSF will be rendered.
-        :returns:   Params  [atm_size, atm_g1, atm_g2, opt_L0, opt_size, opt_g1, opt_g2, z4, z5...]
-                    for each star where all params that are not "z_number" are atmospheric params.
-                    Those labelled "opt_something" are the averages of these atmospheric params
-                    across the focal plane and those labelled "atm_something" are the deviations
-                    from these averages for stars at different points in the focal plane.
-        Notes
-        -----
-        For the i-th star, we have param a_{ik} = a_{ik}^{optics} +
-        a_{ik}^{reference} + a_{ik}^{atmo_interp}.  We note that for k < 4,
-        a_{ik}^{reference} = 0, k >= 4 a_{ik}^{atmo_interp} = 0. In other
-        words, the reference wavefronts have nothing to say about the size, g1,
-        g2, and the atmo interp has nothing to say about z4, z5. If no
-        reference is provided to the PSF, then that piece is zero, and
-        similarly with the atmo_interp.  When we initially produce the PSF, the
-        atmo_interp is not fitted, and so calls to this function will skip the
-        atmosphere. _enable_atmosphere is set to True when atmo_interp is
-        finally fitted.
+    def get_reference_WF_Zernikes_List(self, stars):
+        """Get reference WF Zernikes for a list of stars.
+        :param stars:       List of Star instances holding information needed for
+                            to get the reference WF Zernikes.
+        :returns:   Params  [z4, z5...] for each star from the reference wavefronts.
         """
-        logger = LoggerWrapper(logger)
-        params = np.zeros((len(stars), self.jmax_pupil + 4), dtype=np.float64)
-
-        logger.debug('Getting aberrations from optical / mean system')
-        aberrations_pupil = self._getParamsList_aberrations_field(stars)
-        params[:, 4:] += aberrations_pupil
-
         if self.reference_wavefront or self.higher_order_reference_wavefront:
             if self._caches and self._aberrations_reference_wavefronts.shape[0] == len(stars):
                 logger.debug('Getting cached reference wavefront aberrations from all reference '
@@ -1134,18 +1131,90 @@ class OptAtmoPSF(PSF):
                     h_order_reference_WF = higher_order_reference_WF(higher_order_reference_wavefront_dictionary)
                     reference_WF = l_order_reference_WF + h_order_reference_WF
                     aberrations_reference_wavefronts = reference_WF.get_zernikes_all_stars(stars)
+        return aberrations_reference_wavefronts
+
+    def getParamsList(self, stars, return_stars_with_atmo_params_from_psf=False, trust_interpolated_atmo_params_stored_in_stars=False, use_individual_star_fit_atmo_params=False, ignore_atmo_params=False, trust_opt_params_stored_in_stars=False, logger=None):
+        """Get params for a list of stars.
+        :param stars:       List of Star instances holding information needed
+                            for interpolation as well as an image/WCS into
+                            which PSF will be rendered.
+        :param return_stars_with_atmo_params_from_psf: If True, will return new stars with the 
+                            interpolated atmo params found here.
+        :param trust_interpolated_atmo_params_stored_in_stars: If True, returns atmo params from 
+                            the interpolated atmo params saved in the given stars.
+        :param use_individual_star_fit_atmo_params: If True, returns atmo params found 
+                            in the individual star fits.
+        :param ignore atmo params: If True, returns 0.0 for all atmo params even if
+                            self._enable_atmosphere = True.
+        :param trust_opt_params_stored_in_stars: If True, returns optical params (including the
+                            constant atmospheric params opt_L0, opt_size, opt_g1, and opt_g2) from 
+                            the optical params saved in the given stars.
+        :returns:   Params  [atm_size, atm_g1, atm_g2, opt_L0, opt_size, opt_g1, opt_g2, z4, z5...]
+                    for each star where all params that are not "z_number" are atmospheric params.
+                    Those labelled "opt_something" are the averages of these atmospheric params
+                    across the focal plane and those labelled "atm_something" are the deviations
+                    from these averages for stars at different points in the focal plane.
+        Notes
+        -----
+        For the i-th star, we have param a_{ik} = a_{ik}^{optics} +
+        a_{ik}^{reference} + a_{ik}^{atmo_interp}.  We note that for k < 4,
+        a_{ik}^{reference} = 0, k >= 4 a_{ik}^{atmo_interp} = 0. In other
+        words, the reference wavefronts have nothing to say about the size, g1,
+        g2, and the atmo interp has nothing to say about z4, z5. If no
+        reference is provided to the PSF, then that piece is zero, and
+        similarly with the atmo_interp.  When we initially produce the PSF, the
+        atmo_interp is not fitted, and so calls to this function will skip the
+        atmosphere. _enable_atmosphere is set to True when atmo_interp is
+        finally fitted.
+        """
+        logger = LoggerWrapper(logger)
+        params = np.zeros((len(stars), self.jmax_pupil + 4), dtype=np.float64)
+
+        if trust_opt_params_stored_in_stars:
+            params[:, 3:] = np.array([star.fit.params for star in stars])[:, 3:]
+        else:
+            logger.debug('Getting aberrations from optical / mean system')
+            aberrations_pupil = self._getParamsList_aberrations_field(stars)
+            params[:, 4:] += aberrations_pupil
+
+            if self.reference_wavefront or self.higher_order_reference_wavefront:
+                if self._caches and self._aberrations_reference_wavefronts.shape[0] == len(stars):
+                    logger.debug('Getting cached reference wavefront aberrations from all reference '
+                                 'wavefronts')
+                    # Use precomputed cache for reference wavefronts.
+                    # Assumes stars are the same as in cache!
+                    aberrations_reference_wavefronts = self._aberrations_reference_wavefronts
+                else:
+                    # obtain reference wavefront zernike values for all stars
+                    if not self.reference_wavefront and not self.higher_order_reference_wavefront:
+                        aberrations_reference_wavefronts = np.zeros([len(stars),34])
+                    elif self.reference_wavefront and not self.higher_order_reference_wavefront:
+                        reference_wavefront_dictionary = self.create_reference_wavefront_dictionary()
+                        l_order_reference_WF = lower_order_reference_WF(reference_wavefront_dictionary)
+                        aberrations_reference_wavefronts = l_order_reference_WF.get_zernikes_all_stars(stars)
+                    elif not self.reference_wavefront and self.higher_order_reference_wavefront:
+                        higher_order_reference_wavefront_dictionary = self.create_higher_order_reference_wavefront_dictionary()
+                        h_order_reference_WF = higher_order_reference_WF(higher_order_reference_wavefront_dictionary)
+                        aberrations_reference_wavefronts = h_order_reference_WF.get_zernikes_all_stars(stars)
+                    else:
+                        reference_wavefront_dictionary = self.create_reference_wavefront_dictionary()
+                        l_order_reference_WF = lower_order_reference_WF(reference_wavefront_dictionary)
+                        higher_order_reference_wavefront_dictionary = self.create_higher_order_reference_wavefront_dictionary()
+                        h_order_reference_WF = higher_order_reference_WF(higher_order_reference_wavefront_dictionary)
+                        reference_WF = l_order_reference_WF + h_order_reference_WF
+                        aberrations_reference_wavefronts = reference_WF.get_zernikes_all_stars(stars)
 
 
-            # put aberrations_reference_wavefronts
-            # reference wavefronts start at z4 but may not span full range of aberrations used
-            n_reference_aberrations = aberrations_reference_wavefronts.shape[1]
-            if n_reference_aberrations + 3 < self.jmax_pupil:
-                # the 3 is here because we start with defocus (z4)
-                params[:, 7:7+n_reference_aberrations] += aberrations_reference_wavefronts
-            else:
-                # we have more jmax_pupil than reference wavefront
-                params[:, 7:] += aberrations_reference_wavefronts[:, :self.jmax_pupil - 3]
-                # the 3 is here because we start with defocus (z4)
+                # put aberrations_reference_wavefronts
+                # reference wavefronts start at z4 but may not span full range of aberrations used
+                n_reference_aberrations = aberrations_reference_wavefronts.shape[1]
+                if n_reference_aberrations + 3 < self.jmax_pupil:
+                    # the 3 is here because we start with defocus (z4)
+                    params[:, 7:7+n_reference_aberrations] += aberrations_reference_wavefronts
+                else:
+                    # we have more jmax_pupil than reference wavefront
+                    params[:, 7:] += aberrations_reference_wavefronts[:, :self.jmax_pupil - 3]
+                    # the 3 is here because we start with defocus (z4)
         # get kolmogorov parameters from atmosphere model, but only if we said so
         if self._enable_atmosphere:
             if self.atmo_interp is None:
@@ -1153,31 +1222,68 @@ class OptAtmoPSF(PSF):
                                'atmospheric interpolant! Ignoring')
             else:
                 logger.debug('Getting atmospheric aberrations')
-                if trust_atmo_params_stored_in_stars:
-                    aberrations_atmo_star = np.array([star.fit.params for star in stars])[:,0:3]
+                if trust_interpolated_atmo_params_stored_in_stars + use_individual_star_fit_atmo_params + ignore_atmo_params > 1:
+                    raise ValueError("At most one of trust_interpolated_atmo_params_stored_in_stars, use_individual_star_fit_atmo_params, and ignore_atmo_params can be True")
+                if trust_interpolated_atmo_params_stored_in_stars:
+                    try:
+                        aberrations_atmo_star = np.array([star.fit.interpolated_atmo_params for star in stars])
+                    except:
+                        if np.any(np.array([star.fit.params for star in stars]) == None):
+                            raise ValueError("Cannot trust_interpolated_atmo_params_stored_in_stars because some values are None.")
+                    if np.all(aberrations_atmo_star==0.0):
+                        raise ValueError("Cannot trust_interpolated_atmo_params_stored_in_stars because all values are 0.")
+                elif use_individual_star_fit_atmo_params:
+                    try:
+                        aberrations_atmo_star = np.array([star.fit.params for star in stars])[:, 0:3]
+                    except:
+                        if np.any(np.array([star.fit.params for star in stars]) == None):
+                            raise ValueError("Cannot use_individual_star_fit_atmo_params because some values are None.")
+                    if np.all(aberrations_atmo_star==0.0):
+                        raise ValueError("Cannot use_individual_star_fit_atmo_params because all values are 0.")
+                elif ignore_atmo_params:
+                    aberrations_atmo_star = np.zeros([len(stars),3])
                 else:
                     # strip star fit
+                    stars_without_interpolated_atmo_params = copy.deepcopy(stars)
                     stars = [Star(star.data, None) for star in stars]
                     stars = self.atmo_interp.interpolateList(stars)
                     aberrations_atmo_star = np.array([star.fit.params for star in stars])
                 params[:, 0:3] += aberrations_atmo_star
-        if self.atmosphere_model == 'vonkarman':
-            # set the vonkarman outer scale, L0
-            params[:, 3] = self.optatmo_psf_kwargs['L0']
-        else:
-            params[:, 3] = -1.
+        elif trust_interpolated_atmo_params_stored_in_stars or use_individual_star_fit_atmo_params:
+            raise ValueError("Neither trust_interpolated_atmo_params_stored_in_stars nor use_individual_star_fit_atmo_params can be set to True when self._enable_atmosphere == False.")
+        if not trust_opt_params_stored_in_stars:
+            if self.atmosphere_model == 'vonkarman':
+                # set the vonkarman outer scale, L0
+                params[:, 3] = self.optatmo_psf_kwargs['L0']
+            else:
+                params[:, 3] = -1.
 
         if return_stars_with_atmo_params_from_psf:
-            return params, stars
+            if not self._enable_atmosphere:
+                raise ValueError("Cannot return_stars_with_atmo_params_from_psf because self._enable_atmosphere == False.")
+            new_stars = []
+            for star, aberration_atmo_star in zip(stars_without_interpolated_atmo_params, aberrations_atmo_star):
+                fit = StarFit(star.fit.params, params_var=star.fit.params_var, flux=star.fit.flux, center=star.fit.center, interpolated_atmo_params=aberration_atmo_star, chisq=star.fit.chisq, dof=star.fit.dof)
+                new_stars.append(Star(star.data, fit))
+            return params, new_stars
         else:
             return params
 
-    def getParams(self, star):
+    def getParams(self, star, trust_interpolated_atmo_params_stored_in_stars=False, use_individual_star_fit_atmo_params=False, ignore_atmo_params=False, trust_opt_params_stored_in_stars=False):
         """Get params for a given star.
 
         :param star:        Star instance holding information needed for
                             interpolation as well as an image/WCS into which
                             PSF will be rendered.
+        :param trust_interpolated_atmo_params_stored_in_stars: If True, returns atmo params from 
+                            the interpolated atmo params saved in the given stars.
+        :param use_individual_star_fit_atmo_params: If True, returns atmo params found 
+                            in the individual star fits.
+        :param ignore atmo params: If True, returns 0.0 for all atmo params even if
+                            self._enable_atmosphere = True.
+        :param trust_opt_params_stored_in_stars: If True, returns optical params (including the
+                            constant atmospheric params opt_L0, opt_size, opt_g1, and opt_g2) from 
+                            the optical params saved in the given stars.
 
         :returns:   Params  [atm_size, atm_g1, atm_g2, opt_L0, opt_size, opt_g1, opt_g2, z4, z5...]
                     where all params that are not "z_number" are atmospheric params. Those labelled
@@ -1185,7 +1291,7 @@ class OptAtmoPSF(PSF):
                     plane and those labelled "atm_something" are the deviations from these averages
                     for stars at different points in the focal plane.
         """
-        return self.getParamsList([star])[0]
+        return self.getParamsList([star], trust_interpolated_atmo_params_stored_in_stars=trust_interpolated_atmo_params_stored_in_stars, use_individual_star_fit_atmo_params=use_individual_star_fit_atmo_params, ignore_atmo_params=ignore_atmo_params, trust_opt_params_stored_in_stars=trust_opt_params_stored_in_stars)[0]
 
     def getOpticalProfile(self, star, params):
         """Get the optical part of the profile.
@@ -1332,7 +1438,7 @@ class OptAtmoPSF(PSF):
         star = Star.makeTarget(x=x, y=y, image=fitted_image, pointing=pointing, flux=flux)
         return star
 
-    def drawStar(self, star, params=None, copy_image=True):
+    def drawStar(self, star, params=None, trust_interpolated_atmo_params_stored_in_stars=False, use_individual_star_fit_atmo_params=False, ignore_atmo_params=False, trust_opt_params_stored_in_stars=False, copy_image=True):
         """Generate PSF image for a given star.
 
         :param star:        Star instance holding information needed for
@@ -1340,16 +1446,25 @@ class OptAtmoPSF(PSF):
                             PSF will be rendered.
         :param params:      If already known, the parameters for this star. [default: None,
                             in which case getParams(star) will be called.]
+        :param trust_interpolated_atmo_params_stored_in_stars: If True, returns atmo params from 
+                            the interpolated atmo params saved in the given stars.
+        :param use_individual_star_fit_atmo_params: If True, returns atmo params found 
+                            in the individual star fits.
+        :param ignore atmo params: If True, returns 0.0 for all atmo params even if
+                            self._enable_atmosphere = True.
+        :param trust_opt_params_stored_in_stars: If True, returns optical params (including the
+                            constant atmospheric params opt_L0, opt_size, opt_g1, and opt_g2) from 
+                            the optical params saved in the given stars.
 
         :returns:   Star instance with its image filled with rendered PSF
         """
         if params is None:
-            params = self.getParams(star)
+            params = self.getParams(star, trust_interpolated_atmo_params_stored_in_stars=trust_interpolated_atmo_params_stored_in_stars, use_individual_star_fit_atmo_params=use_individual_star_fit_atmo_params, ignore_atmo_params=ignore_atmo_params, trust_opt_params_stored_in_stars=trust_opt_params_stored_in_stars)
         prof = self.getProfile(star, params)
         star = self.drawProfile(star, prof, params, copy_image=copy_image)
         return star
 
-    def drawStarList(self, stars, return_stars_with_atmo_params_from_psf=False, trust_atmo_params_stored_in_stars=False, copy_image=True):
+    def drawStarList(self, stars, return_stars_with_atmo_params_from_psf=False, use_individual_star_fit_atmo_params=False, ignore_atmo_params=False, trust_interpolated_atmo_params_stored_in_stars=False, trust_opt_params_stored_in_stars=False, copy_image=True):
         """Generate PSF images for given stars.
 
         Slightly different from drawStar because we get all params at once
@@ -1357,14 +1472,25 @@ class OptAtmoPSF(PSF):
         :param stars:       List of Star instances holding information needed
                             for interpolation as well as an image/WCS into
                             which PSF will be rendered.
+        :param return_stars_with_atmo_params_from_psf: If True, will return new stars with the 
+                            interpolated atmo params found here.
+        :param trust_interpolated_atmo_params_stored_in_stars: If True, returns atmo params from 
+                            the interpolated atmo params saved in the given stars.
+        :param use_individual_star_fit_atmo_params: If True, returns atmo params found 
+                            in the individual star fits.
+        :param ignore atmo params: If True, returns 0.0 for all atmo params even if
+                            self._enable_atmosphere = True.
+        :param trust_opt_params_stored_in_stars: If True, returns optical params (including the
+                            constant atmospheric params opt_L0, opt_size, opt_g1, and opt_g2) from 
+                            the optical params saved in the given stars.
 
         :returns:       List of Star instances with its image filled with rendered PSF
         """
         # get all params at once
         if return_stars_with_atmo_params_from_psf:
-            params, stars = self.getParamsList(stars, return_stars_with_atmo_params_from_psf=True, trust_atmo_params_stored_in_stars=trust_atmo_params_stored_in_stars)
+            params, stars = self.getParamsList(stars, return_stars_with_atmo_params_from_psf=True, trust_interpolated_atmo_params_stored_in_stars=trust_interpolated_atmo_params_stored_in_stars, use_individual_star_fit_atmo_params=use_individual_star_fit_atmo_params, ignore_atmo_params=ignore_atmo_params, trust_opt_params_stored_in_stars=trust_opt_params_stored_in_stars)
         else:
-            params = self.getParamsList(stars, trust_atmo_params_stored_in_stars=trust_atmo_params_stored_in_stars)
+            params = self.getParamsList(stars, trust_interpolated_atmo_params_stored_in_stars=trust_interpolated_atmo_params_stored_in_stars, use_individual_star_fit_atmo_params=use_individual_star_fit_atmo_params, ignore_atmo_params=ignore_atmo_params, trust_opt_params_stored_in_stars=trust_opt_params_stored_in_stars)
         # now step through to make the stars
         stars_drawn = []
         for param, star in zip(params, stars):

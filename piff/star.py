@@ -903,6 +903,7 @@ class StarFit(object):
     :flux:        flux of the star
     :center:      (u,v) tuple giving position of stellar center (relative
                   to data.image_pos)
+    :interpolated_atmo_params: numpy array of interpolated atmo_size, atmo_g1, and atmo_g2
     :chisq:       Chi-squared of  fit to the data (if any) with current params
     :dof:         Degrees of freedom in the fit (will depend on whether last fit had
                   parameters free or just the flux/center).
@@ -910,7 +911,7 @@ class StarFit(object):
                   wrt params about their current values. The alpha matrix, AT A, is also the
                   inverse covariance matrix of the params.
     """
-    def __init__(self, params, flux=1., center=(0.,0.), params_var=None, A=None, b=None,
+    def __init__(self, params, flux=1., center=(0.,0.), interpolated_atmo_params=None, params_var=None, A=None, b=None,
                  chisq=None, dof=None):
         """Constructor for base version of StarFit
 
@@ -919,6 +920,7 @@ class StarFit(object):
         :param flux:   Estimated flux for this star
         :param center: Estimated or fixed center position (u,v) of this star relative to
                        the StarData.image_pos reference point.
+        :interpolated_atmo_params: numpy array of interpolated atmo_size, atmo_g1, and atmo_g2
         :param A:      Design matrix for the quadratic dependence of chi-squared on params about
                        current values.  Quatratic terms is dpT AT A dp.
         :param b:      Vector portion of design equation. Linear term of chi-squared dependence
@@ -935,6 +937,7 @@ class StarFit(object):
         self.params_var = params_var
         self.flux = flux
         self.center = center
+        self.interpolated_atmo_params = interpolated_atmo_params
         self.A = A
         self.b = b
         self.chisq = chisq
@@ -953,7 +956,7 @@ class StarFit(object):
         """Return new StarFit that has the array params installed as new parameters.
 
         :param params:  A 1d array holding new parameters; must match size of current ones
-        :param kwargs:  Any other additional properties for the star. Takes current flux and center if not provided, and otherwise puts in None
+        :param kwargs:  Any other additional properties for the star. Takes current flux and center and interpolated_atmo_params if not provided, and otherwise puts in None
 
         :returns:  New StarFit object with altered parameters.  All chisq-related parameters
                    are set to None since they are no longer valid.
@@ -963,10 +966,11 @@ class StarFit(object):
             raise TypeError('new StarFit parameters do not match dimensions of old ones')
         flux = kwargs.pop('flux', self.flux)
         center = kwargs.pop('center', self.center)
-        return StarFit(npp, flux=flux, center=center, **kwargs)
+        interpolated_atmo_params = kwargs.pop('interpolated_atmo_params', self.interpolated_atmo_params)
+        return StarFit(npp, flux=flux, center=center, interpolated_atmo_params=interpolated_atmo_params, **kwargs)
 
     def copy(self):
-        return StarFit(self.params, self.flux, self.center, self.A, self.b,
+        return StarFit(self.params, self.flux, self.center, self.interpolated_atmo_params, self.A, self.b,
                        self.chisq, self.dof)
 
     def __getitem__(self, key):

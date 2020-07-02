@@ -140,7 +140,7 @@ class Stats(object):
         fig.set_tight_layout(True)
         canvas.print_figure(file_name, dpi=100)
 
-    def measureShapes(self, psf, stars, trust_atmo_params_stored_in_stars=False, logger=None):
+    def measureShapes(self, psf, stars, logger=None):
         """Compare PSF and true star shapes with HSM algorithm
 
         :param psf:         A PSF Object
@@ -164,10 +164,7 @@ class Stats(object):
 
         # generate the model stars and measure moments
         logger.debug("Generating and Measuring Model Stars")
-        if trust_atmo_params_stored_in_stars==True:
-            shapes_model = np.array([ piff.util.hsm(star) for star in psf.drawStarList(stars, trust_atmo_params_stored_in_stars=True)])
-        else:
-            shapes_model = np.array([ piff.util.hsm(star) for star in psf.drawStarList(stars)])
+        shapes_model = np.array([ piff.util.hsm(star) for star in psf.drawStarList(stars)])
         for star, shape in zip(stars, shapes_model):
             logger.debug("model shape for star at %s is %s",star.image_pos, shape)
 
@@ -213,7 +210,7 @@ class ShapeHistogramsStats(Stats):
         self.file_name = file_name
         self.skip = False
 
-    def compute(self, psf, stars, trust_atmo_params_stored_in_stars=False, logger=None):
+    def compute(self, psf, stars, logger=None):
         """
         :param psf:         A PSF Object
         :param stars:       A list of Star instances.
@@ -222,7 +219,7 @@ class ShapeHistogramsStats(Stats):
         logger = galsim.config.LoggerWrapper(logger)
         # get the shapes
         logger.warning("Calculating shape histograms for %d stars",len(stars))
-        positions, shapes_truth, shapes_model = self.measureShapes(psf, stars, trust_atmo_params_stored_in_stars=trust_atmo_params_stored_in_stars, logger=logger)
+        positions, shapes_truth, shapes_model = self.measureShapes(psf, stars, logger=logger)
 
         # Only use stars for which hsm was successful
         flag_truth = shapes_truth[:, 6]
@@ -358,7 +355,7 @@ class RhoStats(Stats):
         self.file_name = file_name
         self.skip = False  # Set this to true if there is a problem and we need to skip plots.
 
-    def compute(self, psf, stars, trust_atmo_params_stored_in_stars=False, logger=None):
+    def compute(self, psf, stars, logger=None):
         """
         :param psf:         A PSF Object
         :param stars:       A list of Star instances.
@@ -369,7 +366,7 @@ class RhoStats(Stats):
         logger = galsim.config.LoggerWrapper(logger)
         # get the shapes
         logger.warning("Calculating rho statistics for %d stars",len(stars))
-        positions, shapes_truth, shapes_model = self.measureShapes(psf, stars, trust_atmo_params_stored_in_stars=trust_atmo_params_stored_in_stars, logger=logger)
+        positions, shapes_truth, shapes_model = self.measureShapes(psf, stars, logger=logger)
 
         # Only use stars for which hsm was successful
         flag_truth = shapes_truth[:, 6]
