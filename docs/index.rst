@@ -15,7 +15,7 @@ Piff Documentation
    psf
    stats
    outliers
-
+   util
 
 * :ref:`genindex`
 * :ref:`modindex`

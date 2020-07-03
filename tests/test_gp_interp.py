@@ -19,6 +19,7 @@ import numpy as np
 import piff
 import os
 import copy
+import unittest
 import fitsio
 from scipy.linalg import cholesky, cho_solve
 from sklearn.model_selection import train_test_split
