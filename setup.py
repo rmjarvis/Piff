@@ -286,7 +286,7 @@ ext=Extension("piff._piff",
               depends=headers,
               undef_macros = undef_macros)
 
-dependencies = ['galsim', 'numpy', 'scipy', 'pyyaml', 'treecorr', 'fitsio', 'scikit-learn', 'matplotlib', 'LSSTDESC.Coord', 'treegp']
+dependencies = ['galsim', 'numpy', 'scipy', 'pyyaml', 'treecorr', 'fitsio', 'matplotlib', 'LSSTDESC.Coord', 'treegp>=0.2']
 
 with open('README.rst') as file:
     long_description = file.read()
