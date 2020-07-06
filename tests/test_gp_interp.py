@@ -348,7 +348,7 @@ def test_gp_interp_anisotropic():
     else:
         atol = 4e-1
         rtol = 5e-1
-        nstars = [160, 400, 160, 400]
+        nstars = [160, 500, 160, 500]
 
     noise_level = 1e-4
 
