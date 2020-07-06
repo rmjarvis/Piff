@@ -25,13 +25,6 @@ before_install:
     - export LD_LIBRARY_PATH=$HOME/lib:$LD_LIBRARY_PATH
     - export MATPLOTLIBRC=$HOME/.matplotlib
 
-    # Install dependencies
-    - pip install -U -r requirements.txt
-
-    # Install Pixmappy (not a requirement, but used in tests)  Also, not on pip.  :(
-    - git clone https://github.com/gbernstein/pixmappy.git
-    - cd pixmappy; python setup.py install; cd ..
-
 cache:
     pip: true
     directories:
@@ -39,8 +32,16 @@ cache:
     - $HOME/.matplotlib
 
 install:
-    - pip install -r requirements.txt
+    # Install dependencies
+    - pip install -U -r requirements.txt
+
+    # Extra requirements for tests
     - pip install nose codecov
+
+    # Install Pixmappy (not a requirement, but used in tests)  Also, not on pip.  :(
+    - git clone https://github.com/gbernstein/pixmappy.git
+    - cd pixmappy; python setup.py install; cd ..
+
     # Copy the .matplotlib directory to $HOME to force Agg backend.
     - cp -r tests/.matplotlib $HOME
 
