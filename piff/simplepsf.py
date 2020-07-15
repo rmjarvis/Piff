@@ -120,6 +120,9 @@ class SimplePSF(PSF):
         self.wcs = wcs
         self.pointing = pointing
 
+        if len(stars) == 0:
+            raise RuntimeError("No stars.  Cannot find PSF model.")
+
         logger.debug("Initializing models")
         # model.initialize may fail
         self.nremoved = 0

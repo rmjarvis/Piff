@@ -625,6 +625,10 @@ def test_extra_interp():
     with np.testing.assert_raises(TypeError):
         psf.draw(x=5, y=7, gi_color=0.3, ri_color=3)
 
+    # No stars raises an error.  (This can happen in practice if all stars are excluded on input.)
+    with np.testing.assert_raises(RuntimeError):
+        psf.fit([], wcs={0 : wcs}, pointing=pointing)
+
     # Also for SingleChipPSf
     psf2 = piff.SingleChipPSF(psf, extra_interp_properties=['gi_color'])
     assert psf2.extra_interp_properties == ['gi_color']
