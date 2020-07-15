@@ -98,13 +98,16 @@ class TwoDHistStats(Stats):
         # compute the indices
         logger.info("Computing TwoDHist indices")
 
-        # fudge the bins by multiplying 1.01 so that the max entries are in the bins
-        self.bins_u = np.linspace(np.min(u), np.max(u) * 1.01, num=self.number_bins_u + 1)
-        self.bins_v = np.linspace(np.min(v), np.max(v) * 1.01, num=self.number_bins_v + 1)
+        self.bins_u = np.linspace(np.min(u), np.max(u), num=self.number_bins_u + 1)
+        self.bins_v = np.linspace(np.min(v), np.max(v), num=self.number_bins_v + 1)
 
         # digitize u and v. No such thing as entries below their min, so -1 to index
         indx_u = np.digitize(u, self.bins_u) - 1
         indx_v = np.digitize(v, self.bins_v) - 1
+
+        # Make sure no points go one past the end (due to rounding when u=max(u), etc.
+        np.putmask(indx_u, indx_u >= self.number_bins_u, self.number_bins_u-1)
+        np.putmask(indx_v, indx_v >= self.number_bins_v, self.number_bins_v-1)
 
         # get unique indices
         unique_indx = np.vstack([tuple(row) for row in np.vstack((indx_u, indx_v)).T])
@@ -476,21 +479,24 @@ class WhiskerStats(Stats):
         dw2 = dmag_w * np.sin(dphi)
 
         # compute the indices
-        logger.info("Computing TwoDHist indices")
+        logger.info("Computing Whisker indices")
 
-        # fudge the bins by multiplying 1.01 so that the max entries are in the bins
-        self.bins_u = np.linspace(np.min(u), np.max(u) * 1.01, num=self.number_bins_u + 1)
-        self.bins_v = np.linspace(np.min(v), np.max(v) * 1.01, num=self.number_bins_v + 1)
+        self.bins_u = np.linspace(np.min(u), np.max(u), num=self.number_bins_u + 1)
+        self.bins_v = np.linspace(np.min(v), np.max(v), num=self.number_bins_v + 1)
 
         # digitize u and v. No such thing as entries below their min, so -1 to index
         indx_u = np.digitize(u, self.bins_u) - 1
         indx_v = np.digitize(v, self.bins_v) - 1
 
+        # Make sure no points go one past the end (due to rounding when u=max(u), etc.
+        np.putmask(indx_u, indx_u >= self.number_bins_u, self.number_bins_u-1)
+        np.putmask(indx_v, indx_v >= self.number_bins_v, self.number_bins_v-1)
+
         # get unique indices
         unique_indx = np.vstack([tuple(row) for row in np.vstack((indx_u, indx_v)).T])
 
         # compute the arrays
-        logger.info("Computing TwoDHist arrays")
+        logger.info("Computing Whisker arrays")
 
         self.twodhists['u'] = self._array_to_2dhist(u, indx_u, indx_v, unique_indx)
         self.twodhists['v'] = self._array_to_2dhist(v, indx_u, indx_v, unique_indx)
@@ -547,7 +553,7 @@ class WhiskerStats(Stats):
             raise RuntimeError("Must call compute before calling plot or write")
 
         # make the plots
-        logger.info("Creating TwoDHist whiskerplots")
+        logger.info("Creating Whisker plots")
 
         # configure to taste
         # bigger scale = smaller whiskers
