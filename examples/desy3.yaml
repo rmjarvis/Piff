@@ -15,17 +15,18 @@
 
 # This sample config file is based on the config file that was used for the
 # Dark Energy Survey (DES) Y3 analysis and included in the DES Y3 paper,
-# Jarvis, et al, 2020.
+# Jarvis, et al, 2020 (Appendix B).
 
 # The main change from that configuration file is that this one uses the
 # SingleChip psf type, which produces a single output file for a whole exposure,
 # rather than a separate one for each CCD.
 
 # However, there is only a single CCD image included in the repo, so as given,
-# the output file will only have the solution for a single CCD.
-# You may get the full list of exposures and input catalogs from:
+# the output file will only have the solution for a single CCD.  If desired,
+# you may get the full list of exposures and input catalogs via
 #
-#   http://www.cosmo.bnl.gov/Private/gpfs/workarea/mjarvis/desy3.tar.gz
+#   wget https://www.sas.upenn.edu/~mjarvis/desy3.tar.gz --no-check-certificate
+#   tar xfz desy3.tar.gz
 #
 # After unpacking the tarball, the 350139 directory will have all the exposures,
 # not just chip 12.
@@ -100,7 +101,9 @@ input:
     wcs:
         type: Pixmappy
         dir: "350139"
-        file_name: 'zone135.astro'
+        # Note: This file was modified to only include the parts relevant to this exposure.
+        # DES users would normally just use the full zone135.astro file.
+        file_name: 'zone135_mod.astro'
         exp: 350139
         ccdnum: '@input.chipnum'
 
@@ -147,8 +150,8 @@ psf:
 output:
 
     # Give the name of the output file.  It's a fits file, but it doesn't need to end if .fits.
-    dir: "350139"
-    file_name: "DECam_00350139.piff"
+    dir: output
+    file_name: "D00350139.piff"
 
     # You may also output a number of stats outputs.
     stats:
@@ -156,19 +159,19 @@ output:
             # This produces an output catalog with the mesured sizes, shapes of the stars and
             # the PSF models.  Reserve stars are marked as such in a reserve column.
             type: HSMCatalog
-            file_name: "DECam_00350139_cat.fits"
+            file_name: "D00350139_cat.fits"
 
         -
             # The rest of these are all plots of various statistics about the residuals.
             # This one shows histograms of the size and shape residuals
             type: ShapeHistograms
-            file_name: "DECam_00350139_shapes.pdf"
+            file_name: "D00350139_shapes.pdf"
 
         -
             # These are the classic rho stats.  They are pretty noisy for just a single
             # exposure, but they can check for egregious errors.
             type: Rho
-            file_name: "DECam_00350139_rho.pdf"
+            file_name: "D00350139_rho.pdf"
             # These parameters are TreeCorr parameters for doing the correlation functions.
             min_sep: 0.5
             max_sep: 300
@@ -177,7 +180,7 @@ output:
         -
             # This bins the residuals across the field of view
             type: TwoDHist
-            file_name: "DECam_00350139_twod.pdf"
+            file_name: "D00350139_twod.pdf"
 
 
 # Set the verbosity level a little higher than default (1) to give extra information
