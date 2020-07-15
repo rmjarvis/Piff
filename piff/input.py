@@ -348,6 +348,13 @@ class InputFiles(Input):
                  'index_key' : 'image_num',
                }
 
+        # We use a feature in GalSim 2.3.  For now that's not released, so monkey-patch it here.
+        # (It's not even really a monkey-patch, it's just adding an additional registered type.)
+        # Once we can require galsim>=2.3, we can remove this.
+        if galsim.version < '2.3':  # pragma: no cover
+            galsim.config.value.RegisterValueType(
+                    'List_str', galsim.config.value._GenerateFromList, [str, None])
+
         # Convert options 2 and 3 above into option 4.  (1 is also parseable by GalSim's config.)
         nimages = None
         image_list = None
@@ -399,7 +406,7 @@ class InputFiles(Input):
             nimages = len(image_list)
             logger.debug('nimages = %d',nimages)
             config['image_file_name'] = {
-                'type' : 'List',
+                'type' : 'List_str',
                 'items' : image_list
             }
         logger.debug('nimages = %d',nimages)
@@ -432,7 +439,7 @@ class InputFiles(Input):
                 raise ValueError("nimages = %s doesn't match length of cat_file_name list (%d)"%(
                                  nimages, len(cat_list)))
             config['cat_file_name'] = {
-                'type' : 'List',
+                'type' : 'List_str',
                 'items' : cat_list
             }
 
@@ -737,6 +744,7 @@ class InputFiles(Input):
         self.wcs_list = []
         self.center_list = []
         for image_num, kwargs in enumerate(self.image_kwargs):
+            galsim.config.RemoveCurrent(config) # Makes any @ items work correctly
             image_file_name = kwargs['image_file_name']
             image_hdu = kwargs['image_hdu']
             image = galsim.fits.read(image_file_name, hdu=image_hdu)
