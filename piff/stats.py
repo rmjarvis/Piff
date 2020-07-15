@@ -496,14 +496,12 @@ class RhoStats(Stats):
                 fig.add_subplot(1,2,2) ]
         axs = np.array(axs, dtype=object)
 
-        axs[0].set_ylim(1.e-9, None)
         axs[0].set_xlim(self.tckwargs['min_sep'], self.tckwargs['max_sep'])
         axs[0].set_xlabel(r'$\theta$ (arcmin)')
         axs[0].set_ylabel(r'$\rho(\theta)$')
         axs[0].set_xscale('log')
         axs[0].set_yscale('log', nonposy='clip')
 
-        axs[1].set_ylim(1.e-7, None)
         axs[1].set_xlim(self.tckwargs['min_sep'], self.tckwargs['max_sep'])
         axs[1].set_xlabel(r'$\theta$ (arcmin)')
         axs[1].set_ylabel(r'$\rho(\theta)$')
@@ -511,6 +509,11 @@ class RhoStats(Stats):
         axs[1].set_yscale('log', nonposy='clip')
 
         if self.skip:
+            # If we're skipping the plot, the auto ymax doesn't work well (it uses 1.0),
+            # so pick something reasonable here.
+            # Otherwise, do this at the end to fix just ymin, but still have an auto ymax.
+            axs[0].set_ylim(1.e-9, 1.e-4)
+            axs[1].set_ylim(1.e-9, 1.e-4)
             return fig,axs
 
         if not hasattr(self, 'rho1'):
@@ -533,6 +536,8 @@ class RhoStats(Stats):
                      [r'$\rho_2(\theta)$', r'$\rho_5(\theta)$'],
                      loc='upper right', fontsize=12)
 
+        axs[0].set_ylim(1.e-9, None)
+        axs[1].set_ylim(1.e-9, None)
         return fig, axs
 
 class HSMCatalogStats(Stats):
