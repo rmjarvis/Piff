@@ -1,0 +1,186 @@
+# Copyright (c) 2016 by Mike Jarvis and the other collaborators on GitHub at
+# https://github.com/rmjarvis/Piff  All rights reserved.
+#
+# Piff is free software: Redistribution and use in source and binary forms
+# with or without modification, are permitted provided that the following
+# conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice, this
+#    list of conditions and the disclaimer given in the accompanying LICENSE
+#    file.
+# 2. Redistributions in binary form must reproduce the above copyright notice,
+#    this list of conditions and the disclaimer given in the documentation
+#    and/or other materials provided with the distribution.
+
+
+# This sample config file is based on the config file that was used for the
+# Dark Energy Survey (DES) Y3 analysis and included in the DES Y3 paper,
+# Jarvis, et al, 2020.
+
+# The main change from that configuration file is that this one uses the
+# SingleChip psf type, which produces a single output file for a whole exposure,
+# rather than a separate one for each CCD.
+
+# However, there is only a single CCD image included in the repo, so as given,
+# the output file will only have the solution for a single CCD.
+# You may get the full list of exposures and input catalogs from:
+#
+#   http://www.cosmo.bnl.gov/Private/gpfs/workarea/mjarvis/desy3.tar.gz
+#
+# After unpacking the tarball, the 350139 directory will have all the exposures,
+# not just chip 12.
+#
+# Also, this configuration requilres the pixmappy Python package, which can be
+# installed via
+#
+#   pip install git+https://github.com/gbernstein/pixmappy.git
+#
+# However, if you don't want to use that, you can remove (or comment out) the
+# modules and input.wcs fields, in which case, the code will use the (less
+# accurate) WCS that ships with the image in the fits file.
+
+modules:
+    - pixmappy
+
+input:
+
+    # If you have the full y1_test directory on your system, update this
+    # line to point to that.  Otherwise, the output file will only have CCD
+    dir: "350139"
+
+    # Note the * here.  For now, you can specif this eithe as a single filenames, a list of
+    # filenames, or something that glob.glob() will understand.
+    image_file_name: "D00350139_i_c*_r2149p01_immasked.fits.fz"
+    image_hdu: 1    # When rice-compressed, image is in hdu=1, not hdu=0.
+    badpix_hdu: 2
+    weight_hdu: 3
+
+    cat_file_name: "D00350139_i_c*_r2149p01_use_stars.fits"
+    cat_hdu: 1
+
+    # We use the GalSim config parser, which lets you eval python lines by starting a
+    # string with $.
+    # You can also grab the current value of some other item in the config during processing.
+    # In this case input.image_file_name is the current image file name.
+    # Then this strips off the ending, starting with '_', gets the bit before the '.', and
+    # converts it to an integer.
+    chipnum: "$int((@input.image_file_name).rsplit('_')[-3][1:])"
+
+    # What columns in the catalog have things we need?
+    x_col: x
+    y_col: y
+    ra_col: ra
+    dec_col: dec
+
+    # Reserve 20% of the stars for diagnostics
+    reserve_frac: 0.2
+
+    # The telescop pointing is in the image header
+    ra: TELRA
+    dec: TELDEC
+
+    # DES Y3 processed images are normalized to have gain=1.
+    gain: 1.0
+
+    # For bright stars, weight them equivalent to snr=100 stars, not higher.
+    max_snr: 100
+
+    # Remove stars with snr < 20
+    min_snr: 20
+
+    # How large should the postage stamp cutouts of the stars be?
+    stamp_size: 25
+
+    # Use all cores for reading the input files
+    nproc: -1
+
+    # Tell Piff to use the better Pixmappy WCS, not the one in the FITS file.
+    # If you don't want to install Pixmappy, you can just comment out this bit and the
+    # modules section above, and it will just use the WCS in the FITS file rather than this.
+    wcs:
+        type: Pixmappy
+        dir: "350139"
+        file_name: 'zone135.astro'
+        exp: 350139
+        ccdnum: '@input.chipnum'
+
+psf:
+
+    # This type of PSF will use a separate model/interp solution for each chip.
+    # But all the solutions will be given in a single output file.
+    # For the DES Y3 solutions, we actually did type: Simple, which is almost the
+    # same, but makes a separate file for each CCD.
+    type: SingleChip
+
+    # Also use all cores when finding psf
+    nproc: -1
+
+    outliers:
+
+        # This does outlier rejection based on the chisq value of the residual of the
+        # interpolated star with the original.
+        type: Chisq
+
+        # The threshold is given in terms of nsigma equivalent, since that's how we normally
+        # think of this, but really this is based on the chisq probability distribution for the
+        # number of degrees of freedom the model has.
+        nsigma: 5.5
+
+        # Only remove at most 1% of the stars per iteration.
+        # Can also set this to an integer to remove at most that many.
+        max_remove: 0.01
+
+    model:
+
+        # This model uses a grid of pixels to model the surface brightness distribution.
+        type: PixelGrid
+        scale: 0.30     # Somewhat larger than native pixel scale
+        size: 17        # Model is 17 x 17 in these pixels (so around 19.4 x 19.4 in native pixels)
+
+    interp:
+
+        # This interpolator does some of the model solving when interpolating to handle degenerate
+        # information from masking and the fact that the pixels are smaller than native.
+        type: BasisPolynomial
+        order: 3
+
+output:
+
+    # Give the name of the output file.  It's a fits file, but it doesn't need to end if .fits.
+    dir: "350139"
+    file_name: "DECam_00350139.piff"
+
+    # You may also output a number of stats outputs.
+    stats:
+        -
+            # This produces an output catalog with the mesured sizes, shapes of the stars and
+            # the PSF models.  Reserve stars are marked as such in a reserve column.
+            type: HSMCatalog
+            file_name: "DECam_00350139_cat.fits"
+
+        -
+            # The rest of these are all plots of various statistics about the residuals.
+            # This one shows histograms of the size and shape residuals
+            type: ShapeHistograms
+            file_name: "DECam_00350139_shapes.pdf"
+
+        -
+            # These are the classic rho stats.  They are pretty noisy for just a single
+            # exposure, but they can check for egregious errors.
+            type: Rho
+            file_name: "DECam_00350139_rho.pdf"
+            # These parameters are TreeCorr parameters for doing the correlation functions.
+            min_sep: 0.5
+            max_sep: 300
+            sep_units: arcmin
+            bin_size: 0.5
+        -
+            # This bins the residuals across the field of view
+            type: TwoDHist
+            file_name: "DECam_00350139_twod.pdf"
+
+
+# Set the verbosity level a little higher than default (1) to give extra information
+# about the progress.
+verbose: 2
+
