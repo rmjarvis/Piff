@@ -165,7 +165,7 @@ output:
             # The rest of these are all plots of various statistics about the residuals.
             # This one shows histograms of the size and shape residuals
             type: ShapeHist
-            file_name: "D00350139_shapes.pdf"
+            file_name: "D00350139_shapes.png"
             cut_frac: 0.002  # Default cuts off 1% from each side.
                              # This mostly excludes some outliers we don't much care about.
                              # There are enough stars here that we can reduce this a bit to show
@@ -175,7 +175,7 @@ output:
             # These are the classic rho stats.  They are pretty noisy for just a single
             # exposure, but they can check for egregious errors.
             type: Rho
-            file_name: "D00350139_rho.pdf"
+            file_name: "D00350139_rho.png"
             # These parameters are TreeCorr parameters for doing the correlation functions.
             min_sep: 0.5
             max_sep: 300
@@ -185,16 +185,22 @@ output:
         -
             # This bins the residuals across the field of view.
             type: TwoDHist
-            file_name: "D00350139_twod.pdf"
+            file_name: "D00350139_twod.png"
             nbins_u: 50  # Default is 20 for these, but the FOV is large enough that 50 looks good.
             nbins_v: 50
+
+        -
+            # This makes a whisker plot of both the raw PSF shape and the PSF shape residuals
+            # across the field of view.
+            type: Whisker
+            file_name: "D00350139_whisker.png"
 
         -
             # This selects 20 (nplot) random stars and shows images of the data, the model,
             # and the residual.  When fits are behaving badly, this can give useful clues
             # about the nature of the problem.
             type: Star
-            file_name: "D00350139_stars.pdf"
+            file_name: "D00350139_stars.png"
             nplot: 20  # Default is 10.  0 will show all the stars, which would be a lot here.
 
 # Set the verbosity level a little higher than default (1) to give extra information

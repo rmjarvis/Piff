@@ -412,21 +412,26 @@ class WhiskerStats(Stats):
 
     Because e1, e2 do not have units, w does not either.
     """
-    def __init__(self, nbins_u=20, nbins_v=20, reducing_function='np.median',
-                 file_name=None, logger=None):
+    def __init__(self, file_name=None, nbins_u=20, nbins_v=20, reducing_function='np.median',
+                 scale=1, resid_scale=2, logger=None):
         """
+        :param file_name:           Name of the file to output to. [default: None]
         :param nbins_u:             Number of bins in u direction [default: 20]
         :param nbins_v:             Number of bins in v direction [default: 20]
         :param reducing_function:   Type of function to apply to grouped objects. numpy functions
                                     are prefixed by np. [default: 'np.median']
-        :param file_name:           Name of the file to output to. [default: None]
+        :param scale:               An overal scale factor by which to scale the size of the
+                                    all whiskers. [default: 1]
+        :param resid_scale:         An additional factor for the scale size of the residual
+                                    whiskers only. [default: 2]
         :param logger:              A logger object for logging debug info. [default: None]
         """
+        self.file_name = file_name
         self.nbins_u = nbins_u
         self.nbins_v = nbins_v
         self.reducing_function = eval(reducing_function)
-
-        self.file_name = file_name
+        self.scale = scale
+        self.resid_scale = resid_scale
         self.skip = False
 
     def compute(self, psf, stars, logger=None):
@@ -530,24 +535,19 @@ class WhiskerStats(Stats):
         """
         from matplotlib.figure import Figure
         logger = galsim.config.LoggerWrapper(logger)
-        fig = Figure()
-        # In matplotlib 2.0, this will be
-        # axs = fig.subplots(1, 2, sharey=True, subplot_kw={'aspect' : 'equal'})
-        ax0 = fig.add_subplot(1,2,1, aspect='equal')
-        ax1 = fig.add_subplot(1,2,2, sharey=ax0, aspect='equal')
+        fig = Figure(figsize=(7.5,4))
+        ax0, ax1 = fig.subplots(1, 2, sharey=True, subplot_kw={'aspect' : 'equal'})
 
-        for label in ax1.get_yticklabels():
-            label.set_visible(False)
-        ax1.yaxis.offsetText.set_visible(False)
-
-        axs = np.array([ax0, ax1], dtype=object)
-
-        axs[0].set_xlabel('u')
-        axs[0].set_ylabel('v')
-        axs[1].set_xlabel('u')
-        axs[1].set_ylabel('v')
+        ax0.axis('off')
+        ax0.set_title('Raw PSF')
+        #ax0.set_xlabel('u')
+        #ax0.set_ylabel('v')
+        ax1.axis('off')
+        ax1.set_title('PSF Residuals')
+        #ax1.set_xlabel('u')
+        #ax1.set_ylabel('v')
         if self.skip:
-            return fig, axs
+            return fig, [ax0, ax1]
 
         if not hasattr(self, 'twodhists'):
             raise RuntimeError("Must call compute before calling plot or write")
@@ -557,9 +557,7 @@ class WhiskerStats(Stats):
 
         # configure to taste
         # bigger scale = smaller whiskers
-        quiver_dict = dict(alpha=1,
-                           angles='uv',
-                           headlength=1.e-10,  # Using zero emits divide-by-zero warnings.
+        quiver_dict = dict(headlength=0,
                            headwidth=0,
                            headaxislength=0,
                            minlength=0,
@@ -570,8 +568,6 @@ class WhiskerStats(Stats):
                            )
 
         # raw whiskers
-        ax = axs[0]
-        # data
         u = self.twodhists['u']
         v = self.twodhists['v']
         w1 = self.twodhists['w1']
@@ -579,21 +575,28 @@ class WhiskerStats(Stats):
         dw1 = self.twodhists['dw1']
         dw2 = self.twodhists['dw2']
         use = u.mask == 0
-        Q = ax.quiver(u[use], v[use], w1[use], w2[use], scale=2.5e-3, **quiver_dict)
+        # Note: the quiver "scale" is such that larger value = smaller whiskers.
+        #       This is backwards of how I think of scale, which is why the / here, not *.
+        scale = 1.e-4 / self.scale
+        qv = ax0.quiver(u[use], v[use], w1[use], w2[use], scale=scale, **quiver_dict)
         # quiverkey
-        ax.quiverkey(Q, 0.10, 0.10, 0.03, 'e = 0.03', coordinates='axes', color='darkred',
-                     labelcolor='darkred', labelpos='S')
+        ref = 0.03
+        ref_label = 'e = %s'%ref
+        ax0.quiverkey(qv, 0.15, 0.00, ref, ref_label,
+                      coordinates='axes', color='darkred', labelcolor='darkred',
+                      labelpos='S')
 
         # residual whiskers
-        ax = axs[1]
-
-        # dw
-        Q = ax.quiver(u[use], v[use], dw1[use], dw2[use], scale=4.0e-4, **quiver_dict)
+        scale = 1.e-4 / self.scale / self.resid_scale
+        qv = ax1.quiver(u[use], v[use], dw1[use], dw2[use], scale=scale, **quiver_dict)
         # quiverkey
-        ax.quiverkey(Q, 0.90, 0.10, 0.03, 'de = 0.03', coordinates='axes', color='darkred',
-                     labelcolor='darkred', labelpos='S')
+        ref = 0.03 / self.resid_scale
+        ref_label = 'e = %s'%ref
+        ax1.quiverkey(qv, 0.85, 0.00, ref, ref_label,
+                      coordinates='axes', color='darkred', labelcolor='darkred',
+                      labelpos='S')
 
-        return fig, axs
+        return fig, [ax0, ax1]
 
     def _array_to_2dhist(self, z, indx_u, indx_v, unique_indx):
         C = np.ma.zeros((self.nbins_v, self.nbins_u))
