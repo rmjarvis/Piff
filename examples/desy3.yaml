@@ -189,6 +189,13 @@ output:
             nbins_u: 50  # Default is 20 for these, but the FOV is large enough that 50 looks good.
             nbins_v: 50
 
+        -
+            # This selects 20 (nplot) random stars and shows images of the data, the model,
+            # and the residual.  When fits are behaving badly, this can give useful clues
+            # about the nature of the problem.
+            type: Star
+            file_name: "D00350139_stars.pdf"
+            nplot: 20  # Default is 10.  0 will show all the stars, which would be a lot here.
 
 # Set the verbosity level a little higher than default (1) to give extra information
 # about the progress.
