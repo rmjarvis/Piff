@@ -283,7 +283,8 @@ class ShapeHistStats(Stats):
         # axs[0,0] = size distributions
         ax = axs[0, 0]
         all_T = np.concatenate([self.T_model, self.T])
-        logger.info("cut_frac = ",self.cut_frac)
+        logger.info("nbins = %s",nbins)
+        logger.info("cut_frac = %s",self.cut_frac)
         rng = (np.quantile(all_T, self.cut_frac, interpolation='higher'),
                np.quantile(all_T, 1-self.cut_frac, interpolation='lower'))
         logger.info("T_d: Full range = (%f, %f)",np.min(self.T),np.max(self.T))
