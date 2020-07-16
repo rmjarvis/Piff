@@ -531,34 +531,34 @@ def test_starstats_config():
     piff.plotify(config, logger)
     assert os.path.isfile(star_file)
 
-    # check default number_plot
+    # check default nplot
     psf = piff.read(psf_file)
     starStats = piff.StarStats()
     orig_stars, wcs, pointing = piff.Input.process(config['input'], logger)
     with np.testing.assert_raises(RuntimeError):
         starStats.write()  # Cannot write before compute
     starStats.compute(psf, orig_stars)
-    assert starStats.number_plot == len(starStats.stars)
-    assert starStats.number_plot == len(starStats.models)
-    assert starStats.number_plot == len(starStats.indices)
+    assert starStats.nplot == len(starStats.stars)
+    assert starStats.nplot == len(starStats.models)
+    assert starStats.nplot == len(starStats.indices)
     np.testing.assert_array_equal(starStats.stars[2].image.array,
                                   orig_stars[starStats.indices[2]].image.array)
 
-    # check number_plot = 6
-    starStats = piff.StarStats(number_plot=6)
+    # check nplot = 6
+    starStats = piff.StarStats(nplot=6)
     starStats.compute(psf, orig_stars)
     assert len(starStats.stars) == 6
 
-    # check number_plot >> len(stars)
-    starStats = piff.StarStats(number_plot=1000000)
+    # check nplot >> len(stars)
+    starStats = piff.StarStats(nplot=1000000)
     starStats.compute(psf, orig_stars)
     assert len(starStats.stars) == len(orig_stars)
     # if use all stars, no randomness
     np.testing.assert_array_equal(starStats.stars[3].image.array, orig_stars[3].image.array)
     np.testing.assert_array_equal(starStats.indices, np.arange(len(orig_stars)))
 
-    # check number_plot = 0
-    starStats = piff.StarStats(number_plot=0)
+    # check nplot = 0
+    starStats = piff.StarStats(nplot=0)
     starStats.compute(psf, orig_stars)
     assert len(starStats.stars) == len(orig_stars)
     # if use all stars, no randomness
@@ -567,7 +567,7 @@ def test_starstats_config():
 
     # rerun with adjust stars and see if it did the right thing
     # first with starstats == False
-    starStats = piff.StarStats(number_plot=0, adjust_stars=False)
+    starStats = piff.StarStats(nplot=0, adjust_stars=False)
     starStats.compute(psf, orig_stars, logger=logger)
     fluxs_noadjust = np.array([s.fit.flux for s in starStats.stars])
     ds_noadjust = np.array([s.fit.center for s in starStats.stars])
@@ -577,7 +577,7 @@ def test_starstats_config():
     np.testing.assert_array_equal(ds_noadjust, 0)
 
     # now with starstats == True
-    starStats = piff.StarStats(number_plot=0, adjust_stars=True)
+    starStats = piff.StarStats(nplot=0, adjust_stars=True)
     starStats.compute(psf, orig_stars, logger=logger)
     fluxs_adjust = np.array([s.fit.flux for s in starStats.stars])
     ds_adjust = np.array([s.fit.center for s in starStats.stars])
@@ -764,7 +764,7 @@ def test_bad_hsm():
             'outliers' : {
                 'type' : 'Chisq',
                 'nsigma' : 1.e-3,  # This will throw out all but 1, which adds an additional
-                                   # test of Star stats when nstars < number_plot
+                                   # test of Star stats when nstars < nplot
             }
         },
     }
