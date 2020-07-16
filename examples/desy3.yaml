@@ -75,6 +75,7 @@ input:
 
     # Reserve 20% of the stars for diagnostics
     reserve_frac: 0.2
+    seed: 1234  # If you want the reserve choice consistent across runs, set this to something.
 
     # The telescop pointing is in the image header
     ra: TELRA
