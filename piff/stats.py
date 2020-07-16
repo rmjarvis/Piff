@@ -171,7 +171,7 @@ class Stats(object):
         return positions, shapes_truth, shapes_model
 
 
-class ShapeHistogramsStats(Stats):
+class ShapeHistStats(Stats):
     """Stats class for calculating histograms of shape residuals
 
     This will compute the size and shapes of the observed stars and the PSF models and
@@ -194,20 +194,16 @@ class ShapeHistogramsStats(Stats):
         :dg1:       The g1 residual, g1 - g1_model
         :dg2:       The g2 residual, g2 - g2_model
     """
-    def __init__(self, bins_size=10, bins_shape=10, file_name=None, logger=None):
+    def __init__(self, file_name=None, nbins=None, cut_frac=0.01, logger=None):
         """
-        The `bins_size` and `bins_shape` parameters are typically the number of bins for the
-        size and shape histograms respectively.  However, they will be passed to the
-        `matplotlib.pyplot.hist` function as the `bins` parameter, which also accepts
-        numpy arrays for the size of each bin, so that is allowed here as well.
-
-        :param bins_size:   Number of bins for size histograms. [default: 10]
-        :param bins_shape:  Number of bins for shape histograms. [default: 10]
         :param file_name:   Name of the file to output to. [default: None]
+        :param nbins:       Number of bins to use. [default: sqrt(n_stars)]
+        :param cut_frac:    Fraction to cut off from histograms at the high and low ends.
+                            [default: 0.01]
         """
-        self.bins_size = bins_size
-        self.bins_shape = bins_shape
         self.file_name = file_name
+        self.nbins = nbins
+        self.cut_frac = cut_frac
         self.skip = False
 
     def compute(self, psf, stars, logger=None):
@@ -226,7 +222,7 @@ class ShapeHistogramsStats(Stats):
         flag_model = shapes_model[:, 6]
         mask = (flag_truth == 0) & (flag_model == 0)
         if np.sum(mask) == 0:
-            logger.warning("All stars had hsm errors.  ShapeHistograms plot will be empty.")
+            logger.warning("All stars had hsm errors.  ShapeHist plot will be empty.")
             self.skip = True
 
         # define terms for the catalogs
@@ -250,6 +246,7 @@ class ShapeHistogramsStats(Stats):
 
         :returns: fig, ax
         """
+        logger = galsim.config.LoggerWrapper(logger)
         from matplotlib.figure import Figure
         fig = Figure(figsize = (15,10))
         # In matplotlib 2.0, this will be
@@ -278,29 +275,64 @@ class ShapeHistogramsStats(Stats):
         if 'histtype' not in kwargs:
             kwargs['histtype'] = 'step'
 
+        nbins = self.nbins
+        if nbins is None:
+            nbins = int(np.sqrt(len(self.T))+1)
+            logger.info("nstars = %d, using %d bins for Shape Histograms",len(self.T),nbins)
+
         # axs[0,0] = size distributions
         ax = axs[0, 0]
-        ax.hist([self.T, self.T_model], bins=self.bins_size, label=['data', 'model'], **kwargs)
+        all_T = np.concatenate([self.T_model, self.T])
+        rng = (np.quantile(all_T, self.cut_frac, interpolation='higher'),
+               np.quantile(all_T, 1-self.cut_frac, interpolation='lower'))
+        logger.info("T_d: Full range = (%f, %f)",np.min(self.T),np.max(self.T))
+        logger.info("T_m: Full range = (%f, %f)",np.min(self.T_model),np.max(self.T_model))
+        logger.info("Display range = (%f, %f)",rng[0],rng[1])
+        ax.hist([self.T, self.T_model], bins=nbins, range=rng, label=['data', 'model'], **kwargs)
         ax.legend(loc='upper right')
         # axs[0,1] = size difference
         ax = axs[1, 0]
-        ax.hist(self.dT, bins=self.bins_size, **kwargs)
+        rng = (np.quantile(self.dT, self.cut_frac, interpolation='higher'),
+               np.quantile(self.dT, 1-self.cut_frac, interpolation='lower'))
+        logger.info("dT: Full range = (%f, %f)",np.min(self.dT),np.max(self.dT))
+        logger.info("Display range = (%f, %f)",rng[0],rng[1])
+        ax.hist(self.dT, bins=nbins, **kwargs)
 
         # axs[1,0] = g1 distribution
         ax = axs[0, 1]
-        ax.hist([self.g1, self.g1_model], bins=self.bins_shape, label=['data', 'model'], **kwargs)
+        all_g1 = np.concatenate([self.g1_model, self.g1])
+        rng = (np.quantile(all_g1, self.cut_frac, interpolation='higher'),
+               np.quantile(all_g1, 1-self.cut_frac, interpolation='lower'))
+        logger.info("g1_d: Full range = (%f, %f)",np.min(self.g1),np.max(self.g1))
+        logger.info("g1_m: Full range = (%f, %f)",np.min(self.g1_model),np.max(self.g1_model))
+        logger.info("Display range = (%f, %f)",rng[0],rng[1])
+        ax.hist([self.g1, self.g1_model], bins=nbins, range=rng, label=['data', 'model'], **kwargs)
         ax.legend(loc='upper right')
         # axs[1,0] = g1 difference
         ax = axs[1, 1]
-        ax.hist(self.dg1, bins=self.bins_shape, **kwargs)
+        rng = (np.quantile(self.dg1, self.cut_frac, interpolation='higher'),
+               np.quantile(self.dg1, 1-self.cut_frac, interpolation='lower'))
+        logger.info("dg1: Full range = (%f, %f)",np.min(self.dg1),np.max(self.dg1))
+        logger.info("Display range = (%f, %f)",rng[0],rng[1])
+        ax.hist(self.dg1, bins=nbins, **kwargs)
 
         # axs[2,0] = g2 distribution
         ax = axs[0, 2]
-        ax.hist([self.g2, self.g2_model], bins=self.bins_shape, label=['data', 'model'], **kwargs)
+        all_g2 = np.concatenate([self.g2_model, self.g2])
+        rng = (np.quantile(all_g2, self.cut_frac, interpolation='higher'),
+               np.quantile(all_g2, 1-self.cut_frac, interpolation='lower'))
+        logger.info("g2_d: Full range = (%f, %f)",np.min(self.g2),np.max(self.g2))
+        logger.info("g2_m: Full range = (%f, %f)",np.min(self.g2_model),np.max(self.g2_model))
+        logger.info("Display range = (%f, %f)",rng[0],rng[1])
+        ax.hist([self.g2, self.g2_model], bins=nbins, range=rng, label=['data', 'model'], **kwargs)
         ax.legend(loc='upper right')
         # axs[2,0] = g2 difference
         ax = axs[1, 2]
-        ax.hist(self.dg2, bins=self.bins_shape, **kwargs)
+        rng = (np.quantile(self.dg2, self.cut_frac, interpolation='higher'),
+               np.quantile(self.dg2, 1-self.cut_frac, interpolation='lower'))
+        logger.info("dg2: Full range = (%f, %f)",np.min(self.dg2),np.max(self.dg2))
+        logger.info("Display range = (%f, %f)",rng[0],rng[1])
+        ax.hist(self.dg2, bins=nbins, range=rng, **kwargs)
 
         return fig, ax
 
