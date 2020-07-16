@@ -50,7 +50,7 @@ def test_twodstats():
                                    np.array([-0.1 * 1000 / 2048, 0, 0.1 / (0.263 * 2048), 0]),
                                    decimal=4)
 
-    stats = piff.TwoDHistStats(number_bins_u=5, number_bins_v=5)  # implicitly np.median
+    stats = piff.TwoDHistStats(nbins_u=5, nbins_v=5)  # implicitly np.median
     stats.compute(psf, stars, logger=logger)
     # check the twodhists
     # get the average value in the bin
@@ -81,7 +81,7 @@ def test_twodstats():
         stats.write()  # If not given in constructor, must give file name here.
 
     # repeat for whisker
-    stats = piff.WhiskerStats(number_bins_u=21, number_bins_v=21, reducing_function='np.mean')
+    stats = piff.WhiskerStats(nbins_u=21, nbins_v=21, reducing_function='np.mean')
     stats.compute(psf, stars)
     # Test the plotting and writing
     whisker_file = os.path.join('output','whiskerstats.pdf')
@@ -94,7 +94,7 @@ def test_twodstats():
     # Not sure when these would be useful, but they are allowed.
     # And, check usage where file_name is given in init.
     twodstats_file2 = os.path.join('output','twodstats.pdf')
-    stats2 = piff.TwoDHistStats(number_bins_u=50, number_bins_v=50, reducing_function='np.std',
+    stats2 = piff.TwoDHistStats(nbins_u=50, nbins_v=50, reducing_function='np.std',
                                 file_name=twodstats_file2)
     with np.testing.assert_raises(RuntimeError):
         stats2.write()  # Cannot write before compute
@@ -102,7 +102,7 @@ def test_twodstats():
     stats2.write()
 
     whisker_file2 = os.path.join('output','whiskerstats.pdf')
-    stats2 = piff.WhiskerStats(number_bins_u=100, number_bins_v=100, reducing_function='np.max',
+    stats2 = piff.WhiskerStats(nbins_u=100, nbins_v=100, reducing_function='np.max',
                                file_name=whisker_file2)
     with np.testing.assert_raises(RuntimeError):
         stats2.write()  # Cannot write before compute
@@ -295,15 +295,15 @@ def test_twodstats_config():
                 {
                     'type': 'TwoDHist',
                     'file_name': twodhist_file,
-                    'number_bins_u': 3,
-                    'number_bins_v': 3,
+                    'nbins_u': 3,
+                    'nbins_v': 3,
                 },
                 {
                     'type': 'TwoDHist',
                     'file_name': twodhist_std_file,
                     'reducing_function': 'np.std',
-                    'number_bins_u': 3,
-                    'number_bins_v': 3,
+                    'nbins_u': 3,
+                    'nbins_v': 3,
                 },
             ]
         }
@@ -517,7 +517,7 @@ def test_starstats_config():
                 {
                     'type': 'Star',
                     'file_name': star_file,
-                    'number_plot': 5,
+                    'nplot': 5,
                     'adjust_stars': True,
                 }
             ]

@@ -181,10 +181,13 @@ output:
             max_sep: 300
             sep_units: arcmin
             bin_size: 0.5
+
         -
-            # This bins the residuals across the field of view
+            # This bins the residuals across the field of view.
             type: TwoDHist
             file_name: "D00350139_twod.pdf"
+            nbins_u: 50  # Default is 20 for these, but the FOV is large enough that 50 looks good.
+            nbins_v: 50
 
 
 # Set the verbosity level a little higher than default (1) to give extra information

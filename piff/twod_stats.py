@@ -42,18 +42,18 @@ class TwoDHistStats(Stats):
     pixel corresponds to reducing_function([objects in u-v voxel])
     """
 
-    def __init__(self, number_bins_u=11, number_bins_v=22, reducing_function='np.median',
+    def __init__(self, nbins_u=20, nbins_v=20, reducing_function='np.median',
                  file_name=None, logger=None):
         """
-        :param number_bins_u:       Number of bins in u direction [default: 11]
-        :param number_bins_v:       Number of bins in v direction [default: 22]
+        :param nbins_u:             Number of bins in u direction [default: 20]
+        :param nbins_v:             Number of bins in v direction [default: 20]
         :param reducing_function:   Type of function to apply to grouped objects. numpy functions
                                     are prefixed by np. [default: 'np.median']
         :param file_name:           Name of the file to output to. [default: None]
         :param logger:              A logger object for logging debug info. [default: None]
         """
-        self.number_bins_u = number_bins_u
-        self.number_bins_v = number_bins_v
+        self.nbins_u = nbins_u
+        self.nbins_v = nbins_v
         self.reducing_function = eval(reducing_function)
 
         self.file_name = file_name
@@ -98,16 +98,16 @@ class TwoDHistStats(Stats):
         # compute the indices
         logger.info("Computing TwoDHist indices")
 
-        self.bins_u = np.linspace(np.min(u), np.max(u), num=self.number_bins_u + 1)
-        self.bins_v = np.linspace(np.min(v), np.max(v), num=self.number_bins_v + 1)
+        self.bins_u = np.linspace(np.min(u), np.max(u), num=self.nbins_u + 1)
+        self.bins_v = np.linspace(np.min(v), np.max(v), num=self.nbins_v + 1)
 
         # digitize u and v. No such thing as entries below their min, so -1 to index
         indx_u = np.digitize(u, self.bins_u) - 1
         indx_v = np.digitize(v, self.bins_v) - 1
 
         # Make sure no points go one past the end (due to rounding when u=max(u), etc.
-        np.putmask(indx_u, indx_u >= self.number_bins_u, self.number_bins_u-1)
-        np.putmask(indx_v, indx_v >= self.number_bins_v, self.number_bins_v-1)
+        np.putmask(indx_u, indx_u >= self.nbins_u, self.nbins_u-1)
+        np.putmask(indx_v, indx_v >= self.nbins_v, self.nbins_v-1)
 
         # get unique indices
         unique_indx = np.vstack([tuple(row) for row in np.vstack((indx_u, indx_v)).T])
@@ -285,8 +285,8 @@ class TwoDHistStats(Stats):
         return fig, axs
 
     def _array_to_2dhist(self, z, indx_u, indx_v, unique_indx):
-        C = np.ma.zeros((self.number_bins_v, self.number_bins_u))
-        C.mask = np.ones((self.number_bins_v, self.number_bins_u))
+        C = np.ma.zeros((self.nbins_v, self.nbins_u))
+        C.mask = np.ones((self.nbins_v, self.nbins_u))
 
         for unique in unique_indx:
             ui, vi = unique
@@ -412,18 +412,18 @@ class WhiskerStats(Stats):
 
     Because e1, e2 do not have units, w does not either.
     """
-    def __init__(self, number_bins_u=11, number_bins_v=22, reducing_function='np.median',
+    def __init__(self, nbins_u=20, nbins_v=20, reducing_function='np.median',
                  file_name=None, logger=None):
         """
-        :param number_bins_u:       Number of bins in u direction [default: 11]
-        :param number_bins_v:       Number of bins in v direction [default: 22]
+        :param nbins_u:             Number of bins in u direction [default: 20]
+        :param nbins_v:             Number of bins in v direction [default: 20]
         :param reducing_function:   Type of function to apply to grouped objects. numpy functions
                                     are prefixed by np. [default: 'np.median']
         :param file_name:           Name of the file to output to. [default: None]
         :param logger:              A logger object for logging debug info. [default: None]
         """
-        self.number_bins_u = number_bins_u
-        self.number_bins_v = number_bins_v
+        self.nbins_u = nbins_u
+        self.nbins_v = nbins_v
         self.reducing_function = eval(reducing_function)
 
         self.file_name = file_name
@@ -481,16 +481,16 @@ class WhiskerStats(Stats):
         # compute the indices
         logger.info("Computing Whisker indices")
 
-        self.bins_u = np.linspace(np.min(u), np.max(u), num=self.number_bins_u + 1)
-        self.bins_v = np.linspace(np.min(v), np.max(v), num=self.number_bins_v + 1)
+        self.bins_u = np.linspace(np.min(u), np.max(u), num=self.nbins_u + 1)
+        self.bins_v = np.linspace(np.min(v), np.max(v), num=self.nbins_v + 1)
 
         # digitize u and v. No such thing as entries below their min, so -1 to index
         indx_u = np.digitize(u, self.bins_u) - 1
         indx_v = np.digitize(v, self.bins_v) - 1
 
         # Make sure no points go one past the end (due to rounding when u=max(u), etc.
-        np.putmask(indx_u, indx_u >= self.number_bins_u, self.number_bins_u-1)
-        np.putmask(indx_v, indx_v >= self.number_bins_v, self.number_bins_v-1)
+        np.putmask(indx_u, indx_u >= self.nbins_u, self.nbins_u-1)
+        np.putmask(indx_v, indx_v >= self.nbins_v, self.nbins_v-1)
 
         # get unique indices
         unique_indx = np.vstack([tuple(row) for row in np.vstack((indx_u, indx_v)).T])
@@ -596,8 +596,8 @@ class WhiskerStats(Stats):
         return fig, axs
 
     def _array_to_2dhist(self, z, indx_u, indx_v, unique_indx):
-        C = np.ma.zeros((self.number_bins_v, self.number_bins_u))
-        C.mask = np.ones((self.number_bins_v, self.number_bins_u))
+        C = np.ma.zeros((self.nbins_v, self.nbins_u))
+        C.mask = np.ones((self.nbins_v, self.nbins_u))
 
         for unique in unique_indx:
             ui, vi = unique
