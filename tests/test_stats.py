@@ -466,7 +466,7 @@ def test_shapestats_config():
 
     # Test ShapeHistStats directly
     psf = piff.read(psf_file)
-    shapeStats = piff.ShapeHistStats()
+    shapeStats = piff.ShapeHistStats(nbins=5)  # default is sqrt(nstars)
     orig_stars, wcs, pointing = piff.Input.process(config['input'], logger)
     with np.testing.assert_raises(RuntimeError):
         shapeStats.write()  # Cannot write before compute
@@ -742,7 +742,6 @@ def test_bad_hsm():
                 {
                     'type': 'ShapeHist',
                     'file_name': shape_file,
-                    'nbins': 10,
                 },
                 {
                     'type': 'Star',
