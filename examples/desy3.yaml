@@ -164,8 +164,12 @@ output:
         -
             # The rest of these are all plots of various statistics about the residuals.
             # This one shows histograms of the size and shape residuals
-            type: ShapeHistograms
+            type: ShapeHist
             file_name: "D00350139_shapes.pdf"
+            cut_frac: 0.002  # Default cuts off 1% from each side.
+                             # This mostly excludes some outliers we don't much care about.
+                             # There are enough stars here that we can reduce this a bit to show
+                             # more of the wings.
 
         -
             # These are the classic rho stats.  They are pretty noisy for just a single

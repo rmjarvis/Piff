@@ -450,7 +450,7 @@ def test_shapestats_config():
             'file_name' : psf_file,
             'stats' : [
                 {
-                    'type': 'ShapeHistograms',
+                    'type': 'ShapeHist',
                     'file_name': shape_file
                 },
             ]
@@ -464,14 +464,14 @@ def test_shapestats_config():
     piff.plotify(config, logger)
     assert os.path.isfile(shape_file)
 
-    # Test ShapeHistogramStats directly
+    # Test ShapeHistStats directly
     psf = piff.read(psf_file)
-    shapeStats = piff.ShapeHistogramsStats()
+    shapeStats = piff.ShapeHistStats()
     orig_stars, wcs, pointing = piff.Input.process(config['input'], logger)
     with np.testing.assert_raises(RuntimeError):
         shapeStats.write()  # Cannot write before compute
     shapeStats.compute(psf, orig_stars)
-    shapeStats.plot(psf, histtype='bar', log=True)  # can supply additional args for matplotlib
+    shapeStats.plot(histtype='bar', log=True)  # can supply additional args for matplotlib
 
     # test their characteristics
     sigma = 1.3  # (copied from setup())
@@ -740,8 +740,9 @@ def test_bad_hsm():
                     'file_name': rho_file
                 },
                 {
-                    'type': 'ShapeHistograms',
-                    'file_name': shape_file
+                    'type': 'ShapeHist',
+                    'file_name': shape_file,
+                    'nbins': 10,
                 },
                 {
                     'type': 'Star',

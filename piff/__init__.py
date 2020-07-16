@@ -102,7 +102,7 @@ from .simplepsf import SimplePSF
 from .singlechip import SingleChipPSF
 
 # Stats classes are named BlahStats where Blah is what they are called in the config file
-from .stats import Stats, RhoStats, ShapeHistogramsStats, HSMCatalogStats
+from .stats import Stats, RhoStats, ShapeHistStats, HSMCatalogStats
 from .twod_stats import TwoDHistStats, WhiskerStats
 from .star_stats import StarStats
 
