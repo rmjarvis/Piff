@@ -43,7 +43,6 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx.ext.napoleon',
     'sphinx.ext.autosectionlabel',
-    'sphinx.ext.coverage',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -74,7 +73,7 @@ exclude_patterns = ['_build']
 
 # The reST default role (used for this markup: `text`) to use for all
 # documents.
-#default_role = None
+default_role = 'any'
 
 # If true, '()' will be appended to :func: etc. cross-reference text.
 #add_function_parentheses = True
@@ -101,7 +100,34 @@ pygments_style = 'sphinx'
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = 'default'
+html_theme = 'sphinx_rtd_theme'
+
+# https://michaelgoerz.net/notes/extending-sphinx-napoleon-docstring-sections.html
+# -- Extensions to the  Napoleon GoogleDocstring class ---------------------
+
+from sphinx.ext.napoleon.docstring import GoogleDocstring
+
+# first, we define new methods for any new sections and add them to the class
+def parse_keys_section(self, section):
+    return self._format_fields('Keys', self._consume_fields())
+GoogleDocstring._parse_keys_section = parse_keys_section
+
+def parse_attributes_section(self, section):
+    return self._format_fields('Attributes', self._consume_fields())
+GoogleDocstring._parse_attributes_section = parse_attributes_section
+
+def parse_class_attributes_section(self, section):
+    return self._format_fields('Class Attributes', self._consume_fields())
+GoogleDocstring._parse_class_attributes_section = parse_class_attributes_section
+
+# we now patch the parse method to guarantee that the the above methods are
+# assigned to the _section dict
+def patched_parse(self):
+    self._sections['keys'] = self._parse_keys_section
+    self._sections['class attributes'] = self._parse_class_attributes_section
+    self._unpatched_parse()
+GoogleDocstring._unpatched_parse = GoogleDocstring._parse
+GoogleDocstring._parse = patched_parse
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -179,7 +205,7 @@ html_static_path = ['_static']
 #html_file_suffix = None
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'Piffdoc'
+htmlhelp_basename = 'piffdoc'
 
 
 # -- Options for LaTeX output ---------------------------------------------
