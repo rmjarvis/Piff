@@ -137,10 +137,10 @@ class PSF(object):
            you want the PSF to be centered.  The bounding box will still be around the nominal
            (x,y) position, so this should only be used for small adjustments to the (x,y) value
            if you want it centered at a slightly different location.
-        3. If you provide your own image with the `image` parameter, then you may set the ``center``
-           to any location in this box (or technically off it -- it doesn't check that the center
-           is actually inside the bounding box).  This may be useful if you want to draw on an
-           image with origin at (0,0) or (1,1) and just put the PSF at the location you want.
+        3. If you provide your own image with the ``image`` parameter, then you may set the
+           ``center`` to any location in this box (or technically off it -- it doesn't check that
+           the center is actually inside the bounding box).  This may be useful if you want to draw
+           on an image with origin at (0,0) or (1,1) and just put the PSF at the location you want.
         4. If you want the PSf centered exactly in the center of the image, then you can use
            ``center=True``.  This will work for either an automatically built image or one
            that you provide.

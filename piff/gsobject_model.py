@@ -228,11 +228,11 @@ class GSObjectModel(Model):
     def fit(self, star, fastfit=None, logger=None):
         """Fit the image either using HSM or least-squares minimization.
 
-        If `fastfit` is True, then the galsim.hsm module will be used to estimate the transformation
-        parameters that take the fiducial moments into the data moments.  If `fastfit` is False,
-        then the Levenberg-Marquardt minimization algorithm will be used instead.  The latter should
-        generally be more accurate, but slower due to the need to iteratively propose model
-        improvements.
+        If ``fastfit`` is True, then the galsim.hsm module will be used to estimate the
+        transformation parameters that take the fiducial moments into the data moments.
+        If ``fastfit`` is False, then the Levenberg-Marquardt minimization algorithm will be used
+        instead.  The latter should generally be more accurate, but slower due to the need to
+        iteratively propose model improvements.
 
         :param star:    A Star to fit.
         :param fastfit: Use fast HSM moments to fit? [default: None, which means use fitting mode
