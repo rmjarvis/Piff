@@ -1,31 +1,22 @@
-PSF
-===
+PSF classes
+===========
+
+The `PSF` classes define the interaction between the models and the interpolants.  The
+simplest version `SimplePSF` has one model and one interpolant, but it is possible to have
+more complicated combinations of these.
 
 .. autoclass:: piff.PSF
     :members:
 
-SimplePSF
----------
+The simple case of one model/interp
+-----------------------------------
 
 .. autoclass:: piff.SimplePSF
     :members:
 
-SingleChipPSF
--------------
+Using a separate solution for each chip
+---------------------------------------
 
 .. autoclass:: piff.SingleChipPSF
-    :members:
-
-
-Stars
-=====
-
-.. autoclass:: piff.Star
-    :members:
-
-.. autoclass:: piff.StarData
-    :members:
-
-.. autoclass:: piff.StarFit
     :members:
 

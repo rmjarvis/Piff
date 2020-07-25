@@ -11,10 +11,11 @@ Piff Documentation
    input
    model
    interp
-   output
    psf
-   stats
    outliers
+   output
+   stats
+   star
 
 
 * :ref:`genindex`

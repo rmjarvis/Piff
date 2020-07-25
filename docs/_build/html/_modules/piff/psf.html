@@ -1,38 +1,160 @@
 
-<!DOCTYPE html>
 
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <title>piff.psf &#8212; Piff 0.4 documentation</title>
-    <link rel="stylesheet" href="../../_static/classic.css" type="text/css" />
-    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>piff.psf &mdash; Piff 1.0.0 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
+  
     
-    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
-    <script src="../../_static/jquery.js"></script>
-    <script src="../../_static/underscore.js"></script>
-    <script src="../../_static/doctools.js"></script>
-    <script src="../../_static/language_data.js"></script>
-    <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/language_data.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" /> 
-  </head><body>
-    <div class="related" role="navigation" aria-label="related navigation">
-      <h3>Navigation</h3>
-      <ul>
-        <li class="right" style="margin-right: 10px">
-          <a href="../../genindex.html" title="General Index"
-             accesskey="I">index</a></li>
-        <li class="nav-item nav-item-0"><a href="../../index.html">Piff 0.4 documentation</a> &#187;</li>
-          <li class="nav-item nav-item-1"><a href="../index.html" accesskey="U">Module code</a> &#187;</li> 
-      </ul>
-    </div>  
+</head>
 
-    <div class="document">
-      <div class="documentwrapper">
-        <div class="bodywrapper">
-          <div class="body" role="main">
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> Piff
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                1.0
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../overview.html">PIFF: PSFs In the Full FOV</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../piffify.html">The piffify executable</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../input.html">Reading in Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../model.html">Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../interp.html">Interpolation Schemes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../psf.html">PSF classes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../outliers.html">Removing Outliers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../output.html">Writing the output file</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../stats.html">Output statistics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../star.html">Stars</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Piff</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+        
+      <li>piff.psf</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
             
   <h1>Source code for piff.psf</h1><div class="highlight"><pre>
 <span></span><span class="c1"># Copyright (c) 2016 by Mike Jarvis and the other collaborators on GitHub at</span>
@@ -123,7 +245,7 @@
         <span class="k">return</span> <span class="n">psf</span></div>
 
 <div class="viewcode-block" id="PSF.parseKwargs"><a class="viewcode-back" href="../../psf.html#piff.PSF.parseKwargs">[docs]</a>    <span class="nd">@classmethod</span>
-    <span class="k">def</span> <span class="nf">parseKwargs</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">config_psf</span><span class="p">,</span> <span class="n">logger</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">parseKwargs</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">config_psf</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Parse the psf field of a configuration dict and return the kwargs to use for</span>
 <span class="sd">        initializing an instance of the class.</span>
 
@@ -135,13 +257,10 @@
 
 <span class="sd">        :returns: a kwargs dict to pass to the initializer</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">kwargs</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="n">kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">config_psf</span><span class="p">)</span>
-        <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;type&#39;</span><span class="p">,</span><span class="kc">None</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">kwargs</span></div>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Derived classes must define the parseKwargs function&quot;</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="PSF.draw"><a class="viewcode-back" href="../../psf.html#piff.PSF.draw">[docs]</a>    <span class="k">def</span> <span class="nf">draw</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">chipnum</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">flux</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">),</span> <span class="n">stamp_size</span><span class="o">=</span><span class="mi">48</span><span class="p">,</span> <span class="n">image</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-             <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<div class="viewcode-block" id="PSF.draw"><a class="viewcode-back" href="../../psf.html#piff.PSF.draw">[docs]</a>    <span class="k">def</span> <span class="nf">draw</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">chipnum</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">flux</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">center</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">stamp_size</span><span class="o">=</span><span class="mi">48</span><span class="p">,</span>
+             <span class="n">image</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Draws an image of the PSF at a given location.</span>
 
 <span class="sd">        The normal usage would be to specify (chipnum, x, y), in which case Piff will use the</span>
@@ -164,13 +283,41 @@
 <span class="sd">        sky coordinates rather than image coordinates, you can provide an image with just a</span>
 <span class="sd">        pixel scale for the WCS.</span>
 
-<span class="sd">        :param x:           The image x position.</span>
-<span class="sd">        :param y:           The image y position.</span>
+<span class="sd">        When drawing the PSF, there are a few options regarding how the profile will be</span>
+<span class="sd">        centered on the image.</span>
+
+<span class="sd">        1. The default behavior (``center==None``) is to draw the profile centered at the same</span>
+<span class="sd">           (x,y) as you requested for the location of the PSF in the original image coordinates.</span>
+<span class="sd">           The returned image will not (normally) be as large as the full image -- it will just be</span>
+<span class="sd">           a postage stamp centered roughly around (x,y).  The image.bounds give the bounding box</span>
+<span class="sd">           of this stamp, and within this, the PSF will be centered at position (x,y).</span>
+<span class="sd">        2. If you want to center the profile at some other arbitrary position, you may provide</span>
+<span class="sd">           a ``center`` parameter, which should be a tuple (xc,yc) giving the location at which</span>
+<span class="sd">           you want the PSF to be centered.  The bounding box will still be around the nominal</span>
+<span class="sd">           (x,y) position, so this should only be used for small adjustments to the (x,y) value</span>
+<span class="sd">           if you want it centered at a slightly different location.</span>
+<span class="sd">        3. If you provide your own image with the ``image`` parameter, then you may set the</span>
+<span class="sd">           ``center`` to any location in this box (or technically off it -- it doesn&#39;t check that</span>
+<span class="sd">           the center is actually inside the bounding box).  This may be useful if you want to draw</span>
+<span class="sd">           on an image with origin at (0,0) or (1,1) and just put the PSF at the location you want.</span>
+<span class="sd">        4. If you want the PSf centered exactly in the center of the image, then you can use</span>
+<span class="sd">           ``center=True``.  This will work for either an automatically built image or one</span>
+<span class="sd">           that you provide.</span>
+<span class="sd">        5. With any of the above options you may additionally supply an ``offset`` parameter, which</span>
+<span class="sd">           will apply a slight offset to the calculated center.  This is probably only useful in</span>
+<span class="sd">           conjunction with the default ``center=None`` or ``center=True``.</span>
+
+<span class="sd">        :param x:           The x position of the desired PSF in the original image coordinates.</span>
+<span class="sd">        :param y:           The y position of the desired PSF in the original image coordinates.</span>
 <span class="sd">        :param chipnum:     Which chip to use for WCS information. [default: 0, which is</span>
 <span class="sd">                            appropriate if only using a single chip]</span>
 <span class="sd">        :param flux:        Flux of PSF to be drawn [default: 1.0]</span>
-<span class="sd">        :param offset:      (dx,dy) tuple giving offset of stellar center relative</span>
-<span class="sd">                            to star.data.image_pos [default: (0,0)]</span>
+<span class="sd">        :param center:      (xc,yc) tuple giving the location on the image where you want the</span>
+<span class="sd">                            nominal center of the profile to be drawn.  Also allowed is the</span>
+<span class="sd">                            value center=True to place in the center of the image.</span>
+<span class="sd">                            [default: None, which means draw at the position (x,y) of the PSF.]</span>
+<span class="sd">        :param offset:      Optional (dx,dy) tuple giving an additional offset relative to the</span>
+<span class="sd">                            center. [default: None]</span>
 <span class="sd">        :param stamp_size:  The size of the image to construct if no image is provided.</span>
 <span class="sd">                            [default: 48]</span>
 <span class="sd">        :param image:       An existing image on which to draw, if desired. [default: None]</span>
@@ -184,9 +331,9 @@
         <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">extra_interp_properties</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Extra interpolation property </span><span class="si">%r</span><span class="s2"> is required&quot;</span><span class="o">%</span><span class="n">key</span><span class="p">)</span>
-            <span class="n">properties</span> <span class="o">=</span> <span class="n">kwags</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+            <span class="n">properties</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;draw got an unexpecte keyword argument </span><span class="si">%r</span><span class="s2">&quot;</span><span class="o">%</span><span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">()[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;draw got an unexpecte keyword argument </span><span class="si">%r</span><span class="s2">&quot;</span><span class="o">%</span><span class="nb">list</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">())[</span><span class="mi">0</span><span class="p">])</span>
 
         <span class="n">image_pos</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">PositionD</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">)</span>
         <span class="n">world_pos</span> <span class="o">=</span> <span class="n">StarData</span><span class="o">.</span><span class="n">calculateFieldPos</span><span class="p">(</span><span class="n">image_pos</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">wcs</span><span class="p">[</span><span class="n">chipnum</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">pointing</span><span class="p">,</span>
@@ -204,32 +351,113 @@
                                <span class="n">stamp_size</span><span class="o">=</span><span class="n">stamp_size</span><span class="p">,</span> <span class="n">image</span><span class="o">=</span><span class="n">image</span><span class="p">,</span> <span class="n">pointing</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">pointing</span><span class="p">)</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Drawing star at (</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">) on chip </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">chipnum</span><span class="p">)</span>
 
-        <span class="c1"># Adjust the flux, center</span>
-        <span class="n">center</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">offset_to_center</span><span class="p">(</span><span class="n">offset</span><span class="p">)</span>
-        <span class="n">star</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">withFlux</span><span class="p">(</span><span class="n">flux</span><span class="p">,</span> <span class="n">center</span><span class="p">)</span>
+        <span class="c1"># Handle the input center</span>
+        <span class="k">if</span> <span class="n">center</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">center</span> <span class="o">=</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">center</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="n">center</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">true_center</span>
+            <span class="n">center</span> <span class="o">=</span> <span class="p">(</span><span class="n">center</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">center</span><span class="o">.</span><span class="n">y</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">center</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Invalid center parameter: </span><span class="si">%r</span><span class="s2">. Must be tuple or None or True&quot;</span><span class="o">%</span><span class="p">(</span>
+                             <span class="n">center</span><span class="p">))</span>
+
+        <span class="c1"># Handle offset if given</span>
+        <span class="k">if</span> <span class="n">offset</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">center</span> <span class="o">=</span> <span class="p">(</span><span class="n">center</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">offset</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">center</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">offset</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+
+        <span class="c1"># Adjust the flux of the star.</span>
+        <span class="n">star</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">withFlux</span><span class="p">(</span><span class="n">flux</span><span class="p">)</span>
 
         <span class="c1"># if a user specifies an image, then we want to preserve that image, so</span>
         <span class="c1"># copy_image = False. If a user doesn&#39;t specify an image, then it</span>
         <span class="c1"># doesn&#39;t matter if we overwrite it, so use copy_image=False</span>
         <span class="n">copy_image</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="c1"># Draw the star and return the image</span>
-        <span class="n">star</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">drawStar</span><span class="p">(</span><span class="n">star</span><span class="p">,</span> <span class="n">copy_image</span><span class="o">=</span><span class="n">copy_image</span><span class="p">)</span>
+        <span class="n">star</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">drawStar</span><span class="p">(</span><span class="n">star</span><span class="p">,</span> <span class="n">copy_image</span><span class="o">=</span><span class="n">copy_image</span><span class="p">,</span> <span class="n">center</span><span class="o">=</span><span class="n">center</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">image</span></div>
 
+<div class="viewcode-block" id="PSF.interpolateStarList"><a class="viewcode-back" href="../../psf.html#piff.PSF.interpolateStarList">[docs]</a>    <span class="k">def</span> <span class="nf">interpolateStarList</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Update the stars to have the current interpolated fit parameters according to the</span>
+<span class="sd">        current PSF model.</span>
+
+<span class="sd">        :param stars:       List of Star instances to update.</span>
+
+<span class="sd">        :returns:           List of Star instances with their fit parameters updated.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">interpolateStar</span><span class="p">(</span><span class="n">star</span><span class="p">)</span> <span class="k">for</span> <span class="n">star</span> <span class="ow">in</span> <span class="n">stars</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="PSF.interpolateStar"><a class="viewcode-back" href="../../psf.html#piff.PSF.interpolateStar">[docs]</a>    <span class="k">def</span> <span class="nf">interpolateStar</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Update the star to have the current interpolated fit parameters according to the</span>
+<span class="sd">        current PSF model.</span>
+
+<span class="sd">        :param star:        Star instance to update.</span>
+
+<span class="sd">        :returns:           Star instance with its fit parameters updated.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Derived classes must define the interpolateStar function&quot;</span><span class="p">)</span></div>
+
 <div class="viewcode-block" id="PSF.drawStarList"><a class="viewcode-back" href="../../psf.html#piff.PSF.drawStarList">[docs]</a>    <span class="k">def</span> <span class="nf">drawStarList</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">copy_image</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Generate PSF images for given stars.</span>
+        <span class="sd">&quot;&quot;&quot;Generate PSF images for given stars. Takes advantage of</span>
+<span class="sd">        interpolateList for significant speedup with some interpolators.</span>
+
+<span class="sd">        .. note::</span>
+
+<span class="sd">            If the stars already have the fit parameters calculated, then this will trust</span>
+<span class="sd">            those values and not redo the interpolation.  If this might be a concern, you can</span>
+<span class="sd">            force the interpolation to be redone by running</span>
+
+<span class="sd">                &gt;&gt;&gt; stars = psf.interpolateList(stars)</span>
+
+<span class="sd">            before running `drawStarList`.</span>
 
 <span class="sd">        :param stars:       List of Star instances holding information needed</span>
 <span class="sd">                            for interpolation as well as an image/WCS into</span>
 <span class="sd">                            which PSF will be rendered.</span>
-<span class="sd">        :param copy_image:          If False, will use the same image object.</span>
-<span class="sd">                                    If True, will copy the image and then overwrite it.</span>
-<span class="sd">                                    [default: True]</span>
+<span class="sd">        :param copy_image:  If False, will use the same image object.</span>
+<span class="sd">                            If True, will copy the image and then overwrite it.</span>
+<span class="sd">                            [default: True]</span>
 
 <span class="sd">        :returns:           List of Star instances with its image filled with</span>
 <span class="sd">                            rendered PSF</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">drawStar</span><span class="p">(</span><span class="n">star</span><span class="p">,</span> <span class="n">copy_image</span><span class="o">=</span><span class="n">copy_image</span><span class="p">)</span> <span class="k">for</span> <span class="n">star</span> <span class="ow">in</span> <span class="n">stars</span><span class="p">]</span></div>
+        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">fit</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">params</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">for</span> <span class="n">star</span> <span class="ow">in</span> <span class="n">stars</span><span class="p">):</span>
+            <span class="n">stars</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">interpolateStarList</span><span class="p">(</span><span class="n">stars</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_drawStar</span><span class="p">(</span><span class="n">star</span><span class="p">,</span> <span class="n">copy_image</span><span class="o">=</span><span class="n">copy_image</span><span class="p">)</span> <span class="k">for</span> <span class="n">star</span> <span class="ow">in</span> <span class="n">stars</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="PSF.drawStar"><a class="viewcode-back" href="../../psf.html#piff.PSF.drawStar">[docs]</a>    <span class="k">def</span> <span class="nf">drawStar</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">copy_image</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">center</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Generate PSF image for a given star.</span>
+
+<span class="sd">        .. note::</span>
+
+<span class="sd">            If the star already has the fit parameters calculated, then this will trust</span>
+<span class="sd">            those values and not redo the interpolation.  If this might be a concern, you can</span>
+<span class="sd">            force the interpolation to be redone by running</span>
+
+<span class="sd">                &gt;&gt;&gt; star = psf.interpolateList(star)</span>
+
+<span class="sd">            before running `drawStar`.</span>
+
+<span class="sd">        :param star:        Star instance holding information needed for interpolation as</span>
+<span class="sd">                            well as an image/WCS into which PSF will be rendered.</span>
+<span class="sd">        :param copy_image:  If False, will use the same image object.</span>
+<span class="sd">                            If True, will copy the image and then overwrite it.</span>
+<span class="sd">                            [default: True]</span>
+<span class="sd">        :param center:      An optional tuple (x,y) location for where to center the drawn profile</span>
+<span class="sd">                            in the image. [default: None, which draws at the star&#39;s location.]</span>
+
+<span class="sd">        :returns:           Star instance with its image filled with rendered PSF</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Interpolate parameters to this position/properties (if not already done):</span>
+        <span class="k">if</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">params</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">star</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">interpolateStar</span><span class="p">(</span><span class="n">star</span><span class="p">)</span>
+        <span class="c1"># Render the image</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_drawStar</span><span class="p">(</span><span class="n">star</span><span class="p">,</span> <span class="n">copy_image</span><span class="o">=</span><span class="n">copy_image</span><span class="p">,</span> <span class="n">center</span><span class="o">=</span><span class="n">center</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_drawStar</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">copy_image</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">center</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="c1"># Derived classes may choose to override any of the above functions</span>
+        <span class="c1"># But they have to at least override this one and interpolateStar to implement</span>
+        <span class="c1"># their actual PSF model.</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Derived classes must define the _drawStar function&quot;</span><span class="p">)</span>
 
 <div class="viewcode-block" id="PSF.write"><a class="viewcode-back" href="../../psf.html#piff.PSF.write">[docs]</a>    <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_name</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Write a PSF object to a file.</span>
@@ -326,22 +554,6 @@
 
         <span class="k">return</span> <span class="n">psf</span>
 
-    <span class="k">def</span> <span class="nf">_finish_read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">,</span> <span class="n">logger</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Finish up the read process</span>
-
-<span class="sd">        In the base class, this is a no op, but for classes that need to do something else at</span>
-<span class="sd">        the end of the read process, this hook is available to be overridden.</span>
-
-<span class="sd">        (E.g. composite psf classes might copy the stars, wcs, pointing information into the</span>
-<span class="sd">        various components.)</span>
-
-<span class="sd">        :param fits:        An open fitsio.FITS object</span>
-<span class="sd">        :param extname:     The name of the extension with the psf information.</span>
-<span class="sd">        :param logger:      A logger object for logging debug info.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">pass</span>
-
-
 <div class="viewcode-block" id="PSF.writeWCS"><a class="viewcode-back" href="../../psf.html#piff.PSF.writeWCS">[docs]</a>    <span class="k">def</span> <span class="nf">writeWCS</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">,</span> <span class="n">logger</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Write the WCS information to a FITS file.</span>
 
@@ -356,17 +568,10 @@
             <span class="kn">import</span> <span class="nn">pickle</span>
         <span class="n">logger</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">LoggerWrapper</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
 
-        <span class="c1"># Start with the chipnums, which may be int or str type.</span>
-        <span class="c1"># Assume they are all the same type at least.</span>
+        <span class="c1"># Start with the chipnums</span>
         <span class="n">chipnums</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">wcs</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
         <span class="n">cols</span> <span class="o">=</span> <span class="p">[</span> <span class="n">chipnums</span> <span class="p">]</span>
-        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">dtype</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">chipnums</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span><span class="o">.</span><span class="n">kind</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">typecodes</span><span class="p">[</span><span class="s1">&#39;AllInteger&#39;</span><span class="p">]:</span>
-            <span class="n">dtypes</span> <span class="o">=</span> <span class="p">[</span> <span class="p">(</span><span class="s1">&#39;chipnums&#39;</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="p">]</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="c1"># coerce to string, just in case it&#39;s something else.</span>
-            <span class="n">chipnums</span> <span class="o">=</span> <span class="p">[</span> <span class="nb">str</span><span class="p">(</span><span class="n">c</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">chipnums</span> <span class="p">]</span>
-            <span class="n">max_len</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">([</span> <span class="nb">len</span><span class="p">(</span><span class="n">c</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">chipnums</span> <span class="p">])</span>
-            <span class="n">dtypes</span> <span class="o">=</span> <span class="p">[</span> <span class="p">(</span><span class="s1">&#39;chipnums&#39;</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">,</span> <span class="n">max_len</span><span class="p">)</span> <span class="p">]</span>
+        <span class="n">dtypes</span> <span class="o">=</span> <span class="p">[</span> <span class="p">(</span><span class="s1">&#39;chipnums&#39;</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="p">]</span>
 
         <span class="c1"># GalSim WCS objects can be serialized via pickle</span>
         <span class="n">wcs_str</span> <span class="o">=</span> <span class="p">[</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64encode</span><span class="p">(</span><span class="n">pickle</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">w</span><span class="p">))</span> <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">wcs</span><span class="o">.</span><span class="n">values</span><span class="p">()</span> <span class="p">]</span>
@@ -378,8 +583,6 @@
         <span class="n">nchunks</span> <span class="o">=</span> <span class="n">max_len</span> <span class="o">//</span> <span class="n">chunk_size</span> <span class="o">+</span> <span class="mi">1</span>
         <span class="n">cols</span><span class="o">.</span><span class="n">append</span><span class="p">(</span> <span class="p">[</span><span class="n">nchunks</span><span class="p">]</span><span class="o">*</span><span class="nb">len</span><span class="p">(</span><span class="n">chipnums</span><span class="p">)</span> <span class="p">)</span>
         <span class="n">dtypes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span> <span class="p">(</span><span class="s1">&#39;nchunks&#39;</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="p">)</span>
-        <span class="k">if</span> <span class="n">nchunks</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Using </span><span class="si">%d</span><span class="s1"> chunks for the wcs pickle string&#39;</span><span class="p">,</span><span class="n">nchunks</span><span class="p">)</span>
 
         <span class="c1"># Update to size of chunk we actually need.</span>
         <span class="n">chunk_size</span> <span class="o">=</span> <span class="p">(</span><span class="n">max_len</span> <span class="o">+</span> <span class="n">nchunks</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">//</span> <span class="n">nchunks</span>
@@ -488,38 +691,43 @@
     <span class="k">return</span> <span class="n">PSF</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
 </pre></div>
 
+           </div>
+           
           </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
         </div>
       </div>
-      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
-        <div class="sphinxsidebarwrapper">
-<div id="searchbox" style="display: none" role="search">
-  <h3 id="searchlabel">Quick search</h3>
-    <div class="searchformwrapper">
-    <form class="search" action="../../search.html" method="get">
-      <input type="text" name="q" aria-labelledby="searchlabel" />
-      <input type="submit" value="Go" />
-    </form>
-    </div>
-</div>
-<script>$('#searchbox').show(0);</script>
-        </div>
-      </div>
-      <div class="clearer"></div>
-    </div>
-    <div class="related" role="navigation" aria-label="related navigation">
-      <h3>Navigation</h3>
-      <ul>
-        <li class="right" style="margin-right: 10px">
-          <a href="../../genindex.html" title="General Index"
-             >index</a></li>
-        <li class="nav-item nav-item-0"><a href="../../index.html">Piff 0.4 documentation</a> &#187;</li>
-          <li class="nav-item nav-item-1"><a href="../index.html" >Module code</a> &#187;</li> 
-      </ul>
-    </div>
-    <div class="footer" role="contentinfo">
-        &#169; Copyright 2019.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.0.3.
-    </div>
-  </body>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
 </html>

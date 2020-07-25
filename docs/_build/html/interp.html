@@ -1,52 +1,179 @@
 
-<!DOCTYPE html>
 
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <title>Interpolation Schemes &#8212; Piff 0.4 documentation</title>
-    <link rel="stylesheet" href="_static/classic.css" type="text/css" />
-    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Interpolation Schemes &mdash; Piff 1.0.0 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="_static/js/modernizr.min.js"></script>
+  
     
-    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-    <script src="_static/jquery.js"></script>
-    <script src="_static/underscore.js"></script>
-    <script src="_static/doctools.js"></script>
-    <script src="_static/language_data.js"></script>
-    <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/language_data.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Writing the output file" href="output.html" />
+    <link rel="next" title="PSF classes" href="psf.html" />
     <link rel="prev" title="Models" href="model.html" /> 
-  </head><body>
-    <div class="related" role="navigation" aria-label="related navigation">
-      <h3>Navigation</h3>
-      <ul>
-        <li class="right" style="margin-right: 10px">
-          <a href="genindex.html" title="General Index"
-             accesskey="I">index</a></li>
-        <li class="right" >
-          <a href="output.html" title="Writing the output file"
-             accesskey="N">next</a> |</li>
-        <li class="right" >
-          <a href="model.html" title="Models"
-             accesskey="P">previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Piff 0.4 documentation</a> &#187;</li> 
-      </ul>
-    </div>  
+</head>
 
-    <div class="document">
-      <div class="documentwrapper">
-        <div class="bodywrapper">
-          <div class="body" role="main">
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Piff
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                1.0
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="overview.html">PIFF: PSFs In the Full FOV</a></li>
+<li class="toctree-l1"><a class="reference internal" href="piffify.html">The piffify executable</a></li>
+<li class="toctree-l1"><a class="reference internal" href="input.html">Reading in Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="model.html">Models</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Interpolation Schemes</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#the-interp-base-class">The Interp base class</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#mean-interpolation">Mean interpolation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#polynomial-interpolation">Polynomial interpolation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#interpolation-using-basis-functions">Interpolation using basis functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#k-nearest-neighbors">K-Nearest Neighbors</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#gaussian-process-interpolation">Gaussian process interpolation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="psf.html">PSF classes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="outliers.html">Removing Outliers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="output.html">Writing the output file</a></li>
+<li class="toctree-l1"><a class="reference internal" href="stats.html">Output statistics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="star.html">Stars</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Piff</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+      <li>Interpolation Schemes</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/interp.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
             
   <div class="section" id="interpolation-schemes">
 <h1>Interpolation Schemes<a class="headerlink" href="#interpolation-schemes" title="Permalink to this headline">¶</a></h1>
 <p>Interpolators goven how the model parameters are interpolated across the field of view.</p>
 <div class="section" id="the-interp-base-class">
 <h2>The Interp base class<a class="headerlink" href="#the-interp-base-class" title="Permalink to this headline">¶</a></h2>
-<dl class="py class">
+<dl class="class">
 <dt id="piff.Interp">
 <em class="property">class </em><code class="sig-prename descclassname">piff.</code><code class="sig-name descname">Interp</code><a class="reference internal" href="_modules/piff/interp.html#Interp"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Interp" title="Permalink to this definition">¶</a></dt>
 <dd><p>The base class for interpolating a set of data vectors across the field of view.</p>
@@ -64,9 +191,9 @@ getting a differential quadratic form for chisq from each sample.</p></li>
 <p>The answer to #3 is given in a boolean property degenerate_points.</p>
 <p>This is essentially an abstract base class intended to define the methods that should be
 implemented by any derived class.</p>
-<dl class="py method">
+<dl class="method">
 <dt id="piff.Interp.getProperties">
-<code class="sig-name descname">getProperties</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">star</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/interp.html#Interp.getProperties"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Interp.getProperties" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">getProperties</code><span class="sig-paren">(</span><em class="sig-param">star</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/interp.html#Interp.getProperties"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Interp.getProperties" title="Permalink to this definition">¶</a></dt>
 <dd><p>Extract the appropriate properties to use as the independent variables for the
 interpolation.</p>
 <p>The base class implementation returns the field position (u,v) as a 1d numpy array.</p>
@@ -80,9 +207,9 @@ interpolation.</p>
 </dl>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt id="piff.Interp.initialize">
-<code class="sig-name descname">initialize</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">stars</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/interp.html#Interp.initialize"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Interp.initialize" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">initialize</code><span class="sig-paren">(</span><em class="sig-param">stars</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/interp.html#Interp.initialize"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Interp.initialize" title="Permalink to this definition">¶</a></dt>
 <dd><p>Initialize both the interpolator to some state prefatory to any solve iterations and
 initialize the stars for use with this interpolator.</p>
 <p>The nature of the initialization is specific to the derived classes.</p>
@@ -101,9 +228,9 @@ the right type object in its star.fit.params attribute.</p>
 </dl>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt id="piff.Interp.interpolate">
-<code class="sig-name descname">interpolate</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">star</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/interp.html#Interp.interpolate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Interp.interpolate" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">interpolate</code><span class="sig-paren">(</span><em class="sig-param">star</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/interp.html#Interp.interpolate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Interp.interpolate" title="Permalink to this definition">¶</a></dt>
 <dd><p>Perform the interpolation to find the interpolated parameter vector at some position.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -118,9 +245,9 @@ the right type object in its star.fit.params attribute.</p>
 </dl>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt id="piff.Interp.interpolateList">
-<code class="sig-name descname">interpolateList</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">stars</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/interp.html#Interp.interpolateList"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Interp.interpolateList" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">interpolateList</code><span class="sig-paren">(</span><em class="sig-param">stars</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/interp.html#Interp.interpolateList"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Interp.interpolateList" title="Permalink to this definition">¶</a></dt>
 <dd><p>Perform the interpolation for a list of stars.</p>
 <p>The base class just calls interpolate(star) for each star in the list, but in many
 cases, this may be more efficiently done with a matrix operation, so we make it
@@ -138,9 +265,9 @@ available for derived classes to override.</p>
 </dl>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt id="piff.Interp.parseKwargs">
-<em class="property">classmethod </em><code class="sig-name descname">parseKwargs</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">config_interp</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/interp.html#Interp.parseKwargs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Interp.parseKwargs" title="Permalink to this definition">¶</a></dt>
+<em class="property">classmethod </em><code class="sig-name descname">parseKwargs</code><span class="sig-paren">(</span><em class="sig-param">config_interp</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/interp.html#Interp.parseKwargs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Interp.parseKwargs" title="Permalink to this definition">¶</a></dt>
 <dd><p>Parse the interp field of a configuration dict and return the kwargs to use for
 initializing an instance of the class.</p>
 <p>The base class implementation just returns the kwargs as they are, but derived classes
@@ -158,9 +285,9 @@ might want to override this if they need to do something more sophisticated with
 </dl>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt id="piff.Interp.process">
-<em class="property">classmethod </em><code class="sig-name descname">process</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">config_interp</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/interp.html#Interp.process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Interp.process" title="Permalink to this definition">¶</a></dt>
+<em class="property">classmethod </em><code class="sig-name descname">process</code><span class="sig-paren">(</span><em class="sig-param">config_interp</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/interp.html#Interp.process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Interp.process" title="Permalink to this definition">¶</a></dt>
 <dd><p>Parse the interp field of the config dict.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -175,9 +302,9 @@ might want to override this if they need to do something more sophisticated with
 </dl>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt id="piff.Interp.read">
-<em class="property">classmethod </em><code class="sig-name descname">read</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">fits</span></em>, <em class="sig-param"><span class="n">extname</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/interp.html#Interp.read"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Interp.read" title="Permalink to this definition">¶</a></dt>
+<em class="property">classmethod </em><code class="sig-name descname">read</code><span class="sig-paren">(</span><em class="sig-param">fits</em>, <em class="sig-param">extname</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/interp.html#Interp.read"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Interp.read" title="Permalink to this definition">¶</a></dt>
 <dd><p>Read an Interp from a FITS file.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -192,9 +319,9 @@ might want to override this if they need to do something more sophisticated with
 </dl>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt id="piff.Interp.solve">
-<code class="sig-name descname">solve</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">stars</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/interp.html#Interp.solve"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Interp.solve" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">solve</code><span class="sig-paren">(</span><em class="sig-param">stars</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/interp.html#Interp.solve"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Interp.solve" title="Permalink to this definition">¶</a></dt>
 <dd><p>Solve for the interpolation coefficients given some data.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -206,9 +333,9 @@ might want to override this if they need to do something more sophisticated with
 </dl>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt id="piff.Interp.write">
-<code class="sig-name descname">write</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">fits</span></em>, <em class="sig-param"><span class="n">extname</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/interp.html#Interp.write"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Interp.write" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">write</code><span class="sig-paren">(</span><em class="sig-param">fits</em>, <em class="sig-param">extname</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/interp.html#Interp.write"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Interp.write" title="Permalink to this definition">¶</a></dt>
 <dd><p>Write an Interp to a FITS file.</p>
 <p>Note: this only writes the initialization kwargs to the fits extension, not the parameters.</p>
 <p>The base class implemenation works if the class has a self.kwargs attribute and these
@@ -228,16 +355,16 @@ parameters to a binary table.</p>
 </dd></dl>
 
 </div>
-<div class="section" id="mean">
-<h2>Mean<a class="headerlink" href="#mean" title="Permalink to this headline">¶</a></h2>
-<dl class="py class">
+<div class="section" id="mean-interpolation">
+<h2>Mean interpolation<a class="headerlink" href="#mean-interpolation" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
 <dt id="piff.Mean">
-<em class="property">class </em><code class="sig-prename descclassname">piff.</code><code class="sig-name descname">Mean</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/mean_interp.html#Mean"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Mean" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">piff.</code><code class="sig-name descname">Mean</code><span class="sig-paren">(</span><em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/mean_interp.html#Mean"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Mean" title="Permalink to this definition">¶</a></dt>
 <dd><p>The simplest possible interpolation scheme.  It just finds the mean of the parameter
 vectors and uses that at every position.</p>
-<dl class="py method">
+<dl class="method">
 <dt id="piff.Mean.interpolate">
-<code class="sig-name descname">interpolate</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">star</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/mean_interp.html#Mean.interpolate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Mean.interpolate" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">interpolate</code><span class="sig-paren">(</span><em class="sig-param">star</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/mean_interp.html#Mean.interpolate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Mean.interpolate" title="Permalink to this definition">¶</a></dt>
 <dd><p>Perform the interpolation to find the interpolated parameter vector at some position.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -252,9 +379,9 @@ vectors and uses that at every position.</p>
 </dl>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt id="piff.Mean.solve">
-<code class="sig-name descname">solve</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">stars</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/mean_interp.html#Mean.solve"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Mean.solve" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">solve</code><span class="sig-paren">(</span><em class="sig-param">stars</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/mean_interp.html#Mean.solve"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Mean.solve" title="Permalink to this definition">¶</a></dt>
 <dd><p>Solve for the interpolation coefficients given some data.</p>
 <p>Here the “solution” is just the mean.</p>
 <dl class="field-list simple">
@@ -270,16 +397,16 @@ vectors and uses that at every position.</p>
 </dd></dl>
 
 </div>
-<div class="section" id="polynomial">
-<h2>Polynomial<a class="headerlink" href="#polynomial" title="Permalink to this headline">¶</a></h2>
-<dl class="py class">
+<div class="section" id="polynomial-interpolation">
+<h2>Polynomial interpolation<a class="headerlink" href="#polynomial-interpolation" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
 <dt id="piff.Polynomial">
-<em class="property">class </em><code class="sig-prename descclassname">piff.</code><code class="sig-name descname">Polynomial</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">order</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">orders</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">poly_type</span><span class="o">=</span><span class="default_value">'poly'</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/polynomial_interp.html#Polynomial"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Polynomial" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">piff.</code><code class="sig-name descname">Polynomial</code><span class="sig-paren">(</span><em class="sig-param">order=None</em>, <em class="sig-param">orders=None</em>, <em class="sig-param">poly_type='poly'</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/polynomial_interp.html#Polynomial"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Polynomial" title="Permalink to this definition">¶</a></dt>
 <dd><p>An interpolator that uses  scipy curve_fit command to fit a polynomial
 surface to each parameter passed in independently.</p>
-<dl class="py method">
+<dl class="method">
 <dt id="piff.Polynomial.initialize">
-<code class="sig-name descname">initialize</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">stars</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/polynomial_interp.html#Polynomial.initialize"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Polynomial.initialize" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">initialize</code><span class="sig-paren">(</span><em class="sig-param">stars</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/polynomial_interp.html#Polynomial.initialize"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Polynomial.initialize" title="Permalink to this definition">¶</a></dt>
 <dd><p>Initialization is just solving the interpolator with current stars.
 This then calls interpolateList, which will set the stars to have the
 right type of object in its star.fit.params attribute.</p>
@@ -296,9 +423,9 @@ right type of object in its star.fit.params attribute.</p>
 </dl>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt id="piff.Polynomial.interpolate">
-<code class="sig-name descname">interpolate</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">star</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/polynomial_interp.html#Polynomial.interpolate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Polynomial.interpolate" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">interpolate</code><span class="sig-paren">(</span><em class="sig-param">star</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/polynomial_interp.html#Polynomial.interpolate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Polynomial.interpolate" title="Permalink to this definition">¶</a></dt>
 <dd><p>Perform the interpolation to find the interpolated parameter vector at some position.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -313,9 +440,9 @@ right type of object in its star.fit.params attribute.</p>
 </dl>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt id="piff.Polynomial.solve">
-<code class="sig-name descname">solve</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">stars</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/polynomial_interp.html#Polynomial.solve"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Polynomial.solve" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">solve</code><span class="sig-paren">(</span><em class="sig-param">stars</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/polynomial_interp.html#Polynomial.solve"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Polynomial.solve" title="Permalink to this definition">¶</a></dt>
 <dd><p>Solve for the interpolation coefficients given some data,
 using the scipy.optimize.curve_fit routine, which uses Levenberg-Marquardt
 to find the least-squares solution.</p>
@@ -333,9 +460,9 @@ to find the least-squares solution.</p>
 </dd></dl>
 
 </div>
-<div class="section" id="basisinterp">
-<h2>BasisInterp<a class="headerlink" href="#basisinterp" title="Permalink to this headline">¶</a></h2>
-<dl class="py class">
+<div class="section" id="interpolation-using-basis-functions">
+<h2>Interpolation using basis functions<a class="headerlink" href="#interpolation-using-basis-functions" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
 <dt id="piff.BasisInterp">
 <em class="property">class </em><code class="sig-prename descclassname">piff.</code><code class="sig-name descname">BasisInterp</code><a class="reference internal" href="_modules/piff/basis_interp.html#BasisInterp"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.BasisInterp" title="Permalink to this definition">¶</a></dt>
 <dd><p>An Interp class that works whenever the interpolating functions are
@@ -354,9 +481,9 @@ that a best-fit parameter vector is available at every sample.</p>
 (nparams, nbases)</p>
 <p>Note: This is an abstract base class.  The concrete class you probably want to use
 is BasisPolynomial.</p>
-<dl class="py method">
+<dl class="method">
 <dt id="piff.BasisInterp.basis">
-<code class="sig-name descname">basis</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">star</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/basis_interp.html#BasisInterp.basis"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.BasisInterp.basis" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">basis</code><span class="sig-paren">(</span><em class="sig-param">star</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/basis_interp.html#BasisInterp.basis"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.BasisInterp.basis" title="Permalink to this definition">¶</a></dt>
 <dd><p>Return 1d array of polynomial basis values for this star</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -368,9 +495,9 @@ is BasisPolynomial.</p>
 </dl>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt id="piff.BasisInterp.constant">
-<code class="sig-name descname">constant</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">value</span><span class="o">=</span><span class="default_value">1.0</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/basis_interp.html#BasisInterp.constant"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.BasisInterp.constant" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">constant</code><span class="sig-paren">(</span><em class="sig-param">value=1.0</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/basis_interp.html#BasisInterp.constant"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.BasisInterp.constant" title="Permalink to this definition">¶</a></dt>
 <dd><p>Return 1d array of coefficients that represent a polynomial with constant value.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -382,9 +509,9 @@ is BasisPolynomial.</p>
 </dl>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt id="piff.BasisInterp.initialize">
-<code class="sig-name descname">initialize</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">stars</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/basis_interp.html#BasisInterp.initialize"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.BasisInterp.initialize" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">initialize</code><span class="sig-paren">(</span><em class="sig-param">stars</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/basis_interp.html#BasisInterp.initialize"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.BasisInterp.initialize" title="Permalink to this definition">¶</a></dt>
 <dd><p>Initialize both the interpolator to some state prefatory to any solve iterations and
 initialize the stars for use with this interpolator.</p>
 <p>This class will initialize everything to have constant PSF parameter vector taken
@@ -402,9 +529,9 @@ from the first Star in the list.</p>
 </dl>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt id="piff.BasisInterp.interpolate">
-<code class="sig-name descname">interpolate</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">star</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/basis_interp.html#BasisInterp.interpolate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.BasisInterp.interpolate" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">interpolate</code><span class="sig-paren">(</span><em class="sig-param">star</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/basis_interp.html#BasisInterp.interpolate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.BasisInterp.interpolate" title="Permalink to this definition">¶</a></dt>
 <dd><p>Perform the interpolation to find the interpolated parameter vector at some position.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -419,9 +546,9 @@ from the first Star in the list.</p>
 </dl>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt id="piff.BasisInterp.solve">
-<code class="sig-name descname">solve</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">stars</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/basis_interp.html#BasisInterp.solve"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.BasisInterp.solve" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">solve</code><span class="sig-paren">(</span><em class="sig-param">stars</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/basis_interp.html#BasisInterp.solve"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.BasisInterp.solve" title="Permalink to this definition">¶</a></dt>
 <dd><p>Solve for the interpolation coefficients given some data.
 The StarFit element of each Star in the list is assumed to hold valid
 alpha and beta members specifying depending of chisq on differential
@@ -438,9 +565,9 @@ changes to its parameter vector.</p>
 
 </dd></dl>
 
-<dl class="py class">
+<dl class="class">
 <dt id="piff.BasisPolynomial">
-<em class="property">class </em><code class="sig-prename descclassname">piff.</code><code class="sig-name descname">BasisPolynomial</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">order</span></em>, <em class="sig-param"><span class="n">keys</span><span class="o">=</span><span class="default_value">'u', 'v'</span></em>, <em class="sig-param"><span class="n">max_order</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">use_qr</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/basis_interp.html#BasisPolynomial"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.BasisPolynomial" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">piff.</code><code class="sig-name descname">BasisPolynomial</code><span class="sig-paren">(</span><em class="sig-param">order</em>, <em class="sig-param">keys=('u'</em>, <em class="sig-param">'v')</em>, <em class="sig-param">max_order=None</em>, <em class="sig-param">use_qr=False</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/basis_interp.html#BasisPolynomial"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.BasisPolynomial" title="Permalink to this definition">¶</a></dt>
 <dd><p>A version of the Polynomial interpolator that works with BasisModels and can use the
 quadratic form of the chisq information it calculates.  It works better than the regular
 Polynomial interpolator when there is missing or degenerate information.</p>
@@ -468,9 +595,9 @@ Therefore, it may be preferred for some use cases. [default: False]</p></li>
 </ul>
 </dd>
 </dl>
-<dl class="py method">
+<dl class="method">
 <dt id="piff.BasisPolynomial.basis">
-<code class="sig-name descname">basis</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">star</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/basis_interp.html#BasisPolynomial.basis"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.BasisPolynomial.basis" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">basis</code><span class="sig-paren">(</span><em class="sig-param">star</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/basis_interp.html#BasisPolynomial.basis"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.BasisPolynomial.basis" title="Permalink to this definition">¶</a></dt>
 <dd><p>Return 1d array of polynomial basis values for this star</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -482,9 +609,9 @@ Therefore, it may be preferred for some use cases. [default: False]</p></li>
 </dl>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt id="piff.BasisPolynomial.constant">
-<code class="sig-name descname">constant</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">value</span><span class="o">=</span><span class="default_value">1.0</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/basis_interp.html#BasisPolynomial.constant"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.BasisPolynomial.constant" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">constant</code><span class="sig-paren">(</span><em class="sig-param">value=1.0</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/basis_interp.html#BasisPolynomial.constant"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.BasisPolynomial.constant" title="Permalink to this definition">¶</a></dt>
 <dd><p>Return 1d array of coefficients that represent a polynomial with constant value.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -496,9 +623,9 @@ Therefore, it may be preferred for some use cases. [default: False]</p></li>
 </dl>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt id="piff.BasisPolynomial.getProperties">
-<code class="sig-name descname">getProperties</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">star</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/basis_interp.html#BasisPolynomial.getProperties"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.BasisPolynomial.getProperties" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">getProperties</code><span class="sig-paren">(</span><em class="sig-param">star</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/basis_interp.html#BasisPolynomial.getProperties"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.BasisPolynomial.getProperties" title="Permalink to this definition">¶</a></dt>
 <dd><p>Extract the appropriate properties to use as the independent variables for the
 interpolation.</p>
 <p>The base class implementation returns the field position (u,v) as a 1d numpy array.</p>
@@ -515,16 +642,16 @@ interpolation.</p>
 </dd></dl>
 
 </div>
-<div class="section" id="knninterp">
-<h2>kNNInterp<a class="headerlink" href="#knninterp" title="Permalink to this headline">¶</a></h2>
-<dl class="py class">
+<div class="section" id="k-nearest-neighbors">
+<h2>K-Nearest Neighbors<a class="headerlink" href="#k-nearest-neighbors" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
 <dt id="piff.kNNInterp">
-<em class="property">class </em><code class="sig-prename descclassname">piff.</code><code class="sig-name descname">kNNInterp</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">keys</span><span class="o">=</span><span class="default_value">'u', 'v'</span></em>, <em class="sig-param"><span class="n">n_neighbors</span><span class="o">=</span><span class="default_value">15</span></em>, <em class="sig-param"><span class="n">weights</span><span class="o">=</span><span class="default_value">'uniform'</span></em>, <em class="sig-param"><span class="n">algorithm</span><span class="o">=</span><span class="default_value">'auto'</span></em>, <em class="sig-param"><span class="n">p</span><span class="o">=</span><span class="default_value">2</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/knn_interp.html#kNNInterp"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.kNNInterp" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">piff.</code><code class="sig-name descname">kNNInterp</code><span class="sig-paren">(</span><em class="sig-param">keys=('u'</em>, <em class="sig-param">'v')</em>, <em class="sig-param">n_neighbors=15</em>, <em class="sig-param">weights='uniform'</em>, <em class="sig-param">algorithm='auto'</em>, <em class="sig-param">p=2</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/knn_interp.html#kNNInterp"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.kNNInterp" title="Permalink to this definition">¶</a></dt>
 <dd><p>An interpolator that uses sklearn KNeighborsRegressor to interpolate a
 single surface</p>
-<dl class="py method">
+<dl class="method">
 <dt id="piff.kNNInterp.getProperties">
-<code class="sig-name descname">getProperties</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">star</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/knn_interp.html#kNNInterp.getProperties"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.kNNInterp.getProperties" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">getProperties</code><span class="sig-paren">(</span><em class="sig-param">star</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/knn_interp.html#kNNInterp.getProperties"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.kNNInterp.getProperties" title="Permalink to this definition">¶</a></dt>
 <dd><p>Extract the appropriate properties to use as the independent variables for the
 interpolation.</p>
 <p>Take self.keys from star.data</p>
@@ -538,9 +665,9 @@ interpolation.</p>
 </dl>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt id="piff.kNNInterp.initialize">
-<code class="sig-name descname">initialize</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">stars</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/knn_interp.html#kNNInterp.initialize"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.kNNInterp.initialize" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">initialize</code><span class="sig-paren">(</span><em class="sig-param">stars</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/knn_interp.html#kNNInterp.initialize"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.kNNInterp.initialize" title="Permalink to this definition">¶</a></dt>
 <dd><p>Initialize both the interpolator to some state prefatory to any solve iterations and
 initialize the stars for use with this interpolator.</p>
 <dl class="field-list simple">
@@ -553,9 +680,9 @@ initialize the stars for use with this interpolator.</p>
 </dl>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt id="piff.kNNInterp.interpolate">
-<code class="sig-name descname">interpolate</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">star</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/knn_interp.html#kNNInterp.interpolate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.kNNInterp.interpolate" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">interpolate</code><span class="sig-paren">(</span><em class="sig-param">star</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/knn_interp.html#kNNInterp.interpolate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.kNNInterp.interpolate" title="Permalink to this definition">¶</a></dt>
 <dd><p>Perform the interpolation to find the interpolated parameter vector at some position. Calls interpolateList because sklearn prefers list input anyways</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -570,9 +697,9 @@ initialize the stars for use with this interpolator.</p>
 </dl>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt id="piff.kNNInterp.interpolateList">
-<code class="sig-name descname">interpolateList</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">star_list</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/knn_interp.html#kNNInterp.interpolateList"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.kNNInterp.interpolateList" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">interpolateList</code><span class="sig-paren">(</span><em class="sig-param">star_list</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/knn_interp.html#kNNInterp.interpolateList"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.kNNInterp.interpolateList" title="Permalink to this definition">¶</a></dt>
 <dd><p>Perform the interpolation for a list of stars.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -587,9 +714,9 @@ initialize the stars for use with this interpolator.</p>
 </dl>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt id="piff.kNNInterp.solve">
-<code class="sig-name descname">solve</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">star_list</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/knn_interp.html#kNNInterp.solve"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.kNNInterp.solve" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">solve</code><span class="sig-paren">(</span><em class="sig-param">star_list</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/knn_interp.html#kNNInterp.solve"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.kNNInterp.solve" title="Permalink to this definition">¶</a></dt>
 <dd><p>Solve for the interpolation coefficients given stars and attributes</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -604,11 +731,11 @@ initialize the stars for use with this interpolator.</p>
 </dd></dl>
 
 </div>
-<div class="section" id="gpinterp">
-<h2>GPInterp<a class="headerlink" href="#gpinterp" title="Permalink to this headline">¶</a></h2>
-<dl class="py class">
+<div class="section" id="gaussian-process-interpolation">
+<h2>Gaussian process interpolation<a class="headerlink" href="#gaussian-process-interpolation" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
 <dt id="piff.GPInterp">
-<em class="property">class </em><code class="sig-prename descclassname">piff.</code><code class="sig-name descname">GPInterp</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">keys</span><span class="o">=</span><span class="default_value">'u', 'v'</span></em>, <em class="sig-param"><span class="n">kernel</span><span class="o">=</span><span class="default_value">'RBF(1)'</span></em>, <em class="sig-param"><span class="n">optimizer</span><span class="o">=</span><span class="default_value">'isotropic'</span></em>, <em class="sig-param"><span class="n">normalize</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">l0</span><span class="o">=</span><span class="default_value">3000.0</span></em>, <em class="sig-param"><span class="n">white_noise</span><span class="o">=</span><span class="default_value">0.0</span></em>, <em class="sig-param"><span class="n">n_neighbors</span><span class="o">=</span><span class="default_value">4</span></em>, <em class="sig-param"><span class="n">average_fits</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">nbins</span><span class="o">=</span><span class="default_value">20</span></em>, <em class="sig-param"><span class="n">min_sep</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">max_sep</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">rows</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/gp_interp.html#GPInterp"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.GPInterp" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">piff.</code><code class="sig-name descname">GPInterp</code><span class="sig-paren">(</span><em class="sig-param">keys=('u'</em>, <em class="sig-param">'v')</em>, <em class="sig-param">kernel='RBF(1)'</em>, <em class="sig-param">optimizer='isotropic'</em>, <em class="sig-param">normalize=True</em>, <em class="sig-param">l0=3000.0</em>, <em class="sig-param">white_noise=0.0</em>, <em class="sig-param">n_neighbors=4</em>, <em class="sig-param">average_fits=None</em>, <em class="sig-param">nbins=20</em>, <em class="sig-param">min_sep=None</em>, <em class="sig-param">max_sep=None</em>, <em class="sig-param">rows=None</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/gp_interp.html#GPInterp"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.GPInterp" title="Permalink to this definition">¶</a></dt>
 <dd><p>An interpolator that models the underlying field as a Gaussian process.</p>
 <p>Gaussian process regression, also known as “Kriging,” assumes that the parameters
 are drawn from a multi-dimensional Gaussian random field across the (u, v) space.
@@ -686,9 +813,9 @@ a KNeighbors interpolation. Used only if average_fits is not None.
 </ul>
 </dd>
 </dl>
-<dl class="py method">
+<dl class="method">
 <dt id="piff.GPInterp.getProperties">
-<code class="sig-name descname">getProperties</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">star</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/gp_interp.html#GPInterp.getProperties"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.GPInterp.getProperties" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">getProperties</code><span class="sig-paren">(</span><em class="sig-param">star</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/gp_interp.html#GPInterp.getProperties"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.GPInterp.getProperties" title="Permalink to this definition">¶</a></dt>
 <dd><p>Extract the appropriate properties to use as the independent variables for the
 interpolation.</p>
 <p>Take self.keys from star.data</p>
@@ -702,9 +829,9 @@ interpolation.</p>
 </dl>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt id="piff.GPInterp.initialize">
-<code class="sig-name descname">initialize</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">stars</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/gp_interp.html#GPInterp.initialize"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.GPInterp.initialize" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">initialize</code><span class="sig-paren">(</span><em class="sig-param">stars</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/gp_interp.html#GPInterp.initialize"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.GPInterp.initialize" title="Permalink to this definition">¶</a></dt>
 <dd><p>Initialize both the interpolator to some state prefatory to any solve iterations and
 initialize the stars for use with this interpolator.</p>
 <dl class="field-list simple">
@@ -717,9 +844,9 @@ initialize the stars for use with this interpolator.</p>
 </dl>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt id="piff.GPInterp.interpolate">
-<code class="sig-name descname">interpolate</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">star</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/gp_interp.html#GPInterp.interpolate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.GPInterp.interpolate" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">interpolate</code><span class="sig-paren">(</span><em class="sig-param">star</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/gp_interp.html#GPInterp.interpolate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.GPInterp.interpolate" title="Permalink to this definition">¶</a></dt>
 <dd><p>Perform the interpolation to find the interpolated parameter vector at some position.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -734,9 +861,9 @@ initialize the stars for use with this interpolator.</p>
 </dl>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt id="piff.GPInterp.interpolateList">
-<code class="sig-name descname">interpolateList</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">stars</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/gp_interp.html#GPInterp.interpolateList"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.GPInterp.interpolateList" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">interpolateList</code><span class="sig-paren">(</span><em class="sig-param">stars</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/gp_interp.html#GPInterp.interpolateList"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.GPInterp.interpolateList" title="Permalink to this definition">¶</a></dt>
 <dd><p>Perform the interpolation for a list of stars.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -751,9 +878,9 @@ initialize the stars for use with this interpolator.</p>
 </dl>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt id="piff.GPInterp.solve">
-<code class="sig-name descname">solve</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">stars</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/gp_interp.html#GPInterp.solve"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.GPInterp.solve" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">solve</code><span class="sig-paren">(</span><em class="sig-param">stars=None</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/gp_interp.html#GPInterp.solve"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.GPInterp.solve" title="Permalink to this definition">¶</a></dt>
 <dd><p>Set up this GPInterp object.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -771,69 +898,52 @@ initialize the stars for use with this interpolator.</p>
 </div>
 
 
+           </div>
+           
           </div>
-        </div>
-      </div>
-      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
-        <div class="sphinxsidebarwrapper">
-  <h3><a href="index.html">Table of Contents</a></h3>
-  <ul>
-<li><a class="reference internal" href="#">Interpolation Schemes</a><ul>
-<li><a class="reference internal" href="#the-interp-base-class">The Interp base class</a></li>
-<li><a class="reference internal" href="#mean">Mean</a></li>
-<li><a class="reference internal" href="#polynomial">Polynomial</a></li>
-<li><a class="reference internal" href="#basisinterp">BasisInterp</a></li>
-<li><a class="reference internal" href="#knninterp">kNNInterp</a></li>
-<li><a class="reference internal" href="#gpinterp">GPInterp</a></li>
-</ul>
-</li>
-</ul>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="psf.html" class="btn btn-neutral float-right" title="PSF classes" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="model.html" class="btn btn-neutral float-left" title="Models" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
 
-  <h4>Previous topic</h4>
-  <p class="topless"><a href="model.html"
-                        title="previous chapter">Models</a></p>
-  <h4>Next topic</h4>
-  <p class="topless"><a href="output.html"
-                        title="next chapter">Writing the output file</a></p>
-  <div role="note" aria-label="source link">
-    <h3>This Page</h3>
-    <ul class="this-page-menu">
-      <li><a href="_sources/interp.rst.txt"
-            rel="nofollow">Show Source</a></li>
-    </ul>
-   </div>
-<div id="searchbox" style="display: none" role="search">
-  <h3 id="searchlabel">Quick search</h3>
-    <div class="searchformwrapper">
-    <form class="search" action="search.html" method="get">
-      <input type="text" name="q" aria-labelledby="searchlabel" />
-      <input type="submit" value="Go" />
-    </form>
-    </div>
-</div>
-<script>$('#searchbox').show(0);</script>
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
         </div>
       </div>
-      <div class="clearer"></div>
-    </div>
-    <div class="related" role="navigation" aria-label="related navigation">
-      <h3>Navigation</h3>
-      <ul>
-        <li class="right" style="margin-right: 10px">
-          <a href="genindex.html" title="General Index"
-             >index</a></li>
-        <li class="right" >
-          <a href="output.html" title="Writing the output file"
-             >next</a> |</li>
-        <li class="right" >
-          <a href="model.html" title="Models"
-             >previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Piff 0.4 documentation</a> &#187;</li> 
-      </ul>
-    </div>
-    <div class="footer" role="contentinfo">
-        &#169; Copyright 2019.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.0.3.
-    </div>
-  </body>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
 </html>

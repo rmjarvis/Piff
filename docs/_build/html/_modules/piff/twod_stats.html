@@ -1,38 +1,160 @@
 
-<!DOCTYPE html>
 
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <title>piff.twod_stats &#8212; Piff 0.4 documentation</title>
-    <link rel="stylesheet" href="../../_static/classic.css" type="text/css" />
-    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>piff.twod_stats &mdash; Piff 1.0.0 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
+  
     
-    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
-    <script src="../../_static/jquery.js"></script>
-    <script src="../../_static/underscore.js"></script>
-    <script src="../../_static/doctools.js"></script>
-    <script src="../../_static/language_data.js"></script>
-    <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/language_data.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" /> 
-  </head><body>
-    <div class="related" role="navigation" aria-label="related navigation">
-      <h3>Navigation</h3>
-      <ul>
-        <li class="right" style="margin-right: 10px">
-          <a href="../../genindex.html" title="General Index"
-             accesskey="I">index</a></li>
-        <li class="nav-item nav-item-0"><a href="../../index.html">Piff 0.4 documentation</a> &#187;</li>
-          <li class="nav-item nav-item-1"><a href="../index.html" accesskey="U">Module code</a> &#187;</li> 
-      </ul>
-    </div>  
+</head>
 
-    <div class="document">
-      <div class="documentwrapper">
-        <div class="bodywrapper">
-          <div class="body" role="main">
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> Piff
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                1.0
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../overview.html">PIFF: PSFs In the Full FOV</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../piffify.html">The piffify executable</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../input.html">Reading in Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../model.html">Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../interp.html">Interpolation Schemes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../psf.html">PSF classes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../outliers.html">Removing Outliers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../output.html">Writing the output file</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../stats.html">Output statistics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../star.html">Stars</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Piff</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+        
+      <li>piff.twod_stats</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
             
   <h1>Source code for piff.twod_stats</h1><div class="highlight"><pre>
 <span></span><span class="c1"># Copyright (c) 2016 by Mike Jarvis and the other collaborators on GitHub at</span>
@@ -79,18 +201,18 @@
 <span class="sd">    pixel corresponds to reducing_function([objects in u-v voxel])</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">number_bins_u</span><span class="o">=</span><span class="mi">11</span><span class="p">,</span> <span class="n">number_bins_v</span><span class="o">=</span><span class="mi">22</span><span class="p">,</span> <span class="n">reducing_function</span><span class="o">=</span><span class="s1">&#39;np.median&#39;</span><span class="p">,</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nbins_u</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">nbins_v</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">reducing_function</span><span class="o">=</span><span class="s1">&#39;np.median&#39;</span><span class="p">,</span>
                  <span class="n">file_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        :param number_bins_u:       Number of bins in u direction [default: 11]</span>
-<span class="sd">        :param number_bins_v:       Number of bins in v direction [default: 22]</span>
+<span class="sd">        :param nbins_u:             Number of bins in u direction [default: 20]</span>
+<span class="sd">        :param nbins_v:             Number of bins in v direction [default: 20]</span>
 <span class="sd">        :param reducing_function:   Type of function to apply to grouped objects. numpy functions</span>
 <span class="sd">                                    are prefixed by np. [default: &#39;np.median&#39;]</span>
 <span class="sd">        :param file_name:           Name of the file to output to. [default: None]</span>
 <span class="sd">        :param logger:              A logger object for logging debug info. [default: None]</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">number_bins_u</span> <span class="o">=</span> <span class="n">number_bins_u</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">number_bins_v</span> <span class="o">=</span> <span class="n">number_bins_v</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nbins_u</span> <span class="o">=</span> <span class="n">nbins_u</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nbins_v</span> <span class="o">=</span> <span class="n">nbins_v</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">reducing_function</span> <span class="o">=</span> <span class="nb">eval</span><span class="p">(</span><span class="n">reducing_function</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">file_name</span> <span class="o">=</span> <span class="n">file_name</span>
@@ -103,6 +225,8 @@
 <span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">logger</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">LoggerWrapper</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">twodhists</span> <span class="o">=</span> <span class="p">{}</span>
+
         <span class="c1"># get the shapes</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Measuring Star and Model Shapes&quot;</span><span class="p">)</span>
         <span class="n">positions</span><span class="p">,</span> <span class="n">shapes_truth</span><span class="p">,</span> <span class="n">shapes_model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">measureShapes</span><span class="p">(</span><span class="n">psf</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
@@ -133,20 +257,22 @@
         <span class="c1"># compute the indices</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Computing TwoDHist indices&quot;</span><span class="p">)</span>
 
-        <span class="c1"># fudge the bins by multiplying 1.01 so that the max entries are in the bins</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">bins_u</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">u</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">u</span><span class="p">)</span> <span class="o">*</span> <span class="mf">1.01</span><span class="p">,</span> <span class="n">num</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">number_bins_u</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">bins_v</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">v</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="o">*</span> <span class="mf">1.01</span><span class="p">,</span> <span class="n">num</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">number_bins_v</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bins_u</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">u</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">u</span><span class="p">),</span> <span class="n">num</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">nbins_u</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bins_v</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">v</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">v</span><span class="p">),</span> <span class="n">num</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">nbins_v</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
 
         <span class="c1"># digitize u and v. No such thing as entries below their min, so -1 to index</span>
         <span class="n">indx_u</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">digitize</span><span class="p">(</span><span class="n">u</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">bins_u</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
         <span class="n">indx_v</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">digitize</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">bins_v</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+
+        <span class="c1"># Make sure no points go one past the end (due to rounding when u=max(u), etc.</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">putmask</span><span class="p">(</span><span class="n">indx_u</span><span class="p">,</span> <span class="n">indx_u</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">nbins_u</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">nbins_u</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">putmask</span><span class="p">(</span><span class="n">indx_v</span><span class="p">,</span> <span class="n">indx_v</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">nbins_v</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">nbins_v</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
 
         <span class="c1"># get unique indices</span>
         <span class="n">unique_indx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">([</span><span class="nb">tuple</span><span class="p">(</span><span class="n">row</span><span class="p">)</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">((</span><span class="n">indx_u</span><span class="p">,</span> <span class="n">indx_v</span><span class="p">))</span><span class="o">.</span><span class="n">T</span><span class="p">])</span>
 
         <span class="c1"># compute the arrays</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Computing TwoDHist arrays&quot;</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">twodhists</span> <span class="o">=</span> <span class="p">{}</span>
 
         <span class="c1"># throw in coordinates for good measure</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">twodhists</span><span class="p">[</span><span class="s1">&#39;u&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_array_to_2dhist</span><span class="p">(</span><span class="n">u</span><span class="p">,</span> <span class="n">indx_u</span><span class="p">,</span> <span class="n">indx_v</span><span class="p">,</span> <span class="n">unique_indx</span><span class="p">)</span>
@@ -224,6 +350,9 @@
         <span class="n">axs</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s1">&#39;dg2&#39;</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">skip</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">fig</span><span class="p">,</span> <span class="n">axs</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;twodhists&#39;</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Must call compute before calling plot or write&quot;</span><span class="p">)</span>
 
         <span class="c1"># make the colormaps</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Creating TwoDHist colormaps&quot;</span><span class="p">)</span>
@@ -315,17 +444,17 @@
         <span class="k">return</span> <span class="n">fig</span><span class="p">,</span> <span class="n">axs</span></div>
 
     <span class="k">def</span> <span class="nf">_array_to_2dhist</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">indx_u</span><span class="p">,</span> <span class="n">indx_v</span><span class="p">,</span> <span class="n">unique_indx</span><span class="p">):</span>
-        <span class="n">C</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">number_bins_v</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">number_bins_u</span><span class="p">))</span>
-        <span class="n">C</span><span class="o">.</span><span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">number_bins_v</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">number_bins_u</span><span class="p">))</span>
+        <span class="n">C</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">nbins_v</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">nbins_u</span><span class="p">))</span>
+        <span class="n">C</span><span class="o">.</span><span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">nbins_v</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">nbins_u</span><span class="p">))</span>
 
         <span class="k">for</span> <span class="n">unique</span> <span class="ow">in</span> <span class="n">unique_indx</span><span class="p">:</span>
             <span class="n">ui</span><span class="p">,</span> <span class="n">vi</span> <span class="o">=</span> <span class="n">unique</span>
 
             <span class="n">sample</span> <span class="o">=</span> <span class="n">z</span><span class="p">[(</span><span class="n">indx_u</span> <span class="o">==</span> <span class="n">ui</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">indx_v</span> <span class="o">==</span> <span class="n">vi</span><span class="p">)]</span>
-            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">sample</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reducing_function</span><span class="p">(</span><span class="n">sample</span><span class="p">)</span>
-                <span class="n">C</span><span class="p">[</span><span class="n">vi</span><span class="p">,</span> <span class="n">ui</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
-                <span class="n">C</span><span class="o">.</span><span class="n">mask</span><span class="p">[</span><span class="n">vi</span><span class="p">,</span> <span class="n">ui</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">sample</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span>  <span class="c1"># This is ensured by how we calculate unique_indx</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reducing_function</span><span class="p">(</span><span class="n">sample</span><span class="p">)</span>
+            <span class="n">C</span><span class="p">[</span><span class="n">vi</span><span class="p">,</span> <span class="n">ui</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+            <span class="n">C</span><span class="o">.</span><span class="n">mask</span><span class="p">[</span><span class="n">vi</span><span class="p">,</span> <span class="n">ui</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
 
         <span class="k">return</span> <span class="n">C</span>
 
@@ -442,21 +571,26 @@
 
 <span class="sd">    Because e1, e2 do not have units, w does not either.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">number_bins_u</span><span class="o">=</span><span class="mi">11</span><span class="p">,</span> <span class="n">number_bins_v</span><span class="o">=</span><span class="mi">22</span><span class="p">,</span> <span class="n">reducing_function</span><span class="o">=</span><span class="s1">&#39;np.median&#39;</span><span class="p">,</span>
-                 <span class="n">file_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">nbins_u</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">nbins_v</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">reducing_function</span><span class="o">=</span><span class="s1">&#39;np.median&#39;</span><span class="p">,</span>
+                 <span class="n">scale</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">resid_scale</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        :param number_bins_u:       Number of bins in u direction [default: 11]</span>
-<span class="sd">        :param number_bins_v:       Number of bins in v direction [default: 22]</span>
+<span class="sd">        :param file_name:           Name of the file to output to. [default: None]</span>
+<span class="sd">        :param nbins_u:             Number of bins in u direction [default: 20]</span>
+<span class="sd">        :param nbins_v:             Number of bins in v direction [default: 20]</span>
 <span class="sd">        :param reducing_function:   Type of function to apply to grouped objects. numpy functions</span>
 <span class="sd">                                    are prefixed by np. [default: &#39;np.median&#39;]</span>
-<span class="sd">        :param file_name:           Name of the file to output to. [default: None]</span>
+<span class="sd">        :param scale:               An overal scale factor by which to scale the size of the</span>
+<span class="sd">                                    all whiskers. [default: 1]</span>
+<span class="sd">        :param resid_scale:         An additional factor for the scale size of the residual</span>
+<span class="sd">                                    whiskers only. [default: 2]</span>
 <span class="sd">        :param logger:              A logger object for logging debug info. [default: None]</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">number_bins_u</span> <span class="o">=</span> <span class="n">number_bins_u</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">number_bins_v</span> <span class="o">=</span> <span class="n">number_bins_v</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">reducing_function</span> <span class="o">=</span> <span class="nb">eval</span><span class="p">(</span><span class="n">reducing_function</span><span class="p">)</span>
-
         <span class="bp">self</span><span class="o">.</span><span class="n">file_name</span> <span class="o">=</span> <span class="n">file_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nbins_u</span> <span class="o">=</span> <span class="n">nbins_u</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nbins_v</span> <span class="o">=</span> <span class="n">nbins_v</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reducing_function</span> <span class="o">=</span> <span class="nb">eval</span><span class="p">(</span><span class="n">reducing_function</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">scale</span> <span class="o">=</span> <span class="n">scale</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">resid_scale</span> <span class="o">=</span> <span class="n">resid_scale</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">skip</span> <span class="o">=</span> <span class="kc">False</span>
 
 <div class="viewcode-block" id="WhiskerStats.compute"><a class="viewcode-back" href="../../stats.html#piff.WhiskerStats.compute">[docs]</a>    <span class="k">def</span> <span class="nf">compute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">psf</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
@@ -466,6 +600,7 @@
 <span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">logger</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">LoggerWrapper</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">twodhists</span> <span class="o">=</span> <span class="p">{}</span>
 
         <span class="c1"># get the shapes</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Measuring Star and Model Shapes&quot;</span><span class="p">)</span>
@@ -508,22 +643,24 @@
         <span class="n">dw2</span> <span class="o">=</span> <span class="n">dmag_w</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">dphi</span><span class="p">)</span>
 
         <span class="c1"># compute the indices</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Computing TwoDHist indices&quot;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Computing Whisker indices&quot;</span><span class="p">)</span>
 
-        <span class="c1"># fudge the bins by multiplying 1.01 so that the max entries are in the bins</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">bins_u</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">u</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">u</span><span class="p">)</span> <span class="o">*</span> <span class="mf">1.01</span><span class="p">,</span> <span class="n">num</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">number_bins_u</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">bins_v</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">v</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="o">*</span> <span class="mf">1.01</span><span class="p">,</span> <span class="n">num</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">number_bins_v</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bins_u</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">u</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">u</span><span class="p">),</span> <span class="n">num</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">nbins_u</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bins_v</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">v</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">v</span><span class="p">),</span> <span class="n">num</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">nbins_v</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
 
         <span class="c1"># digitize u and v. No such thing as entries below their min, so -1 to index</span>
         <span class="n">indx_u</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">digitize</span><span class="p">(</span><span class="n">u</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">bins_u</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
         <span class="n">indx_v</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">digitize</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">bins_v</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
 
+        <span class="c1"># Make sure no points go one past the end (due to rounding when u=max(u), etc.</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">putmask</span><span class="p">(</span><span class="n">indx_u</span><span class="p">,</span> <span class="n">indx_u</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">nbins_u</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">nbins_u</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">putmask</span><span class="p">(</span><span class="n">indx_v</span><span class="p">,</span> <span class="n">indx_v</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">nbins_v</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">nbins_v</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+
         <span class="c1"># get unique indices</span>
         <span class="n">unique_indx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">([</span><span class="nb">tuple</span><span class="p">(</span><span class="n">row</span><span class="p">)</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">((</span><span class="n">indx_u</span><span class="p">,</span> <span class="n">indx_v</span><span class="p">))</span><span class="o">.</span><span class="n">T</span><span class="p">])</span>
 
         <span class="c1"># compute the arrays</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Computing TwoDHist arrays&quot;</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">twodhists</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Computing Whisker arrays&quot;</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">twodhists</span><span class="p">[</span><span class="s1">&#39;u&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_array_to_2dhist</span><span class="p">(</span><span class="n">u</span><span class="p">,</span> <span class="n">indx_u</span><span class="p">,</span> <span class="n">indx_v</span><span class="p">,</span> <span class="n">unique_indx</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">twodhists</span><span class="p">[</span><span class="s1">&#39;v&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_array_to_2dhist</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">indx_u</span><span class="p">,</span> <span class="n">indx_v</span><span class="p">,</span> <span class="n">unique_indx</span><span class="p">)</span>
@@ -557,33 +694,29 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="kn">from</span> <span class="nn">matplotlib.figure</span> <span class="kn">import</span> <span class="n">Figure</span>
         <span class="n">logger</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">LoggerWrapper</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
-        <span class="n">fig</span> <span class="o">=</span> <span class="n">Figure</span><span class="p">()</span>
-        <span class="c1"># In matplotlib 2.0, this will be</span>
-        <span class="c1"># axs = fig.subplots(1, 2, sharey=True, subplot_kw={&#39;aspect&#39; : &#39;equal&#39;})</span>
-        <span class="n">ax0</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span> <span class="n">aspect</span><span class="o">=</span><span class="s1">&#39;equal&#39;</span><span class="p">)</span>
-        <span class="n">ax1</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span> <span class="n">sharey</span><span class="o">=</span><span class="n">ax0</span><span class="p">,</span> <span class="n">aspect</span><span class="o">=</span><span class="s1">&#39;equal&#39;</span><span class="p">)</span>
+        <span class="n">fig</span> <span class="o">=</span> <span class="n">Figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mf">7.5</span><span class="p">,</span><span class="mi">4</span><span class="p">))</span>
+        <span class="n">ax0</span><span class="p">,</span> <span class="n">ax1</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">sharey</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">subplot_kw</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;aspect&#39;</span> <span class="p">:</span> <span class="s1">&#39;equal&#39;</span><span class="p">})</span>
 
-        <span class="k">for</span> <span class="n">label</span> <span class="ow">in</span> <span class="n">ax1</span><span class="o">.</span><span class="n">get_yticklabels</span><span class="p">():</span>
-            <span class="n">label</span><span class="o">.</span><span class="n">set_visible</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
-        <span class="n">ax1</span><span class="o">.</span><span class="n">yaxis</span><span class="o">.</span><span class="n">offsetText</span><span class="o">.</span><span class="n">set_visible</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
-
-        <span class="n">axs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">ax0</span><span class="p">,</span> <span class="n">ax1</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">object</span><span class="p">)</span>
-
-        <span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;u&#39;</span><span class="p">)</span>
-        <span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;v&#39;</span><span class="p">)</span>
-        <span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;u&#39;</span><span class="p">)</span>
-        <span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;v&#39;</span><span class="p">)</span>
+        <span class="n">ax0</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s1">&#39;off&#39;</span><span class="p">)</span>
+        <span class="n">ax0</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s1">&#39;Raw PSF&#39;</span><span class="p">)</span>
+        <span class="c1">#ax0.set_xlabel(&#39;u&#39;)</span>
+        <span class="c1">#ax0.set_ylabel(&#39;v&#39;)</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s1">&#39;off&#39;</span><span class="p">)</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s1">&#39;PSF Residuals&#39;</span><span class="p">)</span>
+        <span class="c1">#ax1.set_xlabel(&#39;u&#39;)</span>
+        <span class="c1">#ax1.set_ylabel(&#39;v&#39;)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">skip</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">fig</span><span class="p">,</span> <span class="n">axs</span>
+            <span class="k">return</span> <span class="n">fig</span><span class="p">,</span> <span class="p">[</span><span class="n">ax0</span><span class="p">,</span> <span class="n">ax1</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;twodhists&#39;</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Must call compute before calling plot or write&quot;</span><span class="p">)</span>
 
         <span class="c1"># make the plots</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Creating TwoDHist whiskerplots&quot;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Creating Whisker plots&quot;</span><span class="p">)</span>
 
         <span class="c1"># configure to taste</span>
         <span class="c1"># bigger scale = smaller whiskers</span>
-        <span class="n">quiver_dict</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">alpha</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
-                           <span class="n">angles</span><span class="o">=</span><span class="s1">&#39;uv&#39;</span><span class="p">,</span>
-                           <span class="n">headlength</span><span class="o">=</span><span class="mf">1.e-10</span><span class="p">,</span>  <span class="c1"># Using zero emits divide-by-zero warnings.</span>
+        <span class="n">quiver_dict</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">headlength</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
                            <span class="n">headwidth</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
                            <span class="n">headaxislength</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
                            <span class="n">minlength</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
@@ -594,8 +727,6 @@
                            <span class="p">)</span>
 
         <span class="c1"># raw whiskers</span>
-        <span class="n">ax</span> <span class="o">=</span> <span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-        <span class="c1"># data</span>
         <span class="n">u</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">twodhists</span><span class="p">[</span><span class="s1">&#39;u&#39;</span><span class="p">]</span>
         <span class="n">v</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">twodhists</span><span class="p">[</span><span class="s1">&#39;v&#39;</span><span class="p">]</span>
         <span class="n">w1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">twodhists</span><span class="p">[</span><span class="s1">&#39;w1&#39;</span><span class="p">]</span>
@@ -603,70 +734,82 @@
         <span class="n">dw1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">twodhists</span><span class="p">[</span><span class="s1">&#39;dw1&#39;</span><span class="p">]</span>
         <span class="n">dw2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">twodhists</span><span class="p">[</span><span class="s1">&#39;dw2&#39;</span><span class="p">]</span>
         <span class="n">use</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">mask</span> <span class="o">==</span> <span class="mi">0</span>
-        <span class="n">Q</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">quiver</span><span class="p">(</span><span class="n">u</span><span class="p">[</span><span class="n">use</span><span class="p">],</span> <span class="n">v</span><span class="p">[</span><span class="n">use</span><span class="p">],</span> <span class="n">w1</span><span class="p">[</span><span class="n">use</span><span class="p">],</span> <span class="n">w2</span><span class="p">[</span><span class="n">use</span><span class="p">],</span> <span class="n">scale</span><span class="o">=</span><span class="mf">2.5e-3</span><span class="p">,</span> <span class="o">**</span><span class="n">quiver_dict</span><span class="p">)</span>
+        <span class="c1"># Note: the quiver &quot;scale&quot; is such that larger value = smaller whiskers.</span>
+        <span class="c1">#       This is backwards of how I think of scale, which is why the / here, not *.</span>
+        <span class="n">scale</span> <span class="o">=</span> <span class="mf">1.e-4</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale</span>
+        <span class="n">qv</span> <span class="o">=</span> <span class="n">ax0</span><span class="o">.</span><span class="n">quiver</span><span class="p">(</span><span class="n">u</span><span class="p">[</span><span class="n">use</span><span class="p">],</span> <span class="n">v</span><span class="p">[</span><span class="n">use</span><span class="p">],</span> <span class="n">w1</span><span class="p">[</span><span class="n">use</span><span class="p">],</span> <span class="n">w2</span><span class="p">[</span><span class="n">use</span><span class="p">],</span> <span class="n">scale</span><span class="o">=</span><span class="n">scale</span><span class="p">,</span> <span class="o">**</span><span class="n">quiver_dict</span><span class="p">)</span>
         <span class="c1"># quiverkey</span>
-        <span class="n">ax</span><span class="o">.</span><span class="n">quiverkey</span><span class="p">(</span><span class="n">Q</span><span class="p">,</span> <span class="mf">0.10</span><span class="p">,</span> <span class="mf">0.10</span><span class="p">,</span> <span class="mf">0.03</span><span class="p">,</span> <span class="s1">&#39;e = 0.03&#39;</span><span class="p">,</span> <span class="n">coordinates</span><span class="o">=</span><span class="s1">&#39;axes&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;darkred&#39;</span><span class="p">,</span>
-                     <span class="n">labelcolor</span><span class="o">=</span><span class="s1">&#39;darkred&#39;</span><span class="p">,</span> <span class="n">labelpos</span><span class="o">=</span><span class="s1">&#39;S&#39;</span><span class="p">)</span>
+        <span class="n">ref</span> <span class="o">=</span> <span class="mf">0.03</span>
+        <span class="n">ref_label</span> <span class="o">=</span> <span class="s1">&#39;e = </span><span class="si">%s</span><span class="s1">&#39;</span><span class="o">%</span><span class="n">ref</span>
+        <span class="n">ax0</span><span class="o">.</span><span class="n">quiverkey</span><span class="p">(</span><span class="n">qv</span><span class="p">,</span> <span class="mf">0.15</span><span class="p">,</span> <span class="mf">0.00</span><span class="p">,</span> <span class="n">ref</span><span class="p">,</span> <span class="n">ref_label</span><span class="p">,</span>
+                      <span class="n">coordinates</span><span class="o">=</span><span class="s1">&#39;axes&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;darkred&#39;</span><span class="p">,</span> <span class="n">labelcolor</span><span class="o">=</span><span class="s1">&#39;darkred&#39;</span><span class="p">,</span>
+                      <span class="n">labelpos</span><span class="o">=</span><span class="s1">&#39;S&#39;</span><span class="p">)</span>
 
         <span class="c1"># residual whiskers</span>
-        <span class="n">ax</span> <span class="o">=</span> <span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
-
-        <span class="c1"># dw</span>
-        <span class="n">Q</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">quiver</span><span class="p">(</span><span class="n">u</span><span class="p">[</span><span class="n">use</span><span class="p">],</span> <span class="n">v</span><span class="p">[</span><span class="n">use</span><span class="p">],</span> <span class="n">dw1</span><span class="p">[</span><span class="n">use</span><span class="p">],</span> <span class="n">dw2</span><span class="p">[</span><span class="n">use</span><span class="p">],</span> <span class="n">scale</span><span class="o">=</span><span class="mf">4.0e-4</span><span class="p">,</span> <span class="o">**</span><span class="n">quiver_dict</span><span class="p">)</span>
+        <span class="n">scale</span> <span class="o">=</span> <span class="mf">1.e-4</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">resid_scale</span>
+        <span class="n">qv</span> <span class="o">=</span> <span class="n">ax1</span><span class="o">.</span><span class="n">quiver</span><span class="p">(</span><span class="n">u</span><span class="p">[</span><span class="n">use</span><span class="p">],</span> <span class="n">v</span><span class="p">[</span><span class="n">use</span><span class="p">],</span> <span class="n">dw1</span><span class="p">[</span><span class="n">use</span><span class="p">],</span> <span class="n">dw2</span><span class="p">[</span><span class="n">use</span><span class="p">],</span> <span class="n">scale</span><span class="o">=</span><span class="n">scale</span><span class="p">,</span> <span class="o">**</span><span class="n">quiver_dict</span><span class="p">)</span>
         <span class="c1"># quiverkey</span>
-        <span class="n">ax</span><span class="o">.</span><span class="n">quiverkey</span><span class="p">(</span><span class="n">Q</span><span class="p">,</span> <span class="mf">0.90</span><span class="p">,</span> <span class="mf">0.10</span><span class="p">,</span> <span class="mf">0.03</span><span class="p">,</span> <span class="s1">&#39;de = 0.03&#39;</span><span class="p">,</span> <span class="n">coordinates</span><span class="o">=</span><span class="s1">&#39;axes&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;darkred&#39;</span><span class="p">,</span>
-                     <span class="n">labelcolor</span><span class="o">=</span><span class="s1">&#39;darkred&#39;</span><span class="p">,</span> <span class="n">labelpos</span><span class="o">=</span><span class="s1">&#39;S&#39;</span><span class="p">)</span>
+        <span class="n">ref</span> <span class="o">=</span> <span class="mf">0.03</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">resid_scale</span>
+        <span class="n">ref_label</span> <span class="o">=</span> <span class="s1">&#39;e = </span><span class="si">%s</span><span class="s1">&#39;</span><span class="o">%</span><span class="n">ref</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">quiverkey</span><span class="p">(</span><span class="n">qv</span><span class="p">,</span> <span class="mf">0.85</span><span class="p">,</span> <span class="mf">0.00</span><span class="p">,</span> <span class="n">ref</span><span class="p">,</span> <span class="n">ref_label</span><span class="p">,</span>
+                      <span class="n">coordinates</span><span class="o">=</span><span class="s1">&#39;axes&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;darkred&#39;</span><span class="p">,</span> <span class="n">labelcolor</span><span class="o">=</span><span class="s1">&#39;darkred&#39;</span><span class="p">,</span>
+                      <span class="n">labelpos</span><span class="o">=</span><span class="s1">&#39;S&#39;</span><span class="p">)</span>
 
-        <span class="k">return</span> <span class="n">fig</span><span class="p">,</span> <span class="n">axs</span></div>
+        <span class="k">return</span> <span class="n">fig</span><span class="p">,</span> <span class="p">[</span><span class="n">ax0</span><span class="p">,</span> <span class="n">ax1</span><span class="p">]</span></div>
 
     <span class="k">def</span> <span class="nf">_array_to_2dhist</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">indx_u</span><span class="p">,</span> <span class="n">indx_v</span><span class="p">,</span> <span class="n">unique_indx</span><span class="p">):</span>
-        <span class="n">C</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">number_bins_v</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">number_bins_u</span><span class="p">))</span>
-        <span class="n">C</span><span class="o">.</span><span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">number_bins_v</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">number_bins_u</span><span class="p">))</span>
+        <span class="n">C</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">nbins_v</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">nbins_u</span><span class="p">))</span>
+        <span class="n">C</span><span class="o">.</span><span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">nbins_v</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">nbins_u</span><span class="p">))</span>
 
         <span class="k">for</span> <span class="n">unique</span> <span class="ow">in</span> <span class="n">unique_indx</span><span class="p">:</span>
             <span class="n">ui</span><span class="p">,</span> <span class="n">vi</span> <span class="o">=</span> <span class="n">unique</span>
 
             <span class="n">sample</span> <span class="o">=</span> <span class="n">z</span><span class="p">[(</span><span class="n">indx_u</span> <span class="o">==</span> <span class="n">ui</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">indx_v</span> <span class="o">==</span> <span class="n">vi</span><span class="p">)]</span>
-            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">sample</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reducing_function</span><span class="p">(</span><span class="n">sample</span><span class="p">)</span>
-                <span class="n">C</span><span class="p">[</span><span class="n">vi</span><span class="p">,</span> <span class="n">ui</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
-                <span class="n">C</span><span class="o">.</span><span class="n">mask</span><span class="p">[</span><span class="n">vi</span><span class="p">,</span> <span class="n">ui</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">sample</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reducing_function</span><span class="p">(</span><span class="n">sample</span><span class="p">)</span>
+            <span class="n">C</span><span class="p">[</span><span class="n">vi</span><span class="p">,</span> <span class="n">ui</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+            <span class="n">C</span><span class="o">.</span><span class="n">mask</span><span class="p">[</span><span class="n">vi</span><span class="p">,</span> <span class="n">ui</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
 
         <span class="k">return</span> <span class="n">C</span></div>
 </pre></div>
 
+           </div>
+           
           </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
         </div>
       </div>
-      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
-        <div class="sphinxsidebarwrapper">
-<div id="searchbox" style="display: none" role="search">
-  <h3 id="searchlabel">Quick search</h3>
-    <div class="searchformwrapper">
-    <form class="search" action="../../search.html" method="get">
-      <input type="text" name="q" aria-labelledby="searchlabel" />
-      <input type="submit" value="Go" />
-    </form>
-    </div>
-</div>
-<script>$('#searchbox').show(0);</script>
-        </div>
-      </div>
-      <div class="clearer"></div>
-    </div>
-    <div class="related" role="navigation" aria-label="related navigation">
-      <h3>Navigation</h3>
-      <ul>
-        <li class="right" style="margin-right: 10px">
-          <a href="../../genindex.html" title="General Index"
-             >index</a></li>
-        <li class="nav-item nav-item-0"><a href="../../index.html">Piff 0.4 documentation</a> &#187;</li>
-          <li class="nav-item nav-item-1"><a href="../index.html" >Module code</a> &#187;</li> 
-      </ul>
-    </div>
-    <div class="footer" role="contentinfo">
-        &#169; Copyright 2019.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.0.3.
-    </div>
-  </body>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
 </html>

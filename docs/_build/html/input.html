@@ -1,62 +1,179 @@
 
-<!DOCTYPE html>
 
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <title>Reading in Files &#8212; Piff 0.4 documentation</title>
-    <link rel="stylesheet" href="_static/classic.css" type="text/css" />
-    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Reading in Files &mdash; Piff 1.0.0 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="_static/js/modernizr.min.js"></script>
+  
     
-    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-    <script src="_static/jquery.js"></script>
-    <script src="_static/underscore.js"></script>
-    <script src="_static/doctools.js"></script>
-    <script src="_static/language_data.js"></script>
-    <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/language_data.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="Models" href="model.html" />
     <link rel="prev" title="The piffify executable" href="piffify.html" /> 
-  </head><body>
-    <div class="related" role="navigation" aria-label="related navigation">
-      <h3>Navigation</h3>
-      <ul>
-        <li class="right" style="margin-right: 10px">
-          <a href="genindex.html" title="General Index"
-             accesskey="I">index</a></li>
-        <li class="right" >
-          <a href="model.html" title="Models"
-             accesskey="N">next</a> |</li>
-        <li class="right" >
-          <a href="piffify.html" title="The piffify executable"
-             accesskey="P">previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Piff 0.4 documentation</a> &#187;</li> 
-      </ul>
-    </div>  
+</head>
 
-    <div class="document">
-      <div class="documentwrapper">
-        <div class="bodywrapper">
-          <div class="body" role="main">
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Piff
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                1.0
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="overview.html">PIFF: PSFs In the Full FOV</a></li>
+<li class="toctree-l1"><a class="reference internal" href="piffify.html">The piffify executable</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Reading in Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="model.html">Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="interp.html">Interpolation Schemes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="psf.html">PSF classes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="outliers.html">Removing Outliers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="output.html">Writing the output file</a></li>
+<li class="toctree-l1"><a class="reference internal" href="stats.html">Output statistics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="star.html">Stars</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Piff</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+      <li>Reading in Files</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/input.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
             
   <div class="section" id="reading-in-files">
 <h1>Reading in Files<a class="headerlink" href="#reading-in-files" title="Permalink to this headline">¶</a></h1>
 <p>Input handlers govern how the observational data is read in. This includes both images
 and catalogs.  The class <a class="reference internal" href="#piff.InputFiles" title="piff.InputFiles"><code class="xref py py-class docutils literal notranslate"><span class="pre">InputFiles</span></code></a> is the default, so if you are using
 that (which is typical), you can omit the :type: specification.</p>
-<div class="section" id="the-input-base-class">
-<h2>The Input base class<a class="headerlink" href="#the-input-base-class" title="Permalink to this headline">¶</a></h2>
-<dl class="py class">
+<dl class="class">
 <dt id="piff.Input">
 <em class="property">class </em><code class="sig-prename descclassname">piff.</code><code class="sig-name descname">Input</code><a class="reference internal" href="_modules/piff/input.html#Input"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Input" title="Permalink to this definition">¶</a></dt>
 <dd><p>The base class for handling inputs for building a Piff model.</p>
 <p>This is essentially an abstract base class intended to define the methods that should be
 implemented by any derived class.</p>
-<dl class="py method">
+<dl class="method">
 <dt id="piff.Input.getPointing">
-<code class="sig-name descname">getPointing</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/input.html#Input.getPointing"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Input.getPointing" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">getPointing</code><span class="sig-paren">(</span><em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/input.html#Input.getPointing"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Input.getPointing" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get the pointing coordinate of the (noinal) center of the field of view.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -68,9 +185,9 @@ implemented by any derived class.</p>
 </dl>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt id="piff.Input.getWCS">
-<code class="sig-name descname">getWCS</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/input.html#Input.getWCS"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Input.getWCS" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">getWCS</code><span class="sig-paren">(</span><em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/input.html#Input.getWCS"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Input.getWCS" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get the WCS solutions for all the chips in the field of view.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -82,9 +199,9 @@ implemented by any derived class.</p>
 </dl>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt id="piff.Input.makeStars">
-<code class="sig-name descname">makeStars</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/input.html#Input.makeStars"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Input.makeStars" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">makeStars</code><span class="sig-paren">(</span><em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/input.html#Input.makeStars"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Input.makeStars" title="Permalink to this definition">¶</a></dt>
 <dd><p>Process the input images and star data, cutting out stamps for each star along with
 other relevant information.</p>
 <p>The base class implementation expects the derived class to have appropriately set the
@@ -112,9 +229,9 @@ following attributes:</p>
 </dl>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt id="piff.Input.process">
-<em class="property">classmethod </em><code class="sig-name descname">process</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">config_input</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/input.html#Input.process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Input.process" title="Permalink to this definition">¶</a></dt>
+<em class="property">classmethod </em><code class="sig-name descname">process</code><span class="sig-paren">(</span><em class="sig-param">config_input</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/input.html#Input.process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.Input.process" title="Permalink to this definition">¶</a></dt>
 <dd><p>Parse the input field of the config dict.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -134,16 +251,13 @@ pointing is either a galsim.CelestialCoord or None.</p>
 
 </dd></dl>
 
-</div>
-<div class="section" id="inputfiles">
-<h2>InputFiles<a class="headerlink" href="#inputfiles" title="Permalink to this headline">¶</a></h2>
-<dl class="py class">
+<dl class="class">
 <dt id="piff.InputFiles">
-<em class="property">class </em><code class="sig-prename descclassname">piff.</code><code class="sig-name descname">InputFiles</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">config</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/input.html#InputFiles"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.InputFiles" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">piff.</code><code class="sig-name descname">InputFiles</code><span class="sig-paren">(</span><em class="sig-param">config</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/input.html#InputFiles"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.InputFiles" title="Permalink to this definition">¶</a></dt>
 <dd><p>An Input handler than just takes a list of image files and catalog files.</p>
-<dl class="py method">
+<dl class="method">
 <dt id="piff.InputFiles.readImage">
-<em class="property">static </em><code class="sig-name descname">readImage</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">image_file_name</span></em>, <em class="sig-param"><span class="n">image_hdu</span></em>, <em class="sig-param"><span class="n">weight_hdu</span></em>, <em class="sig-param"><span class="n">badpix_hdu</span></em>, <em class="sig-param"><span class="n">noise</span></em>, <em class="sig-param"><span class="n">logger</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/input.html#InputFiles.readImage"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.InputFiles.readImage" title="Permalink to this definition">¶</a></dt>
+<em class="property">static </em><code class="sig-name descname">readImage</code><span class="sig-paren">(</span><em class="sig-param">image_file_name</em>, <em class="sig-param">image_hdu</em>, <em class="sig-param">weight_hdu</em>, <em class="sig-param">badpix_hdu</em>, <em class="sig-param">noise</em>, <em class="sig-param">logger</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/input.html#InputFiles.readImage"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.InputFiles.readImage" title="Permalink to this definition">¶</a></dt>
 <dd><p>Read in the image and weight map (or make one if no weight information is given</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -162,9 +276,9 @@ pointing is either a galsim.CelestialCoord or None.</p>
 </dl>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt id="piff.InputFiles.readStarCatalog">
-<em class="property">static </em><code class="sig-name descname">readStarCatalog</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">cat_file_name</span></em>, <em class="sig-param"><span class="n">cat_hdu</span></em>, <em class="sig-param"><span class="n">x_col</span></em>, <em class="sig-param"><span class="n">y_col</span></em>, <em class="sig-param"><span class="n">ra_col</span></em>, <em class="sig-param"><span class="n">dec_col</span></em>, <em class="sig-param"><span class="n">ra_units</span></em>, <em class="sig-param"><span class="n">dec_units</span></em>, <em class="sig-param"><span class="n">image</span></em>, <em class="sig-param"><span class="n">flag_col</span></em>, <em class="sig-param"><span class="n">skip_flag</span></em>, <em class="sig-param"><span class="n">use_flag</span></em>, <em class="sig-param"><span class="n">sky_col</span></em>, <em class="sig-param"><span class="n">gain_col</span></em>, <em class="sig-param"><span class="n">sky</span></em>, <em class="sig-param"><span class="n">gain</span></em>, <em class="sig-param"><span class="n">satur</span></em>, <em class="sig-param"><span class="n">nstars</span></em>, <em class="sig-param"><span class="n">image_file_name</span></em>, <em class="sig-param"><span class="n">stamp_size</span></em>, <em class="sig-param"><span class="n">logger</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/input.html#InputFiles.readStarCatalog"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.InputFiles.readStarCatalog" title="Permalink to this definition">¶</a></dt>
+<em class="property">static </em><code class="sig-name descname">readStarCatalog</code><span class="sig-paren">(</span><em class="sig-param">cat_file_name</em>, <em class="sig-param">cat_hdu</em>, <em class="sig-param">x_col</em>, <em class="sig-param">y_col</em>, <em class="sig-param">ra_col</em>, <em class="sig-param">dec_col</em>, <em class="sig-param">ra_units</em>, <em class="sig-param">dec_units</em>, <em class="sig-param">image</em>, <em class="sig-param">flag_col</em>, <em class="sig-param">skip_flag</em>, <em class="sig-param">use_flag</em>, <em class="sig-param">sky_col</em>, <em class="sig-param">gain_col</em>, <em class="sig-param">sky</em>, <em class="sig-param">gain</em>, <em class="sig-param">satur</em>, <em class="sig-param">nstars</em>, <em class="sig-param">image_file_name</em>, <em class="sig-param">stamp_size</em>, <em class="sig-param">logger</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/input.html#InputFiles.readStarCatalog"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.InputFiles.readStarCatalog" title="Permalink to this definition">¶</a></dt>
 <dd><p>Read in the star catalogs and return lists of positions for each star in each image.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -203,9 +317,9 @@ keyword to read a value from the FITS header.</p></li>
 </dl>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt id="piff.InputFiles.setPointing">
-<code class="sig-name descname">setPointing</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">ra</span></em>, <em class="sig-param"><span class="n">dec</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/input.html#InputFiles.setPointing"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.InputFiles.setPointing" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">setPointing</code><span class="sig-paren">(</span><em class="sig-param">ra</em>, <em class="sig-param">dec</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/input.html#InputFiles.setPointing"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.InputFiles.setPointing" title="Permalink to this definition">¶</a></dt>
 <dd><p>Set the pointing attribute based on the input ra, dec (given in the initializer)</p>
 <p>There are a number of ways the pointing can be specified.
 Even this is probably not sufficiently generic for all applications, but it’s a start.</p>
@@ -222,68 +336,54 @@ individual WCS functions. [Not implemented currently.]</p></li>
 </dd></dl>
 
 </div>
-</div>
 
 
+           </div>
+           
           </div>
-        </div>
-      </div>
-      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
-        <div class="sphinxsidebarwrapper">
-  <h3><a href="index.html">Table of Contents</a></h3>
-  <ul>
-<li><a class="reference internal" href="#">Reading in Files</a><ul>
-<li><a class="reference internal" href="#the-input-base-class">The Input base class</a></li>
-<li><a class="reference internal" href="#inputfiles">InputFiles</a></li>
-</ul>
-</li>
-</ul>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="model.html" class="btn btn-neutral float-right" title="Models" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="piffify.html" class="btn btn-neutral float-left" title="The piffify executable" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
 
-  <h4>Previous topic</h4>
-  <p class="topless"><a href="piffify.html"
-                        title="previous chapter">The piffify executable</a></p>
-  <h4>Next topic</h4>
-  <p class="topless"><a href="model.html"
-                        title="next chapter">Models</a></p>
-  <div role="note" aria-label="source link">
-    <h3>This Page</h3>
-    <ul class="this-page-menu">
-      <li><a href="_sources/input.rst.txt"
-            rel="nofollow">Show Source</a></li>
-    </ul>
-   </div>
-<div id="searchbox" style="display: none" role="search">
-  <h3 id="searchlabel">Quick search</h3>
-    <div class="searchformwrapper">
-    <form class="search" action="search.html" method="get">
-      <input type="text" name="q" aria-labelledby="searchlabel" />
-      <input type="submit" value="Go" />
-    </form>
-    </div>
-</div>
-<script>$('#searchbox').show(0);</script>
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
         </div>
       </div>
-      <div class="clearer"></div>
-    </div>
-    <div class="related" role="navigation" aria-label="related navigation">
-      <h3>Navigation</h3>
-      <ul>
-        <li class="right" style="margin-right: 10px">
-          <a href="genindex.html" title="General Index"
-             >index</a></li>
-        <li class="right" >
-          <a href="model.html" title="Models"
-             >next</a> |</li>
-        <li class="right" >
-          <a href="piffify.html" title="The piffify executable"
-             >previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Piff 0.4 documentation</a> &#187;</li> 
-      </ul>
-    </div>
-    <div class="footer" role="contentinfo">
-        &#169; Copyright 2019.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.0.3.
-    </div>
-  </body>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
 </html>

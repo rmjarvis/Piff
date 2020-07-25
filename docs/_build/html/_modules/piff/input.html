@@ -1,38 +1,160 @@
 
-<!DOCTYPE html>
 
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <title>piff.input &#8212; Piff 0.4 documentation</title>
-    <link rel="stylesheet" href="../../_static/classic.css" type="text/css" />
-    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>piff.input &mdash; Piff 1.0.0 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
+  
     
-    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
-    <script src="../../_static/jquery.js"></script>
-    <script src="../../_static/underscore.js"></script>
-    <script src="../../_static/doctools.js"></script>
-    <script src="../../_static/language_data.js"></script>
-    <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/language_data.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" /> 
-  </head><body>
-    <div class="related" role="navigation" aria-label="related navigation">
-      <h3>Navigation</h3>
-      <ul>
-        <li class="right" style="margin-right: 10px">
-          <a href="../../genindex.html" title="General Index"
-             accesskey="I">index</a></li>
-        <li class="nav-item nav-item-0"><a href="../../index.html">Piff 0.4 documentation</a> &#187;</li>
-          <li class="nav-item nav-item-1"><a href="../index.html" accesskey="U">Module code</a> &#187;</li> 
-      </ul>
-    </div>  
+</head>
 
-    <div class="document">
-      <div class="documentwrapper">
-        <div class="bodywrapper">
-          <div class="body" role="main">
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> Piff
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                1.0
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../overview.html">PIFF: PSFs In the Full FOV</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../piffify.html">The piffify executable</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../input.html">Reading in Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../model.html">Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../interp.html">Interpolation Schemes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../psf.html">PSF classes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../outliers.html">Removing Outliers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../output.html">Writing the output file</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../stats.html">Output statistics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../star.html">Stars</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Piff</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+        
+      <li>piff.input</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
             
   <h1>Source code for piff.input</h1><div class="highlight"><pre>
 <span></span><span class="c1"># Copyright (c) 2016 by Mike Jarvis and the other collaborators on GitHub at</span>
@@ -61,7 +183,7 @@
 <span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">galsim</span>
 
-<span class="kn">from</span> <span class="nn">.util</span> <span class="kn">import</span> <span class="n">hsm</span><span class="p">,</span> <span class="n">run_multi</span><span class="p">,</span> <span class="n">calculateSNR</span>
+<span class="kn">from</span> <span class="nn">.util</span> <span class="kn">import</span> <span class="n">run_multi</span><span class="p">,</span> <span class="n">calculateSNR</span>
 <span class="kn">from</span> <span class="nn">.star</span> <span class="kn">import</span> <span class="n">Star</span><span class="p">,</span> <span class="n">StarData</span>
 
 <div class="viewcode-block" id="Input"><a class="viewcode-back" href="../../input.html#piff.Input">[docs]</a><span class="k">class</span> <span class="nc">Input</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
@@ -142,11 +264,26 @@
                       <span class="n">max_edge_frac</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">max_edge_frac</span><span class="p">,</span>
                       <span class="n">stamp_center_size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">stamp_center_size</span><span class="p">)</span>
 
-        <span class="n">stars</span> <span class="o">=</span> <span class="n">run_multi</span><span class="p">(</span><span class="n">call_makeStarsFromImage</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">nproc</span><span class="p">,</span> <span class="n">raise_except</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                          <span class="n">args</span><span class="o">=</span><span class="n">args</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">,</span> <span class="n">kwargs</span><span class="o">=</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">all_stars</span> <span class="o">=</span> <span class="n">run_multi</span><span class="p">(</span><span class="n">call_makeStarsFromImage</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">nproc</span><span class="p">,</span> <span class="n">raise_except</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                              <span class="n">args</span><span class="o">=</span><span class="n">args</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">,</span> <span class="n">kwargs</span><span class="o">=</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="c1"># Apply the reserve separately on each ccd, so they each reserve 20% of their stars</span>
+        <span class="c1"># (or whatever fraction).  We wouldn&#39;t want to accidentally reserve all the stars on</span>
+        <span class="c1"># one of the ccds by accident, for instance.</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">reserve_frac</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">stars</span> <span class="ow">in</span> <span class="n">all_stars</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">stars</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">stars</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="c1"># Mark a fraction of the stars as reserve stars</span>
+                <span class="n">nreserve</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reserve_frac</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">stars</span><span class="p">))</span>  <span class="c1"># round down</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Reserve </span><span class="si">%s</span><span class="s2"> of </span><span class="si">%s</span><span class="s2"> (reserve_frac=</span><span class="si">%s</span><span class="s2">) input stars&quot;</span><span class="p">,</span>
+                            <span class="n">nreserve</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">stars</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">reserve_frac</span><span class="p">)</span>
+                <span class="n">reserve_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rng</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">stars</span><span class="p">),</span> <span class="n">nreserve</span><span class="p">,</span> <span class="n">replace</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">star</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">stars</span><span class="p">):</span>
+                    <span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s1">&#39;is_reserve&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">reserve_list</span>
 
         <span class="c1"># Concatenate the star lists into a single list</span>
-        <span class="n">stars</span> <span class="o">=</span> <span class="p">[</span><span class="n">s</span> <span class="k">for</span> <span class="n">slist</span> <span class="ow">in</span> <span class="n">stars</span> <span class="k">if</span> <span class="n">slist</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">slist</span> <span class="k">if</span> <span class="n">slist</span><span class="p">]</span>
+        <span class="n">stars</span> <span class="o">=</span> <span class="p">[</span><span class="n">s</span> <span class="k">for</span> <span class="n">slist</span> <span class="ow">in</span> <span class="n">all_stars</span> <span class="k">if</span> <span class="n">slist</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">slist</span> <span class="k">if</span> <span class="n">slist</span><span class="p">]</span>
 
         <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Read a total of </span><span class="si">%d</span><span class="s2"> stars from </span><span class="si">%d</span><span class="s2"> image</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="n">stars</span><span class="p">),</span><span class="bp">self</span><span class="o">.</span><span class="n">nimages</span><span class="p">,</span>
                        <span class="s2">&quot;s&quot;</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">nimages</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
@@ -270,12 +407,13 @@
 <span class="sd">                            so this parameter limits the effective S/N of any single star.</span>
 <span class="sd">                            Basically, it adds noise to bright stars to lower their S/N down to</span>
 <span class="sd">                            this value.  [default: 100]</span>
-<span class="sd">            :max_edge_frac: Cutoff on the fraction of the flux comming from pixels on the edges of the</span>
-<span class="sd">                            postage stamp. [default: None]</span>
-<span class="sd">            :stamp_center_size: Distance from center of postage stamp (in pixels) to consider as defining</span>
-<span class="sd">                            the edge of the stamp for the purpose of the max_edge_fact cut.  (The default</span>
-<span class="sd">                            value of 13 was tuned by hand to reject a set problematic stars when</span>
-<span class="sd">                            combined with max_edge_frac cut of 0.25) [default 13].</span>
+<span class="sd">            :max_edge_frac: Cutoff on the fraction of the flux comming from pixels on the edges of</span>
+<span class="sd">                            the postage stamp. [default: None]</span>
+<span class="sd">            :stamp_center_size: Distance from center of postage stamp (in pixels) to consider as</span>
+<span class="sd">                            defining the edge of the stamp for the purpose of the max_edge_fact cut.</span>
+<span class="sd">                            The default value of 13 is most of the radius of a 32x32 stamp size.</span>
+<span class="sd">                            If you change stamp_size, you should consider what makes sense here.</span>
+<span class="sd">                            [default 13].</span>
 <span class="sd">            :max_mask_pixels: If given, reject stars with more than this many masked pixels</span>
 <span class="sd">                            (i.e. those with w=0). [default: None]</span>
 <span class="sd">            :use_partial:   Whether to use stars whose postage stamps are only partially on the</span>
@@ -290,6 +428,12 @@
 <span class="sd">                            separately to each input catalog.)  [default: None]</span>
 <span class="sd">            :nproc:         How many multiprocessing processes to use for reading in data from</span>
 <span class="sd">                            multiple files at once. [default: 1]</span>
+<span class="sd">            :reserve_frac:  Reserve a fraction of the stars from the PSF calculations, so they</span>
+<span class="sd">                            can serve as fair points for diagnostic testing.  These stars will</span>
+<span class="sd">                            not be used to constrain the PSF model, but the output files will</span>
+<span class="sd">                            contain the reserve stars, flagged as such.  Generally 0.2 is a</span>
+<span class="sd">                            good choice if you are going to use this. [default: 0.]</span>
+<span class="sd">            :seed:          A seed to use for numpy.random.default_rng, if desired. [default: None]</span>
 
 <span class="sd">            :wcs:           Normally, the wcs is automatically read in when reading the image.</span>
 <span class="sd">                            However, this parameter allows you to optionally provide a different</span>
@@ -348,6 +492,8 @@
                 <span class="s1">&#39;sky&#39;</span> <span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
                 <span class="s1">&#39;noise&#39;</span> <span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
                 <span class="s1">&#39;nstars&#39;</span> <span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+                <span class="s1">&#39;reserve_frac&#39;</span> <span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                <span class="s1">&#39;seed&#39;</span> <span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
               <span class="p">}</span>
         <span class="n">ignore</span> <span class="o">=</span> <span class="p">[</span> <span class="s1">&#39;nproc&#39;</span><span class="p">,</span> <span class="s1">&#39;nimages&#39;</span><span class="p">,</span> <span class="s1">&#39;ra&#39;</span><span class="p">,</span> <span class="s1">&#39;dec&#39;</span><span class="p">,</span> <span class="s1">&#39;wcs&#39;</span> <span class="p">]</span>  <span class="c1"># These are parsed separately</span>
 
@@ -360,6 +506,13 @@
         <span class="n">base</span> <span class="o">=</span> <span class="p">{</span> <span class="s1">&#39;input&#39;</span> <span class="p">:</span> <span class="n">config</span><span class="p">,</span>
                  <span class="s1">&#39;index_key&#39;</span> <span class="p">:</span> <span class="s1">&#39;image_num&#39;</span><span class="p">,</span>
                <span class="p">}</span>
+
+        <span class="c1"># We use a feature in GalSim 2.3.  For now that&#39;s not released, so monkey-patch it here.</span>
+        <span class="c1"># (It&#39;s not even really a monkey-patch, it&#39;s just adding an additional registered type.)</span>
+        <span class="c1"># Once we can require galsim&gt;=2.3, we can remove this.</span>
+        <span class="k">if</span> <span class="n">galsim</span><span class="o">.</span><span class="n">version</span> <span class="o">&lt;</span> <span class="s1">&#39;2.3&#39;</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
+            <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">RegisterValueType</span><span class="p">(</span>
+                    <span class="s1">&#39;List_str&#39;</span><span class="p">,</span> <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">_GenerateFromList</span><span class="p">,</span> <span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="kc">None</span><span class="p">])</span>
 
         <span class="c1"># Convert options 2 and 3 above into option 4.  (1 is also parseable by GalSim&#39;s config.)</span>
         <span class="n">nimages</span> <span class="o">=</span> <span class="kc">None</span>
@@ -382,7 +535,7 @@
             <span class="k">del</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;dir&#39;</span><span class="p">]</span>
 
         <span class="k">if</span> <span class="s1">&#39;image_file_name&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">config</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="s1">&#39;Attribute image_file_name is required&#39;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;Parameter image_file_name is required&#39;</span><span class="p">)</span>
         <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;image_file_name&#39;</span><span class="p">],</span> <span class="nb">list</span><span class="p">):</span>
             <span class="n">image_list</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;image_file_name&#39;</span><span class="p">]</span>
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">image_list</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
@@ -398,7 +551,7 @@
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;No files found corresponding to &quot;</span><span class="o">+</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;image_file_name&#39;</span><span class="p">])</span>
         <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;image_file_name&#39;</span><span class="p">],</span> <span class="nb">dict</span><span class="p">):</span>
             <span class="k">if</span> <span class="n">nimages</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
                     <span class="s1">&#39;input.nimages is required if not using a list or simple string for &#39;</span> <span class="o">+</span>
                     <span class="s1">&#39;file names&#39;</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
@@ -412,14 +565,14 @@
             <span class="n">nimages</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">image_list</span><span class="p">)</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;nimages = </span><span class="si">%d</span><span class="s1">&#39;</span><span class="p">,</span><span class="n">nimages</span><span class="p">)</span>
             <span class="n">config</span><span class="p">[</span><span class="s1">&#39;image_file_name&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
-                <span class="s1">&#39;type&#39;</span> <span class="p">:</span> <span class="s1">&#39;List&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;type&#39;</span> <span class="p">:</span> <span class="s1">&#39;List_str&#39;</span><span class="p">,</span>
                 <span class="s1">&#39;items&#39;</span> <span class="p">:</span> <span class="n">image_list</span>
             <span class="p">}</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;nimages = </span><span class="si">%d</span><span class="s1">&#39;</span><span class="p">,</span><span class="n">nimages</span><span class="p">)</span>
         <span class="k">assert</span> <span class="n">nimages</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
 
         <span class="k">if</span> <span class="s1">&#39;cat_file_name&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">config</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="s1">&#39;Attribute cat_file_name is required&#39;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;Parameter cat_file_name is required&#39;</span><span class="p">)</span>
         <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;cat_file_name&#39;</span><span class="p">],</span> <span class="nb">list</span><span class="p">):</span>
             <span class="n">cat_list</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;cat_file_name&#39;</span><span class="p">]</span>
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">cat_list</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
@@ -445,7 +598,7 @@
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;nimages = </span><span class="si">%s</span><span class="s2"> doesn&#39;t match length of cat_file_name list (</span><span class="si">%d</span><span class="s2">)&quot;</span><span class="o">%</span><span class="p">(</span>
                                  <span class="n">nimages</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">cat_list</span><span class="p">)))</span>
             <span class="n">config</span><span class="p">[</span><span class="s1">&#39;cat_file_name&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
-                <span class="s1">&#39;type&#39;</span> <span class="p">:</span> <span class="s1">&#39;List&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;type&#39;</span> <span class="p">:</span> <span class="s1">&#39;List_str&#39;</span><span class="p">,</span>
                 <span class="s1">&#39;items&#39;</span> <span class="p">:</span> <span class="n">cat_list</span>
             <span class="p">}</span>
 
@@ -459,6 +612,12 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">remove_signal_from_weight</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;remove_signal_from_weight&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">invert_weight</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;invert_weight&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reserve_frac</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;reserve_frac&#39;</span><span class="p">,</span> <span class="mf">0.</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;seed&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
+        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
+            <span class="c1"># numpy &lt;= 1.16 doesn&#39;t have this yet.  But RandomState is fine.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;seed&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
 
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Reading in </span><span class="si">%d</span><span class="s2"> images&quot;</span><span class="p">,</span><span class="n">nimages</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">image_num</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nimages</span><span class="p">):</span>
@@ -724,7 +883,7 @@
 
         <span class="k">if</span> <span class="n">hsm_size_reject</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
             <span class="c1"># Calculate the hsm size for each star and throw out extreme outliers.</span>
-            <span class="n">sigma</span> <span class="o">=</span> <span class="p">[</span><span class="n">hsm</span><span class="p">(</span><span class="n">star</span><span class="p">)[</span><span class="mi">3</span><span class="p">]</span> <span class="k">for</span> <span class="n">star</span> <span class="ow">in</span> <span class="n">stars</span><span class="p">]</span>
+            <span class="n">sigma</span> <span class="o">=</span> <span class="p">[</span><span class="n">star</span><span class="o">.</span><span class="n">hsm</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="k">for</span> <span class="n">star</span> <span class="ow">in</span> <span class="n">stars</span><span class="p">]</span>
             <span class="n">med_sigma</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">sigma</span><span class="p">)</span>
             <span class="n">iqr_sigma</span> <span class="o">=</span> <span class="n">scipy</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">iqr</span><span class="p">(</span><span class="n">sigma</span><span class="p">)</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Doing hsm sigma rejection.&quot;</span><span class="p">)</span>
@@ -744,6 +903,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">wcs_list</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">center_list</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">image_num</span><span class="p">,</span> <span class="n">kwargs</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">image_kwargs</span><span class="p">):</span>
+            <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">RemoveCurrent</span><span class="p">(</span><span class="n">config</span><span class="p">)</span> <span class="c1"># Makes any @ items work correctly</span>
             <span class="n">image_file_name</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;image_file_name&#39;</span><span class="p">]</span>
             <span class="n">image_hdu</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;image_hdu&#39;</span><span class="p">]</span>
             <span class="n">image</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">fits</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">image_file_name</span><span class="p">,</span> <span class="n">hdu</span><span class="o">=</span><span class="n">image_hdu</span><span class="p">)</span>
@@ -1133,38 +1293,43 @@
     <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_makeStarsFromImage</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 </pre></div>
 
+           </div>
+           
           </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
         </div>
       </div>
-      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
-        <div class="sphinxsidebarwrapper">
-<div id="searchbox" style="display: none" role="search">
-  <h3 id="searchlabel">Quick search</h3>
-    <div class="searchformwrapper">
-    <form class="search" action="../../search.html" method="get">
-      <input type="text" name="q" aria-labelledby="searchlabel" />
-      <input type="submit" value="Go" />
-    </form>
-    </div>
-</div>
-<script>$('#searchbox').show(0);</script>
-        </div>
-      </div>
-      <div class="clearer"></div>
-    </div>
-    <div class="related" role="navigation" aria-label="related navigation">
-      <h3>Navigation</h3>
-      <ul>
-        <li class="right" style="margin-right: 10px">
-          <a href="../../genindex.html" title="General Index"
-             >index</a></li>
-        <li class="nav-item nav-item-0"><a href="../../index.html">Piff 0.4 documentation</a> &#187;</li>
-          <li class="nav-item nav-item-1"><a href="../index.html" >Module code</a> &#187;</li> 
-      </ul>
-    </div>
-    <div class="footer" role="contentinfo">
-        &#169; Copyright 2019.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.0.3.
-    </div>
-  </body>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
 </html>

@@ -10,8 +10,8 @@ The Model base class
    :members:
 
 
-GSObjectModel
--------------
+Models based on GalSim objects
+------------------------------
 
 .. autoclass:: piff.GSObjectModel
    :members:
@@ -26,15 +26,15 @@ GSObjectModel
    :members:
 
 
-PixelGrid
----------
+Pixel grid model
+----------------
 
 .. autoclass:: piff.PixelGrid
    :members:
 
 
-Optical
--------
+Optical model
+-------------
 
 .. autoclass:: piff.Optical
    :members:

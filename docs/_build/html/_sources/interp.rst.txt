@@ -9,20 +9,20 @@ The Interp base class
 .. autoclass:: piff.Interp
    :members:
 
-Mean
-----
+Mean interpolation
+------------------
 
 .. autoclass:: piff.Mean
    :members:
 
-Polynomial
-----------
+Polynomial interpolation
+------------------------
 
 .. autoclass:: piff.Polynomial
    :members:
 
-BasisInterp
------------
+Interpolation using basis functions
+-----------------------------------
 
 .. autoclass:: piff.BasisInterp
    :members:
@@ -30,14 +30,14 @@ BasisInterp
 .. autoclass:: piff.BasisPolynomial
    :members:
 
-kNNInterp
----------
+K-Nearest Neighbors
+-------------------
 
 .. autoclass:: piff.kNNInterp
    :members:
 
-GPInterp
---------
+Gaussian process interpolation
+------------------------------
 
 .. autoclass:: piff.GPInterp
    :members:
