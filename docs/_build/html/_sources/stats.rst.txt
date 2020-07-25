@@ -1,5 +1,5 @@
-Stats
-=====
+Output statistics
+=================
 
 Piff can also produce some statistics about the PSF model and residuals for the stars
 used to build the model.  These are specified in a ``stats`` section of the config file.
@@ -7,7 +7,7 @@ used to build the model.  These are specified in a ``stats`` section of the conf
 .. autoclass:: piff.Stats
     :members:
 
-.. autoclass:: piff.ShapeHistogramsStats
+.. autoclass:: piff.ShapeHistStats
     :members:
 
 .. autoclass:: piff.RhoStats
@@ -22,3 +22,5 @@ used to build the model.  These are specified in a ``stats`` section of the conf
 .. autoclass:: piff.StarStats
     :members:
 
+.. autoclass:: piff.HSMCatalogStats
+    :members:

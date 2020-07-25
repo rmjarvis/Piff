@@ -1,38 +1,160 @@
 
-<!DOCTYPE html>
 
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <title>piff.star &#8212; Piff 0.4 documentation</title>
-    <link rel="stylesheet" href="../../_static/classic.css" type="text/css" />
-    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>piff.star &mdash; Piff 1.0.0 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
+  
     
-    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
-    <script src="../../_static/jquery.js"></script>
-    <script src="../../_static/underscore.js"></script>
-    <script src="../../_static/doctools.js"></script>
-    <script src="../../_static/language_data.js"></script>
-    <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/language_data.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" /> 
-  </head><body>
-    <div class="related" role="navigation" aria-label="related navigation">
-      <h3>Navigation</h3>
-      <ul>
-        <li class="right" style="margin-right: 10px">
-          <a href="../../genindex.html" title="General Index"
-             accesskey="I">index</a></li>
-        <li class="nav-item nav-item-0"><a href="../../index.html">Piff 0.4 documentation</a> &#187;</li>
-          <li class="nav-item nav-item-1"><a href="../index.html" accesskey="U">Module code</a> &#187;</li> 
-      </ul>
-    </div>  
+</head>
 
-    <div class="document">
-      <div class="documentwrapper">
-        <div class="bodywrapper">
-          <div class="body" role="main">
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> Piff
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                1.0
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../overview.html">PIFF: PSFs In the Full FOV</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../piffify.html">The piffify executable</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../input.html">Reading in Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../model.html">Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../interp.html">Interpolation Schemes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../psf.html">PSF classes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../outliers.html">Removing Outliers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../output.html">Writing the output file</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../stats.html">Output statistics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../star.html">Stars</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Piff</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+        
+      <li>piff.star</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
             
   <h1>Source code for piff.star</h1><div class="highlight"><pre>
 <span></span><span class="c1"># Copyright (c) 2016 by Mike Jarvis and the other collaborators on GitHub at</span>
@@ -58,7 +180,7 @@
 <span class="kn">import</span> <span class="nn">copy</span>
 <span class="kn">import</span> <span class="nn">galsim</span>
 
-<div class="viewcode-block" id="Star"><a class="viewcode-back" href="../../psf.html#piff.Star">[docs]</a><span class="k">class</span> <span class="nc">Star</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<div class="viewcode-block" id="Star"><a class="viewcode-back" href="../../star.html#piff.Star">[docs]</a><span class="k">class</span> <span class="nc">Star</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Information about a &quot;star&quot;, which may be either a real star or an interpolated star</span>
 <span class="sd">    at some target location.</span>
 
@@ -107,6 +229,8 @@
 <span class="sd">        star.chipnum    The chip number where this star was observed (or would be observed)</span>
 <span class="sd">        star.flux       The flux of the object</span>
 <span class="sd">        star.center     The nominal center of the object (not necessarily the centroid)</span>
+<span class="sd">        star.is_reserve Whether the star is reserved from being used to fit the PSF</span>
+<span class="sd">        star.hsm        HSM measurements for this star as a tuple: (flux, cenu, cenv, size, g1, g2)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">fit</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Constructor for Star instance.</span>
@@ -119,7 +243,7 @@
             <span class="n">fit</span> <span class="o">=</span> <span class="n">StarFit</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">flux</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">center</span><span class="o">=</span><span class="p">(</span><span class="mf">0.</span><span class="p">,</span><span class="mf">0.</span><span class="p">))</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">fit</span> <span class="o">=</span> <span class="n">fit</span>
 
-<div class="viewcode-block" id="Star.withFlux"><a class="viewcode-back" href="../../psf.html#piff.Star.withFlux">[docs]</a>    <span class="k">def</span> <span class="nf">withFlux</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">flux</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">center</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="Star.withFlux"><a class="viewcode-back" href="../../star.html#piff.Star.withFlux">[docs]</a>    <span class="k">def</span> <span class="nf">withFlux</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">flux</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">center</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Update the flux and/or center values</span>
 
 <span class="sd">        :param flux:    The new flux.  [default: None, which means keep the existing value.]</span>
@@ -181,10 +305,7 @@
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">chipnum</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">if</span> <span class="s1">&#39;chipnum&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">properties</span><span class="p">:</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s1">&#39;chipnum&#39;</span><span class="p">]</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">return</span> <span class="mi">0</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">properties</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;chipnum&#39;</span><span class="p">,</span><span class="mi">0</span><span class="p">)</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">flux</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -194,7 +315,55 @@
     <span class="k">def</span> <span class="nf">center</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">center</span>
 
-<div class="viewcode-block" id="Star.makeTarget"><a class="viewcode-back" href="../../psf.html#piff.Star.makeTarget">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">is_reserve</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">properties</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;is_reserve&#39;</span><span class="p">,</span><span class="kc">False</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Star.run_hsm"><a class="viewcode-back" href="../../star.html#piff.Star.run_hsm">[docs]</a>    <span class="k">def</span> <span class="nf">run_hsm</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Use HSM to measure moments of star image.</span>
+
+<span class="sd">        This usually isn&#39;t called directly.  The results (without flag) are accessible as star.hsm,</span>
+<span class="sd">        which caches the results, so repeated access is efficient.</span>
+
+<span class="sd">        :returns: (flux, cenu, cenv, size, g1, g2, flag)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">image</span><span class="p">,</span> <span class="n">weight</span><span class="p">,</span> <span class="n">image_pos</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">getImage</span><span class="p">()</span>
+        <span class="c1"># Note that FindAdaptiveMom only respects the weight function in a binary sense.</span>
+        <span class="c1"># I.e., pixels with non-zero weight will be included in the moment measurement, those</span>
+        <span class="c1"># with weight=0.0 will be excluded.</span>
+        <span class="n">mom</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">FindAdaptiveMom</span><span class="p">(</span><span class="n">weight</span><span class="o">=</span><span class="n">weight</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+        <span class="n">sigma</span> <span class="o">=</span> <span class="n">mom</span><span class="o">.</span><span class="n">moments_sigma</span>
+        <span class="n">shape</span> <span class="o">=</span> <span class="n">mom</span><span class="o">.</span><span class="n">observed_shape</span>
+        <span class="c1"># These are in pixel coordinates.  Need to convert to world coords.</span>
+        <span class="n">jac</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">wcs</span><span class="o">.</span><span class="n">jacobian</span><span class="p">(</span><span class="n">image_pos</span><span class="o">=</span><span class="n">image_pos</span><span class="p">)</span>
+        <span class="n">scale</span><span class="p">,</span> <span class="n">shear</span><span class="p">,</span> <span class="n">theta</span><span class="p">,</span> <span class="n">flip</span> <span class="o">=</span> <span class="n">jac</span><span class="o">.</span><span class="n">getDecomposition</span><span class="p">()</span>
+        <span class="c1"># Fix sigma</span>
+        <span class="n">sigma</span> <span class="o">*=</span> <span class="n">scale</span>
+        <span class="c1"># Fix shear.  First the flip, if any.</span>
+        <span class="k">if</span> <span class="n">flip</span><span class="p">:</span>
+            <span class="n">shape</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">Shear</span><span class="p">(</span><span class="n">g1</span> <span class="o">=</span> <span class="o">-</span><span class="n">shape</span><span class="o">.</span><span class="n">g1</span><span class="p">,</span> <span class="n">g2</span> <span class="o">=</span> <span class="n">shape</span><span class="o">.</span><span class="n">g2</span><span class="p">)</span>
+        <span class="c1"># Next the rotation</span>
+        <span class="n">shape</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">Shear</span><span class="p">(</span><span class="n">g</span> <span class="o">=</span> <span class="n">shape</span><span class="o">.</span><span class="n">g</span><span class="p">,</span> <span class="n">beta</span> <span class="o">=</span> <span class="n">shape</span><span class="o">.</span><span class="n">beta</span> <span class="o">+</span> <span class="n">theta</span><span class="p">)</span>
+        <span class="c1"># Finally the shear</span>
+        <span class="n">shape</span> <span class="o">=</span> <span class="n">shear</span> <span class="o">+</span> <span class="n">shape</span>
+
+        <span class="n">flux</span> <span class="o">=</span> <span class="n">mom</span><span class="o">.</span><span class="n">moments_amp</span>
+
+        <span class="n">localwcs</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">wcs</span><span class="o">.</span><span class="n">local</span><span class="p">(</span><span class="n">image_pos</span><span class="p">)</span>
+        <span class="n">center</span> <span class="o">=</span> <span class="n">localwcs</span><span class="o">.</span><span class="n">toWorld</span><span class="p">(</span><span class="n">mom</span><span class="o">.</span><span class="n">moments_centroid</span><span class="p">)</span> <span class="o">-</span> <span class="n">localwcs</span><span class="o">.</span><span class="n">toWorld</span><span class="p">(</span><span class="n">image_pos</span><span class="p">)</span>
+        <span class="n">flag</span> <span class="o">=</span> <span class="n">mom</span><span class="o">.</span><span class="n">moments_status</span>
+
+        <span class="k">return</span> <span class="n">flux</span><span class="p">,</span> <span class="n">center</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">center</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="n">sigma</span><span class="p">,</span> <span class="n">shape</span><span class="o">.</span><span class="n">g1</span><span class="p">,</span> <span class="n">shape</span><span class="o">.</span><span class="n">g2</span><span class="p">,</span> <span class="n">flag</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">hsm</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_hsm&#39;</span><span class="p">):</span>
+            <span class="n">flux</span><span class="p">,</span> <span class="n">cenu</span><span class="p">,</span> <span class="n">cenv</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">g1</span><span class="p">,</span> <span class="n">g2</span><span class="p">,</span> <span class="n">flag</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_hsm</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_hsm</span> <span class="o">=</span> <span class="n">flux</span><span class="p">,</span> <span class="n">cenu</span><span class="p">,</span> <span class="n">cenv</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">g1</span><span class="p">,</span> <span class="n">g2</span><span class="p">,</span> <span class="n">flag</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_hsm</span>
+
+<div class="viewcode-block" id="Star.makeTarget"><a class="viewcode-back" href="../../star.html#piff.Star.makeTarget">[docs]</a>    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">makeTarget</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">u</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">v</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">properties</span><span class="o">=</span><span class="p">{},</span> <span class="n">wcs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                    <span class="n">stamp_size</span><span class="o">=</span><span class="mi">48</span><span class="p">,</span> <span class="n">image</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">weight</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pointing</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">flux</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
@@ -234,7 +403,7 @@
         <span class="c1"># Check that input parameters are valid</span>
         <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="s1">&#39;u&#39;</span><span class="p">,</span> <span class="s1">&#39;v&#39;</span><span class="p">]:</span>
             <span class="k">if</span> <span class="nb">eval</span><span class="p">(</span><span class="n">param</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">properties</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> may not be given both as a kwarg and in properties&quot;</span><span class="o">%</span><span class="n">param</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> may not be given both as a kwarg and in properties&quot;</span><span class="o">%</span><span class="n">param</span><span class="p">)</span>
         <span class="n">properties</span> <span class="o">=</span> <span class="n">properties</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>  <span class="c1"># So we can modify it and not mess up the caller.</span>
         <span class="n">x</span> <span class="o">=</span> <span class="n">properties</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
         <span class="n">y</span> <span class="o">=</span> <span class="n">properties</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
@@ -242,23 +411,19 @@
         <span class="n">v</span> <span class="o">=</span> <span class="n">properties</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;v&#39;</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
         <span class="n">properties</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>  <span class="c1"># Add any extra kwargs into properties</span>
         <span class="k">if</span> <span class="p">(</span><span class="n">x</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">)</span> <span class="o">!=</span> <span class="p">(</span><span class="n">y</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="s2">&quot;Either x and y must both be given, or neither.&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Either x and y must both be given, or neither.&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="p">(</span><span class="n">u</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">)</span> <span class="o">!=</span> <span class="p">(</span><span class="n">v</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="s2">&quot;Either u and v must both be given, or neither.&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Either u and v must both be given, or neither.&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">x</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">u</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="s2">&quot;Some kind of position must be given.&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Some kind of position must be given.&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">wcs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="s2">&quot;Scale is invalid when also providing wcs.&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Scale is invalid when also providing wcs.&quot;</span><span class="p">)</span>
 
         <span class="c1"># Figure out what the wcs should be if not provided</span>
         <span class="k">if</span> <span class="n">wcs</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">scale</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">scale</span> <span class="o">=</span> <span class="mf">1.</span>
             <span class="n">wcs</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">PixelScale</span><span class="p">(</span><span class="n">scale</span><span class="p">)</span>
-
-        <span class="c1"># Make the blank image</span>
-        <span class="k">if</span> <span class="n">image</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">image</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">Image</span><span class="p">(</span><span class="n">stamp_size</span><span class="p">,</span> <span class="n">stamp_size</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
 
         <span class="c1"># Make field_pos if we have u,v</span>
         <span class="k">if</span> <span class="n">u</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -274,22 +439,25 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="n">image_pos</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">PositionD</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">x</span><span class="p">),</span><span class="nb">float</span><span class="p">(</span><span class="n">y</span><span class="p">))</span>
 
-        <span class="c1"># Make the center of the image (close to) the image_pos</span>
-        <span class="n">image</span><span class="o">.</span><span class="n">setCenter</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">x</span><span class="o">+</span><span class="mf">0.5</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">y</span><span class="o">+</span><span class="mf">0.5</span><span class="p">))</span>
+        <span class="c1"># Make the blank image</span>
+        <span class="k">if</span> <span class="n">image</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">image</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">Image</span><span class="p">(</span><span class="n">stamp_size</span><span class="p">,</span> <span class="n">stamp_size</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+            <span class="c1"># Make the center of the image (close to) the image_pos</span>
+            <span class="n">xcen</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">x</span> <span class="o">-</span> <span class="p">(</span><span class="mf">0.5</span> <span class="k">if</span> <span class="n">image</span><span class="o">.</span><span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">else</span> <span class="mi">0</span><span class="p">)))</span>
+            <span class="n">ycen</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">y</span> <span class="o">-</span> <span class="p">(</span><span class="mf">0.5</span> <span class="k">if</span> <span class="n">image</span><span class="o">.</span><span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">else</span> <span class="mi">0</span><span class="p">)))</span>
+            <span class="n">image</span><span class="o">.</span><span class="n">setCenter</span><span class="p">(</span><span class="n">xcen</span><span class="p">,</span> <span class="n">ycen</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">image</span><span class="o">.</span><span class="n">wcs</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">image</span><span class="o">.</span><span class="n">wcs</span> <span class="o">=</span> <span class="n">wcs</span>
         <span class="k">if</span> <span class="n">weight</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">weight</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">Image</span><span class="p">(</span><span class="n">weight</span><span class="o">.</span><span class="n">array</span><span class="o">.</span><span class="n">copy</span><span class="p">(),</span> <span class="n">scale</span><span class="o">=</span><span class="n">image</span><span class="o">.</span><span class="n">scale</span><span class="p">)</span>
-            <span class="n">weight</span><span class="o">.</span><span class="n">setCenter</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">x</span><span class="o">+</span><span class="mf">0.5</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">y</span><span class="o">+</span><span class="mf">0.5</span><span class="p">))</span>
+            <span class="n">weight</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">Image</span><span class="p">(</span><span class="n">weight</span><span class="o">.</span><span class="n">array</span><span class="p">,</span> <span class="n">wcs</span><span class="o">=</span><span class="n">image</span><span class="o">.</span><span class="n">wcs</span><span class="p">,</span> <span class="n">copy</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">bounds</span><span class="o">=</span><span class="n">image</span><span class="o">.</span><span class="n">bounds</span><span class="p">)</span>
 
-            
         <span class="c1"># Build the StarData instance</span>
         <span class="n">data</span> <span class="o">=</span> <span class="n">StarData</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">image_pos</span><span class="p">,</span> <span class="n">field_pos</span><span class="o">=</span><span class="n">field_pos</span><span class="p">,</span> <span class="n">properties</span><span class="o">=</span><span class="n">properties</span><span class="p">,</span> 
                         <span class="n">pointing</span><span class="o">=</span><span class="n">pointing</span><span class="p">,</span> <span class="n">weight</span><span class="o">=</span><span class="n">weight</span><span class="p">)</span>        
         <span class="n">fit</span> <span class="o">=</span> <span class="n">StarFit</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">flux</span><span class="o">=</span><span class="n">flux</span><span class="p">,</span> <span class="n">center</span><span class="o">=</span><span class="p">(</span><span class="mf">0.</span><span class="p">,</span><span class="mf">0.</span><span class="p">))</span>
         <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">fit</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Star.write"><a class="viewcode-back" href="../../psf.html#piff.Star.write">[docs]</a>    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="Star.write"><a class="viewcode-back" href="../../star.html#piff.Star.write">[docs]</a>    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Write a list of stars to a FITS file.</span>
 
@@ -311,12 +479,8 @@
             <span class="n">prop_keys</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
         <span class="c1"># Add any remaining properties</span>
         <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">prop_keys</span><span class="p">:</span>
-            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">stars</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="n">key</span><span class="p">],</span> <span class="s1">&#39;__iter__&#39;</span><span class="p">):</span>
-                <span class="n">dtypes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span> <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">stars</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="n">key</span><span class="p">])))</span>
-                <span class="n">cols</span><span class="o">.</span><span class="n">append</span><span class="p">(</span> <span class="p">[</span> <span class="n">s</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">stars</span> <span class="p">])</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">dtypes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span> <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="nb">float</span><span class="p">)</span> <span class="p">)</span>
-                <span class="n">cols</span><span class="o">.</span><span class="n">append</span><span class="p">(</span> <span class="p">[</span> <span class="n">s</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">stars</span> <span class="p">]</span> <span class="p">)</span>
+            <span class="n">dtypes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span> <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="nb">float</span><span class="p">)</span> <span class="p">)</span>
+            <span class="n">cols</span><span class="o">.</span><span class="n">append</span><span class="p">(</span> <span class="p">[</span> <span class="n">s</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">stars</span> <span class="p">]</span> <span class="p">)</span>
 
         <span class="c1"># Add the local WCS values</span>
         <span class="n">dtypes</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span> <span class="p">[(</span><span class="s1">&#39;dudx&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;dudy&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;dvdx&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;dvdy&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">)</span> <span class="p">]</span> <span class="p">)</span>
@@ -357,7 +521,7 @@
         <span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">cols</span><span class="p">)),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtypes</span><span class="p">)</span>
         <span class="n">fits</span><span class="o">.</span><span class="n">write_table</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">extname</span><span class="o">=</span><span class="n">extname</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Star.read_coords_params"><a class="viewcode-back" href="../../psf.html#piff.Star.read_coords_params">[docs]</a>    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="Star.read_coords_params"><a class="viewcode-back" href="../../star.html#piff.Star.read_coords_params">[docs]</a>    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">read_coords_params</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Read only star fit parameters and coordinates from a FITS file.</span>
 
@@ -366,19 +530,21 @@
 
 <span class="sd">        :returns: the arrays coords and params</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="n">extname</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">fits</span><span class="p">:</span> <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{0}</span><span class="s1"> not found in FITS object&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">extname</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">extname</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">fits</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{0}</span><span class="s1"> not found in FITS object&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">extname</span><span class="p">))</span>
         <span class="n">colnames</span> <span class="o">=</span> <span class="n">fits</span><span class="p">[</span><span class="n">extname</span><span class="p">]</span><span class="o">.</span><span class="n">get_colnames</span><span class="p">()</span>
 
         <span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;u&#39;</span><span class="p">,</span> <span class="s1">&#39;v&#39;</span><span class="p">,</span> <span class="s1">&#39;params&#39;</span><span class="p">]</span>
         <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">columns</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">colnames</span><span class="p">:</span> <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{0}</span><span class="s1"> not found in table&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">key</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">colnames</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{0}</span><span class="s1"> not found in table&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">key</span><span class="p">))</span>
 
         <span class="n">data</span> <span class="o">=</span> <span class="n">fits</span><span class="p">[</span><span class="n">extname</span><span class="p">]</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="n">columns</span><span class="p">)</span>
         <span class="n">coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;u&#39;</span><span class="p">],</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;v&#39;</span><span class="p">]])</span><span class="o">.</span><span class="n">T</span>
         <span class="n">params</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;params&#39;</span><span class="p">]</span>
         <span class="k">return</span> <span class="n">coords</span><span class="p">,</span> <span class="n">params</span></div>
 
-<div class="viewcode-block" id="Star.read"><a class="viewcode-back" href="../../psf.html#piff.Star.read">[docs]</a>    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="Star.read"><a class="viewcode-back" href="../../star.html#piff.Star.read">[docs]</a>    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">read</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Read stars from a FITS file.</span>
 
@@ -447,7 +613,8 @@
         <span class="n">wcs_list</span> <span class="o">=</span> <span class="p">[</span> <span class="n">w</span><span class="o">.</span><span class="n">withOrigin</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">wp</span><span class="p">)</span> <span class="k">for</span> <span class="n">w</span><span class="p">,</span><span class="n">p</span><span class="p">,</span><span class="n">wp</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">wcs_list</span><span class="p">,</span> <span class="n">pos_list</span><span class="p">,</span> <span class="n">wpos_list</span><span class="p">)</span> <span class="p">]</span>
         <span class="n">bounds_list</span> <span class="o">=</span> <span class="p">[</span> <span class="n">galsim</span><span class="o">.</span><span class="n">BoundsI</span><span class="p">(</span><span class="o">*</span><span class="n">b</span><span class="p">)</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">xmin</span><span class="p">,</span><span class="n">xmax</span><span class="p">,</span><span class="n">ymin</span><span class="p">,</span><span class="n">ymax</span><span class="p">)</span> <span class="p">]</span>
         <span class="n">image_list</span> <span class="o">=</span> <span class="p">[</span> <span class="n">galsim</span><span class="o">.</span><span class="n">Image</span><span class="p">(</span><span class="n">bounds</span><span class="o">=</span><span class="n">b</span><span class="p">,</span> <span class="n">wcs</span><span class="o">=</span><span class="n">w</span><span class="p">)</span> <span class="k">for</span> <span class="n">b</span><span class="p">,</span><span class="n">w</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">bounds_list</span><span class="p">,</span> <span class="n">wcs_list</span><span class="p">)</span> <span class="p">]</span>
-        <span class="n">weight_list</span> <span class="o">=</span> <span class="p">[</span> <span class="n">galsim</span><span class="o">.</span><span class="n">Image</span><span class="p">(</span><span class="n">init_value</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">bounds</span><span class="o">=</span><span class="n">b</span><span class="p">,</span> <span class="n">wcs</span><span class="o">=</span><span class="n">w</span><span class="p">)</span> <span class="k">for</span> <span class="n">b</span><span class="p">,</span><span class="n">w</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">bounds_list</span><span class="p">,</span> <span class="n">wcs_list</span><span class="p">)</span> <span class="p">]</span>
+        <span class="n">weight_list</span> <span class="o">=</span> <span class="p">[</span> <span class="n">galsim</span><span class="o">.</span><span class="n">Image</span><span class="p">(</span><span class="n">init_value</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">bounds</span><span class="o">=</span><span class="n">b</span><span class="p">,</span> <span class="n">wcs</span><span class="o">=</span><span class="n">w</span><span class="p">)</span>
+                        <span class="k">for</span> <span class="n">b</span><span class="p">,</span><span class="n">w</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">bounds_list</span><span class="p">,</span> <span class="n">wcs_list</span><span class="p">)</span> <span class="p">]</span>
         <span class="n">data_list</span> <span class="o">=</span> <span class="p">[</span> <span class="n">StarData</span><span class="p">(</span><span class="n">im</span><span class="p">,</span> <span class="n">pos</span><span class="p">,</span> <span class="n">weight</span><span class="o">=</span><span class="n">w</span><span class="p">,</span> <span class="n">properties</span><span class="o">=</span><span class="n">prop</span><span class="p">,</span> <span class="n">pointing</span><span class="o">=</span><span class="n">point</span><span class="p">)</span>
                       <span class="k">for</span> <span class="n">im</span><span class="p">,</span><span class="n">pos</span><span class="p">,</span><span class="n">w</span><span class="p">,</span><span class="n">prop</span><span class="p">,</span><span class="n">point</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">image_list</span><span class="p">,</span> <span class="n">pos_list</span><span class="p">,</span> <span class="n">weight_list</span><span class="p">,</span>
                                                      <span class="n">prop_list</span><span class="p">,</span> <span class="n">pointing_list</span><span class="p">)</span> <span class="p">]</span>
@@ -455,9 +622,9 @@
         <span class="n">stars</span> <span class="o">=</span> <span class="p">[</span> <span class="n">Star</span><span class="p">(</span><span class="n">d</span><span class="p">,</span><span class="n">f</span><span class="p">)</span> <span class="k">for</span> <span class="p">(</span><span class="n">d</span><span class="p">,</span><span class="n">f</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">data_list</span><span class="p">,</span> <span class="n">fit_list</span><span class="p">)</span> <span class="p">]</span>
         <span class="k">return</span> <span class="n">stars</span></div>
 
-<div class="viewcode-block" id="Star.load_images"><a class="viewcode-back" href="../../psf.html#piff.Star.load_images">[docs]</a>    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="Star.load_images"><a class="viewcode-back" href="../../star.html#piff.Star.load_images">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">load_images</span><span class="p">(</span><span class="n">stars</span><span class="p">,</span> <span class="n">file_name</span><span class="p">,</span> <span class="n">pointing</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                    <span class="n">image_hdu</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">weight_hdu</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">badpix_hdu</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">sky</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                    <span class="n">image_hdu</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">weight_hdu</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">badpix_hdu</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">noise</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">sky</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                     <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Load the image data into a list of Stars.</span>
 
@@ -473,54 +640,23 @@
 <span class="sd">                                either 0 or 1 as appropriate according to the compression.]</span>
 <span class="sd">        :param weight_hdu:      The hdu to use for the weight image. [default: None]</span>
 <span class="sd">        :param badpix_hdu:      The hdu to use for the bad pixel mask. [default: None]</span>
+<span class="sd">        :param noise:           A constant noise value to use in lieu of a weight map</span>
+<span class="sd">                                [default: None]</span>
 <span class="sd">        :param sky:             Optional sky image or float value to subtract from the main</span>
 <span class="sd">                                image. [default: None]</span>
 <span class="sd">        :param logger:          A logger object for logging debug info. [default: None]</span>
 
 <span class="sd">        :returns: a new list of Stars with the images information loaded.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c1"># TODO: This is largely copied from InputHandler.readImages.</span>
-        <span class="c1">#       This should probably be refactored a bit to avoid the duplicated code.</span>
+        <span class="kn">from</span> <span class="nn">.input</span> <span class="kn">import</span> <span class="n">InputFiles</span>
+
         <span class="n">logger</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">LoggerWrapper</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Loading image information from file </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">file_name</span><span class="p">)</span>
-        <span class="n">image</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">fits</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">hdu</span><span class="o">=</span><span class="n">image_hdu</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="n">sky</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">image</span> <span class="o">=</span> <span class="n">image</span> <span class="o">-</span> <span class="n">sky</span>
-
-        <span class="c1"># Either read in the weight image, or build a dummy one</span>
-        <span class="k">if</span> <span class="n">weight_hdu</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Making trivial (wt==1) weight image&quot;</span><span class="p">)</span>
-            <span class="n">weight</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">ImageI</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">bounds</span><span class="p">,</span> <span class="n">init_value</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Reading weight image from hdu </span><span class="si">%d</span><span class="s2">.&quot;</span><span class="p">,</span> <span class="n">weight_hdu</span><span class="p">)</span>
-            <span class="n">weight</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">fits</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">hdu</span><span class="o">=</span><span class="n">weight_hdu</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">weight</span><span class="o">.</span><span class="n">array</span> <span class="o">==</span> <span class="mi">0</span><span class="p">):</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;According to the weight mask in </span><span class="si">%s</span><span class="s2">, all pixels have zero weight!&quot;</span><span class="p">,</span>
-                             <span class="n">file_name</span><span class="p">)</span>
-
-        <span class="c1"># If requested, set wt=0 for any bad pixels</span>
-        <span class="k">if</span> <span class="n">badpix_hdu</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Reading badpix image from hdu </span><span class="si">%d</span><span class="s2">.&quot;</span><span class="p">,</span> <span class="n">badpix_hdu</span><span class="p">)</span>
-            <span class="n">badpix</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">fits</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">hdu</span><span class="o">=</span><span class="n">badpix_hdu</span><span class="p">)</span>
-            <span class="c1"># The badpix image may be offset by 32768 from the true value.</span>
-            <span class="c1"># If so, subtract it off.</span>
-            <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">badpix</span><span class="o">.</span><span class="n">array</span> <span class="o">&gt;</span> <span class="mi">32767</span><span class="p">):</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;min(badpix) = </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">badpix</span><span class="o">.</span><span class="n">array</span><span class="p">))</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;max(badpix) = </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">badpix</span><span class="o">.</span><span class="n">array</span><span class="p">))</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;subtracting 32768 from all values in badpix image&quot;</span><span class="p">)</span>
-                <span class="n">badpix</span> <span class="o">-=</span> <span class="mi">32768</span>
-            <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">badpix</span><span class="o">.</span><span class="n">array</span> <span class="o">&lt;</span> <span class="o">-</span><span class="mi">32767</span><span class="p">):</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;min(badpix) = </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">badpix</span><span class="o">.</span><span class="n">array</span><span class="p">))</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;max(badpix) = </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">badpix</span><span class="o">.</span><span class="n">array</span><span class="p">))</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;adding 32768 to all values in badpix image&quot;</span><span class="p">)</span>
-                <span class="n">badpix</span> <span class="o">+=</span> <span class="mi">32768</span>
-            <span class="c1"># Also, convert to int16, in case it isn&#39;t by default.</span>
-            <span class="n">badpix</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">ImageS</span><span class="p">(</span><span class="n">badpix</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">badpix</span><span class="o">.</span><span class="n">array</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">):</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;According to the bad pixel array in </span><span class="si">%s</span><span class="s2">, all pixels are masked!&quot;</span><span class="p">,</span>
-                                <span class="n">file_name</span><span class="p">)</span>
-            <span class="n">weight</span><span class="o">.</span><span class="n">array</span><span class="p">[</span><span class="n">badpix</span><span class="o">.</span><span class="n">array</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">image</span><span class="p">,</span> <span class="n">weight</span> <span class="o">=</span> <span class="n">InputFiles</span><span class="o">.</span><span class="n">readImage</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">image_hdu</span><span class="p">,</span> <span class="n">weight_hdu</span><span class="p">,</span> <span class="n">badpix_hdu</span><span class="p">,</span>
+                                             <span class="n">noise</span><span class="o">=</span><span class="n">noise</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">sky</span><span class="p">:</span>
+            <span class="n">image</span> <span class="o">-=</span> <span class="n">sky</span>
 
         <span class="n">stars</span> <span class="o">=</span> <span class="p">[</span> <span class="n">Star</span><span class="p">(</span><span class="n">data</span> <span class="o">=</span> <span class="n">StarData</span><span class="p">(</span><span class="n">image</span><span class="o">=</span><span class="n">image</span><span class="p">[</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">bounds</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">(),</span>
                                        <span class="n">image_pos</span><span class="o">=</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">image_pos</span><span class="p">,</span>
@@ -534,7 +670,7 @@
         <span class="k">return</span> <span class="n">stars</span></div>
 
 
-<div class="viewcode-block" id="Star.offset_to_center"><a class="viewcode-back" href="../../psf.html#piff.Star.offset_to_center">[docs]</a>    <span class="k">def</span> <span class="nf">offset_to_center</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">offset</span><span class="p">):</span>
+<div class="viewcode-block" id="Star.offset_to_center"><a class="viewcode-back" href="../../star.html#piff.Star.offset_to_center">[docs]</a>    <span class="k">def</span> <span class="nf">offset_to_center</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">offset</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;A utility routine to convert from an offset in image coordinates to the corresponding</span>
 <span class="sd">        center position in focal plane coordinates on the postage stamp image.</span>
 
@@ -549,7 +685,7 @@
         <span class="n">dv</span> <span class="o">=</span> <span class="n">jac</span><span class="o">.</span><span class="n">dvdx</span> <span class="o">*</span> <span class="n">dx</span> <span class="o">+</span> <span class="n">jac</span><span class="o">.</span><span class="n">dvdy</span> <span class="o">*</span> <span class="n">dy</span>
         <span class="k">return</span> <span class="p">(</span><span class="n">du</span><span class="p">,</span><span class="n">dv</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Star.center_to_offset"><a class="viewcode-back" href="../../psf.html#piff.Star.center_to_offset">[docs]</a>    <span class="k">def</span> <span class="nf">center_to_offset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">center</span><span class="p">):</span>
+<div class="viewcode-block" id="Star.center_to_offset"><a class="viewcode-back" href="../../star.html#piff.Star.center_to_offset">[docs]</a>    <span class="k">def</span> <span class="nf">center_to_offset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">center</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;A utility routine to convert from a center position in focal plane coordinates to the</span>
 <span class="sd">        corresponding offset in image coordinates on the postage stamp image.</span>
 
@@ -565,7 +701,7 @@
         <span class="n">dy</span> <span class="o">=</span> <span class="n">jac</span><span class="o">.</span><span class="n">dvdx</span> <span class="o">*</span> <span class="n">du</span> <span class="o">+</span> <span class="n">jac</span><span class="o">.</span><span class="n">dvdy</span> <span class="o">*</span> <span class="n">dv</span>
         <span class="k">return</span> <span class="p">(</span><span class="n">dx</span><span class="p">,</span><span class="n">dy</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Star.addPoisson"><a class="viewcode-back" href="../../psf.html#piff.Star.addPoisson">[docs]</a>    <span class="k">def</span> <span class="nf">addPoisson</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">signal</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">gain</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="Star.addPoisson"><a class="viewcode-back" href="../../star.html#piff.Star.addPoisson">[docs]</a>    <span class="k">def</span> <span class="nf">addPoisson</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">signal</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">gain</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Return new Star with the weight values altered to reflect</span>
 <span class="sd">        Poisson shot noise from a signal source, e.g. when the weight</span>
 <span class="sd">        only contains variance from background and read noise.</span>
@@ -584,7 +720,7 @@
         <span class="k">return</span> <span class="n">Star</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">addPoisson</span><span class="p">(</span><span class="n">signal</span><span class="o">=</span><span class="n">signal</span><span class="p">,</span> <span class="n">gain</span><span class="o">=</span><span class="n">gain</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">fit</span><span class="p">)</span></div></div>
 
 
-<div class="viewcode-block" id="StarData"><a class="viewcode-back" href="../../psf.html#piff.StarData">[docs]</a><span class="k">class</span> <span class="nc">StarData</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<div class="viewcode-block" id="StarData"><a class="viewcode-back" href="../../star.html#piff.StarData">[docs]</a><span class="k">class</span> <span class="nc">StarData</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;A class that encapsulates all the relevant information about an observed star.</span>
 
 <span class="sd">    **Class intended to be immutable once returned from the method that creates it.**</span>
@@ -665,11 +801,8 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">weight</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">Image</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">bounds</span><span class="p">,</span> <span class="n">init_value</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">wcs</span><span class="o">=</span><span class="n">image</span><span class="o">.</span><span class="n">wcs</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
         <span class="k">elif</span> <span class="nb">type</span><span class="p">(</span><span class="n">weight</span><span class="p">)</span> <span class="ow">in</span> <span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">weight</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">Image</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">bounds</span><span class="p">,</span> <span class="n">init_value</span><span class="o">=</span><span class="n">weight</span><span class="p">,</span> <span class="n">wcs</span><span class="o">=</span><span class="n">image</span><span class="o">.</span><span class="n">wcs</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">weight</span><span class="p">,</span> <span class="n">galsim</span><span class="o">.</span><span class="n">Image</span><span class="p">):</span>
-            <span class="c1"># Work-around for bug in GalSim 1.3</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">weight</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">Image</span><span class="p">(</span><span class="n">weight</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span> <span class="n">wcs</span><span class="o">=</span><span class="n">weight</span><span class="o">.</span><span class="n">wcs</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">weight</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">Image</span><span class="p">(</span><span class="n">weight</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">weight</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">Image</span><span class="p">(</span><span class="n">weight</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span> <span class="n">wcs</span><span class="o">=</span><span class="n">weight</span><span class="o">.</span><span class="n">wcs</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">orig_weight</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">orig_weight</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">weight</span>
@@ -691,7 +824,7 @@
         <span class="c1"># Make sure the user didn&#39;t provide their own x,y,u,v in properties.</span>
         <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="s1">&#39;u&#39;</span><span class="p">,</span> <span class="s1">&#39;v&#39;</span><span class="p">]:</span>
             <span class="k">if</span> <span class="n">properties</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">properties</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">_xyuv_set</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="s2">&quot;Cannot provide property </span><span class="si">%s</span><span class="s2"> in properties dict.&quot;</span><span class="o">%</span><span class="n">key</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Cannot provide property </span><span class="si">%s</span><span class="s2"> in properties dict.&quot;</span><span class="o">%</span><span class="n">key</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">image_pos</span><span class="o">.</span><span class="n">x</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s1">&#39;y&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">image_pos</span><span class="o">.</span><span class="n">y</span>
@@ -701,7 +834,7 @@
     <span class="k">def</span> <span class="nf">copy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
 
-<div class="viewcode-block" id="StarData.calculateFieldPos"><a class="viewcode-back" href="../../psf.html#piff.StarData.calculateFieldPos">[docs]</a>    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="StarData.calculateFieldPos"><a class="viewcode-back" href="../../star.html#piff.StarData.calculateFieldPos">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">calculateFieldPos</span><span class="p">(</span><span class="n">image_pos</span><span class="p">,</span> <span class="n">wcs</span><span class="p">,</span> <span class="n">pointing</span><span class="p">,</span> <span class="n">properties</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Convert from image coordinates to field coordinates.</span>
@@ -720,18 +853,15 @@
         <span class="c1"># Calculate the field_pos, the position in the fov coordinates</span>
         <span class="k">if</span> <span class="n">wcs</span><span class="o">.</span><span class="n">isCelestial</span><span class="p">():</span>
             <span class="k">if</span> <span class="n">pointing</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="s2">&quot;If the image uses a CelestialWCS then pointing is required.&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;If the image uses a CelestialWCS then pointing is required.&quot;</span><span class="p">)</span>
             <span class="n">sky_pos</span> <span class="o">=</span> <span class="n">wcs</span><span class="o">.</span><span class="n">toWorld</span><span class="p">(</span><span class="n">image_pos</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">properties</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="k">if</span> <span class="s1">&#39;ra&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">properties</span><span class="p">:</span>
                     <span class="n">properties</span><span class="p">[</span><span class="s1">&#39;ra&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sky_pos</span><span class="o">.</span><span class="n">ra</span> <span class="o">/</span> <span class="n">galsim</span><span class="o">.</span><span class="n">hours</span>
                 <span class="k">if</span> <span class="s1">&#39;dec&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">properties</span><span class="p">:</span>
                     <span class="n">properties</span><span class="p">[</span><span class="s1">&#39;dec&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sky_pos</span><span class="o">.</span><span class="n">dec</span> <span class="o">/</span> <span class="n">galsim</span><span class="o">.</span><span class="n">degrees</span>
-            <span class="k">if</span> <span class="n">galsim</span><span class="o">.</span><span class="n">__version__</span> <span class="o">&gt;=</span> <span class="s1">&#39;2.0&#39;</span><span class="p">:</span>
-                <span class="n">u</span><span class="p">,</span> <span class="n">v</span> <span class="o">=</span> <span class="n">pointing</span><span class="o">.</span><span class="n">project</span><span class="p">(</span><span class="n">sky_pos</span><span class="p">)</span>
-                <span class="k">return</span> <span class="n">galsim</span><span class="o">.</span><span class="n">PositionD</span><span class="p">(</span><span class="n">u</span><span class="o">/</span><span class="n">galsim</span><span class="o">.</span><span class="n">arcsec</span><span class="p">,</span> <span class="n">v</span><span class="o">/</span><span class="n">galsim</span><span class="o">.</span><span class="n">arcsec</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="k">return</span> <span class="n">pointing</span><span class="o">.</span><span class="n">project</span><span class="p">(</span><span class="n">sky_pos</span><span class="p">)</span>
+            <span class="n">u</span><span class="p">,</span> <span class="n">v</span> <span class="o">=</span> <span class="n">pointing</span><span class="o">.</span><span class="n">project</span><span class="p">(</span><span class="n">sky_pos</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">galsim</span><span class="o">.</span><span class="n">PositionD</span><span class="p">(</span><span class="n">u</span><span class="o">/</span><span class="n">galsim</span><span class="o">.</span><span class="n">arcsec</span><span class="p">,</span> <span class="n">v</span><span class="o">/</span><span class="n">galsim</span><span class="o">.</span><span class="n">arcsec</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">wcs</span><span class="o">.</span><span class="n">toWorld</span><span class="p">(</span><span class="n">image_pos</span><span class="p">)</span></div>
 
@@ -748,7 +878,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
 
-<div class="viewcode-block" id="StarData.getImage"><a class="viewcode-back" href="../../psf.html#piff.StarData.getImage">[docs]</a>    <span class="k">def</span> <span class="nf">getImage</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="StarData.getImage"><a class="viewcode-back" href="../../star.html#piff.StarData.getImage">[docs]</a>    <span class="k">def</span> <span class="nf">getImage</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Get the pixel data as a galsim.Image.</span>
 
 <span class="sd">        Also returns the weight image and the origin position (the position in x,y coordinates</span>
@@ -758,7 +888,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">image</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">weight</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">image_pos</span></div>
 
-<div class="viewcode-block" id="StarData.getDataVector"><a class="viewcode-back" href="../../psf.html#piff.StarData.getDataVector">[docs]</a>    <span class="k">def</span> <span class="nf">getDataVector</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">include_zero_weight</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<div class="viewcode-block" id="StarData.getDataVector"><a class="viewcode-back" href="../../star.html#piff.StarData.getDataVector">[docs]</a>    <span class="k">def</span> <span class="nf">getDataVector</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">include_zero_weight</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Get the pixel data as a numpy array.</span>
 
 <span class="sd">        Also returns the weight values and the local u,v coordinates of the pixels.</span>
@@ -798,44 +928,7 @@
             <span class="n">mask</span> <span class="o">=</span> <span class="n">wt</span> <span class="o">!=</span> <span class="mf">0.</span>
             <span class="k">return</span> <span class="n">pix</span><span class="p">[</span><span class="n">mask</span><span class="p">],</span> <span class="n">wt</span><span class="p">[</span><span class="n">mask</span><span class="p">],</span> <span class="n">u</span><span class="p">[</span><span class="n">mask</span><span class="p">],</span> <span class="n">v</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span></div>
 
-<div class="viewcode-block" id="StarData.setData"><a class="viewcode-back" href="../../psf.html#piff.StarData.setData">[docs]</a>    <span class="k">def</span> <span class="nf">setData</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">include_zero_weight</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">copy_image</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Return new StarData with data values replaced by elements of provided 1d array.</span>
-<span class="sd">        The array should match the ordering of the one that is produced by getDataVector().</span>
-
-<span class="sd">        :param data:                A 1d numpy array with new values for the image data.</span>
-<span class="sd">        :param include_zero_weight: If True, the data array includes all pixels.</span>
-<span class="sd">                                    If False, it only includes the pixels with weight &gt; 0.</span>
-<span class="sd">                                    [default: False]</span>
-<span class="sd">        :param copy_image:          If False, will use the same image object.</span>
-<span class="sd">                                    If True, will copy the image and then overwrite it.</span>
-<span class="sd">                                    [default: True]</span>
-
-<span class="sd">        :returns:    New StarData structure</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c1"># ??? Do we need a way to fill in pixels that have zero weight and</span>
-        <span class="c1"># don&#39;t get passed out by getDataVector()???</span>
-
-        <span class="k">if</span> <span class="n">copy_image</span><span class="p">:</span>
-            <span class="n">newimage</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">newimage</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">image</span>
-        <span class="k">if</span> <span class="n">include_zero_weight</span><span class="p">:</span>
-            <span class="n">newimage</span><span class="o">.</span><span class="n">array</span><span class="p">[:,:]</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">newimage</span><span class="o">.</span><span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">ignore</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">weight</span><span class="o">.</span><span class="n">array</span><span class="o">==</span><span class="mf">0.</span>
-            <span class="n">newimage</span><span class="o">.</span><span class="n">array</span><span class="p">[</span><span class="n">ignore</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.</span>
-            <span class="n">newimage</span><span class="o">.</span><span class="n">array</span><span class="p">[</span><span class="o">~</span><span class="n">ignore</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span>
-
-        <span class="k">return</span> <span class="n">StarData</span><span class="p">(</span><span class="n">image</span><span class="o">=</span><span class="n">newimage</span><span class="p">,</span>
-                        <span class="n">image_pos</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">image_pos</span><span class="p">,</span>
-                        <span class="n">weight</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">weight</span><span class="p">,</span>
-                        <span class="n">orig_weight</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">orig_weight</span><span class="p">,</span>
-                        <span class="n">pointing</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">pointing</span><span class="p">,</span>
-                        <span class="n">field_pos</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">field_pos</span><span class="p">,</span>
-                        <span class="n">properties</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">properties</span><span class="p">,</span>
-                        <span class="n">_xyuv_set</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
-
-<div class="viewcode-block" id="StarData.addPoisson"><a class="viewcode-back" href="../../psf.html#piff.StarData.addPoisson">[docs]</a>    <span class="k">def</span> <span class="nf">addPoisson</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">signal</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">gain</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="StarData.addPoisson"><a class="viewcode-back" href="../../star.html#piff.StarData.addPoisson">[docs]</a>    <span class="k">def</span> <span class="nf">addPoisson</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">signal</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">gain</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Return new StarData with the weight values altered to reflect</span>
 <span class="sd">        Poisson shot noise from a signal source, e.g. when the weight</span>
 <span class="sd">        only contains variance from background and read noise.</span>
@@ -882,52 +975,10 @@
                         <span class="n">orig_weight</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">orig_weight</span><span class="p">,</span>
                         <span class="n">pointing</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">pointing</span><span class="p">,</span>
                         <span class="n">properties</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">properties</span><span class="p">,</span> <span class="n">gain</span><span class="o">=</span><span class="n">gain</span><span class="p">),</span>
-                        <span class="n">_xyuv_set</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span></div>
-
-<div class="viewcode-block" id="StarData.maskPixels"><a class="viewcode-back" href="../../psf.html#piff.StarData.maskPixels">[docs]</a>    <span class="k">def</span> <span class="nf">maskPixels</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mask</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Return new StarData with weight nulled at pixels marked as False in the mask.</span>
-<span class="sd">        Note that this cannot un-mask any previously nulled pixels.</span>
-
-<span class="sd">        :param mask:      Boolean array with False marked in pixels that should henceforth</span>
-<span class="sd">                          be ignored in fitting.</span>
-<span class="sd">                          If this is a 2d array it is assumed to match the weight image.</span>
-<span class="sd">                          If it is a 1d array, it is assumed to match the vectors returned by</span>
-<span class="sd">                          getDataVector().  If None, the self.image is used, clipped from below</span>
-
-<span class="sd">        :returns:         A new StarData instance with updated weight array.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-
-        <span class="c1"># Mark the pixels that are not already worthless</span>
-        <span class="n">use</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">weight</span><span class="o">.</span><span class="n">array</span><span class="o">!=</span><span class="mf">0.</span>
-
-        <span class="c1"># Get the signal data</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">mask</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span><span class="o">==</span><span class="mi">2</span><span class="p">:</span>
-            <span class="n">m</span> <span class="o">=</span> <span class="n">mask</span><span class="p">[</span><span class="n">use</span><span class="p">]</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="c1"># Insert 1d vector into currently valid pixels</span>
-            <span class="n">m</span> <span class="o">=</span> <span class="n">mask</span>
-
-        <span class="c1"># Zero appropriate weight pixels in new copy</span>
-        <span class="n">weight</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">weight</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
-        <span class="n">weight</span><span class="o">.</span><span class="n">array</span><span class="p">[</span><span class="n">use</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">weight</span><span class="o">.</span><span class="n">array</span><span class="p">[</span><span class="n">use</span><span class="p">],</span> <span class="mf">0.</span><span class="p">)</span>
-
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">orig_weight</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">weight</span><span class="p">:</span>
-            <span class="n">orig_weight</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">orig_weight</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
-            <span class="n">orig_weight</span><span class="o">.</span><span class="n">array</span><span class="p">[</span><span class="n">use</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">orig_weight</span><span class="o">.</span><span class="n">array</span><span class="p">[</span><span class="n">use</span><span class="p">],</span> <span class="mf">0.</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">orig_weight</span> <span class="o">=</span> <span class="n">weight</span>
-
-        <span class="c1"># Return new object</span>
-        <span class="k">return</span> <span class="n">StarData</span><span class="p">(</span><span class="n">image</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">image</span><span class="p">,</span>
-                        <span class="n">image_pos</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">image_pos</span><span class="p">,</span>
-                        <span class="n">weight</span><span class="o">=</span><span class="n">weight</span><span class="p">,</span>
-                        <span class="n">orig_weight</span><span class="o">=</span><span class="n">orig_weight</span><span class="p">,</span>
-                        <span class="n">pointing</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">pointing</span><span class="p">,</span>
-                        <span class="n">properties</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">properties</span><span class="p">,</span>
-                        <span class="n">_xyuv_set</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div></div>
+                        <span class="n">_xyuv_set</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span></div></div>
 
 
-<div class="viewcode-block" id="StarFit"><a class="viewcode-back" href="../../psf.html#piff.StarFit">[docs]</a><span class="k">class</span> <span class="nc">StarFit</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<div class="viewcode-block" id="StarFit"><a class="viewcode-back" href="../../star.html#piff.StarFit">[docs]</a><span class="k">class</span> <span class="nc">StarFit</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Class to hold the results of fitting a Model to some StarData, or specify</span>
 <span class="sd">    the PSF interpolated to an unmeasured location.</span>
 
@@ -978,7 +1029,6 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">b</span> <span class="o">=</span> <span class="n">b</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">chisq</span> <span class="o">=</span> <span class="n">chisq</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">dof</span> <span class="o">=</span> <span class="n">dof</span>
-        <span class="k">return</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">alpha</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -988,70 +1038,65 @@
     <span class="k">def</span> <span class="nf">beta</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">A</span><span class="o">.</span><span class="n">T</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">b</span><span class="p">)</span>
 
-<div class="viewcode-block" id="StarFit.newParams"><a class="viewcode-back" href="../../psf.html#piff.StarFit.newParams">[docs]</a>    <span class="k">def</span> <span class="nf">newParams</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<div class="viewcode-block" id="StarFit.newParams"><a class="viewcode-back" href="../../star.html#piff.StarFit.newParams">[docs]</a>    <span class="k">def</span> <span class="nf">newParams</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Return new StarFit that has the array params installed as new parameters.</span>
 
 <span class="sd">        :param params:  A 1d array holding new parameters; must match size of current ones</span>
-<span class="sd">        :param kwargs:  Any other additional properties for the star. Takes current flux and center if not provided, and otherwise puts in None</span>
+<span class="sd">        :param kwargs:  Any other additional properties for the star. Takes current flux and center</span>
+<span class="sd">                        if not provided, and otherwise puts in None</span>
 
 <span class="sd">        :returns:  New StarFit object with altered parameters.  All chisq-related parameters</span>
 <span class="sd">                   are set to None since they are no longer valid.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">npp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">npp</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">shape</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;new StarFit parameters do not match dimensions of old ones&#39;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;new StarFit parameters do not match dimensions of old ones&#39;</span><span class="p">)</span>
         <span class="n">flux</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;flux&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">flux</span><span class="p">)</span>
         <span class="n">center</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;center&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">center</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">StarFit</span><span class="p">(</span><span class="n">npp</span><span class="p">,</span> <span class="n">flux</span><span class="o">=</span><span class="n">flux</span><span class="p">,</span> <span class="n">center</span><span class="o">=</span><span class="n">center</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
 
     <span class="k">def</span> <span class="nf">copy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">StarFit</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">flux</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">center</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">A</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">b</span><span class="p">,</span>
-                       <span class="bp">self</span><span class="o">.</span><span class="n">chisq</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dof</span><span class="p">)</span>
-
-    <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Get a property of the star fit.</span>
-
-<span class="sd">        Looks at params to get the property</span>
-
-<span class="sd">        :param key:     The name of the property to return</span>
-
-<span class="sd">        :returns: the value of the given property.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">key</span><span class="p">]</span></div>
+                       <span class="bp">self</span><span class="o">.</span><span class="n">chisq</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dof</span><span class="p">)</span></div>
 </pre></div>
 
+           </div>
+           
           </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
         </div>
       </div>
-      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
-        <div class="sphinxsidebarwrapper">
-<div id="searchbox" style="display: none" role="search">
-  <h3 id="searchlabel">Quick search</h3>
-    <div class="searchformwrapper">
-    <form class="search" action="../../search.html" method="get">
-      <input type="text" name="q" aria-labelledby="searchlabel" />
-      <input type="submit" value="Go" />
-    </form>
-    </div>
-</div>
-<script>$('#searchbox').show(0);</script>
-        </div>
-      </div>
-      <div class="clearer"></div>
-    </div>
-    <div class="related" role="navigation" aria-label="related navigation">
-      <h3>Navigation</h3>
-      <ul>
-        <li class="right" style="margin-right: 10px">
-          <a href="../../genindex.html" title="General Index"
-             >index</a></li>
-        <li class="nav-item nav-item-0"><a href="../../index.html">Piff 0.4 documentation</a> &#187;</li>
-          <li class="nav-item nav-item-1"><a href="../index.html" >Module code</a> &#187;</li> 
-      </ul>
-    </div>
-    <div class="footer" role="contentinfo">
-        &#169; Copyright 2019.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.0.3.
-    </div>
-  </body>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
 </html>

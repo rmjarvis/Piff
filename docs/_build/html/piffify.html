@@ -1,45 +1,164 @@
 
-<!DOCTYPE html>
 
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <title>The piffify executable &#8212; Piff 0.4 documentation</title>
-    <link rel="stylesheet" href="_static/classic.css" type="text/css" />
-    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>The piffify executable &mdash; Piff 1.0.0 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="_static/js/modernizr.min.js"></script>
+  
     
-    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-    <script src="_static/jquery.js"></script>
-    <script src="_static/underscore.js"></script>
-    <script src="_static/doctools.js"></script>
-    <script src="_static/language_data.js"></script>
-    <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/language_data.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="Reading in Files" href="input.html" />
     <link rel="prev" title="PIFF: PSFs In the Full FOV" href="overview.html" /> 
-  </head><body>
-    <div class="related" role="navigation" aria-label="related navigation">
-      <h3>Navigation</h3>
-      <ul>
-        <li class="right" style="margin-right: 10px">
-          <a href="genindex.html" title="General Index"
-             accesskey="I">index</a></li>
-        <li class="right" >
-          <a href="input.html" title="Reading in Files"
-             accesskey="N">next</a> |</li>
-        <li class="right" >
-          <a href="overview.html" title="PIFF: PSFs In the Full FOV"
-             accesskey="P">previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Piff 0.4 documentation</a> &#187;</li> 
-      </ul>
-    </div>  
+</head>
 
-    <div class="document">
-      <div class="documentwrapper">
-        <div class="bodywrapper">
-          <div class="body" role="main">
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Piff
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                1.0
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="overview.html">PIFF: PSFs In the Full FOV</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">The piffify executable</a></li>
+<li class="toctree-l1"><a class="reference internal" href="input.html">Reading in Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="model.html">Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="interp.html">Interpolation Schemes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="psf.html">PSF classes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="outliers.html">Removing Outliers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="output.html">Writing the output file</a></li>
+<li class="toctree-l1"><a class="reference internal" href="stats.html">Output statistics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="star.html">Stars</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Piff</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+      <li>The piffify executable</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/piffify.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
             
   <div class="section" id="the-piffify-executable">
 <h1>The piffify executable<a class="headerlink" href="#the-piffify-executable" title="Permalink to this headline">¶</a></h1>
@@ -48,54 +167,57 @@ a YAML configuration file:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">piffify</span> <span class="n">config_file</span>
 </pre></div>
 </div>
-<p>The configuration file should have four fields which define the different aspects of
+<p>The configuration file should have three fields which define the different aspects of
 the process:</p>
 <blockquote>
 <div><dl class="field-list simple">
 <dt class="field-odd">input</dt>
 <dd class="field-odd"><p>Where to read the input images and catalogs.</p>
 </dd>
-<dt class="field-even">model</dt>
-<dd class="field-even"><p>What kind of model to use to describe the PSF a single location.</p>
+<dt class="field-even">psf</dt>
+<dd class="field-even"><p>What kind of model and interpolation to use to describe the PSF.
+Typically, this would have two subfields: model and interp.</p>
+<ul class="simple">
+<li><p>model defines the shape of the PSF at a single location</p></li>
+<li><p>interp defines how the model parameters are interpolated across the FOV.</p></li>
+</ul>
 </dd>
-<dt class="field-odd">interp</dt>
-<dd class="field-odd"><p>How to interpolate the coefficients of the model across the field of view.</p>
-</dd>
-<dt class="field-even">output</dt>
-<dd class="field-even"><p>Where to write the output file.</p>
+<dt class="field-odd">output</dt>
+<dd class="field-odd"><p>Where to write the output file.</p>
 </dd>
 </dl>
 </div></blockquote>
-<p>Each field is governed by a :type: parameter (although there are useful defaults for both
-:input: and :output:.  This corresponds to different classes in the Python code.
+<p>Each field is governed by a :type: parameter (although there are useful defaults for all three
+primary top-level fields.
+This corresponds to different classes in the Python code.
 The other parameters in each field correspond to the initialization kwargs for the class.</p>
-<p>For instance the following cofiguration file uses the <a class="reference internal" href="model.html#piff.PixelGrid" title="piff.PixelGrid"><code class="xref py py-class docutils literal notranslate"><span class="pre">PixelGrid</span></code></a> class for the model and
-the <a class="reference internal" href="interp.html#piff.Polynomial" title="piff.Polynomial"><code class="xref py py-class docutils literal notranslate"><span class="pre">Polynomial</span></code></a> class for interpolation.  It uses the default
-<a class="reference internal" href="input.html#piff.InputFiles" title="piff.InputFiles"><code class="xref py py-class docutils literal notranslate"><span class="pre">InputFiles</span></code></a> and <a class="reference internal" href="output.html#piff.OutputFile" title="piff.OutputFile"><code class="xref py py-class docutils literal notranslate"><span class="pre">OutputFile</span></code></a> for I/O.:</p>
+<p>For instance the following cofiguration file uses the <code class="xref py py-class docutils literal notranslate"><span class="pre">PixelGrid</span></code> class for the model and
+the <code class="xref py py-class docutils literal notranslate"><span class="pre">Polynomial</span></code> class for interpolation.  It uses the default
+<code class="xref py py-class docutils literal notranslate"><span class="pre">InputFiles</span></code> and <code class="xref py py-class docutils literal notranslate"><span class="pre">OutputFile</span></code> for I/O. and <code class="xref py py-class docutils literal notranslate"><span class="pre">SimplePSF</span></code> for
+the PSF.:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nb">input</span><span class="p">:</span>
-    <span class="c1"># default type is &#39;InputFiles&#39;, which can be (and typically is) omitted</span>
     <span class="n">images</span><span class="p">:</span> <span class="n">some_exposure</span><span class="o">/</span><span class="n">image</span><span class="o">*.</span><span class="n">fits</span><span class="o">.</span><span class="n">fz</span>
     <span class="n">cats</span><span class="p">:</span> <span class="n">some_exposure</span><span class="o">/</span><span class="n">cat</span><span class="o">*.</span><span class="n">fits</span>
     <span class="n">x_col</span><span class="p">:</span> <span class="n">X_IMAGE</span>
     <span class="n">y_col</span><span class="p">:</span> <span class="n">Y_IMAGE</span>
     <span class="n">weight_hdu</span><span class="p">:</span> <span class="mi">3</span>
-<span class="n">model</span><span class="p">:</span>
-    <span class="nb">type</span><span class="p">:</span> <span class="n">PixelGrid</span>
-    <span class="n">pixel_scale</span><span class="p">:</span> <span class="mf">0.2</span>
-    <span class="n">size</span><span class="p">:</span> <span class="mi">64</span>
-<span class="n">interp</span><span class="p">:</span>
-    <span class="nb">type</span><span class="p">:</span> <span class="n">Polynomial</span>
-    <span class="n">order</span><span class="p">:</span> <span class="mi">3</span>
+<span class="n">psf</span><span class="p">:</span>
+    <span class="n">model</span><span class="p">:</span>
+        <span class="nb">type</span><span class="p">:</span> <span class="n">PixelGrid</span>
+        <span class="n">pixel_scale</span><span class="p">:</span> <span class="mf">0.2</span>
+        <span class="n">size</span><span class="p">:</span> <span class="mi">64</span>
+    <span class="n">interp</span><span class="p">:</span>
+        <span class="nb">type</span><span class="p">:</span> <span class="n">Polynomial</span>
+        <span class="n">order</span><span class="p">:</span> <span class="mi">3</span>
 <span class="n">output</span><span class="p">:</span>
-    <span class="c1"># default type is &#39;InputFiles&#39;, which can be (and typically is) omitted</span>
     <span class="n">file_name</span><span class="p">:</span> <span class="n">some_exposure</span><span class="o">/</span><span class="n">piff_solution</span><span class="o">.</span><span class="n">fits</span>
 </pre></div>
 </div>
 <p>The functionality of the piffify executable is also available from python via
-<a class="reference internal" href="#piff.piffify" title="piff.piffify"><code class="xref py py-func docutils literal notranslate"><span class="pre">piffify()</span></code></a> and related functions.</p>
-<dl class="py function">
+<code class="xref py py-func docutils literal notranslate"><span class="pre">piffify()</span></code> and related functions.</p>
+<dl class="function">
 <dt id="piff.piffify">
-<code class="sig-prename descclassname">piff.</code><code class="sig-name descname">piffify</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">config</span></em>, <em class="sig-param"><span class="n">logger</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/config.html#piffify"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.piffify" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">piff.</code><code class="sig-name descname">piffify</code><span class="sig-paren">(</span><em class="sig-param">config</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/config.html#piffify"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.piffify" title="Permalink to this definition">¶</a></dt>
 <dd><p>Build a Piff model according to the specifications in a config dict.</p>
 <p>This includes writing the model to disk according to the output field.
 If you would rather get the psf object in return, see the process function.</p>
@@ -109,9 +231,9 @@ If you would rather get the psf object in return, see the process function.</p>
 </dl>
 </dd></dl>
 
-<dl class="py function">
+<dl class="function">
 <dt id="piff.read_config">
-<code class="sig-prename descclassname">piff.</code><code class="sig-name descname">read_config</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">file_name</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/config.html#read_config"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.read_config" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">piff.</code><code class="sig-name descname">read_config</code><span class="sig-paren">(</span><em class="sig-param">file_name</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/config.html#read_config"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.read_config" title="Permalink to this definition">¶</a></dt>
 <dd><p>Read a configuration dict from a file.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -120,9 +242,9 @@ If you would rather get the psf object in return, see the process function.</p>
 </dl>
 </dd></dl>
 
-<dl class="py function">
+<dl class="function">
 <dt id="piff.setup_logger">
-<code class="sig-prename descclassname">piff.</code><code class="sig-name descname">setup_logger</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">verbose</span><span class="o">=</span><span class="default_value">1</span></em>, <em class="sig-param"><span class="n">log_file</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/config.html#setup_logger"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.setup_logger" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">piff.</code><code class="sig-name descname">setup_logger</code><span class="sig-paren">(</span><em class="sig-param">verbose=1</em>, <em class="sig-param">log_file=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/config.html#setup_logger"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.setup_logger" title="Permalink to this definition">¶</a></dt>
 <dd><p>Build a logger object to use for logging progress</p>
 <p>Note: This will update the verbosity if a previous call to setup_logger used a different
 value for verbose.  However, it will not update the handler to use a different log_file
@@ -140,9 +262,9 @@ or switch between using a log_file and stdout.</p>
 </dl>
 </dd></dl>
 
-<dl class="py function">
+<dl class="function">
 <dt id="piff.parse_variables">
-<code class="sig-prename descclassname">piff.</code><code class="sig-name descname">parse_variables</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">config</span></em>, <em class="sig-param"><span class="n">variables</span></em>, <em class="sig-param"><span class="n">logger</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/config.html#parse_variables"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.parse_variables" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">piff.</code><code class="sig-name descname">parse_variables</code><span class="sig-paren">(</span><em class="sig-param">config</em>, <em class="sig-param">variables</em>, <em class="sig-param">logger</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/config.html#parse_variables"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.parse_variables" title="Permalink to this definition">¶</a></dt>
 <dd><p>Parse configuration variables and add them to the config dict</p>
 <p>The command line variables should be specified as key=value.
 The key string can include dots, such as interp.order=2, which means to set:</p>
@@ -163,56 +285,52 @@ The key string can include dots, such as interp.order=2, which means to set:</p>
 </div>
 
 
+           </div>
+           
           </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="input.html" class="btn btn-neutral float-right" title="Reading in Files" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="overview.html" class="btn btn-neutral float-left" title="PIFF: PSFs In the Full FOV" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
         </div>
       </div>
-      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
-        <div class="sphinxsidebarwrapper">
-  <h4>Previous topic</h4>
-  <p class="topless"><a href="overview.html"
-                        title="previous chapter">PIFF: PSFs In the Full FOV</a></p>
-  <h4>Next topic</h4>
-  <p class="topless"><a href="input.html"
-                        title="next chapter">Reading in Files</a></p>
-  <div role="note" aria-label="source link">
-    <h3>This Page</h3>
-    <ul class="this-page-menu">
-      <li><a href="_sources/piffify.rst.txt"
-            rel="nofollow">Show Source</a></li>
-    </ul>
-   </div>
-<div id="searchbox" style="display: none" role="search">
-  <h3 id="searchlabel">Quick search</h3>
-    <div class="searchformwrapper">
-    <form class="search" action="search.html" method="get">
-      <input type="text" name="q" aria-labelledby="searchlabel" />
-      <input type="submit" value="Go" />
-    </form>
-    </div>
-</div>
-<script>$('#searchbox').show(0);</script>
-        </div>
-      </div>
-      <div class="clearer"></div>
-    </div>
-    <div class="related" role="navigation" aria-label="related navigation">
-      <h3>Navigation</h3>
-      <ul>
-        <li class="right" style="margin-right: 10px">
-          <a href="genindex.html" title="General Index"
-             >index</a></li>
-        <li class="right" >
-          <a href="input.html" title="Reading in Files"
-             >next</a> |</li>
-        <li class="right" >
-          <a href="overview.html" title="PIFF: PSFs In the Full FOV"
-             >previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Piff 0.4 documentation</a> &#187;</li> 
-      </ul>
-    </div>
-    <div class="footer" role="contentinfo">
-        &#169; Copyright 2019.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 3.0.3.
-    </div>
-  </body>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
 </html>
