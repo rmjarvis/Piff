@@ -782,7 +782,6 @@ class OptAtmoPSF(PSF):
         self.pointing = pointing
 
         do_shapes = self.init_with_rf or self.fit_optics_mode in ['shape', 'random_forest']
-        do_errors = self.init_with_rf or self.fit_optics_mode in ['shape', 'random_forest']
 
         # do first pass of flux, centers, and shapes for the train stars
         # train stars that fail this step are going to constantly fail the fit, so
@@ -795,20 +794,15 @@ class OptAtmoPSF(PSF):
             logger.debug('Measuring shape of train star {0}'.format(star_i))
             try:
                 star = Star(star.data, StarFit(None))
+                # shapes and errors measured here include flux, center, 2nd, 3rd, and orthogonal radial
+                # moments up to eighth moments
                 if do_shapes:
-                    shape = self.measure_shape_orthogonal(star, logger=logger)
+                    shape, error = self.measure_shape_and_error_orthogonal(star, logger=logger)
                     star.fit.flux = shape[0]
                     star.fit.center = shape[1], shape[2]
                 else:
                     shape = None
-                # shapes measured here include flux, center, 2nd, 3rd, and orthogonal radial
-                # moments up to eighth moments
-                if do_errors:
-                    error = self.measure_error_orthogonal(star, logger=logger)
-                else:
                     error = None
-                # errors measured here include flux, center, 2nd, 3rd, and orthogonal radial
-                # moments up to eighth moments
                 star.data.properties['shape'] = shape
                 star.data.properties['shape_error'] = error
                 snr = measure_snr(star)
@@ -834,12 +828,9 @@ class OptAtmoPSF(PSF):
         for star_i, star in enumerate(test_stars):
             logger.debug('Measuring shape of test star {0}'.format(star_i))
             try:
-                shape = self.measure_shape_orthogonal(star, logger=logger)
-                # shapes measured here include flux, center, 2nd, 3rd, and orthogonal radial
+                # shapes and errors measured here include flux, center, 2nd, 3rd, and orthogonal radial
                 # moments up to eighth moments
-                error = self.measure_error_orthogonal(star, logger=logger)
-                # errors measured here include flux, center, 2nd, 3rd, and orthogonal radial
-                # moments up to eighth moments
+                shape, error = self.measure_shape_and_error_orthogonal(star, logger=logger)
                 star = Star(star.data, StarFit(None, flux=shape[0], center=(shape[1], shape[2])))
                 star.data.properties['shape'] = shape
                 star.data.properties['shape_error'] = error
@@ -1753,6 +1744,33 @@ class OptAtmoPSF(PSF):
 
         return np.sqrt(errors)
 
+    def measure_shape_and_error_orthogonal(self, star, logger=None):
+        """Measure the shape and error of a star using the HSM algorithm.
+
+        Goes up to third moments plus orthogonal radial moments up to eighth moment 
+        Also returns errors.
+
+        :param star:                Star we want to measure
+        :param logger:              A logger object for logging debug info
+
+        :returns:   Shape in unnormalized basis. Goes up to third moments plus orthogonal radial
+                    moments up to eighth moments, Also returns errors
+        """
+        logger = LoggerWrapper(logger)
+
+        # values = flux, u0, v0, e0, e1, e2, zeta1, zeta2, delta1, delta2, orth4, orth6, orth8, and their errors
+        values = star.calculate_moments(logger=logger, third_order=True, radial=True, errors=True)
+        shape = np.array(values[0:13])
+        variances = np.array(values[13:])
+        errors = np.sqrt(variances)
+
+        scaleby2 = True   # used historically
+        if scaleby2:
+            shape[3:] *= 2.
+            errors[3:] *= 2.
+
+        return shape, errors
+
     @property
     def regr_dict(self):
         if not hasattr(self, '_regr_dict'):
@@ -1867,6 +1885,7 @@ class OptAtmoPSF(PSF):
         elif mode == 'shape':
             results = scipy.optimize.least_squares(
                     self._fit_optics_residual, params,
+                    method="dogbox",
                     bounds=bounds, # optical fit needs bounds placed on L0; otherwise it wanders into negative territory
                     args=(stars, fit_keys, shapes, errors, logger,),
                     diff_step=1e-5, ftol=ftol, xtol=1.e-4)
@@ -1885,6 +1904,7 @@ class OptAtmoPSF(PSF):
 
             results = scipy.optimize.least_squares(
                     self._fit_optics_pixel_residual, params,
+                    method="dogbox",
                     bounds=bounds, # optical fit needs bounds placed on L0; otherwise it wanders into negative territory
                     jac=self._fit_optics_pixel_jac,
                     args=(stars, fit_keys, logger,),
@@ -2517,7 +2537,7 @@ class OptAtmoPSF(PSF):
 
                 # measure final shape
                 star_model = self.drawProfile(star, profile, params)
-                shape_model = self.measure_shape_orthogonal(star_model)
+                shape_model, error_model = self.measure_shape_and_error_orthogonal(star_model)
                 if np.any(shape_model != shape_model):
                     logger.warning('Star {0} returned nan shape'.format(i))
                     logger.warning('Parameters are {0}'.format(str(params)))
