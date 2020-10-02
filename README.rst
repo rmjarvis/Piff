@@ -64,7 +64,7 @@ rather install into a different prefix rather than ~/.local, you can use::
 This would install the executables into ``PREFIX/bin`` and the Python module
 into ``PREFIX/lib/python3.7/site-packages``.
 
-If you need the bleeding edge version on master, you can download or clone
+If you need the bleeding edge version on the main branch, you can download or clone
 the repo and install with::
 
     pip install -r requirements.txt
