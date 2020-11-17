@@ -84,14 +84,6 @@ jobs:
                 # Extra packages needed for testing
                 pip install -U nose codecov
 
-            - name: Install old pytest on 2.7
-              if: matrix.py == 2.7
-              run: pip install pytest==3.2 pytest-cov==2.4
-
-            - name: Install current pytest on 3.x
-              if: matrix.py > 3.0 || matrix.py == 'pypy3'
-              run: pip install -U pytest pytest-cov
-
             - name: Install Pixmappy (not on pip)
               run: |
                 git clone https://github.com/gbernstein/pixmappy.git
@@ -113,7 +105,7 @@ jobs:
             - name: Run unit tests
               run: |
                 cd tests
-                pytest --cov=piff test*.py
+                nosetests --with-coverage --cover-package=piff --with-doctest
                 cd ..  # N.B. This seems to happen automatically if omitted.
                        # Less confusing to include it explicitly.
 
