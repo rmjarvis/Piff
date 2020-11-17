@@ -71,7 +71,7 @@ jobs:
                 brew update
                 brew install fftw eigen
 
-            - name: Install basic dependencies
+            - name: Install dependencies with pip
               run: |
                 python -m pip install -U pip
 
@@ -82,7 +82,7 @@ jobs:
                 pip install -U -r requirements.txt
 
                 # Extra packages needed for testing
-                pip install -U nose codecov pytest
+                pip install -U nose codecov pytest pytest-cov
 
             - name: Install Pixmappy (not on pip)
               run: |
