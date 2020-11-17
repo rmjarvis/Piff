@@ -118,4 +118,6 @@ jobs:
                        # Less confusing to include it explicitly.
 
             - name: Upload coverage to codecov
-              uses: codecov/codecov-action@v1
+              run: |
+                coverage xml
+                codecov
