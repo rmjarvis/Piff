@@ -119,5 +119,7 @@ jobs:
 
             - name: Upload coverage to codecov
               run: |
+                cd tests
                 coverage xml
                 codecov
+                cd ..
