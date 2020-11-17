@@ -1,0 +1,96 @@
+name: Piff CI
+
+on:
+    push:
+        branches:
+            - main
+
+    pull_request:
+        branches:
+            - main
+
+jobs:
+    build:
+        runs-on: ${{ matrix.os }}
+
+        strategy:
+            matrix:
+                # First all python versions in basic linux
+                os: [ ubuntu-latest ]
+                py: [ 2.7, 3.5, 3.6, 3.7, 3.8, 3.9, pypy3 ]
+                CC: [ gcc ]
+                CXX: [ g++ ]
+
+                # Add some other particular combinations to test
+                include:
+                    # A couple in MacOS
+                    - os: macos-latest
+                      py: 2.7
+                      CC: cc
+                      CXX: c++
+
+                    - os: macos-latest
+                      py: 3.7
+                      CC: cc
+                      CXX: c++
+
+                    # Check one with clang compiler
+                    - os: ubuntu-latest
+                      py: 3.7
+                      CC: clang
+                      CXX: clang++
+
+        steps:
+            - uses: actions/checkout@v2
+
+            - name: Set up Python ${{ matrix.py }}
+              uses: actions/setup-python@v2
+              with:
+                python-version: ${{ matrix.py }}
+
+            - name: Cache pip
+              uses: actions/cache@v2
+              with:
+                path: ~/.cache/pip
+                key: ${{ runner.os }}-${{ matrix.py }}-pip-${{ hashFiles('requirements.txt') }}
+                restore-keys: |
+                    ${{ runner.os }}-${{ matrix.py }}-pip-
+                    ${{ runner.os }}-
+
+            - name: Install basic dependencies
+              run: |
+                python -m pip install -U pip
+
+                # Standard dependencies
+                pip install -U -r requirements.txt
+
+                # Extra packages needed for testing
+                pip install -U nose codecov fitsio mpi4py
+
+            - name: Install Pixmappy (not on pip)
+              run: |
+                git clone https://github.com/gbernstein/pixmappy.git
+                cd pixmappy
+                python setup.py install
+                cd ..
+
+            - name: List all installed packages for reference
+              run: pip list
+
+            - name: Enable Agg backend
+              # The .matplotlib file needs to be in $HOME to work right.
+              run: |
+                cp -r tests/.matplotlib $HOME
+
+            - name: Build Piff
+              run: pip install -vvv .
+
+            - name: Run unit tests
+              run: |
+                cd tests
+                pytest --cov=piff test*.py
+                cd ..  # N.B. This seems to happen automatically if omitted.
+                       # Less confusing to include it explicitly.
+
+            - name: Upload coverage to codecov
+              uses: codecov/codecov-action@v1
