@@ -75,6 +75,9 @@ jobs:
               run: |
                 python -m pip install -U pip
 
+                # Do this first to clarify potential conflicts
+                pip install -U numpy
+
                 # Standard dependencies
                 pip install -U -r requirements.txt
 
