@@ -1,6 +1,10 @@
 codecov:
   branch: main
 
+fixes:
+  # Fix the file names
+  - "/home/runner/work/Piff/::"
+
 coverage:
   precision: 2
   round: down

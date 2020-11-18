@@ -111,6 +111,9 @@ jobs:
 
             - name: Upload coverage to codecov
               run: |
+                pwd
+                pwd -P
                 cd tests
+                ls -lsrta
                 codecov
                 cd ..
