@@ -3,7 +3,7 @@ codecov:
 
 fixes:
   # Fix the file names
-  - "/home/runner/work/Piff/::"
+  - "/home/runner/work/Piff/Piff/::"
 
 coverage:
   precision: 2
