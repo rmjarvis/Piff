@@ -200,7 +200,7 @@ def check_gp(stars_training, stars_validation, kernel, optimizer,
 
     np.testing.assert_allclose(y_test, y_validation, atol=atol)
 
-    if optimizer is not 'none':
+    if optimizer != 'none':
         truth_hyperparameters = np.exp(interp._init_theta)
         fitted_hyperparameters = np.exp(
                 np.array([gp._optimizer._kernel.theta for gp in interp.gps]))
@@ -434,8 +434,8 @@ def test_yaml():
 
     piff.piffify(config, logger)
     psf = piff.read(psf_file)
-    assert type(psf.model) is piff.GSObjectModel
-    assert type(psf.interp) is piff.GPInterp
+    assert type(psf.model) == piff.GSObjectModel
+    assert type(psf.interp) == piff.GPInterp
     print('nstars = ',len(psf.stars))
     target = psf.stars[17]
     test_star = psf.interp.interpolate(target)
