@@ -115,5 +115,5 @@ jobs:
                 pwd -P
                 cd tests
                 ls -lsrta
-                cd ..
                 codecov
+                cd ..
