@@ -5,4 +5,5 @@ treecorr>=4.0
 fitsio>=1.1.2
 matplotlib>=1.5.0
 galsim>=2.0
+iminuit==1.5.4   # Until treegp becomes compatible with 2.0
 treegp>=0.2
