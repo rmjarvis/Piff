@@ -4,6 +4,9 @@ codecov:
 fixes:
   # Fix the file names
   - "/home/runner/work/Piff/Piff/::"
+  - "/opt/hostedtoolcache/Python/*/x64/lib/python*/site-packages/::"
+  - "/Users/runner/hostedtoolcache/Python/*/x64/lib/python*/site-packages/::"
+
 
 coverage:
   precision: 2
