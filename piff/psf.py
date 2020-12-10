@@ -474,7 +474,7 @@ class PSF(object):
         wcs_str = [ data[key] for key in wcs_keys ] # Get all wcs_str columns
         try:
             wcs_str = [ b''.join(s) for s in zip(*wcs_str) ]  # Rejoint into single string each
-        except TypeError:
+        except TypeError:  # pragma: no cover
             # fitsio 1.0 returns strings
             wcs_str = [ ''.join(s) for s in zip(*wcs_str) ]  # Rejoint into single string each
 
