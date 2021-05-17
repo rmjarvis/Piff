@@ -93,27 +93,24 @@ class WF:
     def get_zernikes_all_stars(self, stars):
         raise NotImplementedError("Subclasses should override this method!")
 
-    def find_camera_index_given_sky_index(self, sky_index_minus_four):
-        #TODO: when I get a lower order reference wavefront file created without any coordinate conversions, I should use the commented out camera_indices list below instead of the one currently used
-        #camera_indices = [4, 5,6, 8,7, 10,9, 11, 12,13, 14,15, 17,16, 19,18, 21,20, 22, 23,24, 25,26, 27,28, 30,29, 32,31, 34,33, 36,35, 37]
-        camera_indices = [4, 5,6, 7,8, 9,10, 11, 12,13, 14,15, 17,16, 19,18, 21,20, 22, 23,24, 25,26, 27,28, 30,29, 32,31, 34,33, 36,35, 37]
-        return camera_indices[sky_index_minus_four]
+    #def find_camera_index_given_sky_index(self, sky_index_minus_four):
+    #    camera_indices = [4, 5,6, 7,8, 9,10, 11, 12,13, 14,15, 17,16, 19,18, 21,20, 22, 23,24, 25,26, 27,28, 30,29, 32,31, 34,33, 36,35, 37]
+    #    return camera_indices[sky_index_minus_four]
 
-    def find_if_positive_given_sky_index(self, sky_index_minus_four):
-        #TODO: when I get a lower order reference wavefront file created without any coordinate conversions, I should use the commented out true_falses list below instead of the one currently used
-        #true_falses = [True,   True,False,   True,True,   False,False,   True,   False,True,   True,False,   True,True,   False,False,   True,True,   True,   True,False,   False,True,   True,False,   True,True,   False,False,   True,True,   False,False,   True]
-        true_falses = [True,   True,True,   True,True,   True,True,   True,   False,True,   True,True,   True,True,   False,False,   True,True,   True,   True,False,   False,True,   True,False,   True,True,   False,False,   True,True,   False,False,   True]
-        return true_falses[sky_index_minus_four]
+    #def find_if_positive_given_sky_index(self, sky_index_minus_four):
+    #    true_falses = [True,   True,True,   True,True,   True,True,   True,   False,True,   True,True,   True,True,   False,False,   True,True,   True,   True,False,   False,True,   True,False,   True,True,   False,False,   True,True,   False,False,   True]
+    #    return true_falses[sky_index_minus_four]
 
     def get_out_given_stars_aberrations_reference_wavefront_and_zernikes_list(self, stars, aberrations_reference_wavefront, zernikes_list):
         out = np.zeros([len(stars), 34])
         for zle in zernikes_list:
             out_index = zle - 4
-            camera_index_minus_four = self.find_camera_index_given_sky_index(out_index) - 4
-            if self.find_if_positive_given_sky_index(out_index):
-                out[:,out_index] += aberrations_reference_wavefront[:,camera_index_minus_four]
-            else:
-                out[:,out_index] -= aberrations_reference_wavefront[:,camera_index_minus_four]
+            #camera_index_minus_four = self.find_camera_index_given_sky_index(out_index) - 4
+            out[:,out_index] += aberrations_reference_wavefront[:,out_index]
+            #if self.find_if_positive_given_sky_index(out_index):
+            #    out[:,out_index] += aberrations_reference_wavefront[:,camera_index_minus_four]
+            #else:
+            #    out[:,out_index] -= aberrations_reference_wavefront[:,camera_index_minus_four]
         return out
 
 
@@ -1300,21 +1297,44 @@ class OptAtmoPSF(PSF):
         if hasattr(self, '_optical_psf_aper_kwargs'):
             # It is more efficient to only make the OpticalPSF aperture once and save it,
             # so if we have already done so, use the modified kwargs with aper.
-            opt = galsim.OpticalPSF(aberrations=aberrations,
+            optical_screen = galsim.OpticalScreen(diam=self.diam, aberrations=aberrations, obscuration=self.obscuration, lam_0=self.lam)
+            #polishing_errors_table = galsim.LookupTable2D(self.polishing_errors_us, self.polishing_errors_vs, self.polishing_errors_values.T)
+            #polishing_errors_screen = galsim.UserScreen(polishing_errors_table)
+            screens = galsim.PhaseScreenList([optical_screen, self.polishing_errors_screen])
+            opt = galsim.PhaseScreenPSF(screen_list=screens,
                                     gsparams=self.gsparams,
                                     **self._optical_psf_aper_kwargs)
+            #opt = galsim.OpticalPSF(aberrations=aberrations,
+            #                        gsparams=self.gsparams,
+            #                        **self._optical_psf_aper_kwargs)
         else:
             # This is the first time into this function.  So make OpticalPSF with the regular
             # kwargs, but then make the faster aper version.
-            opt = galsim.OpticalPSF(aberrations=aberrations,
+
+
+            self.diam = self.optical_psf_kwargs["diam"]
+            self.obscuration = self.optical_psf_kwargs["obscuration"]
+            self.lam = self.optical_psf_kwargs["lam"]
+            optical_screen = galsim.OpticalScreen(diam=self.diam, aberrations=aberrations, obscuration=self.obscuration, lam_0=self.lam)
+            polishing_errors_directory = "/nfs/slac/kipac/fs1/g/des/aresh/polishing_errors_phase_screen" #TODO: un-hardcode this
+            polishing_errors_values = np.load("{0}/polishing_errors.npy".format(polishing_errors_directory))
+            polishing_errors_us = np.load("{0}/u.npy".format(polishing_errors_directory))
+            polishing_errors_vs = np.load("{0}/v.npy".format(polishing_errors_directory))
+            polishing_errors_table = galsim.LookupTable2D(polishing_errors_us, polishing_errors_vs, polishing_errors_values.T)
+            self.polishing_errors_screen = galsim.UserScreen(polishing_errors_table)
+            screens = galsim.PhaseScreenList([optical_screen, self.polishing_errors_screen])
+            opt = galsim.PhaseScreenPSF(screen_list=screens,
                                     gsparams=self.gsparams,
                                     **self.optical_psf_kwargs)
+            #opt = galsim.OpticalPSF(aberrations=aberrations,
+            #                        gsparams=self.gsparams,
+            #                        **self.optical_psf_kwargs)
             self._optical_psf_aper_kwargs = self.optical_psf_kwargs.copy()
             for key in ['obcuration', 'circular_pupil', 'nstruts', 'strut_thick', 'strut_angle',
                         'oversampling', 'pad_factor', 'pupil_plane_im', 'pupil_angle',
                         'pupil_plane_scale', 'pupil_plane_size']:
                 self._optical_psf_aper_kwargs.pop(key, None)
-            self._optical_psf_aper_kwargs['aper'] = opt._aper
+            self._optical_psf_aper_kwargs['aper'] = opt.aper
 
         return opt
 
@@ -1339,6 +1359,35 @@ class OptAtmoPSF(PSF):
 
         # optics
         opt = self.getOpticalProfile(star, params)
+
+        # diffusion
+        # get the unsheared diffusion gaussian
+        sigma_in_pixels = 8.0/15.0 # the diffusion gaussian is believed to be 8 microns in sigma
+        star.data.local_wcs = star.data.image.wcs.local(star.data.image_pos)
+        sigma_u_in_arcsec = np.abs(star.data.local_wcs._u(sigma_in_pixels,sigma_in_pixels))
+        sigma_v_in_arcsec = np.abs(star.data.local_wcs._v(sigma_in_pixels,sigma_in_pixels))
+        sigma_in_arcsec = np.sqrt(sigma_u_in_arcsec*sigma_v_in_arcsec)        
+        diffusion = galsim.Gaussian(sigma=sigma_in_arcsec)
+        # find the shear for the diffusion gaussian
+        dummy_x = 1000.0 #TODO: double-check if these two need to be the same
+        dummy_y = 100.0
+        star.data.local_wcs = star.data.image.wcs.local(star.data.image_pos)
+        dummy_u = star.data.local_wcs._u(dummy_x,dummy_y)
+        dummy_v = star.data.local_wcs._v(dummy_x,dummy_y)
+        u_over_y_abs_value = np.abs(dummy_u/dummy_y)
+        v_over_x_abs_value = np.abs(dummy_v/dummy_x)
+        if u_over_y_abs_value >= v_over_x_abs_value:
+            beta = 0.0
+            a = u_over_y_abs_value
+            b = v_over_x_abs_value
+        else:
+            beta = 90.0
+            a = v_over_x_abs_value
+            b = u_over_y_abs_value
+        g_abs = (a-b)/(a+b)
+        g1 = g_abs * np.cos(2*np.radians(beta))
+        g2 = g_abs * np.sin(2*np.radians(beta))
+        diffusion = diffusion.shear(g1=g1, g2=g2)
 
         # atmosphere
         # add stochastic (labelled "atm") and constant (labelled "opt") pieces together
@@ -1372,7 +1421,7 @@ class OptAtmoPSF(PSF):
         atmo = atmo.shear(g1=g1, g2=g2)
 
         # convolve together
-        prof = galsim.Convolve([opt, atmo], gsparams=self.gsparams)
+        prof = galsim.Convolve([opt, diffusion, atmo], gsparams=self.gsparams)
 
         return prof
 
