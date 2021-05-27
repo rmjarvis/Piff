@@ -77,6 +77,7 @@ from .config import plotify, process, meanify
 from .model import Model
 from .pixelgrid import PixelGrid, Lanczos
 from .gsobject_model import GSObjectModel, Gaussian, Kolmogorov, Moffat
+from .optical_model import Optical
 
 # Interpolators -- Class names here match what they are called in the config file
 from .interp import Interp
@@ -100,6 +101,7 @@ from .output import Output, OutputFile
 from .psf import PSF, read
 from .simplepsf import SimplePSF
 from .singlechip import SingleChipPSF
+from .optatmo_psf import OptAtmoPSF
 
 # Stats classes are named BlahStats where Blah is what they are called in the config file
 from .stats import Stats, RhoStats, ShapeHistStats, HSMCatalogStats
@@ -108,6 +110,9 @@ from .star_stats import StarStats
 
 # Optics
 from .optical_model import Optical, optical_templates
+
+# wavefront
+from .wavefront import Wavefront
 
 # Leave these in their own namespaces
 from . import util

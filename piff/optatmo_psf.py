@@ -1,0 +1,562 @@
+# Copyright (c) 2016 by Mike Jarvis and the other collaborators on GitHub at
+# https://github.com/rmjarvis/Piff  All rights reserved.
+#
+# Piff is free software: Redistribution and use in source and binary forms
+# with or without modification, are permitted provided that the following
+# conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice, this
+#    list of conditions and the disclaimer given in the accompanying LICENSE
+#    file.
+# 2. Redistributions in binary form must reproduce the above copyright notice,
+#    this list of conditions and the disclaimer given in the documentation
+#    and/or other materials provided with the distribution.
+
+"""
+.. module:: psf
+"""
+
+from __future__ import print_function
+
+import numpy as np
+from scipy.optimize import least_squares
+import galsim
+
+from .interp import Interp
+from .outliers import Outliers
+from .psf import PSF
+from .wavefront import Wavefront
+from .util import write_kwargs, read_kwargs, calculate_moments, get_moment_names
+import pdb
+
+class OptAtmoPSF(PSF):
+    """A PSF class that uses a combination of a Fraunhofer optical wavefront and an
+    atmospheric turbulence kernel.
+
+    The OptAtmoPSF uses a three-step fit to form the PSF.  First, a model convolving an optical
+    wavefront and a spatially constant turbulence kernel is fit to a subset of stars. The
+    optical wavefronts are taken from out-of-focus engineering images and/or an optical
+    ray-tracing (Zemax) models, adjusted with a small number of free parameters. Next a test sample
+    of stars is fit individually to the optical model found in step 1, convolved with a atmospheric kernel,
+    floating parameters of the kernel.  Finally, the parameters of the atmospheric kernel are interpolated
+    across the entire field of view with a Gaussian Process.
+    """
+
+    def __init__(self, model, interp, outliers=None,
+                 do_ofit=True, do_sfit=True, do_afit=True,
+                 #TODO move to Input: maxnele=1.0e5,
+                 ofit_double_zernike_terms=[[4, 1], [5, 3], [6, 3], [7, 1], [8, 1], [9, 1],
+                                            [10, 1], [11, 1], [14, 1], [15, 1]],
+                 wavefront_kwargs=None,
+                 ofit_type='shape',
+                 ofit_nstars=500,
+                 ofit_shape_kwargs={'moment_list':['e0','e1','e2'],'weights':None,'systerrors':None},
+                 ofit_pixel_kwargs=None,
+                 fov_radius=4500.):
+        """
+        :param model:       A Model instance used for modeling the Optical component of the PSF.
+        :param interp:      An Interp instance used to interpolate the Atmospheric component across the field of view.
+        :param outliers:    Optionally, an Outliers instance used to remove outliers.
+                            [default: None]
+        :param do_ofit:     Perform the Optical Wavefront & Constant Atmospheric Kernel fit [default: True]
+        :param do_sfit:     Perform the Individual Star Atmospheric Kernel fit [default: True]
+        :param do_afit:     Perform the Gaussian Process Atmospheric Kernel interpolation [default: True]
+        :param ofit_double_zernike_terms:   A list of the double Zernike coefficients (pupil,focal) to use as free parameters. [default:=[[4, 1], [5, 3], [6, 3], [7, 1], [8, 1], [9, 1],
+                                            [10, 1], [11, 1], [14, 1], [15, 1]]]
+        :param wavefront_kwargs: Options for Reference Wavefront interpolation [default: None]
+        :param ofit_type:    Type of optical fit, shape or pixel [default: shape]
+        :param ofit_nstars:  Number of stars to use in Optical fit [default: 500]
+        :param ofit_shape_kwargs: Options for shape Optical fit [default: {'moment_list':['e0','e1','e2'],'weights':None,'systerrors':None}]
+        :param ofit_pixel_kwargs: Options for pixel Optical fit [default: None]
+        :param fov_radius:   Field of View radius in arcsec [default: 4500.]
+
+        """
+        self.model = model
+        self.interp = interp
+        self.outliers = outliers
+
+        self.do_ofit = do_ofit
+        self.do_sfit = do_sfit
+        self.do_afit = do_afit
+
+        # dictionary keyed by optical fit parameter name, with index into
+        # opt_param ndarray
+        self.opt_param_names = {}
+
+        # assume VonKarman here (TODO: test on model type)
+        vk_names = ['opt_size', 'opt_L0', 'opt_g1', 'opt_g2']
+        iparam = 0
+        for i, name in enumerate(vk_names):
+            self.opt_param_names[name] = iparam
+            iparam += 1
+
+        # add double Zernike coeffiencts
+        self.ofit_double_zernike_terms = ofit_double_zernike_terms
+        for zf_pair in self.ofit_double_zernike_terms:
+            iZ, nF = zf_pair
+            for iF in range(nF):
+                self.opt_param_names['z%df%d' % (iZ, iF)] = iparam
+                iparam += 1
+
+        # dictionary keyed by single star Atmospheric Fit parameter name, with
+        # index into atmo_param ndarray
+        self.atmo_param_names = {}
+        atmo_names = ['atmo_size', 'atmo_g1', 'atmo_g2']
+        for i, name in enumerate(atmo_names):
+            self.atmo_param_names[name] = i
+
+        # other kwargs
+        self.ofit_nstars = ofit_nstars
+
+        # no additional properties are used, so set to empty list
+        self.extra_interp_properties = []
+
+        # done
+
+    @classmethod
+    def parseKwargs(cls, config_psf, logger):
+        """Parse the psf field of a configuration dict and return the kwargs to use for
+        initializing an instance of the class.
+
+        :param config_psf:      The psf field of the configuration dict, config['psf']
+        :param logger:          A logger object for logging debug info. [default: None]
+
+        :returns: a kwargs dict to pass to the initializer
+        """
+        import piff
+
+        kwargs = {}
+        kwargs.update(config_psf)
+        kwargs.pop('type', None)
+
+        for key in ['model', 'interp']:
+            if key not in kwargs:  # pragma: no cover
+                # This actually is covered, but for some reason, codecov thinks
+                # it isn't.
+                raise ValueError( "%s field is required in psf field for type=Simple" % key)
+
+        # make a Model object to use for the individual stellar fitting
+        model = piff.Model.process(kwargs.pop('model'), logger=logger)
+        kwargs['model'] = model
+
+        # make an Interp object to use for the atmospheric interpolation
+        interp = piff.Interp.process(kwargs.pop('interp'), logger=logger)
+        kwargs['interp'] = interp
+
+        if 'outliers' in kwargs:
+            outliers = piff.Outliers.process(kwargs.pop('outliers'), logger=logger)
+            kwargs['outliers'] = outliers
+
+        return kwargs
+
+    def fit(self, stars, wcs, pointing, logger=None):
+        """Fit interpolated PSF model to star data using standard sequence of operations.
+
+        :param stars:           A list of Star instances.
+        :param wcs:             A dict of WCS solutions indexed by chipnum.
+        :param pointing:        A galsim.CelestialCoord object giving the telescope pointing.
+                                [Note: pointing should be None if the WCS is not a CelestialWCS]
+        :param logger:          A logger object for logging debug info. [default: None]
+        """
+        logger = galsim.config.LoggerWrapper(logger)
+        self.stars = stars
+        self.wcs = wcs
+        self.pointing = pointing
+
+        if len(stars) == 0:
+            raise RuntimeError("No stars.  Cannot find PSF model.")
+
+        logger.info("Step 1: Optical Wavefront & Constant Turbulence Kernel Fit")
+
+        # select stars, with tighter criteria, using collective properties
+        # TODO: move to Input
+        # select_stars_kwargs = {'maxnele':self.kwargs['maxnele']}
+        # select_stars = self._select_stars(stars,logger,**select_stars_kwargs)
+
+        # add Zernike wavefront coefficients to stars
+        self.wavefront_kwargs = self.kwargs['wavefront_kwargs']
+        self._get_refwavefront(stars, logger, **self.wavefront_kwargs)
+
+        # calculate moments for all Stars, currently options are hardcoded
+        calc_moments_kwargs = {}
+        calc_moments_kwargs['errors'] = True
+        calc_moments_kwargs['addtostars'] = True
+        calc_moments_kwargs['third_order'] = True
+        calc_moments_kwargs['fourth_order'] = False
+        calc_moments_kwargs['radial'] = True
+        self.ofit_moment_names = get_moment_names(**calc_moments_kwargs)
+        star_moments = self._calc_moments(stars, logger, **calc_moments_kwargs)
+
+        # select a smaller subset of stars, for use in the Optical fitting step
+        select_ofit_stars_kwargs = {'nstars': self.kwargs['ofit_nstars']}
+        ofit_stars = self._select_ofit_stars(stars, logger, **select_ofit_stars_kwargs)
+        ofit_moments = self._get_moments(ofit_stars, logger)
+
+        # pick starting values of free parameters
+        ofit_initparams = self._calc_starting_ofit_params(select_stars, logger)
+        ofit_bounds = self._calc_bounds_ofit_bounds(logger)
+
+        # arguments to optimizer
+        # least_squares defaults for ftol and xtol are 1.e-8
+        ofit_kwargs = {'diff_step': 1.e-5, 'ftol': 1.e-4, 'xtol': 1.e-4}
+        ofit_func_kwargs = {}  # TODO: things for chivec calculation
+
+        # arguments for _calc_ofit_residual
+        ofit_shape_kwargs = self.kwargs['ofit_shape_kwargs']
+
+        # perform ofit minimization
+        ofit_results = least_squares(self._calc_ofit_residuals, ofit_initparams, bounds=ofit_bounds, **ofit_func_kwargs,
+                                    arg=(ofit_stars, ofit_moments, ofit_model, logger, ofit_shape_kwargs))
+
+        # print some results
+        logger.info("Optical Fit: fit results", ofit_results)
+
+        logger.info("Step 2: Individual Star Turbulence Kernel Fit")
+
+        logger.info("Step 3: Interpolation of Turbulence Kernels")
+
+    def _select_stars(self, stars, logger, **kwargs):
+        """Select a stars passing more specialized requirements.
+
+        :param stars:           A list of input Stars
+        :param logger:          A logger object for logging debug info. [default: None]
+        :param kwargs:          A dictionary of options
+        """
+        select_stars = [astar for astar in stars]  # no cuts now
+        return select_stars
+
+    def _get_refwavefront(self,stars,logger=None,file1=None,zlist1=None,file2=None,zlist2=None):
+        """Get Zernike wavefront coefficients, add to Star's properties.
+
+        :param stars:           A list of input Stars
+        :param logger:          A logger object for logging debug info. [default: None]
+        :param file1:           The name of the file with reference wavefronts
+        :param zlist1:          A list of Zernike terms to use from file1
+        :param file2:           The name of the file with reference wavefronts
+        :param zlist2:          A list of Zernike terms to use from file2
+        """
+        # setup WF classes - currently the choice of classes and options are
+        # hard coded
+        chipnumList = chipnumList = [1] + [*range(3, 62 + 1)]
+        refwf_low = gridCCD(file1, zlist1, chipnumList)
+        refwf_hi = gridFocalPlane(file2, zlist2, nknn=150)
+
+        refwf = refwf_low + refwf_hi
+        # fill star.data.properties['ref_wf'] = ndarray with arr[4] = z4
+
+        for aStar in stars:
+
+            # need focal plane x,y not pixel #
+            chipnum = stars.properties['chipnum']
+            ix = stars.properties['x']
+            iy = stars.properties['y']
+            xfp, yfp = decaminfo.getPosition(np.array([chipnum]), [ix], [iy])
+
+            # get the Zernike Coefficient array
+            zcoeff = refwf(xfp, yfp)
+
+            # convert to Zernike coefficients suitable for use in Galsim, where the wavefront phase is calculated in the u,v sky plane
+            # this is hardcoded for the DES WCS
+            zcoeff_converted = convert_zernikes(zcoeff)
+
+            # TODO: scale to lambda from 700nm
+
+            star.data.properties['zcoeff'] = zcoeff_converted
+
+        return
+
+    def _calc_moments(self,stars,third_order=False,fourth_order=False,radial=False,
+                      errors=False,addtostar=False,logger=None):
+        """Calculate moments, add to Star's properties, and return as an array
+
+        :param stars:           A list of input Stars
+        :param third_order:     Return the 3rd order moments? [default: False]
+        :param fourth_order:    Return the 4th order moments? [default: False]
+        :param radial:          Return the higher order radial moments? [default: False]
+        :param errors:          Return the variance estimates of other returned values? [default: False]
+        :param addtostar:       Add the moments to the Stars's properties? [default False]
+        :param logger:          A logger object for logging debug info. [default: None]
+        """
+
+        nstars = len(stars)
+
+        # Loop over stars, calculating the moments
+        for i, astar in enumerate(stars):
+            # in first iteration find the size of the tuple returned, and use
+            # to build ndarray
+            if i == 0:
+                moms = calculate_moments(astar,third_order=third_order,fourth_order=fourth_order,
+                                             radial=radial,errors=errors,logger=logger)
+                moments = np.zeros(len(moms), nstars)
+                moments[:, i] = moms
+            else:
+                moments[:,i] = calculate_moments(astar,third_order=third_order,fourth_order=fourth_order,
+                                                     radial=radial,errors=errors,logger=logger)
+
+            if addtostar:
+                Star.data.properties['moments'] = moments[:, i]
+
+        return moments
+
+
+    # add to util.py
+    def _select_ofit_stars(self, stars, logger=None, nstars=500):
+        """Select subset of stars for Optical+UniformAtmosphere fit
+
+        :param stars:           A list of input Stars
+        :param logger:          A logger object for logging debug info. [default: None]
+        :param nstars:          Number of stars to select [default: 500]
+        :return select_stars:   A list of output Stars
+        """
+        # sorts stars by flux and chooses largest nstar of them
+        flux_array = self._get_flux(stars)
+        sorted_list = np.argsort(flux_array)
+        select_stars = [stars[index] for index in sorted_list[-nstars:]]
+        return select_stars
+
+    # add to util.py
+    def _get_flux(self,stars):
+        """Get flux from Star's properties
+
+        :param stars:           A list of input Stars
+        :return flux_array:     An ndarray with Star flux in it
+        """
+        # weighted flux is always stored as the first element of the moments
+        # property
+        ind_flux = 0
+
+        flux_array = np.zeros(len(stars))
+        for i, astar in enumerate(stars):
+            flux_array[i] = astar.data.properties['moments'][ind_flux]
+
+        return flux_array
+
+
+
+    def _calc_starting_ofit_params(self,stars,logger=None,**kwargs):
+        """Calculate a good starting guess for the Optical+UniformAtmosphere fit.
+
+        :param stars:           A list of Stars to be used in the fit
+        :param logger:          A logger object for logging debug info. [default: None]
+        :param kwargs:          A dictionary of other options
+        :return params          An ndarray of starting parameters
+        """
+        # make a good guess at parameters, return a list
+        # just use constant values now...
+        params = np.zeros(len(self.opt_param_names))
+
+        params[self.opt_param_names['opt_size']] = 1.0
+        params[self.opt_param_names['opt_L0']] = 25.0
+
+        return params
+
+    def _calc_starting_ofit_bounds(self,logger=None,**kwargs):
+        """Return bounds for the parameters of the Optical+UniformAtmosphere fit.
+
+        :param logger:          A logger object for logging debug info. [default: None]
+        :param kwargs:          A dictionary of other options
+        :return bounds          An list of bounds for Optical fit parameters
+        """
+        # only L0 has bounds
+        for parname in self.opt_param_names.keys():   # relying on fixed order of dictionaries, as of Python 3.7
+            if parname == 'opt_L0':
+                bounds.append((5.0,100.0))
+            else:
+                bounds.append((-np.inf,np.inf))
+
+        return bounds
+
+
+    def _calc_ofit_residuals(self,params,stars,moments,model,logger,kwargs):
+        """Calculate Optical fit residuals
+
+        :param params:          A list of the free or fixed parameters of the Optical+UniformAtmosphere PSF
+        :param stars:           A list of Stars to be used in the fit
+        :param moments:         A np.ndarray with moments from data Stars
+        :param model:           A Piff Model object encapsulating the Optical+UniformAtmosphere PSF
+        :param logger:          A logger object for logging debug info. [default: None]
+        :param kwargs:          A dictionary of other options
+        """
+        # make model stars, one for each ofit star
+        model_stars = self.make_modelstars(params,stars,model,logger=logger)
+
+        # calculate moments for model stars, currently options are hardcoded
+        calc_moments_kwargs['errors'] = False
+        calc_moments_kwargs['third_order'] = True
+        calc_moments_kwargs['fourth_order'] = False
+        calc_moments_kwargs['radial'] = True
+        calc_moments_kwargs['addtostar'] = False
+        model_moments = self._calc_moments(model_stars,logger=logger,**calc_moments_kwargs)
+
+        # calculate the chi vector - dimensionality and ordering given by [nstars,nparams]
+        calc_chivec_kwargs = kwargs['chivec_kwargs']  #moment_list,weights,systerrors
+        chivec = self._calc_chivec(moments,model_moments,logger=logger,**calc_chivec_kwargs)
+
+        # a flattened vector is expected
+        return chivec.flatten()
+
+    def make_modelstars(self,params,stars,model,logger=None):
+        """Make model stars for each of the input stars, given the parameters params
+
+        :param params:          A list of the free or fixed parameters of the Optical+UniformAtmosphere PSF
+        :param stars:           A list of Stars to be used in the fit
+        :param model:           A Piff Model object with the Optical+UniformAtmosphere PSF
+        :param logger:          A logger object for logging debug info. [default: None]
+        :return model_stars:    A list of Model Stars
+        """
+
+        # Draw the model stars
+        model_stars = []
+        for astar in stars:
+
+            # params is a list or ndarray with the parameters of the Optical+UniformAtmosphere Model, with known order of parameters
+            # TODO - add in the atmo_XXX parameters too, so this routine would work for both the Optical and Single Star fits
+            model_kwargs = {}
+            model_kwargs['r0'] = 0.15/params[self.opt_param_names['opt_size']]  #size == 0.15/r0
+            model_kwargs['L0'] = params[self.opt_param_names['opt_L0']]
+            model_kwargs['g1'] = params[self.opt_param_names['opt_g1']]
+            model_kwargs['g2'] = params[self.opt_param_names['opt_g2']]
+
+            # retrieve the reference wavefront values from the input star
+            aArr = astar.data.properties['ref_wf'].copy()  #don't change it inside the star please!
+
+            # Field position [arcsec] on sky.
+            u = astar.data.properties['u'] / self.kwargs['fov_radius']
+            v = astar.data.properties['v'] / self.kwargs['fov_radius']
+
+            # add in changes to aberrations
+            for j,zf_pair in enumerate(self.ofit_double_zernike_terms):
+
+                iZ,nF = zf_pair
+                # NOTE: hardcodes that only 1 or 3 Focal Plane Zernike terms are allowed
+                if nF==1:
+                    aArr[iZ] += params[self.opt_param_names['z%df%d' % (iZ,1)]]
+                elif nF==3:
+                    aArr[iZ] += (params[self.opt_param_names['z%df%d' % (iZ,1)]] +
+                                    u * params[self.opt_param_names['z%df%d' % (iZ,2)]] +
+                                    v * params[self.opt_param_names['z%df%d' % (iZ,3)]])
+                else:
+                    raise ValueError("Incorrect specification of Double Zernike terms: ",self.ofit_double_zernike_terms)
+
+            # build the Profile from our model.  This is the Galsim object with the PSF
+            prof = model.getProfile(model_kwargs)
+
+            # draw a model star, using the data star as a template for the image, with wcs,
+            model_stars.append(model.drawProfile(star,prof,params))
+
+        return model_stars
+
+    def _calc_chivec(self,moments,model_moments,logger=None,moment_list=['e0','e1','e2'],weights=None,systerrors=None):
+        """Calculate Chi Vector for Star data moments and model moments
+
+        :param moments:         An ndarray of data moments [imoment,istar]
+        :param model_moments:   An ndarray of model moments
+        :param logger:          A logger object for logging debug info. [default: None]
+        :param moment_list:     A list of the moment indicies to use in the Chi vector [default: ['e0','e1','e2']]
+        :param weights:         A list of the weighting factors to use in the Chi vector, ordered as in moment_list [default: None]
+        :param systerrors:      A list of the systematic errors to add in quadrature with the measured errors in each Chi term, ordered as in moment_list [default: None]
+        """
+
+        # build moment_indices and error_indices from moment_list
+        # TODO: consider if structured arrays would be a better way to handle this...
+        moment_indices = [ self.ofit_moment_names[name] for name in moment_list]
+        error_indices = [ self.ofit_moment_names[name+'_err'] for name in moment_list]
+
+        # extract elements and calculate chivec array ordered as: [imoments,istar]
+        d = moments[moment_indices,:]
+        m = model_moments[moment_indicies,:]
+        e = moments[error_indices,:]   #Using errors from data
+
+        # add systematic errors to moment errors
+        if systerrors != None :
+            s = systerrors[:,np.newaxis]
+            e = np.sqrt(e*e + s*s)
+
+        # calculate chivec
+        chivec = (d-m)/e
+
+        # apply weights vector to chivec
+        if weights != None :
+            w = weights[:,np.newaxis]
+            chivec = chivec*w
+
+        # return array with dimension [imoments,istar]
+        return chivec
+
+
+
+    # TODO: these methods need to be revised for OptAtmo_PSF
+    def interpolateStarList(self, stars):
+        """Update the stars to have the current interpolated fit parameters according to the
+        current PSF model.
+
+        :param stars:       List of Star instances to update.
+
+        :returns:           List of Star instances with their fit parameters updated.
+        """
+        stars = self.interp.interpolateList(stars)
+        for star in stars:
+            self.model.normalize(star)
+        return stars
+
+    def interpolateStar(self, star):
+        """Update the star to have the current interpolated fit parameters according to the
+        current PSF model.
+
+        :param star:        Star instance to update.
+
+        :returns:           Star instance with its fit parameters updated.
+        """
+        star = self.interp.interpolate(star)
+        self.model.normalize(star)
+        return star
+
+    def _drawStar(self, star, copy_image=True, center=None):
+        return self.model.draw(star, copy_image=copy_image, center=center)
+
+    def _finish_write(self, fits, extname, logger):
+        """Finish the writing process with any class-specific steps.
+
+        :param fits:        An open fitsio.FITS object
+        :param extname:     The base name of the extension to write to.
+        :param logger:      A logger object for logging debug info.
+        """
+        logger = galsim.config.LoggerWrapper(logger)
+
+        # TODO: write out the fit param vector, information about the fit (chi2, chivec, quality etc..), model stars, the refwf kwargs, and any other information need to reproduce the fit
+        # and then also the individual stars fit results and GP too...
+        # the optical model and GP interpreter are writen out by their own write methods....
+        chisq_dict = {
+            'chisq' : self.chisq,
+            'last_delta_chisq' : self.last_delta_chisq,
+            'dof' : self.dof,
+            'nremoved' : self.nremoved,
+        }
+        write_kwargs(fits, extname + '_chisq', chisq_dict)
+
+
+        logger.debug("Wrote the chisq info to extension %s",extname + '_chisq')
+        self.model.write(fits, extname + '_model')
+        logger.debug("Wrote the PSF model to extension %s",extname + '_model')
+        self.interp.write(fits, extname + '_interp')
+        logger.debug("Wrote the PSF interp to extension %s",extname + '_interp')
+        if self.outliers:
+            self.outliers.write(fits, extname + '_outliers')
+            logger.debug("Wrote the PSF outliers to extension %s",extname + '_outliers')
+
+    def _finish_read(self, fits, extname, logger):
+        """Finish the reading process with any class-specific steps.
+
+        :param fits:        An open fitsio.FITS object
+        :param extname:     The base name of the extension to write to.
+        :param logger:      A logger object for logging debug info.
+        """
+        chisq_dict = read_kwargs(fits, extname + '_chisq')
+        for key in chisq_dict:
+            setattr(self, key, chisq_dict[key])
+        self.model = Model.read(fits, extname + '_model')
+        self.interp = Interp.read(fits, extname + '_interp')
+        if extname + '_outliers' in fits:
+            self.outliers = Outliers.read(fits, extname + '_outliers')
+        else:
+            self.outliers = None

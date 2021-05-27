@@ -56,6 +56,7 @@ class Star(object):
 
         star.data       The component StarData object
         star.fit        The component StarFit object
+        star.extrafit   An option 2nd StarFit object
 
     and the following read-only properties:
 
@@ -73,7 +74,7 @@ class Star(object):
         star.is_reserve Whether the star is reserved from being used to fit the PSF
         star.hsm        HSM measurements for this star as a tuple: (flux, cenu, cenv, size, g1, g2)
     """
-    def __init__(self, data, fit):
+    def __init__(self, data, fit, extrafit=None):
         """Constructor for Star instance.
 
         :param data: A StarData instance (invariant)
@@ -83,6 +84,7 @@ class Star(object):
         if fit is None:
             fit = StarFit(None, flux=1.0, center=(0.,0.))
         self.fit = fit
+        self.extrafit = extrafit
 
     def withFlux(self, flux=None, center=None):
         """Update the flux and/or center values

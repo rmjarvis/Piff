@@ -1,0 +1,123 @@
+# Config file for DES and optatmo
+
+modules:
+   - galsim_extra
+
+input:
+
+  image_file_name: /nfs/slac/kipac/fs1/g/des/aresh/large_testbed_y1/228724/*.fits.fz
+  image_hdu: 1
+  badpix_hdu: 2
+  weight_hdu: 3
+
+  cat_file_name:
+    simage_file_name: '@input.image_file_name'
+    str: image_file_name.replace("psf_im", "psf_cat").replace(".fits.fz", ".fits")
+    type: Eval
+  cat_hdu: 1
+
+  chipnum:
+    simage_file_name: '@input.image_file_name'
+    str: image_file_name.split('_')[-1].split('.fits')[0]
+    type: Eval
+
+  ra: ra
+  dec: dec
+  sky_col: sky
+  x_col: x
+  y_col: y
+  stamp_size: 19
+
+  reserve_frac: 0.2
+
+  max_snr: 100000. # normally 100
+  min_snr: 20
+  _cutoff_deformed_level: 1
+  _cutoff_masked_level: 1
+  _cutoff_nuisance_level: 1000.0  # was 7.5
+
+  wcs:
+    ccdnum:
+      simage_file_name: '@input.image_file_name'
+      str: image_file_name.split('_')[-1].split('.fits')[0]
+      type: Eval
+    dir: /nfs/slac/g/ki/ki19/des/cpd/y3_piff/astro/
+    exp: 228724
+    type: Pixmappy
+    yaml_file: zone176.astro
+
+
+output:
+  file_name: psf_optatmo.piff
+  stats:
+  - bins_shape: 100
+    bins_size: 100
+    file_name: shapes_optatmo.pdf
+    type: ShapeHistograms
+  - bin_size: 0.2
+    file_name: rho_optatmo.pdf
+    max_sep: 300
+    min_sep: 0.1
+    sep_units: arcmin
+    type: Rho
+  - file_name: twodhist_optatmo.pdf
+    number_bins_u: 30
+    number_bins_v: 30
+    type: TwoDHist
+  - adjust_stars: false
+    file_name: stars_optatmo.pdf
+    number_plot: 10
+    type: Star
+
+psf:
+
+  type: OptAtmo
+
+  model:
+     type: Optical
+     lam: 782.1
+     optical: des
+     gsparams: star
+
+  interp:
+     type: GPInterp
+     #anisotropic: true
+     optimizer: anisotropic
+     kernel: 1e-2 * AnisotropicVonKarman(invLam=np.array([[1./3000.**2,0],[0,1./3000.**2]]))
+     max_sep: 1020.0
+     min_sep: 0.0
+     nbins: 21
+     #optimize: true
+     #optimizer: two-pcf
+     l0: 3000.0
+
+
+  do_ofit: True
+  do_sfit: False
+  do_afit: False
+  wavefront_kwargs:
+        survey: Des
+        source1:
+           file: des/GPInterp-20140212s2-v22i2.fits
+           ext: 1
+           zlist: [4,5,6,7,8,9,10,11,14,15]
+           keys: {"x_fp":"x","y_fp":"y"}      # key in Star : key in .fits
+           chip: {"chipnum":"chipnum"}        # key in Star: key in .fits to interpolate in sub-regions
+           type: Bilinear
+        source2:
+           file:  des/decam_2012-nominalzernike.fits
+           ext: 1
+           zlist: [12,13,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37]
+           keys: {"x_fp":"xfp","y_fp":"yfp"}
+           chip: None
+           type: Rbf
+  ofit_double_zernike_terms:  [[4, 1], [5, 3], [6, 3], [7, 1], [8, 1], [9, 1], [10, 1], [11, 1], [14, 1], [15, 1]]
+  ofit_type: shape  # shape or pixel
+  ofit_nstars: 500
+  ofit_shape_kwargs:
+      moment_list: ["e0","e1","e2","M21","M12","M30","M03","M22n","M33n","M44n"]  #TODO: change to zeta1,zeta2,delta1,delta2
+      weights: [0.5,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0]
+      systerrors: None
+  fov_radius: 4500.0
+
+verbose: 2
