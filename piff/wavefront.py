@@ -1,8 +1,10 @@
 import numpy as np
 import pickle
+import galsim
+from .star import Star, StarData
 from sklearn import neighbors
 from scipy.interpolate import Rbf
-from scipy.interpolate import SmoothBivariateSpline
+from scipy.interpolate import RegularGridInterpolator
 import fitsio
 
 def convert_zernikes_des(a_fp):
@@ -15,7 +17,7 @@ def convert_zernikes_des(a_fp):
     return: a_sky      An ndarray or list with Zernike's in u,v Sky coordinates
     """
 
-    shape_in = a_fp.shape
+    shape_in = a_fp.shape[0]
 
     # fill tmp array with dimensions to 37
     a_fp_tmp = np.zeros(37+1)
@@ -84,16 +86,18 @@ class Interper(object):
         elif type=='Rgi':
             # RegularGridInterpolator just wants individual arrays of the unique
             # grid locations in x,y.  Then it assumes that Z is ordered ala np.meshgrid(x,y,indexing='ij')
-            x = np.unique(X[:,0])
-            y = np.unique(X[:,1])
+            xall = X[:,0]
+            yall = X[:,1]
+            x = np.unique(xall)
+            y = np.unique(yall)
             nx = len(x)
             ny = len(y)
 
             # sort original x,y arrays to find index so that Z will have needed ordering
-            index = np.lexsort((y,x))
+            index = np.lexsort((yall,xall))
             ZZ = Z[index]
             ZZZ = ZZ.reshape(nx,ny)
-            self.interp = RegularGridInterpolator( (x, y) , ZZZ, **kwargs)
+            self.interp = RegularGridInterpolator( (x, y) , ZZZ )
         elif type=='Knn':
             knn_kwargs = {'n_neighbors':10,'weights':'distance'}
             knn_kwargs.update(kwargs)
@@ -102,7 +106,7 @@ class Interper(object):
         else:
             raise ValueError('Interper type {0} not defined'.format(type))
 
-    def predict(X):
+    def predict(self,X):
         """ Interpolate to locations X
 
         param: X            An ndarray with Locations [points,2]
@@ -111,7 +115,7 @@ class Interper(object):
         if self.type=='Rbf':
             Z = self.interp(X[:,0],X[:,1])
         elif self.type=='Rgi':
-            Z = self.interp(X[:,0],X[:,1])
+            Z = self.interp((X[:,0],X[:,1]))
         elif self.type=='Knn':
             Z = self.interp.predict(X)
         else:
@@ -129,8 +133,10 @@ class Wavefront(object):
         """ Parse the input options
 
         param: wavefront_kwargs    A dictionaries holding the options for each
-        source of Zernike Coefficients.  Multiply input files are allowed, with Dictionaries keyed by 'source1','source2'...
-        Each 'sourceN' dictionary has keys: 'file','ext','zlist','keys','type','chip'. The key 'survey' applies custom code for the desired survey.
+                                   source of Zernike Coefficients.  Multiple input files are allowed,
+                                   with Dictionaries keyed by 'source1','source2'...
+                                   Each 'sourceN' dictionary has keys: 'file','ext','zlist','keys','type','chip'.
+                                   The key 'survey' applies custom code for the desired survey.
         param: logger              A logger object for logging debug info. [default: None]
         """
 
@@ -161,8 +167,9 @@ class Wavefront(object):
 
             # table with data
             table = fitsio.read(kwargs['file'],kwargs['ext'])
-            xkey = kwargs['keys'].keys()[0]
-            ykey = kwargs['keys'].keys()[1]
+            keylist = list(kwargs['keys'].keys())
+            xkey = keylist[0]
+            ykey = keylist[1]
 
             # store keys into Star object for this file
             self.starxykeys.append([kwargs['keys'][xkey],kwargs['keys'][ykey]])
@@ -171,13 +178,13 @@ class Wavefront(object):
             self.zlists.append(kwargs['zlist'])
 
             # if we want to interpolate Chip by Chip, do so here
-            if kwargs['chip']:
+            if kwargs['chip'] != 'None':
 
                 # column name in .fits file
-                chipkey = kwargs['chip'].keys()[0]
+                chipkey = list(kwargs['chip'].keys())[0]
 
                 # store chip key into Star object for this file
-                self.chipkeys.append(kwargs['keys'][chipkey])
+                self.chipkeys.append(kwargs['chip'][chipkey])
 
                 # get chipnum from .fits source file
                 chipvec = table[chipkey]
@@ -185,7 +192,7 @@ class Wavefront(object):
                 self.chiplists.append(chips)
 
                 for achip in chips:
-                    ok = (chips==achip)
+                    ok = (table[chipkey]==achip)
                     table_onechip = table[ok]
                     xvec = table_onechip[kwargs['keys'][xkey]]
                     yvec = table_onechip[kwargs['keys'][ykey]]
@@ -215,7 +222,7 @@ class Wavefront(object):
 
                     # make interpolation object for each desired Zernike coefficient
                     # with locations,targets
-                    self.interp_objects[(isource,None,iZ)] = interper(kwargs['type'],X,Z)
+                    self.interp_objects[(isource,None,iZ)] = Interper(kwargs['type'],X,Z)
 
         return
 
@@ -230,9 +237,9 @@ class Wavefront(object):
         wf_arr = np.zeros((nstars,self.maxnZ+1))
 
         # for DES fill Focal plane position keys 'x_fp' and 'y_fp'
-        if self.survey == 'Des':
+        if self.survey == 'des':
             from .des import decaminfo
-            dinfo = DECamInfo()
+            dinfo = decaminfo.DECamInfo()
             ix_arr = np.array([aStar.x for aStar in star_list])
             iy_arr = np.array([aStar.y for aStar in star_list])
             chipnum_arr = np.array([aStar['chipnum'] for aStar in star_list])
@@ -241,6 +248,7 @@ class Wavefront(object):
         # loop over wavefront sources
         for isource in range(self.nsources):
 
+            logger.debug("Filling Zernike coefficients for source %d" % (isource))
             xkey,ykey = self.starxykeys[isource]
 
             # get x,y from Star.data, or use x_fp,y_fp for DES, since we didn't remake the Stars above...
@@ -256,7 +264,7 @@ class Wavefront(object):
                 chipnums = np.array([aStar.data[self.chipkeys[isource]] for aStar in star_list])
 
             # loop over Zernike coefficients from this source
-            for iZ in self.zlist[isource]:
+            for iZ in self.zlists[isource]:
 
                 # if we want to interpolate Chip by Chip, do so here
                 if self.chipkeys[isource]:
@@ -272,8 +280,11 @@ class Wavefront(object):
                     wf_arr[:,iZ] = ys
 
         # convert Zernike coeff for DES
+        logger.debug("Converting Zernike coefficients for Survey %s" % (self.survey))
         if self.survey == 'Des':
-            wf_arr_final = convert_zernikes_des(wf_arr)
+            wf_arr_final = np.zeros_like(wf_arr)
+            for i in range(wf_arr_final.shape[0]):
+                wf_arr_final[i,:] = convert_zernikes_des(wf_arr[i,:])
         else:
             wf_arr_final = wf_arr
 
@@ -284,9 +295,9 @@ class Wavefront(object):
                         image_pos=aStar.image_pos,
                         field_pos=aStar.field_pos,
                         weight=aStar.weight,
-                        pointing=aStar.pointing,
-                        properties=dict(aStar.properties, wavefront=wf_arr_final[istar,:]),_xyuv_set=True)
-            new_star = Star(data=new_data,fit=aStar.fit,fixextra=aStar.fitextra)
+                        pointing=aStar.data.pointing,
+                        properties=dict(aStar.data.properties, wavefront=wf_arr_final[istar,:]),_xyuv_set=True)
+            new_star = Star(data=new_data,fit=aStar.fit,extrafit=aStar.extrafit)
             new_stars.append(new_star)
 
         return new_stars

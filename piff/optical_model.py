@@ -116,7 +116,7 @@ class Optical(Model):
 
                 >>> model = piff.OptatmoModel(optical='des', lam=1000)
         """
-        logger = galsim.config.LoggerWrapper(logger)
+        self.logger = galsim.config.LoggerWrapper(logger)
 
         # If pupil_angle and strut angle are provided as strings, eval them.
         for key in ['pupil_angle', 'strut_angle']:
@@ -188,6 +188,9 @@ class Optical(Model):
                                     oversampling=self.opt_kwargs['oversampling'], pad_factor=self.opt_kwargs['pad_factor'],
                                     gsparams=galsim.GSParams(**self.gsparams_kwargs))
 
+        # dictionary for cache of Galsim interp_objects
+        self.cache = {}
+
 
     # fit is currently a DUMMY routine
     def fit(self, star):
@@ -233,7 +236,13 @@ class Optical(Model):
 
         # atmospheric kernel
         if self.atmo_type == 'VonKarman':
-            atm = galsim.VonKarman(lam=self.lam, r0=r0, L0=L0, flux=1.0, gsparams=galsim.GSParams(**self.gsparams_kwargs))
+            if 'atm' in self.cache:
+                atm = self.cache['atm']
+                # logger is not filled by Base class ... self.logger.info("Found a VonKarman in the cache")
+                #TODO check that the cache'd version has the same parameters as what we want...
+            else:
+                atm = galsim.VonKarman(lam=self.lam, r0=r0, L0=L0, flux=1.0, gsparams=galsim.GSParams(**self.gsparams_kwargs))
+                self.cache['atm'] = atm
         else:
             atm = galsim.Kolmogorov(lam=self.lam, r0=r0, flux=1.0, gsparams=galsim.GSParams(**self.gsparams_kwargs))
         prof.append(atm)

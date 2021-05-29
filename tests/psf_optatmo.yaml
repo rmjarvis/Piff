@@ -77,7 +77,8 @@ psf:
      type: Optical
      lam: 782.1
      optical: des
-     gsparams: star
+     gsparams: starby4
+     atmo_type: 'VonKarman'
 
   interp:
      type: GPInterp
@@ -96,14 +97,14 @@ psf:
   do_sfit: False
   do_afit: False
   wavefront_kwargs:
-        survey: Des
+        survey: des
         source1:
            file: des/GPInterp-20140212s2-v22i2.fits
            ext: 1
            zlist: [4,5,6,7,8,9,10,11,14,15]
            keys: {"x_fp":"x","y_fp":"y"}      # key in Star : key in .fits
            chip: {"chipnum":"chipnum"}        # key in Star: key in .fits to interpolate in sub-regions
-           type: Bilinear
+           type: Rgi
         source2:
            file:  des/decam_2012-nominalzernike.fits
            ext: 1

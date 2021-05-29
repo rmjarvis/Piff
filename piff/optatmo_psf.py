@@ -94,9 +94,12 @@ class OptAtmoPSF(PSF):
         self.ofit_double_zernike_terms = ofit_double_zernike_terms
         for zf_pair in self.ofit_double_zernike_terms:
             iZ, nF = zf_pair
-            for iF in range(nF):
+            for iF in range(1,nF+1):
                 self.opt_param_names['z%df%d' % (iZ, iF)] = iparam
                 iparam += 1
+
+        # save wavefront kwargs
+        self.wavefront_kwargs = wavefront_kwargs
 
         # dictionary keyed by single star Atmospheric Fit parameter name, with
         # index into atmo_param ndarray
@@ -107,6 +110,8 @@ class OptAtmoPSF(PSF):
 
         # other kwargs
         self.ofit_nstars = ofit_nstars
+        self.ofit_shape_kwargs = ofit_shape_kwargs
+        self.fov_radius = fov_radius
 
         # no additional properties are used, so set to empty list
         self.extra_interp_properties = []
@@ -174,8 +179,7 @@ class OptAtmoPSF(PSF):
         # select_stars = self._select_stars(stars,logger,**select_stars_kwargs)
 
         # add Zernike wavefront coefficients to stars
-        self.wavefront_kwargs = self.kwargs['wavefront_kwargs']
-        self._get_refwavefront(stars, logger, **self.wavefront_kwargs)
+        new_stars = self._get_refwavefront(stars, logger, **self.wavefront_kwargs)
 
         # calculate moments for all Stars, currently options are hardcoded
         calc_moments_kwargs = {}
@@ -185,11 +189,11 @@ class OptAtmoPSF(PSF):
         calc_moments_kwargs['fourth_order'] = False
         calc_moments_kwargs['radial'] = True
         self.ofit_moment_names = get_moment_names(**calc_moments_kwargs)
-        star_moments = self._calc_moments(stars, logger, **calc_moments_kwargs)
+        star_moments = self._calc_moments(new_stars, logger, **calc_moments_kwargs)
 
         # select a smaller subset of stars, for use in the Optical fitting step
-        select_ofit_stars_kwargs = {'nstars': self.kwargs['ofit_nstars']}
-        ofit_stars = self._select_ofit_stars(stars, logger, **select_ofit_stars_kwargs)
+        select_ofit_stars_kwargs = {'nstars': self.ofit_nstars}
+        ofit_stars = self._select_ofit_stars(new_stars, logger, **select_ofit_stars_kwargs)
         ofit_moments = self._get_moments(ofit_stars, logger)
 
         # pick starting values of free parameters
@@ -202,7 +206,7 @@ class OptAtmoPSF(PSF):
         ofit_func_kwargs = {}  # TODO: things for chivec calculation
 
         # arguments for _calc_ofit_residual
-        ofit_shape_kwargs = self.kwargs['ofit_shape_kwargs']
+        ofit_shape_kwargs = self.ofit_shape_kwargs
 
         # perform ofit minimization
         ofit_results = least_squares(self._calc_ofit_residuals, ofit_initparams, bounds=ofit_bounds, **ofit_func_kwargs,
@@ -225,45 +229,21 @@ class OptAtmoPSF(PSF):
         select_stars = [astar for astar in stars]  # no cuts now
         return select_stars
 
-    def _get_refwavefront(self,stars,logger=None,file1=None,zlist1=None,file2=None,zlist2=None):
+    def _get_refwavefront(self,stars,logger=None):
         """Get Zernike wavefront coefficients, add to Star's properties.
 
         :param stars:           A list of input Stars
         :param logger:          A logger object for logging debug info. [default: None]
-        :param file1:           The name of the file with reference wavefronts
-        :param zlist1:          A list of Zernike terms to use from file1
-        :param file2:           The name of the file with reference wavefronts
-        :param zlist2:          A list of Zernike terms to use from file2
         """
-        # setup WF classes - currently the choice of classes and options are
-        # hard coded
-        chipnumList = chipnumList = [1] + [*range(3, 62 + 1)]
-        refwf_low = gridCCD(file1, zlist1, chipnumList)
-        refwf_hi = gridFocalPlane(file2, zlist2, nknn=150)
+        logger = galsim.config.LoggerWrapper(logger)
 
-        refwf = refwf_low + refwf_hi
-        # fill star.data.properties['ref_wf'] = ndarray with arr[4] = z4
+        # make the Wavefront object, with kwargs
+        wfobj = Wavefront(self.wavefront_kwargs,logger=logger)
 
-        for aStar in stars:
+        # fill Wavefront in star.data.properties
+        new_stars = wfobj.fillWavefront(stars,logger=logger)
 
-            # need focal plane x,y not pixel #
-            chipnum = stars.properties['chipnum']
-            ix = stars.properties['x']
-            iy = stars.properties['y']
-            xfp, yfp = decaminfo.getPosition(np.array([chipnum]), [ix], [iy])
-
-            # get the Zernike Coefficient array
-            zcoeff = refwf(xfp, yfp)
-
-            # convert to Zernike coefficients suitable for use in Galsim, where the wavefront phase is calculated in the u,v sky plane
-            # this is hardcoded for the DES WCS
-            zcoeff_converted = convert_zernikes(zcoeff)
-
-            # TODO: scale to lambda from 700nm
-
-            star.data.properties['zcoeff'] = zcoeff_converted
-
-        return
+        return new_stars
 
     def _calc_moments(self,stars,third_order=False,fourth_order=False,radial=False,
                       errors=False,addtostar=False,logger=None):
@@ -407,42 +387,62 @@ class OptAtmoPSF(PSF):
 
         # Draw the model stars
         model_stars = []
-        for astar in stars:
+        for i,astar in enumerate(stars):
 
             # params is a list or ndarray with the parameters of the Optical+UniformAtmosphere Model, with known order of parameters
             # TODO - add in the atmo_XXX parameters too, so this routine would work for both the Optical and Single Star fits
             model_kwargs = {}
-            model_kwargs['r0'] = 0.15/params[self.opt_param_names['opt_size']]  #size == 0.15/r0
+            model_kwargs['r0'] = 0.15/params[self.opt_param_names['opt_size']]  #define size == 0.15/r0
             model_kwargs['L0'] = params[self.opt_param_names['opt_L0']]
             model_kwargs['g1'] = params[self.opt_param_names['opt_g1']]
             model_kwargs['g2'] = params[self.opt_param_names['opt_g2']]
 
             # retrieve the reference wavefront values from the input star
-            aArr = astar.data.properties['ref_wf'].copy()  #don't change it inside the star please!
+            aArr = astar.data.properties['wavefront'].copy()  #don't change it inside the star please!
 
             # Field position [arcsec] on sky.
-            u = astar.data.properties['u'] / self.kwargs['fov_radius']
-            v = astar.data.properties['v'] / self.kwargs['fov_radius']
+            u = astar.data.properties['u'] / self.fov_radius
+            v = astar.data.properties['v'] / self.fov_radius
 
             # add in changes to aberrations
             for j,zf_pair in enumerate(self.ofit_double_zernike_terms):
 
                 iZ,nF = zf_pair
-                # NOTE: hardcodes that only 1 or 3 Focal Plane Zernike terms are allowed
-                if nF==1:
+                # NOTE: currently hardcoded that only 1,3,6 or 10 Focal Plane Zernike terms are allowed
+                # using Noll Convention for Focal Plane Zernike terms, see https://spie.org/etop/1997/382_1.pdf for trigonometry
+                if nF not in [1,3,6,10]:
+                    raise ValueError("Incorrect specification of Double Zernike terms: %d" % (self.ofit_double_zernike_terms))
+
+                if nF>=1:
                     aArr[iZ] += params[self.opt_param_names['z%df%d' % (iZ,1)]]
-                elif nF==3:
-                    aArr[iZ] += (params[self.opt_param_names['z%df%d' % (iZ,1)]] +
-                                    u * params[self.opt_param_names['z%df%d' % (iZ,2)]] +
-                                    v * params[self.opt_param_names['z%df%d' % (iZ,3)]])
-                else:
-                    raise ValueError("Incorrect specification of Double Zernike terms: ",self.ofit_double_zernike_terms)
+                if nF>=3:
+                    aArr[iZ] += (u * params[self.opt_param_names['z%df%d' % (iZ,2)]] +
+                                 v * params[self.opt_param_names['z%df%d' % (iZ,3)]])
+                if nF>=6:
+                    usq = u*u
+                    vsq = v*v
+                    aArr[iZ] += ( (2*usq + 2*vsq - 1) * params[self.opt_param_names['z%df%d' % (iZ,4)]] +
+                                  (2*u*v) * params[self.opt_param_names['z%df%d' % (iZ,5)]] +
+                                  (usq - vsq) * params[self.opt_param_names['z%df%d' % (iZ,6)]] )
+                if nF>=10:
+                    ucub = usq*u
+                    vcub = vsq*v
+                    aArr[iZ] += ( (3*vcub + 3*usq*v - 2*v) * params[self.opt_param_names['z%df%d' % (iZ,7)]] +
+                                  (3*ucub + 3*vsq*u - 2*u) * params[self.opt_param_names['z%df%d' % (iZ,8)]] +
+                                  (-vcub + 3*usq*v) * params[self.opt_param_names['z%df%d' % (iZ,9)]] +
+                                  (ucub - 3*vsq*u) * params[self.opt_param_names['z%df%d' % (iZ,10)]] )
+
+            # put aberrations in the model_kwargs
+            model_kwargs['zernike_coeff'] = aArr
 
             # build the Profile from our model.  This is the Galsim object with the PSF
-            prof = model.getProfile(model_kwargs)
+            prof = model.getProfile(**model_kwargs)
 
-            # draw a model star, using the data star as a template for the image, with wcs,
-            model_stars.append(model.drawProfile(star,prof,params))
+            # draw a model star, using the data star as a template for the image, with location, wcs, and weight mask
+            model_stars.append(model.drawProfile(astar,prof,params))
+
+            # debug printout
+            print("Made model star #",i)
 
         return model_stars
 
