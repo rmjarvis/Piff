@@ -148,6 +148,7 @@ class Optical(Model):
 
         gsparams_keys = ('minimum_fft_size','folding_threshold')
         self.gsparams_kwargs = { key : self.kwargs[key] for key in self.kwargs if key in gsparams_keys }
+        self.gsparams = galsim.GSParams(**self.gsparams_kwargs)
 
         # Deal with the pupil plane image now so it only needs to be loaded from disk once.
         # TODO actually use this image in the aperture
@@ -186,7 +187,7 @@ class Optical(Model):
                                     strut_angle=self.opt_kwargs['strut_angle'],
                                     pupil_plane_scale=None, pupil_plane_size=None,
                                     oversampling=self.opt_kwargs['oversampling'], pad_factor=self.opt_kwargs['pad_factor'],
-                                    gsparams=galsim.GSParams(**self.gsparams_kwargs))
+                                    gsparams=self.gsparams)
 
         # dictionary for cache of Galsim interp_objects
         self.cache = {}
@@ -237,11 +238,11 @@ class Optical(Model):
         # atmospheric kernel
         if self.atmo_type == 'VonKarman':
             atm = galsim.VonKarman(
-                lam=self.lam, r0=r0, L0=L0, flux=1.0, gsparams=galsim.GSParams(**self.gsparams_kwargs),
+                lam=self.lam, r0=r0, L0=L0, flux=1.0, gsparams=self.gsparams,
                 force_stepk=0.4
             )
         else:
-            atm = galsim.Kolmogorov(lam=self.lam, r0=r0, flux=1.0, gsparams=galsim.GSParams(**self.gsparams_kwargs))
+            atm = galsim.Kolmogorov(lam=self.lam, r0=r0, flux=1.0, gsparams=self.gsparams)
         # shear
         if g1!=0.0 or g2!=0.0:
             atm = atm.shear(g1=g1, g2=g2)
@@ -250,8 +251,8 @@ class Optical(Model):
 
         # optics
         optics = galsim.OpticalPSF(
-            lam=self.lam,diam=self.diam,aper=self.aperture,
-            aberrations=zernike_coeff,gsparams=galsim.GSParams(**self.gsparams_kwargs),
+            lam=self.lam, diam=self.diam, aper=self.aperture,
+            aberrations=zernike_coeff, gsparams=self.gsparams,
             _force_stepk=1.0, _force_maxk=200.0
         )
         prof.append(optics)
