@@ -236,7 +236,10 @@ class Optical(Model):
 
         # atmospheric kernel
         if self.atmo_type == 'VonKarman':
-            atm = galsim.VonKarman(lam=self.lam, r0=r0, L0=L0, flux=1.0, gsparams=galsim.GSParams(**self.gsparams_kwargs))
+            atm = galsim.VonKarman(
+                lam=self.lam, r0=r0, L0=L0, flux=1.0, gsparams=galsim.GSParams(**self.gsparams_kwargs),
+                force_stepk=0.4
+            )
         else:
             atm = galsim.Kolmogorov(lam=self.lam, r0=r0, flux=1.0, gsparams=galsim.GSParams(**self.gsparams_kwargs))
         # shear
@@ -248,7 +251,8 @@ class Optical(Model):
         # optics
         optics = galsim.OpticalPSF(
             lam=self.lam,diam=self.diam,aper=self.aperture,
-            aberrations=zernike_coeff,gsparams=galsim.GSParams(**self.gsparams_kwargs)
+            aberrations=zernike_coeff,gsparams=galsim.GSParams(**self.gsparams_kwargs),
+            _force_stepk=1.0, _force_maxk=200.0
         )
         prof.append(optics)
 
