@@ -23,6 +23,7 @@ import galsim
 import coord
 import fitsio
 import numpy as np
+from functools import lru_cache
 
 from .model import Model
 from .star import Star, StarFit, StarData
@@ -215,6 +216,28 @@ class Optical(Model):
                       center=star.fit.center, chisq=chisq, dof=dof)
         return Star(star.data, fit)
 
+    @lru_cache(maxsize=128)
+    def getOptics(self, zernike_coeff):
+        return galsim.OpticalPSF(
+            lam=self.lam, diam=self.diam, aper=self.aperture,
+            aberrations=zernike_coeff, gsparams=self.gsparams,
+            _force_stepk=1.0, _force_maxk=200.0
+        )
+
+    @lru_cache(maxsize=128)
+    def getAtmosphere(self, r0, L0, g1, g2):
+        if self.atmo_type == 'VonKarman':
+            atm = galsim.VonKarman(
+                lam=self.lam, r0=r0, L0=L0, flux=1.0, gsparams=self.gsparams,
+                force_stepk=0.4
+            )
+        else:
+            atm = galsim.Kolmogorov(lam=self.lam, r0=r0, flux=1.0, gsparams=self.gsparams)
+        # shear
+        if g1!=0.0 or g2!=0.0:
+            atm = atm.shear(g1=g1, g2=g2)
+        return atm
+
     def getProfile(self, zernike_coeff, r0, L0=None, g1=0., g2=0.):
         """Get a version of the model as a GalSim GSObject
 
@@ -236,26 +259,10 @@ class Optical(Model):
             prof.append(gaussian)
 
         # atmospheric kernel
-        if self.atmo_type == 'VonKarman':
-            atm = galsim.VonKarman(
-                lam=self.lam, r0=r0, L0=L0, flux=1.0, gsparams=self.gsparams,
-                force_stepk=0.4
-            )
-        else:
-            atm = galsim.Kolmogorov(lam=self.lam, r0=r0, flux=1.0, gsparams=self.gsparams)
-        # shear
-        if g1!=0.0 or g2!=0.0:
-            atm = atm.shear(g1=g1, g2=g2)
-
-        prof.append(atm)
+        prof.append(self.getAtmosphere(r0, L0, g1, g2))
 
         # optics
-        optics = galsim.OpticalPSF(
-            lam=self.lam, diam=self.diam, aper=self.aperture,
-            aberrations=zernike_coeff, gsparams=self.gsparams,
-            _force_stepk=1.0, _force_maxk=200.0
-        )
-        prof.append(optics)
+        prof.append(self.getOptics(tuple(zernike_coeff)))
 
         # convolve
         prof = galsim.Convolve(prof)
