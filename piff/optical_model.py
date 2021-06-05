@@ -236,28 +236,24 @@ class Optical(Model):
 
         # atmospheric kernel
         if self.atmo_type == 'VonKarman':
-            if 'atm' in self.cache:
-                atm = self.cache['atm']
-                # logger is not filled by Base class ... self.logger.info("Found a VonKarman in the cache")
-                #TODO check that the cache'd version has the same parameters as what we want...
-            else:
-                atm = galsim.VonKarman(lam=self.lam, r0=r0, L0=L0, flux=1.0, gsparams=galsim.GSParams(**self.gsparams_kwargs))
-                self.cache['atm'] = atm
+            atm = galsim.VonKarman(lam=self.lam, r0=r0, L0=L0, flux=1.0, gsparams=galsim.GSParams(**self.gsparams_kwargs))
         else:
             atm = galsim.Kolmogorov(lam=self.lam, r0=r0, flux=1.0, gsparams=galsim.GSParams(**self.gsparams_kwargs))
+        # shear
+        if g1!=0.0 or g2!=0.0:
+            atm = atm.shear(g1=g1, g2=g2)
+
         prof.append(atm)
 
         # optics
-        optics = galsim.OpticalPSF(lam=self.lam,diam=self.diam,aper=self.aperture,
-                                       aberrations=zernike_coeff,gsparams=galsim.GSParams(**self.gsparams_kwargs))
+        optics = galsim.OpticalPSF(
+            lam=self.lam,diam=self.diam,aper=self.aperture,
+            aberrations=zernike_coeff,gsparams=galsim.GSParams(**self.gsparams_kwargs)
+        )
         prof.append(optics)
 
         # convolve
         prof = galsim.Convolve(prof)
-
-        # shear
-        if g1!=0.0 or g2!=0.0:
-            prof = prof.shear(g1=g1, g2=g2)
 
         return prof
 
