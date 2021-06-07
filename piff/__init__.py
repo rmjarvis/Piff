@@ -114,6 +114,9 @@ from .optical_model import Optical, optical_templates
 # wavefront
 from .wavefront import Wavefront
 
+# parameter handling
+from .params import Params
+
 # Leave these in their own namespaces
 from . import util
 from . import des

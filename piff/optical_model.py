@@ -236,13 +236,12 @@ class Optical(Model):
 
         # atmospheric kernel
         if self.atmo_type == 'VonKarman':
-            if 'atm' in self.cache:
-                atm = self.cache['atm']
-                # logger is not filled by Base class ... self.logger.info("Found a VonKarman in the cache")
-                #TODO check that the cache'd version has the same parameters as what we want...
-            else:
-                atm = galsim.VonKarman(lam=self.lam, r0=r0, L0=L0, flux=1.0, gsparams=galsim.GSParams(**self.gsparams_kwargs))
-                self.cache['atm'] = atm
+            #if 'atm' in self.cache:
+            #    atm = self.cache['atm']
+            #    #TODO check that the cache'd version has the same parameters as what we want...
+            #else:
+            atm = galsim.VonKarman(lam=self.lam, r0=r0, L0=L0, flux=1.0, gsparams=galsim.GSParams(**self.gsparams_kwargs))
+            self.cache['atm'] = atm
         else:
             atm = galsim.Kolmogorov(lam=self.lam, r0=r0, flux=1.0, gsparams=galsim.GSParams(**self.gsparams_kwargs))
         prof.append(atm)
@@ -298,6 +297,7 @@ class Optical(Model):
             properties.pop(key, None)
 
         # build the output date, with the new image but all other quantities from the input star
+        # make sure that hsm is reset here... add star.local_wcs here?
         data = StarData(image=image_model,
                         image_pos=star.data.image_pos,
                         weight=star.data.weight,
@@ -308,4 +308,8 @@ class Optical(Model):
         fit = StarFit(params,
                       flux=star.fit.flux,
                       center=star.fit.center)
-        return Star(data, fit)
+
+        # build new star
+        newstar = Star(data,fit)
+
+        return newstar

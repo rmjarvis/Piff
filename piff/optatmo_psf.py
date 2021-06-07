@@ -26,6 +26,7 @@ from .interp import Interp
 from .outliers import Outliers
 from .psf import PSF
 from .wavefront import Wavefront
+from .params import Params
 from .util import write_kwargs, read_kwargs, calculate_moments, get_moment_names
 import pdb
 
@@ -44,10 +45,12 @@ class OptAtmoPSF(PSF):
 
     def __init__(self, model, interp, outliers=None,
                  do_ofit=True, do_sfit=True, do_afit=True,
-                 #TODO move to Input: maxnele=1.0e5,
+                 wavefront_kwargs=None,
                  ofit_double_zernike_terms=[[4, 1], [5, 3], [6, 3], [7, 1], [8, 1], [9, 1],
                                             [10, 1], [11, 1], [14, 1], [15, 1]],
-                 wavefront_kwargs=None,
+                 ofit_initvalues= {"opt_L0":25.,"opt_size":1.0},
+                 ofit_bounds={"opt_L0":[5.,100.0]},
+                 ofit_fix=None,
                  ofit_type='shape',
                  ofit_nstars=500,
                  ofit_shape_kwargs={'moment_list':['e0','e1','e2'],'weights':None,'systerrors':None},
@@ -61,13 +64,16 @@ class OptAtmoPSF(PSF):
         :param do_ofit:     Perform the Optical Wavefront & Constant Atmospheric Kernel fit [default: True]
         :param do_sfit:     Perform the Individual Star Atmospheric Kernel fit [default: True]
         :param do_afit:     Perform the Gaussian Process Atmospheric Kernel interpolation [default: True]
+        :param wavefront_kwargs: Options for Reference Wavefront interpolation [default: None]
         :param ofit_double_zernike_terms:   A list of the double Zernike coefficients (pupil,focal) to use as free parameters. [default:=[[4, 1], [5, 3], [6, 3], [7, 1], [8, 1], [9, 1],
                                             [10, 1], [11, 1], [14, 1], [15, 1]]]
-        :param wavefront_kwargs: Options for Reference Wavefront interpolation [default: None]
         :param ofit_type:    Type of optical fit, shape or pixel [default: shape]
         :param ofit_nstars:  Number of stars to use in Optical fit [default: 500]
-        :param ofit_shape_kwargs: Options for shape Optical fit [default: {'moment_list':['e0','e1','e2'],'weights':None,'systerrors':None}]
-        :param ofit_pixel_kwargs: Options for pixel Optical fit [default: None]
+        :param ofit_initvalues:   Dictionary of initial values for Optical fit parameters [default: {"opt_L0":25.,"opt_size":1.0}]
+        :param ofit_bounds:       Dictionary of bounds for Optical fit parameters [default: {"opt_L0":[5.,100.0]}]
+        :param ofit_fix:          List of fixed parameters for Optical fit [default:None]
+        :param ofit_shape_kwargs: Dictionary with options for shape Optical fit [default: {'moment_list':['e0','e1','e2'],'weights':None,'systerrors':None}]
+        :param ofit_pixel_kwargs: Dictionary with options for pixel Optical fit [default: None]
         :param fov_radius:   Field of View radius in arcsec [default: 4500.]
 
         """
@@ -79,43 +85,33 @@ class OptAtmoPSF(PSF):
         self.do_sfit = do_sfit
         self.do_afit = do_afit
 
-        # dictionary keyed by optical fit parameter name, with index into
-        # opt_param ndarray
-        self.opt_param_names = {}
-
-        # assume VonKarman here (TODO: test on model type)
-        vk_names = ['opt_size', 'opt_L0', 'opt_g1', 'opt_g2']
-        iparam = 0
-        for i, name in enumerate(vk_names):
-            self.opt_param_names[name] = iparam
-            iparam += 1
-
-        # add double Zernike coeffiencts
-        self.ofit_double_zernike_terms = ofit_double_zernike_terms
-        for zf_pair in self.ofit_double_zernike_terms:
-            iZ, nF = zf_pair
-            for iF in range(1,nF+1):
-                self.opt_param_names['z%df%d' % (iZ, iF)] = iparam
-                iparam += 1
-
         # save wavefront kwargs
         self.wavefront_kwargs = wavefront_kwargs
 
-        # dictionary keyed by single star Atmospheric Fit parameter name, with
-        # index into atmo_param ndarray
-        self.atmo_param_names = {}
-        atmo_names = ['atmo_size', 'atmo_g1', 'atmo_g2']
-        for i, name in enumerate(atmo_names):
-            self.atmo_param_names[name] = i
-
         # other kwargs
+        self.ofit_double_zernike_terms = ofit_double_zernike_terms
         self.ofit_nstars = ofit_nstars
+        self.ofit_initvalues = ofit_initvalues
+        self.ofit_bounds = ofit_bounds
+        self.ofit_fix = ofit_fix
         self.ofit_shape_kwargs = ofit_shape_kwargs
         self.fov_radius = fov_radius
 
         # no additional properties are used, so set to empty list
         self.extra_interp_properties = []
 
+        # save options needed when reading .piff file
+        self.kwargs = {
+            # model and interp are junk entries that will be overwritten.
+            'model': 0,
+            'interp': 0,
+            'outliers': 0,
+            'do_ofit': self.do_ofit,
+            'do_sfit': self.do_sfit,
+            'do_afit': self.do_afit,
+            'fov_radius': self.fov_radius,
+            'ofit_double_zernike_terms': self.ofit_double_zernike_terms
+        }
         # done
 
     @classmethod
@@ -140,7 +136,7 @@ class OptAtmoPSF(PSF):
                 # it isn't.
                 raise ValueError( "%s field is required in psf field for type=Simple" % key)
 
-        # make a Model object to use for the individual stellar fitting
+        # make a Model object to use for the Optical fit and the Individual Star fitting
         model = piff.Model.process(kwargs.pop('model'), logger=logger)
         kwargs['model'] = model
 
@@ -173,51 +169,64 @@ class OptAtmoPSF(PSF):
 
         logger.info("Step 1: Optical Wavefront & Constant Turbulence Kernel Fit")
 
-        # select stars, with tighter criteria, using collective properties
-        # TODO: move to Input
-        # select_stars_kwargs = {'maxnele':self.kwargs['maxnele']}
-        # select_stars = self._select_stars(stars,logger,**select_stars_kwargs)
+        # setup the optical + constant atmosphere (ofit) parameters
+        ofit_params = self._setup_ofit_params(self.ofit_initvalues,self.ofit_bounds,self.ofit_double_zernike_terms,self.ofit_fix)
 
         # add Zernike wavefront coefficients to stars
-        new_stars = self._get_refwavefront(stars, logger, **self.wavefront_kwargs)
+        new_stars = self._get_refwavefront(stars, logger)
+        self.stars = new_stars
 
         # calculate moments for all Stars, currently options are hardcoded
         calc_moments_kwargs = {}
         calc_moments_kwargs['errors'] = True
-        calc_moments_kwargs['addtostars'] = True
         calc_moments_kwargs['third_order'] = True
         calc_moments_kwargs['fourth_order'] = False
         calc_moments_kwargs['radial'] = True
         self.ofit_moment_names = get_moment_names(**calc_moments_kwargs)
-        star_moments = self._calc_moments(new_stars, logger, **calc_moments_kwargs)
+        star_moments = self._calc_moments(stars=new_stars, logger=logger, **calc_moments_kwargs,addtostar=True)
 
         # select a smaller subset of stars, for use in the Optical fitting step
         select_ofit_stars_kwargs = {'nstars': self.ofit_nstars}
         ofit_stars = self._select_ofit_stars(new_stars, logger, **select_ofit_stars_kwargs)
-        ofit_moments = self._get_moments(ofit_stars, logger)
-
-        # pick starting values of free parameters
-        ofit_initparams = self._calc_starting_ofit_params(select_stars, logger)
-        ofit_bounds = self._calc_bounds_ofit_bounds(logger)
+        ofit_moments = self._get_moments(ofit_stars)
 
         # arguments to optimizer
         # least_squares defaults for ftol and xtol are 1.e-8
         ofit_kwargs = {'diff_step': 1.e-5, 'ftol': 1.e-4, 'xtol': 1.e-4}
         ofit_func_kwargs = {}  # TODO: things for chivec calculation
 
-        # arguments for _calc_ofit_residual
-        ofit_shape_kwargs = self.ofit_shape_kwargs
-
         # perform ofit minimization
-        ofit_results = least_squares(self._calc_ofit_residuals, ofit_initparams, bounds=ofit_bounds, **ofit_func_kwargs,
-                                    arg=(ofit_stars, ofit_moments, ofit_model, logger, ofit_shape_kwargs))
+        ofit_model = self.model
+        ofit_results = least_squares(self._calc_ofit_residuals, ofit_params.getFloatingValues(), bounds=ofit_params.getFloatingBounds(), **ofit_func_kwargs,
+                                    args=(ofit_params, ofit_stars, ofit_moments, ofit_model, logger, self.ofit_shape_kwargs))
+
+        # fill parameter results into ofit_params
+        ofit_params.setFloatingValues(ofit_results.x)
 
         # print some results
-        logger.info("Optical Fit: fit results", ofit_results)
+        logger.info("Optical Fit: fit results")
+        print(ofit_results)
 
+        # make
         logger.info("Step 2: Individual Star Turbulence Kernel Fit")
 
         logger.info("Step 3: Interpolation of Turbulence Kernels")
+
+        return ofit_results,ofit_params
+
+    def _chivec_vs_params(self,param_index,param_nbin,param_range,params,ofit_stars,ofit_moments,ofit_model,logger,ofit_shape_kwargs):
+        """Calculate Optical fit residuals vector for a range of parameter values
+
+        :param param_index:     Index of the parameter to varying
+        :param param_nbin:      Number of points to for the varying parameter
+        :param param_range:     A Tuple with the range of the parameter value to explore
+        :param params:          A list of the free or fixed parameters of the Optical+UniformAtmosphere PSF
+        :param stars:           A list of Stars to be used in the fit
+        :param moments:         A np.ndarray with moments from data Stars
+        :param model:           A Piff Model object encapsulating the Optical+UniformAtmosphere PSF
+        :param logger:          A logger object for logging debug info. [default: None]
+        :param kwargs:          A dictionary of other options
+        """
 
     def _select_stars(self, stars, logger, **kwargs):
         """Select a stars passing more specialized requirements.
@@ -256,6 +265,7 @@ class OptAtmoPSF(PSF):
         :param errors:          Return the variance estimates of other returned values? [default: False]
         :param addtostar:       Add the moments to the Stars's properties? [default False]
         :param logger:          A logger object for logging debug info. [default: None]
+        :return moments:        An ndarray of moments for all input Stars, [istar,imoment]
         """
 
         nstars = len(stars)
@@ -267,19 +277,34 @@ class OptAtmoPSF(PSF):
             if i == 0:
                 moms = calculate_moments(astar,third_order=third_order,fourth_order=fourth_order,
                                              radial=radial,errors=errors,logger=logger)
-                moments = np.zeros(len(moms), nstars)
-                moments[:, i] = moms
+                moments = np.zeros((nstars,len(moms)))
+                moments[i,:] = moms
             else:
-                moments[:,i] = calculate_moments(astar,third_order=third_order,fourth_order=fourth_order,
+                moments[i,:] = calculate_moments(astar,third_order=third_order,fourth_order=fourth_order,
                                                      radial=radial,errors=errors,logger=logger)
 
             if addtostar:
-                Star.data.properties['moments'] = moments[:, i]
+                astar.data.properties['moments'] = moments[i,:]
 
         return moments
 
+    def _get_moments(self,stars):
+        """Get moments from Star's properties
 
-    # add to util.py
+        :param stars:           A list of input Stars
+        :return moments_array:  An ndarray with Star moments in it [imoments,istar]
+        """
+
+        # get size of moments array from 1st star
+        nmoments = stars[0].data.properties['moments'].shape[0]
+        nstars = len(stars)
+
+        moments_array =  np.zeros((nstars,nmoments))
+        for i,astar in enumerate(stars):
+            moments_array[i,:] = astar.data.properties['moments']
+
+        return moments_array
+
     def _select_ofit_stars(self, stars, logger=None, nstars=500):
         """Select subset of stars for Optical+UniformAtmosphere fit
 
@@ -294,7 +319,7 @@ class OptAtmoPSF(PSF):
         select_stars = [stars[index] for index in sorted_list[-nstars:]]
         return select_stars
 
-    # add to util.py
+    # add to util.py?
     def _get_flux(self,stars):
         """Get flux from Star's properties
 
@@ -311,66 +336,64 @@ class OptAtmoPSF(PSF):
 
         return flux_array
 
+    def _setup_ofit_params(self,ofit_initvalues,ofit_bounds,ofit_double_zernike_terms,ofit_fix=None):
+        """ Setup the Optical fit parameters
 
-
-    def _calc_starting_ofit_params(self,stars,logger=None,**kwargs):
-        """Calculate a good starting guess for the Optical+UniformAtmosphere fit.
-
-        :param stars:           A list of Stars to be used in the fit
-        :param logger:          A logger object for logging debug info. [default: None]
-        :param kwargs:          A dictionary of other options
-        :return params          An ndarray of starting parameters
+        :param ofit_initvalues:
+        :param ofit_bounds:
+        :param ofit_double_zernike_terms:
         """
-        # make a good guess at parameters, return a list
-        # just use constant values now...
-        params = np.zeros(len(self.opt_param_names))
+        ofit_params = Params()
+        ofit_params.register('opt_size',initvalue=ofit_initvalues.get('opt_size',1.0),bounds=ofit_bounds.get('opt_size'))
+        ofit_params.register('opt_L0',initvalue=ofit_initvalues.get('opt_L0',25.0),bounds=ofit_bounds.get('opt_L0',[5.0,100.0]))
+        ofit_params.register('opt_g1',initvalue=ofit_initvalues.get('opt_g1',0.0),bounds=ofit_bounds.get('opt_g1'))
+        ofit_params.register('opt_g2',initvalue=ofit_initvalues.get('opt_g2',0.0),bounds=ofit_bounds.get('opt_g2'))
 
-        params[self.opt_param_names['opt_size']] = 1.0
-        params[self.opt_param_names['opt_L0']] = 25.0
+        # add double Zernike coeffiencts
+        for zf_pair in ofit_double_zernike_terms:
+            iZ, nF = zf_pair
+            for iF in range(1,nF+1):
+                name = 'z%df%d' % (iZ,iF)
+                ofit_params.register(name,initvalue=ofit_initvalues.get(name,0.0),bounds=ofit_bounds.get(name))
 
-        return params
+        # fix parameters as desired
+        if ofit_fix:
+            for name in ofit_fix:
+                ofit_params.fix(name)
 
-    def _calc_starting_ofit_bounds(self,logger=None,**kwargs):
-        """Return bounds for the parameters of the Optical+UniformAtmosphere fit.
+        return ofit_params
 
-        :param logger:          A logger object for logging debug info. [default: None]
-        :param kwargs:          A dictionary of other options
-        :return bounds          An list of bounds for Optical fit parameters
-        """
-        # only L0 has bounds
-        for parname in self.opt_param_names.keys():   # relying on fixed order of dictionaries, as of Python 3.7
-            if parname == 'opt_L0':
-                bounds.append((5.0,100.0))
-            else:
-                bounds.append((-np.inf,np.inf))
-
-        return bounds
-
-
-    def _calc_ofit_residuals(self,params,stars,moments,model,logger,kwargs):
+    def _calc_ofit_residuals(self,free_params,params,stars,moments,model,logger,kwargs):
         """Calculate Optical fit residuals
 
-        :param params:          A list of the free or fixed parameters of the Optical+UniformAtmosphere PSF
+        :param free_params:     A List with the free parameters of the Optical+UniformAtmosphere PSF
+        :param params:          A Params object with all parameters
         :param stars:           A list of Stars to be used in the fit
         :param moments:         A np.ndarray with moments from data Stars
         :param model:           A Piff Model object encapsulating the Optical+UniformAtmosphere PSF
         :param logger:          A logger object for logging debug info. [default: None]
         :param kwargs:          A dictionary of other options
         """
+        # load floating params into params
+        params.setFloatingValues(free_params)
+
         # make model stars, one for each ofit star
         model_stars = self.make_modelstars(params,stars,model,logger=logger)
 
         # calculate moments for model stars, currently options are hardcoded
+        calc_moments_kwargs = {}
         calc_moments_kwargs['errors'] = False
         calc_moments_kwargs['third_order'] = True
         calc_moments_kwargs['fourth_order'] = False
         calc_moments_kwargs['radial'] = True
-        calc_moments_kwargs['addtostar'] = False
-        model_moments = self._calc_moments(model_stars,logger=logger,**calc_moments_kwargs)
+        model_moments = self._calc_moments(model_stars,logger=logger,**calc_moments_kwargs,addtostar=False)
 
         # calculate the chi vector - dimensionality and ordering given by [nstars,nparams]
-        calc_chivec_kwargs = kwargs['chivec_kwargs']  #moment_list,weights,systerrors
+        calc_chivec_kwargs = kwargs  #moment_list,weights,systerrors
         chivec = self._calc_chivec(moments,model_moments,logger=logger,**calc_chivec_kwargs)
+
+        # print which parameters changed, TODO: only for debug mode...
+        params.printChanges()
 
         # a flattened vector is expected
         return chivec.flatten()
@@ -378,7 +401,7 @@ class OptAtmoPSF(PSF):
     def make_modelstars(self,params,stars,model,logger=None):
         """Make model stars for each of the input stars, given the parameters params
 
-        :param params:          A list of the free or fixed parameters of the Optical+UniformAtmosphere PSF
+        :param params:          A Params object with the free or fixed parameters of the Optical+UniformAtmosphere PSF
         :param stars:           A list of Stars to be used in the fit
         :param model:           A Piff Model object with the Optical+UniformAtmosphere PSF
         :param logger:          A logger object for logging debug info. [default: None]
@@ -389,13 +412,12 @@ class OptAtmoPSF(PSF):
         model_stars = []
         for i,astar in enumerate(stars):
 
-            # params is a list or ndarray with the parameters of the Optical+UniformAtmosphere Model, with known order of parameters
             # TODO - add in the atmo_XXX parameters too, so this routine would work for both the Optical and Single Star fits
             model_kwargs = {}
-            model_kwargs['r0'] = 0.15/params[self.opt_param_names['opt_size']]  #define size == 0.15/r0
-            model_kwargs['L0'] = params[self.opt_param_names['opt_L0']]
-            model_kwargs['g1'] = params[self.opt_param_names['opt_g1']]
-            model_kwargs['g2'] = params[self.opt_param_names['opt_g2']]
+            model_kwargs['r0'] = 0.15/params.get('opt_size')  #define size == 0.15/r0
+            model_kwargs['L0'] = params.get('opt_L0')
+            model_kwargs['g1'] = params.get('opt_g1')
+            model_kwargs['g2'] = params.get('opt_g2')
 
             # retrieve the reference wavefront values from the input star
             aArr = astar.data.properties['wavefront'].copy()  #don't change it inside the star please!
@@ -414,23 +436,23 @@ class OptAtmoPSF(PSF):
                     raise ValueError("Incorrect specification of Double Zernike terms: %d" % (self.ofit_double_zernike_terms))
 
                 if nF>=1:
-                    aArr[iZ] += params[self.opt_param_names['z%df%d' % (iZ,1)]]
+                    aArr[iZ] += params.get('z%df%d' % (iZ,1))
                 if nF>=3:
-                    aArr[iZ] += (u * params[self.opt_param_names['z%df%d' % (iZ,2)]] +
-                                 v * params[self.opt_param_names['z%df%d' % (iZ,3)]])
+                    aArr[iZ] += ( u * params.get('z%df%d' % (iZ,2)) +
+                                  v * params.get('z%df%d' % (iZ,3)) )
                 if nF>=6:
                     usq = u*u
                     vsq = v*v
-                    aArr[iZ] += ( (2*usq + 2*vsq - 1) * params[self.opt_param_names['z%df%d' % (iZ,4)]] +
-                                  (2*u*v) * params[self.opt_param_names['z%df%d' % (iZ,5)]] +
-                                  (usq - vsq) * params[self.opt_param_names['z%df%d' % (iZ,6)]] )
+                    aArr[iZ] += ( (2*usq + 2*vsq - 1) * params.get('z%df%d' % (iZ,4)) +
+                                  (2*u*v) * params.get('z%df%d' % (iZ,5)) +
+                                  (usq - vsq) * params.get('z%df%d' % (iZ,6)) )
                 if nF>=10:
                     ucub = usq*u
                     vcub = vsq*v
-                    aArr[iZ] += ( (3*vcub + 3*usq*v - 2*v) * params[self.opt_param_names['z%df%d' % (iZ,7)]] +
-                                  (3*ucub + 3*vsq*u - 2*u) * params[self.opt_param_names['z%df%d' % (iZ,8)]] +
-                                  (-vcub + 3*usq*v) * params[self.opt_param_names['z%df%d' % (iZ,9)]] +
-                                  (ucub - 3*vsq*u) * params[self.opt_param_names['z%df%d' % (iZ,10)]] )
+                    aArr[iZ] += ( (3*vcub + 3*usq*v - 2*v) * params.get('z%df%d' % (iZ,7)) +
+                                  (3*ucub + 3*vsq*u - 2*u) * params.get('z%df%d' % (iZ,8)) +
+                                  (-vcub + 3*usq*v) * params.get('z%df%d' % (iZ,9)) +
+                                  (ucub - 3*vsq*u) * params.get('z%df%d' % (iZ,10)) )
 
             # put aberrations in the model_kwargs
             model_kwargs['zernike_coeff'] = aArr
@@ -439,46 +461,47 @@ class OptAtmoPSF(PSF):
             prof = model.getProfile(**model_kwargs)
 
             # draw a model star, using the data star as a template for the image, with location, wcs, and weight mask
-            model_stars.append(model.drawProfile(astar,prof,params))
-
-            # debug printout
-            print("Made model star #",i)
+            model_stars.append(model.drawProfile(astar,prof,params.getValues()[0:4]))  #TODO: hardcoded to only store size,L0,g1,g2 in the StarFit
 
         return model_stars
 
     def _calc_chivec(self,moments,model_moments,logger=None,moment_list=['e0','e1','e2'],weights=None,systerrors=None):
         """Calculate Chi Vector for Star data moments and model moments
 
-        :param moments:         An ndarray of data moments [imoment,istar]
+        :param moments:         An ndarray of data moments [istar,imoment]
         :param model_moments:   An ndarray of model moments
         :param logger:          A logger object for logging debug info. [default: None]
         :param moment_list:     A list of the moment indicies to use in the Chi vector [default: ['e0','e1','e2']]
         :param weights:         A list of the weighting factors to use in the Chi vector, ordered as in moment_list [default: None]
         :param systerrors:      A list of the systematic errors to add in quadrature with the measured errors in each Chi term, ordered as in moment_list [default: None]
+        :return chivec:         An ndarray of Chi = (data-model)/error, [istar,imoment]
         """
 
-        # build moment_indices and error_indices from moment_list
+        # build moment_indices and error_indices from moment_list, since not all moments are used in chivec
         # TODO: consider if structured arrays would be a better way to handle this...
-        moment_indices = [ self.ofit_moment_names[name] for name in moment_list]
-        error_indices = [ self.ofit_moment_names[name+'_err'] for name in moment_list]
+        moment_indices = [ self.ofit_moment_names.index(name) for name in moment_list]
+        error_indices = [ self.ofit_moment_names.index(name+'_err') for name in moment_list]
 
-        # extract elements and calculate chivec array ordered as: [imoments,istar]
-        d = moments[moment_indices,:]
-        m = model_moments[moment_indicies,:]
-        e = moments[error_indices,:]   #Using errors from data
+        # extract elements and calculate chivec array ordered as: [istar,imoment]
+        d = moments[:,moment_indices]
+        m = model_moments[:,moment_indices]
+        e = moments[:,error_indices]   #Using errors from data
 
         # add systematic errors to moment errors
-        if systerrors != None :
-            s = systerrors[:,np.newaxis]
+        if systerrors != 'None' and systerrors != None :
+            s = np.array(systerrors)
             e = np.sqrt(e*e + s*s)
 
         # calculate chivec
         chivec = (d-m)/e
 
         # apply weights vector to chivec
-        if weights != None :
-            w = weights[:,np.newaxis]
-            chivec = chivec*w
+        if weights != 'None' and weights != None :
+            chivec = chivec * np.array(weights)
+
+        # info printout
+        chi2 = np.sum(chivec*chivec)
+        logger.info("Chi2 = %f" % (chi2))
 
         # return array with dimension [imoments,istar]
         return chivec

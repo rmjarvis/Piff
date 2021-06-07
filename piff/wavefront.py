@@ -252,7 +252,7 @@ class Wavefront(object):
             xkey,ykey = self.starxykeys[isource]
 
             # get x,y from Star.data, or use x_fp,y_fp for DES, since we didn't remake the Stars above...
-            if self.survey == 'Des':
+            if self.survey == 'des':
                 Xs = np.column_stack([x_fp,y_fp])
             else:
                 xvals = np.array([aStar.data[xkey] for aStar in star_list])
@@ -281,7 +281,7 @@ class Wavefront(object):
 
         # convert Zernike coeff for DES
         logger.debug("Converting Zernike coefficients for Survey %s" % (self.survey))
-        if self.survey == 'Des':
+        if self.survey == 'des':
             wf_arr_final = np.zeros_like(wf_arr)
             for i in range(wf_arr_final.shape[0]):
                 wf_arr_final[i,:] = convert_zernikes_des(wf_arr[i,:])

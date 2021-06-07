@@ -31,10 +31,12 @@ input:
   reserve_frac: 0.2
 
   max_snr: 100000. # normally 100
-  min_snr: 20
-  _cutoff_deformed_level: 1
-  _cutoff_masked_level: 1
-  _cutoff_nuisance_level: 1000.0  # was 7.5
+  min_snr: 200     # was 20 or 30 or so
+  max_mask_pixels: 1  # allow at most only 1 masked pixel
+  use_partial: False  # don't use if postage stamp is partially off the image
+  max_edge_frac: 0.30  # throw out cases with more than 30% of the flux coming from beyond a radius of 8 pixels
+  stamp_center_size: 8
+  maxpixel_cut: 1.2e5 #maximum pixel value of 120000
 
   wcs:
     ccdnum:
@@ -114,11 +116,11 @@ psf:
            type: Rbf
   ofit_double_zernike_terms:  [[4, 1], [5, 3], [6, 3], [7, 1], [8, 1], [9, 1], [10, 1], [11, 1], [14, 1], [15, 1]]
   ofit_type: shape  # shape or pixel
-  ofit_nstars: 500
+  ofit_nstars: 50
   ofit_shape_kwargs:
       moment_list: ["e0","e1","e2","M21","M12","M30","M03","M22n","M33n","M44n"]  #TODO: change to zeta1,zeta2,delta1,delta2
       weights: [0.5,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0]
-      systerrors: None
+      systerrors: [0.005,0.002,0.002,0.0005,0.0005,0.0005,0.0005,0.1,0.2,0.3]
   fov_radius: 4500.0
 
 verbose: 2

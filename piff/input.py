@@ -103,7 +103,8 @@ class Input(object):
                       hsm_size_reject=self.hsm_size_reject,
                       max_mask_pixels=self.max_mask_pixels,
                       max_edge_frac=self.max_edge_frac,
-                      stamp_center_size=self.stamp_center_size)
+                      stamp_center_size=self.stamp_center_size,
+                      maxpixel_cut=self.maxpixel_cut)
 
         all_stars = run_multi(call_makeStarsFromImage, self.nproc, raise_except=True,
                               args=args, logger=logger, kwargs=kwargs)
@@ -265,6 +266,7 @@ class InputFiles(Input):
                             If this is a float value, it gives the number of inter-quartile-ranges
                             to use for rejection relative to the median.  hsm_size_reject=True
                             is equivalent to hsm_size_reject=10.
+            :maxpixel_cut:  Maximum value in any pixel.  Cut is applied to flux using the median maxpixel/flux ratio.
             :nstars:        Stop reading the input file at this many stars.  (This is applied
                             separately to each input catalog.)  [default: None]
             :nproc:         How many multiprocessing processes to use for reading in data from
@@ -330,6 +332,7 @@ class InputFiles(Input):
                 'max_edge_frac': float,
                 'stamp_center_size': float,
                 'max_mask_pixels' : int,
+                "maxpixel_cut" : float,
                 'sky' : str,
                 'noise' : float,
                 'nstars' : int,
@@ -540,6 +543,7 @@ class InputFiles(Input):
         self.max_edge_frac = config.get('max_edge_frac', None)
         self.max_mask_pixels = config.get('max_mask_pixels', None)
         self.stamp_center_size = config.get('stamp_center_size', 13)
+        self.maxpixel_cut = config.get('maxpixel_cut',None)
 
         self.use_partial = config.get('use_partial', False)
         self.hsm_size_reject = config.get('hsm_size_reject', 0.)
@@ -604,7 +608,7 @@ class InputFiles(Input):
     def _makeStarsFromImage(image_kwargs, cat_kwargs, wcs, chipnum,
                             stamp_size, min_snr, max_snr, pointing, use_partial,
                             invert_weight, remove_signal_from_weight, hsm_size_reject,
-                            max_mask_pixels, max_edge_frac, stamp_center_size,
+                            max_mask_pixels, max_edge_frac, stamp_center_size, maxpixel_cut,
                             logger):
         """Make stars from a single input image
         """
@@ -672,7 +676,7 @@ class InputFiles(Input):
                     logger.warning("Star at position %f,%f has %i masked pixels, ", x, y, n_masked)
                     logger.warning("Skipping this star.")
                     continue
-                
+
             # Subtract the sky
             if sky is not None:
                 logger.debug("Subtracting off sky = %f", sky[k])
@@ -737,6 +741,20 @@ class InputFiles(Input):
                 del stars[k]
                 med_sigma = np.median(sigma)
                 iqr_sigma = scipy.stats.iqr(sigma)
+
+        if maxpixel_cut is not None:
+            # find median maxpixel/flux ratio, and use to set flux cut equivalent
+            # on average to maxpixel_cut
+            maxpixel = np.array([np.max(star.data.image.array) for star in stars])
+            flux = np.array([star.hsm[0] for star in stars])
+            snr = np.array([star['snr'] for star in stars])
+            ok = (snr>40.)  #hardcoded to remove dimmest stars
+            maxpixel_ratio = np.median(maxpixel[ok]/flux[ok])
+            flux_cut = maxpixel_cut/maxpixel_ratio
+            logger.info("maxpixel/flux ratio = %.4f, flux_cut is %.1f" % (maxpixel_ratio,flux_cut))
+            for i,star in enumerate(stars):
+                if flux[i]>flux_cut:
+                    del stars[i]
 
         return stars
 

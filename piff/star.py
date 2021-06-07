@@ -193,6 +193,7 @@ class Star(object):
 
         flux = mom.moments_amp
 
+        # TODO check if localwcs already exists, note that localwcs and jac above are the same and are = local_wcs, and should already be present as self.data.local_wcs
         localwcs = image.wcs.local(image_pos)
         center = localwcs.toWorld(mom.moments_centroid) - localwcs.toWorld(image_pos)
         flag = mom.moments_status
@@ -295,8 +296,8 @@ class Star(object):
             weight = galsim.Image(weight.array, wcs=image.wcs, copy=True, bounds=image.bounds)
 
         # Build the StarData instance
-        data = StarData(image, image_pos, field_pos=field_pos, properties=properties, 
-                        pointing=pointing, weight=weight)        
+        data = StarData(image, image_pos, field_pos=field_pos, properties=properties,
+                        pointing=pointing, weight=weight)
         fit = StarFit(None, flux=flux, center=(0.,0.))
         return cls(data, fit)
 
