@@ -23,6 +23,7 @@ import galsim
 import coord
 import fitsio
 import numpy as np
+from functools import lru_cache
 
 from .model import Model
 from .star import Star, StarFit, StarData
@@ -148,6 +149,7 @@ class Optical(Model):
 
         gsparams_keys = ('minimum_fft_size','folding_threshold')
         self.gsparams_kwargs = { key : self.kwargs[key] for key in self.kwargs if key in gsparams_keys }
+        self.gsparams = galsim.GSParams(**self.gsparams_kwargs)
 
         # Deal with the pupil plane image now so it only needs to be loaded from disk once.
         # TODO actually use this image in the aperture
@@ -186,7 +188,7 @@ class Optical(Model):
                                     strut_angle=self.opt_kwargs['strut_angle'],
                                     pupil_plane_scale=None, pupil_plane_size=None,
                                     oversampling=self.opt_kwargs['oversampling'], pad_factor=self.opt_kwargs['pad_factor'],
-                                    gsparams=galsim.GSParams(**self.gsparams_kwargs))
+                                    gsparams=self.gsparams)
 
         # dictionary for cache of Galsim interp_objects
         self.cache = {}
@@ -214,6 +216,28 @@ class Optical(Model):
                       center=star.fit.center, chisq=chisq, dof=dof)
         return Star(star.data, fit)
 
+    @lru_cache(maxsize=128)
+    def getOptics(self, zernike_coeff):
+        return galsim.OpticalPSF(
+            lam=self.lam, diam=self.diam, aper=self.aperture,
+            aberrations=zernike_coeff, gsparams=self.gsparams,
+            _force_stepk=1.0, _force_maxk=200.0
+        )
+
+    @lru_cache(maxsize=128)
+    def getAtmosphere(self, r0, L0, g1, g2):
+        if self.atmo_type == 'VonKarman':
+            atm = galsim.VonKarman(
+                lam=self.lam, r0=r0, L0=L0, flux=1.0, gsparams=self.gsparams,
+                force_stepk=0.4
+            )
+        else:
+            atm = galsim.Kolmogorov(lam=self.lam, r0=r0, flux=1.0, gsparams=self.gsparams)
+        # shear
+        if g1!=0.0 or g2!=0.0:
+            atm = atm.shear(g1=g1, g2=g2)
+        return atm
+
     def getProfile(self, zernike_coeff, r0, L0=None, g1=0., g2=0.):
         """Get a version of the model as a GalSim GSObject
 
@@ -235,28 +259,13 @@ class Optical(Model):
             prof.append(gaussian)
 
         # atmospheric kernel
-        if self.atmo_type == 'VonKarman':
-            #if 'atm' in self.cache:
-            #    atm = self.cache['atm']
-            #    #TODO check that the cache'd version has the same parameters as what we want...
-            #else:
-            atm = galsim.VonKarman(lam=self.lam, r0=r0, L0=L0, flux=1.0, gsparams=galsim.GSParams(**self.gsparams_kwargs))
-            self.cache['atm'] = atm
-        else:
-            atm = galsim.Kolmogorov(lam=self.lam, r0=r0, flux=1.0, gsparams=galsim.GSParams(**self.gsparams_kwargs))
-        prof.append(atm)
+        prof.append(self.getAtmosphere(r0, L0, g1, g2))
 
         # optics
-        optics = galsim.OpticalPSF(lam=self.lam,diam=self.diam,aper=self.aperture,
-                                       aberrations=zernike_coeff,gsparams=galsim.GSParams(**self.gsparams_kwargs))
-        prof.append(optics)
+        prof.append(self.getOptics(tuple(zernike_coeff)))
 
         # convolve
         prof = galsim.Convolve(prof)
-
-        # shear
-        if g1!=0.0 or g2!=0.0:
-            prof = prof.shear(g1=g1, g2=g2)
 
         return prof
 

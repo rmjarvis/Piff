@@ -50,4 +50,12 @@ def test_makestars():
     model_stars = psf.make_modelstars(params,newdict['stars'][0:1000],psf.model,logger)
 
 if __name__ == '__main__':
+    import cProfile, pstats, io
+    pr = cProfile.Profile()
+    pr.enable()
     test_makestars()
+    pr.disable()
+    ps = pstats.Stats(pr).sort_stats(pstats.SortKey.CUMULATIVE)
+    ps.sort_stats(pstats.SortKey.CUMULATIVE).print_stats(10)
+    print()
+    ps.sort_stats(pstats.SortKey.TIME).print_stats(10)
