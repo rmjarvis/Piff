@@ -42,11 +42,6 @@ class PixelGrid(Model):
     are determined from the pixelated model.  Any galsim.Interpolant type is allowed.
     The default interpolant is galsim.Lanczos(3)
 
-    Stellar data is assumed either to be in flux units (with default sb=False), such that
-    flux is defined as sum of pixel values; or in surface brightness units (sb=True), such
-    that flux is (sum of pixels)*(pixel area).  Internally the sb convention is used, although
-    the flux convention is more typical of input data.
-
     :param scale:       Pixel scale of the PSF model (in arcsec)
     :param size:        Number of pixels on each side of square grid.
     :param interp:      An Interpolant to be used [default: Lanczos(3)]
@@ -56,9 +51,7 @@ class PixelGrid(Model):
                         [default: True]
     :param logger:      A logger object for logging debug info. [default: None]
     """
-    def __init__(self, scale, size, interp=None, centered=True, logger=None,
-                 start_sigma=None, degenerate=None):
-        # start_sigma and degenerate are for backwards compatibility.  Ignore.
+    def __init__(self, scale, size, interp=None, centered=True, logger=None):
         logger = galsim.config.LoggerWrapper(logger)
         logger.debug("Building Pixel model with the following parameters:")
         logger.debug("scale = %s",scale)
