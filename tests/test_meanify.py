@@ -98,7 +98,7 @@ def make_average(coord=None, gp=True):
     keys = ['hlr', 'g1', 'g2']
 
     for key in keys:
-        if key is 'hlr':
+        if key == 'hlr':
             params[key] = average + 0.6
         else:
             params[key] = average
