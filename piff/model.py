@@ -129,7 +129,7 @@ class Model(object):
         logger.debug("    image center = %s",star.data.image(star.data.image.center))
         logger.debug("    weight center = %s",star.data.weight(star.data.weight.center))
 
-        image, weight, u, v = star.data.getDataVector(include_zero_weight=True)
+        image, weight, u, v = star.data.getDataVector()
         model = self.draw(star).image.array.flatten()
 
         WIM = weight * image * model
