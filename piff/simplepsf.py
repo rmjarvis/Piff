@@ -272,6 +272,10 @@ class SimplePSF(PSF):
     def _drawStar(self, star, copy_image=True, center=None):
         return self.model.draw(star, copy_image=copy_image, center=center)
 
+    def _getProfile(self, star, copy_image=True, center=None):
+        prof = self.model.getProfile(star.fit.params).shift(star.fit.center) * star.fit.flux
+        return prof, self.model._method
+
     def _finish_write(self, fits, extname, logger):
         """Finish the writing process with any class-specific steps.
 
