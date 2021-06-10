@@ -39,8 +39,8 @@ class PixelGrid(Model):
     assume values of zero outside of grid.
 
     PixelGrid also needs to specify an interpolant to define how to values between grid points
-    are determined from the pixelated model.  For now only Lanczos is implemented, but we
-    plan to expand this to include all GalSim Interpolants.
+    are determined from the pixelated model.  Any galsim.Interpolant type is allowed.
+    The default interpolant is galsim.Lanczos(3)
 
     Stellar data is assumed either to be in flux units (with default sb=False), such that
     flux is defined as sum of pixel values; or in surface brightness units (sb=True), such
@@ -49,8 +49,7 @@ class PixelGrid(Model):
 
     :param scale:       Pixel scale of the PSF model (in arcsec)
     :param size:        Number of pixels on each side of square grid.
-    :param interp:      An Interpolant to be used [default: Lanczos(3); currently only
-                        Lanczos(n) is implemented, for any n]
+    :param interp:      An Interpolant to be used [default: Lanczos(3)]
     :param centered:    If True, PSF model centroid is forced to be (0,0), and the
                         PSF fitting will marginalize over stellar position.  If False, stellar
                         position is fixed at input value and the fitted PSF may be off-center.
@@ -538,13 +537,6 @@ class PixelGrid(Model):
 
         :returns: interpolation kernel values at these grid points
         """
-        # TODO: It would be nice to allow any GalSim.Interpolant for the interp, but
-        #       we'd need to get the equivalent of this functionality into the public API
-        #       of the galsim.Interpolant class.  Currently, there is nothing like this
-        #       available in the python API, although the C++ layer does do this calculation.
-        #       For now, we just implement this for Lanczos.
-
-        # Normalize Lanczos to unit sum over kernel elements
-        n = self.interp._n
-        k = np.sinc(u) * np.sinc(u/n)
+        k = self.interp.xval(u.ravel()).reshape(u.shape)
+        # Normalize to unit sum over kernel elements
         return k / np.sum(k,axis=1)[:,np.newaxis]
