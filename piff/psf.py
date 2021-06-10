@@ -168,35 +168,28 @@ class PSF(object):
         :returns:           A GalSim Image of the PSF
         """
         logger = galsim.config.LoggerWrapper(logger)
-        properties = {'chipnum' : chipnum}
-        for key in self.extra_interp_properties:
-            if key not in kwargs:
-                raise TypeError("Extra interpolation property %r is required"%key)
-            properties[key] = kwargs.pop(key)
-        if len(kwargs) != 0:
-            raise TypeError("draw got an unexpecte keyword argument %r"%list(kwargs.keys())[0])
 
-        image_pos = galsim.PositionD(x,y)
-        world_pos = StarData.calculateFieldPos(image_pos, self.wcs[chipnum], self.pointing,
-                                               properties)
-        u,v = world_pos.x, world_pos.y
+        prof, method = self.get_profile(x,y,chipnum=chipnum, flux=flux, logger=logger, **kwargs)
 
-        # We always use the correct wcs above for world_pos, but in makeTarget, we allow the
-        # user's image.wcs to override.
-        if image is None or image.wcs is None:
-            wcs = self.wcs[chipnum]
-        else:
-            wcs = image.wcs
-
-        star = Star.makeTarget(x=x, y=y, u=u, v=v, wcs=wcs, properties=properties,
-                               stamp_size=stamp_size, image=image, pointing=self.pointing)
         logger.debug("Drawing star at (%s,%s) on chip %s", x, y, chipnum)
+
+        # Make the image if necessary
+        if image is None:
+            image = galsim.Image(stamp_size, stamp_size, dtype=float)
+            # Make the center of the image (close to) the image_pos
+            xcen = int(np.ceil(x - (0.5 if image.array.shape[1] % 2 == 1 else 0)))
+            ycen = int(np.ceil(y - (0.5 if image.array.shape[0] % 2 == 1 else 0)))
+            image.setCenter(xcen, ycen)
+
+        # If no wcs is given, use the original wcs
+        if image.wcs is None:
+            image.wcs = self.wcs[chipnum]
 
         # Handle the input center
         if center is None:
             center = (x, y)
         elif center is True:
-            center = star.data.image.true_center
+            center = image.true_center
             center = (center.x, center.y)
         elif not isinstance(center, tuple):
             raise ValueError("Invalid center parameter: %r. Must be tuple or None or True"%(
@@ -206,16 +199,72 @@ class PSF(object):
         if offset is not None:
             center = (center[0] + offset[0], center[1] + offset[1])
 
-        # Adjust the flux of the star.
-        star = star.withFlux(flux)
+        prof.drawImage(image, method=method, center=center)
 
-        # if a user specifies an image, then we want to preserve that image, so
-        # copy_image = False. If a user doesn't specify an image, then it
-        # doesn't matter if we overwrite it, so use copy_image=False
-        copy_image = False
-        # Draw the star and return the image
-        star = self.drawStar(star, copy_image=copy_image, center=center)
-        return star.data.image
+        return image
+
+    def get_profile(self, x, y, chipnum=0, flux=1.0, logger=None, **kwargs):
+        r"""Get the PSF profile at the given position as a GalSim GSObject.
+
+        The normal usage would be to specify (chipnum, x, y), in which case Piff will use the
+        stored wcs information for that chip to interpolate to the given position and draw
+        an image of the PSF:
+
+            >>> prof, method = psf.get_profile(chipnum=4, x=103.3, y=592.0)
+
+        The first return value, prof, is the GSObject describing the PSF profile.
+        The second one, method, is the method parameter that should be used when drawing the
+        profile using ``prof.drawImage(..., method=method)``.  This may be either 'no_pixel'
+        or 'auto' depending on whether the PSF model already includes the pixel response or not.
+        Some underlying models includ the pixel response, and some don't, so this difference needs
+        to be accounted for properly when drawing.  This method is also appropriate if you first
+        convolve the PSF by some other (e.g. galaxy) profile and then draw that.
+
+        If the PSF interpolation used extra properties for the interpolation (cf.
+        psf.extra_interp_properties), you need to provide them as additional kwargs.
+
+            >>> print(psf.extra_interp_properties)
+            ('ri_color',)
+            >>> prof, method = psf.get_profile(chipnum=4, x=103.3, y=592.0, ri_color=0.23)
+
+        :param x:           The x position of the desired PSF in the original image coordinates.
+        :param y:           The y position of the desired PSF in the original image coordinates.
+        :param chipnum:     Which chip to use for WCS information. [default: 0, which is
+                            appropriate if only using a single chip]
+        :param flux:        Flux of PSF model [default: 1.0]
+        :param \**kwargs:   Any additional properties required for the interpolation.
+
+        :returns:           (profile, method)
+                            profile = A GalSim GSObject of the PSF
+                            method = either 'no_pixel' or 'auto' indicating which method to use
+                            when drawing the profile on an image.
+        """
+        logger = galsim.config.LoggerWrapper(logger)
+        properties = {'chipnum' : chipnum}
+        for key in self.extra_interp_properties:
+            if key not in kwargs:
+                raise TypeError("Extra interpolation property %r is required"%key)
+            properties[key] = kwargs.pop(key)
+        if len(kwargs) != 0:
+            raise TypeError("Unexpected keyword argument(s) %r"%list(kwargs.keys())[0])
+
+        image_pos = galsim.PositionD(x,y)
+        field_pos = StarData.calculateFieldPos(image_pos, self.wcs[chipnum], self.pointing,
+                                               properties)
+        u,v = field_pos.x, field_pos.y
+
+        wcs = self.wcs[chipnum]
+
+        star = Star.makeTarget(x=x, y=y, u=u, v=v, wcs=wcs, properties=properties,
+                               pointing=self.pointing)
+        logger.debug("Getting PSF profile at (%s,%s) on chip %s", x, y, chipnum)
+
+        # Interpolate and adjust the flux of the star.
+        star = self.interpolateStar(star).withFlux(flux)
+
+        # The last step is implementd in the derived classes.
+        prof, method = self._getProfile(star)
+        return prof, method
 
     def interpolateStarList(self, stars):
         """Update the stars to have the current interpolated fit parameters according to the
@@ -299,6 +348,9 @@ class PSF(object):
         # But they have to at least override this one and interpolateStar to implement
         # their actual PSF model.
         raise NotImplementedError("Derived classes must define the _drawStar function")
+
+    def _getProfile(self, star):
+        raise NotImplementedError("Derived classes must define the _getProfile function")
 
     def write(self, file_name, logger=None):
         """Write a PSF object to a file.

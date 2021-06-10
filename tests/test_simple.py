@@ -577,6 +577,7 @@ def test_psf():
     np.testing.assert_raises(NotImplementedError, psf.drawStar, star)
     np.testing.assert_raises(NotImplementedError, psf.drawStarList, [star])
     np.testing.assert_raises(NotImplementedError, psf._drawStar, star)
+    np.testing.assert_raises(NotImplementedError, psf._getProfile, star)
 
     # Invalid to read a type that isn't a piff.PSF type.
     # Mock this by pretending that SingleChip is the only subclass of PSF.
@@ -595,10 +596,10 @@ def test_extra_interp():
     sigma = 1.3
     g1 = 0.23
     g2 = -0.17
-    psf = galsim.Gaussian(sigma=sigma).shear(g1=g1, g2=g2)
+    raw_prof = galsim.Gaussian(sigma=sigma).shear(g1=g1, g2=g2)
     wcs = galsim.JacobianWCS(0.26, 0.05, -0.08, -0.29)
     image = galsim.Image(64,64, wcs=wcs)
-    psf.drawImage(image, method='no_pixel')
+    raw_prof.drawImage(image, method='no_pixel')
 
     # use g-i color as an extra property for interpolation.
     props = dict(gi_color=0.3)
@@ -614,6 +615,18 @@ def test_extra_interp():
     #       isn't really testing anything other than that the code doesn't completely break.
     pointing = galsim.CelestialCoord(-5 * galsim.arcmin, -25 * galsim.degrees)
     psf.fit([star], wcs={0 : wcs}, pointing=pointing)
+
+    # The profile in this case should be functionally the same as the raw psf
+    psf_prof, method = psf.get_profile(x=5, y=7, gi_color=0.3)
+    assert method == 'no_pixel'
+    print('psf_prof = ',psf_prof)
+    print('raw_prof = ',raw_prof)
+    print('psf_prof(2,3) = ',psf_prof.xValue(2,3))
+    print('raw_prof(2,3) = ',raw_prof.xValue(2,3))
+    print('psf_prof(-4,1.3) = ',psf_prof.xValue(-4,1.3))
+    print('raw_prof(-4,1.3) = ',raw_prof.xValue(-4,1.3))
+    assert np.isclose(psf_prof.xValue(2,3), raw_prof.xValue(2,3))
+    assert np.isclose(psf_prof.xValue(-4,1.3), raw_prof.xValue(-4,1.3))
 
     # Not much of a check here.  Just check that it actually draws something with flux ~= 1
     im = psf.draw(x=5, y=7, gi_color=0.3)
