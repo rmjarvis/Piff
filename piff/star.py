@@ -729,21 +729,17 @@ class StarData(object):
         """
         return self.image, self.weight, self.image_pos
 
-    def getDataVector(self, include_zero_weight=False):
+    def getDataVector(self):
         """Get the pixel data as a numpy array.
 
         Also returns the weight values and the local u,v coordinates of the pixels.
         Any pixels with zero weight (e.g. from masking in the original image) will not be
         included in the returned arrays.
 
-        :param include_zero_weight: Should points with zero weight be included? [default: False]
-
         :returns: data_vector, weight_vector, u_vector, v_vector
         """
-        nx = self.image.bounds.xmax - self.image.bounds.xmin + 1
-        ny = self.image.bounds.ymax - self.image.bounds.ymin + 1
-        # Alternatively, this also works.  Just need to remember that numpy arrays use y,x indexing.
-        #ny, nx = self.image.array.shape
+        # Remember that numpy arrays use y,x indexing.
+        ny, nx = self.image.array.shape
 
         # Image coordinates of pixels relative to nominal center
         xvals = np.arange(self.image.bounds.xmin, self.image.bounds.xmax+1, dtype=float)
@@ -761,13 +757,7 @@ class StarData(object):
         v = v.flatten()
         pix = self.image.array.flatten()
         wt = self.weight.array.flatten()
-
-        # Which pixels do we want to return?
-        if include_zero_weight:
-            return pix, wt, u, v
-        else:
-            mask = wt != 0.
-            return pix[mask], wt[mask], u[mask], v[mask]
+        return pix, wt, u, v
 
     def addPoisson(self, signal=None, gain=None):
         """Return new StarData with the weight values altered to reflect

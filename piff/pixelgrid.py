@@ -118,12 +118,15 @@ class PixelGrid(Model):
         :returns: a star instance with the appropriate initial fit values
         """
         data, weight, u, v = star.data.getDataVector()
+
         # Start with the sum of pixels as initial estimate of flux.
-        flux = np.sum(data)
+        # (Skip w=0 pixels here.)
+        mask = weight!=0
+        flux = np.sum(data[mask])
         if self._centered:
             # Initial center is the centroid of the data.
-            Ix = np.sum(data * u) / flux
-            Iy = np.sum(data * v) / flux
+            Ix = np.sum(data[mask] * u[mask]) / flux
+            Iy = np.sum(data[mask] * v[mask]) / flux
             center = (Ix,Iy)
         else:
             # In this case, center is fixed.
