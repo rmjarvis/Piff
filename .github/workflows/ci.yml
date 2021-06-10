@@ -118,6 +118,8 @@ jobs:
                 coverage combine
                 coverage report
                 ls -la
-                #codecov
+                #codecov  # This didn't work.
+                # cf. https://community.codecov.io/t/github-not-getting-codecov-report-after-switching-from-travis-to-github-actions-for-ci/
+                # The solution was to switch to the bash uploader line instead.
                 bash <(curl -s https://codecov.io/bash)
                 cd ..

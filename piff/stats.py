@@ -474,8 +474,8 @@ class RhoStats(Stats):
 
             # put in some labels
             # set the scale
-            ax.set_xscale("log", nonposx='clip')
-            ax.set_yscale("log", nonposy='clip')
+            ax.set_xscale("log", nonpositive='clip')
+            ax.set_yscale("log", nonpositive='clip')
             for rho, color, label in zip(rho_list, color_list, label_list):
                 r = np.exp(rho.logr)
                 xi = rho.xip
@@ -534,13 +534,13 @@ class RhoStats(Stats):
         axs[0].set_xlabel(r'$\theta$ (arcmin)')
         axs[0].set_ylabel(r'$\rho(\theta)$')
         axs[0].set_xscale('log')
-        axs[0].set_yscale('log', nonposy='clip')
+        axs[0].set_yscale('log', nonpositive='clip')
 
         axs[1].set_xlim(self.tckwargs['min_sep'], self.tckwargs['max_sep'])
         axs[1].set_xlabel(r'$\theta$ (arcmin)')
         axs[1].set_ylabel(r'$\rho(\theta)$')
         axs[1].set_xscale('log')
-        axs[1].set_yscale('log', nonposy='clip')
+        axs[1].set_yscale('log', nonpositive='clip')
 
         if self.skip:
             # If we're skipping the plot, the auto ymax doesn't work well (it uses 1.0),
