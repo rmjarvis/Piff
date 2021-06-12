@@ -212,7 +212,7 @@ class ChisqOutliers(Outliers):
     def __init__(self, thresh=None, ndof=None, prob=None, nsigma=None, max_remove=None,
                  include_reserve=False):
         """
-        Exactly one of thresh, ndof, nsigma, prop must be provided.
+        Exactly one of thresh, ndof, nsigma, prob must be provided.
 
         There is an option to include reserve stars in the outlier rejection, which is enabled
         by setting ``include_reserve=True``.  This is probably not a good idea normally.
