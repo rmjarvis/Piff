@@ -39,6 +39,8 @@ class GSObjectModel(Model):
     :param scipy_kwargs: Optional kwargs to pass to scipy.optimize.least_squares [default: None]
     :param logger:      A logger object for logging debug info. [default: None]
     """
+    _model_can_be_offset = False
+
     def __init__(self, gsobj, fastfit=False, centered=True, include_pixel=True,
                  scipy_kwargs=None, logger=None):
         if isinstance(gsobj, str):
@@ -265,9 +267,10 @@ class GSObjectModel(Model):
         prof.shift(center).drawImage(model_image, method=self._method,
                                      offset=(star.image_pos - model_image.true_center))
         chisq = np.sum(star.weight.array * (star.image.array - model_image.array)**2)
-        # number of parameters is always 6 for dof, even though we ignore 1 or 3 of them
-        # for the PSF model.
-        dof = np.count_nonzero(star.weight.array) - 6
+        # Don't subtract number of parameters from dof, since we'll be interpolating, so
+        # these parameters don't really apply to each star separately.
+        # After refluxing, we may drop this by 1 or 3 if adjusting flux and/or centroid.
+        dof = np.count_nonzero(star.weight.array)
         fit = StarFit(params, params_var=params_var, flux=flux, center=center, chisq=chisq, dof=dof)
         return Star(star.data, fit)
 

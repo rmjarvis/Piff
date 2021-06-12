@@ -499,8 +499,8 @@ def test_reserve():
     print('reserve = %s/%s'%(nreserve,ntot))
     assert nreserve == 2
     assert ntot == 10
-    print('dof =? ',(32*32 - 6) * (ntot-nreserve))
-    assert psf.dof == (32*32 - 6) * (ntot-nreserve)
+    print('dof =? ',(32*32 - 3) * (ntot-nreserve))
+    assert psf.dof == (32*32 - 3) * (ntot-nreserve)
     for star in psf.stars:
         # Fits should be good for both reserve and non-reserve stars
         np.testing.assert_almost_equal(star.fit.params, true_params, decimal=4)
