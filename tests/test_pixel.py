@@ -1307,8 +1307,8 @@ def test_des2():
     test_stamp = psf.draw(x=test_x, y=test_y, stamp_size=25)
     np.testing.assert_allclose(test_stamp.array, check_stamp.array, rtol=tol, atol=tol)
 
-    # With only 10 stars (or fewer), there are not enough constraints for a 3rd order solution
-    config['input']['nstars'] = 10
+    # With only 9 stars (or fewer), there are not enough constraints for a 3rd order solution
+    config['input']['nstars'] = 9
     config['psf']['interp']['order'] = 3
     with np.testing.assert_raises(RuntimeError):
         piff.piffify(config)

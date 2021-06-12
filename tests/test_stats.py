@@ -762,8 +762,8 @@ def test_bad_hsm():
             'interp' : { 'type' : 'Mean' },
             'outliers' : {
                 'type' : 'Chisq',
-                'nsigma' : 1.e-3,  # This will throw out all but 1, which adds an additional
-                                   # test of Star stats when nstars < nplot
+                'nsigma' : 0.03   # This will throw out all but 1, which adds an additional
+                                  # test of Star stats when nstars < nplot
             }
         },
     }

@@ -44,6 +44,7 @@ class Optical(Model):
 
     _method = 'no_pixel'
     _centered = True
+    _model_can_be_offset = False
 
     def __init__(self, template=None, logger=None, **kwargs):
         """Initialize the Optical Model
@@ -177,7 +178,7 @@ class Optical(Model):
 
         # compute chisq
         chisq = np.std(image.array - model_image.array)
-        dof = np.count_nonzero(weight.array) - 6
+        dof = np.count_nonzero(weight.array)
 
         var = np.zeros(len(star.fit.params)) 
         fit = StarFit(star.fit.params, params_var=var, flux=star.fit.flux,

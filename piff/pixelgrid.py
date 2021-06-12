@@ -28,9 +28,6 @@ from .model import Model
 from .star import Star, StarData, StarFit
 
 class PixelGrid(Model):
-
-    _method = 'no_pixel'
-
     """A PSF modeled as interpolation between a grid of points.
 
     The parameters of the model are the values at the grid points, although the sum of the
@@ -51,6 +48,12 @@ class PixelGrid(Model):
                         [default: True]
     :param logger:      A logger object for logging debug info. [default: None]
     """
+
+    _method = 'no_pixel'
+    _model_can_be_offset = True  # Indicate that in reflux, the centroid should also move by the
+                                 # current centroid of the model.  This way on later iterations,
+                                 # the model will be close to centered.
+
     def __init__(self, scale, size, interp=None, centered=True, logger=None):
         logger = galsim.config.LoggerWrapper(logger)
         logger.debug("Building Pixel model with the following parameters:")
@@ -68,7 +71,7 @@ class PixelGrid(Model):
         self._centered = centered
 
         # We will limit the calculations to |u|, |v| <= maxuv
-        self.maxuv = self.size/2. * self.scale
+        self.maxuv = (self.size+1)/2. * self.scale
 
         # The origin of the model in image coordinates
         self._origin = (self.size//2, self.size//2)
@@ -191,7 +194,7 @@ class PixelGrid(Model):
         except np.linalg.LinAlgError as e:
             # If we get an error, set the variance to "infinity".
             logger = galsim.config.LoggerWrapper(logger)
-            logger.info("Caught error %s making params_var.  Setting all to 1.e100")
+            logger.info("Caught error %s making params_var.  Setting all to 1.e100",e)
             params_var = np.ones_like(dparam) * 1.e100
 
         starfit2 = StarFit(star1.fit.params + dparam,
@@ -340,139 +343,6 @@ class PixelGrid(Model):
 
         # Normally this is all that is required.
         star.fit.params /= np.sum(star.fit.params)*self.pixel_area
-
-    def reflux(self, star, fit_center=True, logger=None):
-        """Fit the Model to the star's data, varying only the flux (and
-        center, if it is free).  Flux and center are updated in the Star's
-        attributes.  DOF in the result assume only flux (& center) are free parameters.
-
-        :param star:        A Star instance
-        :param fit_center:  If False, disable any motion of center
-        :param logger:      A logger object for logging debug info. [default: None]
-
-        :returns: a new Star instance, with updated flux, center, chisq, dof
-        """
-        logger = galsim.config.LoggerWrapper(logger)
-        logger.debug("Reflux for star:")
-        logger.debug("    flux = %s",star.fit.flux)
-        logger.debug("    center = %s",star.fit.center)
-        logger.debug("    props = %s",star.data.properties)
-        logger.debug("    image = %s",star.data.image)
-        #logger.debug("    image = %s",star.data.image.array)
-        #logger.debug("    weight = %s",star.data.weight.array)
-        logger.debug("    image center = %s",star.data.image(star.data.image.center))
-        logger.debug("    weight center = %s",star.data.weight(star.data.weight.center))
-
-        # Make sure input is properly normalized
-        self.normalize(star)
-        scaled_flux = star.fit.flux * star.data.pixel_area
-        center = star.fit.center
-
-        # Calculate the current centroid of the model at the location of this star.
-        # We'll shift the star's position to try to zero this out.
-        delta_u = np.arange(-self._origin[0], self.size-self._origin[0])
-        delta_v = np.arange(-self._origin[1], self.size-self._origin[1])
-        u, v = np.meshgrid(delta_u, delta_v)
-        temp = star.fit.params.reshape(self.size,self.size)
-        params_cenu = np.sum(u*temp)/np.sum(temp)
-        params_cenv = np.sum(v*temp)/np.sum(temp)
-
-        # Start by getting all interpolation coefficients for all observed points
-        data, weight, u, v = star.data.getDataVector()
-
-        u -= center[0]
-        v -= center[1]
-        mask = (np.abs(u) <= self.maxuv) & (np.abs(v) <= self.maxuv)
-        data = data[mask]
-        weight = weight[mask]
-        u = u[mask]
-        v = v[mask]
-
-        # Build the model and maybe also d(model)/dcenter
-        # This tracks the same steps in chisq.
-        # TODO: Make a helper function to consolidate the common code.
-        if self._centered:
-            coeffs, psfx, psfy, dcdu, dcdv = self.interp_calculate(u/self.scale, v/self.scale, True)
-            dcdu /= self.scale
-            dcdv /= self.scale
-        else:
-            coeffs, psfx, psfy = self.interp_calculate(u/self.scale, v/self.scale)
-        # Turn the (psfy,psfx) coordinates into an index into 1d parameter vector.
-        index1d = self._indexFromPsfxy(psfx, psfy)
-        # All invalid pixel references now have negative index; record and set to zero
-        nopsf = index1d < 0
-        alt_index1d = np.where(nopsf, 0, index1d)
-        # And null the coefficients for such pixels
-        coeffs = np.where(nopsf, 0., coeffs)
-        if self._centered:
-            dcdu = np.where(nopsf, 0., dcdu)
-            dcdv = np.where(nopsf, 0., dcdv)
-
-        # Multiply kernel (and derivs) by current PSF element values to get current estimates
-        pvals = star.fit.params[alt_index1d]
-        mod = np.sum(coeffs*pvals, axis=1)
-        if self._centered:
-            dmdu = scaled_flux * np.sum(dcdu*pvals, axis=1)
-            dmdv = scaled_flux * np.sum(dcdv*pvals, axis=1)
-            derivs = np.vstack((mod, dmdu, dmdv)).T
-        else:
-            # In this case, we're just making it a column vector.
-            derivs = np.vstack((mod,)).T
-        resid = data - mod*scaled_flux
-        logger.debug("total pixels = %s, nopsf = %s",len(pvals),np.sum(nopsf))
-
-        # Now construct the design matrix for this minimization
-        #
-        #    A x = b
-        #
-        # where x = [ dflux, duc, dvc ]^T or just [ dflux ] and b = resid.
-        #
-        # A[0] = d( mod * flux ) / dflux = mod
-        # A[1] = d( mod * flux ) / duc   = flux * sum(dcdu * pvals, axis=1)
-        # A[2] = d( mod * flux ) / dvc   = flux * sum(dcdv * pvals, axis=1)
-
-        # For large matrices, it is generally better to solve this with QRP, but with this
-        # small a matrix, it is faster and not any less stable to just compute AT A and AT b
-        # and solve the equation
-        #
-        #    AT A x = AT b
-
-        Atw = derivs.T * weight  # weighted least squares
-        AtA = Atw.dot(derivs)
-        Atb = Atw.dot(resid)
-        x = np.linalg.solve(AtA, Atb)
-        chisq = np.sum(resid**2 * weight)
-        dchi = Atb.dot(x)
-        logger.debug("chisq = %s - %s => %s",chisq,dchi,chisq-dchi)
-
-        # update the flux (and center) of the star
-        logger.debug("initial flux = %s",scaled_flux)
-        scaled_flux += x[0]
-        logger.debug("flux += %s => %s",x[0],scaled_flux)
-        logger.debug("center = %s",center)
-        if self._centered:
-            center = (center[0]+x[1], center[1]+x[2])
-            logger.debug("center += (%s,%s) => %s",x[1],x[2],center)
-
-            # In addition to shifting to the best fit center location, also shift
-            # by the centroid of the model itself, so the next next pass through the
-            # fit will be closer to centered.  In practice, this converges pretty quickly.
-            center = (center[0]+params_cenu*self.scale, center[1]+params_cenv*self.scale)
-            logger.debug("params cen = %s,%s.  center => %s",params_cenu,params_cenv,center)
-
-        dof = np.count_nonzero(weight)
-        logger.debug("dchi, dof, do_center = %s, %s, %s", dchi, dof, self._centered)
-
-        # Update to the expected new chisq value.
-        chisq = chisq - dchi
-        return Star(star.data, StarFit(star.fit.params,
-                                       flux = scaled_flux / star.data.pixel_area,
-                                       center = center,
-                                       params_var = star.fit.params_var,
-                                       chisq = chisq,
-                                       dof = dof,
-                                       A = star.fit.A,
-                                       b = star.fit.b))
 
     def interp_calculate(self, u, v, derivs=False):
         """Calculate interpolation coefficient for vector of target points

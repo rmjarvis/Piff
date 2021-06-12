@@ -104,28 +104,26 @@ def test_chisq():
     assert len(stars2) == len(stars) - nremoved2
     assert nremoved1 == nremoved2
 
-    # This is equivalent for dof=219 (what most of these have)
-
-    # This is nearly equivalent for this particular data set.
-    # For dof=219 (what most of these have, this probability converts to
-    # thresh = 464.84402251
-    # or ndof = 2.1225754452511416
+    # The following is nearly equivalent for this particular data set.
+    # For dof=222 (what most of these have, this probability converts to
+    # thresh = 455.40143379
+    # or ndof = 2.0513578
     # But note that when using the above prop or nsigma, the code uses a tailored threshold
     # different for each star's particular dof, which varies (since some are off the edge).
-    outliers3 = piff.ChisqOutliers(thresh=464.844)
+    outliers3 = piff.ChisqOutliers(thresh=455.401)
     stars3, nremoved3 = outliers3.removeOutliers(stars,logger=logger)
     print('nremoved3 = ',nremoved3)
     assert len(stars3) == len(stars) - nremoved3
 
-    outliers4 = piff.ChisqOutliers(ndof=2.12258)
+    outliers4 = piff.ChisqOutliers(ndof=2.05136)
     stars4, nremoved4 = outliers4.removeOutliers(stars,logger=logger)
     print('nremoved4 = ',nremoved4)
     assert len(stars4) == len(stars) - nremoved4
     assert nremoved3 == nremoved4
 
     # Regression tests.  If these change, make sure we understand why.
-    assert nremoved1 == nremoved2 == 67
-    assert nremoved3 == nremoved4 == 14  # Much less, since edge objects aren't being removed
+    assert nremoved1 == nremoved2 == 58
+    assert nremoved3 == nremoved4 == 16  # Much less, since edge objects aren't being removed
                                          # nearly as often as when they have a custom thresh.
 
     # Can't provide multiple thresh specifications
