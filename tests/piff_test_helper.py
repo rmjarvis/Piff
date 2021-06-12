@@ -120,3 +120,20 @@ class CaptureLog(object):
         self.output = self.stream.getvalue().strip()
         self.handler.close()
 
+# Context to make it easier to profile bits of the code
+class profile(object):
+    def __init__(self, sortby='tottime', nlines=30):
+        self.sortby = sortby
+        self.nlines = nlines
+
+    def __enter__(self):
+        import cProfile, pstats
+        self.pr = cProfile.Profile()
+        self.pr.enable()
+        return self
+
+    def __exit__(self, type, value, traceback):
+        import pstats
+        self.pr.disable()
+        ps = pstats.Stats(self.pr).sort_stats(self.sortby)
+        ps.print_stats(self.nlines)
