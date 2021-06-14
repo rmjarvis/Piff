@@ -182,7 +182,7 @@ class BasisInterp(Interp):
         A = np.vstack(A_chunks)
         b = np.concatenate(b_chunks)
 
-        if A.shape[0] < A.shape[1]:
+        if len(stars) < len(K) or A.shape[0] < A.shape[1]:
             raise RuntimeError("Too few constraints for solution. (Probably too few stars)")
 
         # Note: The following snippet is the straightforward way to do this using the
