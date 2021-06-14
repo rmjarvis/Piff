@@ -50,7 +50,7 @@ def make_gaussian_data(sigma, u0, v0, flux, noise=0., du=1., fpu=0., fpv=0., nsi
     star.image.setOrigin(0,0)
     star.weight.setOrigin(0,0)
 
-    g.drawImage(star.image, method='no_pixel', use_true_center=False,
+    g.drawImage(star.image, use_true_center=False,
                 offset=galsim.PositionD(nom_u0/du,nom_v0/du))
 
     if noise != 0:
@@ -508,11 +508,11 @@ def test_undersamp():
     else:
         size = 15
 
-    # Pixelized model with Lanczos 3 interpolation, slightly smaller than data
-    # than the data
+    # Pixelized model with Lanczos 3 interpolation
+    # Model pixels are about 2/3 the size of the real pixels.
     pixinterp = piff.Lanczos(3)
     du = 0.5
-    mod = piff.PixelGrid(0.25, size, pixinterp)
+    mod = piff.PixelGrid(0.33, size, pixinterp)
 
     # Interpolator will be constant
     interp = piff.Polynomial(order=0)
