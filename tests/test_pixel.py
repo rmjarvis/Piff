@@ -542,6 +542,50 @@ def test_undersamp():
     # Polynomial doesn't need this, but it should work nonetheless.
     interp.initialize(stars)
 
+    # Work on one star alone first
+    b = galsim.BoundsI(16-size//3,16+size//3,16-size//3,16+size//3)
+    s1 = mod.draw(s0)
+    chisq1 = np.sum((s0.image[b].array - s1.image[b].array)**2*s0.weight[b].array)
+    print('chisq after initialize = ',chisq1)
+    print('nominal chisq = ',s1.fit.chisq)
+    assert chisq1 > 5.e5  # Pretty large at the start before fitting.
+
+    s2 = mod.fit(s0)
+    image = mod.draw(s2).image
+    chisq2 = np.sum((s0.image[b].array - image[b].array)**2*s0.weight[b].array)
+    print('chisq after fit = ',chisq2)
+    print('nominal chisq = ',s2.fit.chisq)
+    # It's not zero yet because of the flux flexibility, so the sum doesn't end up equal to 1.
+    assert chisq2 < 5.e4
+    # The nominal thinks it got it right though.
+    assert s2.fit.chisq < 1.e-6
+
+    s3 = mod.reflux(s2)
+    image = mod.draw(s3).image
+    chisq3 = np.sum((s0.image[b].array - image[b].array)**2*s0.weight[b].array)
+    print('chisq after reflux = ',chisq3)
+    print('nominal chisq = ',s3.fit.chisq)
+    # After refluxing, the chisq over the bounds where we are fitting is much better.
+    assert chisq3 < 1.0
+    # Over the full image, it's still not great, but this is expected, since the pixelgrid
+    # is only really fitting the central area.
+    assert s3.fit.chisq < 1.e6
+
+    s4 = mod.fit(s3)
+    image = mod.draw(s4).image
+    chisq = np.sum((s0.image[b].array - image[b].array)**2*s0.weight[b].array)
+    print('chisq after fit = ',chisq)
+    print('nominal chisq = ',s4.fit.chisq)
+    # Fitting again doesn't mess it up, but it's not any better.
+    assert chisq < 1.0
+
+    s5 = mod.reflux(s4)
+    image = mod.draw(s5).image
+    chisq = np.sum((s0.image[b].array - image[b].array)**2*s0.weight[b].array)
+    print('chisq after reflux = ',chisq)
+    print('nominal chisq = ',s5.fit.chisq)
+    assert chisq < 1.0
+
     oldchisq = 0.
     # Iterate solution using interpolator
     for iteration in range(1):
