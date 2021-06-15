@@ -637,6 +637,7 @@ class StarData(object):
         self.image_pos = image_pos
         # Make sure we have a local wcs in case the provided image is more complex.
         self.local_wcs = image.wcs.local(image_pos)
+        self.pixel_area = self.local_wcs.pixelArea()
 
         if weight is None:
             self.weight = galsim.Image(image.bounds, init_value=1, wcs=image.wcs, dtype=float)

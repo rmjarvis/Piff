@@ -147,7 +147,7 @@ class PixelGrid(Model):
         params = gauss.ravel()
 
         # Normalize to get unity flux
-        params /= np.sum(params)*self.pixel_area
+        params /= np.sum(params)
 
         starfit = StarFit(params, flux, center)
         return Star(star.data, starfit)
@@ -252,7 +252,7 @@ class PixelGrid(Model):
         # Multiply kernel (and derivs) by current PSF element values to get current estimates
         pvals = star.fit.params[alt_index1d]
         mod = np.sum(coeffs*pvals, axis=1)
-        scaled_flux = star.fit.flux * star.data.pixel_area
+        scaled_flux = star.fit.flux * star.data.pixel_area / self.pixel_area
         resid = data - mod * scaled_flux
 
         # Now construct A, b, chisq that give chisq vs linearized model.
@@ -299,7 +299,7 @@ class PixelGrid(Model):
         """
         im = galsim.Image(params.reshape(self.size,self.size), scale=self.scale)
         return galsim.InterpolatedImage(im, x_interpolant=self.interp,
-                                        normalization='sb', use_true_center=False, flux=1.)
+                                        use_true_center=False, flux=1.)
 
     def normalize(self, star):
         """Make sure star.fit.params are normalized properly.
@@ -337,12 +337,12 @@ class PixelGrid(Model):
                 temp[origin[0], origin[1]+1] = -np.sum(u*temp)
 
             # Now the center from the total flux == 1
-            temp[origin] = 1./self.pixel_area - np.sum(temp)
+            temp[origin] = 1. - np.sum(temp)
 
             star.fit.params = temp.flatten()
 
         # Normally this is all that is required.
-        star.fit.params /= np.sum(star.fit.params)*self.pixel_area
+        star.fit.params /= np.sum(star.fit.params)
 
     def interp_calculate(self, u, v, derivs=False):
         """Calculate interpolation coefficient for vector of target points
