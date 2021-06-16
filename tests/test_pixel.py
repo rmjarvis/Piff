@@ -1155,7 +1155,8 @@ def test_des_image():
             offset = s.center_to_offset(s.fit.center)
             image = psf.draw(x=s['x'], y=s['y'], stamp_size=stamp_size,
                              flux=s.fit.flux, offset=offset)
-            np.testing.assert_allclose(image.array, fit_stamp.array, rtol=1.e-6, atol=1.e-4)
+            np.testing.assert_allclose(image.array, fit_stamp.array, rtol=1.e-6,
+                                       atol=1.e-6 * s.fit.flux)
 
         print('n_good, marginal, bad = ',n_good,n_marginal,n_bad)
         # The real counts are 10 and 2.  So this says make sure any updates to the code don't make
