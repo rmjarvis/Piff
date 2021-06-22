@@ -288,6 +288,10 @@ class Wavefront(object):
         else:
             wf_arr_final = wf_arr
 
+        # convert from 700nm standard to wavelength used in yaml which is now 782.1
+        # TODO: make this not hardcoded, get the 700 from psf.wavefront yaml and the 782.1 from the psf.model
+        wf_arr_final = (700.0/782.1) * wf_arr_final
+
         # insert wavefront data into new Star's data.properties
         new_stars = []
         for istar,aStar in enumerate(star_list):

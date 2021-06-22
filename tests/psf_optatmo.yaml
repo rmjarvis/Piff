@@ -27,11 +27,12 @@ input:
   x_col: x
   y_col: y
   stamp_size: 19
+  gain: 1.0
 
   reserve_frac: 0.2
 
   max_snr: 100000. # normally 100
-  min_snr: 200     # was 20 or 30 or so
+  min_snr: 50     # was 20 or 30 or so
   max_mask_pixels: 1  # allow at most only 1 masked pixel
   use_partial: False  # don't use if postage stamp is partially off the image
   max_edge_frac: 0.30  # throw out cases with more than 30% of the flux coming from beyond a radius of 8 pixels
@@ -51,25 +52,6 @@ input:
 
 output:
   file_name: psf_optatmo.piff
-  stats:
-  - bins_shape: 100
-    bins_size: 100
-    file_name: shapes_optatmo.pdf
-    type: ShapeHistograms
-  - bin_size: 0.2
-    file_name: rho_optatmo.pdf
-    max_sep: 300
-    min_sep: 0.1
-    sep_units: arcmin
-    type: Rho
-  - file_name: twodhist_optatmo.pdf
-    number_bins_u: 30
-    number_bins_v: 30
-    type: TwoDHist
-  - adjust_stars: false
-    file_name: stars_optatmo.pdf
-    number_plot: 10
-    type: Star
 
 psf:
 
@@ -79,7 +61,7 @@ psf:
      type: Optical
      lam: 782.1
      optical: des
-     gsparams: starby4
+     gsparams: starby2
      atmo_type: 'VonKarman'
 
   interp:
@@ -114,13 +96,15 @@ psf:
            keys: {"x_fp":"xfp","y_fp":"yfp"}
            chip: None
            type: Rbf
-  ofit_double_zernike_terms:  [[4, 1], [5, 3], [6, 3], [7, 1], [8, 1], [9, 1], [10, 1], [11, 1], [14, 1], [15, 1]]
+  ofit_double_zernike_terms:  [[4, 1], [5, 3], [6, 3], [7, 1], [8, 1], [9, 1], [10, 1], [11, 1]]  # drop for speed [14, 1], [15, 1]]
   ofit_type: shape  # shape or pixel
-  ofit_nstars: 50
+  ofit_nstars: 500
+  ofit_initvalues: {"opt_L0":25.,"opt_size":1.0}
+  ofit_bounds: {"opt_L0":[5.0,100.0]}
   ofit_shape_kwargs:
       moment_list: ["e0","e1","e2","M21","M12","M30","M03","M22n","M33n","M44n"]  #TODO: change to zeta1,zeta2,delta1,delta2
-      weights: [0.5,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0]
-      systerrors: [0.005,0.002,0.002,0.0005,0.0005,0.0005,0.0005,0.1,0.2,0.3]
+      weights: [0.5,1.0,1.0,1.0,1.0,1.0,1.0,1.0,0.0,0.0]  # don't use M33n,M44n
+      #systerrors: [0.005,0.002,0.002,0.0005,0.0005,0.0005,0.0005,0.1,0.2,0.3]
   fov_radius: 4500.0
 
 verbose: 2

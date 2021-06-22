@@ -20,6 +20,9 @@ from __future__ import print_function
 
 import numpy as np
 from scipy.optimize import least_squares
+from iminuit import Minuit
+import tabulate as tab  #for Minuit printout
+
 import galsim
 
 from .interp import Interp
@@ -110,7 +113,8 @@ class OptAtmoPSF(PSF):
             'do_sfit': self.do_sfit,
             'do_afit': self.do_afit,
             'fov_radius': self.fov_radius,
-            'ofit_double_zernike_terms': self.ofit_double_zernike_terms
+#            'ofit_double_zernike_terms': self.ofit_double_zernike_terms,  #TODO: need to serialize these...
+#            'wavefront_kwargs': self.wavefront_kwargs
         }
         # done
 
@@ -195,24 +199,117 @@ class OptAtmoPSF(PSF):
         ofit_kwargs = {'diff_step': 1.e-5, 'ftol': 1.e-4, 'xtol': 1.e-4}
         ofit_func_kwargs = {}  # TODO: things for chivec calculation
 
-        # perform ofit minimization
-        ofit_model = self.model
-        ofit_results = least_squares(self._calc_ofit_residuals, ofit_params.getFloatingValues(), bounds=ofit_params.getFloatingBounds(), **ofit_func_kwargs,
-                                    args=(ofit_params, ofit_stars, ofit_moments, ofit_model, logger, self.ofit_shape_kwargs))
+        # list of ndarrays with Chi2 and parameters for each optimization interation
+        self.ofit_chiparam = []
 
-        # fill parameter results into ofit_params
-        ofit_params.setFloatingValues(ofit_results.x)
+        # perform ofit minimization, TODO: make this an option
+        ofit_optimizer = 'iminuit'
+        ofit_model = self.model
+
+        if ofit_optimizer=='least_squares':
+
+            ofit_results = least_squares(self._calc_ofit_residuals, ofit_params.getFloatingValues(), bounds=ofit_params.getFloatingBounds(), **ofit_func_kwargs,
+                                         args=(ofit_params, ofit_stars, ofit_moments, ofit_model, logger, self.ofit_shape_kwargs))
+
+            # fill parameter results into ofit_params
+            ofit_params.setFloatingValues(ofit_results.x)
+
+        elif ofit_optimizer=='iminuit':
+            # setup MINUIT
+            self.Minuit_args = (ofit_params, ofit_stars, ofit_moments, ofit_model, logger, self.ofit_shape_kwargs)
+            gMinuit = Minuit(self._calc_ofit_chi2,ofit_params.getValues(),name=ofit_params.getNames())
+            gMinuit.strategy = 0
+            gMinuit.errordef = Minuit.LEAST_SQUARES
+            gMinuit.print_level = 1
+            gMinuit.tol = 1.0 # 0.1 is the default, increase to speed fitting at the cost of not being exactly at the minimum
+
+            for ipar,aname in enumerate(ofit_params.getNames()):
+                gMinuit.values[aname] = ofit_params.get(aname)
+                lo,hi = ofit_params.getBounds(aname)
+                if lo!=-np.inf or hi!=np.inf :
+                    gMinuit.limits[aname] = (lo,hi)
+                gMinuit.errors[aname] = 0.1  #TODO: add to Param object...
+                if ofit_params.isFloat(aname):
+                    gMinuit.fixed[aname] = False
+                else:
+                    gMinuit.fixed[aname] = True
+
+            # print out
+            print(tab.tabulate(*gMinuit.params.to_table()))
+
+            # do the fit
+            gMinuit.migrad()
+
+            # print results
+            print(tab.tabulate(*gMinuit.params.to_table()))
+
+            # get fit details from iminuit
+            amin = gMinuit.fmin.fval
+            edm = gMinuit.fmin.edm
+            errdef = gMinuit.fmin.errordef
+            nvpar = gMinuit.nfit
+            nparx = gMinuit.npar
+            icstat = int(gMinuit.fmin.is_valid) + 2*int(gMinuit.fmin.has_accurate_covar)
+            dof = pow(19,2) - nvpar   #stamp_size is = 19
+
+            mytxt = "amin = %.3f, edm = %.3f,   effdef = %.3f,   nvpar = %d,  nparx = %d, icstat = %d " % (amin,edm,errdef,nvpar,nparx,icstat)
+            print('donutfit: ',mytxt)
+
+            # get fit values and print errors
+            ofit_params.setValues(gMinuit.values)
+            print(gMinuit.errors)
+
+            # save results...
+            ofit_results = gMinuit
+
 
         # print some results
         logger.info("Optical Fit: fit results")
         print(ofit_results)
+        ofit_params.print()
+
+        # save results for output
+        self.ofit_param_values = ofit_params.getValues()
+
+        # make model stars for all stars
+        self.ofit_model_stars = self.make_modelstars(ofit_params,self.stars,self.model,logger=logger)
+
+        # calculate moments for model stars, currently options are hardcoded
+        calc_moments_kwargs = {}
+        calc_moments_kwargs['errors'] = False
+        calc_moments_kwargs['third_order'] = True
+        calc_moments_kwargs['fourth_order'] = False
+        calc_moments_kwargs['radial'] = True
+        ofit_model_moments = self._calc_moments(self.ofit_model_stars,logger=logger,**calc_moments_kwargs,addtostar=True)
 
         # make
         logger.info("Step 2: Individual Star Turbulence Kernel Fit")
 
         logger.info("Step 3: Interpolation of Turbulence Kernels")
 
-        return ofit_results,ofit_params
+        return ofit_results,ofit_params,self.ofit_chiparam
+
+    def _calc_ofit_chi2(self,ofit_values):
+        """Calculate chi2 for Minuit optimizer
+
+        : param ofit_values     An ndarray of parameter values
+        """
+
+        # unpack saved quantities
+        ofit_params,ofit_stars,ofit_moments,ofit_model,logger,kwargs = self.Minuit_args
+
+        # set ofit_params to values input from Minuit, includes both Floating and Fixed parameters
+        ofit_params.setValues(ofit_values)
+
+        # for debugging...
+        ofit_params.printChanges()
+
+        # calculate residuals vector, reuse code!
+        residuals = self._calc_ofit_residuals(ofit_params.getFloatingValues(),ofit_params,ofit_stars,ofit_moments,ofit_model,logger,kwargs)
+
+        # Chi2
+        chi2 = np.sum(residuals*residuals)
+        return chi2
 
     def _chivec_vs_params(self,param_index,param_nbin,param_range,params,ofit_stars,ofit_moments,ofit_model,logger,ofit_shape_kwargs):
         """Calculate Optical fit residuals vector for a range of parameter values
@@ -395,6 +492,17 @@ class OptAtmoPSF(PSF):
         # print which parameters changed, TODO: only for debug mode...
         params.printChanges()
 
+        # info printout
+        chi2 = np.sum(chivec*chivec)
+        logger.info("Chi2 = %f" % (chi2))
+
+        # save chi2,parameter values for each interation
+        parvalues = params.getValues()
+        chiparam = np.zeros(len(parvalues)+1)
+        chiparam[0] = chi2
+        chiparam[1:] = parvalues
+        self.ofit_chiparam.append(chiparam)
+
         # a flattened vector is expected
         return chivec.flatten()
 
@@ -485,23 +593,19 @@ class OptAtmoPSF(PSF):
         # extract elements and calculate chivec array ordered as: [istar,imoment]
         d = moments[:,moment_indices]
         m = model_moments[:,moment_indices]
-        e = moments[:,error_indices]   #Using errors from data
+        e2 = moments[:,error_indices]   #Using variance from data
 
         # add systematic errors to moment errors
         if systerrors != 'None' and systerrors != None :
             s = np.array(systerrors)
-            e = np.sqrt(e*e + s*s)
+            e2 = np.sqrt(e2 + s*s)
 
         # calculate chivec
-        chivec = (d-m)/e
+        chivec = (d-m)/np.sqrt(e2)
 
         # apply weights vector to chivec
         if weights != 'None' and weights != None :
             chivec = chivec * np.array(weights)
-
-        # info printout
-        chi2 = np.sum(chivec*chivec)
-        logger.info("Chi2 = %f" % (chi2))
 
         # return array with dimension [imoments,istar]
         return chivec
@@ -549,16 +653,20 @@ class OptAtmoPSF(PSF):
         # TODO: write out the fit param vector, information about the fit (chi2, chivec, quality etc..), model stars, the refwf kwargs, and any other information need to reproduce the fit
         # and then also the individual stars fit results and GP too...
         # the optical model and GP interpreter are writen out by their own write methods....
-        chisq_dict = {
-            'chisq' : self.chisq,
-            'last_delta_chisq' : self.last_delta_chisq,
-            'dof' : self.dof,
-            'nremoved' : self.nremoved,
-        }
-        write_kwargs(fits, extname + '_chisq', chisq_dict)
 
+        # ofit chi2,params per iteration
+        fits.write_table(self.ofit_chiparam,extname=extname + '_ofit_chiparam')
+        logger.debug("Wrote the ofit chiparam table to extension %s",extname + '_ofit_chiparam')
 
-        logger.debug("Wrote the chisq info to extension %s",extname + '_chisq')
+        # ofit param values
+        write_kwargs(fits, extname + '_ofit_param_values', self.ofit_param_values)
+        logger.debug("Wrote the ofit param values to extension %s",extname + '_ofit_param_values')
+
+        # write out ofit model stars
+        Star.write(self.ofit_model_stars, fits, extname=extname + '_ofit_model_stars')
+        logger.info("Wrote the ofit model stars to extname %s", extname + 'ofit_model_stars')
+
+        # write out model,interp and outliers
         self.model.write(fits, extname + '_model')
         logger.debug("Wrote the PSF model to extension %s",extname + '_model')
         self.interp.write(fits, extname + '_interp')

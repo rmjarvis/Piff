@@ -105,6 +105,20 @@ class Params(object):
         """
         return self.values[name]
 
+    def getBounds(self,name):
+        """ Get bounds of parameter
+
+        :return bounds:          Tuple of bounds
+        """
+        return self.bounds[name]
+
+    def isFloat(self,name):
+        """ find if parameter is floating
+
+        :return isFloat:          Bool
+        """
+        return self.floating[name]
+
     def getValues(self):
         """ Get values of all parameters
 
@@ -150,9 +164,17 @@ class Params(object):
                 changes[name] = self.values[name] - self.previousvalues[name]
         return changes
 
+    def getNames(self):
+        """ Get names of parameters
+
+        :return names:          List of parameter names
+        """
+        return self.names
+
     def print(self):
         print(self.values)
 
     def printChanges(self):
         changes = self.getChanges()
-        print(changes)
+        if len(changes)>0:
+            print(changes)
