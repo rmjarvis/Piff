@@ -99,6 +99,7 @@ psf:
   ofit_double_zernike_terms:  [[4, 1], [5, 3], [6, 3], [7, 1], [8, 1], [9, 1], [10, 1], [11, 1]]  # drop for speed [14, 1], [15, 1]]
   ofit_type: shape  # shape or pixel
   ofit_nstars: 500
+  ofit_optimizer: 'iminuit' # 'least_squares' or 'iminuit'
   ofit_initvalues: {"opt_L0":25.,"opt_size":1.0}
   ofit_bounds: {"opt_L0":[5.0,100.0]}
   ofit_shape_kwargs:

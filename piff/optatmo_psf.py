@@ -56,6 +56,7 @@ class OptAtmoPSF(PSF):
                  ofit_fix=None,
                  ofit_type='shape',
                  ofit_nstars=500,
+                 ofit_optimizer='iminuit',
                  ofit_shape_kwargs={'moment_list':['e0','e1','e2'],'weights':None,'systerrors':None},
                  ofit_pixel_kwargs=None,
                  fov_radius=4500.):
@@ -72,6 +73,7 @@ class OptAtmoPSF(PSF):
                                             [10, 1], [11, 1], [14, 1], [15, 1]]]
         :param ofit_type:    Type of optical fit, shape or pixel [default: shape]
         :param ofit_nstars:  Number of stars to use in Optical fit [default: 500]
+        :param ofit_optimizer:    Optimizer to use for Optical fit, iminuit or least_squares [default: 'iminuit']
         :param ofit_initvalues:   Dictionary of initial values for Optical fit parameters [default: {"opt_L0":25.,"opt_size":1.0}]
         :param ofit_bounds:       Dictionary of bounds for Optical fit parameters [default: {"opt_L0":[5.,100.0]}]
         :param ofit_fix:          List of fixed parameters for Optical fit [default:None]
@@ -94,6 +96,7 @@ class OptAtmoPSF(PSF):
         # other kwargs
         self.ofit_double_zernike_terms = ofit_double_zernike_terms
         self.ofit_nstars = ofit_nstars
+        self.ofit_optimizer = ofit_optimizer
         self.ofit_initvalues = ofit_initvalues
         self.ofit_bounds = ofit_bounds
         self.ofit_fix = ofit_fix
@@ -155,7 +158,7 @@ class OptAtmoPSF(PSF):
         return kwargs
 
     def fit(self, stars, wcs, pointing, logger=None):
-        """Fit interpolated PSF model to star data using standard sequence of operations.
+        """Fit OptAtmo PSF model to star data using three fitting steps
 
         :param stars:           A list of Star instances.
         :param wcs:             A dict of WCS solutions indexed by chipnum.
@@ -203,10 +206,10 @@ class OptAtmoPSF(PSF):
         self.ofit_chiparam = []
 
         # perform ofit minimization, TODO: make this an option
-        ofit_optimizer = 'iminuit'
+        # add to yaml ofit_optimizer = 'iminuit'
         ofit_model = self.model
 
-        if ofit_optimizer=='least_squares':
+        if self.ofit_optimizer=='least_squares':
 
             ofit_results = least_squares(self._calc_ofit_residuals, ofit_params.getFloatingValues(), bounds=ofit_params.getFloatingBounds(), **ofit_func_kwargs,
                                          args=(ofit_params, ofit_stars, ofit_moments, ofit_model, logger, self.ofit_shape_kwargs))
@@ -214,7 +217,7 @@ class OptAtmoPSF(PSF):
             # fill parameter results into ofit_params
             ofit_params.setFloatingValues(ofit_results.x)
 
-        elif ofit_optimizer=='iminuit':
+        elif self.ofit_optimizer=='iminuit':
             # setup MINUIT
             self.Minuit_args = (ofit_params, ofit_stars, ofit_moments, ofit_model, logger, self.ofit_shape_kwargs)
             gMinuit = Minuit(self._calc_ofit_chi2,ofit_params.getValues(),name=ofit_params.getNames())
@@ -282,7 +285,7 @@ class OptAtmoPSF(PSF):
         calc_moments_kwargs['radial'] = True
         ofit_model_moments = self._calc_moments(self.ofit_model_stars,logger=logger,**calc_moments_kwargs,addtostar=True)
 
-        # make
+
         logger.info("Step 2: Individual Star Turbulence Kernel Fit")
 
         logger.info("Step 3: Interpolation of Turbulence Kernels")
@@ -413,6 +416,14 @@ class OptAtmoPSF(PSF):
         # sorts stars by flux and chooses largest nstar of them
         flux_array = self._get_flux(stars)
         sorted_list = np.argsort(flux_array)
+
+        # set a flag in the properties of the selected stars
+        for index in sorted_list[-nstars:]:
+            stars[index].data.properties['is_ofit'] = True
+        for index in sorted_list[0:-nstars]:
+            stars[index].data.properties['is_ofit'] = False
+
+        # form list of selected stars and return
         select_stars = [stars[index] for index in sorted_list[-nstars:]]
         return select_stars
 
@@ -520,12 +531,20 @@ class OptAtmoPSF(PSF):
         model_stars = []
         for i,astar in enumerate(stars):
 
-            # TODO - add in the atmo_XXX parameters too, so this routine would work for both the Optical and Single Star fits
+            # assume that opt_XXX parameters are always present. i
             model_kwargs = {}
             model_kwargs['r0'] = 0.15/params.get('opt_size')  #define size == 0.15/r0
             model_kwargs['L0'] = params.get('opt_L0')
             model_kwargs['g1'] = params.get('opt_g1')
             model_kwargs['g2'] = params.get('opt_g2')
+
+            # if atmo_XXX parameters are present then include those as well.
+            if params.hasparam('atmo_size'):
+                model_kwargs['r0'] = 0.15/(params.get('opt_size')+params.get('atmo_size'))
+            if params.hasparam('atmo_g1'):
+                model_kwargs['g1'] = params.get('opt_g1')+params.get('atmo_g1')
+            if params.hasparam('atmo_g2'):
+                model_kwargs['g2'] = params.get('opt_g2')+params.get('atmo_g2')
 
             # retrieve the reference wavefront values from the input star
             aArr = astar.data.properties['wavefront'].copy()  #don't change it inside the star please!
@@ -567,6 +586,21 @@ class OptAtmoPSF(PSF):
 
             # build the Profile from our model.  This is the Galsim object with the PSF
             prof = model.getProfile(**model_kwargs)
+
+            # set star's fit center,flux to value in params object, if present.
+            # model.drawProfile uses the values in the StarFit to set center and flux
+            # Parameter names use index in star list for pixel based ofit
+            if params.hasparam('centeru_%d' % (i)):
+                astar.fit.center = (params.get('centeru_%d',(i)),params.get('centerv_%d',(i)))
+            if params.hasparam('flux_%d' % (i)):
+                astar.fit.flux = params.get('flux_%d',(i))
+
+            # set star's fit center,flux to value in params, if present.
+            if params.hasparam('centeru'):
+                astar.fit.center = (params.get('centeru',(i)),params.get('centerv',(i)))
+            if params.hasparam('flux' % (i)):
+                astar.fit.flux = params.get('flux',(i))
+
 
             # draw a model star, using the data star as a template for the image, with location, wcs, and weight mask
             model_stars.append(model.drawProfile(astar,prof,params.getValues()[0:4]))  #TODO: hardcoded to only store size,L0,g1,g2 in the StarFit
