@@ -171,6 +171,16 @@ class Params(object):
         """
         return self.names
 
+    def hasparam(self,name):
+        """ is Parameter present?
+
+        :return present:       True if present
+        """
+        present = False
+        if name in self.names:
+            present = True
+        return present
+
     def print(self):
         print(self.values)
 

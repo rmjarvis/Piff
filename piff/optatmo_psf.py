@@ -597,9 +597,9 @@ class OptAtmoPSF(PSF):
 
             # set star's fit center,flux to value in params, if present.
             if params.hasparam('centeru'):
-                astar.fit.center = (params.get('centeru',(i)),params.get('centerv',(i)))
-            if params.hasparam('flux' % (i)):
-                astar.fit.flux = params.get('flux',(i))
+                astar.fit.center = (params.get('centeru'),params.get('centerv'))
+            if params.hasparam('flux'):
+                astar.fit.flux = params.get('flux')
 
 
             # draw a model star, using the data star as a template for the image, with location, wcs, and weight mask
