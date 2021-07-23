@@ -201,7 +201,7 @@ class InputFiles(Input):
                 `https://github.com/GalSim-developers/GalSim/wiki/Config-Values`_
 
         There are many other optional parameters, which help govern how the input files are
-        read or interporeted:
+        read or interpreted:
 
             :chipnum:       The id number of this chip used to reference this image [default:
                             image_num]
@@ -230,6 +230,7 @@ class InputFiles(Input):
                             Items with flag & skip_flag != 0 will be skipped.
             :use_flag:      The flag indicating which items to use. [default: None]
                             Items with flag & use_flag == 0 will be skipped.
+            :color_col:     The name of the column of star color values. [default: None]
             :sky_col:       The name of a column with sky values. [default: None]
             :gain_col:      The name of a column with gain values. [default: None]
             :sky:           The sky level to subtract from the image values. [default: None]
@@ -309,6 +310,7 @@ class InputFiles(Input):
                 'dec_col' : str,
                 'ra_units' : str,
                 'dec_units' : str,
+                'color_col' : str,
                 'sky_col' : str,
                 'gain_col' : str,
                 'flag_col' : str,
@@ -501,6 +503,7 @@ class InputFiles(Input):
             flag_col = params.get('flag_col', None)
             skip_flag = params.get('skip_flag', -1)
             use_flag = params.get('use_flag', None)
+            color_col = params.get('color_col', None)
             sky_col = params.get('sky_col', None)
             gain_col = params.get('gain_col', None)
             sky = params.get('sky', None)
@@ -526,6 +529,7 @@ class InputFiles(Input):
                     'flag_col' : flag_col,
                     'skip_flag' : skip_flag,
                     'use_flag' : use_flag,
+                    'color_col': color_col,
                     'sky_col' : sky_col,
                     'gain_col' : gain_col,
                     'sky' : sky,
@@ -575,7 +579,7 @@ class InputFiles(Input):
         # Update the wcs
         image.wcs = wcs
 
-        image_pos, sky, gain, satur = InputFiles.readStarCatalog(
+        image_pos, color, sky, gain, satur = InputFiles.readStarCatalog(
                 logger=logger, image=image, **cat_kwargs)
 
         if remove_signal_from_weight:
@@ -598,7 +602,7 @@ class InputFiles(Input):
                 weight, _ = InputFiles._removeSignalFromWeight(signal, weight, gain=np.mean(gain))
             logger.info("Removed signal from weight image.")
 
-        return image, weight, image_pos, sky, gain, satur
+        return image, weight, image_pos, color, sky, gain, satur
 
     @staticmethod
     def _makeStarsFromImage(image_kwargs, cat_kwargs, wcs, chipnum,
@@ -608,7 +612,7 @@ class InputFiles(Input):
                             logger):
         """Make stars from a single input image
         """
-        image, wt, image_pos, sky, gain, satur = InputFiles._getRawImageData(
+        image, wt, image_pos, color, sky, gain, satur = InputFiles._getRawImageData(
                 image_kwargs, cat_kwargs, wcs, invert_weight, remove_signal_from_weight, logger)
         logger.info("Processing catalog %s with %d stars",chipnum,len(image_pos))
 
@@ -672,7 +676,12 @@ class InputFiles(Input):
                     logger.warning("Star at position %f,%f has %i masked pixels, ", x, y, n_masked)
                     logger.warning("Skipping this star.")
                     continue
-                
+
+            # Add color to properties
+            if color is not None:
+                logger.debug("Assigning star color value = %f", color[k])
+                props['color'] = color[k]
+
             # Subtract the sky
             if sky is not None:
                 logger.debug("Subtracting off sky = %f", sky[k])
@@ -860,7 +869,7 @@ class InputFiles(Input):
     @staticmethod
     def readStarCatalog(cat_file_name, cat_hdu, x_col, y_col,
                         ra_col, dec_col, ra_units, dec_units, image,
-                        flag_col, skip_flag, use_flag, sky_col, gain_col,
+                        flag_col, skip_flag, use_flag, color_col, sky_col, gain_col,
                         sky, gain, satur, nstars, image_file_name, stamp_size, logger):
         """Read in the star catalogs and return lists of positions for each star in each image.
 
@@ -878,6 +887,7 @@ class InputFiles(Input):
                                 Items with flag & skip_flag != 0 will be skipped.
         :param use_flag:        The flag indicating which items to use. [default: None]
                                 Items with flag & use_flag == 0 will be skipped.
+        :param color_col:       The name of a column with star color values.
         :param sky_col:         A column with sky (background) levels.
         :param gain_col:        A column with gain values.
         :param sky:             Either a float value for the sky to use for all objects or a str
@@ -992,6 +1002,15 @@ class InputFiles(Input):
         image_pos = [ pos for pos in image_pos if big_bounds.includes(pos) ]
         logger.debug("After remove those that are off the image, len = %s",len(image_pos))
 
+        #Make the list of color values:
+        if color_col is not None:
+            if color_col not in cat.dtype.names:
+                raise ValueError("color_col = %s is not a column in %s"%(color_col,cat_file_name))
+            logger.debug('color_col = %s'%color_col)
+            color = cat[color_col]
+        else:
+            color = None
+
         # Make the list of sky values:
         if sky_col is not None:
             if sky_col not in cat.dtype.names:
@@ -1047,7 +1066,7 @@ class InputFiles(Input):
                 satur = float(header[satur])
                 logger.debug("Using saturation from header: %s",satur)
 
-        return image_pos, sky, gain, satur
+        return image_pos, color, sky, gain, satur
 
     def setPointing(self, ra, dec, logger=None):
         """Set the pointing attribute based on the input ra, dec (given in the initializer)
