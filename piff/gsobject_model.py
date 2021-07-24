@@ -168,8 +168,7 @@ class GSObjectModel(Model):
         jac = galsim._Shear(g).getMatrix()
         jac[:,:] *= scale
         flux /= scale**2
-        prof = galsim._Transform(self.gsobj, jac.ravel(), offset=galsim.PositionD(du,dv),
-                                 flux_ratio=flux)
+        prof = galsim._Transform(self.gsobj, jac, offset=(du,dv), flux_ratio=flux)
 
         # Equivalent to galsim.Image(image, dtype=float), but without the sanity checks.
         model_image = galsim._Image(np.empty_like(image.array, dtype=float),
