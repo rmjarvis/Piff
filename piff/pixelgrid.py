@@ -319,84 +319,58 @@ class PixelGrid(Model):
         if convert_func is not None:
             prof = convert_func(prof)
 
-        model_image = star.image.copy()
-        if 0:
-            # This is the straightforward implementation.
-            # This step isn't too slow, but it will be below for the differential draws,
-            # where the GalSim overhead in drawImage adds a lot of cruft.
-            prof.drawImage(model_image, method=self._method, center=star.image_pos)
-        else:
-            # Fortunately, we make it possible (although less intuitive) to avoid most of the
-            # overhead. The following is equivalent to the above drawImage call, but faster.
-            offset = prof._adjust_offset(model_image.bounds, galsim.PositionD(0,0),
-                                         star.image_pos, False)
-            prof = star.data.local_wcs.profileToImage(prof, offset=offset)
-            model_image._shift(-model_image.center)
-            model_image.wcs = galsim.PixelScale(1.0)
-            # Be careful here.  If prof was converted to something that isn't analytic in
-            # real space, this will need to be _drawFFT.
-            prof._drawReal(model_image)
+        # Adjust the image now so that we can draw it in pixel coordinates, rather than letting
+        # galsim.drawImage do the adjustment each time for each component, which would be
+        # incredibly slow.
+        image = star.image.copy()
+        offset = prof._adjust_offset(image.bounds, galsim.PositionD(0,0), star.image_pos, False)
+        image._shift(-image.center)
+        image.wcs = galsim.PixelScale(1.0)
 
-        logger.debug('drawn flux = %s',model_image.array.sum())
-        model = model_image.array.ravel() * star.fit.flux
+        # Draw the profile.
+        # Be careful here.  If prof was converted to something that isn't analytic in
+        # real space, this will need to be _drawFFT.
+        prof = star.data.local_wcs.profileToImage(prof, offset=offset)
+        prof._drawReal(image)
+        logger.debug('drawn flux = %s',image.array.sum())
+        model = image.array.ravel() * star.fit.flux
 
         # Only use data points where model gives reasonable support
         u0, v0 = star.fit.center
         u -= u0
         v -= v0
         mask = (np.abs(u) <= self.maxuv) & (np.abs(v) <= self.maxuv) & (weight != 0)
+        nmask = np.sum(mask)
         data = data[mask]
         model = model[mask]
         weight = weight[mask]
-        resid = data - model
 
         # Calculate A = d(model)/dp
         # A[i,k] = d(model_i)/dp_k
         # b[i] = resid_i
         # Solution to A x = b will be the desired dparams
-        A = np.empty((len(data), self._nparams), dtype=float)
-        temp = model_image.copy()
+        A = np.empty((nmask, self._nparams), dtype=float, order='F')
+        b = data - model
 
+        # The PixelGrid model basis can be represented as a 1x1 InterpolatedImage with flux=1,
+        # shifted and scaled appropriately.  The _getBasisProfile method returns a single
+        # InterpolatedImage and scale that we can use for all the pixels, with arrays of shifts
+        # (du,dv) to use for each of the individual pixels.
         basis_profile, basis_scale, basis_shifts = self._getBasisProfile()
-        dx, dy = basis_shifts
+        du, dv = basis_shifts
 
         # Get the inverse jacobian, so we can apply it below.
         # Faster than letting GalSim combine the two Transformation wrappers.
-        jac = star.data.local_wcs.jacobian().inverse()
-        jac1 = np.array(((jac.dudx, jac.dudy), (jac.dvdx, jac.dvdy)))
+        jac = star.data.local_wcs.jacobian().inverse().getMatrix()
 
         if convert_func is not None:
             # In this case we need the basis_profile to have the right scale (rather than
             # incorporate it into the jacobian) so that convert_func will have the right size.
             basis_profile = basis_profile.dilate(basis_scale)
             # Find the net shift from the star.fit.center and the offset.
-            u1 = jac1[0,0]*u0 + jac1[0,1]*v0 + offset.x
-            v1 = jac1[1,0]*u0 + jac1[1,1]*v0 + offset.y
-        else:
-            # Convert u,v shifts into x,y shifts
-            dx1 = dx + u0
-            dy1 = dy + v0
-            dx = jac1[0,0]*dx1 + jac1[0,1]*dy1 + offset.x
-            dy = jac1[1,0]*dx1 + jac1[1,1]*dy1 + offset.y
-            # Incorporate scale into jac for _drawReal call.
-            jac2 = jac1 * self.scale
-
-        for k, dxk, dyk in zip(range(len(dx)), dx,dy):
-
-            if 0:
-                # This is the straightforward implementation.
-                # But it's slow due to lots of GalSim overhead (mostly in the drawImage function)
-                basis_profile_k = basis_profile._shift(dxk,dyk)
-
-                # At this point if this model is just a component in a larger full PSF profile,
-                # we can apply a function to it to get to the net effective profile.
-                if convert_func is not None:
-                    basis_profile_k = convert_func(basis_profile_k)
-
-                basis_profile_k = basis_profile_k_shift(u0,v0)
-                basis_profile_k.drawImage(temp, method=self._method, center=star.image_pos)
-
-            elif convert_func is not None:
+            dx = jac[0,0]*u0 + jac[0,1]*v0 + offset.x
+            dy = jac[1,0]*u0 + jac[1,1]*v0 + offset.y
+            for k, duk, dvk in zip(range(self._nparams), du,dv):
                 # This implementation removes most of the overhead, and is still relatively
                 # straightforward.
                 # The one wrinkle is that if the net profile is no longer analytic in real space,
@@ -404,25 +378,38 @@ class PixelGrid(Model):
                 # I think, so we may want to limit convolutions in conjunction with PixelGrid.
                 # (That's less of an issue for models with few paramters.)
 
-                basis_profile_k = basis_profile._shift(dxk,dyk)
+                basis_profile_k = basis_profile._shift(duk,dvk)
                 basis_profile_k = convert_func(basis_profile_k)
-                basis_profile_k._drawReal(temp, jac1, (u1, v1), 1.)
+                # TODO: If the convert_func has transformed the profile into something that is
+                # not analytic_x, then we need to do the _drawFFT version here.
+                basis_profile_k._drawReal(image, jac, (dx,dy), 1.)
+                A[:,k] = image.array.ravel()[mask]
 
-            else:
+        else:
+            # When we don't have the convert_func step, we can combine both the scale and the
+            # initial shift into the parameters that we pass to _drawReal, which saves time.
+            dx = jac[0,0]*du + jac[0,1]*dv
+            dx += jac[0,0]*u0 + jac[0,1]*v0 + offset.x
+            dy = jac[1,0]*du + jac[1,1]*dv
+            dy += jac[1,0]*u0 + jac[1,1]*v0 + offset.y
+            # Incorporate scale into jac for _drawReal call.
+            jac2 = jac * self.scale
+
+            for k, dxk, dyk in zip(range(self._nparams), dx,dy):
                 # If we don't have a convert_func, then it's faster to combine the shifts with
                 # the jacobian all in a numpy multiplication (above).
-                basis_profile._drawReal(temp, jac2, (dxk,dyk), 1.)
+                basis_profile._drawReal(image, jac2, (dxk,dyk), 1.)
+                A[:,k] = image.array.ravel()[mask]
 
-            A[:,k] = temp.array.ravel()[mask]
-
+        # Account for the current flux estimate.
         A *= star.fit.flux
 
-        # But actually, do weighted least squares.
+        # Actually, do weighted least squares.
         # Multiply A and b by sqrt(weight).
         sw = np.sqrt(weight)
-        A = A * sw[:,np.newaxis]
-        b = resid * sw
-        chisq = np.sum(resid**2 * weight)
+        A *= sw[:,np.newaxis]
+        b *= sw
+        chisq = np.sum(b**2)
         dof = np.count_nonzero(weight)
         logger.debug('chisq,dof = %s,%s',chisq,dof)
 
