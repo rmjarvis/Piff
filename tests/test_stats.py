@@ -762,7 +762,7 @@ def test_bad_hsm():
             'interp' : { 'type' : 'Mean' },
             'outliers' : {
                 'type' : 'Chisq',
-                'nsigma' : 0.03   # This will throw out all but 1, which adds an additional
+                'nsigma' : 0.05   # This will throw out all but 1, which adds an additional
                                   # test of Star stats when nstars < nplot
             }
         },
@@ -778,6 +778,13 @@ def test_bad_hsm():
             os.remove(f)
 
     piff.piffify(config, logger=logger)
+
+    # Confirm that all but one star was rejected, since that was part of the intent of this test.
+    psf = piff.read(psf_file)
+    print('stars = ',psf.stars)
+    print('nremoved = ',psf.nremoved)
+    assert len(psf.stars) == 1
+    assert psf.nremoved == 7    # There were 8 to start.
 
     for f in [twodhist_file, rho_file, shape_file, star_file, hsm_file]:
         assert os.path.exists(f)
