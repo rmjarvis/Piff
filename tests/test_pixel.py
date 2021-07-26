@@ -839,7 +839,8 @@ def test_single_image():
     sky_level = 1000
     noise_sigma = 0.1  # Not much noise to keep this an easy test.
     image += sky_level
-    image.addNoise(galsim.GaussianNoise(sigma=noise_sigma))
+    rng = galsim.BaseDeviate(1234)
+    image.addNoise(galsim.GaussianNoise(sigma=noise_sigma, rng=rng))
 
     # Write out the image to a file
     image_file = os.path.join('output','pixel_moffat_image.fits')
@@ -903,7 +904,7 @@ def test_single_image():
         order = 1
 
     # These tests are slow, and it's really just doing the same thing three times, so
-    # only do the first one when running via nosetests.
+    # only do the second one when running via nosetests.
     psf_file = os.path.join('output','pixel_psf.fits')
     if __name__ == '__main__':
         # Process the star data
