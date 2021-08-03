@@ -349,14 +349,14 @@ class PixelGrid(Model):
         # A[i,k] = d(model_i)/dp_k
         # b[i] = resid_i
         # Solution to A x = b will be the desired dparams
-        A = np.empty((nmask, self._nparams), dtype=float, order='F')
+        A = np.zeros((nmask, self._nparams), dtype=float, order='F')
         b = data - model
 
         # The PixelGrid model basis can be represented as a 1x1 InterpolatedImage with flux=1,
         # shifted and scaled appropriately.  The _getBasisProfile method returns a single
-        # InterpolatedImage and scale that we can use for all the pixels, with arrays of shifts
-        # (du,dv) to use for each of the individual pixels.
-        basis_profile, basis_scale, basis_shifts = self._getBasisProfile()
+        # InterpolatedImage we can use for all the pixels, with arrays of shifts (du,dv) to use
+        # for each of the individual pixels.
+        basis_profile, basis_shifts = self._getBasisProfile()
         du, dv = basis_shifts
 
         # Get the inverse jacobian, so we can apply it below.
@@ -366,10 +366,12 @@ class PixelGrid(Model):
         if convert_func is not None:
             # In this case we need the basis_profile to have the right scale (rather than
             # incorporate it into the jacobian) so that convert_func will have the right size.
-            basis_profile = basis_profile.dilate(basis_scale)
+            basis_profile = basis_profile.dilate(self.scale)
             # Find the net shift from the star.fit.center and the offset.
             dx = jac[0,0]*u0 + jac[0,1]*v0 + offset.x
             dy = jac[1,0]*u0 + jac[1,1]*v0 + offset.y
+            du = du * self.scale
+            dv = dv * self.scale
             for k, duk, dvk in zip(range(self._nparams), du,dv):
                 # This implementation removes most of the overhead, and is still relatively
                 # straightforward.
@@ -388,12 +390,12 @@ class PixelGrid(Model):
         else:
             # When we don't have the convert_func step, we can combine both the scale and the
             # initial shift into the parameters that we pass to _drawReal, which saves time.
-            dx = jac[0,0]*du + jac[0,1]*dv
-            dx += jac[0,0]*u0 + jac[0,1]*v0 + offset.x
-            dy = jac[1,0]*du + jac[1,1]*dv
-            dy += jac[1,0]*u0 + jac[1,1]*v0 + offset.y
             # Incorporate scale into jac for _drawReal call.
             jac2 = jac * self.scale
+            dx = jac2[0,0]*du + jac2[0,1]*dv
+            dx += jac[0,0]*u0 + jac[0,1]*v0 + offset.x
+            dy = jac2[1,0]*du + jac2[1,1]*dv
+            dy += jac[1,0]*u0 + jac[1,1]*v0 + offset.y
 
             for k, dxk, dyk in zip(range(self._nparams), dx,dy):
                 # If we don't have a convert_func, then it's faster to combine the shifts with
@@ -448,14 +450,14 @@ class PixelGrid(Model):
             uar = []
             var = []
             for i in range(self.size):
-                v = (-self._origin[1] + i) * self.scale
+                v = (-self._origin[1] + i)
                 for j in range(self.size):
-                    u = (-self._origin[0] + j) * self.scale
+                    u = (-self._origin[0] + j)
                     uar.append(u)
                     var.append(v)
             self._basis_shifts = np.array(uar), np.array(var)
 
-        return self._basis_profile, self.scale, self._basis_shifts
+        return self._basis_profile, self._basis_shifts
 
     def normalize(self, star):
         """Make sure star.fit.params are normalized properly.
