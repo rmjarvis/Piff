@@ -74,7 +74,8 @@ class PixelGrid(Model):
         self.maxuv = (self.size+1)/2. * self.scale
 
         # The origin of the model in image coordinates
-        self._origin = (self.size//2, self.size//2)
+        # (Same for both u and v directions.)
+        self._origin = self.size//2
 
         # These are the kwargs that can be serialized easily.
         self.kwargs = {
@@ -101,8 +102,8 @@ class PixelGrid(Model):
         :returns: same shape array, filled with indices into 1d array
         """
         # Shift psfy, psfx to reference a 0-indexed array
-        y = psfy + self._origin[0]
-        x = psfx + self._origin[1]
+        y = psfy + self._origin
+        x = psfx + self._origin
 
         # Good pixels are where there is a valid index
         # Others are set to -1.
@@ -140,8 +141,8 @@ class PixelGrid(Model):
         sigma = star.hsm[3]
 
         # Create an initial parameter array using a Gaussian profile.
-        u = np.arange( -self._origin[0], self.size-self._origin[0]) * self.scale
-        v = np.arange( -self._origin[1], self.size-self._origin[1]) * self.scale
+        u = np.arange( -self._origin, self.size-self._origin) * self.scale
+        v = np.arange( -self._origin, self.size-self._origin) * self.scale
         rsq = (u*u)[:,np.newaxis] + (v*v)[np.newaxis,:]
         gauss = np.exp(-rsq / (2.* sigma**2))
         params = gauss.ravel()
@@ -466,8 +467,8 @@ class PixelGrid(Model):
                     # Also, note that i1 > i2, because increasing u for the basis pixels
                     # moves the relative position of that pixel wrt an image pixel from
                     # right to left, so it decreases.
-                    i1 = vi[i] + xr + self._origin[1]
-                    i2 = vi[i] - xr + self._origin[1]
+                    i1 = vi[i] + xr + self._origin
+                    i2 = vi[i] - xr + self._origin
                     p1 = 0
                     p2 = 2*xr
                     if i1 >= self.size:
@@ -477,8 +478,8 @@ class PixelGrid(Model):
                         p2 += (i2 + 1)
                         i2 = None
                     # Repeat for u using j1:j2 and q1:q2
-                    j1 = ui[i] + xr + self._origin[1]
-                    j2 = ui[i] - xr + self._origin[1]
+                    j1 = ui[i] + xr + self._origin
+                    j2 = ui[i] - xr + self._origin
                     q1 = 0
                     q2 = 2*xr
                     if j1 >= self.size:
@@ -544,8 +545,8 @@ class PixelGrid(Model):
             self._basis_profile = galsim.InterpolatedImage(im, x_interpolant=self.interp)
 
             self._basis_shifts = np.meshgrid(
-                np.arange(-self._origin[0], -self._origin[0]+self.size),
-                np.arange(-self._origin[1], -self._origin[1]+self.size))
+                np.arange(-self._origin, -self._origin+self.size),
+                np.arange(-self._origin, -self._origin+self.size))
 
         return self._basis_profile, self._basis_shifts
 
