@@ -91,28 +91,6 @@ class PixelGrid(Model):
         self._nparams = size*size
         logger.debug("nparams = %d",self._nparams)
 
-    def _indexFromPsfxy(self, psfx, psfy):
-        """ Turn arrays of coordinates of the PSF array into a single same-shape
-        array of indices into a 1d parameter vector.  The index is <0 wherever
-        the psf x,y values were outside the PSF mask.
-
-        :param psfx:  array of integer x displacements from origin of the PSF grid
-        :param psfy:  array of integer y displacements from origin of the PSF grid
-
-        :returns: same shape array, filled with indices into 1d array
-        """
-        # Shift psfy, psfx to reference a 0-indexed array
-        y = psfy + self._origin
-        x = psfx + self._origin
-
-        # Good pixels are where there is a valid index
-        # Others are set to -1.
-        ind = np.ones_like(psfx, dtype=int) * -1
-        good = (0 <= y) & (y < self.size) & (0 <= x) & (x < self.size)
-        indices = np.arange(self._nparams, dtype=int).reshape(self.size,self.size)
-        ind[good] = indices[y[good], x[good]]
-        return ind
-
     def initialize(self, star, logger=None):
         """Initialize a star to work with the current model.
 
@@ -211,89 +189,7 @@ class PixelGrid(Model):
         self.normalize(star)
         return star
 
-    def chisq1(self, star, logger=None):
-        """Calculate dependence of chi^2 = -2 log L(D|p) on PSF parameters for single star.
-        as a quadratic form chi^2 = dp^T AT A dp - 2 bT A dp + chisq,
-        where dp is the *shift* from current parameter values.  Returned Star
-        instance has the resultant A, b, chisq, flux, center) attributes,
-        but params vector has not have been updated yet (could be degenerate).
-
-        :param star:    A Star instance
-        :param logger:  A logger object for logging debug info. [default: None]
-
-        :returns: a new Star instance with updated StarFit
-        """
-        # Start by getting all interpolation coefficients for all observed points
-        data, weight, u, v = star.data.getDataVector()
-
-        # Subtract star.fit.center from u, v:
-        u -= star.fit.center[0]
-        v -= star.fit.center[1]
-
-        # Only use pixels covered by the model.
-        mask = (np.abs(u) <= self.maxuv) & (np.abs(v) <= self.maxuv)
-        data = data[mask]
-        weight = weight[mask]
-        u = u[mask]
-        v = v[mask]
-
-        # Compute the full set of coefficients for each pixel in the data
-        # The returned arrays here are Ndata x Ninterp.
-        # Each column column corresponds to a different x,y value in the model that could
-        # contribute information about the given data pixel.
-        coeffs, psfx, psfy = self.interp_calculate(u/self.scale, v/self.scale)
-
-        # Turn the (psfy,psfx) coordinates into an index into 1d parameter vector.
-        index1d = self._indexFromPsfxy(psfx, psfy)
-        # All invalid pixel references now have negative index; record and set to zero
-        nopsf = index1d < 0
-        alt_index1d = np.where(nopsf, 0, index1d)
-        # And null the coefficients for such pixels
-        # This just makes it easier to do the sums, since then the nopsf values won't contribute.
-        coeffs = np.where(nopsf, 0., coeffs)
-
-        # Multiply kernel (and derivs) by current PSF element values to get current estimates
-        pvals = star.fit.params[alt_index1d]
-        mod = np.sum(coeffs*pvals, axis=1)
-        scaled_flux = star.fit.flux * star.data.pixel_area / self.pixel_area
-        resid = data - mod * scaled_flux
-
-        # Now construct A, b, chisq that give chisq vs linearized model.
-        #
-        # We can say we are looking for a weighted least squares solution to the problem
-        #
-        #   A dp = b
-        #
-        # where b is the array of residuals, and A_ij = coeffs[i][k] iff alt_index1d[i][k] == j.
-        #
-        # The weights are dealt with in the standard way, by multiplying both A and b by sqrt(w).
-
-        A = np.zeros((len(data), self._nparams), dtype=float)
-        for i in range(len(data)):
-            ii = index1d[i,:]
-            cc = coeffs[i,:]
-            # Select only those with ii >= 0
-            cc = cc[ii>=0] * scaled_flux
-            ii = ii[ii>=0]
-            A[i,ii] = cc
-        sw = np.sqrt(weight)
-        Aw = A * sw[:,np.newaxis]
-        bw = resid * sw
-        chisq = np.sum(bw**2)
-        dof = np.count_nonzero(weight)
-
-        outfit = StarFit(star.fit.params,
-                         flux = star.fit.flux,
-                         center = star.fit.center,
-                         params_var = star.fit.params_var,
-                         chisq = chisq,
-                         dof = dof,
-                         A = Aw,
-                         b = bw)
-
-        return Star(star.data, outfit)
-
-    def chisq2(self, star, logger=None, convert_func=None):
+    def chisq(self, star, logger=None, convert_func=None):
         logger = galsim.config.LoggerWrapper(logger)
         logger.debug('Start chisq function')
         logger.debug('initial params = %s',star.fit.params)
@@ -528,8 +424,6 @@ class PixelGrid(Model):
 
         return Star(star.data, outfit)
 
-    chisq = chisq2
-
     def getProfile(self, params):
         """Get a version of the model as a GalSim GSObject
 
@@ -597,66 +491,3 @@ class PixelGrid(Model):
 
         # Normally this is all that is required.
         star.fit.params /= np.sum(star.fit.params)
-
-    def interp_calculate(self, u, v, derivs=False):
-        """Calculate interpolation coefficient for vector of target points
-
-        Outputs will be 3 matrices, each of dimensions (nin, nkernel) where nin is
-        number of input coordinates and nkernel is number of points in kernel footprint.
-        The coeff matrix gives interpolation coefficients, then the y and x integer matrices
-        give the grid point to which each coefficient is applied.
-
-        :param u:       1d array of target u coordinates
-        :param v:       1d array of target v coordinates
-        :param derivs:  whether to also return derivatives (default: False)
-
-        :returns: coeff, x, y[, dcdu, dcdv]
-        """
-        n = int(np.ceil(self.interp.xrange))
-        # Here is range of pixels to use in each dimension relative to ceil(u,v)
-        _duv = np.arange(-n, n, dtype=int)
-        # And here are flattened arrays of u, v displacement for whole footprint
-        _du = np.ones( (2*n,2*n), dtype=int) * _duv
-        _du = _du.flatten()
-        _dv = np.ones( (2*n,2*n), dtype=int) * _duv[:,np.newaxis]
-        _dv = _dv.flatten()
-
-        # Get integer and fractional parts of u, v
-        u_ceil = np.ceil(u).astype(int)
-        v_ceil = np.ceil(v).astype(int)
-        # Make arrays giving coordinates of grid points within footprint
-        x = u_ceil[:,np.newaxis] + _du[np.newaxis,:]
-        y = v_ceil[:,np.newaxis] + _dv[np.newaxis,:]
-
-        # Make npts x (2*order) arrays holding 1d displacements
-        # to be arguments of the 1d kernel functions
-        argu = (u_ceil-u)[:,np.newaxis] + _duv
-        argv = (v_ceil-v)[:,np.newaxis] + _duv
-        # Calculate the Lanczos function each axis:
-        ku = self._kernel1d(argu)
-        kv = self._kernel1d(argv)
-        # Then take outer products to produce kernel
-        coeffs = (ku[:,np.newaxis,:] * kv[:,:,np.newaxis]).reshape(x.shape)
-
-        if derivs:
-            # Take derivatives with respect to u
-            duv = 0.01   # Step for finite differences
-            dku = (self._kernel1d(argu+duv)-self._kernel1d(argu-duv)) / (2*duv)
-            dcdu = (dku[:,np.newaxis,:] * kv[:,:,np.newaxis]).reshape(x.shape)
-            # and v
-            dkv = (self._kernel1d(argv+duv)-self._kernel1d(argv-duv)) / (2*duv)
-            dcdv = (ku[:,np.newaxis,:] * dkv[:,:,np.newaxis]).reshape(x.shape)
-            return coeffs, x, y, dcdu, dcdv
-        else:
-            return coeffs, x, y
-
-    def _kernel1d(self, u):
-        """ Calculate the 1d interpolation kernel at each value in array u.
-
-        :param u: 1d array of (u_dest-u_src) spanning the footprint of the kernel.
-
-        :returns: interpolation kernel values at these grid points
-        """
-        k = self.interp.xval(u.ravel()).reshape(u.shape)
-        # Normalize to unit sum over kernel elements
-        return k / np.sum(k,axis=1)[:,np.newaxis]
