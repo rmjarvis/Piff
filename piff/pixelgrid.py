@@ -131,12 +131,15 @@ class PixelGrid(Model):
         starfit = StarFit(params, flux, center)
         return Star(star.data, starfit)
 
-    def fit(self, star, logger=None):
-        """Fit the Model to the star's data to yield iterative improvement on
-        its PSF parameters, their uncertainties, and flux (and center, if free).
+    def fit(self, star, logger=None, convert_func=None):
+        """Fit the Model to the star's data to yield iterative improvement on its PSF parameters
+        and uncertainties.
 
-        :param star:    A Star instance
-        :param logger:  A logger object for logging debug info. [default: None]
+        :param star:            A Star instance
+        :param logger:          A logger object for logging debug info. [default: None]
+        :param convert_func:    An optional function to apply to the profile being fit before
+                                drawing it onto the image.  This is used by composite PSFs to
+                                isolate the effect of just this model component. [default: None]
 
         :returns: a new Star instance with updated fit information
         """
@@ -190,6 +193,20 @@ class PixelGrid(Model):
         return star
 
     def chisq(self, star, logger=None, convert_func=None):
+        """Calculate dependence of chi^2 = -2 log L(D|p) on PSF parameters for single star.
+        as a quadratic form chi^2 = dp^T AT A dp - 2 bT A dp + chisq,
+        where dp is the *shift* from current parameter values.  Returned Star
+        instance has the resultant (A, b, chisq) attributes, but params vector has not have
+        been updated yet (could be degenerate).
+
+        :param star:            A Star instance
+        :param logger:          A logger object for logging debug info. [default: None]
+        :param convert_func:    An optional function to apply to the profile being fit before
+                                drawing it onto the image.  This is used by composite PSFs to
+                                isolate the effect of just this model component. [default: None]
+
+        :returns: a new Star instance with updated fit parameters. (esp. A,b)
+        """
         logger = galsim.config.LoggerWrapper(logger)
         logger.debug('Start chisq function')
         logger.debug('initial params = %s',star.fit.params)
@@ -213,7 +230,7 @@ class PixelGrid(Model):
         # To test the convert_func branches, uncomment this line.
         #convert_func = lambda x: x
 
-        if convert_func is not None:
+        if convert_func is not None:  # pragma: no cover
             prof = convert_func(prof)
 
         # Adjust the image now so that we can draw it in pixel coordinates, rather than letting
@@ -256,7 +273,6 @@ class PixelGrid(Model):
         basis_profile, basis_shifts = self._getBasisProfile()
         du, dv = basis_shifts
 
-
         if convert_func is not None:
             # In this case we need the basis_profile to have the right scale (rather than
             # incorporate it into the jacobian) so that convert_func will have the right size.
@@ -283,7 +299,7 @@ class PixelGrid(Model):
                 A[:,k] = image.array.ravel()[mask]
 
         else:
-            if 0:
+            if 0:  # pragma: no cover
                 # When we don't have the convert_func step, this calculation can be sped up
                 # fairly significantly.  If we wanted to use only GalSim method, then this is
                 # how we would do it.  We can combine both the scale and the initial shift
@@ -311,11 +327,12 @@ class PixelGrid(Model):
                 # This is even faster, but less easy to follow how it works.
                 # I'll make an attempt to explain how it proceeds, but I find it somewhat
                 # more confusing than the above method.
-                # The main reason this is faster is that we only compute the interpolation
-                # xval for npix * (2*xr) * 2, rather than npix * (2*xr)**2 by leveraging
+
+                # Note: The main reason this is faster is that we only compute the interpolation
+                # xvals for npix * (2*xr) * 2, rather than npix * (2*xr)**2 by leveraging
                 # the fact that each interpolation coefficient gets repeated for multiple
                 # basis pixels, so the above drawReal call has duplicated work, which cannot
-                # really be pulled out into a common calculation.
+                # really be pulled out into a common calculation using just GalSim functionality.
 
                 # First calculate the interp.xval values that we will need.
                 # We need to evaluate the interpolation coefficient using self.interp.xvale
@@ -336,7 +353,7 @@ class PixelGrid(Model):
 
                 # The interpolation coefficients are uwt * vwt * flux_ratio
                 # We need one factor the pixel area ratio so arbitratily choose uwt to
-                # multiply this by to account for this (constant) factor.
+                # multiply by this (constant) factor so it gets applied to the product.
                 flux_scaling = star.data.pixel_area / self.pixel_area
                 uwt *= flux_scaling
 
