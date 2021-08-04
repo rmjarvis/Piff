@@ -106,7 +106,7 @@ class SimplePSF(PSF):
 
         return kwargs
 
-    def fit(self, stars, wcs, pointing, logger=None):
+    def fit(self, stars, wcs, pointing, logger=None, convert_func=None):
         """Fit interpolated PSF model to star data using standard sequence of operations.
 
         :param stars:           A list of Star instances.
@@ -114,6 +114,9 @@ class SimplePSF(PSF):
         :param pointing:        A galsim.CelestialCoord object giving the telescope pointing.
                                 [Note: pointing should be None if the WCS is not a CelestialWCS]
         :param logger:          A logger object for logging debug info. [default: None]
+        :param convert_func:    An optional function to apply to the profile being fit before
+                                drawing it onto the image.  This is used by composite PSFs to
+                                isolate the effect of just this model component. [default: None]
         """
         logger = galsim.config.LoggerWrapper(logger)
         self.stars = stars
@@ -177,7 +180,7 @@ class SimplePSF(PSF):
             new_use_stars = []
             for star in use_stars:
                 try:
-                    star = fit_fn(star, logger=logger)
+                    star = fit_fn(star, logger=logger, convert_func=convert_func)
                 except Exception as e:  # pragma: no cover
                     logger.warning("Failed fitting star at %s.", star.image_pos)
                     logger.warning("Excluding it from this iteration.")

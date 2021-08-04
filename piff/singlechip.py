@@ -26,7 +26,7 @@ from .psf import PSF
 from .util import write_kwargs, read_kwargs, make_dtype, adjust_value, run_multi
 
 # Used by SingleChipPSF.fit
-def single_chip_run(chipnum, single_psf, stars, wcs, pointing, logger):
+def single_chip_run(chipnum, single_psf, stars, wcs, pointing, convert_func, logger):
     # Make a copy of single_psf for each chip
     psf_chip = copy.deepcopy(single_psf)
 
@@ -36,7 +36,7 @@ def single_chip_run(chipnum, single_psf, stars, wcs, pointing, logger):
 
     # Run the psf_chip fit function using this stars and wcs (and the same pointing)
     logger.warning("Building solution for chip %s with %d stars", chipnum, len(stars_chip))
-    psf_chip.fit(stars_chip, wcs_chip, pointing, logger=logger)
+    psf_chip.fit(stars_chip, wcs_chip, pointing, logger=logger, convert_func=convert_func)
 
     return psf_chip
 
@@ -88,7 +88,7 @@ class SingleChipPSF(PSF):
 
         return { 'single_psf' : single_psf, 'nproc' : nproc }
 
-    def fit(self, stars, wcs, pointing, logger=None):
+    def fit(self, stars, wcs, pointing, logger=None, convert_func=None):
         """Fit interpolated PSF model to star data using standard sequence of operations.
 
         :param stars:           A list of Star instances.
@@ -96,6 +96,9 @@ class SingleChipPSF(PSF):
         :param pointing:        A galsim.CelestialCoord object giving the telescope pointing.
                                 [Note: pointing should be None if the WCS is not a CelestialWCS]
         :param logger:          A logger object for logging debug info. [default: None]
+        :param convert_func:    An optional function to apply to the profile being fit before
+                                drawing it onto the image.  This is used by composite PSFs to
+                                isolate the effect of just this model component. [default: None]
         """
         logger = galsim.config.LoggerWrapper(logger)
         self.stars = stars
@@ -104,7 +107,8 @@ class SingleChipPSF(PSF):
         self.psf_by_chip = {}
 
         chipnums = list(wcs.keys())
-        args = [(chipnum, self.single_psf, stars, wcs, pointing) for chipnum in chipnums]
+        args = [(chipnum, self.single_psf, stars, wcs, pointing, convert_func)
+                for chipnum in chipnums]
 
         output = run_multi(single_chip_run, self.nproc, raise_except=False,
                            args=args, logger=logger)
