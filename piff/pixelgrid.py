@@ -459,6 +459,12 @@ class PixelGrid(Model):
                 vi = vi.astype(int)
                 col_index = np.arange(self._nparams).reshape(du.shape)
 
+                # For each row, we need the outer product of uwt and vwt.
+                # Not the whole thing all the time, but despite that, it's faster to
+                # have numpy do this product all at once in a single C call rather than
+                # separately for each row.
+                uvwt = uwt[:, np.newaxis, :] * vwt[:, :, np.newaxis]
+
                 for i in range(nmask):
                     # i1:i2 is the slice for the v direction into the col_index array.
                     # p1:p2 is the slice for the v direction into the uwt array.
@@ -497,8 +503,7 @@ class PixelGrid(Model):
                     # The interpolation coefficients are the outer product of these.
                     # cols are the indices of the corresponding basis pixels.
                     cols = col_index[i1:i2:-1, j1:j2:-1]
-                    uvwts = uwt[i, np.newaxis, q1:q2] * vwt[i, p1:p2, np.newaxis]
-                    A[i, cols.ravel()] = uvwts.ravel()
+                    A[i, cols.ravel()] = uvwt[i, p1:p2, q1:q2].ravel()
 
         # Account for the current flux estimate.
         A *= star.fit.flux
