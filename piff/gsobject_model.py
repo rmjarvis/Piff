@@ -142,13 +142,16 @@ class GSObjectModel(Model):
             du, dv, scale, g1, g2 = params
             return self.gsobj.dilate(scale).shear(g1=g1, g2=g2).shift(du, dv)
 
-    def _resid(self, params, star):
+    def _resid(self, params, star, convert_func):
         """Residual function to use with least_squares.
 
         Essentially `chi` from `chisq`, but not summed over pixels yet.
 
-        :param params:      A numpy array of model parameters.
-        :param star:        A Star instance.
+        :param params:          A numpy array of model parameters.
+        :param star:            A Star instance.
+        :param convert_func:    An optional function to apply to the profile being fit before
+                                drawing it onto the image.  This is used by composite PSFs to
+                                isolate the effect of just this model component.
 
         :returns: `chi` as a flattened numpy array.
         """
@@ -173,8 +176,11 @@ class GSObjectModel(Model):
         # Equivalent to galsim.Image(image, dtype=float), but without the sanity checks.
         model_image = galsim._Image(np.empty_like(image.array, dtype=float),
                                     image.bounds, image.wcs)
-        prof.drawImage(model_image, method=self._method,
-                       offset=(image_pos - model_image.true_center))
+
+        if convert_func is not None:  # pragma: no cover
+            prof = convert_func(prof)
+
+        prof.drawImage(model_image, method=self._method, center=image_pos)
 
         # Caculate sqrt(weight) * (model_image - image) in place for efficiency.
         model_image.array[:,:] -= image.array
@@ -202,11 +208,14 @@ class GSObjectModel(Model):
 
         return np.array([flux, du, dv, scale, g1, g2])
 
-    def least_squares_fit(self, star, logger=None):
+    def least_squares_fit(self, star, logger=None, convert_func=None):
         """Fit parameters of the given star using least-squares minimization.
 
-        :param star:    A Star to fit.
-        :param logger:  A logger object for logging debug info. [default: None]
+        :param star:            A Star to fit.
+        :param logger:          A logger object for logging debug info. [default: None]
+        :param convert_func:    An optional function to apply to the profile being fit before
+                                drawing it onto the image.  This is used by composite PSFs to
+                                isolate the effect of just this model component. [default: None]
 
         :returns: (flux, dx, dy, scale, g1, g2, flag)
         """
@@ -214,7 +223,7 @@ class GSObjectModel(Model):
         logger.debug("Start least_squares")
         params = self._get_params(star)
 
-        results = scipy.optimize.least_squares(self._resid, params, args=(star,),
+        results = scipy.optimize.least_squares(self._resid, params, args=(star,convert_func),
                                                **self._scipy_kwargs)
         if logger:
             logger.debug(results)
@@ -226,7 +235,7 @@ class GSObjectModel(Model):
 
         return flux, du, dv, scale, g1, g2, var
 
-    def fit(self, star, fastfit=None, logger=None):
+    def fit(self, star, fastfit=None, logger=None, convert_func=None):
         """Fit the image either using HSM or least-squares minimization.
 
         If ``fastfit`` is True, then the galsim.hsm module will be used to estimate the
@@ -235,20 +244,29 @@ class GSObjectModel(Model):
         instead.  The latter should generally be more accurate, but slower due to the need to
         iteratively propose model improvements.
 
-        :param star:    A Star to fit.
-        :param fastfit: Use fast HSM moments to fit? [default: None, which means use fitting mode
-                        specified in the constructor.]
-        :param logger:  A logger object for logging debug info. [default: None]
+        :param star:            A Star to fit.
+        :param fastfit:         Use fast HSM moments to fit? [default: None, which means use
+                                fitting mode specified in the constructor.]
+        :param logger:          A logger object for logging debug info. [default: None]
+        :param convert_func:    An optional function to apply to the profile being fit before
+                                drawing it onto the image.  This is used by composite PSFs to
+                                isolate the effect of just this model component. [default: None]
 
         :returns: a new Star with the fitted parameters in star.fit
         """
         if fastfit is None:
             fastfit = self._fastfit
+        if convert_func is not None:
+            # Can't do the moments fit technique if fitting using moments.
+            # At least not as it is currently structured.  May be possible to convert if there
+            # is a need, but it seems hard.
+            fastfit = False
 
         if fastfit:
             flux, du, dv, scale, g1, g2, var = self.moment_fit(star, logger=logger)
         else:
-            flux, du, dv, scale, g1, g2, var = self.least_squares_fit(star, logger=logger)
+            flux, du, dv, scale, g1, g2, var = self.least_squares_fit(star, logger=logger,
+                                                                      convert_func=convert_func)
 
         # Make a StarFit object with these parameters
         if self._centered:
@@ -263,8 +281,12 @@ class GSObjectModel(Model):
         # Also need to compute chisq
         prof = self.getProfile(params) * flux
         model_image = star.image.copy()
-        prof.shift(center).drawImage(model_image, method=self._method,
-                                     offset=(star.image_pos - model_image.true_center))
+        prof = prof.shift(center)
+
+        if convert_func is not None:  # pragma: no cover
+            prof = convert_func(prof)
+
+        prof.drawImage(model_image, method=self._method, center=star.image_pos)
         chisq = np.sum(star.weight.array * (star.image.array - model_image.array)**2)
         # Don't subtract number of parameters from dof, since we'll be interpolating, so
         # these parameters don't really apply to each star separately.

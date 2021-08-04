@@ -93,13 +93,16 @@ class Model(object):
         # parameter values in star.fit.
         pass
 
-    def fit(self, star):
+    def fit(self, star, convert_func=None):
         """Fit the Model to the star's data to yield iterative improvement on
         its PSF parameters, their uncertainties, and flux (and center, if free).
         The returned star.fit.alpha will be inverse covariance of solution if
         it is estimated, else is None.
 
-        :param star:   A Star instance
+        :param star:            A Star instance
+        :param convert_func:    An optional function to apply to the profile being fit before
+                                drawing it onto the image.  This is used by composite PSFs to
+                                isolate the effect of just this model component. [default: None]
 
         :returns:      New Star instance with updated fit information
         """
