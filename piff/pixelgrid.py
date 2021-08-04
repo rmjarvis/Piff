@@ -346,8 +346,10 @@ class PixelGrid(Model):
                 ui,uf = np.divmod(u,1)
                 vi,vf = np.divmod(v,1)
                 xr = self.interp.xrange
-                argu = uf[:,np.newaxis] + np.arange(-xr,xr)[np.newaxis,:]
-                argv = vf[:,np.newaxis] + np.arange(-xr,xr)[np.newaxis,:]
+                # Note arguments are basis pixel position minus image pixel position.
+                # Hence the minus sign in front of uf.
+                argu = -uf[:,np.newaxis] + np.arange(-xr+1,xr+1)[np.newaxis,:]
+                argv = -vf[:,np.newaxis] + np.arange(-xr+1,xr+1)[np.newaxis,:]
                 uwt = self.interp.xval(argu.ravel()).reshape(argu.shape)
                 vwt = self.interp.xval(argv.ravel()).reshape(argv.shape)
 
@@ -383,39 +385,36 @@ class PixelGrid(Model):
                     # p1:p2 is the slice for the v direction into the uwt array.
                     # Normally p1:p2 is just 0:2*xr, but we need to be careful about going
                     # off the edge of the grid, so it may be smaller than this.
-                    # Also, note that i1 > i2, because increasing u for the basis pixels
-                    # moves the relative position of that pixel wrt an image pixel from
-                    # right to left, so it decreases.
-                    i1 = vi[i] + xr + self._origin
-                    i2 = vi[i] - xr + self._origin
+                    i1 = vi[i] - xr + self._origin + 1
+                    i2 = vi[i] + xr + self._origin + 1
                     p1 = 0
                     p2 = 2*xr
-                    if i1 >= self.size:
-                        p1 += (i1 - self.size + 1)
-                        i1 = self.size - 1
-                    if i2 <= -1:
-                        p2 += (i2 + 1)
-                        i2 = None
+                    if i1 < 0:
+                        p1 = -i1
+                        i1 = 0
+                    if i2 > self.size:
+                        p2 -= i2 - self.size
+                        i2 = self.size
                     # Repeat for u using j1:j2 and q1:q2
-                    j1 = ui[i] + xr + self._origin
-                    j2 = ui[i] - xr + self._origin
+                    j1 = ui[i] - xr + self._origin + 1
+                    j2 = ui[i] + xr + self._origin + 1
                     q1 = 0
                     q2 = 2*xr
-                    if j1 >= self.size:
-                        q1 += (j1 - self.size + 1)
-                        j1 = self.size - 1
-                    if j2 <= -1:
-                        q2 += (j2 + 1)
-                        j2 = None
+                    if j1 < 0:
+                        q1 = -j1
+                        j1 = 0
+                    if j2 > self.size:
+                        q2 -= j2 - self.size
+                        j2 = self.size
 
                     # Now we have the right indices for everything
-                    # i1:i2:-1 are the v indices in the col_index array.
-                    # j1:j2:-1 are the u indices in the col_index array.
+                    # i1:i2 are the v indices in the col_index array.
+                    # j1:j2 are the u indices in the col_index array.
                     # p1:p2 are the v indices to use
                     # q1:q2 are the u indices to use
                     # The interpolation coefficients are the outer product of these.
                     # cols are the indices of the corresponding basis pixels.
-                    cols = col_index[i1:i2:-1, j1:j2:-1]
+                    cols = col_index[i1:i2, j1:j2]
                     A[i, cols.ravel()] = uvwt[i, p1:p2, q1:q2].ravel()
 
         # Account for the current flux estimate.
