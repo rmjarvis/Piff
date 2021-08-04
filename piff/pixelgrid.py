@@ -359,19 +359,17 @@ class PixelGrid(Model):
         basis_profile, basis_shifts = self._getBasisProfile()
         du, dv = basis_shifts
 
-        # Get the inverse jacobian, so we can apply it below.
-        # Faster than letting GalSim combine the two Transformation wrappers.
-        jac = star.data.local_wcs.jacobian().inverse().getMatrix()
 
         if convert_func is not None:
             # In this case we need the basis_profile to have the right scale (rather than
             # incorporate it into the jacobian) so that convert_func will have the right size.
             basis_profile = basis_profile.dilate(self.scale)
             # Find the net shift from the star.fit.center and the offset.
+            jac = star.data.local_wcs.jacobian().inverse().getMatrix()
             dx = jac[0,0]*u0 + jac[0,1]*v0 + offset.x
             dy = jac[1,0]*u0 + jac[1,1]*v0 + offset.y
-            du = du * self.scale
-            dv = dv * self.scale
+            du = du.ravel() * self.scale
+            dv = dv.ravel() * self.scale
             for k, duk, dvk in zip(range(self._nparams), du,dv):
                 # This implementation removes most of the overhead, and is still relatively
                 # straightforward.
@@ -388,20 +386,118 @@ class PixelGrid(Model):
                 A[:,k] = image.array.ravel()[mask]
 
         else:
-            # When we don't have the convert_func step, we can combine both the scale and the
-            # initial shift into the parameters that we pass to _drawReal, which saves time.
-            # Incorporate scale into jac for _drawReal call.
-            jac2 = jac * self.scale
-            dx = jac2[0,0]*du + jac2[0,1]*dv
-            dx += jac[0,0]*u0 + jac[0,1]*v0 + offset.x
-            dy = jac2[1,0]*du + jac2[1,1]*dv
-            dy += jac[1,0]*u0 + jac[1,1]*v0 + offset.y
+            if 0:
+                # When we don't have the convert_func step, this calculation can be sped up
+                # fairly significantly.  If we wanted to use only GalSim method, then this is
+                # how we would do it.  We can combine both the scale and the initial shift
+                # into the parameters that we pass to _drawReal, which saves time.
+                # This is reasonably straightforward.  However, when we don't have any convert
+                # function, there is a further speed up that is available to us by using the
+                # fact that each kernel weight value is used multiple times for different
+                # output pixels.  GalSim uses this fact when drawing the full PixelGrid model,
+                # but there's no way to get that efficiency gain when doing one model pixel at
+                # a time.  So we do the equivalent calculation below, outside of GalSim.
 
-            for k, dxk, dyk in zip(range(self._nparams), dx,dy):
-                # If we don't have a convert_func, then it's faster to combine the shifts with
-                # the jacobian all in a numpy multiplication (above).
-                basis_profile._drawReal(image, jac2, (dxk,dyk), 1.)
-                A[:,k] = image.array.ravel()[mask]
+                jac = star.data.local_wcs.jacobian().inverse().getMatrix()
+                # Incorporate scale into jac for _drawReal call.
+                # Also for the du = du * scale and dv = dv * scale steps.
+                jac2 = jac * self.scale
+                dx = jac2[0,0]*du.ravel() + jac2[0,1]*dv.ravel()
+                dx += jac[0,0]*u0 + jac[0,1]*v0 + offset.x
+                dy = jac2[1,0]*du.ravel() + jac2[1,1]*dv.ravel()
+                dy += jac[1,0]*u0 + jac[1,1]*v0 + offset.y
+
+                for k, dxk, dyk in zip(range(self._nparams), dx,dy):
+                    basis_profile._drawReal(image, jac2, (dxk,dyk), 1.)
+                    A[:,k] = image.array.ravel()[mask]
+            else:
+                # This is even faster, but less easy to follow how it works.
+                # I'll make an attempt to explain how it proceeds, but I find it somewhat
+                # more confusing than the above method.
+                # The main reason this is faster is that we only compute the interpolation
+                # xval for npix * (2*xr) * 2, rather than npix * (2*xr)**2 by leveraging
+                # the fact that each interpolation coefficient gets repeated for multiple
+                # basis pixels, so the above drawReal call has duplicated work, which cannot
+                # really be pulled out into a common calculation.
+
+                # First calculate the interp.xval values that we will need.
+                # We need to evaluate the interpolation coefficient using self.interp.xvale
+                # at any integer multiples of self.scale that are sufficiently near u or v.
+                # More simply, we need to evaluate at integer locations that are near u/scale
+                # or v/scale.  The argument to xval needs to be the distance this integer location
+                # is from u or v.
+                # The maximum argument is given by self.interp.xrange.
+                u = u[mask] / self.scale
+                v = v[mask] / self.scale
+                ui,uf = np.divmod(u,1)
+                vi,vf = np.divmod(v,1)
+                xr = self.interp.xrange
+                argu = uf[:,np.newaxis] + np.arange(-xr,xr)[np.newaxis,:]
+                argv = vf[:,np.newaxis] + np.arange(-xr,xr)[np.newaxis,:]
+                uwt = self.interp.xval(argu.ravel()).reshape(argu.shape)
+                vwt = self.interp.xval(argv.ravel()).reshape(argv.shape)
+
+                # The interpolation coefficients are uwt * vwt * flux_ratio
+                # We need one factor the pixel area ratio so arbitratily choose uwt to
+                # multiply this by to account for this (constant) factor.
+                flux_scaling = star.data.pixel_area / self.pixel_area
+                uwt *= flux_scaling
+
+                # Now the tricky part.  We need to figure out which basis pixel each of those
+                # combinations belongs to.
+                # This is easier to do if we don't loop over basis pixels as we did above, but
+                # rather loop over the image pixels.  Then we can fill the appropriate columns
+                # in the A matrix for each row.
+                # For each row, the columns we need are those with
+                #   int(u) - xrange + 1 <= du < int(u) + xrange + 1
+                #   int(v) - xrange + 1 <= dv < int(v) + xrange + 1
+                # We can figure this out by slicing into an array that has the same shape
+                # as du or dv with the running index indicating which basis pixel corresponds
+                # to each location.
+                ui = ui.astype(int)
+                vi = vi.astype(int)
+                col_index = np.arange(self._nparams).reshape(du.shape)
+
+                for i in range(nmask):
+                    # i1:i2 is the slice for the v direction into the col_index array.
+                    # p1:p2 is the slice for the v direction into the uwt array.
+                    # Normally p1:p2 is just 0:2*xr, but we need to be careful about going
+                    # off the edge of the grid, so it may be smaller than this.
+                    # Also, note that i1 > i2, because increasing u for the basis pixels
+                    # moves the relative position of that pixel wrt an image pixel from
+                    # right to left, so it decreases.
+                    i1 = vi[i] + xr + self._origin[1]
+                    i2 = vi[i] - xr + self._origin[1]
+                    p1 = 0
+                    p2 = 2*xr
+                    if i1 >= self.size:
+                        p1 += (i1 - self.size + 1)
+                        i1 = self.size - 1
+                    if i2 <= -1:
+                        p2 += (i2 + 1)
+                        i2 = None
+                    # Repeat for u using j1:j2 and q1:q2
+                    j1 = ui[i] + xr + self._origin[1]
+                    j2 = ui[i] - xr + self._origin[1]
+                    q1 = 0
+                    q2 = 2*xr
+                    if j1 >= self.size:
+                        q1 += (j1 - self.size + 1)
+                        j1 = self.size - 1
+                    if j2 <= -1:
+                        q2 += (j2 + 1)
+                        j2 = None
+
+                    # Now we have the right indices for everything
+                    # i1:i2:-1 are the v indices in the col_index array.
+                    # j1:j2:-1 are the u indices in the col_index array.
+                    # p1:p2 are the v indices to use
+                    # q1:q2 are the u indices to use
+                    # The interpolation coefficients are the outer product of these.
+                    # cols are the indices of the corresponding basis pixels.
+                    cols = col_index[i1:i2:-1, j1:j2:-1]
+                    uvwts = uwt[i, np.newaxis, q1:q2] * vwt[i, p1:p2, np.newaxis]
+                    A[i, cols.ravel()] = uvwts.ravel()
 
         # Account for the current flux estimate.
         A *= star.fit.flux
@@ -447,15 +543,9 @@ class PixelGrid(Model):
             im = galsim.Image(np.array([[1.]]), scale=1.)
             self._basis_profile = galsim.InterpolatedImage(im, x_interpolant=self.interp)
 
-            uar = []
-            var = []
-            for i in range(self.size):
-                v = (-self._origin[1] + i)
-                for j in range(self.size):
-                    u = (-self._origin[0] + j)
-                    uar.append(u)
-                    var.append(v)
-            self._basis_shifts = np.array(uar), np.array(var)
+            self._basis_shifts = np.meshgrid(
+                np.arange(-self._origin[0], -self._origin[0]+self.size),
+                np.arange(-self._origin[1], -self._origin[1]+self.size))
 
         return self._basis_profile, self._basis_shifts
 
