@@ -174,7 +174,9 @@ def test_simple():
         model = piff.GSObjectModel(fiducial, fastfit=False, include_pixel=True)
         star = model.initialize(fiducial_star)
         star = model.fit(star, fastfit=True)  # Get better results with one round of fastfit.
-        fit = model.fit(star).fit
+        # Use a no op convert_func, just to touch that branch in the code.
+        convert_func = lambda prof: prof
+        fit = model.fit(star, convert_func=convert_func).fit
 
         print('True scale = ', scale, ', model scale = ', fit.params[0])
         print('True g1 = ', g1, ', model g1 = ', fit.params[1])

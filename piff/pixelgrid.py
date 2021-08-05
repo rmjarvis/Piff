@@ -149,7 +149,8 @@ class PixelGrid(Model):
         :returns: a new Star instance with updated fit information
         """
         logger = galsim.config.LoggerWrapper(logger)
-        star1 = self.chisq(star, logger=logger)  # Get chisq Taylor expansion for linearized model
+        # Get chisq Taylor expansion for linearized model
+        star1 = self.chisq(star, logger=logger, convert_func=convert_func)
 
         # The chisq function calculates A and b where
         #
@@ -232,10 +233,7 @@ class PixelGrid(Model):
         # The draw function below would then draw the full composite profile, not just the
         # PixelGrid profile.
 
-        # To test the convert_func branches, uncomment this line.
-        #convert_func = lambda x: x
-
-        if convert_func is not None:  # pragma: no cover
+        if convert_func is not None:
             prof = convert_func(prof)
 
         # Adjust the image now so that we can draw it in pixel coordinates, rather than letting
@@ -304,7 +302,7 @@ class PixelGrid(Model):
                 A[:,k] = image.array.ravel()[mask]
 
         else:
-            if 0:  # pragma: no cover
+            if 0:
                 # When we don't have the convert_func step, this calculation can be sped up
                 # fairly significantly.  If we wanted to use only GalSim method, then this is
                 # how we would do it.  We can combine both the scale and the initial shift

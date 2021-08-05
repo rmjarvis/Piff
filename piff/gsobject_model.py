@@ -177,7 +177,7 @@ class GSObjectModel(Model):
         model_image = galsim._Image(np.empty_like(image.array, dtype=float),
                                     image.bounds, image.wcs)
 
-        if convert_func is not None:  # pragma: no cover
+        if convert_func is not None:
             prof = convert_func(prof)
 
         prof.drawImage(model_image, method=self._method, center=image_pos)
@@ -283,7 +283,7 @@ class GSObjectModel(Model):
         model_image = star.image.copy()
         prof = prof.shift(center)
 
-        if convert_func is not None:  # pragma: no cover
+        if convert_func is not None:
             prof = convert_func(prof)
 
         prof.drawImage(model_image, method=self._method, center=star.image_pos)
