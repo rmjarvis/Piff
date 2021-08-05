@@ -572,7 +572,7 @@ def test_olddes():
     try:
         import pixmappy
     except ImportError:
-        print('pixmappy not installed.  Skipping test_newdes()')
+        print('pixmappy not installed.  Skipping test_olddes()')
         return
     import copy
 

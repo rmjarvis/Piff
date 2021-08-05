@@ -54,7 +54,12 @@ class PixelGrid(Model):
                                  # current centroid of the model.  This way on later iterations,
                                  # the model will be close to centered.
 
-    def __init__(self, scale, size, interp=None, centered=True, logger=None):
+    def __init__(self, scale, size, interp=None, centered=True, logger=None,
+                 degenerate=None, start_sigma=None):
+        # Note: Parameters degenerate and start_sigma are not used.
+        #       They are present only for backwards compatibility when reading old Piff
+        #       output files that specify these parameters.
+
         logger = galsim.config.LoggerWrapper(logger)
         logger.debug("Building Pixel model with the following parameters:")
         logger.debug("scale = %s",scale)
