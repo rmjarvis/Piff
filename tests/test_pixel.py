@@ -84,7 +84,9 @@ def test_simplest():
     flux1 = star.fit.flux
 
     # It doesn't get any better after another iteration.
-    star = mod.fit(star)
+    # Also check a trivial convert_func that it does the same thing.
+    convert_func = lambda prof: prof
+    star = mod.fit(star, convert_func=convert_func)
     star = mod.reflux(star)
     print('Flux after fit 2:',star.fit.flux)
     np.testing.assert_almost_equal(star.fit.flux/influx, 1.0, decimal=3)

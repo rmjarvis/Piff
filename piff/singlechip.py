@@ -146,9 +146,6 @@ class SingleChipPSF(PSF):
         return self.psf_by_chip[chipnum].drawStar(star, copy_image=copy_image, center=center)
 
     def _getProfile(self, star):
-        if 'chipnum' not in star.data.properties:
-            raise '19'
-            raise ValueError("SingleChip requires the star to have a chipnum property")
         chipnum = star['chipnum']
         return self.psf_by_chip[chipnum]._getProfile(star)
 
