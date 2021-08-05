@@ -506,7 +506,8 @@ class PixelGrid(Model):
                 temp[origin[0], origin[1]+1] = -np.sum(u*temp)
 
             # Now the center from the total flux == 1
-            temp[origin] = 1. - np.sum(temp)
+            # Note: This uses the old scheme of sb normalization, not flux normalization.
+            temp[origin] = 1./self.pixel_area - np.sum(temp)
 
             star.fit.params = temp.flatten()
 
