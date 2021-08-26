@@ -871,7 +871,7 @@ def test_single_image():
 
     # Check image
     assert input.nimages == 1
-    image1, _, image_pos, _, _, _ = input.getRawImageData(0)
+    image1, _, image_pos, _, _, _, _ = input.getRawImageData(0)
     np.testing.assert_equal(image1.array, image.array)
 
     # Check catalog
