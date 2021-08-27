@@ -1,5 +1,4 @@
-ls
-1;2802;0cnumpy
+numpy
 scipy
 pyyaml
 treecorr>=4.0
