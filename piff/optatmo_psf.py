@@ -352,7 +352,7 @@ class OptAtmoPSF(PSF):
             if self.sfit_optimizer=='least_squares':
                 # fit the star
                 # old # sfit_kwargs = {'method':'trf','diff_step': 1.e-5,'verbose':1,'ftol':1e-13,'xtol':1e-13, 'gtol':1e-13, 'jac':'2-point'}
-                sfit_kwargs = {'method':'trf','verbose':1,'diff_step':1e-5,'ftol':1e-8,'xtol':1e-5, 'gtol':1e-8, 'jac':'2-point','x_scale':'jac'}  # Hardcoded now
+                sfit_kwargs = {'method':'trf','verbose':2,'diff_step':1e-5,'ftol':1e-8,'xtol':1e-5, 'gtol':1e-8, 'jac':'2-point','x_scale':'jac'}  # Hardcoded now
                 try:
                     sfit_result = least_squares(self._calc_sfit_residuals, sfit_params.getFloatingValues(), bounds=sfit_params.getFloatingBounds(), **sfit_kwargs,
                               args=(sfit_params, [data_star], self.model, logger, self.sfit_pixel_kwargs))
@@ -576,8 +576,8 @@ class OptAtmoPSF(PSF):
 
         # add Atmo parameters
         sfit_params.register('atmo_size',initvalue=init_size,bounds=[-0.25,0.25],initerror=0.01)
-        sfit_params.register('atmo_g1',initvalue=init_g1,bounds=[-1.00,1.00],initerror=0.005)
-        sfit_params.register('atmo_g2',initvalue=init_g2,bounds=[-1.00,1.00],initerror=0.005)
+        sfit_params.register('atmo_g1',initvalue=init_g1,bounds=[-0.707,0.707],initerror=0.005)  # dont allow g1**2+g2**2 > 1
+        sfit_params.register('atmo_g2',initvalue=init_g2,bounds=[-0.707,0.707],initerror=0.005)
         twopixel = 0.263*2.0    # need a range of 2 pixels to allow for Coma
         sfit_params.register('du',initvalue=init_du,bounds=[-twopixel,twopixel],initerror=0.005)
         sfit_params.register('dv',initvalue=init_dv,bounds=[-twopixel,twopixel],initerror=0.005)
