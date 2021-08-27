@@ -32,13 +32,15 @@ class Params(object):
         self.bounds = {}
         self.values = {}
         self.previousvalues = {}
+        self.errors = {}
 
-    def register(self,name,initvalue,bounds=None,floating=True):
+    def register(self,name,initvalue,initerror=0.0,bounds=None,floating=True):
         """
         Register parameter
 
         :param name:            Name of the parameter
         :param initvalue:       Initialization Value
+        :param initerror:       Initial Error
         :param bounds:          List with bounds, [lo,hi]
         :param floating:        True for floating, False for fixed
         """
@@ -51,6 +53,7 @@ class Params(object):
             self.bounds[name] = [-np.inf,np.inf]
         self.values[name] = initvalue
         self.previousvalues[name] = initvalue
+        self.errors[name] = initerror
 
     def fix(self,name):
         """
@@ -75,16 +78,19 @@ class Params(object):
         :param value:           Value
         """
         self.previousvalues[name] = self.values[name]
-        self.values[name] = value
+        if np.isnan(value):
+            self.values[name] = 0.0
+            print("Param %s wanted nan, set to 0 instead" % (name))
+        else:
+            self.values[name] = value
 
     def setValues(self,values):
         """ Store values of all parameters
 
-        :param values:          Array of values
+        :param values:          Array of values, in order
         """
         for i,name in enumerate(self.names):
-            self.previousvalues[name] = self.values[name]
-            self.values[name] = values[i]
+            self.setValue(name,values[i])
 
     def setFloatingValues(self,values):
         """ Store values of only floating parameters.
@@ -94,9 +100,24 @@ class Params(object):
         j = 0
         for name in self.names:
             if self.floating[name]:
-                self.previousvalues[name] = self.values[name]
-                self.values[name] = values[j]
+                self.setValue(name,values[j])
                 j = j + 1
+
+    def setBounds(self,name,bounds):
+        """ Set Bounds of parameters
+
+        :param name:          Name of parameter
+        :param bounds:        List of bounds
+        """
+        self.bounds[name] = bounds
+
+    def setErrors(self,errors):
+        """ Store errors of all parameters
+
+        :param errors:          Array of errors, in order
+        """
+        for i,name in enumerate(self.names):
+            self.errors[name] = errors[i]
 
     def get(self,name):
         """ Get value of parameter
@@ -104,6 +125,13 @@ class Params(object):
         :return value:          Parameter value
         """
         return self.values[name]
+
+    def getError(self,name):
+        """ Get error of parameter
+
+        :return error:          Parameter error
+        """
+        return self.errors[name]
 
     def getBounds(self,name):
         """ Get bounds of parameter
@@ -128,7 +156,7 @@ class Params(object):
         return values
 
     def getFloatingValues(self):
-        """ Get values of floating parameters
+        """ Get values of floating parameters, in order
 
         :return values:          Array of values
         """
@@ -152,6 +180,14 @@ class Params(object):
 
         bounds = (np.array(lo),np.array(hi))
         return bounds
+
+    def getErrors(self):
+        """ Get errors of all parameters
+
+        :return errors:          Array of errors
+        """
+        errors = np.array(list(self.errors.values()))
+        return errors
 
     def getChanges(self):
         """ Get dictionary with changed parameters

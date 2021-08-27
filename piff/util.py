@@ -349,7 +349,7 @@ def calculateSNR(image, weight):
     else:
         return (F - Npix) / np.sqrt(F)
 
-def calculate_moments(star, third_order=False, fourth_order=False, radial=False, errors=False, logger=None):
+def calculate_moments(star, kernel='Gaussian', third_order=False, fourth_order=False, radial=False, errors=False, logger=None):
     r"""Calculate a bunch of moments using HSM for the weight function.
 
     The flux, 1st, and 2nd order moments are always calculated:
@@ -401,6 +401,7 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
     For all of these, one can also have error estimates returned if ``errors`` is set to True.
 
     :param star:            Input star, with stamp, weight
+    :param kernel:          Type of kernel, Gaussian or VonKarman [default: Gaussian]
     :param third_order:     Return the 3rd order moments? [default: False]
     :param fourth_order:    Return the 4th order moments? [default: False]
     :param radial:          Return the higher order radial moments? [default: False]
@@ -419,15 +420,11 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
 
     # get vectors for data, weight and u, v
     data, weight, u, v = star.data.getDataVector(include_zero_weight=True)
+
     # also get the values for the HSM kernel, which is just the fitted hsm model
     # now use .hsm property of the star, to use its cache
     f, u0, v0, sigma_m, g1, g2, flag = star.hsm
     # flux, u0,v0 (centroid in sky coord), sigma_m (detM^1/4 in sky coord), g1,g2, flag
-
-    # convert g1,g2 to e1,e2
-    s = galsim.Shear(g1=g1, g2=g2)
-    e1 = s.e1
-    e2 = s.e2
 
     if flag:
         # just return -1's when HSM fails...
@@ -443,12 +440,24 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
             ret = ret + ret
         return ret
 
-    # build the HSM weight, writing into image
-    profile = galsim.Gaussian(sigma=sigma_m, flux=1.0).shear(e1=e1, e2=e2).shift(u0, v0)
+    # build the kernel proflie, either Gaussian as used by HSM or a VonKarman with matched sigma_m
+    if kernel=='Gaussian':
+        profile = galsim.Gaussian(sigma=sigma_m, flux=1.0).shear(g1=g1, g2=g2).shift(u0, v0)
+    elif kernel=='VonKarman':
+        # size=0.15/r0 is parametrized as "c0 + c1*x - c2*(x)**p2"
+        p = [0.08588,2.4908,4.0655e-07,-7.9446]  # see make_r0table_hsmkernel.ipynb
+        size = p[0] + p[1]*sigma_m - p[2]*(sigma_m)**p[3]
+        r0 = 0.15/size
+        kwargs = {'L0':10.0,'r0':r0}
+        profile = galsim.VonKarman(lam=782.1, **kwargs, flux=1.0).shear(g1=g1, g2=g2).shift(u0, v0)
+    else:
+        logger.error("Kernel type not Gaussian or VonKarman")
+
+    # draw kernel profile onto image
     image = galsim.Image(star.image.copy(), dtype=float)
     profile.drawImage(image, method='sb', center=star.image_pos)
 
-    # convert image into kernel
+    # convert image into the kernel array
     kernel = image.array.flatten()
 
     # Anywhere the data is masked, fill in with the hsm profile.
@@ -651,6 +660,8 @@ def get_moment_names(third_order=False, fourth_order=False, radial=False, errors
 
     # errors
     if errors:
+
+        # TODO: rename these _var instead of _err, since these are actually the variance...
 
         # 0th, 1st, 2nd order moments are always included
         names += ['Flux_err', 'du_err', 'dv_err', 'e0_err', 'e1_err', 'e2_err']
