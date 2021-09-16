@@ -371,7 +371,7 @@ class InputFiles(Input):
             if nimages < 1:
                 raise ValueError('input.nimages must be >= 1')
 
-        # Deal with dir here, since sometimes we need to have it already atteched for glob
+        # Deal with dir here, since sometimes we need to have it already attached for glob
         # to work.
         if 'dir' in config:
             dir = galsim.config.ParseValue(config, 'dir', base, str)[0]
@@ -1010,7 +1010,8 @@ class InputFiles(Input):
             props_dict = {}
             for col_name in props_cols:
                 if col_name not in cat.dtype.names:
-                    raise ValueError("Column in props_cols = %s is not a column in %s"%(col_name,cat_file_name))
+                    raise ValueError("Entry in props_cols = " +
+                                     "%s is not a column in %s"%(col_name,cat_file_name))
                 props_dict[col_name] = cat[col_name]
         else:
             props_dict = None

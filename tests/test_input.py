@@ -48,6 +48,16 @@ def setup():
     gain = np.mean(data['gain'])
     print('sky, gain = ',sky,gain)
     satur = 2000  # Exactly 1 star has a pixel > 2000, so pretend this is the saturation level.
+    
+    # Add two color columns to first catalog file
+    rng1 = np.random.default_rng(123)
+    rng2 = np.random.default_rng(234)
+    gr_color = rng1.uniform(0.,1.,100)
+    rz_color = rng2.uniform(0.,1.,100)
+    print('gr_color, rz_color = ', gr_color[:10], rz_color[:10])
+    with fitsio.FITS(cat_file_name, 'rw') as f:
+        f[1].insert_column('gr_color', gr_color)
+        f[1].insert_column('rz_color', rz_color)
 
     # Add some header values to the first one.
     # Also add some alternate weight and badpix maps to enable some edge-case tests
@@ -106,7 +116,7 @@ def test_basic():
     _, _, image_pos, _, _, _, _ = input.getRawImageData(0)
     assert len(image_pos) == 100
 
-    # Can omit the dir and just inlcude it in the file names
+    # Can omit the dir and just include it in the file names
     config = {
                 'image_file_name' : os.path.join(dir,image_file),
                 'cat_file_name': os.path.join(dir,cat_file)
@@ -447,6 +457,29 @@ def test_cols():
     _, _, image_pos, _, _, _, _ = input.getRawImageData(0)
     print('len = ',len(image_pos))
     assert len(image_pos) == 12
+    
+    # Check props_cols gets set for stars' props_dict correctly
+    cat_file_name = os.path.join('input', 'test_input_cat_00.fits')
+    data = fitsio.read(cat_file_name)
+    gr_color = data['gr_color']
+    rz_color = data['rz_color']
+    base_config = {
+                'dir' : 'input',
+                'image_file_name' : 'test_input_image_00.fits',
+                'cat_file_name' : 'test_input_cat_00.fits',
+             }
+    input = piff.InputFiles(dict(props_cols=['gr_color'], **base_config), logger=logger)
+    _, _, _, props_dict, _, _, _ = input.getRawImageData(0)
+    assert len(props_dict['gr_color']) == 100
+    np.testing.assert_array_equal(props_dict['gr_color'], gr_color)
+    input = piff.InputFiles(dict(props_cols=['gr_color', 'rz_color'], **base_config),
+                            logger=logger)
+    _, _, _, props_dict, _, _, _ = input.getRawImageData(0)
+    print(props_dict)
+    assert len(props_dict['gr_color']) == 100
+    assert len(props_dict['rz_color']) == 100
+    np.testing.assert_array_equal(props_dict['gr_color'], gr_color)
+    np.testing.assert_array_equal(props_dict['rz_color'], rz_color)
 
     # Check invalid column names
     base_config = {
@@ -470,6 +503,10 @@ def test_cols():
     input = piff.InputFiles(dict(gain_col='xx', **base_config))
     np.testing.assert_raises(ValueError, input.getRawImageData, 0)
     input = piff.InputFiles(dict(flag_col='xx', **base_config))
+    np.testing.assert_raises(ValueError, input.getRawImageData, 0)
+    input = piff.InputFiles(dict(props_cols='invalid_string', **base_config))
+    np.testing.assert_raises(ValueError, input.getRawImageData, 0)
+    input = piff.InputFiles(dict(props_cols=['gr_color','invalid_col'], **base_config))
     np.testing.assert_raises(ValueError, input.getRawImageData, 0)
 
     # skip_flag, use_flag need to be integers
