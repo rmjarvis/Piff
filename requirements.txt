@@ -3,6 +3,6 @@ scipy
 pyyaml
 treecorr>=4.0
 fitsio>=1.1.2
-matplotlib>=1.5.0
+matplotlib>=3.3.0
 galsim>=2.3
 treegp>=0.6
