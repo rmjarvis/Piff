@@ -380,8 +380,11 @@ class TwoDHistStats(Stats):
         newcmap.set_bad(color='g', alpha=0.75)
         newcmap.set_over(color='m', alpha=0.75)
         newcmap.set_under(color='c', alpha=0.75)
-
-        cm.register_cmap(cmap=newcmap)
+        with warnings.catch_warnings():
+            # I can't figure out how to tell matplot lib to "add this cmap if it's not
+            # already registered".  So just ignore the warning they started emitting here.
+            warnings.simplefilter("ignore")
+            cm.register_cmap(cmap=newcmap)
 
         return newcmap
 
