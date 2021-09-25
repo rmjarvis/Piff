@@ -579,21 +579,22 @@ class InputFiles(Input):
         # Update the wcs
         image.wcs = wcs
 
-        image_pos, sky, gain, satur, props_dict = InputFiles.readStarCatalog(
+        image_pos, satur, extra_props = InputFiles.readStarCatalog(
                 logger=logger, image=image, **cat_kwargs)
 
         if remove_signal_from_weight:
             # Subtract off the mean sky, since this isn't part of the "signal" we want to
             # remove from the weights.
-            if sky is None:
-                signal = image
+            if 'sky' in extra_props:
+                signal = image - np.mean(extra_props['sky'])
             else:
-                signal = image - np.mean(sky)
+                signal = image
             # For the gain, either all are None or all are values.
+            gain = extra_props['gain']
             if gain[0] is None:
                 # If None, then we want to estimate the gain from the weight image.
                 weight, g = InputFiles._removeSignalFromWeight(signal, weight)
-                gain = [g for _ in gain]
+                extra_props['gain'] = [g for _ in gain]
                 logger.warning("Empirically determined gain = %f",g)
             else:
                 # If given, use the mean gain when removing the signal.
@@ -602,7 +603,7 @@ class InputFiles(Input):
                 weight, _ = InputFiles._removeSignalFromWeight(signal, weight, gain=np.mean(gain))
             logger.info("Removed signal from weight image.")
 
-        return image, weight, image_pos, props_dict, sky, gain, satur
+        return image, weight, image_pos, satur, extra_props
 
     @staticmethod
     def _makeStarsFromImage(image_kwargs, cat_kwargs, wcs, chipnum,
@@ -612,7 +613,7 @@ class InputFiles(Input):
                             logger):
         """Make stars from a single input image
         """
-        image, wt, image_pos, props_dict, sky, gain, satur = InputFiles._getRawImageData(
+        image, wt, image_pos, satur, extra_props = InputFiles._getRawImageData(
                 image_kwargs, cat_kwargs, wcs, invert_weight, remove_signal_from_weight, logger)
         logger.info("Processing catalog %s with %d stars",chipnum,len(image_pos))
 
@@ -650,7 +651,6 @@ class InputFiles(Input):
             stamp = image[bounds].copy()
             wt_stamp = wt[bounds].copy()
             props = { 'chipnum' : chipnum,
-                      'gain' : gain[k],
                     }
 
             # if a star is totally masked, then don't add it!
@@ -677,19 +677,18 @@ class InputFiles(Input):
                     logger.warning("Skipping this star.")
                     continue
 
-            # Add this star's entry in each list of the props_dict dictionary
+            # Add this star's entry in each list of the extra_props dictionary
             # to the StarData properties dictionary
-            if props_dict is not None:
-                for key in props_dict:
-                    logger.debug("Assigning {} value = {}".format(key, props_dict[key][k]))
-                    props[key] = props_dict[key][k]
+            for key in extra_props:
+                logger.debug("Assigning {} value = {}".format(key, extra_props[key][k]))
+                props[key] = extra_props[key][k]
 
             # Subtract the sky
-            if sky is not None:
-                logger.debug("Subtracting off sky = %f", sky[k])
+            if 'sky' in props:
+                sky = props['sky']
+                logger.debug("Subtracting off sky = %f", sky)
                 logger.debug("Median pixel value = %f", np.median(stamp.array))
-                stamp -= sky[k]
-                props['sky'] = sky[k]
+                stamp -= sky
 
             # Check the snr and limit it if appropriate
             snr = calculateSNR(stamp, wt_stamp)
@@ -708,7 +707,7 @@ class InputFiles(Input):
             data = StarData(stamp, pos, weight=wt_stamp, pointing=pointing,
                             properties=props)
             star = Star(data, None)
-            g = gain[k]
+            g = props['gain']
             if g is not None:
                 logger.debug("Adding Poisson noise to weight map according to gain=%f",g)
                 star = star.addPoisson(gain=g)
@@ -903,7 +902,7 @@ class InputFiles(Input):
         :param stamp_size:      The stamp size being used for the star stamps.
         :param logger:          A logger object for logging debug info. [default: None]
 
-        :returns: lists image_pos, sky, gain, satur, dict props_dict
+        :returns: lists image_pos, satur, extra_props
         """
         import fitsio
 
@@ -1005,22 +1004,20 @@ class InputFiles(Input):
         logger.debug("After remove those that are off the image, len = %s",len(image_pos))
 
         # Make a dictionary of the star properties:
+        extra_props = {}
         if props_cols is not None:
             logger.debug('props_cols = %s'%props_cols)
-            props_dict = {}
             for col_name in props_cols:
                 if col_name not in cat.dtype.names:
                     raise ValueError("Entry in props_cols = " +
                                      "%s is not a column in %s"%(col_name,cat_file_name))
-                props_dict[col_name] = cat[col_name]
-        else:
-            props_dict = None
+                extra_props[col_name] = cat[col_name]
 
         # Make the list of sky values:
         if sky_col is not None:
             if sky_col not in cat.dtype.names:
                 raise ValueError("sky_col = %s is not a column in %s"%(sky_col,cat_file_name))
-            sky = cat[sky_col]
+            extra_props['sky'] = cat[sky_col]
         elif sky is not None:
             try:
                 sky = float(sky)
@@ -1031,9 +1028,7 @@ class InputFiles(Input):
                 if sky not in header:
                     raise KeyError("Key %s not found in FITS header"%sky)
                 sky = float(header[sky])
-            sky = np.array([sky]*len(cat), dtype=float)
-        else:
-            sky = None
+            extra_props['sky'] = np.array([sky]*len(cat), dtype=float)
 
         # Make the list of gain values:
         # TODO: SV and Y1 DES images have two gain values, GAINA, GAINB.  It would be nice if we
@@ -1042,7 +1037,7 @@ class InputFiles(Input):
         if gain_col is not None:
             if gain_col not in cat.dtype.names:
                 raise ValueError("gain_col = %s is not a column in %s"%(gain_col,cat_file_name))
-            gain = cat[gain_col]
+            extra_props['gain'] = cat[gain_col]
         elif gain is not None:
             try:
                 gain = float(gain)
@@ -1053,9 +1048,9 @@ class InputFiles(Input):
                 if gain not in header:
                     raise KeyError("Key %s not found in FITS header"%gain)
                 gain = float(header[gain])
-            gain = np.array([gain]*len(cat), dtype=float)
+            extra_props['gain'] = np.array([gain]*len(cat), dtype=float)
         else:
-            gain = [None] * len(cat)
+            extra_props['gain'] = [None] * len(cat)
 
         # Get the saturation level
         if satur is not None:
@@ -1071,7 +1066,7 @@ class InputFiles(Input):
                 satur = float(header[satur])
                 logger.debug("Using saturation from header: %s",satur)
 
-        return image_pos, sky, gain, satur, props_dict
+        return image_pos, satur, extra_props
 
     def setPointing(self, ra, dec, logger=None):
         """Set the pointing attribute based on the input ra, dec (given in the initializer)
