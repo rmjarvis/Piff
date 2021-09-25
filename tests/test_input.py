@@ -113,7 +113,7 @@ def test_basic():
              }
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 1
-    _, _, image_pos, _, _ = input.getRawImageData(0)
+    _, _, image_pos, _ = input.getRawImageData(0)
     assert len(image_pos) == 100
 
     # Can omit the dir and just include it in the file names
@@ -123,7 +123,7 @@ def test_basic():
              }
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 1
-    _, _, image_pos, _, _ = input.getRawImageData(0)
+    _, _, image_pos, _ = input.getRawImageData(0)
     assert len(image_pos) == 100
 
     # 3 images in a list
@@ -137,7 +137,7 @@ def test_basic():
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 3
     for i in range(3):
-        _, _, image_pos, _, _ = input.getRawImageData(i)
+        _, _, image_pos, _ = input.getRawImageData(i)
         assert len(image_pos) == 100
 
     # Again without dir.
@@ -150,7 +150,7 @@ def test_basic():
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 3
     for i in range(3):
-        _, _, image_pos, _, _ = input.getRawImageData(i)
+        _, _, image_pos, _ = input.getRawImageData(i)
         assert len(image_pos) == 100
 
     # 3 images using glob
@@ -164,7 +164,7 @@ def test_basic():
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 3
     for i in range(3):
-        _, _, image_pos, _, _ = input.getRawImageData(i)
+        _, _, image_pos, _ = input.getRawImageData(i)
         assert len(image_pos) == 100
 
     # Can limit the number of stars
@@ -172,7 +172,7 @@ def test_basic():
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 3
     for i in range(3):
-        _, _, image_pos, _, _ = input.getRawImageData(i)
+        _, _, image_pos, _ = input.getRawImageData(i)
         assert len(image_pos) == 37
 
     # Can limit stars differently on each chip
@@ -180,7 +180,7 @@ def test_basic():
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 3
     for i in range(3):
-        _, _, image_pos, _, _ = input.getRawImageData(i)
+        _, _, image_pos, _ = input.getRawImageData(i)
         if i == 0:
             assert len(image_pos) == 40
         elif i == 1:
@@ -291,7 +291,7 @@ def test_cols():
              }
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 1
-    _, _, image_pos, _, _ = input.getRawImageData(0)
+    _, _, image_pos, _ = input.getRawImageData(0)
     assert len(image_pos) == 100
 
     # Can do ra, dec instead of x, y
@@ -306,7 +306,7 @@ def test_cols():
              }
     input2 = piff.InputFiles(config, logger=logger)
     assert input2.nimages == 1
-    _, _, image_pos2, _, _ = input2.getRawImageData(0)
+    _, _, image_pos2, _ = input2.getRawImageData(0)
     print('input.image_pos = ',image_pos)
     print('input2.image_pos = ',image_pos2)
     assert len(image_pos2) == 100
@@ -333,7 +333,7 @@ def test_cols():
              }
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 1
-    _, _, image_pos, _, props = input.getRawImageData(0)
+    _, _, image_pos, props = input.getRawImageData(0)
     sky_list = props['sky']
     gain_list = props['gain']
     assert len(image_pos) == 100
@@ -352,7 +352,7 @@ def test_cols():
                 'gain' : gain,
              }
     input = piff.InputFiles(config, logger=logger)
-    _, _, image_pos, _, props = input.getRawImageData(0)
+    _, _, image_pos, props = input.getRawImageData(0)
     sky_list = props['sky']
     gain_list = props['gain']
     assert len(image_pos) == 100
@@ -374,7 +374,7 @@ def test_cols():
                 'gain' : 'GAIN_A',
              }
     input = piff.InputFiles(config, logger=logger)
-    _, _, image_pos, _, props = input.getRawImageData(0)
+    _, _, image_pos, props = input.getRawImageData(0)
     sky_list = props['sky']
     gain_list = props['gain']
     assert len(image_pos) == 100
@@ -394,7 +394,8 @@ def test_cols():
                 'satur' : 2000,
              }
     input = piff.InputFiles(config, logger=logger)
-    _, _, image_pos, satur, _ = input.getRawImageData(0)
+    _, _, image_pos, props = input.getRawImageData(0)
+    satur = props['satur'][0]
     assert satur == 2000
     assert len(image_pos) == 100
 
@@ -407,7 +408,8 @@ def test_cols():
                 'satur' : 'SATURAT',
              }
     input = piff.InputFiles(config, logger=logger)
-    _, _, image_pos, satur, _ = input.getRawImageData(0)
+    _, _, image_pos, props = input.getRawImageData(0)
+    satur = props['satur'][0]
     assert satur == 2000
     assert len(image_pos) == 100
 
@@ -420,7 +422,7 @@ def test_cols():
                 'skip_flag' : 4
              }
     input = piff.InputFiles(config, logger=logger)
-    _, _, image_pos, _, _ = input.getRawImageData(0)
+    _, _, image_pos, _ = input.getRawImageData(0)
     assert input.nimages == 1
     print('len = ',len(image_pos))
     assert len(image_pos) == 80
@@ -434,7 +436,7 @@ def test_cols():
                 'use_flag' : 1
              }
     input = piff.InputFiles(config, logger=logger)
-    _, _, image_pos, _, _ = input.getRawImageData(0)
+    _, _, image_pos, _ = input.getRawImageData(0)
     print('len = ',len(image_pos))
     assert len(image_pos) == 85
 
@@ -448,7 +450,7 @@ def test_cols():
                 'use_flag' : '$2**0',
              }
     input = piff.InputFiles(config, logger=logger)
-    _, _, image_pos, _, _ = input.getRawImageData(0)
+    _, _, image_pos, _ = input.getRawImageData(0)
     print('len = ',len(image_pos))
     assert len(image_pos) == 68
 
@@ -460,7 +462,7 @@ def test_cols():
                 'flag_col' : 'flag',
              }
     input = piff.InputFiles(config, logger=logger)
-    _, _, image_pos, _, _ = input.getRawImageData(0)
+    _, _, image_pos, _ = input.getRawImageData(0)
     print('len = ',len(image_pos))
     assert len(image_pos) == 12
     
@@ -475,12 +477,12 @@ def test_cols():
                 'cat_file_name' : 'test_input_cat_00.fits',
              }
     input = piff.InputFiles(dict(props_cols=['gr_color'], **base_config), logger=logger)
-    _, _, _, _, props_dict = input.getRawImageData(0)
+    _, _, _, props_dict = input.getRawImageData(0)
     assert len(props_dict['gr_color']) == 100
     np.testing.assert_array_equal(props_dict['gr_color'], gr_color)
     input = piff.InputFiles(dict(props_cols=['gr_color', 'rz_color'], **base_config),
                             logger=logger)
-    _, _, _, _, props_dict = input.getRawImageData(0)
+    _, _, _, props_dict = input.getRawImageData(0)
     print(props_dict)
     assert len(props_dict['gr_color']) == 100
     assert len(props_dict['rz_color']) == 100
@@ -572,7 +574,7 @@ def test_boolarray():
              }
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 1
-    _, _, image_pos, _, _ = input.getRawImageData(0)
+    _, _, image_pos, _ = input.getRawImageData(0)
     print('len = ',len(image_pos))
     assert len(image_pos) == 80
 
@@ -649,7 +651,7 @@ def test_weight():
              }
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 1
-    image, weight, image_pos, _, _ = input.getRawImageData(0)
+    image, weight, image_pos, _ = input.getRawImageData(0)
     assert len(image_pos) == 100
     assert image.array.shape == (1024, 1024)
     assert weight.array.shape == (1024, 1024)
@@ -667,7 +669,7 @@ def test_weight():
              }
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 1
-    image, weight, image_pos, _, extra_props = input.getRawImageData(0)
+    image, weight, image_pos, extra_props = input.getRawImageData(0)
     assert len(image_pos) == 100
     assert image.array.shape == (1024, 1024)
     assert weight.array.shape == (1024, 1024)
@@ -685,7 +687,7 @@ def test_weight():
              }
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 1
-    _, weight, _, _, _ = input.getRawImageData(0)
+    _, weight, _, _ = input.getRawImageData(0)
     assert weight.array.shape == (1024, 1024)
     np.testing.assert_almost_equal(weight.array, 32.**-1)
 
@@ -699,14 +701,14 @@ def test_weight():
              }
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 1
-    _, weight, _, _, _ = input.getRawImageData(0)
+    _, weight, _, _ = input.getRawImageData(0)
     assert weight.array.shape == (1024, 1024)
     np.testing.assert_almost_equal(weight.array, expected_noise**-1)
 
     config['badpix_hdu'] = 6
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 1
-    _, weight, _, _, _ = input.getRawImageData(0)
+    _, weight, _, _ = input.getRawImageData(0)
     assert weight.array.shape == (1024, 1024)
     np.testing.assert_almost_equal(weight.array, expected_noise**-1)
 
@@ -716,7 +718,7 @@ def test_weight():
     config['badpix_hdu'] = 7  # badpix > 0
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 1
-    _, weight, _, _, _ = input.getRawImageData(0)
+    _, weight, _, _ = input.getRawImageData(0)
     assert weight.array.shape == (1024, 1024)
     np.testing.assert_almost_equal(weight.array, 0.)
 
@@ -724,7 +726,7 @@ def test_weight():
     config['badpix_hdu'] = 2
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 1
-    _, weight, _, _, _ = input.getRawImageData(0)
+    _, weight, _, _ = input.getRawImageData(0)
     assert weight.array.shape == (1024, 1024)
     np.testing.assert_almost_equal(weight.array, 0.)
 
@@ -732,7 +734,7 @@ def test_weight():
     config['badpix_hdu'] = 9  # Odd cols are > 0
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 1
-    _, weight, _, _, _ = input.getRawImageData(0)
+    _, weight, _, _ = input.getRawImageData(0)
     assert weight.array.shape == (1024, 1024)
     np.testing.assert_almost_equal(weight.array, 0.)
 
@@ -740,7 +742,7 @@ def test_weight():
     config['weight_hdu'] = 4
     input = piff.InputFiles(config)
     with CaptureLog() as cl:
-        _, weight, _, _, _  = input.getRawImageData(0, logger=cl.logger)
+        _, weight, _, _  = input.getRawImageData(0, logger=cl.logger)
     assert 'Warning: weight map has invalid negative-valued pixels.' in cl.output
 
 
@@ -766,12 +768,12 @@ def test_lsst_weight():
              }
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 1
-    image, weight, image_pos, _, extra_props = input.getRawImageData(0)
+    image, weight, image_pos, props = input.getRawImageData(0)
     assert len(image_pos) == 100
     assert image.array.shape == (1024, 1024)
     assert weight.array.shape == (1024, 1024)
-    gain = extra_props['gain'][0]
-    sky = extra_props['sky'][0]
+    gain = props['gain'][0]
+    sky = props['sky'][0]
     read_noise = 10
     expected_noise = sky / gain + read_noise**2 / gain**2
     print('expected noise = ',expected_noise)
@@ -789,7 +791,7 @@ def test_lsst_weight():
              }
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 1
-    image, weight, image_pos, _, props  = input.getRawImageData(0)
+    image, weight, image_pos, props  = input.getRawImageData(0)
     np.testing.assert_allclose(props['gain'], gain, rtol=1.e-6)
     np.testing.assert_allclose(weight.array, expected_noise**-1, rtol=1.e-6)
 
@@ -805,7 +807,7 @@ def test_lsst_weight():
              }
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 1
-    image, weight, image_pos, _, props = input.getRawImageData(0)
+    image, weight, image_pos, props = input.getRawImageData(0)
     assert len(image_pos) == 100
     assert image.array.shape == (1024, 1024)
     assert weight.array.shape == (1024, 1024)
