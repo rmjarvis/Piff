@@ -30,13 +30,13 @@ jobs:
                       CXX: c++
 
                     - os: macos-latest
-                      py: 3.8
+                      py: 3.9
                       CC: cc
                       CXX: c++
 
                     # Check one with clang compiler
                     - os: ubuntu-latest
-                      py: 3.7
+                      py: 3.8
                       CC: clang
                       CXX: clang++
 
