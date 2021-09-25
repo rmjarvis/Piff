@@ -769,7 +769,7 @@ def test_lsst_weight():
     read_noise = 10
     expected_noise = sky / gain + read_noise**2 / gain**2
     print('expected noise = ',expected_noise)
-    print('var = ',weight.array**-1)
+    print('var = ',1./weight.array)
     np.testing.assert_allclose(weight.array, expected_noise**-1, rtol=1.e-6)
 
     # If the gain is not given, it can determine it automatically.
@@ -807,7 +807,7 @@ def test_lsst_weight():
     read_noise = 10
     expected_noise = read_noise**2 / gain**2
     print('expected noise = ',expected_noise)
-    print('var = ',weight.array**-1)
+    print('var = ',1./weight.array)
     np.testing.assert_allclose(weight.array, expected_noise**-1, rtol=1.e-5)
 
 
