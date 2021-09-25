@@ -579,7 +579,7 @@ class InputFiles(Input):
         # Update the wcs
         image.wcs = wcs
 
-        image_pos, satur, extra_props = InputFiles.readStarCatalog(
+        image_pos, extra_props = InputFiles.readStarCatalog(
                 logger=logger, image=image, **cat_kwargs)
 
         if remove_signal_from_weight:
@@ -603,7 +603,7 @@ class InputFiles(Input):
                 weight, _ = InputFiles._removeSignalFromWeight(signal, weight, gain=np.mean(gain))
             logger.info("Removed signal from weight image.")
 
-        return image, weight, image_pos, satur, extra_props
+        return image, weight, image_pos, extra_props
 
     @staticmethod
     def _makeStarsFromImage(image_kwargs, cat_kwargs, wcs, chipnum,
@@ -613,7 +613,7 @@ class InputFiles(Input):
                             logger):
         """Make stars from a single input image
         """
-        image, wt, image_pos, satur, extra_props = InputFiles._getRawImageData(
+        image, wt, image_pos, extra_props = InputFiles._getRawImageData(
                 image_kwargs, cat_kwargs, wcs, invert_weight, remove_signal_from_weight, logger)
         logger.info("Processing catalog %s with %d stars",chipnum,len(image_pos))
 
@@ -659,9 +659,15 @@ class InputFiles(Input):
                 logger.warning("Skipping this star.")
                 continue
 
+            # Add this star's entry in each list of the extra_props dictionary
+            # to the StarData properties dictionary
+            for key in extra_props:
+                logger.debug("Assigning {} value = {}".format(key, extra_props[key][k]))
+                props[key] = extra_props[key][k]
+
             # If any pixels are saturated, skip it.
             max_val = np.max(stamp.array)
-            if satur is not None and max_val > satur:
+            if max_val > props.get('satur', np.inf):
                 logger.warning("Star at position %f,%f has saturated pixels.", x, y)
                 logger.warning("Maximum value is %f.", max_val)
                 logger.warning("Skipping this star.")
@@ -676,12 +682,6 @@ class InputFiles(Input):
                     logger.warning("Star at position %f,%f has %i masked pixels, ", x, y, n_masked)
                     logger.warning("Skipping this star.")
                     continue
-
-            # Add this star's entry in each list of the extra_props dictionary
-            # to the StarData properties dictionary
-            for key in extra_props:
-                logger.debug("Assigning {} value = {}".format(key, extra_props[key][k]))
-                props[key] = extra_props[key][k]
 
             # Subtract the sky
             if 'sky' in props:
@@ -1065,8 +1065,9 @@ class InputFiles(Input):
                     raise KeyError("Key %s not found in FITS header"%satur)
                 satur = float(header[satur])
                 logger.debug("Using saturation from header: %s",satur)
+            extra_props['satur'] = np.array([satur]*len(cat), dtype=float)
 
-        return image_pos, satur, extra_props
+        return image_pos, extra_props
 
     def setPointing(self, ra, dec, logger=None):
         """Set the pointing attribute based on the input ra, dec (given in the initializer)
