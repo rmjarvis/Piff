@@ -466,7 +466,7 @@ def test_cols():
     print('len = ',len(image_pos))
     assert len(image_pos) == 12
     
-    # Check props_cols gets set for stars' props_dict correctly
+    # Check property_cols gets set for stars' props_dict correctly
     cat_file_name = os.path.join('input', 'test_input_cat_00.fits')
     data = fitsio.read(cat_file_name)
     gr_color = data['gr_color']
@@ -476,11 +476,11 @@ def test_cols():
                 'image_file_name' : 'test_input_image_00.fits',
                 'cat_file_name' : 'test_input_cat_00.fits',
              }
-    input = piff.InputFiles(dict(props_cols=['gr_color'], **base_config), logger=logger)
+    input = piff.InputFiles(dict(property_cols=['gr_color'], **base_config), logger=logger)
     _, _, _, props_dict = input.getRawImageData(0)
     assert len(props_dict['gr_color']) == 100
     np.testing.assert_array_equal(props_dict['gr_color'], gr_color)
-    input = piff.InputFiles(dict(props_cols=['gr_color', 'rz_color'], **base_config),
+    input = piff.InputFiles(dict(property_cols=['gr_color', 'rz_color'], **base_config),
                             logger=logger)
     _, _, _, props_dict = input.getRawImageData(0)
     print(props_dict)
@@ -512,9 +512,9 @@ def test_cols():
     np.testing.assert_raises(ValueError, input.getRawImageData, 0)
     input = piff.InputFiles(dict(flag_col='xx', **base_config))
     np.testing.assert_raises(ValueError, input.getRawImageData, 0)
-    input = piff.InputFiles(dict(props_cols='invalid_string', **base_config))
+    input = piff.InputFiles(dict(property_cols='invalid_string', **base_config))
     np.testing.assert_raises(ValueError, input.getRawImageData, 0)
-    input = piff.InputFiles(dict(props_cols=['gr_color','invalid_col'], **base_config))
+    input = piff.InputFiles(dict(property_cols=['gr_color','invalid_col'], **base_config))
     np.testing.assert_raises(ValueError, input.getRawImageData, 0)
 
     # skip_flag, use_flag need to be integers

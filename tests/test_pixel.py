@@ -1478,7 +1478,7 @@ def test_color():
                'cat_file_name': cat_file,
                'stamp_size': 32,
                'noise' : noise_sigma**2,
-               'props_cols' : ['color']
+               'property_cols' : ['color']
              }
     input = piff.InputFiles(config)
     assert input.image_file_name == [image_file]
