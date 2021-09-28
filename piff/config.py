@@ -16,8 +16,6 @@
 .. module:: config
 """
 
-from __future__ import print_function
-
 import yaml
 import os
 import galsim

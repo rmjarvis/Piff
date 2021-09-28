@@ -16,8 +16,6 @@
 .. module:: input
 """
 
-from __future__ import print_function
-from past.builtins import basestring
 import numpy as np
 import scipy
 import glob
@@ -93,8 +91,7 @@ class Input(object):
         else:
             logger.debug("Making star list from %d catalogs", self.nimages)
 
-        args = [(self.__class__,
-                 self.image_kwargs[k], self.cat_kwargs[k], self.wcs_list[k], self.chipnums[k])
+        args = [(self.image_kwargs[k], self.cat_kwargs[k], self.wcs_list[k], self.chipnums[k])
                 for k in range(self.nimages)]
         kwargs = dict(stamp_size=self.stamp_size, min_snr=self.min_snr, max_snr=self.max_snr,
                       pointing=self.pointing, use_partial=self.use_partial,
@@ -105,7 +102,7 @@ class Input(object):
                       max_edge_frac=self.max_edge_frac,
                       stamp_center_size=self.stamp_center_size)
 
-        all_stars = run_multi(call_makeStarsFromImage, self.nproc, raise_except=True,
+        all_stars = run_multi(self._makeStarsFromImage, self.nproc, raise_except=True,
                               args=args, logger=logger, kwargs=kwargs)
 
         # Apply the reserve separately on each ccd, so they each reserve 20% of their stars
@@ -385,7 +382,7 @@ class InputFiles(Input):
                 raise ValueError("image_file_name may not be an empty list")
             if dir is not None:
                 image_list = [os.path.join(dir, n) for n in image_list]
-        elif isinstance(config['image_file_name'], basestring):
+        elif isinstance(config['image_file_name'], str):
             image_file_name = config['image_file_name']
             if dir is not None:
                 image_file_name = os.path.join(dir, image_file_name)
@@ -422,7 +419,7 @@ class InputFiles(Input):
                 raise ValueError("cat_file_name may not be an empty list")
             if dir is not None:
                 cat_list = [os.path.join(dir, n) for n in cat_list]
-        elif isinstance(config['cat_file_name'], basestring):
+        elif isinstance(config['cat_file_name'], str):
             cat_file_name = config['cat_file_name']
             if dir is not None:
                 cat_file_name = os.path.join(dir, cat_file_name)
@@ -1148,7 +1145,3 @@ class InputFiles(Input):
             dec = header[dec]
             # Recurse to do further parsing.
             self.setPointing(ra, dec, logger)
-
-# Workaround for python 2.7, which can't directly call staticmethods in multiprocessing.
-def call_makeStarsFromImage(cls, *args, **kwargs):
-    return cls._makeStarsFromImage(*args, **kwargs)

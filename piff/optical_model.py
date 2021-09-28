@@ -17,8 +17,6 @@
 .. module:: optical_model
 """
 
-from __future__ import print_function
-
 import galsim
 import coord
 import fitsio
