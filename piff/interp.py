@@ -96,6 +96,12 @@ class Interp(object):
         """
         return np.array([ star.data['u'], star.data['v'] ])
 
+    @property
+    def property_names(self):
+        """List of properties used by this interpolant.
+        """
+        return ('u', 'v')
+
     def initialize(self, stars, logger=None):
         """Initialize both the interpolator to some state prefatory to any solve iterations and
         initialize the stars for use with this interpolator.
