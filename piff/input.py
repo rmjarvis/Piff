@@ -227,7 +227,8 @@ class InputFiles(Input):
                             Items with flag & skip_flag != 0 will be skipped.
             :use_flag:      The flag indicating which items to use. [default: None]
                             Items with flag & use_flag == 0 will be skipped.
-            :props_cols:    A list of column names of star properties (e.g. star colors). [default: None]
+            :property_cols: A list of column names of star properties (e.g. star colors).
+                            [default: None]
             :sky_col:       The name of a column with sky values. [default: None]
             :gain_col:      The name of a column with gain values. [default: None]
             :sky:           The sky level to subtract from the image values. [default: None]
@@ -307,7 +308,7 @@ class InputFiles(Input):
                 'dec_col' : str,
                 'ra_units' : str,
                 'dec_units' : str,
-                'props_cols' : list,
+                'property_cols' : list,
                 'sky_col' : str,
                 'gain_col' : str,
                 'flag_col' : str,
@@ -500,7 +501,7 @@ class InputFiles(Input):
             flag_col = params.get('flag_col', None)
             skip_flag = params.get('skip_flag', -1)
             use_flag = params.get('use_flag', None)
-            props_cols = params.get('props_cols', None)
+            property_cols = params.get('property_cols', None)
             sky_col = params.get('sky_col', None)
             gain_col = params.get('gain_col', None)
             sky = params.get('sky', None)
@@ -526,7 +527,7 @@ class InputFiles(Input):
                     'flag_col' : flag_col,
                     'skip_flag' : skip_flag,
                     'use_flag' : use_flag,
-                    'props_cols': props_cols,
+                    'property_cols': property_cols,
                     'sky_col' : sky_col,
                     'gain_col' : gain_col,
                     'sky' : sky,
@@ -867,7 +868,7 @@ class InputFiles(Input):
     @staticmethod
     def readStarCatalog(cat_file_name, cat_hdu, x_col, y_col,
                         ra_col, dec_col, ra_units, dec_units, image,
-                        flag_col, skip_flag, use_flag, props_cols, sky_col, gain_col,
+                        flag_col, skip_flag, use_flag, property_cols, sky_col, gain_col,
                         sky, gain, satur, nstars, image_file_name, stamp_size, logger):
         """Read in the star catalogs and return lists of positions for each star in each image.
 
@@ -885,7 +886,7 @@ class InputFiles(Input):
                                 Items with flag & skip_flag != 0 will be skipped.
         :param use_flag:        The flag indicating which items to use. [default: None]
                                 Items with flag & use_flag == 0 will be skipped.
-        :param props_cols:      A list of column names with star properties (e.g. star colors).
+        :param property_cols:   A list of column names with star properties (e.g. star colors).
         :param sky_col:         A column with sky (background) levels.
         :param gain_col:        A column with gain values.
         :param sky:             Either a float value for the sky to use for all objects or a str
@@ -1002,11 +1003,11 @@ class InputFiles(Input):
 
         # Make a dictionary of the star properties:
         extra_props = {}
-        if props_cols is not None:
-            logger.debug('props_cols = %s'%props_cols)
-            for col_name in props_cols:
+        if property_cols is not None:
+            logger.debug('property_cols = %s'%property_cols)
+            for col_name in property_cols:
                 if col_name not in cat.dtype.names:
-                    raise ValueError("Entry in props_cols = " +
+                    raise ValueError("Entry in property_cols = " +
                                      "%s is not a column in %s"%(col_name,cat_file_name))
                 extra_props[col_name] = cat[col_name]
 
