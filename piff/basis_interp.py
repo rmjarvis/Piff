@@ -372,10 +372,9 @@ class BasisPolynomial(BasisInterp):
             # Exception if we have any requests for negative orders
             raise ValueError('Negative polynomial order specified')
 
-        # TODO: Need to update the Interp write command to handle lists.
-        #       Or write a custom BasisPolynomial.write function.
         self.kwargs = {
             'order' : order,
+            'keys' : keys,
             'use_qr' : use_qr
         }
 

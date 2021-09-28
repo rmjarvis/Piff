@@ -1567,6 +1567,56 @@ def test_color():
     print(f'dT vs color: m = {m}, b = {b}')
     assert np.isclose(m, 0., atol=1)   # The noise in Tpsf here is still here as atol.
 
+    # Do the whole thing with the config parser
+    psf_file = os.path.join('output','pixel_color.piff')
+    config = {
+        'input' : {
+            'image_file_name' : image_file,
+            'cat_file_name' : cat_file,
+            'x_col' : 'x',
+            'y_col' : 'y',
+            'property_cols' : ['color'],
+            'noise' : noise_sigma**2,
+            'stamp_size' : 32,
+        },
+        'output' : {
+            'file_name' : psf_file
+        },
+        'psf' : {
+            'model' : {
+                'type' : 'PixelGrid',
+                'scale' : pixel_scale,
+                'size' : size,
+            },
+            'interp' : {
+                'type' : 'BasisPolynomial',
+                'order' : [2, 2, 1],
+                'keys': ['u', 'v', 'color'],
+            },
+        },
+    }
+    if __name__ == '__main__':
+        config['verbose'] = 2
+    else:
+        config['verbose'] = 0
+
+    print("Running piffify function")
+    piff.piffify(config)
+    psf = piff.read(psf_file)
+
+    for s in psf.stars:
+        orig_stamp = s.image
+        weight = s.weight
+        offset = s.center_to_offset(s.fit.center)
+        image = psf.draw(x=s['x'], y=s['y'], color=s['color'],
+                         stamp_size=32, flux=s.fit.flux, offset=offset)
+        resid = image - orig_stamp
+        chisq = np.sum(resid.array**2 * weight.array)
+        dof = np.sum(weight.array != 0)
+        print('color = ',s['color'],'chisq = ',chisq,'dof = ',dof)
+        assert chisq < dof * 1.5  # These chisq are even (a lot) smaller.  Not sure why...
+                                  # Anyway, I think the fit is working, just this test doesn't
+                                  # seem quite the right thing.
 
 if __name__ == '__main__':
     #import cProfile, pstats
