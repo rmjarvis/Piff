@@ -272,6 +272,11 @@ def test_single_image():
     assert psf.chisq_thresh == 0.2
     assert psf.max_iter == 10
 
+    # Error if input has no stars
+    with np.testing.assert_raises(RuntimeError):
+        psf.fit([], wcs, pointing, logger=logger)
+
+    # Do the fit
     psf.fit(orig_stars, wcs, pointing, logger=logger)
     test_star = psf.interp.interpolate(target)
     np.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=4)

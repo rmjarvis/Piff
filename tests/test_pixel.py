@@ -1543,6 +1543,13 @@ def test_color():
     # An error if color is not provided.
     with np.testing.assert_raises(TypeError):
         image = psf.draw(x=s['x'], y=s['y'], stamp_size=32, flux=s.fit.flux, offset=offset)
+    # Also error if extra or wrong color parameter
+    with np.testing.assert_raises(TypeError):
+        image = psf.draw(x=s['x'], y=s['y'], color_ri=s['color'],
+        stamp_size=32, flux=s.fit.flux, offset=offset)
+    with np.testing.assert_raises(TypeError):
+        image = psf.draw(x=s['x'], y=s['y'], color=s['color'], color_ri=0.5,
+        stamp_size=32, flux=s.fit.flux, offset=offset)
 
     m, b = np.polyfit(color_list, Tstar_list, deg=1)
     print(f'Tstar vs color: m = {m}, b = {b}')
