@@ -34,15 +34,12 @@ class SimplePSF(PSF):
     The model defines the functional form of the surface brightness profile, and the
     interpolator defines how the parameters of the model vary across the field of view.
     """
-    def __init__(self, model, interp, outliers=None, extra_interp_properties=None,
-                 chisq_thresh=0.1, max_iter=30):
+    def __init__(self, model, interp, outliers=None, chisq_thresh=0.1, max_iter=30):
         """
         :param model:       A Model instance used for modeling the surface brightness profile.
         :param interp:      An Interp instance used to interpolate across the field of view.
         :param outliers:    Optionally, an Outliers instance used to remove outliers.
                             [default: None]
-        :param extra_interp_properties: A list of any extra properties that will be used for
-                                        the interpolation in addition to (u,v). [default: None]
         :param chisq_thresh: Change in reduced chisq at which iteration will terminate.
                             [default: 0.1]
         :param max_iter:    Maximum number of iterations to try. [default: 30]
@@ -50,10 +47,6 @@ class SimplePSF(PSF):
         self.model = model
         self.interp = interp
         self.outliers = outliers
-        if extra_interp_properties is None:
-            self.extra_interp_properties = []
-        else:
-            self.extra_interp_properties = extra_interp_properties
         self.chisq_thresh = chisq_thresh
         self.max_iter = max_iter
         self.kwargs = {
@@ -70,6 +63,10 @@ class SimplePSF(PSF):
         self.last_delta_chisq = 0.
         self.dof = 0
         self.nremoved = 0
+
+    @property
+    def interp_property_names(self):
+        return self.interp.property_names
 
     @classmethod
     def parseKwargs(cls, config_psf, logger):

@@ -392,6 +392,12 @@ class BasisPolynomial(BasisInterp):
     def getProperties(self, star):
         return np.array([star.data[k] for k in self._keys], dtype=float)
 
+    @property
+    def property_names(self):
+        """List of properties used by this interpolant.
+        """
+        return self._keys
+
     def basis(self, star):
         """Return 1d array of polynomial basis values for this star
 

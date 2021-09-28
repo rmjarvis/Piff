@@ -111,10 +111,10 @@ class PSF(object):
             >>> image = psf.draw(chipnum=4, x=103.3, y=592.0, stamp_size=48)
 
         However, if the PSF interpolation used extra properties for the interpolation
-        (cf. psf.extra_interp_properties), you need to provide them as additional kwargs.
+        (cf. psf.interp_property_names), you need to provide them as additional kwargs.
 
-            >>> print(psf.extra_interp_properties)
-            ('ri_color',)
+            >>> print(psf.interp_property_names)
+            ('u','v','ri_color')
             >>> image = psf.draw(chipnum=4, x=103.3, y=592.0, ri_color=0.23, stamp_size=48)
 
         Normally, the image is constructed automatically based on stamp_size, in which case
@@ -240,8 +240,10 @@ class PSF(object):
                             when drawing the profile on an image.
         """
         logger = galsim.config.LoggerWrapper(logger)
+
         properties = {'chipnum' : chipnum}
-        for key in self.extra_interp_properties:
+        for key in self.interp_property_names:
+            if key in ['x','y','u','v']: continue
             if key not in kwargs:
                 raise TypeError("Extra interpolation property %r is required"%key)
             properties[key] = kwargs.pop(key)

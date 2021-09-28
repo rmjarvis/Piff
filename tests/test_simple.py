@@ -241,7 +241,7 @@ def test_single_image():
     assert psf.chisq_thresh == 0.1
     assert psf.max_iter == 30
     assert psf.outliers == None
-    assert psf.extra_interp_properties == []
+    assert psf.interp_property_names == ('u','v')
 
     # Now test running it via the config parser
     psf_file = os.path.join('output','simple_psf.fits')
@@ -586,68 +586,6 @@ def test_psf():
     filename = os.path.join('input','D00240560_r_c01_r2362p01_piff.fits')
     with mock.patch('piff.util.get_all_subclasses', return_value=[piff.SingleChipPSF]):
         np.testing.assert_raises(ValueError, piff.PSF.read, filename)
-
-@timer
-def test_extra_interp():
-    # Test that specifying extra_interp_properties works properly
-    # TODO: This is a very bare bones test of the interface.  There is basically no test of
-    #       this functionality at all yet.  TBD!
-
-    sigma = 1.3
-    g1 = 0.23
-    g2 = -0.17
-    raw_prof = galsim.Gaussian(sigma=sigma).shear(g1=g1, g2=g2)
-    wcs = galsim.JacobianWCS(0.26, 0.05, -0.08, -0.29)
-    image = galsim.Image(64,64, wcs=wcs)
-    raw_prof.drawImage(image, method='no_pixel')
-
-    # use g-i color as an extra property for interpolation.
-    props = dict(gi_color=0.3)
-    print('props = ',props)
-    star = piff.Star(piff.StarData(image, image.true_center, properties=props), None)
-
-    model = piff.Gaussian(fastfit=True, include_pixel=False)
-    interp = piff.Mean()
-    psf = piff.SimplePSF(model, interp, extra_interp_properties=['gi_color'])
-    assert psf.extra_interp_properties == ['gi_color']
-
-    # Note: Mean doesn't actually do anything useful with the extra properties, so this
-    #       isn't really testing anything other than that the code doesn't completely break.
-    pointing = galsim.CelestialCoord(-5 * galsim.arcmin, -25 * galsim.degrees)
-    psf.fit([star], wcs={0 : wcs}, pointing=pointing)
-
-    # The profile in this case should be functionally the same as the raw psf
-    psf_prof, method = psf.get_profile(x=5, y=7, gi_color=0.3)
-    assert method == 'no_pixel'
-    print('psf_prof = ',psf_prof)
-    print('raw_prof = ',raw_prof)
-    print('psf_prof(2,3) = ',psf_prof.xValue(2,3))
-    print('raw_prof(2,3) = ',raw_prof.xValue(2,3))
-    print('psf_prof(-4,1.3) = ',psf_prof.xValue(-4,1.3))
-    print('raw_prof(-4,1.3) = ',raw_prof.xValue(-4,1.3))
-    assert np.isclose(psf_prof.xValue(2,3), raw_prof.xValue(2,3))
-    assert np.isclose(psf_prof.xValue(-4,1.3), raw_prof.xValue(-4,1.3))
-
-    # Not much of a check here.  Just check that it actually draws something with flux ~= 1
-    im = psf.draw(x=5, y=7, gi_color=0.3)
-    np.testing.assert_allclose(im.array.sum(), 1.0, rtol=1.e-3)
-
-    # Check missing or extra properties
-    with np.testing.assert_raises(TypeError):
-        psf.draw(x=5, y=7)
-    with np.testing.assert_raises(TypeError):
-        psf.draw(x=5, y=7, gi_color=0.3, ri_color=3)
-
-    # No stars raises an error.  (This can happen in practice if all stars are excluded on input.)
-    with np.testing.assert_raises(RuntimeError):
-        psf.fit([], wcs={0 : wcs}, pointing=pointing)
-
-    # Also for SingleChipPSf
-    psf2 = piff.SingleChipPSF(psf, extra_interp_properties=['gi_color'])
-    assert psf2.extra_interp_properties == ['gi_color']
-
-    with np.testing.assert_raises(TypeError):
-        psf2.draw(x=5, y=7, chipnum=0)
 
 @timer
 def test_load_images():

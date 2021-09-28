@@ -43,26 +43,24 @@ def single_chip_run(chipnum, single_psf, stars, wcs, pointing, convert_func, log
 class SingleChipPSF(PSF):
     """A PSF class that uses a separate PSF solution for each chip
     """
-    def __init__(self, single_psf, nproc=1, extra_interp_properties=None):
+    def __init__(self, single_psf, nproc=1):
         """
         :param single_psf:  A PSF instance to use for the PSF solution on each chip.
                             (This will be turned into nchips copies of the provided object.)
         :param nproc:       How many multiprocessing processes to use for running multiple
                             chips at once. [default: 1]
-        :param extra_interp_properties: A list of any extra properties that will be used for
-                                        the interpolation in addition to (u,v). [default: None]
         """
         self.single_psf = single_psf
         self.nproc = nproc
-        if extra_interp_properties is None:
-            self.extra_interp_properties = []
-        else:
-            self.extra_interp_properties = extra_interp_properties
 
         self.kwargs = {
             'single_psf': 0,
             'nproc' : nproc,
         }
+
+    @property
+    def interp_property_names(self):
+        return self.single_psf.interp_property_names
 
     @classmethod
     def parseKwargs(cls, config_psf, logger):
@@ -181,3 +179,4 @@ class SingleChipPSF(PSF):
         self.psf_by_chip = {}
         for chipnum in chipnums:
             self.psf_by_chip[chipnum] = PSF._read(fits, extname + '_%s'%chipnum, logger)
+        self.single_psf = self.psf_by_chip[chipnums[0]]

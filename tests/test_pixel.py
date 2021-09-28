@@ -1508,7 +1508,7 @@ def test_color():
     size = 15
     mod = piff.PixelGrid(pixel_scale, size)
     interp = piff.BasisPolynomial(order=[2,2,1], keys=['u','v','color'])
-    psf = piff.SimplePSF(mod, interp, extra_interp_properties=('color',))
+    psf = piff.SimplePSF(mod, interp)
     psf.fit(orig_stars, {0:image1.wcs}, None, logger=logger)
 
     Tstar_list = []
