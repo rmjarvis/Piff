@@ -16,7 +16,6 @@
 .. module:: mean_interp
 """
 
-from __future__ import print_function
 import numpy as np
 
 from .interp import Interp

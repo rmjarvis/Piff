@@ -16,8 +16,6 @@
 .. module:: pixelmodel
 """
 
-from __future__ import print_function
-from past.builtins import basestring
 import numpy as np
 import galsim
 import scipy.linalg
@@ -71,7 +69,7 @@ class PixelGrid(Model):
         self.size = size
         self.pixel_area = self.scale*self.scale
         if interp is None: interp = Lanczos(3)
-        elif isinstance(interp, basestring): interp = eval(interp)
+        elif isinstance(interp, str): interp = eval(interp)
         self.interp = interp
         self._centered = centered
 

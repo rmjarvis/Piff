@@ -16,8 +16,6 @@
 .. module:: psf
 """
 
-from __future__ import print_function
-
 import numpy as np
 import fitsio
 import galsim
@@ -534,28 +532,24 @@ class PSF(object):
 
         wcs_str = [ base64.b64decode(s) for s in wcs_str ] # Convert back from b64 encoding
         # Convert back into wcs objects
-        if sys.version_info > (3,0):
-            try:
-                wcs_list = [ pickle.loads(s, encoding='bytes') for s in wcs_str ]
-            except Exception:
-                # If the file was written by py2, the bytes encoding might raise here,
-                # or it might not until we try to use it.
-                wcs_list = [ pickle.loads(s, encoding='latin1') for s in wcs_str ]
-        else:
-            wcs_list = [ pickle.loads(s) for s in wcs_str ]
+        try:
+            wcs_list = [ pickle.loads(s, encoding='bytes') for s in wcs_str ]
+        except Exception:
+            # If the file was written by py2, the bytes encoding might raise here,
+            # or it might not until we try to use it.
+            wcs_list = [ pickle.loads(s, encoding='latin1') for s in wcs_str ]
 
         wcs = dict(zip(chipnums, wcs_list))
 
-        if sys.version_info > (3,0):
-            try:
-                # If this doesn't work, then the file was probably written by py2, not py3
-                repr(wcs)
-            except Exception:
-                logger.info('Failed to decode wcs with bytes encoding.')
-                logger.info('Retry with encoding="latin1" in case file written with python 2.')
-                wcs_list = [ pickle.loads(s, encoding='latin1') for s in wcs_str ]
-                wcs = dict(zip(chipnums, wcs_list))
-                repr(wcs)
+        try:
+            # If this doesn't work, then the file was probably written by py2, not py3
+            repr(wcs)
+        except Exception:
+            logger.info('Failed to decode wcs with bytes encoding.')
+            logger.info('Retry with encoding="latin1" in case file written with python 2.')
+            wcs_list = [ pickle.loads(s, encoding='latin1') for s in wcs_str ]
+            wcs = dict(zip(chipnums, wcs_list))
+            repr(wcs)
 
         # Work-around for a change in the GalSim API with 2.0
         # If the piff file was written with pre-2.0 GalSim, this fixes it.

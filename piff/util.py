@@ -16,7 +16,6 @@
 .. module:: util
 """
 
-from __future__ import print_function
 import numpy as np
 import os
 import sys
@@ -105,7 +104,7 @@ def adjust_value(value, dtype):
         # if no size or size == 0, then just use t as the type.
         return t(value)
     elif t == bytes:
-        # Py2.7 strings need to be encoded.
+        # bytes need to be encoded.
         return value.encode()
     else:
         try:
@@ -149,18 +148,6 @@ def read_kwargs(fits, extname):
     data = fits[extname].read()
     assert len(data) == 1
     kwargs = dict([ (col, data[col][0]) for col in cols ])
-    for key,value in kwargs.items():
-        # Convert any byte strings to a regular str
-        try:
-            value = str(value.decode())
-            kwargs[key] = value
-        except AttributeError:
-            # Also convert arrays of bytes into arrays of strings.
-            try:
-                value = np.array([str(v.decode()) for v in value])
-                kwargs[key] = value
-            except (AttributeError, TypeError):
-                pass
     return kwargs
 
 def estimate_cov_from_jac(jac):
@@ -193,11 +180,7 @@ def estimate_cov_from_jac(jac):
     return cov
 
 def _run_multi_helper(func, i, args, kwargs, log_level):
-    if sys.version_info < (3,0):
-        from io import BytesIO as StringIO
-    else:
-        from io import StringIO
-
+    from io import StringIO
     import logging
 
     # In multiprocessing, we cannot pass in the logger, so log to a string and then

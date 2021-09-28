@@ -16,8 +16,6 @@
 .. module:: interp_mean
 """
 
-from __future__ import print_function
-
 import galsim
 import numpy as np
 import warnings
