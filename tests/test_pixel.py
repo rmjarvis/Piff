@@ -1429,6 +1429,137 @@ def test_var():
     print('mean ratio = ',np.mean(star.fit.params_var/var))
     np.testing.assert_allclose(star.fit.params_var, var, rtol=0.2)
 
+@timer
+def test_color():
+    """Test having a color-dependent size.
+    """
+    pixel_scale = 0.3
+
+    image = galsim.ImageF(1024,1024, scale=pixel_scale)
+
+    # Draw stars in a grid so we know they don't overlap.
+    x_list = []
+    y_list = []
+    color_list = []
+    np_rng = np.random.RandomState(1234)
+    rng = galsim.UniformDeviate(1234)
+    for x in range(50,1000,100):
+        for y in range(50,1000,100):
+            # color is random between -1 and +1.
+            color = np_rng.uniform(-1,1)
+            # Add a +- 1 pixel offset to nominal position.
+            xcen = x + np_rng.uniform(-1,1)
+            ycen = y + np_rng.uniform(-1,1)
+            sigma = 1.0 + 0.1 * color
+            influx = 150.
+            star = galsim.Gaussian(sigma=sigma, flux=influx)
+            b = galsim.BoundsI(x-16,x+16,y-16,y+16)
+            star.drawImage(image=image[b], center=galsim.PositionD(xcen,ycen))
+            x_list.append(xcen)
+            y_list.append(ycen)
+            color_list.append(color)
+
+    noise_sigma = 0.1
+    image.addNoise(galsim.GaussianNoise(sigma=noise_sigma, rng=rng))
+
+    # Write out the image and catalog
+    image_file = os.path.join('output','pixel_color_image.fits')
+    image.write(image_file)
+    dtype = [ ('x','f8'), ('y','f8'), ('color','f8') ]
+    data = np.empty(len(x_list), dtype=dtype)
+    data['x'] = x_list
+    data['y'] = y_list
+    data['color'] = color_list
+    cat_file = os.path.join('output','pixel_color_cat.fits')
+    fitsio.write(cat_file, data, clobber=True)
+
+    # Use InputFiles to read these back in
+    config = { 'image_file_name': image_file,
+               'cat_file_name': cat_file,
+               'stamp_size': 32,
+               'noise' : noise_sigma**2,
+               'props_cols' : ['color']
+             }
+    input = piff.InputFiles(config)
+    assert input.image_file_name == [image_file]
+    assert input.cat_file_name == [cat_file]
+    assert input.nimages == 1
+    image1, _, image_pos, props = input.getRawImageData(0)
+    np.testing.assert_equal(image1.array, image.array)
+    assert len(image_pos) == len(x_list)
+    np.testing.assert_equal([pos.x for pos in image_pos], x_list)
+    np.testing.assert_equal([pos.y for pos in image_pos], y_list)
+    np.testing.assert_equal(props['color'], color_list)
+
+    # Make stars
+    orig_stars = input.makeStars()
+    assert len(orig_stars) == len(x_list)
+    assert orig_stars[0].image.array.shape == (32,32)
+
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(2)
+    else:
+        #logger = piff.config.setup_logger(3)
+        logger = None
+
+    psf_file = os.path.join('output','pixel_color.fits')
+
+    # 2nd order in u,v, 1st order in color
+    size = 15
+    mod = piff.PixelGrid(pixel_scale, size)
+    interp = piff.BasisPolynomial(order=[2,2,1], keys=['u','v','color'])
+    psf = piff.SimplePSF(mod, interp, extra_interp_properties=('color',))
+    psf.fit(orig_stars, {0:image1.wcs}, None, logger=logger)
+
+    Tstar_list = []
+    Tpsf_list = []
+    dT_list = []
+    for s in psf.stars:
+        fitted = psf.drawStar(s)
+        fit_stamp = fitted.image
+        orig_stamp = s.image
+        weight = s.weight
+        resid = fit_stamp - orig_stamp
+        chisq = np.sum(resid.array**2 * weight.array)
+        dof = np.sum(weight.array != 0)
+        print('color = ',s['color'],'chisq = ',chisq,'dof = ',dof)
+        assert chisq < dof * 1.5  # In fact, chisq < dof in all cases here.
+
+        # Check the convenience function that an end user would typically use
+        offset = s.center_to_offset(s.fit.center)
+        image = psf.draw(x=s['x'], y=s['y'], color=s['color'],
+                         stamp_size=32, flux=s.fit.flux, offset=offset)
+        # They may be up to 1 pixel off in either direction, so find the common bounds.
+        b = image.bounds & fit_stamp.bounds
+        np.testing.assert_allclose(image[b].array, fit_stamp[b].array, rtol=1.e-6, atol=1.e-4)
+
+        # Measure the size of star and psf
+        Tstar = orig_stamp.FindAdaptiveMom(weight=weight, strict=False).moments_sigma**2 * 2
+        Tpsf = fit_stamp.FindAdaptiveMom(weight=weight, strict=False).moments_sigma**2 * 2
+        Tstar_list.append(Tstar)
+        Tpsf_list.append(Tpsf)
+        dT_list.append(Tpsf - Tstar)
+
+    # An error if color is not provided.
+    with np.testing.assert_raises(TypeError):
+        image = psf.draw(x=s['x'], y=s['y'], stamp_size=32, flux=s.fit.flux, offset=offset)
+
+    m, b = np.polyfit(color_list, Tstar_list, deg=1)
+    print(f'Tstar vs color: m = {m}, b = {b}')
+    # Expected slope = 0.1  (explicit coefficient in sigma vs color)
+    #                  * 2  (because sigma**2)
+    #                  * 2  (because T = 2 * sigma**2)
+    #                  /0.3**2  (because T was measured in pixels, not arcsec)
+    #                = 4.45
+    # Check fits of size vs color
+    assert np.isclose(m, 4.45, rtol=0.01)  # This is very close
+    m, b = np.polyfit(color_list, Tpsf_list, deg=1)
+    print(f'Tpsf vs color: m = {m}, b = {b}')
+    assert np.isclose(m, 4.45, rtol=0.2)   # This has noise, so only approximate
+    m, b = np.polyfit(color_list, dT_list, deg=1)
+    print(f'dT vs color: m = {m}, b = {b}')
+    assert np.isclose(m, 0., atol=1)   # The noise in Tpsf here is still here as atol.
+
 
 if __name__ == '__main__':
     #import cProfile, pstats
@@ -1448,6 +1579,7 @@ if __name__ == '__main__':
     test_des_image()
     test_des2()
     test_var()
+    test_color()
     #pr.disable()
     #ps = pstats.Stats(pr).sort_stats('tottime')
     #ps.print_stats(20)
