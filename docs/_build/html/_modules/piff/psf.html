@@ -1,39 +1,41 @@
 
 
 <!DOCTYPE html>
-<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
-<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8">
+  <meta charset="utf-8" />
   
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <title>piff.psf &mdash; Piff 1.0.0 documentation</title>
+  <title>piff.psf &mdash; Piff 1.1.0 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+
+  
   
 
   
   
-  
+
   
 
   
-  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
   
     
       <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
         <script src="../../_static/jquery.js"></script>
         <script src="../../_static/underscore.js"></script>
         <script src="../../_static/doctools.js"></script>
-        <script src="../../_static/language_data.js"></script>
-        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <script type="text/javascript" src="../../_static/js/theme.js"></script>
 
     
-
-  
-  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
-  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" /> 
 </head>
@@ -59,7 +61,7 @@
             
             
               <div class="version">
-                1.0
+                1.1
               </div>
             
           
@@ -76,6 +78,7 @@
           
         </div>
 
+        
         <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           
             
@@ -99,6 +102,7 @@
             
           
         </div>
+        
       </div>
     </nav>
 
@@ -133,11 +137,13 @@
 
 
 
+
+
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="wy-breadcrumbs">
     
-      <li><a href="../../index.html">Docs</a> &raquo;</li>
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
         
           <li><a href="../index.html">Module code</a> &raquo;</li>
         
@@ -174,8 +180,6 @@
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">.. module:: psf</span>
 <span class="sd">&quot;&quot;&quot;</span>
-
-<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">print_function</span>
 
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">fitsio</span>
@@ -270,10 +274,10 @@
 <span class="sd">            &gt;&gt;&gt; image = psf.draw(chipnum=4, x=103.3, y=592.0, stamp_size=48)</span>
 
 <span class="sd">        However, if the PSF interpolation used extra properties for the interpolation</span>
-<span class="sd">        (cf. psf.extra_interp_properties), you need to provide them as additional kwargs.</span>
+<span class="sd">        (cf. psf.interp_property_names), you need to provide them as additional kwargs.</span>
 
-<span class="sd">            &gt;&gt;&gt; print(psf.extra_interp_properties)</span>
-<span class="sd">            (&#39;ri_color&#39;,)</span>
+<span class="sd">            &gt;&gt;&gt; print(psf.interp_property_names)</span>
+<span class="sd">            (&#39;u&#39;,&#39;v&#39;,&#39;ri_color&#39;)</span>
 <span class="sd">            &gt;&gt;&gt; image = psf.draw(chipnum=4, x=103.3, y=592.0, ri_color=0.23, stamp_size=48)</span>
 
 <span class="sd">        Normally, the image is constructed automatically based on stamp_size, in which case</span>
@@ -327,35 +331,28 @@
 <span class="sd">        :returns:           A GalSim Image of the PSF</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">logger</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">LoggerWrapper</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
-        <span class="n">properties</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;chipnum&#39;</span> <span class="p">:</span> <span class="n">chipnum</span><span class="p">}</span>
-        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">extra_interp_properties</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Extra interpolation property </span><span class="si">%r</span><span class="s2"> is required&quot;</span><span class="o">%</span><span class="n">key</span><span class="p">)</span>
-            <span class="n">properties</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;draw got an unexpecte keyword argument </span><span class="si">%r</span><span class="s2">&quot;</span><span class="o">%</span><span class="nb">list</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">())[</span><span class="mi">0</span><span class="p">])</span>
 
-        <span class="n">image_pos</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">PositionD</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">)</span>
-        <span class="n">world_pos</span> <span class="o">=</span> <span class="n">StarData</span><span class="o">.</span><span class="n">calculateFieldPos</span><span class="p">(</span><span class="n">image_pos</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">wcs</span><span class="p">[</span><span class="n">chipnum</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">pointing</span><span class="p">,</span>
-                                               <span class="n">properties</span><span class="p">)</span>
-        <span class="n">u</span><span class="p">,</span><span class="n">v</span> <span class="o">=</span> <span class="n">world_pos</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">world_pos</span><span class="o">.</span><span class="n">y</span>
+        <span class="n">prof</span><span class="p">,</span> <span class="n">method</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_profile</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">,</span><span class="n">chipnum</span><span class="o">=</span><span class="n">chipnum</span><span class="p">,</span> <span class="n">flux</span><span class="o">=</span><span class="n">flux</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
-        <span class="c1"># We always use the correct wcs above for world_pos, but in makeTarget, we allow the</span>
-        <span class="c1"># user&#39;s image.wcs to override.</span>
-        <span class="k">if</span> <span class="n">image</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">image</span><span class="o">.</span><span class="n">wcs</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">wcs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">wcs</span><span class="p">[</span><span class="n">chipnum</span><span class="p">]</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">wcs</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">wcs</span>
-
-        <span class="n">star</span> <span class="o">=</span> <span class="n">Star</span><span class="o">.</span><span class="n">makeTarget</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">,</span> <span class="n">u</span><span class="o">=</span><span class="n">u</span><span class="p">,</span> <span class="n">v</span><span class="o">=</span><span class="n">v</span><span class="p">,</span> <span class="n">wcs</span><span class="o">=</span><span class="n">wcs</span><span class="p">,</span> <span class="n">properties</span><span class="o">=</span><span class="n">properties</span><span class="p">,</span>
-                               <span class="n">stamp_size</span><span class="o">=</span><span class="n">stamp_size</span><span class="p">,</span> <span class="n">image</span><span class="o">=</span><span class="n">image</span><span class="p">,</span> <span class="n">pointing</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">pointing</span><span class="p">)</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Drawing star at (</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">) on chip </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">chipnum</span><span class="p">)</span>
+
+        <span class="c1"># Make the image if necessary</span>
+        <span class="k">if</span> <span class="n">image</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">image</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">Image</span><span class="p">(</span><span class="n">stamp_size</span><span class="p">,</span> <span class="n">stamp_size</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+            <span class="c1"># Make the center of the image (close to) the image_pos</span>
+            <span class="n">xcen</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">x</span> <span class="o">-</span> <span class="p">(</span><span class="mf">0.5</span> <span class="k">if</span> <span class="n">image</span><span class="o">.</span><span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">else</span> <span class="mi">0</span><span class="p">)))</span>
+            <span class="n">ycen</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">y</span> <span class="o">-</span> <span class="p">(</span><span class="mf">0.5</span> <span class="k">if</span> <span class="n">image</span><span class="o">.</span><span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">else</span> <span class="mi">0</span><span class="p">)))</span>
+            <span class="n">image</span><span class="o">.</span><span class="n">setCenter</span><span class="p">(</span><span class="n">xcen</span><span class="p">,</span> <span class="n">ycen</span><span class="p">)</span>
+
+        <span class="c1"># If no wcs is given, use the original wcs</span>
+        <span class="k">if</span> <span class="n">image</span><span class="o">.</span><span class="n">wcs</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">image</span><span class="o">.</span><span class="n">wcs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">wcs</span><span class="p">[</span><span class="n">chipnum</span><span class="p">]</span>
 
         <span class="c1"># Handle the input center</span>
         <span class="k">if</span> <span class="n">center</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">center</span> <span class="o">=</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
         <span class="k">elif</span> <span class="n">center</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
-            <span class="n">center</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">true_center</span>
+            <span class="n">center</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">true_center</span>
             <span class="n">center</span> <span class="o">=</span> <span class="p">(</span><span class="n">center</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">center</span><span class="o">.</span><span class="n">y</span><span class="p">)</span>
         <span class="k">elif</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">center</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Invalid center parameter: </span><span class="si">%r</span><span class="s2">. Must be tuple or None or True&quot;</span><span class="o">%</span><span class="p">(</span>
@@ -365,16 +362,74 @@
         <span class="k">if</span> <span class="n">offset</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">center</span> <span class="o">=</span> <span class="p">(</span><span class="n">center</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">offset</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">center</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">offset</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
 
-        <span class="c1"># Adjust the flux of the star.</span>
-        <span class="n">star</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">withFlux</span><span class="p">(</span><span class="n">flux</span><span class="p">)</span>
+        <span class="n">prof</span><span class="o">.</span><span class="n">drawImage</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="n">method</span><span class="p">,</span> <span class="n">center</span><span class="o">=</span><span class="n">center</span><span class="p">)</span>
 
-        <span class="c1"># if a user specifies an image, then we want to preserve that image, so</span>
-        <span class="c1"># copy_image = False. If a user doesn&#39;t specify an image, then it</span>
-        <span class="c1"># doesn&#39;t matter if we overwrite it, so use copy_image=False</span>
-        <span class="n">copy_image</span> <span class="o">=</span> <span class="kc">False</span>
-        <span class="c1"># Draw the star and return the image</span>
-        <span class="n">star</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">drawStar</span><span class="p">(</span><span class="n">star</span><span class="p">,</span> <span class="n">copy_image</span><span class="o">=</span><span class="n">copy_image</span><span class="p">,</span> <span class="n">center</span><span class="o">=</span><span class="n">center</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">image</span></div>
+        <span class="k">return</span> <span class="n">image</span></div>
+
+<div class="viewcode-block" id="PSF.get_profile"><a class="viewcode-back" href="../../psf.html#piff.PSF.get_profile">[docs]</a>    <span class="k">def</span> <span class="nf">get_profile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">chipnum</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">flux</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Get the PSF profile at the given position as a GalSim GSObject.</span>
+
+<span class="sd">        The normal usage would be to specify (chipnum, x, y), in which case Piff will use the</span>
+<span class="sd">        stored wcs information for that chip to interpolate to the given position and draw</span>
+<span class="sd">        an image of the PSF:</span>
+
+<span class="sd">            &gt;&gt;&gt; prof, method = psf.get_profile(chipnum=4, x=103.3, y=592.0)</span>
+
+<span class="sd">        The first return value, prof, is the GSObject describing the PSF profile.</span>
+<span class="sd">        The second one, method, is the method parameter that should be used when drawing the</span>
+<span class="sd">        profile using ``prof.drawImage(..., method=method)``.  This may be either &#39;no_pixel&#39;</span>
+<span class="sd">        or &#39;auto&#39; depending on whether the PSF model already includes the pixel response or not.</span>
+<span class="sd">        Some underlying models includ the pixel response, and some don&#39;t, so this difference needs</span>
+<span class="sd">        to be accounted for properly when drawing.  This method is also appropriate if you first</span>
+<span class="sd">        convolve the PSF by some other (e.g. galaxy) profile and then draw that.</span>
+
+<span class="sd">        If the PSF interpolation used extra properties for the interpolation (cf.</span>
+<span class="sd">        psf.extra_interp_properties), you need to provide them as additional kwargs.</span>
+
+<span class="sd">            &gt;&gt;&gt; print(psf.extra_interp_properties)</span>
+<span class="sd">            (&#39;ri_color&#39;,)</span>
+<span class="sd">            &gt;&gt;&gt; prof, method = psf.get_profile(chipnum=4, x=103.3, y=592.0, ri_color=0.23)</span>
+
+<span class="sd">        :param x:           The x position of the desired PSF in the original image coordinates.</span>
+<span class="sd">        :param y:           The y position of the desired PSF in the original image coordinates.</span>
+<span class="sd">        :param chipnum:     Which chip to use for WCS information. [default: 0, which is</span>
+<span class="sd">                            appropriate if only using a single chip]</span>
+<span class="sd">        :param flux:        Flux of PSF model [default: 1.0]</span>
+<span class="sd">        :param \**kwargs:   Any additional properties required for the interpolation.</span>
+
+<span class="sd">        :returns:           (profile, method)</span>
+<span class="sd">                            profile = A GalSim GSObject of the PSF</span>
+<span class="sd">                            method = either &#39;no_pixel&#39; or &#39;auto&#39; indicating which method to use</span>
+<span class="sd">                            when drawing the profile on an image.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">logger</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">LoggerWrapper</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
+
+        <span class="n">properties</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;chipnum&#39;</span> <span class="p">:</span> <span class="n">chipnum</span><span class="p">}</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">interp_property_names</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">,</span><span class="s1">&#39;y&#39;</span><span class="p">,</span><span class="s1">&#39;u&#39;</span><span class="p">,</span><span class="s1">&#39;v&#39;</span><span class="p">]:</span> <span class="k">continue</span>
+            <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Extra interpolation property </span><span class="si">%r</span><span class="s2"> is required&quot;</span><span class="o">%</span><span class="n">key</span><span class="p">)</span>
+            <span class="n">properties</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Unexpected keyword argument(s) </span><span class="si">%r</span><span class="s2">&quot;</span><span class="o">%</span><span class="nb">list</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">())[</span><span class="mi">0</span><span class="p">])</span>
+
+        <span class="n">image_pos</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">PositionD</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">)</span>
+        <span class="n">field_pos</span> <span class="o">=</span> <span class="n">StarData</span><span class="o">.</span><span class="n">calculateFieldPos</span><span class="p">(</span><span class="n">image_pos</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">wcs</span><span class="p">[</span><span class="n">chipnum</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">pointing</span><span class="p">,</span>
+                                               <span class="n">properties</span><span class="p">)</span>
+        <span class="n">u</span><span class="p">,</span><span class="n">v</span> <span class="o">=</span> <span class="n">field_pos</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">field_pos</span><span class="o">.</span><span class="n">y</span>
+
+        <span class="n">wcs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">wcs</span><span class="p">[</span><span class="n">chipnum</span><span class="p">]</span>
+
+        <span class="n">star</span> <span class="o">=</span> <span class="n">Star</span><span class="o">.</span><span class="n">makeTarget</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">,</span> <span class="n">u</span><span class="o">=</span><span class="n">u</span><span class="p">,</span> <span class="n">v</span><span class="o">=</span><span class="n">v</span><span class="p">,</span> <span class="n">wcs</span><span class="o">=</span><span class="n">wcs</span><span class="p">,</span> <span class="n">properties</span><span class="o">=</span><span class="n">properties</span><span class="p">,</span>
+                               <span class="n">pointing</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">pointing</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Getting PSF profile at (</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">) on chip </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">chipnum</span><span class="p">)</span>
+
+        <span class="c1"># Interpolate and adjust the flux of the star.</span>
+        <span class="n">star</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">interpolateStar</span><span class="p">(</span><span class="n">star</span><span class="p">)</span><span class="o">.</span><span class="n">withFlux</span><span class="p">(</span><span class="n">flux</span><span class="p">)</span>
+
+        <span class="c1"># The last step is implementd in the derived classes.</span>
+        <span class="n">prof</span><span class="p">,</span> <span class="n">method</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_getProfile</span><span class="p">(</span><span class="n">star</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">prof</span><span class="p">,</span> <span class="n">method</span></div>
 
 <div class="viewcode-block" id="PSF.interpolateStarList"><a class="viewcode-back" href="../../psf.html#piff.PSF.interpolateStarList">[docs]</a>    <span class="k">def</span> <span class="nf">interpolateStarList</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Update the stars to have the current interpolated fit parameters according to the</span>
@@ -458,6 +513,9 @@
         <span class="c1"># But they have to at least override this one and interpolateStar to implement</span>
         <span class="c1"># their actual PSF model.</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Derived classes must define the _drawStar function&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_getProfile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Derived classes must define the _getProfile function&quot;</span><span class="p">)</span>
 
 <div class="viewcode-block" id="PSF.write"><a class="viewcode-back" href="../../psf.html#piff.PSF.write">[docs]</a>    <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_name</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Write a PSF object to a file.</span>
@@ -633,34 +691,30 @@
         <span class="n">wcs_str</span> <span class="o">=</span> <span class="p">[</span> <span class="n">data</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">wcs_keys</span> <span class="p">]</span> <span class="c1"># Get all wcs_str columns</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="n">wcs_str</span> <span class="o">=</span> <span class="p">[</span> <span class="sa">b</span><span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">wcs_str</span><span class="p">)</span> <span class="p">]</span>  <span class="c1"># Rejoint into single string each</span>
-        <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span>
+        <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
             <span class="c1"># fitsio 1.0 returns strings</span>
             <span class="n">wcs_str</span> <span class="o">=</span> <span class="p">[</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">wcs_str</span><span class="p">)</span> <span class="p">]</span>  <span class="c1"># Rejoint into single string each</span>
 
         <span class="n">wcs_str</span> <span class="o">=</span> <span class="p">[</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64decode</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">wcs_str</span> <span class="p">]</span> <span class="c1"># Convert back from b64 encoding</span>
         <span class="c1"># Convert back into wcs objects</span>
-        <span class="k">if</span> <span class="n">sys</span><span class="o">.</span><span class="n">version_info</span> <span class="o">&gt;</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span><span class="mi">0</span><span class="p">):</span>
-            <span class="k">try</span><span class="p">:</span>
-                <span class="n">wcs_list</span> <span class="o">=</span> <span class="p">[</span> <span class="n">pickle</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s1">&#39;bytes&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">wcs_str</span> <span class="p">]</span>
-            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
-                <span class="c1"># If the file was written by py2, the bytes encoding might raise here,</span>
-                <span class="c1"># or it might not until we try to use it.</span>
-                <span class="n">wcs_list</span> <span class="o">=</span> <span class="p">[</span> <span class="n">pickle</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s1">&#39;latin1&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">wcs_str</span> <span class="p">]</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">wcs_list</span> <span class="o">=</span> <span class="p">[</span> <span class="n">pickle</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">wcs_str</span> <span class="p">]</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">wcs_list</span> <span class="o">=</span> <span class="p">[</span> <span class="n">pickle</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s1">&#39;bytes&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">wcs_str</span> <span class="p">]</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="c1"># If the file was written by py2, the bytes encoding might raise here,</span>
+            <span class="c1"># or it might not until we try to use it.</span>
+            <span class="n">wcs_list</span> <span class="o">=</span> <span class="p">[</span> <span class="n">pickle</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s1">&#39;latin1&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">wcs_str</span> <span class="p">]</span>
 
         <span class="n">wcs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">chipnums</span><span class="p">,</span> <span class="n">wcs_list</span><span class="p">))</span>
 
-        <span class="k">if</span> <span class="n">sys</span><span class="o">.</span><span class="n">version_info</span> <span class="o">&gt;</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span><span class="mi">0</span><span class="p">):</span>
-            <span class="k">try</span><span class="p">:</span>
-                <span class="c1"># If this doesn&#39;t work, then the file was probably written by py2, not py3</span>
-                <span class="nb">repr</span><span class="p">(</span><span class="n">wcs</span><span class="p">)</span>
-            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Failed to decode wcs with bytes encoding.&#39;</span><span class="p">)</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Retry with encoding=&quot;latin1&quot; in case file written with python 2.&#39;</span><span class="p">)</span>
-                <span class="n">wcs_list</span> <span class="o">=</span> <span class="p">[</span> <span class="n">pickle</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s1">&#39;latin1&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">wcs_str</span> <span class="p">]</span>
-                <span class="n">wcs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">chipnums</span><span class="p">,</span> <span class="n">wcs_list</span><span class="p">))</span>
-                <span class="nb">repr</span><span class="p">(</span><span class="n">wcs</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># If this doesn&#39;t work, then the file was probably written by py2, not py3</span>
+            <span class="nb">repr</span><span class="p">(</span><span class="n">wcs</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Failed to decode wcs with bytes encoding.&#39;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Retry with encoding=&quot;latin1&quot; in case file written with python 2.&#39;</span><span class="p">)</span>
+            <span class="n">wcs_list</span> <span class="o">=</span> <span class="p">[</span> <span class="n">pickle</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s1">&#39;latin1&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">wcs_str</span> <span class="p">]</span>
+            <span class="n">wcs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">chipnums</span><span class="p">,</span> <span class="n">wcs_list</span><span class="p">))</span>
+            <span class="nb">repr</span><span class="p">(</span><span class="n">wcs</span><span class="p">)</span>
 
         <span class="c1"># Work-around for a change in the GalSim API with 2.0</span>
         <span class="c1"># If the piff file was written with pre-2.0 GalSim, this fixes it.</span>
@@ -695,20 +749,25 @@
            
           </div>
           <footer>
-  
 
   <hr/>
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2019
+        &#169; Copyright 2019.
 
     </p>
   </div>
-  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
-
         </div>
       </div>
 
@@ -716,7 +775,6 @@
 
   </div>
   
-
 
   <script type="text/javascript">
       jQuery(function () {

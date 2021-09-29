@@ -1,40 +1,41 @@
 
 
-
 <!DOCTYPE html>
-<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
-<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8">
+  <meta charset="utf-8" />
   
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <title>Index &mdash; Piff 1.0.0 documentation</title>
+  <title>Index &mdash; Piff 1.1.0 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+
+  
   
 
   
   
-  
+
   
 
   
-  <script type="text/javascript" src="_static/js/modernizr.min.js"></script>
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
   
     
       <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
         <script src="_static/jquery.js"></script>
         <script src="_static/underscore.js"></script>
         <script src="_static/doctools.js"></script>
-        <script src="_static/language_data.js"></script>
-        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <script type="text/javascript" src="_static/js/theme.js"></script>
 
     
-
-  
-  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
-  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <link rel="index" title="Index" href="#" />
     <link rel="search" title="Search" href="search.html" /> 
 </head>
@@ -60,7 +61,7 @@
             
             
               <div class="version">
-                1.0
+                1.1
               </div>
             
           
@@ -77,6 +78,7 @@
           
         </div>
 
+        
         <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           
             
@@ -100,6 +102,7 @@
             
           
         </div>
+        
       </div>
     </nav>
 
@@ -134,18 +137,20 @@
 
 
 
+
+
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="wy-breadcrumbs">
     
-      <li><a href="index.html">Docs</a> &raquo;</li>
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
         
       <li>Index</li>
     
     
       <li class="wy-breadcrumbs-aside">
         
-            
+          
         
       </li>
     
@@ -296,6 +301,8 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="model.html#piff.Gaussian">Gaussian (class in piff)</a>
 </li>
+      <li><a href="psf.html#piff.PSF.get_profile">get_profile() (piff.PSF method)</a>
+</li>
       <li><a href="star.html#piff.StarData.getDataVector">getDataVector() (piff.StarData method)</a>
 </li>
       <li><a href="star.html#piff.StarData.getImage">getImage() (piff.StarData method)</a>
@@ -365,8 +372,6 @@
       <li><a href="input.html#piff.InputFiles">InputFiles (class in piff)</a>
 </li>
       <li><a href="interp.html#piff.Interp">Interp (class in piff)</a>
-</li>
-      <li><a href="model.html#piff.PixelGrid.interp_calculate">interp_calculate() (piff.PixelGrid method)</a>
 </li>
       <li><a href="interp.html#piff.BasisInterp.interpolate">interpolate() (piff.BasisInterp method)</a>
 
@@ -552,6 +557,16 @@
         <li><a href="stats.html#piff.Stats.process">(piff.Stats class method)</a>
 </li>
       </ul></li>
+      <li><a href="interp.html#piff.BasisPolynomial.property_names">property_names() (piff.BasisPolynomial property)</a>
+
+      <ul>
+        <li><a href="interp.html#piff.GPInterp.property_names">(piff.GPInterp property)</a>
+</li>
+        <li><a href="interp.html#piff.Interp.property_names">(piff.Interp property)</a>
+</li>
+        <li><a href="interp.html#piff.kNNInterp.property_names">(piff.kNNInterp property)</a>
+</li>
+      </ul></li>
       <li><a href="psf.html#piff.PSF">PSF (class in piff)</a>
 </li>
   </ul></td>
@@ -576,10 +591,10 @@
       </ul></li>
       <li><a href="piffify.html#piff.read_config">read_config() (in module piff)</a>
 </li>
-      <li><a href="star.html#piff.Star.read_coords_params">read_coords_params() (piff.Star class method)</a>
-</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="star.html#piff.Star.read_coords_params">read_coords_params() (piff.Star class method)</a>
+</li>
       <li><a href="input.html#piff.InputFiles.readImage">readImage() (piff.InputFiles static method)</a>
 </li>
       <li><a href="input.html#piff.InputFiles.readStarCatalog">readStarCatalog() (piff.InputFiles static method)</a>
@@ -587,11 +602,7 @@
       <li><a href="psf.html#piff.PSF.readWCS">readWCS() (piff.PSF class method)</a>
 </li>
       <li><a href="model.html#piff.Model.reflux">reflux() (piff.Model method)</a>
-
-      <ul>
-        <li><a href="model.html#piff.PixelGrid.reflux">(piff.PixelGrid method)</a>
 </li>
-      </ul></li>
       <li><a href="outliers.html#piff.ChisqOutliers.removeOutliers">removeOutliers() (piff.ChisqOutliers method)</a>
 </li>
       <li><a href="stats.html#piff.RhoStats">RhoStats (class in piff)</a>
@@ -691,20 +702,25 @@
            
           </div>
           <footer>
-  
 
   <hr/>
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2019
+        &#169; Copyright 2019.
 
     </p>
   </div>
-  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
-
         </div>
       </div>
 
@@ -712,7 +728,6 @@
 
   </div>
   
-
 
   <script type="text/javascript">
       jQuery(function () {

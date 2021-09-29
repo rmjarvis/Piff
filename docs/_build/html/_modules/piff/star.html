@@ -1,39 +1,41 @@
 
 
 <!DOCTYPE html>
-<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
-<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8">
+  <meta charset="utf-8" />
   
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <title>piff.star &mdash; Piff 1.0.0 documentation</title>
+  <title>piff.star &mdash; Piff 1.1.0 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+
+  
   
 
   
   
-  
+
   
 
   
-  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
   
     
       <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
         <script src="../../_static/jquery.js"></script>
         <script src="../../_static/underscore.js"></script>
         <script src="../../_static/doctools.js"></script>
-        <script src="../../_static/language_data.js"></script>
-        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <script type="text/javascript" src="../../_static/js/theme.js"></script>
 
     
-
-  
-  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
-  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" /> 
 </head>
@@ -59,7 +61,7 @@
             
             
               <div class="version">
-                1.0
+                1.1
               </div>
             
           
@@ -76,6 +78,7 @@
           
         </div>
 
+        
         <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           
             
@@ -99,6 +102,7 @@
             
           
         </div>
+        
       </div>
     </nav>
 
@@ -133,11 +137,13 @@
 
 
 
+
+
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="wy-breadcrumbs">
     
-      <li><a href="../../index.html">Docs</a> &raquo;</li>
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
         
           <li><a href="../index.html">Module code</a> &raquo;</li>
         
@@ -175,7 +181,6 @@
 <span class="sd">.. module:: stardata</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
-<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">print_function</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">copy</span>
 <span class="kn">import</span> <span class="nn">galsim</span>
@@ -796,6 +801,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">image_pos</span> <span class="o">=</span> <span class="n">image_pos</span>
         <span class="c1"># Make sure we have a local wcs in case the provided image is more complex.</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">local_wcs</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">wcs</span><span class="o">.</span><span class="n">local</span><span class="p">(</span><span class="n">image_pos</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pixel_area</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">local_wcs</span><span class="o">.</span><span class="n">pixelArea</span><span class="p">()</span>
 
         <span class="k">if</span> <span class="n">weight</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">weight</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">Image</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">bounds</span><span class="p">,</span> <span class="n">init_value</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">wcs</span><span class="o">=</span><span class="n">image</span><span class="o">.</span><span class="n">wcs</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
@@ -888,21 +894,17 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">image</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">weight</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">image_pos</span></div>
 
-<div class="viewcode-block" id="StarData.getDataVector"><a class="viewcode-back" href="../../star.html#piff.StarData.getDataVector">[docs]</a>    <span class="k">def</span> <span class="nf">getDataVector</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">include_zero_weight</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<div class="viewcode-block" id="StarData.getDataVector"><a class="viewcode-back" href="../../star.html#piff.StarData.getDataVector">[docs]</a>    <span class="k">def</span> <span class="nf">getDataVector</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Get the pixel data as a numpy array.</span>
 
 <span class="sd">        Also returns the weight values and the local u,v coordinates of the pixels.</span>
 <span class="sd">        Any pixels with zero weight (e.g. from masking in the original image) will not be</span>
 <span class="sd">        included in the returned arrays.</span>
 
-<span class="sd">        :param include_zero_weight: Should points with zero weight be included? [default: False]</span>
-
 <span class="sd">        :returns: data_vector, weight_vector, u_vector, v_vector</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">nx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">xmax</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">xmin</span> <span class="o">+</span> <span class="mi">1</span>
-        <span class="n">ny</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">ymax</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">ymin</span> <span class="o">+</span> <span class="mi">1</span>
-        <span class="c1"># Alternatively, this also works.  Just need to remember that numpy arrays use y,x indexing.</span>
-        <span class="c1">#ny, nx = self.image.array.shape</span>
+        <span class="c1"># Remember that numpy arrays use y,x indexing.</span>
+        <span class="n">ny</span><span class="p">,</span> <span class="n">nx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">array</span><span class="o">.</span><span class="n">shape</span>
 
         <span class="c1"># Image coordinates of pixels relative to nominal center</span>
         <span class="n">xvals</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">xmin</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">xmax</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
@@ -920,13 +922,7 @@
         <span class="n">v</span> <span class="o">=</span> <span class="n">v</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
         <span class="n">pix</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">array</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
         <span class="n">wt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">weight</span><span class="o">.</span><span class="n">array</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
-
-        <span class="c1"># Which pixels do we want to return?</span>
-        <span class="k">if</span> <span class="n">include_zero_weight</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">pix</span><span class="p">,</span> <span class="n">wt</span><span class="p">,</span> <span class="n">u</span><span class="p">,</span> <span class="n">v</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">mask</span> <span class="o">=</span> <span class="n">wt</span> <span class="o">!=</span> <span class="mf">0.</span>
-            <span class="k">return</span> <span class="n">pix</span><span class="p">[</span><span class="n">mask</span><span class="p">],</span> <span class="n">wt</span><span class="p">[</span><span class="n">mask</span><span class="p">],</span> <span class="n">u</span><span class="p">[</span><span class="n">mask</span><span class="p">],</span> <span class="n">v</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span></div>
+        <span class="k">return</span> <span class="n">pix</span><span class="p">,</span> <span class="n">wt</span><span class="p">,</span> <span class="n">u</span><span class="p">,</span> <span class="n">v</span></div>
 
 <div class="viewcode-block" id="StarData.addPoisson"><a class="viewcode-back" href="../../star.html#piff.StarData.addPoisson">[docs]</a>    <span class="k">def</span> <span class="nf">addPoisson</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">signal</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">gain</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Return new StarData with the weight values altered to reflect</span>
@@ -1064,20 +1060,25 @@
            
           </div>
           <footer>
-  
 
   <hr/>
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2019
+        &#169; Copyright 2019.
 
     </p>
   </div>
-  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
-
         </div>
       </div>
 
@@ -1085,7 +1086,6 @@
 
   </div>
   
-
 
   <script type="text/javascript">
       jQuery(function () {

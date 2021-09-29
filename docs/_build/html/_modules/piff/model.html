@@ -1,39 +1,41 @@
 
 
 <!DOCTYPE html>
-<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
-<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8">
+  <meta charset="utf-8" />
   
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <title>piff.model &mdash; Piff 1.0.0 documentation</title>
+  <title>piff.model &mdash; Piff 1.1.0 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+
+  
   
 
   
   
-  
+
   
 
   
-  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
   
     
       <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
         <script src="../../_static/jquery.js"></script>
         <script src="../../_static/underscore.js"></script>
         <script src="../../_static/doctools.js"></script>
-        <script src="../../_static/language_data.js"></script>
-        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <script type="text/javascript" src="../../_static/js/theme.js"></script>
 
     
-
-  
-  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
-  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" /> 
 </head>
@@ -59,7 +61,7 @@
             
             
               <div class="version">
-                1.0
+                1.1
               </div>
             
           
@@ -76,6 +78,7 @@
           
         </div>
 
+        
         <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           
             
@@ -99,6 +102,7 @@
             
           
         </div>
+        
       </div>
     </nav>
 
@@ -133,11 +137,13 @@
 
 
 
+
+
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="wy-breadcrumbs">
     
-      <li><a href="../../index.html">Docs</a> &raquo;</li>
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
         
           <li><a href="../index.html">Module code</a> &raquo;</li>
         
@@ -175,7 +181,6 @@
 <span class="sd">.. module:: model</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
-<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">print_function</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">galsim</span>
 
@@ -252,13 +257,16 @@
         <span class="c1"># parameter values in star.fit.</span>
         <span class="k">pass</span></div>
 
-<div class="viewcode-block" id="Model.fit"><a class="viewcode-back" href="../../model.html#piff.Model.fit">[docs]</a>    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">):</span>
+<div class="viewcode-block" id="Model.fit"><a class="viewcode-back" href="../../model.html#piff.Model.fit">[docs]</a>    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">convert_func</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Fit the Model to the star&#39;s data to yield iterative improvement on</span>
 <span class="sd">        its PSF parameters, their uncertainties, and flux (and center, if free).</span>
 <span class="sd">        The returned star.fit.alpha will be inverse covariance of solution if</span>
 <span class="sd">        it is estimated, else is None.</span>
 
-<span class="sd">        :param star:   A Star instance</span>
+<span class="sd">        :param star:            A Star instance</span>
+<span class="sd">        :param convert_func:    An optional function to apply to the profile being fit before</span>
+<span class="sd">                                drawing it onto the image.  This is used by composite PSFs to</span>
+<span class="sd">                                isolate the effect of just this model component. [default: None]</span>
 
 <span class="sd">        :returns:      New Star instance with updated fit information</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -288,32 +296,90 @@
         <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;    image center = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">image</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">center</span><span class="p">))</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;    weight center = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">weight</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">weight</span><span class="o">.</span><span class="n">center</span><span class="p">))</span>
 
-        <span class="n">image</span><span class="p">,</span> <span class="n">weight</span><span class="p">,</span> <span class="n">u</span><span class="p">,</span> <span class="n">v</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">getDataVector</span><span class="p">(</span><span class="n">include_zero_weight</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-        <span class="n">model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">draw</span><span class="p">(</span><span class="n">star</span><span class="p">)</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">array</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+        <span class="c1"># Make sure input is properly normalized</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">normalize</span><span class="p">(</span><span class="n">star</span><span class="p">)</span>
 
-        <span class="n">WIM</span> <span class="o">=</span> <span class="n">weight</span> <span class="o">*</span> <span class="n">image</span> <span class="o">*</span> <span class="n">model</span>
-        <span class="n">WMM</span> <span class="o">=</span> <span class="n">weight</span> <span class="o">*</span> <span class="n">model</span><span class="o">**</span><span class="mi">2</span>
+        <span class="n">data</span><span class="p">,</span> <span class="n">weight</span><span class="p">,</span> <span class="n">u</span><span class="p">,</span> <span class="n">v</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">getDataVector</span><span class="p">()</span>
+        <span class="n">psf_prof</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getProfile</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">params</span><span class="p">)</span>
+        <span class="n">star_prof</span> <span class="o">=</span> <span class="n">psf_prof</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">center</span><span class="p">)</span> <span class="o">*</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">flux</span>
 
-        <span class="n">f_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WIM</span><span class="p">)</span>
-        <span class="n">f_model</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WMM</span><span class="p">)</span>
+        <span class="n">model_image</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">star_prof</span><span class="o">.</span><span class="n">drawImage</span><span class="p">(</span><span class="n">model_image</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_method</span><span class="p">,</span> <span class="n">center</span><span class="o">=</span><span class="n">star</span><span class="o">.</span><span class="n">image_pos</span><span class="p">)</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">model_image</span><span class="o">.</span><span class="n">array</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span>
+
+        <span class="c1"># Weight by the current model to avoid being influenced by spurious pixels near the edge</span>
+        <span class="c1"># of the stamp.</span>
+        <span class="c1"># Also by the weight map to avoid bad pixels.</span>
+        <span class="n">W</span> <span class="o">=</span> <span class="n">weight</span> <span class="o">*</span> <span class="n">model</span>
+        <span class="n">WD</span> <span class="o">=</span> <span class="n">W</span> <span class="o">*</span> <span class="n">data</span>
+        <span class="n">WM</span> <span class="o">=</span> <span class="n">W</span> <span class="o">*</span> <span class="n">model</span>
+
+        <span class="n">f_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WD</span><span class="p">)</span>
+        <span class="n">f_model</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WM</span><span class="p">)</span> <span class="ow">or</span> <span class="mi">1</span>  <span class="c1"># Don&#39;t let f_model = 0</span>
         <span class="n">flux_ratio</span> <span class="o">=</span> <span class="n">f_data</span> <span class="o">/</span> <span class="n">f_model</span>
+        <span class="n">new_flux</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">flux</span> <span class="o">*</span> <span class="n">flux_ratio</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;    new flux = </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">new_flux</span><span class="p">)</span>
+
+        <span class="n">model</span> <span class="o">*=</span> <span class="n">flux_ratio</span>
+        <span class="n">resid</span> <span class="o">=</span> <span class="n">data</span> <span class="o">-</span> <span class="n">model</span>
 
         <span class="k">if</span> <span class="n">fit_center</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_centered</span><span class="p">:</span>
-            <span class="n">ushift</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WIM</span> <span class="o">*</span> <span class="n">u</span><span class="p">)</span><span class="o">/</span><span class="n">f_data</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WMM</span> <span class="o">*</span> <span class="n">u</span><span class="p">)</span><span class="o">/</span><span class="n">f_model</span>
-            <span class="n">vshift</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WIM</span> <span class="o">*</span> <span class="n">v</span><span class="p">)</span><span class="o">/</span><span class="n">f_data</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WMM</span> <span class="o">*</span> <span class="n">v</span><span class="p">)</span><span class="o">/</span><span class="n">f_model</span>
-            <span class="n">new_center</span> <span class="o">=</span> <span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">center</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">ushift</span><span class="p">,</span>
-                          <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">center</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">vshift</span><span class="p">)</span>
+            <span class="c1"># Use finite different to approximate d(model)/duc, d(model)/dvc</span>
+            <span class="n">duv</span> <span class="o">=</span> <span class="mf">1.e-5</span>
+            <span class="n">temp</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="n">center</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">center</span>
+            <span class="n">du_prof</span> <span class="o">=</span> <span class="n">psf_prof</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span><span class="n">center</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">duv</span><span class="p">,</span> <span class="n">center</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">*</span> <span class="n">new_flux</span>
+            <span class="n">du_prof</span><span class="o">.</span><span class="n">drawImage</span><span class="p">(</span><span class="n">temp</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_method</span><span class="p">,</span> <span class="n">center</span><span class="o">=</span><span class="n">star</span><span class="o">.</span><span class="n">image_pos</span><span class="p">)</span>
+            <span class="n">dmduc</span> <span class="o">=</span> <span class="p">(</span><span class="n">temp</span><span class="o">.</span><span class="n">array</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span> <span class="o">-</span> <span class="n">model</span><span class="p">)</span> <span class="o">/</span> <span class="n">duv</span>
+            <span class="n">dv_prof</span> <span class="o">=</span> <span class="n">psf_prof</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span><span class="n">center</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">center</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">duv</span><span class="p">)</span> <span class="o">*</span> <span class="n">new_flux</span>
+            <span class="n">dv_prof</span><span class="o">.</span><span class="n">drawImage</span><span class="p">(</span><span class="n">temp</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_method</span><span class="p">,</span> <span class="n">center</span><span class="o">=</span><span class="n">star</span><span class="o">.</span><span class="n">image_pos</span><span class="p">)</span>
+            <span class="n">dmdvc</span> <span class="o">=</span> <span class="p">(</span><span class="n">temp</span><span class="o">.</span><span class="n">array</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span> <span class="o">-</span> <span class="n">model</span><span class="p">)</span> <span class="o">/</span> <span class="n">duv</span>
+
+            <span class="c1"># Now construct the design matrix for this minimization</span>
+            <span class="c1">#</span>
+            <span class="c1">#    A x = b</span>
+            <span class="c1">#</span>
+            <span class="c1"># where x = [ duc, dvc ]^T and b = resid.</span>
+            <span class="c1">#</span>
+            <span class="c1"># A[0] = dmduc</span>
+            <span class="c1"># A[1] = dmdvc</span>
+            <span class="c1">#</span>
+            <span class="c1"># Solve: AT A x = AT b</span>
+
+            <span class="n">At</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">((</span><span class="n">dmduc</span><span class="p">,</span> <span class="n">dmdvc</span><span class="p">))</span>
+            <span class="n">Atw</span> <span class="o">=</span> <span class="n">At</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">W</span><span class="p">)</span>  <span class="c1"># weighted least squares</span>
+            <span class="n">AtA</span> <span class="o">=</span> <span class="n">Atw</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">At</span><span class="o">.</span><span class="n">T</span><span class="p">)</span>
+            <span class="n">Atb</span> <span class="o">=</span> <span class="n">Atw</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">resid</span><span class="p">)</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">AtA</span><span class="p">,</span> <span class="n">Atb</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;    centroid shift = </span><span class="si">%s</span><span class="s1">,</span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="n">duc</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">dvc</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model_can_be_offset</span><span class="p">:</span>
+                <span class="c1"># In addition to shifting to the best fit center location, also shift</span>
+                <span class="c1"># by the centroid of the model itself, so the next next pass through the</span>
+                <span class="c1"># fit will be closer to centered.  In practice, this converges pretty quickly.</span>
+                <span class="n">model_cenu</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WM</span> <span class="o">*</span> <span class="n">u</span><span class="p">)</span> <span class="o">/</span> <span class="n">f_model</span> <span class="o">-</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">center</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">model_cenv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WM</span> <span class="o">*</span> <span class="n">v</span><span class="p">)</span> <span class="o">/</span> <span class="n">f_model</span> <span class="o">-</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">center</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;    model centroid = </span><span class="si">%s</span><span class="s1">,</span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">model_cenu</span><span class="p">,</span> <span class="n">model_cenv</span><span class="p">)</span>
+                <span class="n">duc</span> <span class="o">+=</span> <span class="n">model_cenu</span>
+                <span class="n">dvc</span> <span class="o">+=</span> <span class="n">model_cenv</span>
+
+            <span class="n">new_center</span> <span class="o">=</span> <span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">center</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">duc</span><span class="p">,</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">center</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">dvc</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;    new center = </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">new_center</span><span class="p">)</span>
+
+            <span class="n">new_chisq</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="n">resid</span><span class="o">-</span><span class="n">At</span><span class="o">.</span><span class="n">T</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">x</span><span class="p">))</span><span class="o">**</span><span class="mi">2</span> <span class="o">*</span> <span class="n">weight</span><span class="p">)</span>
+            <span class="n">new_dof</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span><span class="n">weight</span><span class="p">)</span> <span class="o">-</span> <span class="mi">3</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">new_center</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">center</span>
+            <span class="n">new_chisq</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">resid</span><span class="o">**</span><span class="mi">2</span> <span class="o">*</span> <span class="n">weight</span><span class="p">)</span>
+            <span class="n">new_dof</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span><span class="n">weight</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
 
-        <span class="c1"># new_chisq ignores centroid shift, but close enough.</span>
-        <span class="n">new_chisq</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">weight</span> <span class="o">*</span> <span class="p">(</span><span class="n">image</span> <span class="o">-</span> <span class="n">flux_ratio</span><span class="o">*</span><span class="n">model</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
-        <span class="n">new_dof</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span><span class="n">weight</span><span class="p">)</span> <span class="o">-</span> <span class="mi">6</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;    new_chisq = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">new_chisq</span><span class="p">)</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;    new_dof = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">new_dof</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">Star</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">StarFit</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">params</span><span class="p">,</span>
-                                       <span class="n">flux</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">flux</span> <span class="o">*</span> <span class="n">flux_ratio</span><span class="p">,</span>
+                                       <span class="n">flux</span> <span class="o">=</span> <span class="n">new_flux</span><span class="p">,</span>
                                        <span class="n">center</span> <span class="o">=</span> <span class="n">new_center</span><span class="p">,</span>
                                        <span class="n">chisq</span> <span class="o">=</span> <span class="n">new_chisq</span><span class="p">,</span>
                                        <span class="n">dof</span> <span class="o">=</span> <span class="n">new_dof</span><span class="p">,</span>
@@ -432,20 +498,25 @@
            
           </div>
           <footer>
-  
 
   <hr/>
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2019
+        &#169; Copyright 2019.
 
     </p>
   </div>
-  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
-
         </div>
       </div>
 
@@ -453,7 +524,6 @@
 
   </div>
   
-
 
   <script type="text/javascript">
       jQuery(function () {

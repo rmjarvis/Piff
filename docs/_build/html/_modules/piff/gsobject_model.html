@@ -1,39 +1,41 @@
 
 
 <!DOCTYPE html>
-<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
-<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8">
+  <meta charset="utf-8" />
   
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <title>piff.gsobject_model &mdash; Piff 1.0.0 documentation</title>
+  <title>piff.gsobject_model &mdash; Piff 1.1.0 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+
+  
   
 
   
   
-  
+
   
 
   
-  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
   
     
       <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
         <script src="../../_static/jquery.js"></script>
         <script src="../../_static/underscore.js"></script>
         <script src="../../_static/doctools.js"></script>
-        <script src="../../_static/language_data.js"></script>
-        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <script type="text/javascript" src="../../_static/js/theme.js"></script>
 
     
-
-  
-  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
-  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" /> 
 </head>
@@ -59,7 +61,7 @@
             
             
               <div class="version">
-                1.0
+                1.1
               </div>
             
           
@@ -76,6 +78,7 @@
           
         </div>
 
+        
         <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           
             
@@ -99,6 +102,7 @@
             
           
         </div>
+        
       </div>
     </nav>
 
@@ -133,11 +137,13 @@
 
 
 
+
+
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="wy-breadcrumbs">
     
-      <li><a href="../../index.html">Docs</a> &raquo;</li>
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
         
           <li><a href="../index.html">Module code</a> &raquo;</li>
         
@@ -198,6 +204,8 @@
 <span class="sd">    :param scipy_kwargs: Optional kwargs to pass to scipy.optimize.least_squares [default: None]</span>
 <span class="sd">    :param logger:      A logger object for logging debug info. [default: None]</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">_model_can_be_offset</span> <span class="o">=</span> <span class="kc">False</span>
+
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gsobj</span><span class="p">,</span> <span class="n">fastfit</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">centered</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">include_pixel</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                  <span class="n">scipy_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">gsobj</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
@@ -299,13 +307,16 @@
             <span class="n">du</span><span class="p">,</span> <span class="n">dv</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="n">g1</span><span class="p">,</span> <span class="n">g2</span> <span class="o">=</span> <span class="n">params</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">gsobj</span><span class="o">.</span><span class="n">dilate</span><span class="p">(</span><span class="n">scale</span><span class="p">)</span><span class="o">.</span><span class="n">shear</span><span class="p">(</span><span class="n">g1</span><span class="o">=</span><span class="n">g1</span><span class="p">,</span> <span class="n">g2</span><span class="o">=</span><span class="n">g2</span><span class="p">)</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span><span class="n">du</span><span class="p">,</span> <span class="n">dv</span><span class="p">)</span></div>
 
-    <span class="k">def</span> <span class="nf">_resid</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">star</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_resid</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">convert_func</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Residual function to use with least_squares.</span>
 
 <span class="sd">        Essentially `chi` from `chisq`, but not summed over pixels yet.</span>
 
-<span class="sd">        :param params:      A numpy array of model parameters.</span>
-<span class="sd">        :param star:        A Star instance.</span>
+<span class="sd">        :param params:          A numpy array of model parameters.</span>
+<span class="sd">        :param star:            A Star instance.</span>
+<span class="sd">        :param convert_func:    An optional function to apply to the profile being fit before</span>
+<span class="sd">                                drawing it onto the image.  This is used by composite PSFs to</span>
+<span class="sd">                                isolate the effect of just this model component.</span>
 
 <span class="sd">        :returns: `chi` as a flattened numpy array.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -325,14 +336,16 @@
         <span class="n">jac</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">_Shear</span><span class="p">(</span><span class="n">g</span><span class="p">)</span><span class="o">.</span><span class="n">getMatrix</span><span class="p">()</span>
         <span class="n">jac</span><span class="p">[:,:]</span> <span class="o">*=</span> <span class="n">scale</span>
         <span class="n">flux</span> <span class="o">/=</span> <span class="n">scale</span><span class="o">**</span><span class="mi">2</span>
-        <span class="n">prof</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">_Transform</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gsobj</span><span class="p">,</span> <span class="n">jac</span><span class="o">.</span><span class="n">ravel</span><span class="p">(),</span> <span class="n">offset</span><span class="o">=</span><span class="n">galsim</span><span class="o">.</span><span class="n">PositionD</span><span class="p">(</span><span class="n">du</span><span class="p">,</span><span class="n">dv</span><span class="p">),</span>
-                                 <span class="n">flux_ratio</span><span class="o">=</span><span class="n">flux</span><span class="p">)</span>
+        <span class="n">prof</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">_Transform</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gsobj</span><span class="p">,</span> <span class="n">jac</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="p">(</span><span class="n">du</span><span class="p">,</span><span class="n">dv</span><span class="p">),</span> <span class="n">flux_ratio</span><span class="o">=</span><span class="n">flux</span><span class="p">)</span>
 
         <span class="c1"># Equivalent to galsim.Image(image, dtype=float), but without the sanity checks.</span>
         <span class="n">model_image</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">_Image</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">empty_like</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">array</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">),</span>
                                     <span class="n">image</span><span class="o">.</span><span class="n">bounds</span><span class="p">,</span> <span class="n">image</span><span class="o">.</span><span class="n">wcs</span><span class="p">)</span>
-        <span class="n">prof</span><span class="o">.</span><span class="n">drawImage</span><span class="p">(</span><span class="n">model_image</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_method</span><span class="p">,</span>
-                       <span class="n">offset</span><span class="o">=</span><span class="p">(</span><span class="n">image_pos</span> <span class="o">-</span> <span class="n">model_image</span><span class="o">.</span><span class="n">true_center</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="n">convert_func</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">prof</span> <span class="o">=</span> <span class="n">convert_func</span><span class="p">(</span><span class="n">prof</span><span class="p">)</span>
+
+        <span class="n">prof</span><span class="o">.</span><span class="n">drawImage</span><span class="p">(</span><span class="n">model_image</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_method</span><span class="p">,</span> <span class="n">center</span><span class="o">=</span><span class="n">image_pos</span><span class="p">)</span>
 
         <span class="c1"># Caculate sqrt(weight) * (model_image - image) in place for efficiency.</span>
         <span class="n">model_image</span><span class="o">.</span><span class="n">array</span><span class="p">[:,:]</span> <span class="o">-=</span> <span class="n">image</span><span class="o">.</span><span class="n">array</span>
@@ -360,11 +373,14 @@
 
         <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">flux</span><span class="p">,</span> <span class="n">du</span><span class="p">,</span> <span class="n">dv</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="n">g1</span><span class="p">,</span> <span class="n">g2</span><span class="p">])</span>
 
-<div class="viewcode-block" id="GSObjectModel.least_squares_fit"><a class="viewcode-back" href="../../model.html#piff.GSObjectModel.least_squares_fit">[docs]</a>    <span class="k">def</span> <span class="nf">least_squares_fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="GSObjectModel.least_squares_fit"><a class="viewcode-back" href="../../model.html#piff.GSObjectModel.least_squares_fit">[docs]</a>    <span class="k">def</span> <span class="nf">least_squares_fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">convert_func</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Fit parameters of the given star using least-squares minimization.</span>
 
-<span class="sd">        :param star:    A Star to fit.</span>
-<span class="sd">        :param logger:  A logger object for logging debug info. [default: None]</span>
+<span class="sd">        :param star:            A Star to fit.</span>
+<span class="sd">        :param logger:          A logger object for logging debug info. [default: None]</span>
+<span class="sd">        :param convert_func:    An optional function to apply to the profile being fit before</span>
+<span class="sd">                                drawing it onto the image.  This is used by composite PSFs to</span>
+<span class="sd">                                isolate the effect of just this model component. [default: None]</span>
 
 <span class="sd">        :returns: (flux, dx, dy, scale, g1, g2, flag)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -372,7 +388,7 @@
         <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Start least_squares&quot;</span><span class="p">)</span>
         <span class="n">params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_params</span><span class="p">(</span><span class="n">star</span><span class="p">)</span>
 
-        <span class="n">results</span> <span class="o">=</span> <span class="n">scipy</span><span class="o">.</span><span class="n">optimize</span><span class="o">.</span><span class="n">least_squares</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_resid</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">star</span><span class="p">,),</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="n">scipy</span><span class="o">.</span><span class="n">optimize</span><span class="o">.</span><span class="n">least_squares</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_resid</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">star</span><span class="p">,</span><span class="n">convert_func</span><span class="p">),</span>
                                                <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">_scipy_kwargs</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">logger</span><span class="p">:</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
@@ -384,7 +400,7 @@
 
         <span class="k">return</span> <span class="n">flux</span><span class="p">,</span> <span class="n">du</span><span class="p">,</span> <span class="n">dv</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="n">g1</span><span class="p">,</span> <span class="n">g2</span><span class="p">,</span> <span class="n">var</span></div>
 
-<div class="viewcode-block" id="GSObjectModel.fit"><a class="viewcode-back" href="../../model.html#piff.GSObjectModel.fit">[docs]</a>    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">fastfit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="GSObjectModel.fit"><a class="viewcode-back" href="../../model.html#piff.GSObjectModel.fit">[docs]</a>    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">fastfit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">convert_func</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Fit the image either using HSM or least-squares minimization.</span>
 
 <span class="sd">        If ``fastfit`` is True, then the galsim.hsm module will be used to estimate the</span>
@@ -393,20 +409,29 @@
 <span class="sd">        instead.  The latter should generally be more accurate, but slower due to the need to</span>
 <span class="sd">        iteratively propose model improvements.</span>
 
-<span class="sd">        :param star:    A Star to fit.</span>
-<span class="sd">        :param fastfit: Use fast HSM moments to fit? [default: None, which means use fitting mode</span>
-<span class="sd">                        specified in the constructor.]</span>
-<span class="sd">        :param logger:  A logger object for logging debug info. [default: None]</span>
+<span class="sd">        :param star:            A Star to fit.</span>
+<span class="sd">        :param fastfit:         Use fast HSM moments to fit? [default: None, which means use</span>
+<span class="sd">                                fitting mode specified in the constructor.]</span>
+<span class="sd">        :param logger:          A logger object for logging debug info. [default: None]</span>
+<span class="sd">        :param convert_func:    An optional function to apply to the profile being fit before</span>
+<span class="sd">                                drawing it onto the image.  This is used by composite PSFs to</span>
+<span class="sd">                                isolate the effect of just this model component. [default: None]</span>
 
 <span class="sd">        :returns: a new Star with the fitted parameters in star.fit</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">fastfit</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">fastfit</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fastfit</span>
+        <span class="k">if</span> <span class="n">convert_func</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Can&#39;t do the moments fit technique if fitting using moments.</span>
+            <span class="c1"># At least not as it is currently structured.  May be possible to convert if there</span>
+            <span class="c1"># is a need, but it seems hard.</span>
+            <span class="n">fastfit</span> <span class="o">=</span> <span class="kc">False</span>
 
         <span class="k">if</span> <span class="n">fastfit</span><span class="p">:</span>
             <span class="n">flux</span><span class="p">,</span> <span class="n">du</span><span class="p">,</span> <span class="n">dv</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="n">g1</span><span class="p">,</span> <span class="n">g2</span><span class="p">,</span> <span class="n">var</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">moment_fit</span><span class="p">(</span><span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">flux</span><span class="p">,</span> <span class="n">du</span><span class="p">,</span> <span class="n">dv</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="n">g1</span><span class="p">,</span> <span class="n">g2</span><span class="p">,</span> <span class="n">var</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">least_squares_fit</span><span class="p">(</span><span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
+            <span class="n">flux</span><span class="p">,</span> <span class="n">du</span><span class="p">,</span> <span class="n">dv</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="n">g1</span><span class="p">,</span> <span class="n">g2</span><span class="p">,</span> <span class="n">var</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">least_squares_fit</span><span class="p">(</span><span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">,</span>
+                                                                      <span class="n">convert_func</span><span class="o">=</span><span class="n">convert_func</span><span class="p">)</span>
 
         <span class="c1"># Make a StarFit object with these parameters</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_centered</span><span class="p">:</span>
@@ -421,12 +446,17 @@
         <span class="c1"># Also need to compute chisq</span>
         <span class="n">prof</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getProfile</span><span class="p">(</span><span class="n">params</span><span class="p">)</span> <span class="o">*</span> <span class="n">flux</span>
         <span class="n">model_image</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
-        <span class="n">prof</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span><span class="n">center</span><span class="p">)</span><span class="o">.</span><span class="n">drawImage</span><span class="p">(</span><span class="n">model_image</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_method</span><span class="p">,</span>
-                                     <span class="n">offset</span><span class="o">=</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">image_pos</span> <span class="o">-</span> <span class="n">model_image</span><span class="o">.</span><span class="n">true_center</span><span class="p">))</span>
+        <span class="n">prof</span> <span class="o">=</span> <span class="n">prof</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span><span class="n">center</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">convert_func</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">prof</span> <span class="o">=</span> <span class="n">convert_func</span><span class="p">(</span><span class="n">prof</span><span class="p">)</span>
+
+        <span class="n">prof</span><span class="o">.</span><span class="n">drawImage</span><span class="p">(</span><span class="n">model_image</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_method</span><span class="p">,</span> <span class="n">center</span><span class="o">=</span><span class="n">star</span><span class="o">.</span><span class="n">image_pos</span><span class="p">)</span>
         <span class="n">chisq</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">weight</span><span class="o">.</span><span class="n">array</span> <span class="o">*</span> <span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">array</span> <span class="o">-</span> <span class="n">model_image</span><span class="o">.</span><span class="n">array</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
-        <span class="c1"># number of parameters is always 6 for dof, even though we ignore 1 or 3 of them</span>
-        <span class="c1"># for the PSF model.</span>
-        <span class="n">dof</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">weight</span><span class="o">.</span><span class="n">array</span><span class="p">)</span> <span class="o">-</span> <span class="mi">6</span>
+        <span class="c1"># Don&#39;t subtract number of parameters from dof, since we&#39;ll be interpolating, so</span>
+        <span class="c1"># these parameters don&#39;t really apply to each star separately.</span>
+        <span class="c1"># After refluxing, we may drop this by 1 or 3 if adjusting flux and/or centroid.</span>
+        <span class="n">dof</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">weight</span><span class="o">.</span><span class="n">array</span><span class="p">)</span>
         <span class="n">fit</span> <span class="o">=</span> <span class="n">StarFit</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">params_var</span><span class="o">=</span><span class="n">params_var</span><span class="p">,</span> <span class="n">flux</span><span class="o">=</span><span class="n">flux</span><span class="p">,</span> <span class="n">center</span><span class="o">=</span><span class="n">center</span><span class="p">,</span> <span class="n">chisq</span><span class="o">=</span><span class="n">chisq</span><span class="p">,</span> <span class="n">dof</span><span class="o">=</span><span class="n">dof</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">Star</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">fit</span><span class="p">)</span></div>
 
@@ -527,20 +557,25 @@
            
           </div>
           <footer>
-  
 
   <hr/>
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2019
+        &#169; Copyright 2019.
 
     </p>
   </div>
-  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
-
         </div>
       </div>
 
@@ -548,7 +583,6 @@
 
   </div>
   
-
 
   <script type="text/javascript">
       jQuery(function () {

@@ -1,39 +1,41 @@
 
 
 <!DOCTYPE html>
-<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
-<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8">
+  <meta charset="utf-8" />
   
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <title>piff.singlechip &mdash; Piff 1.0.0 documentation</title>
+  <title>piff.singlechip &mdash; Piff 1.1.0 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+
+  
   
 
   
   
-  
+
   
 
   
-  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
   
     
       <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
         <script src="../../_static/jquery.js"></script>
         <script src="../../_static/underscore.js"></script>
         <script src="../../_static/doctools.js"></script>
-        <script src="../../_static/language_data.js"></script>
-        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <script type="text/javascript" src="../../_static/js/theme.js"></script>
 
     
-
-  
-  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
-  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" /> 
 </head>
@@ -59,7 +61,7 @@
             
             
               <div class="version">
-                1.0
+                1.1
               </div>
             
           
@@ -76,6 +78,7 @@
           
         </div>
 
+        
         <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           
             
@@ -99,6 +102,7 @@
             
           
         </div>
+        
       </div>
     </nav>
 
@@ -133,11 +137,13 @@
 
 
 
+
+
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="wy-breadcrumbs">
     
-      <li><a href="../../index.html">Docs</a> &raquo;</li>
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
         
           <li><a href="../index.html">Module code</a> &raquo;</li>
         
@@ -175,8 +181,6 @@
 <span class="sd">.. module:: psf</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
-<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">print_function</span>
-
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">copy</span>
 <span class="kn">import</span> <span class="nn">galsim</span>
@@ -185,7 +189,7 @@
 <span class="kn">from</span> <span class="nn">.util</span> <span class="kn">import</span> <span class="n">write_kwargs</span><span class="p">,</span> <span class="n">read_kwargs</span><span class="p">,</span> <span class="n">make_dtype</span><span class="p">,</span> <span class="n">adjust_value</span><span class="p">,</span> <span class="n">run_multi</span>
 
 <span class="c1"># Used by SingleChipPSF.fit</span>
-<span class="k">def</span> <span class="nf">single_chip_run</span><span class="p">(</span><span class="n">chipnum</span><span class="p">,</span> <span class="n">single_psf</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">wcs</span><span class="p">,</span> <span class="n">pointing</span><span class="p">,</span> <span class="n">logger</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">single_chip_run</span><span class="p">(</span><span class="n">chipnum</span><span class="p">,</span> <span class="n">single_psf</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">wcs</span><span class="p">,</span> <span class="n">pointing</span><span class="p">,</span> <span class="n">convert_func</span><span class="p">,</span> <span class="n">logger</span><span class="p">):</span>
     <span class="c1"># Make a copy of single_psf for each chip</span>
     <span class="n">psf_chip</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">single_psf</span><span class="p">)</span>
 
@@ -195,33 +199,31 @@
 
     <span class="c1"># Run the psf_chip fit function using this stars and wcs (and the same pointing)</span>
     <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Building solution for chip </span><span class="si">%s</span><span class="s2"> with </span><span class="si">%d</span><span class="s2"> stars&quot;</span><span class="p">,</span> <span class="n">chipnum</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">stars_chip</span><span class="p">))</span>
-    <span class="n">psf_chip</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">stars_chip</span><span class="p">,</span> <span class="n">wcs_chip</span><span class="p">,</span> <span class="n">pointing</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
+    <span class="n">psf_chip</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">stars_chip</span><span class="p">,</span> <span class="n">wcs_chip</span><span class="p">,</span> <span class="n">pointing</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">,</span> <span class="n">convert_func</span><span class="o">=</span><span class="n">convert_func</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="n">psf_chip</span>
 
 <div class="viewcode-block" id="SingleChipPSF"><a class="viewcode-back" href="../../psf.html#piff.SingleChipPSF">[docs]</a><span class="k">class</span> <span class="nc">SingleChipPSF</span><span class="p">(</span><span class="n">PSF</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;A PSF class that uses a separate PSF solution for each chip</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">single_psf</span><span class="p">,</span> <span class="n">nproc</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">extra_interp_properties</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">single_psf</span><span class="p">,</span> <span class="n">nproc</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        :param single_psf:  A PSF instance to use for the PSF solution on each chip.</span>
 <span class="sd">                            (This will be turned into nchips copies of the provided object.)</span>
 <span class="sd">        :param nproc:       How many multiprocessing processes to use for running multiple</span>
 <span class="sd">                            chips at once. [default: 1]</span>
-<span class="sd">        :param extra_interp_properties: A list of any extra properties that will be used for</span>
-<span class="sd">                                        the interpolation in addition to (u,v). [default: None]</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">single_psf</span> <span class="o">=</span> <span class="n">single_psf</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">nproc</span> <span class="o">=</span> <span class="n">nproc</span>
-        <span class="k">if</span> <span class="n">extra_interp_properties</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">extra_interp_properties</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">extra_interp_properties</span> <span class="o">=</span> <span class="n">extra_interp_properties</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span> <span class="o">=</span> <span class="p">{</span>
             <span class="s1">&#39;single_psf&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
             <span class="s1">&#39;nproc&#39;</span> <span class="p">:</span> <span class="n">nproc</span><span class="p">,</span>
         <span class="p">}</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">interp_property_names</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_psf</span><span class="o">.</span><span class="n">interp_property_names</span>
 
 <div class="viewcode-block" id="SingleChipPSF.parseKwargs"><a class="viewcode-back" href="../../psf.html#piff.SingleChipPSF.parseKwargs">[docs]</a>    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">parseKwargs</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">config_psf</span><span class="p">,</span> <span class="n">logger</span><span class="p">):</span>
@@ -247,7 +249,7 @@
 
         <span class="k">return</span> <span class="p">{</span> <span class="s1">&#39;single_psf&#39;</span> <span class="p">:</span> <span class="n">single_psf</span><span class="p">,</span> <span class="s1">&#39;nproc&#39;</span> <span class="p">:</span> <span class="n">nproc</span> <span class="p">}</span></div>
 
-<div class="viewcode-block" id="SingleChipPSF.fit"><a class="viewcode-back" href="../../psf.html#piff.SingleChipPSF.fit">[docs]</a>    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">wcs</span><span class="p">,</span> <span class="n">pointing</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="SingleChipPSF.fit"><a class="viewcode-back" href="../../psf.html#piff.SingleChipPSF.fit">[docs]</a>    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">wcs</span><span class="p">,</span> <span class="n">pointing</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">convert_func</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Fit interpolated PSF model to star data using standard sequence of operations.</span>
 
 <span class="sd">        :param stars:           A list of Star instances.</span>
@@ -255,6 +257,9 @@
 <span class="sd">        :param pointing:        A galsim.CelestialCoord object giving the telescope pointing.</span>
 <span class="sd">                                [Note: pointing should be None if the WCS is not a CelestialWCS]</span>
 <span class="sd">        :param logger:          A logger object for logging debug info. [default: None]</span>
+<span class="sd">        :param convert_func:    An optional function to apply to the profile being fit before</span>
+<span class="sd">                                drawing it onto the image.  This is used by composite PSFs to</span>
+<span class="sd">                                isolate the effect of just this model component. [default: None]</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">logger</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">LoggerWrapper</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">stars</span> <span class="o">=</span> <span class="n">stars</span>
@@ -263,7 +268,8 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">psf_by_chip</span> <span class="o">=</span> <span class="p">{}</span>
 
         <span class="n">chipnums</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">wcs</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
-        <span class="n">args</span> <span class="o">=</span> <span class="p">[(</span><span class="n">chipnum</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_psf</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">wcs</span><span class="p">,</span> <span class="n">pointing</span><span class="p">)</span> <span class="k">for</span> <span class="n">chipnum</span> <span class="ow">in</span> <span class="n">chipnums</span><span class="p">]</span>
+        <span class="n">args</span> <span class="o">=</span> <span class="p">[(</span><span class="n">chipnum</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_psf</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">wcs</span><span class="p">,</span> <span class="n">pointing</span><span class="p">,</span> <span class="n">convert_func</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">chipnum</span> <span class="ow">in</span> <span class="n">chipnums</span><span class="p">]</span>
 
         <span class="n">output</span> <span class="o">=</span> <span class="n">run_multi</span><span class="p">(</span><span class="n">single_chip_run</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">nproc</span><span class="p">,</span> <span class="n">raise_except</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
                            <span class="n">args</span><span class="o">=</span><span class="n">args</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
@@ -300,6 +306,10 @@
         <span class="n">chipnum</span> <span class="o">=</span> <span class="n">star</span><span class="p">[</span><span class="s1">&#39;chipnum&#39;</span><span class="p">]</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">psf_by_chip</span><span class="p">[</span><span class="n">chipnum</span><span class="p">]</span><span class="o">.</span><span class="n">drawStar</span><span class="p">(</span><span class="n">star</span><span class="p">,</span> <span class="n">copy_image</span><span class="o">=</span><span class="n">copy_image</span><span class="p">,</span> <span class="n">center</span><span class="o">=</span><span class="n">center</span><span class="p">)</span>
 
+    <span class="k">def</span> <span class="nf">_getProfile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">):</span>
+        <span class="n">chipnum</span> <span class="o">=</span> <span class="n">star</span><span class="p">[</span><span class="s1">&#39;chipnum&#39;</span><span class="p">]</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">psf_by_chip</span><span class="p">[</span><span class="n">chipnum</span><span class="p">]</span><span class="o">.</span><span class="n">_getProfile</span><span class="p">(</span><span class="n">star</span><span class="p">)</span>
+
     <span class="k">def</span> <span class="nf">_finish_write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">,</span> <span class="n">logger</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Finish the writing process with any class-specific steps.</span>
 
@@ -331,27 +341,33 @@
         <span class="n">chipnums</span> <span class="o">=</span> <span class="n">fits</span><span class="p">[</span><span class="n">extname</span> <span class="o">+</span> <span class="s1">&#39;_chipnums&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">read</span><span class="p">()[</span><span class="s1">&#39;chipnums&#39;</span><span class="p">]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">psf_by_chip</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="k">for</span> <span class="n">chipnum</span> <span class="ow">in</span> <span class="n">chipnums</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">psf_by_chip</span><span class="p">[</span><span class="n">chipnum</span><span class="p">]</span> <span class="o">=</span> <span class="n">PSF</span><span class="o">.</span><span class="n">_read</span><span class="p">(</span><span class="n">fits</span><span class="p">,</span> <span class="n">extname</span> <span class="o">+</span> <span class="s1">&#39;_</span><span class="si">%s</span><span class="s1">&#39;</span><span class="o">%</span><span class="n">chipnum</span><span class="p">,</span> <span class="n">logger</span><span class="p">)</span></div>
+            <span class="bp">self</span><span class="o">.</span><span class="n">psf_by_chip</span><span class="p">[</span><span class="n">chipnum</span><span class="p">]</span> <span class="o">=</span> <span class="n">PSF</span><span class="o">.</span><span class="n">_read</span><span class="p">(</span><span class="n">fits</span><span class="p">,</span> <span class="n">extname</span> <span class="o">+</span> <span class="s1">&#39;_</span><span class="si">%s</span><span class="s1">&#39;</span><span class="o">%</span><span class="n">chipnum</span><span class="p">,</span> <span class="n">logger</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">single_psf</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">psf_by_chip</span><span class="p">[</span><span class="n">chipnums</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span></div>
 </pre></div>
 
            </div>
            
           </div>
           <footer>
-  
 
   <hr/>
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2019
+        &#169; Copyright 2019.
 
     </p>
   </div>
-  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
-
         </div>
       </div>
 
@@ -359,7 +375,6 @@
 
   </div>
   
-
 
   <script type="text/javascript">
       jQuery(function () {

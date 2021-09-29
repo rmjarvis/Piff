@@ -26,7 +26,7 @@ The other parameters in each field correspond to the initialization kwargs for t
 
 For instance the following cofiguration file uses the :class:`PixelGrid` class for the model and
 the :class:`Polynomial` class for interpolation.  It uses the default
-:class:`InputFiles` and :class:`OutputFile` for I/O. and :class:`SimplePSF` for 
+:class:`InputFiles` and :class:`OutputFile` for I/O. and :class:`SimplePSF` for
 the PSF.::
 
     input:

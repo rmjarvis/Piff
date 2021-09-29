@@ -1,39 +1,41 @@
 
 
 <!DOCTYPE html>
-<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
-<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8">
+  <meta charset="utf-8" />
   
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <title>PSF classes &mdash; Piff 1.0.0 documentation</title>
+  <title>PSF classes &mdash; Piff 1.1.0 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+
+  
   
 
   
   
-  
+
   
 
   
-  <script type="text/javascript" src="_static/js/modernizr.min.js"></script>
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
   
     
       <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
         <script src="_static/jquery.js"></script>
         <script src="_static/underscore.js"></script>
         <script src="_static/doctools.js"></script>
-        <script src="_static/language_data.js"></script>
-        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <script type="text/javascript" src="_static/js/theme.js"></script>
 
     
-
-  
-  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
-  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="Removing Outliers" href="outliers.html" />
@@ -61,7 +63,7 @@
             
             
               <div class="version">
-                1.0
+                1.1
               </div>
             
           
@@ -78,6 +80,7 @@
           
         </div>
 
+        
         <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           
             
@@ -105,6 +108,7 @@
             
           
         </div>
+        
       </div>
     </nav>
 
@@ -139,18 +143,20 @@
 
 
 
+
+
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="wy-breadcrumbs">
     
-      <li><a href="index.html">Docs</a> &raquo;</li>
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
         
       <li>PSF classes</li>
     
     
       <li class="wy-breadcrumbs-aside">
         
-            
+          
             <a href="_sources/psf.rst.txt" rel="nofollow"> View page source</a>
           
         
@@ -169,9 +175,9 @@
 <p>The <a class="reference internal" href="#piff.PSF" title="piff.PSF"><code class="xref any py py-class docutils literal notranslate"><span class="pre">PSF</span></code></a> classes define the interaction between the models and the interpolants.  The
 simplest version <a class="reference internal" href="#piff.SimplePSF" title="piff.SimplePSF"><code class="xref any py py-class docutils literal notranslate"><span class="pre">SimplePSF</span></code></a> has one model and one interpolant, but it is possible to have
 more complicated combinations of these.</p>
-<dl class="class">
+<dl class="py class">
 <dt id="piff.PSF">
-<em class="property">class </em><code class="sig-prename descclassname">piff.</code><code class="sig-name descname">PSF</code><a class="reference internal" href="_modules/piff/psf.html#PSF"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.PSF" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">piff.</span></code><code class="sig-name descname"><span class="pre">PSF</span></code><a class="reference internal" href="_modules/piff/psf.html#PSF"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF" title="Permalink to this definition">¶</a></dt>
 <dd><p>The base class for describing a PSF model across a field of view.</p>
 <p>The usual way to create a PSF is through one of the two factory functions:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">psf</span> <span class="o">=</span> <span class="n">piff</span><span class="o">.</span><span class="n">PSF</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">logger</span><span class="p">)</span>
@@ -180,9 +186,9 @@ more complicated combinations of these.</p>
 </div>
 <p>The first is used to build a PSF model from the data according to a config dict.
 The second is used to read in a PSF model from disk.</p>
-<dl class="method">
+<dl class="py method">
 <dt id="piff.PSF.draw">
-<code class="sig-name descname">draw</code><span class="sig-paren">(</span><em class="sig-param">x</em>, <em class="sig-param">y</em>, <em class="sig-param">chipnum=0</em>, <em class="sig-param">flux=1.0</em>, <em class="sig-param">center=None</em>, <em class="sig-param">offset=None</em>, <em class="sig-param">stamp_size=48</em>, <em class="sig-param">image=None</em>, <em class="sig-param">logger=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.draw"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.PSF.draw" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">draw</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chipnum</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">flux</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">center</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">offset</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stamp_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">48</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">image</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.draw"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.draw" title="Permalink to this definition">¶</a></dt>
 <dd><p>Draws an image of the PSF at a given location.</p>
 <p>The normal usage would be to specify (chipnum, x, y), in which case Piff will use the
 stored wcs information for that chip to interpolate to the given position and draw
@@ -191,9 +197,9 @@ an image of the PSF:</p>
 </pre></div>
 </div>
 <p>However, if the PSF interpolation used extra properties for the interpolation
-(cf. psf.extra_interp_properties), you need to provide them as additional kwargs.</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">psf</span><span class="o">.</span><span class="n">extra_interp_properties</span><span class="p">)</span>
-<span class="go">(&#39;ri_color&#39;,)</span>
+(cf. psf.interp_property_names), you need to provide them as additional kwargs.</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">psf</span><span class="o">.</span><span class="n">interp_property_names</span><span class="p">)</span>
+<span class="go">(&#39;u&#39;,&#39;v&#39;,&#39;ri_color&#39;)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">image</span> <span class="o">=</span> <span class="n">psf</span><span class="o">.</span><span class="n">draw</span><span class="p">(</span><span class="n">chipnum</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="mf">103.3</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="mf">592.0</span><span class="p">,</span> <span class="n">ri_color</span><span class="o">=</span><span class="mf">0.23</span><span class="p">,</span> <span class="n">stamp_size</span><span class="o">=</span><span class="mi">48</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -254,9 +260,9 @@ center. [default: None]</p></li>
 </dl>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="piff.PSF.drawStar">
-<code class="sig-name descname">drawStar</code><span class="sig-paren">(</span><em class="sig-param">star</em>, <em class="sig-param">copy_image=True</em>, <em class="sig-param">center=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.drawStar"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.PSF.drawStar" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">drawStar</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">copy_image</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">center</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.drawStar"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.drawStar" title="Permalink to this definition">¶</a></dt>
 <dd><p>Generate PSF image for a given star.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
@@ -286,9 +292,9 @@ in the image. [default: None, which draws at the star’s location.]</p></li>
 </dl>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="piff.PSF.drawStarList">
-<code class="sig-name descname">drawStarList</code><span class="sig-paren">(</span><em class="sig-param">stars</em>, <em class="sig-param">copy_image=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.drawStarList"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.PSF.drawStarList" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">drawStarList</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">copy_image</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.drawStarList"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.drawStarList" title="Permalink to this definition">¶</a></dt>
 <dd><p>Generate PSF images for given stars. Takes advantage of
 interpolateList for significant speedup with some interpolators.</p>
 <div class="admonition note">
@@ -319,9 +325,53 @@ rendered PSF</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
+<dt id="piff.PSF.get_profile">
+<code class="sig-name descname"><span class="pre">get_profile</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chipnum</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">flux</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.get_profile"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.get_profile" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the PSF profile at the given position as a GalSim GSObject.</p>
+<p>The normal usage would be to specify (chipnum, x, y), in which case Piff will use the
+stored wcs information for that chip to interpolate to the given position and draw
+an image of the PSF:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">prof</span><span class="p">,</span> <span class="n">method</span> <span class="o">=</span> <span class="n">psf</span><span class="o">.</span><span class="n">get_profile</span><span class="p">(</span><span class="n">chipnum</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="mf">103.3</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="mf">592.0</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The first return value, prof, is the GSObject describing the PSF profile.
+The second one, method, is the method parameter that should be used when drawing the
+profile using <code class="docutils literal notranslate"><span class="pre">prof.drawImage(...,</span> <span class="pre">method=method)</span></code>.  This may be either ‘no_pixel’
+or ‘auto’ depending on whether the PSF model already includes the pixel response or not.
+Some underlying models includ the pixel response, and some don’t, so this difference needs
+to be accounted for properly when drawing.  This method is also appropriate if you first
+convolve the PSF by some other (e.g. galaxy) profile and then draw that.</p>
+<p>If the PSF interpolation used extra properties for the interpolation (cf.
+psf.extra_interp_properties), you need to provide them as additional kwargs.</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">psf</span><span class="o">.</span><span class="n">extra_interp_properties</span><span class="p">)</span>
+<span class="go">(&#39;ri_color&#39;,)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">prof</span><span class="p">,</span> <span class="n">method</span> <span class="o">=</span> <span class="n">psf</span><span class="o">.</span><span class="n">get_profile</span><span class="p">(</span><span class="n">chipnum</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="mf">103.3</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="mf">592.0</span><span class="p">,</span> <span class="n">ri_color</span><span class="o">=</span><span class="mf">0.23</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>x</strong> – The x position of the desired PSF in the original image coordinates.</p></li>
+<li><p><strong>y</strong> – The y position of the desired PSF in the original image coordinates.</p></li>
+<li><p><strong>chipnum</strong> – Which chip to use for WCS information. [default: 0, which is
+appropriate if only using a single chip]</p></li>
+<li><p><strong>flux</strong> – Flux of PSF model [default: 1.0]</p></li>
+<li><p><strong>**kwargs</strong> – Any additional properties required for the interpolation.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>(profile, method)
+profile = A GalSim GSObject of the PSF
+method = either ‘no_pixel’ or ‘auto’ indicating which method to use
+when drawing the profile on an image.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
 <dt id="piff.PSF.interpolateStar">
-<code class="sig-name descname">interpolateStar</code><span class="sig-paren">(</span><em class="sig-param">star</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.interpolateStar"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.PSF.interpolateStar" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">interpolateStar</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.interpolateStar"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.interpolateStar" title="Permalink to this definition">¶</a></dt>
 <dd><p>Update the star to have the current interpolated fit parameters according to the
 current PSF model.</p>
 <dl class="field-list simple">
@@ -334,9 +384,9 @@ current PSF model.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="piff.PSF.interpolateStarList">
-<code class="sig-name descname">interpolateStarList</code><span class="sig-paren">(</span><em class="sig-param">stars</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.interpolateStarList"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.PSF.interpolateStarList" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">interpolateStarList</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.interpolateStarList"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.interpolateStarList" title="Permalink to this definition">¶</a></dt>
 <dd><p>Update the stars to have the current interpolated fit parameters according to the
 current PSF model.</p>
 <dl class="field-list simple">
@@ -349,9 +399,9 @@ current PSF model.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="piff.PSF.parseKwargs">
-<em class="property">classmethod </em><code class="sig-name descname">parseKwargs</code><span class="sig-paren">(</span><em class="sig-param">config_psf</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.parseKwargs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.PSF.parseKwargs" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">classmethod</span> </em><code class="sig-name descname"><span class="pre">parseKwargs</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_psf</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.parseKwargs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.parseKwargs" title="Permalink to this definition">¶</a></dt>
 <dd><p>Parse the psf field of a configuration dict and return the kwargs to use for
 initializing an instance of the class.</p>
 <p>The base class implementation just returns the kwargs as they are, but derived classes
@@ -369,9 +419,9 @@ might want to override this if they need to do something more sophisticated with
 </dl>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="piff.PSF.process">
-<em class="property">classmethod </em><code class="sig-name descname">process</code><span class="sig-paren">(</span><em class="sig-param">config_psf</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.PSF.process" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">classmethod</span> </em><code class="sig-name descname"><span class="pre">process</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_psf</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.process"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.process" title="Permalink to this definition">¶</a></dt>
 <dd><p>Process the config dict and return a PSF instance.</p>
 <p>As the PSF class is an abstract base class, the returned type will in fact be some
 subclass of PSF according to the contents of the config dict.</p>
@@ -400,9 +450,9 @@ appropriate kwargs for building it.</p></li>
 </dl>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="piff.PSF.read">
-<em class="property">classmethod </em><code class="sig-name descname">read</code><span class="sig-paren">(</span><em class="sig-param">file_name</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.read"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.PSF.read" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">classmethod</span> </em><code class="sig-name descname"><span class="pre">read</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.read"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.read" title="Permalink to this definition">¶</a></dt>
 <dd><p>Read a PSF object from a file.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -417,9 +467,9 @@ appropriate kwargs for building it.</p></li>
 </dl>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="piff.PSF.readWCS">
-<em class="property">classmethod </em><code class="sig-name descname">readWCS</code><span class="sig-paren">(</span><em class="sig-param">fits</em>, <em class="sig-param">extname</em>, <em class="sig-param">logger</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.readWCS"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.PSF.readWCS" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">classmethod</span> </em><code class="sig-name descname"><span class="pre">readWCS</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fits</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extname</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.readWCS"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.readWCS" title="Permalink to this definition">¶</a></dt>
 <dd><p>Read the WCS information from a FITS file.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -436,9 +486,9 @@ pointing is a galsim.CelestialCoord instance</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="piff.PSF.write">
-<code class="sig-name descname">write</code><span class="sig-paren">(</span><em class="sig-param">file_name</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.write"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.PSF.write" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">write</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.write"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.write" title="Permalink to this definition">¶</a></dt>
 <dd><p>Write a PSF object to a file.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -450,9 +500,9 @@ pointing is a galsim.CelestialCoord instance</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="piff.PSF.writeWCS">
-<code class="sig-name descname">writeWCS</code><span class="sig-paren">(</span><em class="sig-param">fits</em>, <em class="sig-param">extname</em>, <em class="sig-param">logger</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.writeWCS"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.PSF.writeWCS" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">writeWCS</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fits</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extname</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.writeWCS"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.writeWCS" title="Permalink to this definition">¶</a></dt>
 <dd><p>Write the WCS information to a FITS file.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -469,16 +519,16 @@ pointing is a galsim.CelestialCoord instance</p>
 
 <div class="section" id="the-simple-case-of-one-model-interp">
 <h2>The simple case of one model/interp<a class="headerlink" href="#the-simple-case-of-one-model-interp" title="Permalink to this headline">¶</a></h2>
-<dl class="class">
+<dl class="py class">
 <dt id="piff.SimplePSF">
-<em class="property">class </em><code class="sig-prename descclassname">piff.</code><code class="sig-name descname">SimplePSF</code><span class="sig-paren">(</span><em class="sig-param">model</em>, <em class="sig-param">interp</em>, <em class="sig-param">outliers=None</em>, <em class="sig-param">extra_interp_properties=None</em>, <em class="sig-param">chisq_thresh=0.1</em>, <em class="sig-param">max_iter=30</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/simplepsf.html#SimplePSF"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.SimplePSF" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">piff.</span></code><code class="sig-name descname"><span class="pre">SimplePSF</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">interp</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outliers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chisq_thresh</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_iter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">30</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/simplepsf.html#SimplePSF"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SimplePSF" title="Permalink to this definition">¶</a></dt>
 <dd><p>A PSF class that uses a single model and interpolator.</p>
 <p>A SimplePSF is built from a Model and an Interp object.
 The model defines the functional form of the surface brightness profile, and the
 interpolator defines how the parameters of the model vary across the field of view.</p>
-<dl class="method">
+<dl class="py method">
 <dt id="piff.SimplePSF.fit">
-<code class="sig-name descname">fit</code><span class="sig-paren">(</span><em class="sig-param">stars</em>, <em class="sig-param">wcs</em>, <em class="sig-param">pointing</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/simplepsf.html#SimplePSF.fit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.SimplePSF.fit" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">fit</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wcs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pointing</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">convert_func</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/simplepsf.html#SimplePSF.fit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SimplePSF.fit" title="Permalink to this definition">¶</a></dt>
 <dd><p>Fit interpolated PSF model to star data using standard sequence of operations.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -488,14 +538,17 @@ interpolator defines how the parameters of the model vary across the field of vi
 <li><p><strong>pointing</strong> – A galsim.CelestialCoord object giving the telescope pointing.
 [Note: pointing should be None if the WCS is not a CelestialWCS]</p></li>
 <li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+<li><p><strong>convert_func</strong> – An optional function to apply to the profile being fit before
+drawing it onto the image.  This is used by composite PSFs to
+isolate the effect of just this model component. [default: None]</p></li>
 </ul>
 </dd>
 </dl>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="piff.SimplePSF.interpolateStar">
-<code class="sig-name descname">interpolateStar</code><span class="sig-paren">(</span><em class="sig-param">star</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/simplepsf.html#SimplePSF.interpolateStar"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.SimplePSF.interpolateStar" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">interpolateStar</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/simplepsf.html#SimplePSF.interpolateStar"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SimplePSF.interpolateStar" title="Permalink to this definition">¶</a></dt>
 <dd><p>Update the star to have the current interpolated fit parameters according to the
 current PSF model.</p>
 <dl class="field-list simple">
@@ -508,9 +561,9 @@ current PSF model.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="piff.SimplePSF.interpolateStarList">
-<code class="sig-name descname">interpolateStarList</code><span class="sig-paren">(</span><em class="sig-param">stars</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/simplepsf.html#SimplePSF.interpolateStarList"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.SimplePSF.interpolateStarList" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">interpolateStarList</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/simplepsf.html#SimplePSF.interpolateStarList"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SimplePSF.interpolateStarList" title="Permalink to this definition">¶</a></dt>
 <dd><p>Update the stars to have the current interpolated fit parameters according to the
 current PSF model.</p>
 <dl class="field-list simple">
@@ -523,9 +576,9 @@ current PSF model.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="piff.SimplePSF.parseKwargs">
-<em class="property">classmethod </em><code class="sig-name descname">parseKwargs</code><span class="sig-paren">(</span><em class="sig-param">config_psf</em>, <em class="sig-param">logger</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/simplepsf.html#SimplePSF.parseKwargs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.SimplePSF.parseKwargs" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">classmethod</span> </em><code class="sig-name descname"><span class="pre">parseKwargs</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_psf</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/simplepsf.html#SimplePSF.parseKwargs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SimplePSF.parseKwargs" title="Permalink to this definition">¶</a></dt>
 <dd><p>Parse the psf field of a configuration dict and return the kwargs to use for
 initializing an instance of the class.</p>
 <dl class="field-list simple">
@@ -546,13 +599,13 @@ initializing an instance of the class.</p>
 </div>
 <div class="section" id="using-a-separate-solution-for-each-chip">
 <h2>Using a separate solution for each chip<a class="headerlink" href="#using-a-separate-solution-for-each-chip" title="Permalink to this headline">¶</a></h2>
-<dl class="class">
+<dl class="py class">
 <dt id="piff.SingleChipPSF">
-<em class="property">class </em><code class="sig-prename descclassname">piff.</code><code class="sig-name descname">SingleChipPSF</code><span class="sig-paren">(</span><em class="sig-param">single_psf</em>, <em class="sig-param">nproc=1</em>, <em class="sig-param">extra_interp_properties=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/singlechip.html#SingleChipPSF"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.SingleChipPSF" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">piff.</span></code><code class="sig-name descname"><span class="pre">SingleChipPSF</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">single_psf</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nproc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/singlechip.html#SingleChipPSF"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SingleChipPSF" title="Permalink to this definition">¶</a></dt>
 <dd><p>A PSF class that uses a separate PSF solution for each chip</p>
-<dl class="method">
+<dl class="py method">
 <dt id="piff.SingleChipPSF.fit">
-<code class="sig-name descname">fit</code><span class="sig-paren">(</span><em class="sig-param">stars</em>, <em class="sig-param">wcs</em>, <em class="sig-param">pointing</em>, <em class="sig-param">logger=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/singlechip.html#SingleChipPSF.fit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.SingleChipPSF.fit" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">fit</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wcs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pointing</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">convert_func</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/singlechip.html#SingleChipPSF.fit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SingleChipPSF.fit" title="Permalink to this definition">¶</a></dt>
 <dd><p>Fit interpolated PSF model to star data using standard sequence of operations.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -562,14 +615,17 @@ initializing an instance of the class.</p>
 <li><p><strong>pointing</strong> – A galsim.CelestialCoord object giving the telescope pointing.
 [Note: pointing should be None if the WCS is not a CelestialWCS]</p></li>
 <li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+<li><p><strong>convert_func</strong> – An optional function to apply to the profile being fit before
+drawing it onto the image.  This is used by composite PSFs to
+isolate the effect of just this model component. [default: None]</p></li>
 </ul>
 </dd>
 </dl>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="piff.SingleChipPSF.interpolateStar">
-<code class="sig-name descname">interpolateStar</code><span class="sig-paren">(</span><em class="sig-param">star</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/singlechip.html#SingleChipPSF.interpolateStar"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.SingleChipPSF.interpolateStar" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">interpolateStar</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/singlechip.html#SingleChipPSF.interpolateStar"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SingleChipPSF.interpolateStar" title="Permalink to this definition">¶</a></dt>
 <dd><p>Update the star to have the current interpolated fit parameters according to the
 current PSF model.</p>
 <dl class="field-list simple">
@@ -582,9 +638,9 @@ current PSF model.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="piff.SingleChipPSF.parseKwargs">
-<em class="property">classmethod </em><code class="sig-name descname">parseKwargs</code><span class="sig-paren">(</span><em class="sig-param">config_psf</em>, <em class="sig-param">logger</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/singlechip.html#SingleChipPSF.parseKwargs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#piff.SingleChipPSF.parseKwargs" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">classmethod</span> </em><code class="sig-name descname"><span class="pre">parseKwargs</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_psf</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/singlechip.html#SingleChipPSF.parseKwargs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SingleChipPSF.parseKwargs" title="Permalink to this definition">¶</a></dt>
 <dd><p>Parse the psf field of a configuration dict and return the kwargs to use for
 initializing an instance of the class.</p>
 <dl class="field-list simple">
@@ -610,29 +666,29 @@ initializing an instance of the class.</p>
            
           </div>
           <footer>
-  
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-      
-        <a href="outliers.html" class="btn btn-neutral float-right" title="Removing Outliers" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
-      
-      
-        <a href="interp.html" class="btn btn-neutral float-left" title="Interpolation Schemes" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
-      
+        <a href="outliers.html" class="btn btn-neutral float-right" title="Removing Outliers" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="interp.html" class="btn btn-neutral float-left" title="Interpolation Schemes" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
     </div>
-  
 
   <hr/>
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2019
+        &#169; Copyright 2019.
 
     </p>
   </div>
-  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
-
         </div>
       </div>
 
@@ -640,7 +696,6 @@ initializing an instance of the class.</p>
 
   </div>
   
-
 
   <script type="text/javascript">
       jQuery(function () {
