@@ -179,7 +179,11 @@ def estimate_cov_from_jac(jac):
         cov = np.diag(var)
     return cov
 
-def _run_multi_helper(func, i, args, kwargs, log_level):
+def _run_multi_helper(func, i, args, kwargs, log_level): # pragma: no cover
+    # Note: This is covered by test_wcs.py:test_parallel, but for some reason it's not
+    # showing up in codecov.  It's supposed to get captured by the combination of
+    # concurrency=multiprocessing and calling coverage combine before uploading.
+    # We're doing both of those things, but it's still not showing up.
     from io import StringIO
     import logging
 
