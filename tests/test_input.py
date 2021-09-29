@@ -48,7 +48,7 @@ def setup():
     gain = np.mean(data['gain'])
     print('sky, gain = ',sky,gain)
     satur = 2000  # Exactly 1 star has a pixel > 2000, so pretend this is the saturation level.
-    
+
     # Add two color columns to first catalog file
     rng1 = np.random.default_rng(123)
     rng2 = np.random.default_rng(234)
@@ -465,7 +465,7 @@ def test_cols():
     _, _, image_pos, _ = input.getRawImageData(0)
     print('len = ',len(image_pos))
     assert len(image_pos) == 12
-    
+
     # Check property_cols gets set for stars' props_dict correctly
     cat_file_name = os.path.join('input', 'test_input_cat_00.fits')
     data = fitsio.read(cat_file_name)
@@ -997,7 +997,7 @@ def test_stars():
     stars = input.makeStars(logger=logger)
     print('new len is ',len(stars))
     assert len(stars) == 98
-    
+
     config['max_mask_pixels'] = 500
     input = piff.InputFiles(config, logger=logger)
     stars = input.makeStars(logger=logger)

@@ -55,6 +55,12 @@ class kNNInterp(Interp):
         from sklearn.neighbors import KNeighborsRegressor
         self.knn = KNeighborsRegressor(**self.knr_kwargs)
 
+    @property
+    def property_names(self):
+        """List of properties used by this interpolant.
+        """
+        return self.keys
+
     def _fit(self, locations, targets, logger=None):
         """Update the Neighbors Regressor with data
 
