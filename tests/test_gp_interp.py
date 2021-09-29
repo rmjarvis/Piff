@@ -181,6 +181,8 @@ def check_gp(stars_training, stars_validation, kernel, optimizer,
                            nbins=nbins, min_sep=min_sep, max_sep=max_sep,
                            logger=None)
 
+    assert interp.property_names == ('u', 'v')
+
     interp.initialize(stars_training)
     interp.solve(stars=stars_training, logger=None)
 

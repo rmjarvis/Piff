@@ -52,7 +52,7 @@ def generate_data(n_samples=100):
 def test_init():
     # make sure we can init the interpolator
     knn = piff.kNNInterp(keys)
-
+    assert knn.property_names == keys
 
 @timer
 def test_interp():

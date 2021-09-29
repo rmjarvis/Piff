@@ -146,6 +146,12 @@ class GPInterp(Interp):
             raise ValueError("Only anisotropic, isotropic, likelihood, and " \
                              "none are supported for optimizer. Current value: %s"%(self.optimizer))
 
+    @property
+    def property_names(self):
+        """List of properties used by this interpolant.
+        """
+        return self.keys
+
     def _fit(self, X, y, y_err=None, logger=None):
         """Update the GaussianProcess with data
 
