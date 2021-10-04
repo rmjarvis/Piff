@@ -189,14 +189,16 @@ def test_basic():
             assert len(image_pos) == 20
 
     # Semi-gratuitous use of reserve_frac when one image has no stars for coverage
-    config['reserve_frac'] = 0.2
+    # This functionality changed location to the Select class, but keep this test nonetheless.
+    select_config = {'reserve_frac': 0.2}
     config['use_partial'] = True
     config['ra'] = 6.0
     config['dec'] = -30.0
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 3
     stars = input.makeStars(logger=logger)
-    print('stars = ',stars)
+    select = piff.SelectFlag(select_config, logger=logger)
+    select.reserveStars(stars, logger=logger)
     print('len stars = ',len(stars))
     assert len(stars) == 60
     assert len([s for s in stars if s.chipnum == 0]) == 40
@@ -834,17 +836,23 @@ def test_stars():
 
     # Turn off two defaults for now (max_snr=100 and use_partial=False)
     config = {
+        'input' : {
                 'dir' : dir,
                 'image_file_name' : image_file,
                 'cat_file_name' : cat_file,
                 'weight_hdu' : 1,
                 'sky_col' : 'sky',
                 'gain_col' : 'gain',
-                'max_snr' : 0,
                 'use_partial' : True,
-             }
-    input = piff.InputFiles(config, logger=logger)
+             },
+        'select': {
+                'max_snr' : 0,
+        }
+    }
+    input = piff.InputFiles(config['input'], logger=logger)
+    select = piff.SelectFlag(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
+    stars = select.rejectStars(stars, logger=logger)
     assert len(stars) == 100
     chipnum_list = [ star['chipnum'] for star in stars ]
     gain_list = [ star['gain'] for star in stars ]
@@ -860,9 +868,10 @@ def test_stars():
     assert np.max(snr_list) > 600.
 
     # max_snr increases the noise to achieve a maximum snr
-    config['max_snr'] = 120
-    input = piff.InputFiles(config, logger=logger)
+    config['select']['max_snr'] = 120
+    select = piff.SelectFlag(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
+    stars = select.rejectStars(stars, logger=logger)
     assert len(stars) == 100
     snr_list = [ star['snr'] for star in stars ]
     print('snr = ', np.min(snr_list), np.max(snr_list))
@@ -880,9 +889,10 @@ def test_stars():
     assert np.all(snr_list2[hi] > 110.)
 
     # The default is max_snr == 100
-    del config['max_snr']
-    input = piff.InputFiles(config, logger=logger)
+    del config['select']['max_snr']
+    select = piff.SelectFlag(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
+    stars = select.rejectStars(stars, logger=logger)
     assert len(stars) == 100
     snr_list = np.array([ star['snr'] for star in stars ])
     print('snr = ', np.min(snr_list), np.max(snr_list))
@@ -897,9 +907,10 @@ def test_stars():
     assert np.all(snr_list2[hi] <= 100.)
 
     # min_snr removes stars with a snr < min_snr
-    config['min_snr'] = 50
-    input = piff.InputFiles(config, logger=logger)
+    config['select']['min_snr'] = 50
+    select = piff.SelectFlag(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
+    stars = select.rejectStars(stars, logger=logger)
     print('len should be ',len(snr_list[snr_list >= 50]))
     print('actual len is ',len(stars))
     assert len(stars) == len(snr_list[snr_list >= 50])
@@ -917,100 +928,118 @@ def test_stars():
     assert np.all(snr_list2[hi] <= 100.)
 
     # use_partial=False will skip any stars that are partially off the edge of the image
-    config['use_partial'] = False
-    input = piff.InputFiles(config, logger=logger)
+    config['input']['use_partial'] = False
+    input = piff.InputFiles(config['input'], logger=logger)
     stars = input.makeStars(logger=logger)
+    stars = select.rejectStars(stars, logger=logger)
     print('new len is ',len(stars))
     assert len(stars) == 91  # skipped 2 additional stars
 
     # use_partial=False is the default
-    del config['use_partial']
-    input = piff.InputFiles(config, logger=logger)
+    del config['input']['use_partial']
+    input = piff.InputFiles(config['input'], logger=logger)
     stars = input.makeStars(logger=logger)
+    stars = select.rejectStars(stars, logger=logger)
     assert len(stars) == 91
 
     # Setting satur will skip any stars with a pixel above that value.
     # Here there is 1 star with a pixel > 2000.
-    config['satur'] = 'SATURAT'
-    input = piff.InputFiles(config, logger=logger)
+    config['input']['satur'] = 'SATURAT'
+    input = piff.InputFiles(config['input'], logger=logger)
     stars = input.makeStars(logger=logger)
+    stars = select.rejectStars(stars, logger=logger)
     assert len(stars) == 90
     # 7 stars have pixels > 1900
-    config['satur'] = 1900
-    input = piff.InputFiles(config, logger=logger)
+    config['input']['satur'] = 1900
+    input = piff.InputFiles(config['input'], logger=logger)
     stars = input.makeStars(logger=logger)
+    stars = select.rejectStars(stars, logger=logger)
     assert len(stars) == 84
-    del config['satur']
+    del config['input']['satur']
 
     # hsm_size_reject=True rejects a few of these.
-    config['hsm_size_reject'] = True
-    input = piff.InputFiles(config, logger=logger)
+    config['select']['hsm_size_reject'] = True
+    input = piff.InputFiles(config['input'], logger=logger)
+    select = piff.SelectFlag(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
+    stars = select.rejectStars(stars, logger=logger)
     assert len(stars) == 88
 
     # hsm_size_reject can also be a float.  (True is equivalent to 10.)
-    config['hsm_size_reject'] = 100.
-    input = piff.InputFiles(config, logger=logger)
+    config['select']['hsm_size_reject'] = 100.
+    select = piff.SelectFlag(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
+    stars = select.rejectStars(stars, logger=logger)
     assert len(stars) == 90
-    config['hsm_size_reject'] = 3.
-    input = piff.InputFiles(config, logger=logger)
+    config['select']['hsm_size_reject'] = 3.
+    select = piff.SelectFlag(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
+    stars = select.rejectStars(stars, logger=logger)
     assert len(stars) == 84
-    config['hsm_size_reject'] = 10.
-    input = piff.InputFiles(config, logger=logger)
+    config['select']['hsm_size_reject'] = 10.
+    select = piff.SelectFlag(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
+    stars = select.rejectStars(stars, logger=logger)
     assert len(stars) == 88
-    del config['hsm_size_reject']
+    del config['select']['hsm_size_reject']
 
     # alt_x and alt_y also include some object completely off the image, which are always skipped.
     # (Don't do the min_snr anymore, since most of these stamps don't actually have any signal.)
-    config['x_col'] = 'alt_x'
-    config['y_col'] = 'alt_y'
-    del config['min_snr']
-    input = piff.InputFiles(config, logger=logger)
+    config['input']['x_col'] = 'alt_x'
+    config['input']['y_col'] = 'alt_y'
+    del config['select']['min_snr']
+    input = piff.InputFiles(config['input'], logger=logger)
+    select = piff.SelectFlag(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
+    stars = select.rejectStars(stars, logger=logger)
     print('new len is ',len(stars))
     assert len(stars) == 37
 
     # Also skip objects which are all weight=0
-    config['weight_hdu'] = 3
-    input = piff.InputFiles(config, logger=logger)
+    config['input']['weight_hdu'] = 3
+    input = piff.InputFiles(config['input'], logger=logger)
     stars = input.makeStars(logger=logger)
+    stars = select.rejectStars(stars, logger=logger)
     print('new len is ',len(stars))
     assert len(stars) == 0
 
     # But not ones that are only partially weight=0
-    config['weight_hdu'] = 8
-    input = piff.InputFiles(config, logger=logger)
+    config['input']['weight_hdu'] = 8
+    input = piff.InputFiles(config['input'], logger=logger)
     stars = input.makeStars(logger=logger)
+    stars = select.rejectStars(stars, logger=logger)
     print('new len is ',len(stars))
     assert len(stars) == 37
 
     # Check the masked pixel cut
     # This is a bit artificial, b/c 512 / 1024 of the pixels are masked in the test case
-    del config['x_col']
-    del config['y_col']
-    config['weight_hdu'] = 8
-    config['max_mask_pixels'] = 513
-    input = piff.InputFiles(config, logger=logger)
+    del config['input']['x_col']
+    del config['input']['y_col']
+    config['input']['weight_hdu'] = 8
+    config['select']['max_mask_pixels'] = 513
+    input = piff.InputFiles(config['input'], logger=logger)
+    select = piff.SelectFlag(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
+    stars = select.rejectStars(stars, logger=logger)
     print('new len is ',len(stars))
     assert len(stars) == 98
 
-    config['max_mask_pixels'] = 500
-    input = piff.InputFiles(config, logger=logger)
+    config['select']['max_mask_pixels'] = 500
+    select = piff.SelectFlag(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
+    stars = select.rejectStars(stars, logger=logger)
     print('new len is ',len(stars))
     assert len(stars) == 0
 
     # Check the edge fraction cut
     # with use_partial=True to make sure it catch edge case
-    del config['max_mask_pixels']
-    config['max_edge_frac'] = 0.25
-    config['use_partial'] = True
-    input = piff.InputFiles(config, logger=logger)
+    del config['select']['max_mask_pixels']
+    config['select']['max_edge_frac'] = 0.25
+    config['input']['use_partial'] = True
+    input = piff.InputFiles(config['input'], logger=logger)
+    select = piff.SelectFlag(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
+    stars = select.rejectStars(stars, logger=logger)
     print('new len is ',len(stars))
     assert len(stars) == 94
 

@@ -93,32 +93,13 @@ class Input(object):
 
         args = [(self.image_kwargs[k], self.cat_kwargs[k], self.wcs_list[k], self.chipnums[k])
                 for k in range(self.nimages)]
-        kwargs = dict(stamp_size=self.stamp_size, min_snr=self.min_snr, max_snr=self.max_snr,
+        kwargs = dict(stamp_size=self.stamp_size,
                       pointing=self.pointing, use_partial=self.use_partial,
                       invert_weight=self.invert_weight,
-                      remove_signal_from_weight=self.remove_signal_from_weight,
-                      hsm_size_reject=self.hsm_size_reject,
-                      max_mask_pixels=self.max_mask_pixels,
-                      max_edge_frac=self.max_edge_frac,
-                      stamp_center_size=self.stamp_center_size)
+                      remove_signal_from_weight=self.remove_signal_from_weight)
 
         all_stars = run_multi(self._makeStarsFromImage, self.nproc, raise_except=True,
                               args=args, logger=logger, kwargs=kwargs)
-
-        # Apply the reserve separately on each ccd, so they each reserve 20% of their stars
-        # (or whatever fraction).  We wouldn't want to accidentally reserve all the stars on
-        # one of the ccds by accident, for instance.
-        if self.reserve_frac != 0:
-            for stars in all_stars:
-                if stars is None or len(stars) == 0:
-                    continue
-                # Mark a fraction of the stars as reserve stars
-                nreserve = int(self.reserve_frac * len(stars))  # round down
-                logger.info("Reserve %s of %s (reserve_frac=%s) input stars",
-                            nreserve, len(stars), self.reserve_frac)
-                reserve_list = self.rng.choice(len(stars), nreserve, replace=False)
-                for i, star in enumerate(stars):
-                    star.data.properties['is_reserve'] = i in reserve_list
 
         # Concatenate the star lists into a single list
         stars = [s for slist in all_stars if slist is not None for s in slist if slist]
@@ -148,7 +129,7 @@ class Input(object):
 
 
 class InputFiles(Input):
-    """An Input handler than just takes a list of image files and catalog files.
+    """An Input handler that just takes a list of image files and catalog files.
     """
     def __init__(self, config, logger=None):
         """
@@ -240,40 +221,12 @@ class InputFiles(Input):
                             for the Poisson noise from the galaxy flux.
             :satur:         The staturation level.  If any pixels for a star exceed this, then
                             the star is skipped. [default: None]
-            :min_snr:       The minimum S/N ratio to use.  If an input star is too faint, it is
-                            removed from the input list of PSF stars.
-            :max_snr:       The maximum S/N ratio to allow for any given star.  If an input star
-                            is too bright, it can have too large an influence on the interpolation,
-                            so this parameter limits the effective S/N of any single star.
-                            Basically, it adds noise to bright stars to lower their S/N down to
-                            this value.  [default: 100]
-            :max_edge_frac: Cutoff on the fraction of the flux comming from pixels on the edges of
-                            the postage stamp. [default: None]
-            :stamp_center_size: Distance from center of postage stamp (in pixels) to consider as
-                            defining the edge of the stamp for the purpose of the max_edge_fact cut.
-                            The default value of 13 is most of the radius of a 32x32 stamp size.
-                            If you change stamp_size, you should consider what makes sense here.
-                            [default 13].
-            :max_mask_pixels: If given, reject stars with more than this many masked pixels
-                            (i.e. those with w=0). [default: None]
             :use_partial:   Whether to use stars whose postage stamps are only partially on the
                             full image.  [default: False]
-            :hsm_size_reject: Whether to reject stars with a very different hsm-measured size than
-                            the other stars in the input catalog.  (Used to reject objects with
-                            neighbors or other junk in the postage stamp.) [default: False]
-                            If this is a float value, it gives the number of inter-quartile-ranges
-                            to use for rejection relative to the median.  hsm_size_reject=True
-                            is equivalent to hsm_size_reject=10.
             :nstars:        Stop reading the input file at this many stars.  (This is applied
                             separately to each input catalog.)  [default: None]
             :nproc:         How many multiprocessing processes to use for reading in data from
                             multiple files at once. [default: 1]
-            :reserve_frac:  Reserve a fraction of the stars from the PSF calculations, so they
-                            can serve as fair points for diagnostic testing.  These stars will
-                            not be used to constrain the PSF model, but the output files will
-                            contain the reserve stars, flagged as such.  Generally 0.2 is a
-                            good choice if you are going to use this. [default: 0.]
-            :seed:          A seed to use for numpy.random.default_rng, if desired. [default: None]
 
             :wcs:           Normally, the wcs is automatically read in when reading the image.
                             However, this parameter allows you to optionally provide a different
@@ -287,7 +240,7 @@ class InputFiles(Input):
                             stamps may be smaller than this if the star is near a chip boundary.
                             [default: 32]
             :ra, dec:       The RA, Dec of the telescope pointing. [default: None; See
-                            :setPointing: for details about how this can be specified]
+                            `setPointing` for details about how this can be specified]
 
 
         :param config:      The configuration dict used to define the above parameters.
@@ -323,18 +276,10 @@ class InputFiles(Input):
                 'stamp_size' : int,
                 'gain' : str,
                 'satur' : str,
-                'min_snr' : float,
-                'max_snr' : float,
                 'use_partial' : bool,
-                'hsm_size_reject' : float,
-                'max_edge_frac': float,
-                'stamp_center_size': float,
-                'max_mask_pixels' : int,
                 'sky' : str,
                 'noise' : float,
                 'nstars' : int,
-                'reserve_frac' : float,
-                'seed' : int,
               }
         ignore = [ 'nproc', 'nimages', 'ra', 'dec', 'wcs' ]  # These are parsed separately
 
@@ -453,12 +398,6 @@ class InputFiles(Input):
 
         self.remove_signal_from_weight = config.get('remove_signal_from_weight', False)
         self.invert_weight = config.get('invert_weight', False)
-        self.reserve_frac = config.get('reserve_frac', 0.)
-        try:
-            self.rng = np.random.default_rng(config.get('seed', None))
-        except AttributeError:  # pragma: no cover
-            # numpy <= 1.16 doesn't have this yet.  But RandomState is fine.
-            self.rng = np.random.RandomState(config.get('seed', None))
 
         logger.info("Reading in %d images",nimages)
         for image_num in range(nimages):
@@ -537,18 +476,7 @@ class InputFiles(Input):
                     'image_file_name' : image_file_name,
                     'stamp_size' : self.stamp_size})
 
-        self.min_snr = config.get('min_snr', None)
-        self.max_snr = config.get('max_snr', 100)
-        self.max_edge_frac = config.get('max_edge_frac', None)
-        self.max_mask_pixels = config.get('max_mask_pixels', None)
-        self.stamp_center_size = config.get('stamp_center_size', 13)
-
         self.use_partial = config.get('use_partial', False)
-        self.hsm_size_reject = config.get('hsm_size_reject', 0.)
-        if self.hsm_size_reject == 1:
-            # Enable True to be equivalent to 10.  True comes in as 1.0, which would be a
-            # silly value to use, so it shouldn't be a problem to turn 1.0 -> 10.0.
-            self.hsm_size_reject = 10.
 
         # Read all the wcs's, since we'll need this for the pointing, which in turn we'll
         # need for when we make the stars.
@@ -605,25 +533,16 @@ class InputFiles(Input):
 
     @staticmethod
     def _makeStarsFromImage(image_kwargs, cat_kwargs, wcs, chipnum,
-                            stamp_size, min_snr, max_snr, pointing, use_partial,
-                            invert_weight, remove_signal_from_weight, hsm_size_reject,
-                            max_mask_pixels, max_edge_frac, stamp_center_size,
+                            stamp_size, pointing, use_partial,
+                            invert_weight, remove_signal_from_weight,
                             logger):
-        """Make stars from a single input image
+        """Make "stars" from a single input image
         """
         image, wt, image_pos, extra_props = InputFiles._getRawImageData(
                 image_kwargs, cat_kwargs, wcs, invert_weight, remove_signal_from_weight, logger)
-        logger.info("Processing catalog %s with %d stars",chipnum,len(image_pos))
+        logger.info("Processing catalog %s with %d objects",chipnum,len(image_pos))
 
-        nstars_in_image = 0
-        stars = []
-
-        if max_edge_frac is not None:
-            cen = (stamp_size-1.)/2.            # index at center of array.  May be half-integral.
-            i,j = np.ogrid[0:stamp_size,0:stamp_size]
-            edge_mask = (i-cen)**2 + (j-cen)**2 > stamp_center_size**2
-        else:
-            edge_mask = None
+        objects = []
 
         for k in range(len(image_pos)):
             x = image_pos[k].x
@@ -637,27 +556,27 @@ class InputFiles(Input):
                 bounds = bounds & image.bounds
                 if not bounds.isDefined():
                     logger.warning("Star at position %f,%f is off the edge of the image.", x, y)
-                    logger.warning("Skipping this star.")
+                    logger.warning("Skipping this object.")
                     continue
                 if use_partial:
                     logger.info("Star at position %f,%f overlaps the edge of the image.  "
                                 "Using smaller than the full stamp size: %s", x, y, bounds)
                 else:
                     logger.warning("Star at position %f,%f overlaps the edge of the image.", x, y)
-                    logger.warning("Skipping this star.")
+                    logger.warning("Skipping this object.")
                     continue
             stamp = image[bounds].copy()
             wt_stamp = wt[bounds].copy()
             props = { 'chipnum' : chipnum,
                     }
 
-            # if a star is totally masked, then don't add it!
+            # if an object is totally masked, then don't add it!
             if np.all(wt_stamp.array == 0):
                 logger.warning("Star at position %f,%f is completely masked.", x, y)
-                logger.warning("Skipping this star.")
+                logger.warning("Skipping this object.")
                 continue
 
-            # Add this star's entry in each list of the extra_props dictionary
+            # Add this object's entry in each list of the extra_props dictionary
             # to the StarData properties dictionary
             for key in extra_props:
                 logger.debug("Assigning {} value = {}".format(key, extra_props[key][k]))
@@ -668,18 +587,8 @@ class InputFiles(Input):
             if max_val > props.get('satur', np.inf):
                 logger.warning("Star at position %f,%f has saturated pixels.", x, y)
                 logger.warning("Maximum value is %f.", max_val)
-                logger.warning("Skipping this star.")
+                logger.warning("Skipping this object.")
                 continue
-
-            # here we remove stars that have been at least partially covered by a mask
-            # and thus have weight exactly 0 in at least a certain number of pixels of their
-            # postage stamp
-            if max_mask_pixels is not None:
-                n_masked = np.prod(wt_stamp.array.shape) - np.count_nonzero(wt_stamp.array)
-                if n_masked >= max_mask_pixels:
-                    logger.warning("Star at position %f,%f has %i masked pixels, ", x, y, n_masked)
-                    logger.warning("Skipping this star.")
-                    continue
 
             # Subtract the sky
             if 'sky' in props:
@@ -688,65 +597,14 @@ class InputFiles(Input):
                 logger.debug("Median pixel value = %f", np.median(stamp.array))
                 stamp -= sky
 
-            # Check the snr and limit it if appropriate
-            snr = calculateSNR(stamp, wt_stamp)
-            logger.debug("SNR = %f",snr)
-            if min_snr is not None and snr < min_snr:
-                logger.info("Skipping star at position %f,%f with snr=%f."%(x,y,snr))
-                continue
-            if max_snr > 0 and snr > max_snr:
-                factor = (max_snr / snr)**2
-                logger.debug("Scaling noise by factor of %f to achieve snr=%f", factor, max_snr)
-                wt_stamp *= factor
-                snr = max_snr
-            props['snr'] = snr
-
             pos = galsim.PositionD(x,y)
             data = StarData(stamp, pos, weight=wt_stamp, pointing=pointing,
                             properties=props)
             star = Star(data, None)
-            g = props['gain']
-            if g is not None:
-                logger.debug("Adding Poisson noise to weight map according to gain=%f",g)
-                star = star.addPoisson(gain=g)
 
+            objects.append(star)
 
-            if max_edge_frac is not None and max_edge_frac < 1:
-                flux = np.sum(star.image.array)
-                try:
-                    flux_extra = np.sum(star.image.array[edge_mask])
-                    flux_frac = flux_extra / flux
-                except IndexError:
-                    logger.warning("Star at position %f,%f overlaps the edge of the image and "+
-                                   "max_edge_frac cut is set.", x, y)
-                    logger.warning("Skipping this star.")
-                    continue
-                if flux_frac > max_edge_frac:
-                    logger.warning("Star at position %f,%f fraction of flux near edge of stamp "+
-                                   "exceeds cut: %f > %f", x, y, flux_frac, max_edge_frac)
-                    logger.warning("Skipping this star.")
-                    continue
-
-            stars.append(star)
-            nstars_in_image += 1
-
-        if hsm_size_reject != 0:
-            # Calculate the hsm size for each star and throw out extreme outliers.
-            sigma = [star.hsm[3] for star in stars]
-            med_sigma = np.median(sigma)
-            iqr_sigma = scipy.stats.iqr(sigma)
-            logger.debug("Doing hsm sigma rejection.")
-            while np.max(np.abs(sigma - med_sigma)) > hsm_size_reject * iqr_sigma:
-                logger.debug("median = %s, iqr = %s, max_diff = %s",
-                                med_sigma, iqr_sigma, np.max(np.abs(sigma-med_sigma)))
-                k = np.argmax(np.abs(sigma-med_sigma))
-                logger.debug("remove k=%d: sigma = %s, pos = %s",k,sigma[k],stars[k].image_pos)
-                del sigma[k]
-                del stars[k]
-                med_sigma = np.median(sigma)
-                iqr_sigma = scipy.stats.iqr(sigma)
-
-        return stars
+        return objects
 
     def setWCS(self, config, logger):
         self.wcs_list = []
@@ -1064,6 +922,8 @@ class InputFiles(Input):
                 satur = float(header[satur])
                 logger.debug("Using saturation from header: %s",satur)
             extra_props['satur'] = np.array([satur]*len(cat), dtype=float)
+        else:
+            extra_props['satur'] = np.array([np.inf]*len(cat), dtype=float)
 
         return image_pos, extra_props
 

@@ -105,6 +105,7 @@ def process(config, logger=None):
     :returns: the psf model
     """
     from .input import Input
+    from .select import Select
     from .psf import PSF
 
     if logger is None:
@@ -119,8 +120,11 @@ def process(config, logger=None):
     if 'modules' in config:
         galsim.config.ImportModules(config)
 
+    # TODO: Allow the select keys to be in config['input'], but give a warning.
+
     # read in the input images
-    stars, wcs, pointing = Input.process(config['input'], logger=logger)
+    objects, wcs, pointing = Input.process(config['input'], logger=logger)
+    stars = Select.process(config.get('select',{}), objects, logger=logger)
 
     psf = PSF.process(config['psf'], logger=logger)
     psf.fit(stars, wcs, pointing, logger=logger)
@@ -174,6 +178,9 @@ def plotify(config, logger=None):
         galsim.config.ImportModules(config)
 
     # read in the input images
+    # TODO: This isn't right for plotify.  Nor is it right to run a non-trivial selection.
+    #       Rather, we should take the stars from the psf object and just attach the
+    #       image stamps to them.
     stars, wcs, pointing = Input.process(config['input'], logger=logger)
 
     # load psf by looking at output file
