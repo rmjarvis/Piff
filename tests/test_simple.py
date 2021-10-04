@@ -809,6 +809,80 @@ def test_draw():
         assert im10.bounds == im1.bounds
         np.testing.assert_allclose(im10.array, im4.array, rtol=1.e-14, atol=1.e-14)
 
+def test_depr_select():
+    # A bunch of keys used to be allowed in input, but now belong in select.
+    # Check that the old way still works, but gives a warning.
+
+    # This is the input from test_stars in test_input.py
+    dir = 'input'
+    image_file = 'test_input_image_00.fits'
+    cat_file = 'test_input_cat_00.fits'
+    psf_file = os.path.join('output','test_depr_select.fits')
+
+    config = {
+        'input' : {
+                'dir' : dir,
+                'image_file_name' : image_file,
+                'cat_file_name' : cat_file,
+                'weight_hdu' : 1,
+                'sky_col' : 'sky',
+                'gain_col' : 'gain',
+                'use_partial' : True,
+                'nstars': 15,  # Just to make the test faster
+             },
+        'select': {
+                'max_snr' : 200,
+                'min_snr' : 20,
+                'hsm_size_reject' : 20,
+                'max_edge_frac': 0.25,
+                'stamp_center_size': 10,
+                'max_mask_pixels' : 20,
+                'reserve_frac' : 0.1,
+                'seed': 1234,
+        },
+        'psf': {
+            'model' : {'type': 'Gaussian'},
+            'interp' : {'type': 'Mean'},
+        },
+        'output' : { 'file_name' : psf_file },
+    }
+
+    logger = piff.config.setup_logger(log_file='output/test_depr_select.log')
+
+    # This is the new API
+    print('config = ',config)
+    piff.piffify(config, logger)
+    psf1 = piff.read(psf_file)
+    im1 = psf1.draw(x=23, y=34, stamp_size=16)
+    print('len1 = ',len(psf1.stars))
+
+    # This is the old API
+    config['input'].update(config['select'])
+    del config['select']
+    print('config = ',config)
+    with CaptureLog(level=1) as cl:
+        piff.piffify(config, cl.logger)
+    assert "WARNING: Items [" in cl.output
+    assert "] should now be in the 'select' field of the config file." in cl.output
+    psf2 = piff.read(psf_file)
+    print('len2 = ',len(psf2.stars))
+    assert len(psf1.stars) == len(psf2.stars)
+    im2 = psf2.draw(x=23, y=34, stamp_size=16)
+    np.testing.assert_allclose(im2.array, im1.array)
+
+    # Also ok for some items to be in select, but erroneously put some in input.
+    config['input']['min_snr'] = config['select'].pop('min_snr')
+    config['input']['max_snr'] = config['select'].pop('max_snr')
+    print('config = ',config)
+    with CaptureLog(level=1) as cl:
+        piff.piffify(config, cl.logger)
+    assert "WARNING: Items ['max_snr', 'min_snr'] should now be in the 'select' field of the config file." in cl.output
+    psf3 = piff.read(psf_file)
+    print('len3 = ',len(psf3.stars))
+    assert len(psf1.stars) == len(psf3.stars)
+    im3 = psf3.draw(x=23, y=34, stamp_size=16)
+    np.testing.assert_allclose(im3.array, im1.array)
+
 
 if __name__ == '__main__':
     test_Gaussian()

@@ -120,7 +120,18 @@ def process(config, logger=None):
     if 'modules' in config:
         galsim.config.ImportModules(config)
 
-    # TODO: Allow the select keys to be in config['input'], but give a warning.
+    # We used to allow a bunch of items in config['input'], which now belong in config['select']
+    # For the 1.x series, allow the old API, but give a warning.
+    select_keys = set(Select.base_keys)
+    user_input_keys = set(config['input'].keys())
+    depr_keys = select_keys & user_input_keys
+    if len(depr_keys) > 0:
+        logger.error("WARNING: Items %r should now be in the 'select' field of the config file.",
+                     sorted(depr_keys))
+        if 'select' not in config:
+            config['select'] = {}
+        for key in depr_keys:
+            config['select'][key] = config['input'].pop(key)
 
     # read in the input images
     objects, wcs, pointing = Input.process(config['input'], logger=logger)
