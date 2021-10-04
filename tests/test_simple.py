@@ -512,6 +512,21 @@ def test_reserve():
         # Fits should be good for both reserve and non-reserve stars
         np.testing.assert_almost_equal(star.fit.params, true_params, decimal=4)
 
+    # Check the old API of putting reserve_frac in input
+    config['input']['reserve_frac'] = 0.2
+    del config['select']
+    with CaptureLog() as cl:
+        piff.piffify(config, cl.logger)
+    assert "WARNING: Items ['reserve_frac'] should now be in the 'select' field" in cl.output
+    psf = piff.read(psf_file)
+    assert type(psf.model) is piff.Gaussian
+    assert type(psf.interp) is piff.Mean
+    nreserve = len([s for s in psf.stars if s.is_reserve])
+    ntot = len(psf.stars)
+    assert nreserve == 2
+    assert ntot == 10
+
+
 @timer
 def test_model():
     """Test Model base class
