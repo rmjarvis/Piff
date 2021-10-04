@@ -275,8 +275,8 @@ def run_multi(func, nproc, raise_except, args, logger, kwargs=None):
             else:  # pragma: no cover  (We don't use this option currently)
                 k = kwargs[i]
             result = pool.apply_async(_run_multi_helper,
-                                        args=(func, i, args[i], k, logger.logger.level),
-                                        callback=log_output)
+                                      args=(func, i, args[i], k, logger.logger.level),
+                                      callback=log_output)
             results.append(result)
         # Make sure we get all the results.  Without this, it works fine on success, but
         # errors seems to be swallowed.

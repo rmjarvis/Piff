@@ -481,8 +481,10 @@ def test_reserve():
         'input' : {
             'image_file_name' : image_file,
             'cat_file_name' : cat_file,
-            'reserve_frac' : 0.2,
             'stamp_size' : 32,
+        },
+        'select' : {
+            'reserve_frac' : 0.2,
         },
         'psf' : {
             'model' : { 'type' : 'Gaussian',

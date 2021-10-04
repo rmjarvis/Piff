@@ -614,6 +614,8 @@ def test_hsmcatalog():
             'image_file_name' : image_file,
             'cat_file_name' : cat_file,
             'stamp_size' : 48,
+        },
+        'select' : {
             'reserve_frac' : 0.2,
             'seed' : 123
         },
@@ -674,6 +676,7 @@ def test_hsmcatalog():
     # Use class directly, rather than through config.
     psf = piff.PSF.read(psf_file)
     stars, _, _ = piff.Input.process(config['input'])
+    stars = piff.Select.process(config['select'], stars)
     hsmcat = piff.stats.HSMCatalogStats()
     with np.testing.assert_raises(RuntimeError):
         hsmcat.write('dummy')  # Cannot write before compute

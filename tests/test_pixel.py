@@ -1056,14 +1056,16 @@ def test_des_image():
             'ra' : 'TELRA',
             'dec' : 'TELDEC',
             'gain' : 'GAINA',
-            'reserve_frac' : 0.2,
-            'seed' : 1234,
             # Test explicitly specifying the wcs (although it is the same here as what is in the
             # image anyway).
             'wcs' : {
                 'type': 'Fits',
                 'file_name': image_file
             },
+        },
+        'select' : {
+            'reserve_frac' : 0.2,
+            'seed' : 1234,
         },
         'output' : {
             'file_name' : psf_file,
@@ -1281,10 +1283,11 @@ def test_des2():
             'dec' : 'TELDEC',
             'gain' : 1.0,
             # Real version uses pixmappy WCS, but that's not important for this test, so skip it
-
+            'stamp_size' : 25
+        },
+        'select' : {
             'max_snr' : 100,
             'min_snr' : 20,
-            'stamp_size' : 25
         },
         'output' : {
             'file_name' : psf_file,
