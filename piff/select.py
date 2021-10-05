@@ -24,6 +24,7 @@ import galsim
 
 from .util import run_multi, calculateSNR
 from .star import Star, StarData
+from .input import InputFiles
 
 class Select(object):
     """The base class for selecting which stars to use for characterizing the PSF.
@@ -195,7 +196,6 @@ class Select(object):
 
         good_stars = []
         for star in stars:
-
             # Here we remove stars that have been at least partially covered by a mask
             # and thus have weight exactly 0 in at least a certain number of pixels of their
             # postage stamp
@@ -296,7 +296,7 @@ class SelectFlag(Select):
 
         self.flag_name = config.get('flag_name', None)
         self.skip_flag = config.get('skip_flag', -1)
-        self.use_flag = config.get('skip_flag', None)
+        self.use_flag = config.get('use_flag', None)
 
     def selectStars(self, objects, logger=None):
         """Select which of the input objects should be considered stars.
@@ -306,22 +306,26 @@ class SelectFlag(Select):
 
         :returns: a list of Star instances
         """
-        if self.flag_name is None:
-            return objects
-
         logger = galsim.config.LoggerWrapper(logger)
 
+        if self.flag_name is None:
+            logger.info("Using all input objects as stars")
+            return objects
+
+        logger.info("Selecting stars according to flag %r", self.flag_name)
         try:
-            flag_array = [obj[self.flag_name] for obj in objects]
+            flag_array = np.array([obj[self.flag_name] for obj in objects])
         except KeyError:
             raise ValueError("flag_name = {} is invalid.".format(self.flag_name))
 
         # Follow the same logic as we used in InputFiles for selecting on an overall flag.
         if self.use_flag is not None:
-            select = InputFiles._flag_select(flag_array, use_flag) != 0
+            select = InputFiles._flag_select(flag_array, self.use_flag) != 0
             if self.skip_flag != -1:
-                select &= InputFiles._flag_select(flag_array, skip_flag) == 0
+                select &= InputFiles._flag_select(flag_array, self.skip_flag) == 0
         else:
-            select = InputFiles._flag_select(flag_array, skip_flag) == 0
+            select = InputFiles._flag_select(flag_array, self.skip_flag) == 0
 
-        return objects[select]
+        stars = [obj for use, obj in zip(select, objects) if use]
+        logger.info("Seleced %d stars from %d total candidates.", len(stars), len(objects))
+        return stars

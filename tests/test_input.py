@@ -539,6 +539,142 @@ def test_cols():
 
 
 @timer
+def test_flag_select():
+    """Test the simple flag selection type
+    """
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(verbose=2)
+    else:
+        logger = piff.config.setup_logger(log_file=os.path.join('output','test_flag_select.log'))
+
+    # This repeats some of the tests in test_cols for using flags, but in that context
+    # the flags were technically selecting which objects to consider, and then the select
+    # field would select all of them as stars.  We didn't actually run the select above,
+    # so do that here, just to confirm that step in the process.
+    # Using flag will skip flagged columns.  Here every 5th item is flagged.
+    config = {
+        'input': {
+                'dir' : 'input',
+                'image_file_name' : 'test_input_image_00.fits',
+                'cat_file_name' : 'test_input_cat_00.fits',
+                'use_partial': True,
+                'flag_col' : 'flag',
+                'skip_flag' : 4
+        },
+        'select': {}
+    }
+    input = piff.InputFiles(config['input'], logger=logger)
+    select = piff.SelectFlag(config['select'], logger=logger)
+    stars = input.makeStars(logger=logger)
+    stars = select.selectStars(stars, logger=logger)
+    assert len(stars) == 80
+
+    # However, we could do this by having input return all rows as objects, and then have
+    # the select field pick out the subset with flag!=4.
+    config['input']['skip_flag'] = 0
+    config['select'] = {
+            'flag_name' : 'flag',
+            'skip_flag' : 4
+    }
+    input = piff.InputFiles(config['input'], logger=logger)
+    select = piff.SelectFlag(config['select'], logger=logger)
+    stars = input.makeStars(logger=logger)
+    stars = select.selectStars(stars, logger=logger)
+    assert len(stars) == 80
+
+    # We could also read the flag column in as an extra property, rather than tell input that it
+    # is a flag.  Then we don't have to set skip_flag in the input field.
+    config['input'] = {
+            'dir' : 'input',
+            'image_file_name': 'test_input_image_00.fits',
+            'cat_file_name': 'test_input_cat_00.fits',
+            'use_partial': True,
+            'property_cols': ['flag']
+    }
+    input = piff.InputFiles(config['input'], logger=logger)
+    select = piff.SelectFlag(config['select'], logger=logger)
+    stars = input.makeStars(logger=logger)
+    stars = select.selectStars(stars, logger=logger)
+    assert len(stars) == 80
+
+    # Similarly the use columns will skip anything with use == 0 (every 7th item here)
+    config['select'] = {
+            'flag_name' : 'flag',
+            'use_flag' : 1
+    }
+    input = piff.InputFiles(config['input'], logger=logger)
+    select = piff.SelectFlag(config['select'], logger=logger)
+    stars = input.makeStars(logger=logger)
+    stars = select.selectStars(stars, logger=logger)
+    assert len(stars) == 85
+
+    # Can do both
+    config['select'] = {
+            'flag_name' : 'flag',
+            'skip_flag' : 4,
+            'use_flag' : 1,
+    }
+    input = piff.InputFiles(config['input'], logger=logger)
+    select = piff.SelectFlag(config['select'], logger=logger)
+    stars = input.makeStars(logger=logger)
+    stars = select.selectStars(stars, logger=logger)
+    assert len(stars) == 68
+
+    # Can also have the input do some flag selection and then the select field do more.
+    config = {
+        'input': {
+                'type': 'Files',  # This is not required, but it is allowed.
+                'dir' : 'input',
+                'image_file_name' : 'test_input_image_00.fits',
+                'cat_file_name' : 'test_input_cat_00.fits',
+                'use_partial': True,
+                'flag_col' : 'flag',
+                'skip_flag' : 4
+        },
+        'select': {
+                'type': 'Flag',  # This is not required, but it is allowed.
+                'flag_name' : 'flag',
+                'use_flag' : 1,
+        }
+    }
+    input = piff.InputFiles(config['input'], logger=logger)
+    select = piff.SelectFlag(config['select'], logger=logger)
+    stars = input.makeStars(logger=logger)
+    stars = select.selectStars(stars, logger=logger)
+    assert len(stars) == 68
+
+    # If no stars are selected, then the process function will raise an error.
+    config['select']['use_flag'] = 4  # same as skip_flag, so none will be selected.
+    input = piff.InputFiles(config['input'])
+    select = piff.SelectFlag(config['select'])
+    stars1 = input.makeStars()
+    stars = select.selectStars(stars)
+    assert len(stars) == 0
+    with np.testing.assert_raises(RuntimeError):
+        piff.Select.process(config['select'], stars1)
+
+    # Base class selectStars function is not implemented.
+    select = piff.Select(config['select'])
+    with np.testing.assert_raises(NotImplementedError):
+        select.selectStars(stars1)
+
+    # Error if flag_name is not in the property list
+    config['select']['flag_name'] = 'invalid'
+    select = piff.SelectFlag(config['select'])
+    with np.testing.assert_raises(ValueError):
+        select.selectStars(stars1, logger=logger)
+
+    # Even if flag_name is valid, if the input didn't save it, it's won't work.
+    del config['input']['flag_col']
+    del config['input']['skip_flag']
+    config['select']['flag_name'] = 'flag'
+    input = piff.InputFiles(config['input'])
+    select = piff.SelectFlag(config['select'])
+    stars1 = input.makeStars()
+    with np.testing.assert_raises(ValueError):
+        select.selectStars(stars1, logger=logger)
+
+@timer
 def test_boolarray():
     """Test the ability to use a flag_col that is really a boolean array rather than ints.
     """
