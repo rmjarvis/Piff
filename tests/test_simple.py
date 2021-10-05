@@ -630,6 +630,8 @@ def test_load_images():
         bounds = galsim.BoundsI(int(x-31), int(x+32), int(y-31), int(y+32))
         psf.drawImage(image[bounds], center=galsim.PositionD(x,y), method='no_pixel')
     image.addNoise(galsim.GaussianNoise(rng=galsim.BaseDeviate(1234), sigma=1e-6))
+    sky = 10.
+    image += sky
     image_file = os.path.join('output','test_load_images_im.fits')
     image.write(image_file)
 
@@ -642,7 +644,9 @@ def test_load_images():
 
     # Make star data
     config = { 'image_file_name' : image_file,
-               'cat_file_name': cat_file }
+               'cat_file_name': cat_file,
+               'sky': 10
+             }
     orig_stars, wcs, pointing = piff.Input.process(config, logger)
 
     # Fit these with a simple Mean, Gaussian
@@ -659,14 +663,24 @@ def test_load_images():
     for star in psf2.stars:
         np.testing.assert_array_equal(star.image.array, 0.)
 
-    loaded_stars = piff.Star.load_images(psf2.stars, image_file)
+    # First the old API:
+    with CaptureLog() as cl:
+        loaded_stars = piff.Star.load_images(psf2.stars, image_file, logger=cl.logger)
+    assert "WARNING: The Star.load_images function is deprecated." in cl.output
     for star, orig in zip(loaded_stars, psf.stars):
         np.testing.assert_array_equal(star.image.array, orig.image.array)
 
-    # Can optionally supply sky to subtract
-    loaded_stars = piff.Star.load_images(psf2.stars, image_file, sky=10)
+    # Can optionally supply a different sky to subtract
+    # (This is not allowed by the new API, but it probably doesn't make much sense.)
+    loaded_stars = piff.Star.load_images(psf2.stars, image_file, sky=2*sky)
     for star, orig in zip(loaded_stars, psf.stars):
-        np.testing.assert_array_equal(star.image.array, orig.image.array-10)
+        np.testing.assert_array_equal(star.image.array, orig.image.array - sky)
+
+    # Now the new API:
+    psf2 = piff.read(psf_file, logger)  # Reset stars to not have images in them.
+    loaded_stars = piff.InputFiles(config).load_images(psf2.stars)
+    for star, orig in zip(loaded_stars, psf.stars):
+        np.testing.assert_array_equal(star.image.array, orig.image.array)
 
 @timer
 def test_draw():

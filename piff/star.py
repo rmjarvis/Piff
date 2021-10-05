@@ -491,24 +491,35 @@ class Star(object):
         from .input import InputFiles
 
         logger = galsim.config.LoggerWrapper(logger)
+
+        logger.error("WARNING: The Star.load_images function is deprecated."
+                     "Use InputFiles.load_images instead.")
+
         logger.info("Loading image information from file %s",file_name)
+        config = {
+            'image_file_name': file_name,
+            'cat_file_name': None,  # We don't need this, but it needs to be present.
+            'image_hdu': image_hdu,
+            'weight_hdu': weight_hdu,
+            'badpix_hdu': badpix_hdu,
+            'noise': noise,
+        }
 
-        image, weight = InputFiles.readImage(file_name, image_hdu, weight_hdu, badpix_hdu,
-                                             noise=noise, logger=logger)
-        if sky:
-            image -= sky
+        if sky is not None:
+            # This should have been set in the star.data.properties already, but in the old
+            # API, it was allowed to set a value for sky that was not already in the stars.
+            # So set the sky property in each star here.
+            stars = [Star(StarData(image=s.data.image,
+                                   image_pos=s.data.image_pos,
+                                   weight=s.data.weight,
+                                   orig_weight=s.data.orig_weight,
+                                   pointing=s.data.pointing,
+                                   properties=dict(s.data.properties, sky=sky),
+                                   _xyuv_set = True),
+                          s.fit) for s in stars]
 
-        stars = [ Star(data = StarData(image=image[star.data.image.bounds].copy(),
-                                       image_pos=star.data.image_pos,
-                                       weight=weight[star.data.image.bounds].copy(),
-                                       pointing= (pointing if pointing is not None
-                                                  else star.data.pointing),
-                                       properties=star.data.properties,
-                                       _xyuv_set=True),
-                       fit = star.fit)
-                  for star in stars ]
-        return stars
-
+        input_files = InputFiles(config, logger=logger)
+        return input_files.load_images(stars)
 
     def offset_to_center(self, offset):
         """A utility routine to convert from an offset in image coordinates to the corresponding
