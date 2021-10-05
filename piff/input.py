@@ -803,7 +803,7 @@ class InputFiles(Input):
 
         if cat_file_name is None:
             # This is possible e.g. when loading images into an existing list of star instances.
-            logger.warning("Reading star catalog %s.",cat_file_name)
+            logger.warning("Not reading star catalog.")
             return None, None
 
         # Read in the star catalog
