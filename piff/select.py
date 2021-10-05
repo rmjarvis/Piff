@@ -353,3 +353,66 @@ class SelectFlag(Select):
         stars = [obj for use, obj in zip(select, objects) if use]
         logger.info("Seleced %d stars from %d total candidates.", len(stars), len(objects))
         return stars
+
+class SelectProperties(Select):
+    """An Select handler that picks stars according to any property or combination of properties
+    in the input catalog.
+    """
+    def __init__(self, config, logger=None):
+        """
+        Parse the config dict (Normally the 'where' field in the overall configuration dict).
+
+        The Properties type uses the following parameter, which is required.
+
+            :where:     A string to be evaluated, which is allowed to use any properties of
+                         the stars as variables.
+
+        :param config:      The configuration dict used to define the above parameters.
+        :param logger:      A logger object for logging debug info. [default: None]
+        """
+        super(SelectProperties, self).__init__(config, logger)
+
+        if 'where' not in config:
+            raise ValueError("The 'where' item is required for the Properties type")
+        self.where = config['where']
+
+    def selectStars(self, objects, logger=None):
+        """Select which of the input objects should be considered stars.
+
+        :param objects:     A list of input objects to be considered as potential stars.
+        :param logger:      A logger object for logging debug info. [default: None]
+
+        :returns: a list of Star instances
+        """
+        logger = galsim.config.LoggerWrapper(logger)
+
+        logger.info("Selecting stars according to %r", self.where)
+
+        # Build appropriate locals and globals for the eval statement.
+        gdict = globals().copy()
+        # Import some likely packages in case needed.
+        exec('import numpy', gdict)
+        exec('import numpy as np', gdict)
+        exec('import math', gdict)
+
+        ldict = {}
+        for prop_name in objects[0].data.properties.keys():
+            ldict[prop_name] = np.array([obj[prop_name] for obj in objects])
+
+        try:
+            select = eval(self.where, gdict, ldict)
+        except Exception as e:
+            logger.warning("Caught exception trying to evaluate where string")
+            logger.warning("%r",e)
+            logger.warning("Trying slower non-numpy array method")
+            select = []
+            for obj in objects:
+                ldict = {}
+                for prop_name in obj.data.properties.keys():
+                    ldict[prop_name] = obj[prop_name]
+                select.append(eval(self.where, gdict, ldict))
+        logger.debug("select = %s",select)
+
+        stars = [obj for use, obj in zip(select, objects) if use]
+        logger.info("Seleced %d stars from %d total candidates.", len(stars), len(objects))
+        return stars

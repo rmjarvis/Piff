@@ -99,7 +99,7 @@ def test_basic():
     if __name__ == '__main__':
         logger = piff.config.setup_logger(verbose=2)
     else:
-        logger = piff.config.setup_logger(log_file=os.path.join('output','test_input_basic.log'))
+        logger = None
 
     dir = 'input'
     image_file = 'test_input_image_00.fits'
@@ -281,7 +281,7 @@ def test_cols():
     if __name__ == '__main__':
         logger = piff.config.setup_logger(verbose=2)
     else:
-        logger = piff.config.setup_logger(log_file=os.path.join('output','test_input_cols.log'))
+        logger = None
 
     # Specifiable columns are: x, y, flag, use, sky, gain.  (We'll do flag, use below.)
     config = {
@@ -545,7 +545,7 @@ def test_flag_select():
     if __name__ == '__main__':
         logger = piff.config.setup_logger(verbose=2)
     else:
-        logger = piff.config.setup_logger(log_file=os.path.join('output','test_flag_select.log'))
+        logger = None
 
     # This repeats some of the tests in test_cols for using flags, but in that context
     # the flags were technically selecting which objects to consider, and then the select
@@ -675,13 +675,106 @@ def test_flag_select():
         select.selectStars(stars1, logger=logger)
 
 @timer
+def test_properties_select():
+    """Test the Properties selection type
+    """
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(verbose=2)
+    else:
+        logger = None
+
+    # The Properties select type is more general than flag.  You can pretty much do any
+    # calculation you want with any number of properties.  But here we keep things pretty
+    # simple, doing basically the same thing as we did above for the flag selection.
+
+    # This is equivalent to skip_flag = 4
+    config = {
+        'input': {
+                'dir' : 'input',
+                'image_file_name' : 'test_input_image_00.fits',
+                'cat_file_name' : 'test_input_cat_00.fits',
+                'use_partial': True,
+                'flag_col' : 'flag',
+                'skip_flag' : 0  # This instructs it not to skip anything yet.
+        },
+        'select': {
+                'type': 'Properties',
+                'where': 'flag & 4 == 0'
+        }
+    }
+    input = piff.InputFiles(config['input'], logger=logger)
+    select = piff.SelectProperties(config['select'], logger=logger)
+    stars = input.makeStars(logger=logger)
+    stars = select.selectStars(stars, logger=logger)
+    assert len(stars) == 80
+
+    # We could also read the flag column in as an extra property, rather than tell input that it
+    # is a flag.  Then we don't have to set skip_flag in the input field.
+    config['input'] = {
+            'dir' : 'input',
+            'image_file_name': 'test_input_image_00.fits',
+            'cat_file_name': 'test_input_cat_00.fits',
+            'use_partial': True,
+            'property_cols': ['flag']
+    }
+    input = piff.InputFiles(config['input'], logger=logger)
+    select = piff.SelectProperties(config['select'], logger=logger)
+    stars = input.makeStars(logger=logger)
+    stars = select.selectStars(stars, logger=logger)
+    assert len(stars) == 80
+
+    # This is equivalent to use_flag = 1
+    config['select']['where'] = 'flag & 1 != 0'
+    input = piff.InputFiles(config['input'], logger=logger)
+    select = piff.SelectProperties(config['select'], logger=logger)
+    stars = input.makeStars(logger=logger)
+    stars = select.selectStars(stars, logger=logger)
+    assert len(stars) == 85
+
+    config['select']['where'] = '(flag & 4 == 0) & (flag & 1 != 0)'
+    input = piff.InputFiles(config['input'], logger=logger)
+    select = piff.SelectProperties(config['select'], logger=logger)
+    stars = input.makeStars(logger=logger)
+    stars = select.selectStars(stars, logger=logger)
+    assert len(stars) == 68
+
+    # If eval string doesn't work with numpy arrays, then it does the slower method.
+    config['select']['where'] = '(flag & 4 == 0) and (flag & 1 != 0)'
+    input = piff.InputFiles(config['input'], logger=logger)
+    select = piff.SelectProperties(config['select'], logger=logger)
+    stars = input.makeStars(logger=logger)
+    stars = select.selectStars(stars, logger=logger)
+    assert len(stars) == 68
+
+    # This is gratuitous here, but can use np, numpy, math modules if desired.
+    config['select']['where'] = 'np.array(flag) & int(math.sqrt(16)) == numpy.zeros_like(flag)'
+    input = piff.InputFiles(config['input'], logger=logger)
+    select = piff.SelectProperties(config['select'], logger=logger)
+    stars = input.makeStars(logger=logger)
+    stars = select.selectStars(stars, logger=logger)
+    assert len(stars) == 80
+
+    # Error if where isn't given
+    del config['select']['where']
+    with np.testing.assert_raises(ValueError):
+       piff.SelectProperties(config['select'], logger=logger)
+
+    # Also if it uses invalid properties (Note: capitalization is respected.)
+    config['select']['where'] = 'FLAG & 4 == 0'
+    input = piff.InputFiles(config['input'], logger=logger)
+    select = piff.SelectProperties(config['select'], logger=logger)
+    stars = input.makeStars(logger=logger)
+    with np.testing.assert_raises(NameError):
+        stars = select.selectStars(stars, logger=logger)
+
+@timer
 def test_boolarray():
     """Test the ability to use a flag_col that is really a boolean array rather than ints.
     """
     if __name__ == '__main__':
         logger = piff.config.setup_logger(verbose=2)
     else:
-        logger = piff.config.setup_logger(log_file=os.path.join('output','test_input_bool.log'))
+        logger = None
 
     cat_file_name = os.path.join('input', 'test_input_cat_00.fits')
     data = fitsio.read(cat_file_name)
@@ -724,7 +817,7 @@ def test_chipnum():
     if __name__ == '__main__':
         logger = piff.config.setup_logger(verbose=2)
     else:
-        logger = piff.config.setup_logger(log_file=os.path.join('output','test_input_chipnum.log'))
+        logger = None
 
     # First, the default is to just use the index in the image list
     dir = 'input'
@@ -780,7 +873,7 @@ def test_weight():
     if __name__ == '__main__':
         logger = piff.config.setup_logger(verbose=2)
     else:
-        logger = piff.config.setup_logger(log_file=os.path.join('output','test_input_weight.log'))
+        logger = None
 
     # If no weight or badpix is specified, the weights are all equal.
     config = {
@@ -891,7 +984,7 @@ def test_lsst_weight():
     if __name__ == '__main__':
         logger = piff.config.setup_logger(verbose=2)
     else:
-        logger = piff.config.setup_logger(log_file=os.path.join('output','test_input_lsst.log'))
+        logger = None
 
     # First with a sky level.  This isn't actually how LSST calexps are made (they are sky
     # subtracted), but it is how the input images are made.
@@ -964,7 +1057,7 @@ def test_stars():
     if __name__ == '__main__':
         logger = piff.config.setup_logger(verbose=2)
     else:
-        logger = piff.config.setup_logger(log_file=os.path.join('output','test_input_stars.log'))
+        logger = None
 
     dir = 'input'
     image_file = 'test_input_image_00.fits'
@@ -1216,7 +1309,7 @@ def test_pointing():
     if __name__ == '__main__':
         logger = piff.config.setup_logger(verbose=2)
     else:
-        logger = piff.config.setup_logger(log_file=os.path.join('output','test_input_pointing.log'))
+        logger = None
 
     dir = 'input'
     image_file = 'test_input_image_00.fits'
