@@ -913,6 +913,10 @@ class InputFiles(Input):
                                      "%s is not a column in %s"%(col_name,cat_file_name))
                 extra_props[col_name] = cat[col_name]
 
+        # If we used a flag column, keep it as a property.
+        if flag_col is not None:
+            extra_props[flag_col] = cat[flag_col]
+
         # Make the list of sky values:
         if sky_col is not None:
             if sky_col not in cat.dtype.names:
