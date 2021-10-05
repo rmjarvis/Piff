@@ -372,7 +372,7 @@ class InputFiles(Input):
             cat_list = sorted(glob.glob(cat_file_name))
             if len(cat_list) == 0:
                 raise ValueError("No files found corresponding to "+config['cat_file_name'])
-        elif not isinstance(config['cat_file_name'], dict):
+        elif not isinstance(config['cat_file_name'], (dict, type(None))):
             raise ValueError("cat_file_name should be either a dict or a string")
 
         if cat_list is not None:
@@ -486,6 +486,45 @@ class InputFiles(Input):
         ra = config.get('ra',None)
         dec = config.get('dec',None)
         self.setPointing(ra, dec, logger)
+
+    def load_images(self, stars, logger=None):
+        """Load the image data into a list of Stars.
+
+        We don't store the image data for Stars when we write them to a file, since that
+        would take up a lot of space and is usually not desired.  However, we do store the
+        bounds in the original image where the star was cutout, so if you want to load back in
+        the original data from the image file(s), you can do so with this function.
+
+        :param stars:           A list of Star instances.
+        :param logger:          A logger object for logging debug info. [default: None]
+
+        :returns: a new list of Stars with the images information loaded.
+        """
+        logger = galsim.config.LoggerWrapper(logger)
+
+        images = {}
+        weight_images = {}
+        for image_num in range(self.nimages):
+            image, weight, _, _ = self.getRawImageData(image_num)
+            images[self.chipnums[image_num]] = image
+            weight_images[self.chipnums[image_num]] = weight
+
+        loaded_stars = []
+        for star in stars:
+            chipnum = star['chipnum']
+            image = images[chipnum][star.data.image.bounds].copy()
+            if 'sky' in star.data.properties:
+                image -= star['sky']
+            weight = weight_images[chipnum][star.data.weight.bounds].copy()
+            data = StarData(image=image,
+                            image_pos=star.data.image_pos,
+                            weight=weight,
+                            pointing=star.data.pointing,
+                            properties=star.data.properties,
+                            _xyuv_set=True)
+            loaded_stars.append(Star(data=data, fit=star.fit))
+
+        return loaded_stars
 
     def getRawImageData(self, image_num, logger=None):
         return self._getRawImageData(self.image_kwargs[image_num], self.cat_kwargs[image_num],
@@ -758,9 +797,14 @@ class InputFiles(Input):
         :param stamp_size:      The stamp size being used for the star stamps.
         :param logger:          A logger object for logging debug info. [default: None]
 
-        :returns: lists image_pos, satur, extra_props
+        :returns: lists image_pos, extra_props
         """
         import fitsio
+
+        if cat_file_name is None:
+            # This is possible e.g. when loading images into an existing list of star instances.
+            logger.warning("Reading star catalog %s.",cat_file_name)
+            return None, None
 
         # Read in the star catalog
         logger.warning("Reading star catalog %s.",cat_file_name)
