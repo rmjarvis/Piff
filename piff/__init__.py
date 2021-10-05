@@ -91,7 +91,7 @@ from .outliers import Outliers, ChisqOutliers
 
 # Input handlers are named InputBlah where Blah is what they are called in the config file
 from .input import Input, InputFiles
-from .select import Select, SelectFlag
+from .select import Select, SelectFlag, SelectProperties
 from .star import Star, StarData, StarFit
 
 # Output handlers are named OutputBlah where Blah is what they are called in the config file
