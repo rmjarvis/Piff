@@ -106,6 +106,7 @@ from .singlechip import SingleChipPSF
 from .stats import Stats, RhoStats, ShapeHistStats, HSMCatalogStats
 from .twod_stats import TwoDHistStats, WhiskerStats
 from .star_stats import StarStats
+from .size_mag import SizeMagStats
 
 # Optics
 from .optical_model import Optical, optical_templates

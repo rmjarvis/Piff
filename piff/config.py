@@ -140,6 +140,10 @@ def process(config, logger=None):
     psf = PSF.process(config['psf'], logger=logger)
     psf.fit(stars, wcs, pointing, logger=logger)
 
+    # Attach these for reference
+    psf.initial_objects = objects
+    psf.initial_stars = stars
+
     return psf
 
 def piffify(config, logger=None):

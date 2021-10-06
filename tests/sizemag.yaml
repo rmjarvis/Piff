@@ -1,0 +1,60 @@
+input:
+    dir: input
+    image_file_name: DECam_00241238_01.fits.fz
+    image_hdu: 1
+    badpix_hdu: 2
+    weight_hdu: 3
+
+    cat_file_name: DECam_00241238_01_cat.fits
+    cat_hdu: 2
+    x_col: XWIN_IMAGE
+    y_col: YWIN_IMAGE
+    flag_col: FLAGS
+    property_cols: [CLASS_STAR, MAG_AUTO]
+
+    #sky: DECam_00241238_01_bkg.fits.fz
+    #sky_hdu: 1
+
+    stamp_size: 25
+
+    ra: TELRA
+    dec: TELDEC
+    gain: GAINA
+    sky_col: BACKGROUND
+
+select:
+    type: Properties
+    where: (CLASS_STAR > 0.9) & (MAG_AUTO < 16)
+    hsm_size_reject: 4
+    min_snr: 20
+
+output:
+    dir: output
+    file_name: sizemag_piff.fits
+    stats:
+        -
+            type: SizeMag
+            file_name: sizemag.png
+        -
+            type: ShapeHist
+            file_name: sizemag_shape.png
+        -
+            type: TwoDHist
+            file_name: sizemag_twodhist.png
+
+psf:
+    interp:
+        order: 1
+        type: BasisPolynomial
+
+    model:
+        interp: Lanczos(5)
+        scale: 0.26
+        size: 15
+        type: PixelGrid
+
+    outliers:
+        type: Chisq
+        nsigma: 4.
+
+verbose: 2
