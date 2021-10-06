@@ -157,15 +157,23 @@ class Stats(object):
         for star, shape in zip(stars, shapes_truth):
             logger.debug("real shape for star at %s is %s",star.image_pos, shape)
 
+        # If no stars, then shapes_truth is the wrong shape.  This line is normally a no op
+        # but makes things work right if len(stars)=0.
+        shapes_truth = shapes_truth.reshape((len(stars),7))
+
         # Pull out the positions to return
         positions = np.array([ (star.data.properties['u'], star.data.properties['v'])
                                for star in stars ])
 
         # generate the model stars and measure moments
-        logger.debug("Generating and Measuring Model Stars")
-        shapes_model = np.array([ star.hsm for star in psf.drawStarList(stars)])
-        for star, shape in zip(stars, shapes_model):
-            logger.debug("model shape for star at %s is %s",star.image_pos, shape)
+        if psf is None:
+            shapes_model = None
+        else:
+            logger.debug("Generating and Measuring Model Stars")
+            shapes_model = np.array([ star.hsm for star in psf.drawStarList(stars)])
+            shapes_model = shapes_model.reshape((len(stars),7))
+            for star, shape in zip(stars, shapes_model):
+                logger.debug("model shape for star at %s is %s",star.image_pos, shape)
 
         return positions, shapes_truth, shapes_model
 
