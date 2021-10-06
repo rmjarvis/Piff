@@ -120,7 +120,7 @@ class Select(object):
 
         # Get the class to use for handling the selection
         # Default type is 'Files'
-        select_handler_class = getattr(piff, 'Select' + config_select.get('type','Flag'))
+        select_handler_class = getattr(piff, config_select.get('type','Flag') + 'Select')
 
         # Build handler object
         select_handler = select_handler_class(config_select)
@@ -293,7 +293,7 @@ class Select(object):
         return good_stars
 
 
-class SelectFlag(Select):
+class FlagSelect(Select):
     """An Select handler that picks stars according to a flag column in the input catalog.
     """
     def __init__(self, config, logger=None):
@@ -316,7 +316,7 @@ class SelectFlag(Select):
         :param config:      The configuration dict used to define the above parameters.
         :param logger:      A logger object for logging debug info. [default: None]
         """
-        super(SelectFlag, self).__init__(config, logger)
+        super(FlagSelect, self).__init__(config, logger)
 
         self.flag_name = config.get('flag_name', None)
         self.skip_flag = config.get('skip_flag', -1)
@@ -354,7 +354,7 @@ class SelectFlag(Select):
         logger.info("Seleced %d stars from %d total candidates.", len(stars), len(objects))
         return stars
 
-class SelectProperties(Select):
+class PropertiesSelect(Select):
     """An Select handler that picks stars according to any property or combination of properties
     in the input catalog.
     """
@@ -370,7 +370,7 @@ class SelectProperties(Select):
         :param config:      The configuration dict used to define the above parameters.
         :param logger:      A logger object for logging debug info. [default: None]
         """
-        super(SelectProperties, self).__init__(config, logger)
+        super(PropertiesSelect, self).__init__(config, logger)
 
         if 'where' not in config:
             raise ValueError("The 'where' item is required for the Properties type")

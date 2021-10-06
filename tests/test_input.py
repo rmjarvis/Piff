@@ -197,7 +197,7 @@ def test_basic():
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 3
     stars = input.makeStars(logger=logger)
-    select = piff.SelectFlag(select_config, logger=logger)
+    select = piff.FlagSelect(select_config, logger=logger)
     select.reserveStars(stars, logger=logger)
     print('len stars = ',len(stars))
     assert len(stars) == 60
@@ -564,7 +564,7 @@ def test_flag_select():
         'select': {}
     }
     input = piff.InputFiles(config['input'], logger=logger)
-    select = piff.SelectFlag(config['select'], logger=logger)
+    select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.selectStars(stars, logger=logger)
     assert len(stars) == 80
@@ -577,7 +577,7 @@ def test_flag_select():
             'skip_flag' : 4
     }
     input = piff.InputFiles(config['input'], logger=logger)
-    select = piff.SelectFlag(config['select'], logger=logger)
+    select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.selectStars(stars, logger=logger)
     assert len(stars) == 80
@@ -592,7 +592,7 @@ def test_flag_select():
             'property_cols': ['flag']
     }
     input = piff.InputFiles(config['input'], logger=logger)
-    select = piff.SelectFlag(config['select'], logger=logger)
+    select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.selectStars(stars, logger=logger)
     assert len(stars) == 80
@@ -603,7 +603,7 @@ def test_flag_select():
             'use_flag' : 1
     }
     input = piff.InputFiles(config['input'], logger=logger)
-    select = piff.SelectFlag(config['select'], logger=logger)
+    select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.selectStars(stars, logger=logger)
     assert len(stars) == 85
@@ -615,7 +615,7 @@ def test_flag_select():
             'use_flag' : 1,
     }
     input = piff.InputFiles(config['input'], logger=logger)
-    select = piff.SelectFlag(config['select'], logger=logger)
+    select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.selectStars(stars, logger=logger)
     assert len(stars) == 68
@@ -638,7 +638,7 @@ def test_flag_select():
         }
     }
     input = piff.InputFiles(config['input'], logger=logger)
-    select = piff.SelectFlag(config['select'], logger=logger)
+    select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.selectStars(stars, logger=logger)
     assert len(stars) == 68
@@ -646,7 +646,7 @@ def test_flag_select():
     # If no stars are selected, then the process function will raise an error.
     config['select']['use_flag'] = 4  # same as skip_flag, so none will be selected.
     input = piff.InputFiles(config['input'])
-    select = piff.SelectFlag(config['select'])
+    select = piff.FlagSelect(config['select'])
     stars1 = input.makeStars()
     stars = select.selectStars(stars)
     assert len(stars) == 0
@@ -660,7 +660,7 @@ def test_flag_select():
 
     # Error if flag_name is not in the property list
     config['select']['flag_name'] = 'invalid'
-    select = piff.SelectFlag(config['select'])
+    select = piff.FlagSelect(config['select'])
     with np.testing.assert_raises(ValueError):
         select.selectStars(stars1, logger=logger)
 
@@ -669,7 +669,7 @@ def test_flag_select():
     del config['input']['skip_flag']
     config['select']['flag_name'] = 'flag'
     input = piff.InputFiles(config['input'])
-    select = piff.SelectFlag(config['select'])
+    select = piff.FlagSelect(config['select'])
     stars1 = input.makeStars()
     with np.testing.assert_raises(ValueError):
         select.selectStars(stars1, logger=logger)
@@ -703,7 +703,7 @@ def test_properties_select():
         }
     }
     input = piff.InputFiles(config['input'], logger=logger)
-    select = piff.SelectProperties(config['select'], logger=logger)
+    select = piff.PropertiesSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.selectStars(stars, logger=logger)
     assert len(stars) == 80
@@ -718,7 +718,7 @@ def test_properties_select():
             'property_cols': ['flag']
     }
     input = piff.InputFiles(config['input'], logger=logger)
-    select = piff.SelectProperties(config['select'], logger=logger)
+    select = piff.PropertiesSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.selectStars(stars, logger=logger)
     assert len(stars) == 80
@@ -726,14 +726,14 @@ def test_properties_select():
     # This is equivalent to use_flag = 1
     config['select']['where'] = 'flag & 1 != 0'
     input = piff.InputFiles(config['input'], logger=logger)
-    select = piff.SelectProperties(config['select'], logger=logger)
+    select = piff.PropertiesSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.selectStars(stars, logger=logger)
     assert len(stars) == 85
 
     config['select']['where'] = '(flag & 4 == 0) & (flag & 1 != 0)'
     input = piff.InputFiles(config['input'], logger=logger)
-    select = piff.SelectProperties(config['select'], logger=logger)
+    select = piff.PropertiesSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.selectStars(stars, logger=logger)
     assert len(stars) == 68
@@ -741,7 +741,7 @@ def test_properties_select():
     # If eval string doesn't work with numpy arrays, then it does the slower method.
     config['select']['where'] = '(flag & 4 == 0) and (flag & 1 != 0)'
     input = piff.InputFiles(config['input'], logger=logger)
-    select = piff.SelectProperties(config['select'], logger=logger)
+    select = piff.PropertiesSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.selectStars(stars, logger=logger)
     assert len(stars) == 68
@@ -749,7 +749,7 @@ def test_properties_select():
     # This is gratuitous here, but can use np, numpy, math modules if desired.
     config['select']['where'] = 'np.array(flag) & int(math.sqrt(16)) == numpy.zeros_like(flag)'
     input = piff.InputFiles(config['input'], logger=logger)
-    select = piff.SelectProperties(config['select'], logger=logger)
+    select = piff.PropertiesSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.selectStars(stars, logger=logger)
     assert len(stars) == 80
@@ -757,12 +757,12 @@ def test_properties_select():
     # Error if where isn't given
     del config['select']['where']
     with np.testing.assert_raises(ValueError):
-       piff.SelectProperties(config['select'], logger=logger)
+       piff.PropertiesSelect(config['select'], logger=logger)
 
     # Also if it uses invalid properties (Note: capitalization is respected.)
     config['select']['where'] = 'FLAG & 4 == 0'
     input = piff.InputFiles(config['input'], logger=logger)
-    select = piff.SelectProperties(config['select'], logger=logger)
+    select = piff.PropertiesSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
     with np.testing.assert_raises(NameError):
         stars = select.selectStars(stars, logger=logger)
@@ -1079,7 +1079,7 @@ def test_stars():
         }
     }
     input = piff.InputFiles(config['input'], logger=logger)
-    select = piff.SelectFlag(config['select'], logger=logger)
+    select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.rejectStars(stars, logger=logger)
     assert len(stars) == 100
@@ -1098,7 +1098,7 @@ def test_stars():
 
     # max_snr increases the noise to achieve a maximum snr
     config['select']['max_snr'] = 120
-    select = piff.SelectFlag(config['select'], logger=logger)
+    select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.rejectStars(stars, logger=logger)
     assert len(stars) == 100
@@ -1119,7 +1119,7 @@ def test_stars():
 
     # The default is max_snr == 100
     del config['select']['max_snr']
-    select = piff.SelectFlag(config['select'], logger=logger)
+    select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.rejectStars(stars, logger=logger)
     assert len(stars) == 100
@@ -1137,7 +1137,7 @@ def test_stars():
 
     # min_snr removes stars with a snr < min_snr
     config['select']['min_snr'] = 50
-    select = piff.SelectFlag(config['select'], logger=logger)
+    select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.rejectStars(stars, logger=logger)
     print('len should be ',len(snr_list[snr_list >= 50]))
@@ -1191,7 +1191,7 @@ def test_stars():
     # For this set, it pulls in a few more to reject.
     config['select']['max_pixel_cut'] = 1900
     input = piff.InputFiles(config['input'], logger=logger)
-    select = piff.SelectFlag(config['select'], logger=logger)
+    select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.rejectStars(stars, logger=logger)
     assert len(stars) == 78
@@ -1200,7 +1200,7 @@ def test_stars():
     # remove anything, since it only considers stars with snr > 40.
     config['select']['max_snr'] = 30
     input = piff.InputFiles(config['input'], logger=logger)
-    select = piff.SelectFlag(config['select'], logger=logger)
+    select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.rejectStars(stars, logger=logger)
     assert len(stars) == 91
@@ -1210,24 +1210,24 @@ def test_stars():
     # hsm_size_reject=True rejects a few of these.  But mostly objects with neighbors.
     config['select']['hsm_size_reject'] = True
     input = piff.InputFiles(config['input'], logger=logger)
-    select = piff.SelectFlag(config['select'], logger=logger)
+    select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.rejectStars(stars, logger=logger)
     assert len(stars) == 88
 
     # hsm_size_reject can also be a float.  (True is equivalent to 10.)
     config['select']['hsm_size_reject'] = 100.
-    select = piff.SelectFlag(config['select'], logger=logger)
+    select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.rejectStars(stars, logger=logger)
     assert len(stars) == 90
     config['select']['hsm_size_reject'] = 3.
-    select = piff.SelectFlag(config['select'], logger=logger)
+    select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.rejectStars(stars, logger=logger)
     assert len(stars) == 84
     config['select']['hsm_size_reject'] = 10.
-    select = piff.SelectFlag(config['select'], logger=logger)
+    select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.rejectStars(stars, logger=logger)
     assert len(stars) == 88
@@ -1239,7 +1239,7 @@ def test_stars():
     config['input']['y_col'] = 'alt_y'
     del config['select']['min_snr']
     input = piff.InputFiles(config['input'], logger=logger)
-    select = piff.SelectFlag(config['select'], logger=logger)
+    select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.rejectStars(stars, logger=logger)
     print('new len is ',len(stars))
@@ -1268,14 +1268,14 @@ def test_stars():
     config['input']['weight_hdu'] = 8
     config['select']['max_mask_pixels'] = 513
     input = piff.InputFiles(config['input'], logger=logger)
-    select = piff.SelectFlag(config['select'], logger=logger)
+    select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.rejectStars(stars, logger=logger)
     print('new len is ',len(stars))
     assert len(stars) == 98
 
     config['select']['max_mask_pixels'] = 500
-    select = piff.SelectFlag(config['select'], logger=logger)
+    select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.rejectStars(stars, logger=logger)
     print('new len is ',len(stars))
@@ -1287,7 +1287,7 @@ def test_stars():
     config['select']['max_edge_frac'] = 0.25
     config['input']['use_partial'] = True
     input = piff.InputFiles(config['input'], logger=logger)
-    select = piff.SelectFlag(config['select'], logger=logger)
+    select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.rejectStars(stars, logger=logger)
     print('new len is ',len(stars))
