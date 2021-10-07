@@ -12,15 +12,13 @@ input:
     flag_col: FLAGS
     property_cols: [CLASS_STAR, MAG_AUTO]
 
-    #sky: DECam_00241238_01_bkg.fits.fz
-    #sky_hdu: 1
+    sky_file_name: DECam_00241238_01_bkg.fits.fz
 
     stamp_size: 25
 
     ra: TELRA
     dec: TELDEC
     gain: GAINA
-    sky_col: BACKGROUND
 
 select:
     type: Properties

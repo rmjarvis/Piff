@@ -49,6 +49,10 @@ def setup():
     print('sky, gain = ',sky,gain)
     satur = 2000  # Exactly 1 star has a pixel > 2000, so pretend this is the saturation level.
 
+    # Write a sky image file
+    sky_im = galsim.Image(1024,1024, init_value=sky)
+    sky_im.write(os.path.join('input', 'test_input_sky_00.fits.fz'))
+
     # Add two color columns to first catalog file
     rng1 = np.random.default_rng(123)
     rng2 = np.random.default_rng(234)
@@ -1410,6 +1414,145 @@ def test_pointing():
     np.testing.assert_almost_equal(input.pointing.ra / galsim.hours, 4.063, decimal=3)
     np.testing.assert_almost_equal(input.pointing.dec / galsim.degrees, -51.471, decimal=3)
 
+@timer
+def test_sky():
+    """Test the different ways to specify a sky to subtract.
+    """
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(verbose=2)
+    else:
+        logger = None
+
+    # First get the image without any sky subtraction.
+    image_file = 'input/test_input_image_00.fits'
+    cat_file = 'input/test_input_cat_00.fits'
+    sky_file = 'input/test_input_sky_00.fits.fz'
+    config = {
+                'image_file_name' : image_file,
+                'cat_file_name' : cat_file,
+                'use_partial' : True,
+             }
+    input = piff.InputFiles(config, logger=logger)
+    raw_image, _, _, _ = input.getRawImageData(0)
+    raw_stars = input.makeStars(logger=logger)
+    assert raw_image.array.shape == (1024, 1024)
+    assert len(raw_stars) == 100
+
+    # With a sky_col, it will subtract that value from each star's image
+    config = {
+                'image_file_name' : image_file,
+                'cat_file_name' : cat_file,
+                'use_partial' : True,
+                'sky_col' : 'sky',
+             }
+    input = piff.InputFiles(config, logger=logger)
+    image, _, _, extra_props = input.getRawImageData(0)
+    stars = input.makeStars(logger=logger)
+    np.testing.assert_allclose(image.array, raw_image.array)
+    assert len(extra_props['sky']) == 100
+    for i in range(len(stars)):
+        assert stars[i]['sky'] == extra_props['sky'][i]
+        np.testing.assert_allclose(stars[i].image.array, raw_stars[i].image.array - stars[i]['sky'])
+
+    # If sky is given as a constant value, then that number is used.
+    config = {
+                'image_file_name' : image_file,
+                'cat_file_name' : cat_file,
+                'use_partial' : True,
+                'sky' : 7,
+             }
+    input = piff.InputFiles(config, logger=logger)
+    image, _, _, extra_props = input.getRawImageData(0)
+    stars = input.makeStars(logger=logger)
+    np.testing.assert_allclose(image.array, raw_image.array)
+    for i in range(len(stars)):
+        assert extra_props['sky'][i] == 7
+        np.testing.assert_allclose(stars[i].image.array, raw_stars[i].image.array - 7)
+
+    # If sky is given as a string, it is a header key word.
+    config = {
+                'image_file_name' : image_file,
+                'cat_file_name' : cat_file,
+                'use_partial' : True,
+                'sky' : 'SKYLEVEL',
+             }
+    input = piff.InputFiles(config, logger=logger)
+    image, _, _, extra_props = input.getRawImageData(0)
+    stars = input.makeStars(logger=logger)
+    np.testing.assert_allclose(image.array, raw_image.array)
+    with fitsio.FITS(image_file, 'r') as f:
+        sky = f[0].read_header()['SKYLEVEL']
+    for i in range(len(stars)):
+        assert extra_props['sky'][i] == sky
+        np.testing.assert_allclose(stars[i].image.array, raw_stars[i].image.array - sky)
+
+    # If sky_file_name is given then it is an image file to subtract
+    # In this case, we made it so this image is a constant with values equal to SKYLEVEL from
+    # the previous test, so keep the same value for sky.
+    config = {
+                'image_file_name' : image_file,
+                'cat_file_name' : cat_file,
+                'use_partial' : True,
+                'sky_file_name' : sky_file,
+             }
+    input = piff.InputFiles(config, logger=logger)
+    image, _, _, extra_props = input.getRawImageData(0)
+    stars = input.makeStars(logger=logger)
+    np.testing.assert_allclose(image.array, raw_image.array - sky)
+    assert 'sky' not in extra_props  # No sky property in this case.
+    for i in range(len(stars)):
+        np.testing.assert_allclose(stars[i].image.array, raw_stars[i].image.array - sky)
+
+    # Can provide an explicit hdu, although the default works fine in this case.
+    config['sky_hdu'] = 1
+    input = piff.InputFiles(config, logger=logger)
+    image, _, _, extra_props = input.getRawImageData(0)
+    stars = input.makeStars(logger=logger)
+    np.testing.assert_allclose(image.array, raw_image.array - sky)
+    assert 'sky' not in extra_props
+    for i in range(len(stars)):
+        np.testing.assert_allclose(stars[i].image.array, raw_stars[i].image.array - sky)
+
+    # It can also use a provided dir
+    config = {
+                'dir' : 'input',
+                'image_file_name' : image_file[6:],
+                'cat_file_name' : cat_file[6:],
+                'use_partial' : True,
+                'sky_file_name' : sky_file[6:],
+             }
+    input = piff.InputFiles(config, logger=logger)
+    image, _, _, extra_props = input.getRawImageData(0)
+    stars = input.makeStars(logger=logger)
+    np.testing.assert_allclose(image.array, raw_image.array - sky)
+    assert 'sky' not in extra_props
+    for i in range(len(stars)):
+        np.testing.assert_allclose(stars[i].image.array, raw_stars[i].image.array - sky)
+
+    # As with the other file names, sky_file_name can be parsed as a dict.
+    config = {
+                'image_file_name' : image_file,
+                'cat_file_name' : cat_file,
+                'use_partial' : True,
+                'sky_file_name' : { 'type': 'List', 'items': [sky_file], },
+             }
+    input = piff.InputFiles(config, logger=logger)
+    image, _, _, extra_props = input.getRawImageData(0)
+    stars = input.makeStars(logger=logger)
+    np.testing.assert_allclose(image.array, raw_image.array - sky)
+    assert 'sky' not in extra_props
+    for i in range(len(stars)):
+        np.testing.assert_allclose(stars[i].image.array, raw_stars[i].image.array - sky)
+
+    # Error if sky_file doesn't exist
+    config['sky_file_name'] = sky_file[-2]
+    with np.testing.assert_raises(ValueError):
+        piff.InputFiles(config, logger=logger)
+
+    # Also if not either a string or dict.
+    config['sky_file_name'] = 77
+    with np.testing.assert_raises(ValueError):
+        piff.InputFiles(config, logger=logger)
 
 
 if __name__ == '__main__':
