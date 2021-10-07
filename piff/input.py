@@ -270,6 +270,8 @@ class InputFiles(Input):
                 'image_hdu' : int,
                 'weight_hdu' : int,
                 'badpix_hdu' : int,
+                'sky_file_name' : str,
+                'sky_hdu': int,
                 'cat_hdu' : int,
                 'invert_weight' : bool,
                 'remove_signal_from_weight' : bool,
@@ -357,6 +359,23 @@ class InputFiles(Input):
         logger.debug('nimages = %d',nimages)
         assert nimages is not None
 
+        # Set up sky_file_name if appropriate
+        if 'sky_file_name' not in config:
+            pass
+        elif isinstance(config['sky_file_name'], str):
+            sky_file_name = config['sky_file_name']
+            if dir is not None:
+                sky_file_name = os.path.join(dir, sky_file_name)
+            sky_list = sorted(glob.glob(sky_file_name))
+            if len(sky_list) == 0:
+                raise ValueError("No files found corresponding to "+config['sky_file_name'])
+            config['sky_file_name'] = {
+                'type' : 'List_str',
+                'items' : sky_list
+            }
+        elif not isinstance(config['sky_file_name'], dict):
+            raise ValueError("sky_file_name should be either a dict or a string")
+
         if 'cat_file_name' not in config:
             raise TypeError('Parameter cat_file_name is required')
         elif isinstance(config['cat_file_name'], list):
@@ -418,6 +437,8 @@ class InputFiles(Input):
             image_hdu = params.get('image_hdu', None)
             weight_hdu = params.get('weight_hdu', None)
             badpix_hdu = params.get('badpix_hdu', None)
+            sky_file_name = params.get('sky_file_name', None)
+            sky_hdu = params.get('sky_hdu', None)
             noise = params.get('noise', None)
 
             self.image_file_name.append(image_file_name)
@@ -426,6 +447,8 @@ class InputFiles(Input):
                     'image_hdu' : image_hdu,
                     'weight_hdu' : weight_hdu,
                     'badpix_hdu' : badpix_hdu,
+                    'sky_file_name' : sky_file_name,
+                    'sky_hdu' : sky_hdu,
                     'noise' : noise})
 
             # Read the catalog
@@ -691,13 +714,17 @@ class InputFiles(Input):
         return newweight, gain
 
     @staticmethod
-    def readImage(image_file_name, image_hdu, weight_hdu, badpix_hdu, noise, logger):
+    def readImage(image_file_name, image_hdu, weight_hdu, badpix_hdu,
+                  sky_file_name, sky_hdu, noise, logger):
         """Read in the image and weight map (or make one if no weight information is given
 
         :param image_file_name: The name of the file to read.
         :param image_hdu:       The hdu of the main image.
         :param weight_hdu:      The hdu of the weight image (if any).
         :param badpix_hdu:      The hdu of the bad pixel mask (if any).
+        :param sky_file_name:   A file to use for a sky background to subtract from the image
+                                (if any).
+        :param sky_hdu:         The hdu to use in the sky_file_name (if any).
         :param noise:           A constant noise value to use in lieu of a weight map.
         :param logger:          A logger object for logging debug info.
 
@@ -706,6 +733,13 @@ class InputFiles(Input):
         # Read in the image
         logger.warning("Reading image file %s",image_file_name)
         image = galsim.fits.read(image_file_name, hdu=image_hdu)
+
+        # If requested, subtract a sky image
+        if sky_file_name is not None:
+            hdu_str = " from hdu %s"%(sky_hdu) if sky_hdu is not None else ""
+            logger.info("Reading sky image %s.", sky_file_name + hdu_str)
+            sky = galsim.fits.read(sky_file_name, hdu=sky_hdu)
+            image -= sky
 
         # Either read in the weight image, or build a dummy one
         if weight_hdu is not None:
@@ -745,6 +779,7 @@ class InputFiles(Input):
                 logger.error("According to the bad pixel array in %s, all pixels are masked!",
                              image_file_name)
             weight.array[badpix.array != 0] = 0
+
         return image, weight
 
     @staticmethod
