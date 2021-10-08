@@ -892,6 +892,7 @@ def test_depr_select():
     # This is the old API
     config['input'].update(config['select'])
     del config['select']
+    config = galsim.config.CleanConfig(config)
     print('config = ',config)
     with CaptureLog(level=1) as cl:
         piff.piffify(config, cl.logger)
@@ -906,6 +907,7 @@ def test_depr_select():
     # Also ok for some items to be in select, but erroneously put some in input.
     config['input']['min_snr'] = config['select'].pop('min_snr')
     config['input']['max_snr'] = config['select'].pop('max_snr')
+    config = galsim.config.CleanConfig(config)
     print('config = ',config)
     with CaptureLog(level=1) as cl:
         piff.piffify(config, cl.logger)
