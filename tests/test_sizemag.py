@@ -25,7 +25,7 @@ def test_sizemag_plot():
     if __name__ == '__main__':
         logger = piff.config.setup_logger(2)
     else:
-        logger = None
+        logger = piff.config.setup_logger(log_file='output/test_sizemag_plot.log')
 
     config = piff.config.read_config('sizemag.yaml')
     file_name = os.path.join('output', config['output']['stats'][0]['file_name'])

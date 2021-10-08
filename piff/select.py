@@ -318,9 +318,15 @@ class FlagSelect(Select):
         """
         super(FlagSelect, self).__init__(config, logger)
 
-        self.flag_name = config.get('flag_name', None)
-        self.skip_flag = config.get('skip_flag', -1)
-        self.use_flag = config.get('use_flag', None)
+        opt = {
+            'flag_name': str,
+            'skip_flag': int,
+            'use_flag': int,
+        }
+        params = galsim.config.GetAllParams(config, config, opt=opt, ignore=Select.base_keys)[0]
+        self.flag_name = params.get('flag_name', None)
+        self.skip_flag = params.get('skip_flag', -1)
+        self.use_flag = params.get('use_flag', None)
 
     def selectStars(self, objects, logger=None):
         """Select which of the input objects should be considered stars.
@@ -355,7 +361,7 @@ class FlagSelect(Select):
         return stars
 
 class PropertiesSelect(Select):
-    """An Select handler that picks stars according to any property or combination of properties
+    """A Select handler that picks stars according to any property or combination of properties
     in the input catalog.
     """
     def __init__(self, config, logger=None):
@@ -372,9 +378,9 @@ class PropertiesSelect(Select):
         """
         super(PropertiesSelect, self).__init__(config, logger)
 
-        if 'where' not in config:
-            raise ValueError("The 'where' item is required for the Properties type")
-        self.where = config['where']
+        req = { 'where': str }
+        params = galsim.config.GetAllParams(config, config, req=req, ignore=Select.base_keys)[0]
+        self.where = params['where']
 
     def selectStars(self, objects, logger=None):
         """Select which of the input objects should be considered stars.

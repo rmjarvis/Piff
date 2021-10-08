@@ -706,6 +706,7 @@ def test_properties_select():
                 'where': 'flag & 4 == 0'
         }
     }
+    config = galsim.config.CleanConfig(config)
     input = piff.InputFiles(config['input'], logger=logger)
     select = piff.PropertiesSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
@@ -721,6 +722,7 @@ def test_properties_select():
             'use_partial': True,
             'property_cols': ['flag']
     }
+    config = galsim.config.CleanConfig(config)
     input = piff.InputFiles(config['input'], logger=logger)
     select = piff.PropertiesSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
@@ -729,6 +731,7 @@ def test_properties_select():
 
     # This is equivalent to use_flag = 1
     config['select']['where'] = 'flag & 1 != 0'
+    config = galsim.config.CleanConfig(config)
     input = piff.InputFiles(config['input'], logger=logger)
     select = piff.PropertiesSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
@@ -736,6 +739,7 @@ def test_properties_select():
     assert len(stars) == 85
 
     config['select']['where'] = '(flag & 4 == 0) & (flag & 1 != 0)'
+    config = galsim.config.CleanConfig(config)
     input = piff.InputFiles(config['input'], logger=logger)
     select = piff.PropertiesSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
@@ -744,6 +748,7 @@ def test_properties_select():
 
     # If eval string doesn't work with numpy arrays, then it does the slower method.
     config['select']['where'] = '(flag & 4 == 0) and (flag & 1 != 0)'
+    config = galsim.config.CleanConfig(config)
     input = piff.InputFiles(config['input'], logger=logger)
     select = piff.PropertiesSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
@@ -752,6 +757,7 @@ def test_properties_select():
 
     # This is gratuitous here, but can use np, numpy, math modules if desired.
     config['select']['where'] = 'np.array(flag) & int(math.sqrt(16)) == numpy.zeros_like(flag)'
+    config = galsim.config.CleanConfig(config)
     input = piff.InputFiles(config['input'], logger=logger)
     select = piff.PropertiesSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
@@ -760,11 +766,13 @@ def test_properties_select():
 
     # Error if where isn't given
     del config['select']['where']
+    config = galsim.config.CleanConfig(config)
     with np.testing.assert_raises(ValueError):
        piff.PropertiesSelect(config['select'], logger=logger)
 
     # Also if it uses invalid properties (Note: capitalization is respected.)
     config['select']['where'] = 'FLAG & 4 == 0'
+    config = galsim.config.CleanConfig(config)
     input = piff.InputFiles(config['input'], logger=logger)
     select = piff.PropertiesSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
