@@ -284,3 +284,230 @@ class SmallBrightSelect(Select):
         logger.debug("fluxs of stars = %s",[s.hsm[0] for s in stars])
 
         return stars
+
+class SizeMagSelect(Select):
+    """A Select handler that picks stars by finding where the stellar locus in the size-magnitude
+    diagram starts to blend into the galaxy locus.
+
+    By default, the initial selection uses the SmallBright selector, but you can provide
+    any other selection algorithm for the initial stars.
+    """
+    def __init__(self, config, logger=None):
+        """
+        Parse the config dict (Normally the 'where' field in the overall configuration dict).
+
+        The following parameters are tunable in the config field, but they all have reasonable
+        default values:
+
+            :fit_order:     The order of the polynomial fit of log(size) vs (u,v) across the
+                            field of view.  This is used to subtract off the gross size variation
+                            across the focal plane, which tends to tighten up the stellar locus.
+                            [default: 2]
+            :purity:        The maximum ratio of objects at the minimum between the stellar locus
+                            and the galaxy locus to the number of stars found. [default: 0.01]
+            :num_iter:      How many iterations to repeat the processing of building a histogram
+                            looking for when it merges with the galaxy locus. [default: 3]
+
+        In addition to these, you may specify the algorithm for making the initial selection
+        in an ``inital_select`` dict, which should specify the selection algorithm to use.
+        The default is to use the SmallBright selection algorithm with default parameters.
+        But you could specify non-default parameters for that as follows (e.g.)::
+
+            select:
+                type: SizeMag
+
+                initial_select:
+                    type: SmallBright
+                    bright_fraction: 0.3
+                    small_fraction: 0.4
+                    locus_fraction: 0.3
+
+                fit_order: 3
+
+        Or, you may want to start with stars according to some other selection algorith.
+        E.g. to use some column(s) from the input catalog::
+
+            select:
+                type: SizeMag
+
+                initial_select:
+                    type: Properties
+                    where: (CLASS_STAR > 0.9) & (MAX_AUTO < 16)
+
+        :param config:      The configuration dict used to define the above parameters.
+        :param logger:      A logger object for logging debug info. [default: None]
+        """
+        super(SizeMagSelect, self).__init__(config, logger)
+
+        opt = {
+            'fit_order': int,
+            'purity': float,
+            'num_iter': int,
+        }
+        ignore = Select.base_keys + ['initial_select']
+
+        params = galsim.config.GetAllParams(config, config, opt=opt, ignore=ignore)[0]
+        self.fit_order = params.get('fit_order', 2)
+        self.purity = params.get('purity', 0.01)
+        self.num_iter = params.get('num_iter', 3)
+
+        if 'initial_select' in config:
+            self.initial_select = config['initial_select']
+        else:
+            self.initial_select = {'type': 'SmallBright'}
+
+    def selectStars(self, objects, logger=None):
+        """Select which of the input objects should be considered stars.
+
+        :param objects:     A list of input objects to be considered as potential stars.
+        :param logger:      A logger object for logging debug info. [default: None]
+
+        :returns: a list of Star instances
+        """
+        from scipy.signal import argrelextrema
+
+        logger = galsim.config.LoggerWrapper(logger)
+
+        logger.info("Selecting stars according to locus in size-magnitude diagram")
+
+        stars = Select.process(self.initial_select, objects, logger=logger)
+
+        logger.debug("N objects = %s", len(objects))
+        logger.debug("N initial stars = %s", len(stars))
+
+        # Get size, flux from hsm
+        obj_shapes = np.array([ obj.hsm for obj in objects ])
+        flag_obj = obj_shapes[:, 6]
+        f_obj = obj_shapes[:, 0]
+        T_obj = obj_shapes[:, 3]
+        u_obj = np.array([ obj.u for obj in objects ])
+        v_obj = np.array([ obj.v for obj in objects ])
+
+        # Getting rid of the flags will mess with the indexing, so keep track of the original
+        # index numbers.
+        mask = flag_obj == 0
+        orig_index = np.arange(len(objects))[mask]
+
+        # Work in log/log space.
+        # log(f) is basically a magnitude with different spacing.
+        # size of stars is constant, so log(T) doesn't matter that much, but it means that
+        # the width of the locus in the size direction is really a fractional width.  This is
+        # nice because it gets rid of any scaling issues due to units or pixel size, etc.
+        logf_obj = np.log(f_obj[mask])
+        logT_obj = np.log(T_obj[mask])
+        u_obj = u_obj[mask]
+        v_obj = v_obj[mask]
+        logger.debug("After removing flags count = %s", len(logf_obj))
+
+        # Sort the objects by brightness (brightest first)
+        sort_index = np.argsort(-logf_obj)
+        logf_obj = logf_obj[sort_index]
+        logT_obj = logT_obj[sort_index]
+        u_obj = u_obj[sort_index]
+        v_obj = v_obj[sort_index]
+        orig_index = orig_index[sort_index]
+
+        # Get the size, flux of the initial candidate stars
+        star_shapes = np.array([ star.hsm for star in stars ])
+        mask = star_shapes[:, 6] == 0
+        logf_star = np.log(star_shapes[mask, 0])
+        logT_star = np.log(star_shapes[mask, 3])
+        u_star = np.array([ star.u for star in stars ])[mask]
+        v_star = np.array([ star.v for star in stars ])[mask]
+        logger.debug("logf_star = %s",logf_star)
+        logger.debug("logT_star = %s",logT_star)
+
+        # Do 3 passes of this because as we add more stars, the fit may become better.
+        for i_iter in range(self.num_iter):
+            logger.debug("Start iter %d/%d", i_iter, self.num_iter)
+            logger.debug("Nstars = %s",len(logT_star))
+            logger.debug("Mean logT of stars = %s, std = %s",
+                         np.mean(logT_star), np.std(logT_star))
+
+            # Clip outliers so they don't pull the fit.
+            good = np.abs(logT_star - np.mean(logT_star)) < 3*np.std(logT_star)
+            logf_star = logf_star[good]
+            logT_star = logT_star[good]
+            u_star = u_star[good]
+            v_star = v_star[good]
+            logger.debug("After clip 3sigma outliers, N = %s, mean logT = %s, std = %s",
+                         len(logT_star), np.mean(logT_star), np.std(logT_star))
+
+            # Fit a polynomial logT(u,v) and subtract it off.
+            fn = self.fit_2d_polynomial(u_star, v_star, logT_star, self.fit_order)
+            logT_star -= fn(u_star, v_star)
+            logger.debug("After subtract 2d polynomial fit logT(u,v), mean logT = %s, std = %s",
+                         np.mean(logT_star), np.std(logT_star))
+            sigma = np.std(logT_star)
+
+            # Now build up a histogram in logT (after also subtracting the polynomial fit)
+            # Start with brightest objects and slowly go fainter until we see the stellar
+            # peak start to merge with the galaxies.  This will define our minimum logf for stars.
+            # We don't need to keep the whole range of size.  Just go from 0 (where the stars
+            # are now) up to 10 sigma.
+            logT_fit = logT_obj - fn(u_obj, v_obj)
+            use = (logT_fit > 0) & (logT_fit < 10 * sigma)
+            logT = logT_fit[use]
+            logf = logf_obj[use]
+            hist = np.zeros(10, dtype=int)
+            hist_index = (np.floor(logT/sigma)).astype(int)
+            assert np.all(hist_index >= 0)
+            assert np.all(hist_index < len(hist))
+
+            for i in range(len(logT)):
+                hist[hist_index[i]] += 1
+                # Find the first valley to the right of the peak at 0.
+                # This is defined as locations where the count increases.
+                # At first, valley may be index=1, in which case, keep going.
+                valleys = np.argwhere(np.diff(hist) > 0)
+                if len(valleys) > 0 and valleys[0] > 1:
+                    valley = valleys[0]
+                    logger.debug("hist = %s, valley = %s",hist, valley)
+                    if hist[valley] > self.purity * hist[0]:
+                        logger.debug("Value is %s, which is too high (cf. %s)",
+                                     hist[valley], self.purity * hist[0])
+                        break
+            logger.debug('Final hist = %s',hist)
+            logger.debug('Added %d objects',i)
+
+            # When we broke out of that loop (if ever), the last object added gives us our
+            # flux limit for star selection.
+            # The location of the minimum gives us our allowed spread in size.
+            # And we make it symmetric, picking the same spread on the small side of the peak.
+            half_range = valley * sigma
+            min_logf = logf[i]
+            logger.debug('Last logf was %s',min_logf)
+            logger.debug('valley is at %d sigma = %f', valley, half_range)
+
+            select = (logT_fit > -half_range) & (logT_fit < half_range) & (logf_obj > min_logf)
+
+            # Set up arrays for next iteration
+            logf_star = logf_obj[select]
+            logT_star = logT_obj[select]
+            u_star = u_obj[select]
+            v_star = v_obj[select]
+            logger.info("SizeMag iteration %d => N stars = %d", i_iter, len(logf_star))
+            logger.info("Mean logT of stars = %s, std = %s", np.mean(logT_star), np.std(logT_star))
+
+        select_index = orig_index[select]
+        logger.debug("select_index = %s",select_index)
+        stars = [objects[i] for i in select_index]
+        logger.debug("sizes of stars = %s",[s.hsm[3] for s in stars])
+        logger.debug("fluxs of stars = %s",[s.hsm[0] for s in stars])
+        return stars
+
+    @staticmethod
+    def fit_2d_polynomial(x, y, z, order):
+        """Fit z = f(x,y) as a 2d polynomial function
+
+        Returns a function object f.
+        """
+        # I seriously don't know why this isn't a first-level numpy function.
+        # It required some sleuthing to find all the numpy primitives required, but once
+        # I found them, it's almost trivial to put them together.
+
+        from numpy.polynomial import chebyshev as cheby
+        A = cheby.chebvander2d(x, y, (order,order))
+        coeff = np.linalg.lstsq(A, z, rcond=None)[0].reshape(order+1,order+1)
+        fn = lambda x,y: cheby.chebval2d(x,y,coeff)
+        return fn
