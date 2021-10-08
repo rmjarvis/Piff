@@ -21,8 +21,12 @@ input:
     gain: GAINA
 
 select:
-    type: Properties
-    where: (CLASS_STAR > 0.9) & (MAG_AUTO < 16)
+    type: SizeMag
+
+    initial_select:
+        type: Properties
+        where: (CLASS_STAR > 0.9) & (MAG_AUTO < 16)
+
     hsm_size_reject: 4
     min_snr: 20
 

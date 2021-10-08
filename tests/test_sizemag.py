@@ -57,7 +57,6 @@ def test_smallbright():
     if __name__ == '__main__':
         logger = piff.config.setup_logger(2)
     else:
-        #logger = piff.config.setup_logger(2)
         logger = None
 
     config = piff.config.read_config('sizemag.yaml')
@@ -77,6 +76,11 @@ def test_smallbright():
     print('class_star = ',class_star)
     print('min class_star = ',np.min(class_star))
     assert np.all(class_star > 0.95)
+
+    mag_auto = np.array([s['MAG_AUTO'] for s in stars])
+    print('mag_auto = ',mag_auto)
+    print('max mag_auto = ',np.max(mag_auto))
+    assert np.max(mag_auto) < 16
 
     # Sizes are all pretty similar (by construction of the algorithm)
     sizes = [s.hsm[3] for s in stars]
@@ -131,5 +135,96 @@ def test_smallbright():
     piff.Select.process(config['select'], objects, logger=logger)
 
 
+@timer
+def test_sizemag():
+    """Test the SizeMag selection algorithm.
+    """
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(2)
+    else:
+        logger = None
+
+    config = piff.config.read_config('sizemag.yaml')
+    config['select'] = {
+        'type': 'SizeMag'
+    }
+
+    objects, _, _ = piff.Input.process(config['input'], logger=logger)
+    stars = piff.Select.process(config['select'], objects, logger=logger)
+
+    # This finds more stars than the simple SmallBright selector found.
+    print('nstars = ',len(stars))
+    assert len(stars) == 135
+
+    # A few of these have lower CLASS_STAR values, but still most are > 0.95
+    class_star = np.array([s['CLASS_STAR'] for s in stars])
+    print('class_star = ',class_star)
+    print('min class_star = ',np.min(class_star))
+    print('N class_star > 0.95 = ',np.sum(class_star > 0.95))
+    assert np.sum(class_star > 0.95) == 133
+
+    # This goes a bit fainter than the SmallBright selector did (which is kind of the point).
+    mag_auto = np.array([s['MAG_AUTO'] for s in stars])
+    print('mag_auto = ',mag_auto)
+    print('max mag_auto = ',np.max(mag_auto))
+    assert np.max(mag_auto) > 16
+    assert np.max(mag_auto) < 17
+
+    # Sizes are all pretty similar (but not exactly by construction anymore)
+    sizes = [s.hsm[3] for s in stars]
+    print('mean size = ',np.mean(sizes))
+    print('median size = ',np.median(sizes))
+    print('min/max size = ',np.min(sizes),np.max(sizes))
+    assert (np.max(sizes)-np.min(sizes)) / np.median(sizes) < 0.1
+
+    # Try some different parameter values.
+    config['select'] = {
+        'type': 'SizeMag',
+        'initial_select': {
+            'type': 'Properties',
+            'where': '(CLASS_STAR > 0.9) & (MAG_AUTO < 16)',
+        },
+        'purity' : 0,
+        'num_iter' : 2,
+        'fit_order': 0,
+    }
+    stars = piff.Select.process(config['select'], objects, logger=logger)
+
+    # A bit fewer, but not really consequentially different.
+    print('nstars = ',len(stars))
+    assert len(stars) == 118
+
+    class_star = np.array([s['CLASS_STAR'] for s in stars])
+    print('class_star = ',class_star)
+    print('min class_star = ',np.min(class_star))
+    print('N class_star > 0.95 = ',np.sum(class_star > 0.95))
+    assert np.sum(class_star > 0.95) == 116
+
+    sizes = [s.hsm[3] for s in stars]
+    print('mean size = ',np.mean(sizes))
+    print('median size = ',np.median(sizes))
+    print('min/max size = ',np.min(sizes),np.max(sizes))
+    assert (np.max(sizes)-np.min(sizes)) / np.median(sizes) < 0.1
+
+    # Error to have other parameters
+    config['select'] = {
+        'type': 'SizeMag',
+        'order': 3,
+    }
+    with np.testing.assert_raises(ValueError):
+        piff.Select.process(config['select'], objects, logger=logger)
+
+    # But ok to have parameters that the base class will handle.
+    config['select'] = {
+        'type': 'SizeMag',
+        'purity': 0,
+        'hsm_size_reject': 4,
+        'min_snr': 50,
+    }
+    piff.Select.process(config['select'], objects, logger=logger)
+
+
 if __name__ == '__main__':
     test_sizemag_plot()
+    test_smallbright()
+    test_sizemag()
