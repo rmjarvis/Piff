@@ -468,6 +468,11 @@ class SizeMagSelect(Select):
                         logger.debug("Value is %s, which is too high (cf. %s)",
                                      hist[valley], self.purity * hist[0])
                         break
+            else:
+                # If never find a valley (e.g. if all stars or all galaxies are much brighter
+                # than the stars being considered), then use the first 0 as the "valley".
+                valley = np.argmin(hist)
+
             logger.debug('Final hist = %s',hist)
             logger.debug('Added %d objects',i)
 

@@ -206,6 +206,31 @@ def test_sizemag():
     print('min/max size = ',np.min(sizes),np.max(sizes))
     assert (np.max(sizes)-np.min(sizes)) / np.median(sizes) < 0.1
 
+    # Make sure it doesn't crap out if all the input objects are stars
+    config['input'] = {
+        'dir': 'input',
+        'image_file_name': 'DECam_00241238_01.fits.fz',
+        'image_hdu': 1,
+        'badpix_hdu': 2,
+        'weight_hdu': 3,
+
+        'cat_file_name' : 'DECam_00241238_01_psfcat_tb_maxmag_17.0_magcut_3.0_findstars.fits',
+        'cat_hdu' : 2,
+        'x_col' : 'XWIN_IMAGE',
+        'y_col' : 'YWIN_IMAGE',
+        'sky_col' : 'BACKGROUND',
+
+        'stamp_size': 25,
+    }
+    config['select'] = {
+        'type': 'SizeMag',
+        'initial_select': {
+            # Use all the input objects
+        }
+    }
+    objects, _, _ = piff.Input.process(config['input'], logger=logger)
+    stars = piff.Select.process(config['select'], objects, logger=logger)
+
     # Error to have other parameters
     config['select'] = {
         'type': 'SizeMag',
@@ -222,7 +247,6 @@ def test_sizemag():
         'min_snr': 50,
     }
     piff.Select.process(config['select'], objects, logger=logger)
-
 
 if __name__ == '__main__':
     test_sizemag_plot()
