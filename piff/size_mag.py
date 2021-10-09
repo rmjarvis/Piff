@@ -266,6 +266,7 @@ class SmallBrightSelect(Select):
             logger.debug("Range of initial star logT size = %s, %s",
                         np.min(star_logT), np.max(star_logT))
             logger.debug("IQR = %s",iqr)
+            iqr = max(iqr,0.01)  # Make sure we don't get too tight an initial grouping
             iqr = min(iqr,self.max_spread/4)
             select = (logT > med - 2*iqr) & (logT < med + 2*iqr) & (logf > np.min(bright_logf))
             new_count = np.sum(select)
