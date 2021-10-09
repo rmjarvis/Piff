@@ -1093,7 +1093,28 @@ def test_stars():
     assert len(stars) == 84
     del config['input']['satur']
 
-    # hsm_size_reject=True rejects a few of these.
+    # maxpixel_cut is almost the same thing, but figures out an equivalent flux cut and uses
+    # that to avoid imparting a size selection bias.
+    # For this set, it pulls in a few more to reject.
+    config['select']['max_pixel_cut'] = 1900
+    input = piff.InputFiles(config['input'], logger=logger)
+    select = piff.SelectFlag(config['select'], logger=logger)
+    stars = input.makeStars(logger=logger)
+    stars = select.rejectStars(stars, logger=logger)
+    assert len(stars) == 78
+
+    # Gratuitous coverage test.  If all objects have snr < 40, then max_pixel_cut doesn't
+    # remove anything, since it only considers stars with snr > 40.
+    config['select']['max_snr'] = 30
+    input = piff.InputFiles(config['input'], logger=logger)
+    select = piff.SelectFlag(config['select'], logger=logger)
+    stars = input.makeStars(logger=logger)
+    stars = select.rejectStars(stars, logger=logger)
+    assert len(stars) == 91
+    del config['select']['max_snr']
+    del config['select']['max_pixel_cut']
+
+    # hsm_size_reject=True rejects a few of these.  But mostly objects with neighbors.
     config['select']['hsm_size_reject'] = True
     input = piff.InputFiles(config['input'], logger=logger)
     select = piff.SelectFlag(config['select'], logger=logger)
