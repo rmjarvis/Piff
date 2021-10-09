@@ -34,7 +34,7 @@ class Select(object):
     """
     # Parameters that derived classes should ignore if they appear in the config dict
     # (since they are handled by the base class).
-    base_keys= ['min_snr', 'max_snr', 'hsm_size_reject', 'max_pixel_cut',
+    base_keys= ['min_snr', 'max_snr', 'hsm_size_reject', 'max_pixel_cut', 'reject_where',
                 'max_edge_frac', 'stamp_center_size', 'max_mask_pixels',
                 'reserve_frac', 'seed']
 
@@ -47,6 +47,7 @@ class Select(object):
         self.max_mask_pixels = config.get('max_mask_pixels', None)
         self.hsm_size_reject = config.get('hsm_size_reject', 0.)
         self.max_pixel_cut = config.get('max_pixel_cut', None)
+        self.reject_where = config.get('reject_where', None)
         self.reserve_frac = config.get('reserve_frac', 0.)
         self.rng = np.random.default_rng(config.get('seed', None))
 
@@ -96,6 +97,9 @@ class Select(object):
                             If this is a float value, it gives the number of inter-quartile-ranges
                             to use for rejection relative to the median.  hsm_size_reject=True
                             is equivalent to hsm_size_reject=10.
+            :reject_where:  Reject stars based on an arbitrary eval string using variables that
+                            are properties of each star (usually input using property_cols).
+                            [default: None]
             :reserve_frac:  Reserve a fraction of the stars from the PSF calculations, so they
                             can serve as fair points for diagnostic testing.  These stars will
                             not be used to constrain the PSF model, but the output files will
@@ -243,6 +247,16 @@ class Select(object):
                     logger.warning("Skipping this star.")
                     continue
 
+            if self.reject_where is not None:
+                # Use the eval_where function of PropertiesSelect
+                reject = PropertiesSelect.eval_where([star], self.reject_where, logger=logger)
+                if reject:
+                    logger.warning("Skipping star at position %f,%f due to reject_where",
+                                   star.image_pos.x, star.image_pos.y)
+                    logger.debug("reject_where string: %s",self.reject_where)
+                    logger.debug("star properties = %s",star.data.properties)
+                    continue
+
             # Add Poisson noise now.  It's not a rejection step, but it's something we want
             # to do to all the stars at the start, so they have the right noise level.
             # We didn't do it earlier for efficiency reasons, in case the full set of objects
@@ -382,18 +396,13 @@ class PropertiesSelect(Select):
         params = galsim.config.GetAllParams(config, config, req=req, ignore=Select.base_keys)[0]
         self.where = params['where']
 
-    def selectStars(self, objects, logger=None):
-        """Select which of the input objects should be considered stars.
+    @classmethod
+    def eval_where(cls, objects, where, logger=None):
+        """Perform the evaluation of a "where" string using the properties of objects.
 
-        :param objects:     A list of input objects to be considered as potential stars.
-        :param logger:      A logger object for logging debug info. [default: None]
-
-        :returns: a list of Star instances
+        Used by both PropertiesSelect and the reject_where option.
         """
         logger = galsim.config.LoggerWrapper(logger)
-
-        logger.info("Selecting stars according to %r", self.where)
-
         # Build appropriate locals and globals for the eval statement.
         gdict = globals().copy()
         # Import some likely packages in case needed.
@@ -406,7 +415,7 @@ class PropertiesSelect(Select):
             ldict[prop_name] = np.array([obj[prop_name] for obj in objects])
 
         try:
-            select = eval(self.where, gdict, ldict)
+            select = eval(where, gdict, ldict)
         except Exception as e:
             logger.warning("Caught exception trying to evaluate where string")
             logger.warning("%r",e)
@@ -416,7 +425,21 @@ class PropertiesSelect(Select):
                 ldict = {}
                 for prop_name in obj.data.properties.keys():
                     ldict[prop_name] = obj[prop_name]
-                select.append(eval(self.where, gdict, ldict))
+                select.append(eval(where, gdict, ldict))
+        return select
+
+    def selectStars(self, objects, logger=None):
+        """Select which of the input objects should be considered stars.
+
+        :param objects:     A list of input objects to be considered as potential stars.
+        :param logger:      A logger object for logging debug info. [default: None]
+
+        :returns: a list of Star instances
+        """
+        logger = galsim.config.LoggerWrapper(logger)
+        logger.info("Selecting stars according to %r", self.where)
+
+        select = self.eval_where(objects, self.where)
         logger.debug("select = %s",select)
 
         stars = [obj for use, obj in zip(select, objects) if use]

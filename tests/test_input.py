@@ -709,8 +709,8 @@ def test_properties_select():
     config = galsim.config.CleanConfig(config)
     input = piff.InputFiles(config['input'], logger=logger)
     select = piff.PropertiesSelect(config['select'], logger=logger)
-    stars = input.makeStars(logger=logger)
-    stars = select.selectStars(stars, logger=logger)
+    objects = input.makeStars(logger=logger)
+    stars = select.selectStars(objects, logger=logger)
     assert len(stars) == 80
 
     # We could also read the flag column in as an extra property, rather than tell input that it
@@ -725,43 +725,36 @@ def test_properties_select():
     config = galsim.config.CleanConfig(config)
     input = piff.InputFiles(config['input'], logger=logger)
     select = piff.PropertiesSelect(config['select'], logger=logger)
-    stars = input.makeStars(logger=logger)
-    stars = select.selectStars(stars, logger=logger)
+    objects = input.makeStars(logger=logger)
+    stars = select.selectStars(objects, logger=logger)
     assert len(stars) == 80
 
     # This is equivalent to use_flag = 1
     config['select']['where'] = 'flag & 1 != 0'
     config = galsim.config.CleanConfig(config)
-    input = piff.InputFiles(config['input'], logger=logger)
     select = piff.PropertiesSelect(config['select'], logger=logger)
-    stars = input.makeStars(logger=logger)
-    stars = select.selectStars(stars, logger=logger)
+    stars = select.selectStars(objects, logger=logger)
     assert len(stars) == 85
 
+    # This is equivalent to use_flag = 1, skip_flag = 4
     config['select']['where'] = '(flag & 4 == 0) & (flag & 1 != 0)'
     config = galsim.config.CleanConfig(config)
-    input = piff.InputFiles(config['input'], logger=logger)
     select = piff.PropertiesSelect(config['select'], logger=logger)
-    stars = input.makeStars(logger=logger)
-    stars = select.selectStars(stars, logger=logger)
+    stars = select.selectStars(objects, logger=logger)
     assert len(stars) == 68
 
     # If eval string doesn't work with numpy arrays, then it does the slower method.
     config['select']['where'] = '(flag & 4 == 0) and (flag & 1 != 0)'
     config = galsim.config.CleanConfig(config)
-    input = piff.InputFiles(config['input'], logger=logger)
     select = piff.PropertiesSelect(config['select'], logger=logger)
-    stars = input.makeStars(logger=logger)
-    stars = select.selectStars(stars, logger=logger)
+    stars = select.selectStars(objects, logger=logger)
     assert len(stars) == 68
 
     # This is gratuitous here, but can use np, numpy, math modules if desired.
     config['select']['where'] = 'np.array(flag) & int(math.sqrt(16)) == numpy.zeros_like(flag)'
     config = galsim.config.CleanConfig(config)
-    input = piff.InputFiles(config['input'], logger=logger)
     select = piff.PropertiesSelect(config['select'], logger=logger)
-    stars = input.makeStars(logger=logger)
-    stars = select.selectStars(stars, logger=logger)
+    stars = select.selectStars(objects, logger=logger)
     assert len(stars) == 80
 
     # Error if where isn't given
@@ -773,11 +766,32 @@ def test_properties_select():
     # Also if it uses invalid properties (Note: capitalization is respected.)
     config['select']['where'] = 'FLAG & 4 == 0'
     config = galsim.config.CleanConfig(config)
-    input = piff.InputFiles(config['input'], logger=logger)
     select = piff.PropertiesSelect(config['select'], logger=logger)
-    stars = input.makeStars(logger=logger)
     with np.testing.assert_raises(NameError):
-        stars = select.selectStars(stars, logger=logger)
+        stars = select.selectStars(objects, logger=logger)
+
+    # Finally, the reject option reject_where is basically the converse of this,
+    # which may be easier in some use cases.
+    config['select'] = {
+        'type': 'Properties',
+        'where': 'flag & 1 != 0',
+        'reject_where': 'flag & 4 != 0'
+    }
+    select = piff.PropertiesSelect(config['select'], logger=logger)
+    stars = select.selectStars(objects, logger=logger)
+    stars = select.rejectStars(stars, logger=logger)
+    assert len(stars) == 68
+
+    # Can use reject_where for other types besides Properties
+    config['select'] = {
+        'type': 'Flag',
+        'reject_where': '(flag & 4 != 0) | (flag & 1 == 0)'
+    }
+    select = piff.FlagSelect(config['select'], logger=logger)
+    stars = select.selectStars(objects, logger=logger)
+    stars = select.rejectStars(stars, logger=logger)
+    assert len(stars) == 68
+
 
 @timer
 def test_boolarray():
