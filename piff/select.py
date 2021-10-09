@@ -34,7 +34,7 @@ class Select(object):
     """
     # Parameters that derived classes should ignore if they appear in the config dict
     # (since they are handled by the base class).
-    base_keys= ['min_snr', 'max_snr', 'hsm_size_reject',
+    base_keys= ['min_snr', 'max_snr', 'hsm_size_reject', 'max_pixel_cut',
                 'max_edge_frac', 'stamp_center_size', 'max_mask_pixels',
                 'reserve_frac', 'seed']
 
@@ -46,6 +46,7 @@ class Select(object):
         self.stamp_center_size = config.get('stamp_center_size', 13)
         self.max_mask_pixels = config.get('max_mask_pixels', None)
         self.hsm_size_reject = config.get('hsm_size_reject', 0.)
+        self.max_pixel_cut = config.get('max_pixel_cut', None)
         self.reserve_frac = config.get('reserve_frac', 0.)
         self.rng = np.random.default_rng(config.get('seed', None))
 
@@ -265,6 +266,29 @@ class Select(object):
                 del good_stars[k]
                 med_sigma = np.median(sigma)
                 iqr_sigma = scipy.stats.iqr(sigma)
+
+        # Reject based on a maximum pixel value, being careful to not induce a bias that smaller
+        # stars of a given flux will have higher max pixel values.
+        if self.max_pixel_cut is not None:
+            # find median max_pixel/flux ratio, and use to set flux cut equivalent
+            # on average to max_pixel_cut
+            max_pixel = np.array([np.max(star.data.image.array) for star in good_stars])
+            # If subtracted sky, need to add it back.
+            max_pixel += np.array([star.data.properties.get('sky',0) for star in good_stars])
+            flux = np.array([star.hsm[0] for star in good_stars])
+            # Low S/N stars have a max_pixel that is more due to noise than signal.
+            # Exclude S/N < 40 and also use a median of the bright ones to be more robust
+            # to noisy max pixel values.
+            bright = np.where([(star.data.properties['snr'] > 40) for star in good_stars])[0]
+            logger.debug("Num bright = %s",len(bright))
+            if len(bright) > 0:
+                ratio = np.median(max_pixel[bright] / flux[bright])
+                flux_cut = self.max_pixel_cut / ratio
+                logger.debug("max_pixel/flux ratio = %.4f, flux_cut is %.1f", ratio, flux_cut)
+                logger.info("Rejected %d stars for having a flux > %.1f, "
+                            "which implies max_pixel > ~%s",
+                            np.sum(flux>=flux_cut), flux_cut, self.max_pixel_cut)
+                good_stars = [s for f,s in zip(flux,good_stars) if f < flux_cut]
 
         return good_stars
 
