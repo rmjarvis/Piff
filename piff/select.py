@@ -99,6 +99,8 @@ class Select(object):
                             is equivalent to hsm_size_reject=10.
             :reject_where:  Reject stars based on an arbitrary eval string using variables that
                             are properties of each star (usually input using property_cols).
+                            It should evaluate to a bool for a single star or an array of bool
+                            if the variables are arrays of property values for all the stars.
                             [default: None]
             :reserve_frac:  Reserve a fraction of the stars from the PSF calculations, so they
                             can serve as fair points for diagnostic testing.  These stars will
@@ -385,7 +387,9 @@ class PropertiesSelect(Select):
         The Properties type uses the following parameter, which is required.
 
             :where:     A string to be evaluated, which is allowed to use any properties of
-                         the stars as variables.
+                        the stars as variables.  It should evaluate to a bool for a single object
+                        or an array of bool if the variables are arrays of property values for all
+                        the objects.
 
         :param config:      The configuration dict used to define the above parameters.
         :param logger:      A logger object for logging debug info. [default: None]

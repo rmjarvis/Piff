@@ -192,13 +192,13 @@ def test_sizemag():
 
     # A bit fewer, but not really consequentially different.
     print('nstars = ',len(stars))
-    assert len(stars) == 118
+    assert len(stars) == 124
 
     class_star = np.array([s['CLASS_STAR'] for s in stars])
     print('class_star = ',class_star)
     print('min class_star = ',np.min(class_star))
     print('N class_star > 0.95 = ',np.sum(class_star > 0.95))
-    assert np.sum(class_star > 0.95) == 116
+    assert np.sum(class_star > 0.95) == 122
 
     sizes = [s.hsm[3] for s in stars]
     print('mean size = ',np.mean(sizes))
