@@ -257,7 +257,7 @@ class SmallBrightSelect(Select):
         # Expand this to include all stars that are within twice the interquarile range of
         # these candidate stars.  Keep doing so until we converge on a good set of stars.
         old_select = None  # Force at least 2 iterations.
-        for iter in range(10):  # And at most 10 iterations.
+        for iter in range(10):  # And at most 10 iterations.  pragma: no branch
             logger.debug("Sizes of candidate stars = %s", np.exp(star_logT))
             med = np.median(star_logT)
             logger.info("Median size = %s", np.exp(med))
