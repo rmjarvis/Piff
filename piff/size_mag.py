@@ -153,7 +153,7 @@ class SmallBrightSelect(Select):
     """
     def __init__(self, config, logger=None):
         """
-        Parse the config dict (Normally the 'where' field in the overall configuration dict).
+        Parse the config dict (Normally the 'select' field in the overall configuration dict).
 
         The following parameters are tunable in the config field, but they all have reasonable
         default values:
@@ -257,7 +257,7 @@ class SmallBrightSelect(Select):
         # Expand this to include all stars that are within twice the interquarile range of
         # these candidate stars.  Keep doing so until we converge on a good set of stars.
         old_select = None  # Force at least 2 iterations.
-        while True:
+        for iter in range(10):  # And at most 10 iterations.
             logger.debug("Sizes of candidate stars = %s", np.exp(star_logT))
             med = np.median(star_logT)
             logger.info("Median size = %s", np.exp(med))
@@ -295,7 +295,7 @@ class SizeMagSelect(Select):
     """
     def __init__(self, config, logger=None):
         """
-        Parse the config dict (Normally the 'where' field in the overall configuration dict).
+        Parse the config dict (Normally the 'select' field in the overall configuration dict).
 
         The following parameters are tunable in the config field, but they all have reasonable
         default values:
@@ -365,8 +365,6 @@ class SizeMagSelect(Select):
 
         :returns: a list of Star instances
         """
-        from scipy.signal import argrelextrema
-
         logger = galsim.config.LoggerWrapper(logger)
 
         logger.info("Selecting stars according to locus in size-magnitude diagram")
@@ -426,12 +424,14 @@ class SizeMagSelect(Select):
                          np.mean(logT_star), np.std(logT_star))
 
             # Clip outliers so they don't pull the fit.
-            good = np.abs(logT_star - np.mean(logT_star)) < 3*np.std(logT_star)
+            q25, q75 = np.percentile(logT_star, [25,75])
+            iqr = q75 - q25
+            good = np.abs(logT_star - np.median(logT_star)) < 2*iqr
             logf_star = logf_star[good]
             logT_star = logT_star[good]
             u_star = u_star[good]
             v_star = v_star[good]
-            logger.debug("After clip 3sigma outliers, N = %s, mean logT = %s, std = %s",
+            logger.debug("After clipping 3sigma outliers, N = %s, mean logT = %s, std = %s",
                          len(logT_star), np.mean(logT_star), np.std(logT_star))
 
             # Fit a polynomial logT(u,v) and subtract it off.
@@ -447,7 +447,7 @@ class SizeMagSelect(Select):
             # We don't need to keep the whole range of size.  Just go from 0 (where the stars
             # are now) up to 10 sigma.
             logT_fit = logT_obj - fn(u_obj, v_obj)
-            use = (logT_fit > 0) & (logT_fit < 10 * sigma)
+            use = (logT_fit >= 0) & (logT_fit < 10 * sigma)
             logT = logT_fit[use]
             logf = logf_obj[use]
             hist = np.zeros(10, dtype=int)
@@ -460,7 +460,7 @@ class SizeMagSelect(Select):
                 # Find the first valley to the right of the peak at 0.
                 # This is defined as locations where the count increases.
                 # At first, valley may be index=1, in which case, keep going.
-                valleys = np.argwhere(np.diff(hist) > 0)
+                valleys = np.where(np.diff(hist) > 0)[0]
                 if len(valleys) > 0 and valleys[0] > 1:
                     valley = valleys[0]
                     logger.debug("hist = %s, valley = %s",hist, valley)
@@ -472,6 +472,7 @@ class SizeMagSelect(Select):
                 # If never find a valley (e.g. if all stars or all galaxies are much brighter
                 # than the stars being considered), then use the first 0 as the "valley".
                 valley = np.argmin(hist)
+                # NB. i (used below) is left as the last index in the loop in this case.
 
             logger.debug('Final hist = %s',hist)
             logger.debug('Added %d objects',i)
