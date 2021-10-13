@@ -233,14 +233,14 @@ def test_sizemag():
 
     # This finds more stars than the simple SmallBright selector found.
     print('nstars = ',len(stars))
-    assert len(stars) == 135
+    assert len(stars) == 136
 
     # A few of these have lower CLASS_STAR values, but still most are > 0.95
     class_star = np.array([s['CLASS_STAR'] for s in stars])
     print('class_star = ',class_star)
     print('min class_star = ',np.min(class_star))
     print('N class_star > 0.95 = ',np.sum(class_star > 0.95))
-    assert np.sum(class_star > 0.95) == 133
+    assert np.sum(class_star > 0.95) == 134
 
     # This goes a bit fainter than the SmallBright selector did (which is kind of the point).
     mag_auto = np.array([s['MAG_AUTO'] for s in stars])
@@ -285,6 +285,23 @@ def test_sizemag():
     print('min/max size = ',np.min(sizes),np.max(sizes))
     assert (np.max(sizes)-np.min(sizes)) / np.median(sizes) < 0.1
 
+    # Check that it doesn't crap out with bad initial objects.
+    # Here the initial selection is pretty much all galaxies, not stars.
+    config['select'] = {
+        'type': 'SizeMag',
+        'initial_select': {
+            'type': 'Properties',
+            'where': '(CLASS_STAR < 0.5) & (MAG_AUTO > 15)',
+        },
+    }
+    stars = piff.Select.process(config['select'], objects, logger=logger)
+    sizes = [s.hsm[3] for s in stars]
+    print('mean size = ',np.mean(sizes))
+    print('median size = ',np.median(sizes))
+    print('min/max size = ',np.min(sizes),np.max(sizes))
+    # It doesn't fail, but it (obviously) doesn't find a good stellar locus either.
+    assert np.max(sizes) > 1.5  # Real stellar locus is at about T = 0.5
+
     # Make sure it doesn't crap out if all the input objects are stars
     config['input'] = {
         'dir': 'input',
@@ -310,13 +327,61 @@ def test_sizemag():
     objects, _, _ = piff.Input.process(config['input'], logger=logger)
     stars = piff.Select.process(config['select'], objects, logger=logger)
 
+    # Check pathologically few input objects.
+    select = piff.SizeMagSelect(config['select'])
+    with np.testing.assert_raises(RuntimeError):
+        stars = select.selectStars(objects[:0], logger=logger)
+
+    with CaptureLog() as cl:
+        stars = select.selectStars(objects[:1], logger=cl.logger)
+    print(cl.output)
+    assert "Too few candidate stars (1) to use fit_order=2." in cl.output
+    print("len(stars) = ",len(stars))
+    assert len(stars) == 0
+
+    with CaptureLog() as cl:
+        stars = select.selectStars(objects[:5], logger=cl.logger)
+    print(cl.output)
+    # (Note: one was clipped, so only N=4 when the error message triggered.)
+    assert "Too few candidate stars (4) to use fit_order=2." in cl.output
+    print("len(stars) = ",len(stars))
+    assert len(stars) == 0
+
+    # With fit_order=0, 1 input star is still tricky, but it should go through.
+    config['select'] = {
+        'type': 'SizeMag',
+        'fit_order': 0,
+        'initial_select': {}
+    }
+    select = piff.SizeMagSelect(config['select'])
+    stars = select.selectStars(objects[:1], logger=logger)
+    print("len(stars) = ",len(stars))
+    assert len(stars) == 1
+
+    # With fit_order=1, 3 input stars could in principle work, but with clipping and such,
+    # it fails for these 3 objects.
+    config['select'] = {
+        'type': 'SizeMag',
+        'fit_order': 1,
+        'initial_select': {}
+    }
+    select = piff.SizeMagSelect(config['select'])
+    stars = select.selectStars(objects[:3], logger=logger)
+    print("len(stars) = ",len(stars))
+    assert len(stars) == 0
+
+    # For this set, the first 5 objects failed, but 6 works (and returns 5 of them as stars).
+    stars = select.selectStars(objects[:6], logger=logger)
+    print("len(stars) = ",len(stars))
+    assert len(stars) == 5
+
     # Error to have other parameters
     config['select'] = {
         'type': 'SizeMag',
         'order': 3,
     }
     with np.testing.assert_raises(ValueError):
-        piff.Select.process(config['select'], objects, logger=logger)
+        select = piff.SmallBrightSelect(config['select'])
 
     # But ok to have parameters that the base class will handle.
     config['select'] = {
