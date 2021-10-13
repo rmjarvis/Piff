@@ -449,6 +449,7 @@ class SizeMagSelect(Select):
             # Clip outliers so they don't pull the fit.
             q25, q75 = np.percentile(logT_star, [25,75])
             iqr = q75 - q25
+            iqr = max(iqr,0.01)  # Make sure we don't get too tight an initial grouping
             good = np.abs(logT_star - np.median(logT_star)) < 2*iqr
             logf_star = logf_star[good]
             logT_star = logT_star[good]
@@ -457,12 +458,19 @@ class SizeMagSelect(Select):
             logger.debug("After clipping 3sigma outliers, N = %s, mean logT = %s, std = %s",
                          len(logT_star), np.mean(logT_star), np.std(logT_star))
 
+            if len(u_star) < self.fit_order*(self.fit_order+1):
+                logger.warning("Too few candidate stars (%d) to use fit_order=%d.",
+                               len(u_star), self.fit_order)
+                logger.warning("Cannot find stellar locus.")
+                return []
+
             # Fit a polynomial logT(u,v) and subtract it off.
             fn = self.fit_2d_polynomial(u_star, v_star, logT_star, self.fit_order)
             logT_star -= fn(u_star, v_star)
             logger.debug("After subtract 2d polynomial fit logT(u,v), mean logT = %s, std = %s",
                          np.mean(logT_star), np.std(logT_star))
             sigma = np.std(logT_star)
+            sigma = max(sigma, 0.01)  # Don't let sigma be 0 in case all logT are equal here.
 
             # Now build up a histogram in logT (after also subtracting the polynomial fit)
             # Start with brightest objects and slowly go fainter until we see the stellar
@@ -470,7 +478,7 @@ class SizeMagSelect(Select):
             # We don't need to keep the whole range of size.  Just go from 0 (where the stars
             # are now) up to 10 sigma.
             logT_fit = logT_obj - fn(u_obj, v_obj)
-            use = (logT_fit >= 0) & (logT_fit < 10 * sigma)
+            use = (logT_fit >= 0) & (logT_fit <= 10 * sigma)
             logT = logT_fit[use]
             logf = logf_obj[use]
             hist = np.zeros(10, dtype=int)
@@ -509,7 +517,7 @@ class SizeMagSelect(Select):
             logger.debug('Last logf was %s',min_logf)
             logger.debug('valley is at %d sigma = %f', valley, half_range)
 
-            select = (logT_fit > -half_range) & (logT_fit < half_range) & (logf_obj > min_logf)
+            select = (logT_fit >= -half_range) & (logT_fit <= half_range) & (logf_obj >= min_logf)
 
             # Set up arrays for next iteration
             logf_star = logf_obj[select]
