@@ -458,7 +458,7 @@ class SizeMagSelect(Select):
             logger.debug("After clipping 3sigma outliers, N = %s, mean logT = %s, std = %s",
                          len(logT_star), np.mean(logT_star), np.std(logT_star))
 
-            if len(u_star) < self.fit_order*(self.fit_order+1):
+            if len(u_star) < (self.fit_order+1)*(self.fit_order+2)//2:
                 logger.warning("Too few candidate stars (%d) to use fit_order=%d.",
                                len(u_star), self.fit_order)
                 logger.warning("Cannot find stellar locus.")
@@ -478,8 +478,9 @@ class SizeMagSelect(Select):
             # We don't need to keep the whole range of size.  Just go from 0 (where the stars
             # are now) up to 10 sigma.
             logT_fit = logT_obj - fn(u_obj, v_obj)
-            use = (logT_fit >= 0) & (logT_fit <= 10 * sigma)
-            logT = logT_fit[use]
+            logT_fit_shift = logT_fit + sigma/2.  # Add half sigma, so 0 bin is centered at logT=0.
+            use = (logT_fit_shift >= 0) & (logT_fit_shift < 10 * sigma)
+            logT = logT_fit_shift[use]
             logf = logf_obj[use]
             hist = np.zeros(10, dtype=int)
             hist_index = (np.floor(logT/sigma)).astype(int)
