@@ -233,14 +233,14 @@ def test_sizemag():
 
     # This finds more stars than the simple SmallBright selector found.
     print('nstars = ',len(stars))
-    assert len(stars) == 136
+    assert len(stars) == 142
 
     # A few of these have lower CLASS_STAR values, but still most are > 0.95
     class_star = np.array([s['CLASS_STAR'] for s in stars])
     print('class_star = ',class_star)
     print('min class_star = ',np.min(class_star))
     print('N class_star > 0.95 = ',np.sum(class_star > 0.95))
-    assert np.sum(class_star > 0.95) == 134
+    assert np.sum(class_star > 0.95) == 140
 
     # This goes a bit fainter than the SmallBright selector did (which is kind of the point).
     mag_auto = np.array([s['MAG_AUTO'] for s in stars])
@@ -254,6 +254,7 @@ def test_sizemag():
     print('mean size = ',np.mean(sizes))
     print('median size = ',np.median(sizes))
     print('min/max size = ',np.min(sizes),np.max(sizes))
+    print('spread = ',(np.max(sizes)-np.min(sizes))/np.median(sizes))
     assert (np.max(sizes)-np.min(sizes)) / np.median(sizes) < 0.1
 
     # Try some different parameter values.
@@ -269,20 +270,21 @@ def test_sizemag():
     }
     stars = piff.Select.process(config['select'], objects, logger=logger)
 
-    # A bit fewer, but not really consequentially different.
+    # Somewhat fewer, but still works reasonably ok.
     print('nstars = ',len(stars))
-    assert len(stars) == 124
+    assert len(stars) == 119
 
     class_star = np.array([s['CLASS_STAR'] for s in stars])
     print('class_star = ',class_star)
     print('min class_star = ',np.min(class_star))
     print('N class_star > 0.95 = ',np.sum(class_star > 0.95))
-    assert np.sum(class_star > 0.95) == 122
+    assert np.sum(class_star > 0.95) == 117
 
     sizes = [s.hsm[3] for s in stars]
     print('mean size = ',np.mean(sizes))
     print('median size = ',np.median(sizes))
     print('min/max size = ',np.min(sizes),np.max(sizes))
+    print('spread = ',(np.max(sizes)-np.min(sizes))/np.median(sizes))
     assert (np.max(sizes)-np.min(sizes)) / np.median(sizes) < 0.1
 
     # Check that it doesn't crap out with bad initial objects.
@@ -291,7 +293,7 @@ def test_sizemag():
         'type': 'SizeMag',
         'initial_select': {
             'type': 'Properties',
-            'where': '(CLASS_STAR < 0.5) & (MAG_AUTO > 15)',
+            'where': '(CLASS_STAR < 0.2) & (MAG_AUTO > 15)',
         },
     }
     stars = piff.Select.process(config['select'], objects, logger=logger)
@@ -358,22 +360,24 @@ def test_sizemag():
     print("len(stars) = ",len(stars))
     assert len(stars) == 1
 
-    # With fit_order=1, 3 input stars could in principle work, but with clipping and such,
-    # it fails for these 3 objects.
+    # With fit_order=1, 3 input stars is the minimum.
     config['select'] = {
         'type': 'SizeMag',
         'fit_order': 1,
         'initial_select': {}
     }
     select = piff.SizeMagSelect(config['select'])
-    stars = select.selectStars(objects[:3], logger=logger)
+    with CaptureLog(3) as cl:
+        stars = select.selectStars(objects[:2], logger=cl.logger)
+    print(cl.output)
     print("len(stars) = ",len(stars))
     assert len(stars) == 0
 
-    # For this set, the first 5 objects failed, but 6 works (and returns 5 of them as stars).
-    stars = select.selectStars(objects[:6], logger=logger)
+    with CaptureLog(3) as cl:
+        stars = select.selectStars(objects[:3], logger=cl.logger)
+    print(cl.output)
     print("len(stars) = ",len(stars))
-    assert len(stars) == 5
+    assert len(stars) == 3
 
     # Error to have other parameters
     config['select'] = {
