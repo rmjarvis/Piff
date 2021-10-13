@@ -16,7 +16,7 @@ import numpy as np
 import piff
 import os
 
-from piff_test_helper import timer
+from piff_test_helper import timer, CaptureLog
 
 @timer
 def test_sizemag_plot():
@@ -133,6 +133,85 @@ def test_smallbright():
         'min_snr': 50,
     }
     piff.Select.process(config['select'], objects, logger=logger)
+
+    # Set up a pathological input that hits the code where niter=10.
+    # Normal inputs rarely need more than 3 iterations, so this is really a backstop
+    # against very strange behavior.  I don't know if it's possible for the code to
+    # go into an infinite loop, where having a maxiter would be critical, but it's
+    # at least conceivable for it to be slowly converging, so might as well keep it.
+    config['select'] = {
+        'type': 'SmallBright',
+        'bright_fraction': 1.,
+        'small_fraction': 0.1,
+        'locus_fraction': 1.,
+        'max_spread': 1.,
+    }
+    # If sizes are spaced such that the small ones are consistently farther apart than bigger
+    # ones, then the median/iqr iteration will keep slowly shifting to a larger size.
+    # Having sizes go as 1/sqrt(i+1) seems to work to make this happen.
+    for i in range(len(objects)):
+        objects[i]._hsm = (1., 0., 0., 1./(i+1.)**0.5, 0., 0., 0)
+    select = piff.SmallBrightSelect(config['select'])
+    with CaptureLog() as cl:
+        stars = select.selectStars(objects, logger=cl.logger)
+    assert "Max iter = 10 reached." in cl.output
+    print("len(stars) = ",len(stars))
+
+    # These would be pathalogical values to set (as were the above values), but the
+    # code handles them gracefully by changing 0 into the minimum plausible value.
+    # However, it will end up not being able to find a stellar locus, so len(stars) = 0
+    config['select'] = {
+        'type': 'SmallBright',
+        'bright_fraction': 0.,
+        'small_fraction': 0.,
+        'locus_fraction': 0.,
+    }
+    select = piff.SmallBrightSelect(config['select'])
+    with CaptureLog() as cl:
+        stars = select.selectStars(objects, logger=cl.logger)
+    assert "Failed to find bright/small stellar locus" in cl.output
+    print("len(stars) = ",len(stars))
+    assert len(stars) == 0
+
+    # With this arrangement, it does better.  (Since the problem above is that all the fluxes
+    # are the same, so the "brightest" 2 are also the biggest 2 and have a large iqr.)
+    config['select'] = {
+        'type': 'SmallBright',
+        'bright_fraction': 1.,
+        'small_fraction': 0.,
+        'locus_fraction': 0.,
+    }
+    select = piff.SmallBrightSelect(config['select'])
+    with CaptureLog() as cl:
+        stars = select.selectStars(objects, logger=cl.logger)
+    print("len(stars) = ",len(stars))
+    assert len(stars) == 134
+
+    # Check pathologically few input objects.
+    config['select'] = {
+        'type': 'SmallBright',
+    }
+    select = piff.SmallBrightSelect(config['select'])
+    with CaptureLog() as cl:
+        stars = select.selectStars(objects[:0], logger=cl.logger)
+    print(cl.output)
+    assert "No input objects" in cl.output
+    print("len(stars) = ",len(stars))
+    assert len(stars) == 0
+
+    with CaptureLog() as cl:
+        stars = select.selectStars(objects[:1], logger=cl.logger)
+    print(cl.output)
+    assert "Only 1 input object." in cl.output
+    print("len(stars) = ",len(stars))
+    assert len(stars) == 0
+
+    with CaptureLog() as cl:
+        stars = select.selectStars(objects[:2], logger=cl.logger)
+    print(cl.output)
+    assert "Failed to find bright/small stellar locus" in cl.output
+    print("len(stars) = ",len(stars))
+    assert len(stars) == 0
 
 
 @timer
