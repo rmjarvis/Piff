@@ -204,6 +204,13 @@ class SmallBrightSelect(Select):
 
         logger.debug("Initial count = %s", len(objects))
 
+        # The algorithm cannot recover from having fewer than 2 input objects.
+        if len(objects) < 2:
+            logger.warning("%s input object%s. Cannot find bright/small stellar locus",
+                           "Only 1" if len(objects) == 1 else "No",
+                           "" if len(objects) == 1 else "s")
+            return []
+
         # Get size, flux from hsm
         obj_shapes = np.array([ obj.hsm for obj in objects ])
         flag_obj = obj_shapes[:, 6]
@@ -225,19 +232,23 @@ class SmallBrightSelect(Select):
         logger.debug("After removing flags count = %s", len(logf))
 
         # Pick out brightest 20% (or bright_fraction if given)
-        i20 = int(np.ceil(len(logf) * self.bright_fraction))
+        i20 = int(np.floor(len(logf) * self.bright_fraction))
+        i20 = max(i20, 1)  # Need at least 2
+        i20 = min(i20, len(logf)-1)  # sanity check if the user inputs bright_fraction >= 1
         sort_index = np.argpartition(-logf, i20)
-        bright_logf = logf[sort_index[:i20]]
-        bright_logT = logT[sort_index[:i20]]
+        bright_logf = logf[sort_index[:i20+1]]
+        bright_logT = logT[sort_index[:i20+1]]
         logger.debug("Bright objects:")
         logger.debug("logf = %s", bright_logf)
         logger.debug("logT = %s", bright_logT)
 
         # Now take smallest 20% of these (or small_fraction if given)
-        i20 = int(np.ceil(len(bright_logf) * self.small_fraction))
+        i20 = int(np.floor(len(bright_logT) * self.small_fraction))
+        i20 = max(i20, 1)  # Need at least 2
+        i20 = min(i20, len(bright_logT)-1)  # sanity check if the user inputs small_fraction >= 1
         sort_index = np.argpartition(bright_logT, i20)
-        bright_small_logf = bright_logf[sort_index[:i20]]
-        bright_small_logT = bright_logT[sort_index[:i20]]
+        bright_small_logf = bright_logf[sort_index[:i20+1]]
+        bright_small_logT = bright_logT[sort_index[:i20+1]]
         logger.debug("Bright/small objects:")
         logger.debug("logf = %s", bright_small_logf)
         logger.debug("logT = %s", bright_small_logT)
@@ -248,27 +259,37 @@ class SmallBrightSelect(Select):
         bright_small_logT = bright_small_logT[sort_index]
 
         # Find the "half" with the smallest range in size
-        half_len = int(np.ceil(len(bright_small_logT) * self.locus_fraction))
-        delta_T = bright_small_logT[-half_len-1:] - bright_small_logT[:half_len+1]
-        imin = np.argmin(delta_T[:-half_len])
-        star_logT = bright_small_logT[imin:imin+half_len]
-        logger.info("Initial bright/small selection includes %d objects",half_len)
+        half_len = int(np.floor(len(bright_small_logT) * self.locus_fraction))
+        half_len = max(half_len, 1)  # Need at least 2, but half_len is n-1
+        half_len = min(half_len, len(bright_small_logT)-1)  # And at most all of them.
+        logger.debug("half_len = %s", half_len)
+        delta_T = bright_small_logT[half_len:] - bright_small_logT[:-half_len]
+        logger.debug("delta_T = %s", delta_T)
+        imin = np.argmin(delta_T)
+        logger.debug("imin = %s", imin)
+        star_logT = bright_small_logT[imin:imin+half_len+1]
+        logger.info("Initial bright/small selection includes %d objects",half_len+1)
 
         # Expand this to include all stars that are within twice the interquarile range of
         # these candidate stars.  Keep doing so until we converge on a good set of stars.
-        old_select = None  # Force at least 2 iterations.
-        for iter in range(10):  # And at most 10 iterations.  pragma: no branch
+        old_select = None  # Force at least 2 iterations
+        for it in range(10):  # (and at most 10)
+            if len(star_logT) == 0:
+                # This will give an error when taking the median, so bail out here.
+                logger.warning("Failed to find bright/small stellar locus.")
+                break
+            logger.debug("Iteration %d",it)
             logger.debug("Sizes of candidate stars = %s", np.exp(star_logT))
             med = np.median(star_logT)
             logger.info("Median size = %s", np.exp(med))
             q25, q75 = np.percentile(star_logT, [25,75])
             iqr = q75 - q25
-            logger.debug("Range of initial star logT size = %s, %s",
-                        np.min(star_logT), np.max(star_logT))
+            logger.debug("Range of star logT size = %s, %s", np.min(star_logT), np.max(star_logT))
             logger.debug("IQR = %s",iqr)
             iqr = max(iqr,0.01)  # Make sure we don't get too tight an initial grouping
             iqr = min(iqr,self.max_spread/4)
-            select = (logT > med - 2*iqr) & (logT < med + 2*iqr) & (logf > np.min(bright_logf))
+            logger.debug("IQR => %s",iqr)
+            select = (logT >= med - 2*iqr) & (logT <= med + 2*iqr) & (logf >= np.min(bright_logf))
             new_count = np.sum(select)
             # Break out when we stop adding more stars.
             if np.array_equal(select, old_select):
@@ -276,6 +297,8 @@ class SmallBrightSelect(Select):
             old_select = select
             logger.info("Expand this to include %d selected stars",new_count)
             star_logT = logT[select]
+        else:
+            logger.info("Max iter = 10 reached.  Stop updating based on median/IQR.")
 
         # Get the initial indexes of these objects
         select_index = orig_index[select]
