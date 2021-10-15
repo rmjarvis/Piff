@@ -21,80 +21,26 @@ import copy
 from piff.util import calculate_moments
 from piff_test_helper import timer
 
-def DrawProfile(star, prof, params, use_fit=True, copy_image=True):
-    """Generate PSF image for a given star and profile
-
-    :param star:        Star instance holding information needed for
-                        interpolation as well as an image/WCS into which
-                        PSF will be rendered.
-    :param profile:     A galsim profile
-    :param params:      Params associated with profile to put in the star.
-    :param use_fit:     Bool [default: True] shift the profile by a star's
-                        fitted center and multiply by its fitted flux
-
-    :returns:   Star instance with its image filled with rendered PSF
-    """
-    # use flux and center properties
-    if use_fit:
-        prof = prof.shift(star.fit.center) * star.fit.flux
-    image, weight, image_pos = star.data.getImage()
-    if copy_image:
-        image_model = image.copy()
-    else:
-        image_model = image
-    prof.drawImage(image_model, method='auto', center=star.image_pos)
-    properties = star.data.properties.copy()
-    for key in ['x', 'y', 'u', 'v']:
-        # Get rid of keys that constructor doesn't want to see:
-        properties.pop(key, None)
-    data = piff.StarData(image=image_model,
-                         image_pos=star.data.image_pos,
-                         weight=star.data.weight,
-                         pointing=star.data.pointing,
-                         field_pos=star.data.field_pos,
-                         orig_weight=star.data.orig_weight,
-                         properties=properties)
-    fit = piff.StarFit(params,
-                       flux=star.fit.flux,
-                       center=star.fit.center)
-    return piff.Star(data, fit)
-
-def makeStarsMoffat(nstar=100, beta=5., forcefail=False, test_return_error=False,
+def makeStarsMoffat(*, nstar, beta, forcefail=False, test_return_error=False,
                     test_mask=False, test_options=False):
 
-    # Moffat
-    psf = piff.Moffat(beta)
     rng = galsim.BaseDeviate(12345)
+    np_rng = np.random.default_rng(12345)
+    flux = 1.e6
+    sky_level = 200.0  # For noise
 
-    # make some stars w/o shot noise
-    noiseless_stars = []
-    noisy_stars = []
-    all_star_moments = []
-    pixel_sum = 1.e6
-    foreground = 200.0
-
-    # all stars in the same CCD
-    ccdnum = 10  # also just put them in the same sensor
+    # Use a random DECam CCD for the wcs
     decaminfo = piff.des.DECamInfo()
-    wcs = decaminfo.get_nominal_wcs(ccdnum)
+    wcs = decaminfo.get_nominal_wcs(chipnum=10)
 
     # set the pixel index randomly x,y
-    x = np.random.uniform(0,2048,nstar)
-    y = np.random.uniform(0,4096,nstar)
+    x = np_rng.uniform(0,2048,nstar)
+    y = np_rng.uniform(0,4096,nstar)
 
-    # pick random optics size
-    optics_size = np.linspace(0.7,1.2,nstar)
-    g1_lo = -0.1
-    g1_hi = 0.1
-    optics_g1 = np.linspace(g1_lo,g1_hi,nstar)
-    optics_g2 = np.linspace(g1_lo,g1_hi,nstar)
-
-    fit_params = np.array([1.0,0.0,0.0])
-    idx_optics_size = 0
-    idx_optics_g1 = 1
-    idx_optics_g2 = 2
-
-    vars = ['optics_size', 'optics_g1', 'optics_g2']
+    # pick random size, shape
+    size = np_rng.uniform(0.7,1.2,nstar)
+    g1 = np_rng.uniform(-0.1, 0.1, nstar)
+    g2 = np_rng.uniform(-0.1, 0.1, nstar)
 
     moment_str = ['M00','M10','M01','M11','M20','M02',
                   'M21', 'M12', 'M30', 'M03',
@@ -108,34 +54,32 @@ def makeStarsMoffat(nstar=100, beta=5., forcefail=False, test_return_error=False
     # build names of columns
     moments_names = [s + "_nonoise" for s in moment_str]
     moments_noise_names = [s + "_noise" for s in moment_str]
-    moffat_names = moments_names + moments_noise_names + vars
+    moffat_names = moments_names + moments_noise_names
+
+    noiseless_stars = []
+    noisy_stars = []
+    all_star_moments = []
 
     for i in range(nstar):
 
-        fit_params[idx_optics_size] = optics_size[i]
-        fit_params[idx_optics_g1] = optics_g1[i]
-        fit_params[idx_optics_g2] = optics_g2[i]
+        # Use Moffat profile
+        prof = galsim.Moffat(half_light_radius=size[i], beta=beta).shear(g1=g1[i], g2=g2[i])
 
-        # make the star, its an empty vessel, with just position and wcs
-        properties_in = {'chipnum': ccdnum}
-        blank_star = piff.Star.makeTarget(x=x[i], y=y[i], wcs=wcs, stamp_size=19,
-                                          properties=properties_in)
-
-        prof = psf.getProfile(fit_params)
-        noiseless_star = DrawProfile(blank_star, prof, fit_params)
-
+        # make the star with no noise.
+        noiseless_star = piff.Star.makeTarget(x=x[i], y=y[i], wcs=wcs, stamp_size=19)
+        im = noiseless_star.image
+        prof = prof.shift(noiseless_star.fit.center)
+        prof.drawImage(image=im, center=noiseless_star.image_pos)
         noiseless_stars.append(noiseless_star)
-
-        # scale the image's pixel_sum
-        im = noiseless_star.image * pixel_sum
 
         # Generate a Poisson noise model, with some foreground (assumes that this foreground
         # was already subtracted)
-        poisson_noise = galsim.PoissonNoise(rng,sky_level=foreground)
+        poisson_noise = galsim.PoissonNoise(rng,sky_level=sky_level)
+        im = noiseless_star.image * flux
         im.addNoise(poisson_noise)  # adds in place
 
         # get new weight in photo-electrons (not an array)
-        inverse_weight = im + foreground
+        inverse_weight = im + sky_level
         weight = 1.0/inverse_weight
 
         # make new noisy star by resetting data in the noiseless star
@@ -186,8 +130,8 @@ def makeStarsMoffat(nstar=100, beta=5., forcefail=False, test_return_error=False
             copy_star = copy.deepcopy(noisy_star)
             # mask out a pixel that is not too close to the center of the stamp.
             copy_star.data.weight[x[i]+5, y[i]+5] = 0
-            test_moments =  calculate_moments(star=copy_star, errors=True,
-                                              third_order=True, fourth_order=True, radial=True)
+            test_moments = calculate_moments(star=copy_star, errors=True,
+                                             third_order=True, fourth_order=True, radial=True)
             # make sure that they did actually change
             assert (np.array(moments_noise) != np.array(test_moments)).all()
 
@@ -198,14 +142,12 @@ def makeStarsMoffat(nstar=100, beta=5., forcefail=False, test_return_error=False
             np.testing.assert_equal(np.array(moments)[0:nval], np.array(moments_check))
 
 
-        all_moments =  moments + moments_noise + tuple(fit_params)
+        all_moments = moments + moments_noise
         all_star_moments.append(all_moments)
 
-    # Work it, put it down, flip it and reverse it.
-    full_array = np.vstack(all_star_moments)
-    df = {}
-    for key, val in zip(moffat_names, full_array.T):
-        df[key] = np.array(val)
+    # Transpose from array of moments by star to array of values by moment name
+    all_moms = np.column_stack(all_star_moments)
+    df = dict(zip(moffat_names, all_moms))
 
     return df
 
@@ -227,38 +169,26 @@ def makepulldist(dft, beta, vname):
 @timer
 def test_moments_return():
 
-    np.random.seed(12345)
-    rng = galsim.BaseDeviate(12345)
     dft = makeStarsMoffat(nstar=1,beta=5.,test_return_error=True)
 
 @timer
 def test_moments_mask():
 
-    np.random.seed(12345)
-    rng = galsim.BaseDeviate(12345)
     dft = makeStarsMoffat(nstar=20,beta=5.,test_mask=True)
 
 @timer
 def test_moments_options():
 
-    np.random.seed(12345)
-    rng = galsim.BaseDeviate(12345)
     dft = makeStarsMoffat(nstar=2, beta=5.,test_options=True)
 
 @timer
 def test_moments_fail():
 
-    np.random.seed(12345)
-    rng = galsim.BaseDeviate(12345)
     with np.testing.assert_raises(galsim.GalSimHSMError):
         makeStarsMoffat(nstar=1,beta=5.,forcefail=True)
 
 @timer
 def test_moments():
-
-    # always run this
-    np.random.seed(12345)
-    rng = galsim.BaseDeviate(12345)
 
     betalist = [1.5, 2.5, 5.]
     keylist = ["1p5", "2p5", "5"]
