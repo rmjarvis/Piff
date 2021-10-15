@@ -373,7 +373,7 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
         M_31 &= \sum W(u,v) I(u,v) (du^2 + dv^2) (du^2 - dv^2) \\
         M_13 &= \sum W(u,v) I(u,v) (du^2 + dv^2) (2 du dv) \\
         M_40 &= \sum W(u,v) I(u,v) (du^4 - 6 du^2 dv^2 + dv^4) \\
-        M_04 &= \sum W(u,v) I(u,v) (du^2 - dv^2) (4 du dv) 
+        M_04 &= \sum W(u,v) I(u,v) (du^2 - dv^2) (4 du dv)
 
     Higher order radial moments both unnormalized and normalized (4th through 8th, even) are calculated if ``radial``
     is set to True:
@@ -382,11 +382,11 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
 
         r^2 &\equiv du^2 + dv^2 \\
         M_22 &= \sum W(u,v) I(u,v) r^4 \\
-        M_33 &= \sum W(u,v) I(u,v) r^6 \\ 
+        M_33 &= \sum W(u,v) I(u,v) r^6 \\
         M_44 &= \sum W(u,v) I(u,v) r^8  \\
         M_22n &= M_22/M_11^2 \\
         M_33n &= M_33/M_11^3 \\
-        M_44n &= M_44/M_11^4 
+        M_44n &= M_44/M_11^4
 
     For all of these, one can also have error estimates returned if ``errors`` is set to True.
 
@@ -416,7 +416,7 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
     e1 = s.e1
     e2 = s.e2
 
-    if flag: #pragma: no cover 
+    if flag: #pragma: no cover
         raise RuntimeError("HSM failed with flag %s" % flag)
 
     # build the HSM weight, writing into image
@@ -436,7 +436,7 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
     # These are masked image values, which we use in all the sums below.
     # The mask is defined in the line above, taking all pixels with non-zero weight
     # Notation:
-    #   W = kernel    
+    #   W = kernel
     #   I = data
     #   V = var(data) -- used below.
     WI = kernel * data
@@ -470,7 +470,7 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
     # centroids
     M10 = np.sum(WIu) + u0
     M01 = np.sum(WIv) + v0
-    
+
     # 2nd moments
     M11 = np.sum(WIrsq)
     M20 = np.sum(WIusqmvsq)

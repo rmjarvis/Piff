@@ -131,7 +131,7 @@ def makeStarsMoffat(nstar=100, beta=5., forcefail=False, test_return_error=False
 
         # scale the image's pixel_sum
         im = noiseless_star.image * pixel_sum
-        
+
         # Generate a Poisson noise model, with some foreground (assumes that this foreground was already subtracted)
         poisson_noise = galsim.PoissonNoise(rng,sky_level=foreground)
         im.addNoise(poisson_noise)  # adds in place
@@ -147,8 +147,7 @@ def makeStarsMoffat(nstar=100, beta=5., forcefail=False, test_return_error=False
 
         if forcefail:
             noisy_star.data.weight *= 0.
-            
-             
+
         noisy_stars.append(noisy_star)
 
         # moments
@@ -163,7 +162,7 @@ def makeStarsMoffat(nstar=100, beta=5., forcefail=False, test_return_error=False
             np.testing.assert_equal(np.array(moments)[mask_34], np.array(moments_34))
 
             moments_3r = calculate_moments(star=noiseless_stars[i], errors=True, third_order=True, fourth_order=False, radial=True)
-            # No third order moments, skip items 11-15 of moments and errors            
+            # No third order moments, skip items 11-15 of moments and errors
             mask_3r = [True, True, True, True, True, True, True, True, True, True, False, False, False, False, False, True, True, True,
                        True, True, True, True, True, True, True, True, True, True, False, False, False, False, False, True, True, True]
             np.testing.assert_equal(np.array(moments)[mask_3r], np.array(moments_3r))
@@ -173,16 +172,15 @@ def makeStarsMoffat(nstar=100, beta=5., forcefail=False, test_return_error=False
             mask_4r = [True, True, True, True, True, True, False, False, False, False, True, True, True, True, True, True, True, True,
                        True, True, True, True, True, True, False, False, False, False, True, True, True, True, True, True, True, True]
             np.testing.assert_equal(np.array(moments)[mask_4r], np.array(moments_4r))
-        
+
         if test_mask:
             copy_star = copy.deepcopy(noisy_star)
-            # mask out a pixel that is not too close to the center of the stamp.  
+            # mask out a pixel that is not too close to the center of the stamp.
             copy_star.data.weight[x[i]+5, y[i]+5] = 0
             test_moments =  calculate_moments(star=copy_star,errors=True, third_order=True, fourth_order=True, radial=True)
             # make sure that they did actually change
             assert (np.array(moments_noise) != np.array(test_moments)).all()
 
-            
         if test_return_error:
             moments_check = calculate_moments(star=noiseless_stars[i],errors=False, third_order=True, fourth_order=True, radial=True)
             nval = len(moments_check)
@@ -298,4 +296,3 @@ if __name__ == "__main__":
     test_moments_options()
     test_moments_fail()
     test_moments_moments()
-
