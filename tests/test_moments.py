@@ -166,13 +166,19 @@ def test_moments_options():
 def test_moments_fail():
     # If the weight is 0 everywhere, HSM will fail.
     _, noisy_stars = makeStars(nstar=1, beta=5.)
-
     star = noisy_stars[0]
     star.data.weight *= 0.
 
     with np.testing.assert_raises(galsim.GalSimHSMError):
-        moments_noise = calculate_moments(star, errors=True,
-                                          third_order=True, fourth_order=True, radial=True)
+        calculate_moments(star)
+
+    # If it's just really noisy, then HSM will return an error flag, which Piff turns into a
+    # RuntimeError
+    _, noisy_stars = makeStars(nstar=1, beta=5.)
+    star = noisy_stars[0]
+    star.data.image.addNoise(galsim.GaussianNoise(sigma=2.e7))
+    with np.testing.assert_raises(RuntimeError):
+        calculate_moments(star)
 
 @timer
 def test_moments_errors():
