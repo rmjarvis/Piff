@@ -21,8 +21,7 @@ import copy
 from piff.util import calculate_moments
 from piff_test_helper import timer
 
-def makeStarsMoffat(*, nstar, beta, forcefail=False, test_return_error=False,
-                    test_mask=False, test_options=False):
+def makeStars(nstar, beta):
 
     rng = galsim.BaseDeviate(12345)
     np_rng = np.random.default_rng(12345)
@@ -42,23 +41,8 @@ def makeStarsMoffat(*, nstar, beta, forcefail=False, test_return_error=False,
     g1 = np_rng.uniform(-0.1, 0.1, nstar)
     g2 = np_rng.uniform(-0.1, 0.1, nstar)
 
-    moment_str = ['M00','M10','M01','M11','M20','M02',
-                  'M21', 'M12', 'M30', 'M03',
-                  'M31','M13','M40','M04',
-                  'M22dup', 'M22n','M33n','M44n',
-                  'varM00','varM10','varM01','varM11','varM20','varM02',
-                  'varM21', 'varM12', 'varM30', 'varM03',
-                  'varM31','varM13','varM40','varM04',
-                  'varM22dup','varM22n','varM33n','varM44n']
-
-    # build names of columns
-    moments_names = [s + "_nonoise" for s in moment_str]
-    moments_noise_names = [s + "_noise" for s in moment_str]
-    moffat_names = moments_names + moments_noise_names
-
     noiseless_stars = []
     noisy_stars = []
-    all_star_moments = []
 
     for i in range(nstar):
 
@@ -86,70 +70,9 @@ def makeStarsMoffat(*, nstar, beta, forcefail=False, test_return_error=False,
         noisy_star = copy.deepcopy(noiseless_star)
         noisy_star.data.image = im
         noisy_star.data.weight = weight
-
-        if forcefail:
-            noisy_star.data.weight *= 0.
-
         noisy_stars.append(noisy_star)
 
-        # moments
-        moments = calculate_moments(star=noiseless_stars[i], errors=True,
-                                    third_order=True, fourth_order=True, radial=True)
-        moments_noise = calculate_moments(star=noisy_stars[i], errors=True,
-                                          third_order=True, fourth_order=True, radial=True)
-
-        if test_options:
-            moments_34 = calculate_moments(star=noiseless_stars[i], errors=True,
-                                           third_order=True, fourth_order=True, radial=False)
-            # No radial moments, skip items 16-18 of moments and errors
-            mask_34 = [True, True, True, True, True, True, True, True, True, True,
-                       True, True, True, True, True, False, False, False,
-                       True, True, True, True, True, True, True, True, True, True,
-                       True, True, True, True, True, False, False, False]
-            np.testing.assert_equal(np.array(moments)[mask_34], np.array(moments_34))
-
-            moments_3r = calculate_moments(star=noiseless_stars[i], errors=True,
-                                           third_order=True, fourth_order=False, radial=True)
-            # No third order moments, skip items 11-15 of moments and errors
-            mask_3r = [True, True, True, True, True, True, True, True, True, True,
-                       False, False, False, False, False, True, True, True,
-                       True, True, True, True, True, True, True, True, True, True,
-                       False, False, False, False, False, True, True, True]
-            np.testing.assert_equal(np.array(moments)[mask_3r], np.array(moments_3r))
-
-            moments_4r = calculate_moments(star=noiseless_stars[i], errors=True,
-                                           third_order=False, fourth_order=True, radial=True)
-            # No third order moments, skip items 7-10 of moments and errors
-            mask_4r = [True, True, True, True, True, True, False, False, False, False,
-                       True, True, True, True, True, True, True, True,
-                       True, True, True, True, True, True, False, False, False, False,
-                       True, True, True, True, True, True, True, True]
-            np.testing.assert_equal(np.array(moments)[mask_4r], np.array(moments_4r))
-
-        if test_mask:
-            copy_star = copy.deepcopy(noisy_star)
-            # mask out a pixel that is not too close to the center of the stamp.
-            copy_star.data.weight[x[i]+5, y[i]+5] = 0
-            test_moments = calculate_moments(star=copy_star, errors=True,
-                                             third_order=True, fourth_order=True, radial=True)
-            # make sure that they did actually change
-            assert (np.array(moments_noise) != np.array(test_moments)).all()
-
-        if test_return_error:
-            moments_check = calculate_moments(star=noiseless_stars[i], errors=False,
-                                              third_order=True, fourth_order=True, radial=True)
-            nval = len(moments_check)
-            np.testing.assert_equal(np.array(moments)[0:nval], np.array(moments_check))
-
-
-        all_moments = moments + moments_noise
-        all_star_moments.append(all_moments)
-
-    # Transpose from array of moments by star to array of values by moment name
-    all_moms = np.column_stack(all_star_moments)
-    df = dict(zip(moffat_names, all_moms))
-
-    return df
+    return noiseless_stars, noisy_stars
 
 
 def makepulldist(dft, beta, vname):
@@ -168,31 +91,108 @@ def makepulldist(dft, beta, vname):
 
 @timer
 def test_moments_return():
+    # Check that the same values are returned if errors=False
+    noiseless_stars, _ = makeStars(nstar=3, beta=5.)
 
-    dft = makeStarsMoffat(nstar=1,beta=5.,test_return_error=True)
+    for star in noiseless_stars:
+        moments = calculate_moments(star, errors=True,
+                                    third_order=True, fourth_order=True, radial=True)
+        moments_check = calculate_moments(star, errors=False,
+                                          third_order=True, fourth_order=True, radial=True)
+        nval = len(moments_check)
+        np.testing.assert_equal(np.array(moments)[0:nval], np.array(moments_check))
+
 
 @timer
 def test_moments_mask():
+    # Check that the moments do change when the masking changes.
+    _, noisy_stars = makeStars(nstar=20, beta=5.)
 
-    dft = makeStarsMoffat(nstar=20,beta=5.,test_mask=True)
+    for star in noisy_stars:
+        moments_noise = calculate_moments(star, errors=True,
+                                          third_order=True, fourth_order=True, radial=True)
+
+        copy_star = copy.deepcopy(star)
+        # mask out a pixel that is not too close to the center of the stamp.
+        copy_star.data.weight[star.image_pos.x+5, star.image_pos.y+5] = 0
+        test_moments = calculate_moments(copy_star, errors=True,
+                                         third_order=True, fourth_order=True, radial=True)
+        # make sure that they did actually change
+        assert (np.array(moments_noise) != np.array(test_moments)).all()
+
 
 @timer
 def test_moments_options():
+    # Check that when not returning some moments, the other ones are unchanged.
+    noiseless_stars, _ = makeStars(nstar=2, beta=5.)
 
-    dft = makeStarsMoffat(nstar=2, beta=5.,test_options=True)
+    for star in noiseless_stars:
+        moments = calculate_moments(star, errors=True,
+                                    third_order=True, fourth_order=True, radial=True)
+
+        moments_34 = calculate_moments(star, errors=True,
+                                       third_order=True, fourth_order=True, radial=False)
+        # No radial moments, skip items 16-18 of moments and errors
+        mask_34 = [True, True, True, True, True, True, True, True, True, True,
+                   True, True, True, True, True, False, False, False,
+                   True, True, True, True, True, True, True, True, True, True,
+                   True, True, True, True, True, False, False, False]
+        np.testing.assert_equal(np.array(moments)[mask_34], moments_34)
+
+        moments_3r = calculate_moments(star, errors=True,
+                                       third_order=True, fourth_order=False, radial=True)
+        # No third order moments, skip items 11-15 of moments and errors
+        mask_3r = [True, True, True, True, True, True, True, True, True, True,
+                   False, False, False, False, False, True, True, True,
+                   True, True, True, True, True, True, True, True, True, True,
+                   False, False, False, False, False, True, True, True]
+        np.testing.assert_equal(np.array(moments)[mask_3r], moments_3r)
+
+        moments_4r = calculate_moments(star, errors=True,
+                                       third_order=False, fourth_order=True, radial=True)
+        # No third order moments, skip items 7-10 of moments and errors
+        mask_4r = [True, True, True, True, True, True, False, False, False, False,
+                   True, True, True, True, True, True, True, True,
+                   True, True, True, True, True, True, False, False, False, False,
+                   True, True, True, True, True, True, True, True]
+        np.testing.assert_equal(np.array(moments)[mask_4r], moments_4r)
+
+        moments_12 = calculate_moments(star, errors=True)
+        # Default is only up to 2nd order, so 0-5
+        mask_12 = [True, True, True, True, True, True, False, False, False, False,
+                   False, False, False, False, False, False, False, False,
+                   True, True, True, True, True, True, False, False, False, False,
+                   False, False, False, False, False, False, False, False]
+        np.testing.assert_equal(np.array(moments)[mask_12], moments_12)
+
+        moments_def = calculate_moments(star)
+        # Default is that but also without error terms.
+        mask_def = [True, True, True, True, True, True, False, False, False, False,
+                    False, False, False, False, False, False, False, False,
+                    False, False, False, False, False, False, False, False, False, False,
+                    False, False, False, False, False, False, False, False]
+        np.testing.assert_equal(np.array(moments)[mask_def], moments_def)
+
+
 
 @timer
 def test_moments_fail():
+    # If the weight is 0 everywhere, HSM will fail.
+    _, noisy_stars = makeStars(nstar=1, beta=5.)
+
+    star = noisy_stars[0]
+    star.data.weight *= 0.
 
     with np.testing.assert_raises(galsim.GalSimHSMError):
-        makeStarsMoffat(nstar=1,beta=5.,forcefail=True)
+        moments_noise = calculate_moments(star, errors=True,
+                                          third_order=True, fourth_order=True, radial=True)
+
 
 @timer
 def test_moments():
 
     betalist = [1.5, 2.5, 5.]
-    keylist = ["1p5", "2p5", "5"]
-    dftlist = [makeStarsMoffat(nstar=1000,beta=betaval) for betaval in betalist]
+
     momentlist = ['M10','M01','M11','M20','M02','M21','M12','M30','M03',
                   'M31','M13','M40','M04','M22n','M33n','M44n']
 
@@ -213,9 +213,37 @@ def test_moments():
                        M33n=[0.835669, 0.999379, 1.065365],
                        M44n=[0.809727, 1.021675, 1.119339])
 
-    odict = {}
-    for i, (dft, beta, key) in enumerate(zip(dftlist, betalist, keylist)):
-        stacked = np.vstack([ makepulldist(dft, beta, amoment) for amoment in momentlist])
+    moment_str = ['M00','M10','M01','M11','M20','M02',
+                  'M21', 'M12', 'M30', 'M03',
+                  'M31','M13','M40','M04',
+                  'M22dup', 'M22n','M33n','M44n',
+                  'varM00','varM10','varM01','varM11','varM20','varM02',
+                  'varM21', 'varM12', 'varM30', 'varM03',
+                  'varM31','varM13','varM40','varM04',
+                  'varM22dup','varM22n','varM33n','varM44n']
+
+    # build names of columns
+    moments_names = [s + "_nonoise" for s in moment_str]
+    moments_noise_names = [s + "_noise" for s in moment_str]
+    moffat_names = moments_names + moments_noise_names
+
+    for i, beta in enumerate(betalist):
+        noiseless_stars, noisy_stars = makeStars(nstar=1000, beta=beta)
+
+        all_star_moments = []
+        for noiseless_star, noisy_star in zip(noiseless_stars, noisy_stars):
+            moments = calculate_moments(noiseless_star, errors=True,
+                                        third_order=True, fourth_order=True, radial=True)
+            moments_noise = calculate_moments(noisy_star, errors=True,
+                                              third_order=True, fourth_order=True, radial=True)
+            all_moments = moments + moments_noise
+            all_star_moments.append(all_moments)
+
+        # Transpose from array of moments by star to array of values by moment name
+        all_moms = np.column_stack(all_star_moments)
+        df = dict(zip(moffat_names, all_moms))
+
+        stacked = np.vstack([ makepulldist(df, beta, amoment) for amoment in momentlist])
         testvals = np.array([ rmsval_dict[amoment][i] for amoment in momentlist])
         mean_pull = stacked.mean(axis=1)
         rms_pull = stacked.std(axis=1)
