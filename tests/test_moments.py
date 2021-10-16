@@ -51,15 +51,15 @@ def makeStars(nstar, beta):
 
         # make the star with no noise.
         noiseless_star = piff.Star.makeTarget(x=x[i], y=y[i], wcs=wcs, stamp_size=19)
+        prof = prof.shift(noiseless_star.fit.center).withFlux(flux)
         im = noiseless_star.image
-        prof = prof.shift(noiseless_star.fit.center)
         prof.drawImage(image=im, center=noiseless_star.image_pos)
         noiseless_stars.append(noiseless_star)
 
         # Generate a Poisson noise model, with some foreground (assumes that this foreground
         # was already subtracted)
         poisson_noise = galsim.PoissonNoise(rng,sky_level=sky_level)
-        im = noiseless_star.image * flux
+        im = im.copy()
         im.addNoise(poisson_noise)  # adds in place
 
         # get new weight in photo-electrons (not an array)
@@ -74,21 +74,6 @@ def makeStars(nstar, beta):
 
     return noiseless_stars, noisy_stars
 
-
-def makepulldist(dft, beta, vname):
-
-    name_noise = "%s_noise" % (vname)
-    name_nonoise = "%s_nonoise" % (vname)
-    name_sigma = "var%s_noise" % (vname)
-
-    try:
-        diff = dft[name_noise] - dft[name_nonoise]
-    except KeyError:
-        print (name_noise, name_nonoise, dft.keys())
-    pull = diff/np.sqrt(dft[name_sigma])
-
-    return pull
-
 @timer
 def test_moments_return():
     # Check that the same values are returned if errors=False
@@ -101,7 +86,6 @@ def test_moments_return():
                                           third_order=True, fourth_order=True, radial=True)
         nval = len(moments_check)
         np.testing.assert_equal(np.array(moments)[0:nval], np.array(moments_check))
-
 
 @timer
 def test_moments_mask():
@@ -119,7 +103,6 @@ def test_moments_mask():
                                          third_order=True, fourth_order=True, radial=True)
         # make sure that they did actually change
         assert (np.array(moments_noise) != np.array(test_moments)).all()
-
 
 @timer
 def test_moments_options():
@@ -173,8 +156,6 @@ def test_moments_options():
                     False, False, False, False, False, False, False, False]
         np.testing.assert_equal(np.array(moments)[mask_def], moments_def)
 
-
-
 @timer
 def test_moments_fail():
     # If the weight is 0 everywhere, HSM will fail.
@@ -187,69 +168,45 @@ def test_moments_fail():
         moments_noise = calculate_moments(star, errors=True,
                                           third_order=True, fourth_order=True, radial=True)
 
-
 @timer
-def test_moments():
+def test_moments_errors():
 
     betalist = [1.5, 2.5, 5.]
 
-    momentlist = ['M10','M01','M11','M20','M02','M21','M12','M30','M03',
-                  'M31','M13','M40','M04','M22n','M33n','M44n']
+    tol_dict = dict(M00=2.00,
+                    M10=0.10, M01=0.10,
+                    M11=0.35, M20=0.15, M02=0.15,
+                    M21=0.10, M12=0.10, M30=0.10, M03=0.10,
+                    M22=0.50, M31=0.30, M13=0.30, M40=0.30, M04=0.30,
+                    M22n=0.15, M33n=0.20, M44n=0.20)
 
-    rmsval_dict = dict(M10=[1.024323, 0.996639,0.986769],
-                       M01=[0.981495, 0.997452, 0.962892],
-                       M11=[1.329671, 1.045360, 0.950834],
-                       M20=[1.099344, 1.029830, 0.931873],
-                       M02=[1.112284, 1.023089, 0.979789],
-                       M21=[0.930467, 0.985090, 0.973814],
-                       M12=[0.927560, 0.999851, 1.044756],
-                       M30=[0.994757, 0.997164, 0.967364],
-                       M03=[0.941321, 1.015403, 1.003081],
-                       M31=[1.257617, 1.082664, 0.923452],
-                       M13=[1.287733, 1.088511, 0.995732],
-                       M40=[1.199421, 1.136400, 1.049415],
-                       M04=[1.250599, 1.169380, 1.106795],
-                       M22n=[0.879955, 0.985517, 1.017496],
-                       M33n=[0.835669, 0.999379, 1.065365],
-                       M44n=[0.809727, 1.021675, 1.119339])
-
-    moment_str = ['M00','M10','M01','M11','M20','M02',
-                  'M21', 'M12', 'M30', 'M03',
-                  'M31','M13','M40','M04',
-                  'M22dup', 'M22n','M33n','M44n',
-                  'varM00','varM10','varM01','varM11','varM20','varM02',
-                  'varM21', 'varM12', 'varM30', 'varM03',
-                  'varM31','varM13','varM40','varM04',
-                  'varM22dup','varM22n','varM33n','varM44n']
-
-    # build names of columns
-    moments_names = [s + "_nonoise" for s in moment_str]
-    moments_noise_names = [s + "_noise" for s in moment_str]
-    moffat_names = moments_names + moments_noise_names
-
-    for i, beta in enumerate(betalist):
+    for beta in betalist:
         noiseless_stars, noisy_stars = makeStars(nstar=1000, beta=beta)
 
-        all_star_moments = []
+        noiseless_moments = []
+        noisy_moments = []
+        var_moments = []
         for noiseless_star, noisy_star in zip(noiseless_stars, noisy_stars):
-            moments = calculate_moments(noiseless_star, errors=True,
+            moments = calculate_moments(noiseless_star, errors=False,
                                         third_order=True, fourth_order=True, radial=True)
             moments_noise = calculate_moments(noisy_star, errors=True,
                                               third_order=True, fourth_order=True, radial=True)
-            all_moments = moments + moments_noise
-            all_star_moments.append(all_moments)
+            noiseless_moments.append(moments)
+            noisy_moments.append(moments_noise[:18])
+            var_moments.append(moments_noise[18:])
 
-        # Transpose from array of moments by star to array of values by moment name
-        all_moms = np.column_stack(all_star_moments)
-        df = dict(zip(moffat_names, all_moms))
+        # Transpose from arrays of moments by star to array of values by moment name
+        noiseless_moments = np.column_stack(noiseless_moments)
+        noisy_moments = np.column_stack(noisy_moments)
+        var_moments = np.column_stack(var_moments)
 
-        stacked = np.vstack([ makepulldist(df, beta, amoment) for amoment in momentlist])
-        testvals = np.array([ rmsval_dict[amoment][i] for amoment in momentlist])
-        mean_pull = stacked.mean(axis=1)
-        rms_pull = stacked.std(axis=1)
-        failmask = np.fabs(rms_pull-testvals) > 0.1
-        np.testing.assert_allclose(mean_pull, 0., atol=0.1)
-        np.testing.assert_allclose(rms_pull, testvals, rtol=0.2)
+        for k, name in enumerate(tol_dict.keys()):
+            diff = noisy_moments[k] - noiseless_moments[k]
+            pull = diff / np.sqrt(var_moments[k])
+            print("beta = {}, {}: mean, rms pull = {:0.2f}, {:0.2f}".format(
+                    beta, name, np.mean(pull), np.std(pull)))
+            np.testing.assert_allclose(np.mean(pull), 0., atol=0.1)
+            np.testing.assert_allclose(np.std(pull), 1., atol=tol_dict[name])
 
 
 if __name__ == "__main__":
@@ -257,4 +214,4 @@ if __name__ == "__main__":
     test_moments_mask()
     test_moments_options()
     test_moments_fail()
-    test_moments_moments()
+    test_moments_errors()
