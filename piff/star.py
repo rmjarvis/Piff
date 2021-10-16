@@ -162,7 +162,7 @@ class Star(object):
     def run_hsm(self):
         """Use HSM to measure moments of star image.
 
-        This usually isn't called directly.  The results (without flag) are accessible as star.hsm,
+        This usually isn't called directly.  The results are accessible as star.hsm,
         which caches the results, so repeated access is efficient.
 
         :returns: (flux, cenu, cenv, size, g1, g2, flag)
