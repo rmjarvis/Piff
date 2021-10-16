@@ -375,7 +375,7 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
         M_40 &= \sum W(u,v) I(u,v) (du^4 - 6 du^2 dv^2 + dv^4) \\
         M_04 &= \sum W(u,v) I(u,v) (du^2 - dv^2) (4 du dv)
 
-    Higher order radial moments both unnormalized and normalized (4th through 8th, even) are calculated if ``radial``
+    Higher order normalized radial moments (4th through 8th, even) are calculated if ``radial``
     is set to True:
 
     .. math::
@@ -402,7 +402,7 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
         * M_00, M_10, M_01, M_11, M_20, M_02
         * M_21, M_12, M_30, M_03                          if ``third_order`` = True
         * M_22, M_31, M_13, M_40, M_04                    if ``fourth_order`` = True
-        * M_22, M_33, M_44, M_22n, M_33n, M_44n           if ``radial`` = True
+        * M_22n, M_33n, M_44n                             if ``radial`` = True
         * variance of all previous values (in same order) if ``errors`` = True
     """
     # get vectors for data, weight and u, v
@@ -488,9 +488,9 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
         ret += (M21, M12, M30, M03)
 
     # 4th moments
-    #M22 = np.sum(WI * rsq2)
-    if fourth_order:
+    if fourth_order or radial:
         M22 = np.sum(WI * rsq2)
+    if fourth_order:
         M31 = np.sum(WIrsq * usqmvsq)
         M13 = 2 * np.sum(WIrsq * uv)
         M40 = np.sum(WI * (usq*usq - 6*usq*vsq + vsq*vsq))
@@ -499,7 +499,6 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
 
     # radial moments, return normalized moments
     if radial:
-        M22 = np.sum(WI * rsq2)
         M33 = np.sum(WI * rsq3)
         M44 = np.sum(WI * rsq4)
 
@@ -511,7 +510,8 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
         ret += (M22n,M33n,M44n)
 
     if errors:
-        # If we take W, w to be fixed and assume that var(I) = 1/w, then just considering the error in the numerator gives:
+        # If we take W, w to be fixed and assume that var(I) = 1/w, then just considering the
+        # error in the numerator gives:
 
         # var(M00) = sum W^2 1/w
         # var(M10) = sum W^2 1/w u^2 / M00^2
@@ -532,11 +532,15 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
         WV /= norm**2
 
         # varMnm for 1st and 2nd moments
-        varM10 = np.sum( WV * (u)**2 )         #  really varu0 u = u-u0 so this also includes error on M00 denominator
+        #  really varu0 u = u-u0 so this also includes error on M00 denominator
+        varM10 = np.sum( WV * (u)**2 )
         varM01 = np.sum( WV * (v)**2 )
-        varM11 = np.sum( WV * (rsq - M11)**2 )      #  -M11 term includes error on M00 denominator
-        varM20 = np.sum( WV * (usqmvsq - M20)**2 )  #  -M20 term includes error on M00 denominator
-        varM02 = np.sum( WV * (2.*uv - M02)**2 )    #  -M02 term includes error on M00 denominator
+        #  -M11 term includes error on M00 denominator
+        varM11 = np.sum( WV * (rsq - M11)**2 )
+        #  -M20 term includes error on M00 denominator
+        varM20 = np.sum( WV * (usqmvsq - M20)**2 )
+        #  -M02 term includes error on M00 denominator
+        varM02 = np.sum( WV * (2.*uv - M02)**2 )
 
         # scale variances
         varM10 *= (2.00**2)
@@ -545,7 +549,7 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
         varM20 *= (2.13**2)
         varM02 *= (2.13**2)
 
-        ret_err = (varM00, varM10, varM01, varM11, varM20, varM02)
+        ret += (varM00, varM10, varM01, varM11, varM20, varM02)
 
         # variance for 3rd moments
         if third_order:
@@ -559,7 +563,7 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
             varM30 *= (1.00**2)
             varM03 *= (1.00**2)
 
-            ret_err += (varM21, varM12, varM30, varM03)
+            ret += (varM21, varM12, varM30, varM03)
 
         # variance for r4th moments
         if fourth_order:
@@ -575,7 +579,7 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
             varM40 *= (1.05**2)
             varM04 *= (1.05**2)
 
-            ret_err += (varM22, varM31, varM13, varM40, varM04)
+            ret += (varM22, varM31, varM13, varM40, varM04)
 
         # variance for radial moments
         if radial:
@@ -588,17 +592,10 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
             varM33n = np.sum(WV *( rsq3 - 3*M33*rsq/M11 + 2*M33 )**2) / (M11**6)
             varM44n = np.sum(WV *( rsq4 - 4*M44*rsq/M11 + 3*M44 )**2) / (M11**8)
 
-            varM22 *= (2.62**2)
-            varM33 *= (2.76**2)
-            varM44 *= (2.72**2)
             varM22n *= (0.91**2)
             varM33n *= (0.88**2)
             varM44n *= (0.86**2)
 
-            #ret_err += (varM22, varM33, varM44)
-            ret_err += (varM22n, varM33n, varM44n)
+            ret += (varM22n, varM33n, varM44n)
 
-    if errors:
-        return ret + ret_err
-    else:
-        return ret
+    return ret
