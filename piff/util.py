@@ -408,22 +408,15 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
     # get vectors for data, weight and u, v
     data, weight, u, v = star.data.getDataVector()
     # also get the values for the HSM kernel, which is just the fitted hsm model
-    f, u0, v0, sigma_m, g1, g2, flag = star.hsm
-    # flux, u0,v0 (centroid in sky coord), sigma_m (detM^1/4 in sky coord), e1,e2, flag
-
-    # convert g1,g2 to e1,e2
-    s = galsim.Shear(g1=g1, g2=g2)
-    e1 = s.e1
-    e2 = s.e2
+    f, u0, v0, sigma, g1, g2, flag = star.hsm
 
     if flag:
         raise RuntimeError("HSM failed with flag %s" % flag)
 
     # build the HSM weight, writing into image
-    profile = galsim.Gaussian(sigma=sigma_m, flux=1.0).shear(g1=g1, g2=g2).shift(u0, v0)
+    profile = galsim.Gaussian(sigma=sigma, flux=1.0).shear(g1=g1, g2=g2).shift(u0, v0)
 
-    image = galsim.Image(star.image, dtype=float)
-    profile.drawImage(image, method='sb', center=star.image_pos)
+    image = profile.drawImage(star.image.copy(), method='sb', center=star.image_pos)
 
     # convert image into kernel
     kernel = image.array.flatten()
@@ -433,8 +426,6 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
     if np.any(mask):
         data[mask] = kernel[mask] * np.sum(data[~mask])/np.sum(kernel[~mask])
 
-    # These are masked image values, which we use in all the sums below.
-    # The mask is defined in the line above, taking all pixels with non-zero weight
     # Notation:
     #   W = kernel
     #   I = data
@@ -442,10 +433,9 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
     WI = kernel * data
 
     M00 = np.sum(WI)
-    norm = M00            # This is the normalization for all other moments.
-    WI /= norm
+    WI /= M00   # M00 is the normalization for all other moments.  So just divide once.
 
-    # now subtract off centroid
+    # subtract off centroid
     u -= u0
     v -= v0
 
@@ -459,13 +449,8 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
 
     WIu = WI * u
     WIv = WI * v
-    WIrsq = WI*rsq
-    WIusqmvsq = WI*usqmvsq
-    WIuv = WI*uv
-
-    rsq2 = rsq * rsq
-    rsq3 = rsq2 * rsq
-    rsq4 = rsq3 * rsq
+    WIrsq = WI * rsq
+    WIuv = WI * uv
 
     # centroids
     M10 = np.sum(WIu) + u0
@@ -473,7 +458,7 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
 
     # 2nd moments
     M11 = np.sum(WIrsq)
-    M20 = np.sum(WIusqmvsq)
+    M20 = np.sum(WI * usqmvsq)
     M02 = 2 * np.sum(WIuv)
 
     # Keep track of the tuple to return.  We may add more.
@@ -489,24 +474,24 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
 
     # 4th moments
     if fourth_order or radial:
+        rsq2 = rsq * rsq
         M22 = np.sum(WI * rsq2)
     if fourth_order:
         M31 = np.sum(WIrsq * usqmvsq)
         M13 = 2 * np.sum(WIrsq * uv)
-        M40 = np.sum(WI * (usq*usq - 6*usq*vsq + vsq*vsq))
-        M04 = 4 * np.sum(WIusqmvsq * uv)
+        M40 = np.sum(WI * (usqmvsq**2 - 4*uv**2))
+        M04 = 4 * np.sum(WIuv * usqmvsq)
         ret += (M22, M31, M13, M40, M04)
 
-    # radial moments, return normalized moments
+    # normalized radial moments
     if radial:
+        rsq3 = rsq2 * rsq
+        rsq4 = rsq3 * rsq
         M33 = np.sum(WI * rsq3)
         M44 = np.sum(WI * rsq4)
-
-        # normalized radial moments
         M22n = M22/(M11**2)
         M33n = M33/(M11**3)
         M44n = M44/(M11**4)
-
         ret += (M22n,M33n,M44n)
 
     if errors:
@@ -529,7 +514,7 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
         varM00 = np.sum(WV)
 
         # now set WV = W^2 1/w / M00^2
-        WV /= norm**2
+        WV /= M00**2
 
         # varMnm for 1st and 2nd moments
         #  really varu0 u = u-u0 so this also includes error on M00 denominator
@@ -570,7 +555,7 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
             varM22 = np.sum( WV * (rsq2 - M22)**2 )
             varM31 = np.sum( WV * (rsq*usqmvsq - M31)**2 )
             varM13 = np.sum( WV * (2*rsq*uv - M13)**2 )
-            varM40 = np.sum( WV * (usq*usq - 6*usq*vsq + vsq*vsq - M40)**2)
+            varM40 = np.sum( WV * (usqmvsq**2 - 4*uv**2 - M40)**2)
             varM04 = np.sum( WV * (4*usqmvsq*uv - M04)**2 )
 
             varM22 *= (2.62**2)
@@ -581,13 +566,8 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
 
             ret += (varM22, varM31, varM13, varM40, varM04)
 
-        # variance for radial moments
+        # variance for normalized radial moments
         if radial:
-            varM22 = np.sum( WV * (rsq2 - M22)**2 )
-            varM33 = np.sum( WV * (rsq3 - M33)**2 )
-            varM44 = np.sum( WV * (rsq4 - M44)**2 )
-
-            # variance for normalized radial moments
             varM22n = np.sum(WV *( rsq2 - 2*M22*rsq/M11 + M22 )**2) / (M11**4)
             varM33n = np.sum(WV *( rsq3 - 3*M33*rsq/M11 + 2*M33 )**2) / (M11**6)
             varM44n = np.sum(WV *( rsq4 - 4*M44*rsq/M11 + 3*M44 )**2) / (M11**8)
