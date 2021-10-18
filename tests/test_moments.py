@@ -176,7 +176,8 @@ def test_moments_fail():
     # RuntimeError
     _, noisy_stars = makeStars(nstar=1, beta=5.)
     star = noisy_stars[0]
-    star.data.image.addNoise(galsim.GaussianNoise(sigma=2.e7))
+    rng = galsim.BaseDeviate(1234)
+    star.data.image.addNoise(galsim.GaussianNoise(sigma=2.e7, rng=rng))
     with np.testing.assert_raises(RuntimeError):
         calculate_moments(star)
 
