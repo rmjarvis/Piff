@@ -528,11 +528,34 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
         varM02 = np.sum( WV * (2.*uv - M02)**2 )
 
         # scale variances
-        varM10 *= (2.00**2)
-        varM01 *= (2.00**2)
-        varM11 *= (2.26**2)
-        varM20 *= (2.13**2)
-        varM02 *= (2.13**2)
+        # cf. calibrate_moment_errors in devel directory.
+        # The output of that script is:
+        #
+        # M00: mean ratio = 2.355 +- 0.356
+        # M10: mean ratio = 4.029 +- 0.148
+        # M01: mean ratio = 4.009 +- 0.132
+        # M11: mean ratio = 5.354 +- 1.350
+        # M20: mean ratio = 4.654 +- 0.569
+        # M02: mean ratio = 4.602 +- 0.532
+        # M21: mean ratio = 0.360 +- 0.026
+        # M12: mean ratio = 0.355 +- 0.017
+        # M30: mean ratio = 0.884 +- 0.080
+        # M03: mean ratio = 0.881 +- 0.079
+        # M22: mean ratio = 5.113 +- 1.773
+        # M31: mean ratio = 4.328 +- 1.005
+        # M13: mean ratio = 4.270 +- 0.954
+        # M40: mean ratio = 1.911 +- 0.519
+        # M04: mean ratio = 1.975 +- 0.626
+        # M22n: mean ratio = 1.208 +- 0.106
+        # M33n: mean ratio = 1.149 +- 0.081
+        # M44n: mean ratio = 1.092 +- 0.062
+
+        varM00 *= 2.355
+        varM10 *= 4.029
+        varM01 *= 4.009
+        varM11 *= 5.354
+        varM20 *= 4.654
+        varM02 *= 4.602
 
         ret += (varM00, varM10, varM01, varM11, varM20, varM02)
 
@@ -543,10 +566,10 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
             varM30 = np.sum( WV * (u*(usq-3*vsq) - M30)**2 )
             varM03 = np.sum( WV * (v*(3*usq-vsq) - M03)**2 )
 
-            varM21 *= (0.66**2)
-            varM12 *= (0.66**2)
-            varM30 *= (1.00**2)
-            varM03 *= (1.00**2)
+            varM21 *= 0.360
+            varM12 *= 0.355
+            varM30 *= 0.884
+            varM03 *= 0.881
 
             ret += (varM21, varM12, varM30, varM03)
 
@@ -558,11 +581,11 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
             varM40 = np.sum( WV * (usqmvsq**2 - 4*uv**2 - M40)**2)
             varM04 = np.sum( WV * (4*usqmvsq*uv - M04)**2 )
 
-            varM22 *= (2.62**2)
-            varM31 *= (2.38**2)
-            varM13 *= (2.38**2)
-            varM40 *= (1.05**2)
-            varM04 *= (1.05**2)
+            varM22 *= 5.113
+            varM31 *= 4.328
+            varM13 *= 4.270
+            varM40 *= 1.911
+            varM04 *= 1.975
 
             ret += (varM22, varM31, varM13, varM40, varM04)
 
@@ -572,9 +595,9 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
             varM33n = np.sum(WV *( rsq3 - 3*M33*rsq/M11 + 2*M33 )**2) / (M11**6)
             varM44n = np.sum(WV *( rsq4 - 4*M44*rsq/M11 + 3*M44 )**2) / (M11**8)
 
-            varM22n *= (0.91**2)
-            varM33n *= (0.88**2)
-            varM44n *= (0.86**2)
+            varM22n *= 1.208
+            varM33n *= 1.149
+            varM44n *= 1.092
 
             ret += (varM22n, varM33n, varM44n)
 
