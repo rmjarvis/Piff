@@ -189,8 +189,8 @@ def test_moments_errors():
 
     # Test N different stars with random choices for beta, g1, g2, size within reasonable ranges.
     betalist = np_rng.uniform(1.5, 6, size=ntests)
-    g1list = np_rng.uniform(-0.1, 0.1, size=ntests)
-    g2list = np_rng.uniform(-0.1, 0.1, size=ntests)
+    g1list = np_rng.uniform(-0.05, 0.05, size=ntests)
+    g2list = np_rng.uniform(-0.05, 0.05, size=ntests)
     sizelist = np_rng.uniform(0.5, 0.9, size=ntests)
 
     # The error estimates aren't super precise.

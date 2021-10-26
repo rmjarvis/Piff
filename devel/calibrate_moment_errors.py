@@ -16,7 +16,7 @@ import numpy as np
 import os
 import galsim
 import piff
-import sklearn
+import copy
 
 def calculate_moments(star):
     """This is based on piff.util.calculate_moments, except it always computes all moments
@@ -36,15 +36,16 @@ def calculate_moments(star):
         raise RuntimeError("flag = %d from hsm"%flag)
     profile = galsim.Gaussian(sigma=sigma, flux=1.0).shear(g1=g1, g2=g2).shift(u0, v0)
     image = star.image.copy()
-    profile.drawImage(image, method='sb', center=star.image_pos)
+    profile.drawImage(image, method='no_pixel', center=star.image_pos)
     # convert image into kernel
-    kernel = image.array.flatten()
+    W = image.array.flatten()
     # Anywhere the data is masked, fill in with the hsm profile.
     mask = weight == 0.
     if np.any(mask):
-        data[mask] = kernel[mask] * np.sum(data[~mask])/np.sum(kernel[~mask])
+        print('mask = ',np.where(mask))
+        data[mask] = W[mask] * np.sum(data[~mask])/np.sum(W[~mask])
 
-    WI = kernel * data
+    WI = W * data
     M00 = np.sum(WI)
     WI /= M00
     u -= u0
@@ -54,6 +55,52 @@ def calculate_moments(star):
     uv = u*v
     rsq = usq + vsq
     usqmvsq = usq - vsq
+
+    if 0:
+        # Verify the formulae for dW/d*
+        ssq = np.sum(WI * rsq)
+        e1 = np.sum(WI * usqmvsq) / ssq
+        e2 = 2 * np.sum(WI * uv) / ssq
+        big = np.where(W > 0.8 * np.max(W))
+
+        # u0
+        p2 = galsim.Gaussian(sigma=sigma, flux=1.0).shear(g1=g1, g2=g2).shift(u0+1.e-3, v0)
+        im2 = p2.drawImage(image.copy(), method='no_pixel', center=star.image_pos)
+        W2 = im2.array.flatten()
+        print('empirical dW/du0 = ',(W2-W)[big]/1.e-3)
+        print('predicted dW/du0 = ',W[big] * u[big]/ssq)
+
+        # v0
+        p2 = galsim.Gaussian(sigma=sigma, flux=1.0).shear(g1=g1, g2=g2).shift(u0, v0+1.e-3)
+        im2 = p2.drawImage(image.copy(), method='no_pixel', center=star.image_pos)
+        W2 = im2.array.flatten()
+        print('empirical dW/dv0 = ',(W2-W)[big]/1.e-3)
+        print('predicted dW/dv0 = ',W[big] * v[big]/ssq)
+
+        # ssq
+        p2 = galsim.Gaussian(sigma=sigma*(1.+1.e-3), flux=1.0).shear(g1=g1, g2=g2).shift(u0, v0)
+        im2 = p2.drawImage(image.copy(), method='no_pixel', center=star.image_pos)
+        W2 = im2.array.flatten()
+        dssq = ssq * ((1+1.e-3)**2-1)
+        print('empirical dW/dssq = ',(W2-W)[big]/dssq)
+        print('predicted dW/dssq = ',W[big] * (rsq[big]-2*ssq)/(2*ssq**2))
+
+        # e1
+        p2 = galsim.Gaussian(sigma=sigma, flux=1.0).shear(g1=g1+1.e-3, g2=g2).shift(u0, v0)
+        im2 = p2.drawImage(image.copy(), method='no_pixel', center=star.image_pos)
+        W2 = im2.array.flatten()
+        de1 = galsim.Shear(g1=g1+1.e-3,g2=g2).e1 - e1
+        print('empirical dW/de1 = ',(W2-W)[big]/de1)
+        print('predicted dW/de1 = ',W[big] * usqmvsq[big]/(2*ssq))
+
+        # e2
+        p2 = galsim.Gaussian(sigma=sigma, flux=1.0).shear(g1=g1, g2=g2+1.e-3).shift(u0, v0)
+        im2 = p2.drawImage(image.copy(), method='no_pixel', center=star.image_pos)
+        W2 = im2.array.flatten()
+        de2 = galsim.Shear(g1=g1, g2=g2+1.e-3).e2 - e2
+        print('empirical dW/de2 = ',(W2-W)[big]/de2)
+        print('predicted dW/de2 = ',W[big] * 2* uv[big]/(2*ssq))
+        quit()
 
     WIu = WI * u
     WIv = WI * v
@@ -78,9 +125,9 @@ def calculate_moments(star):
     rsq4 = rsq3 * rsq
     M22 = np.sum(WI * rsq2)
     M31 = np.sum(WIrsq * usqmvsq)
-    M13 = 2. * np.sum(WIrsq * uv)
-    M40 = np.sum(WI * (usqmvsq**2 - 4.*uv**2))
-    M04 = 4. * np.sum(WIusqmvsq * uv)
+    M13 = 2 * np.sum(WIrsq * uv)
+    M40 = np.sum(WI * (usqmvsq**2 - 4*uv**2))
+    M04 = 4 * np.sum(WIusqmvsq * uv)
 
     M33 = np.sum(WI * rsq3)
     M44 = np.sum(WI * rsq4)
@@ -92,40 +139,168 @@ def calculate_moments(star):
                     M22, M31, M13, M40, M04, M22n, M33n, M44n])
 
     # Calculate naive estimates of errors:
-    WV = kernel**2
+    WV = W**2
     WV[~mask] /= weight[~mask]
     WV[mask] /= np.mean(weight[~mask])
 
-    varM00 = np.sum(WV)
+    A = 1/(3-M22/M11**2)
+    B = 2/(4-M22/M11**2)
+    dM00 = 1 - A*(rsq/M11-1)
+    varM00 = np.sum(WV * dM00**2)
     WV /= M00**2
 
-    varM10 = np.sum(WV * usq)
-    varM01 = np.sum(WV * vsq)
-    varM11 = np.sum(WV * (rsq-M11)**2)
-    varM20 = np.sum(WV * (usqmvsq-M20)**2)
-    varM02 = np.sum(WV * (2*uv-M02)**2)
+    if 0:
+        # Verify the d/dI_k formulae
+        ssq = M11
+        e1 = M20/M11
+        e2 = M02/M11
 
-    varM21 = np.sum(WV * (u*rsq - M21)**2)
-    varM12 = np.sum(WV * (v*rsq - M12)**2)
-    varM30 = np.sum(WV * (u*(usq-3*vsq) - M30)**2)
-    varM03 = np.sum(WV * (v*(3*usq-vsq) - M03)**2)
+        big = np.where(W > 0.3 * np.max(W))
+        print('big = ',big)
+        k = big[0][0]
+        print('k = ',k)
+        print('Wk = ',W[k])
+        print('Ik = ',data[k])
+        dIk = data[k] * 3.e-2
+        print('dIk = ',dIk)
+        _star = copy.deepcopy(star)
+        _star.image.array.ravel()[k] += dIk
+        print('Ik = ',_star.image.array.ravel()[k])
 
-    varM22 = np.sum(WV * (rsq2 - M22)**2)
-    varM31 = np.sum(WV * (rsq*usqmvsq - M31)**2)
-    varM13 = np.sum(WV * (2*rsq*uv - M13)**2)
-    varM40 = np.sum(WV * (usqmvsq**2-4.*uv**2 - M40)**2)
-    varM04 = np.sum(WV * (4*usqmvsq*uv - M04)**2)
+        delattr(_star,'_hsm')
+        _f, _u0, _v0, _sigma, _g1, _g2, _flag = _star.hsm
+        _profile = galsim.Gaussian(sigma=_sigma, flux=1.0).shear(g1=_g1, g2=_g2).shift(_u0, _v0)
+        _image = _star.image.copy()
+        _profile.drawImage(_image, method='no_pixel', center=star.image_pos)
+        _W = _image.array.flatten()
+        _WI = _W * _star.image.array.flatten()
+        _M00 = np.sum(_WI)
+        _WI /= _M00
+        _u = u + u0 - _u0
+        _v = v + v0 - _v0
+        _usq = _u*u
+        _vsq = _v*v
+        _uv = _u*v
+        _rsq = _usq + vsq
+        _usqmvsq = _usq - _vsq
 
-    varM22n = np.sum(WV * (rsq2 - 2*M22*rsq/M11 + M22)**2) / (M11**4)
-    varM33n = np.sum(WV * (rsq3 - 3*M33*rsq/M11 + 2*M33)**2) / (M11**6)
-    varM44n = np.sum(WV * (rsq4 - 4*M44*rsq/M11 + 3*M44)**2) / (M11**8)
+        _WIu = _WI * _u
+        _WIv = _WI * _v
+        _WIrsq = _WI * _rsq
+        _WIusqmvsq = _WI * _usqmvsq
+        _WIuv = _WI * _uv
+
+        _M10 = np.sum(_WIu) + _u0
+        _M01 = np.sum(_WIv) + _v0
+        _M11 = np.sum(_WIrsq)
+        _M20 = np.sum(_WIusqmvsq)
+        _M02 = 2 * np.sum(_WIuv)
+        _ssq = _M11
+        _e1 = _M20/M11
+        _e2 = _M02/M11
+
+        _M21 = np.sum(_WIu * _rsq)
+        _M12 = np.sum(_WIv * _rsq)
+        _M30 = np.sum(_WIu * (_usq-3*_vsq))
+        _M03 = np.sum(_WIv * (3*_usq-_vsq))
+
+        _rsq2 = _rsq * _rsq
+        _rsq3 = _rsq2 * _rsq
+        _rsq4 = _rsq3 * _rsq
+        _M22 = np.sum(_WI * _rsq2)
+        _M31 = np.sum(_WIrsq * _usqmvsq)
+        _M13 = 2 * np.sum(_WIrsq * _uv)
+        _M40 = np.sum(_WI * (_usqmvsq**2 - 4*_uv**2))
+        _M04 = 4 * np.sum(_WIusqmvsq * _uv)
+
+
+        print('empirical du0/dIk = ',(_u0 - u0) / dIk)
+        print('predicted du0/dIk = ',2*W[k]*u[k]/M00)
+
+        print('empirical dv0/dIk = ',(_v0 - v0) / dIk)
+        print('predicted dv0/dIk = ',2*W[k]*v[k]/M00)
+
+        print('empirical dssq/dIk = ',(_ssq - ssq) / dIk)
+        print('predicted dssq/dIk = ',2*W[k]*(rsq[k] - ssq) / M00 / (3-M22/ssq**2))
+        print('predicted dssq/dIk = ',2*A*W[k]*(rsq[k] - ssq) / M00)
+
+        print('empirical de1/dIk = ',(_e1 - e1) / dIk)
+        print('predicted de1/dIk = ',W[k]*usqmvsq[k]/ssq/M00 / (1-M22/(4*ssq**2)))
+        print('predicted de1/dIk = ',2*B*W[k]*usqmvsq[k]/ssq/M00)
+
+        print('empirical de2/dIk = ',(_e2 - e2) / dIk)
+        print('predicted de2/dIk = ',W[k]*2*uv[k]/ssq/M00 / (1-M22/(4*ssq**2)))
+        print('predicted de2/dIk = ',2*B*W[k]*2*uv[k]/ssq/M00)
+        print()
+
+        print('empirical dM00/dIk = ',(_M00-M00)/dIk)
+        print('predicted dM00/dIk = ',W[k] * (4 - M22/ssq**2 - rsq[k]/ssq)/(3-M22/ssq**2))
+        print('predicted dM00/dIk = ',W[k] * dM00[k])
+        print()
+
+        print('empirical dM10/dIk = ',(_M10-M10)/dIk)
+        print('predicted dM10/dIk = ',2*W[k] * u[k] / M00)
+
+        print('empirical dM01/dIk = ',(_M01-M01)/dIk)
+        print('predicted dM01/dIk = ',2*W[k] * v[k] / M00)
+        print()
+
+        print('empirical dM11/dIk = ',(_M11-M11)/dIk)
+        print('predicted dM11/dIk = ',2*A*W[k] * (rsq[k]-ssq) / M00)
+
+        print('empirical dM20/dIk = ',(_M20-M20)/dIk)
+        print('predicted dM20/dIk = ',2*W[k] * (A*e1*(rsq[k]-ssq) + B*usqmvsq[k]) / M00)
+
+        print('empirical dM02/dIk = ',(_M02-M02)/dIk)
+        print('predicted dM02/dIk = ',2*W[k] * (A*e2*(rsq[k]-ssq) + 2*B*uv[k]) / M00)
+        print()
+
+        print('empirical dM21/dIk = ',(_M21-M21)/dIk)
+        print('predicted dM21/dIk = ',W[k] * (u[k]*(rsq[k]**2 - 4*M11 + M22/M11) - M21*dM00[k])/M00)
+        print('empirical dM12/dIk = ',(_M12-M12)/dIk)
+        print('predicted dM12/dIk = ',W[k] * (v[k]*(rsq[k]**2 - 4*M11 + M22/M11) - M12*dM00[k])/M00)
+        print('empirical dM30/dIk = ',(_M30-M30)/dIk)
+        print('predicted dM30/dIk = ',W[k] * ((3*usq[k] - vsq[k])*u[k] - M30*dM00[k])/M00)
+        print('empirical dM03/dIk = ',(_M03-M03)/dIk)
+        print('predicted dM03/dIk = ',W[k] * ((usq[k] - 3*vsq[k])*v[k] - M03*dM00[k])/M00)
+        print()
+
+        print('empirical dM22/dIk = ',(_M22-M22)/dIk)
+        print('predicted dM22/dIk = ',W[k] * (rsq[k]**2 + (1-dM00[k])*(M33/M11-2*M22) - M22 * dM00[k])/M00)
+        print('predicted dM22/dIk = ',W[k] * (rsq[k]**2 + (M33/ssq-2*M22) - (M33/ssq - M22)*dM00[k])/M00)
+        print('predicted dM22/dIk = ',W[k] * (rsq[k]**2 + A*(rsq[k]/ssq-1)*(M33/ssq-2*M22) - M22*dM00[k])/M00)
+        quit()
+
+
+    varM10 = 4 * np.sum(WV * usq)
+    varM01 = 4 * np.sum(WV * vsq)
+
+    varM11 = 4 * A**2 * np.sum(WV * (rsq - M11)**2)
+    varM20 = 4 * np.sum(WV * (B*usqmvsq + A*M20 * (rsq/M11 - 1))**2)
+    varM02 = 4 * np.sum(WV * (2*B*uv + A*M02 * (rsq/M11 - 1))**2)
+
+    varM21 = np.sum(WV * (u*(rsq-4*M11+M22/M11) - M21 * dM00)**2)
+    varM12 = np.sum(WV * (v*(rsq-4*M11+M22/M11) - M12 * dM00)**2)
+    varM30 = np.sum(WV * (u*(usq-3*vsq) - M30 * dM00)**2)
+    varM03 = np.sum(WV * (v*(3*usq-vsq) - M03 * dM00)**2)
+
+    varM22 = np.sum(WV * (rsq2 + A*(rsq/M11-1)*(M33/M11-2*M22) - M22 * dM00)**2)
+    varM31 = np.sum(WV * (usqmvsq * (rsq + B*M33/(2*M11**2)) - M31 * dM00)**2)
+    varM13 = np.sum(WV * (2*uv * (rsq + B*M33/(2*M11**2)) - M13 * dM00)**2)
+    varM40 = np.sum(WV * (usqmvsq**2 - 4*uv**2 - M40 * dM00)**2)
+    varM04 = np.sum(WV * (4*usqmvsq*uv - M04 * dM00)**2)
+
+    M55n = np.sum(WI * rsq4 * rsq) / M11**5
+    varM22n = np.sum(WV * (rsq2/M11**2 + A*(rsq/M11-1)*(M33n-6*M22n) - M22n*dM00)**2)
+    varM33n = np.sum(WV * (rsq3/M11**3 + A*(rsq/M11-1)*(M44n-8*M33n) - M33n*dM00)**2)
+    varM44n = np.sum(WV * (rsq4/M11**4 + A*(rsq/M11-1)*(M55n-10*M44n) - M44n*dM00)**2)
 
     var = np.array([varM00, varM10, varM01, varM11, varM20, varM02, varM21, varM12, varM30, varM03,
                     varM22, varM31, varM13, varM40, varM04, varM22n, varM33n, varM44n])
 
     return mom, var
 
-def make_psf(rng, iprof=None, scale=None, g1=None, g2=None, flux=1000):
+def make_psf(rng, iprof=None, scale=None, g1=None, g2=None, flux=10000):
 
     np_rng = np.random.default_rng(rng.raw())
 
@@ -155,9 +330,9 @@ def make_psf(rng, iprof=None, scale=None, g1=None, g2=None, flux=1000):
 
     # Choose a random size and shape within reasonable ranges.
     if g1 is None:
-        g1 = np_rng.uniform(-0.2, 0.2)
+        g1 = np_rng.uniform(-0.03, 0.03)
     if g2 is None:
-        g2 = np_rng.uniform(-0.2, 0.2)
+        g2 = np_rng.uniform(-0.03, 0.03)
     if scale is None:
         # Note: Don't go too small, since hsm fails more often for size close to pixel_scale.
         scale = np.exp(np_rng.uniform(-0.3, 1.0))
@@ -210,7 +385,7 @@ def estimate_moment_errors(star, rng, num=2000):
 
 def check_moment_errors(nstars=500):
 
-    rng = galsim.UniformDeviate(12345)
+    rng = galsim.UniformDeviate(1234)
     all_mean_moments = []
     all_mean_errors = []
     all_var_moments = []
