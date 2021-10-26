@@ -18,12 +18,37 @@ import galsim
 import piff
 import copy
 
+# For reference, as of commit 1f4ad4425b80ade590addb2, the output of this script is:
+#
+# M00: mean ratio = 0.996 +- 0.034
+# M10: mean ratio = 1.006 +- 0.038
+# M01: mean ratio = 1.003 +- 0.031
+# M11: mean ratio = 0.994 +- 0.037
+# M20: mean ratio = 0.997 +- 0.052
+# M02: mean ratio = 0.982 +- 0.035
+# M21: mean ratio = 1.021 +- 0.073
+# M12: mean ratio = 1.005 +- 0.034
+# M30: mean ratio = 1.003 +- 0.040
+# M03: mean ratio = 0.997 +- 0.032
+# M22: mean ratio = 0.995 +- 0.038
+# M31: mean ratio = 1.007 +- 0.060
+# M13: mean ratio = 0.990 +- 0.037
+# M40: mean ratio = 1.049 +- 0.064
+# M04: mean ratio = 1.051 +- 0.063
+# M22n: mean ratio = 1.018 +- 0.040
+# M33n: mean ratio = 1.023 +- 0.043
+# M44n: mean ratio = 1.026 +- 0.047
+#
+# As a result, we no longer apply any fudge factors to the error estimates in calculate_moments.
+
+
 def calculate_moments(star):
     """This is based on piff.util.calculate_moments, except it always computes all moments
     and errors.
 
-    It also just computes the naive estimates of the errors.  Indeed this script is the source
-    of the correction that is in the piff version to get better error estimates.
+    It used to also not apply calibration fudge factors.  Indeed, this was the script that we
+    had used to calculate those factors.  But we now have analytic formulae that are quite accurate
+    (at least when e1,e2 are small), so we don't need those factors anymore.
     """
 
     # get vectors for data, weight and u, v
