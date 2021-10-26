@@ -195,12 +195,12 @@ def test_moments_errors():
 
     # The error estimates aren't super precise.
     # Here are the tolerances we need to get these tests to pass.  (To the nearest 0.05.)
-    tol_dict = dict(M00=0.15,
+    tol_dict = dict(M00=0.05,
                     M10=0.10, M01=0.10,
-                    M11=0.15, M20=0.10, M02=0.10,
-                    M21=0.20, M12=0.20, M30=0.15, M03=0.15,
-                    M22=0.45, M31=0.40, M13=0.40, M40=0.35, M04=0.40,
-                    M22n=0.35, M33n=0.35, M44n=0.40)
+                    M11=0.05, M20=0.10, M02=0.10,
+                    M21=0.10, M12=0.10, M30=0.10, M03=0.10,
+                    M22=0.05, M31=0.05, M13=0.05, M40=0.15, M04=0.15,
+                    M22n=0.10, M33n=0.10, M44n=0.10)
 
     for k in range(ntests):
         # Use a single value of beta, g1, g2, size for each run so empirical variance is accurate.
