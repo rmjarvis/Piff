@@ -473,7 +473,7 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
         ret += (M21, M12, M30, M03)
 
     # 4th moments
-    if fourth_order or radial:
+    if fourth_order or radial or errors:
         rsq2 = rsq * rsq
         M22 = np.sum(WI * rsq2)
     if fourth_order:
@@ -484,10 +484,11 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
         ret += (M22, M31, M13, M40, M04)
 
     # normalized radial moments
-    if radial:
+    if radial or (fourth_order and errors):
         rsq3 = rsq2 * rsq
-        rsq4 = rsq3 * rsq
         M33 = np.sum(WI * rsq3)
+    if radial:
+        rsq4 = rsq3 * rsq
         M44 = np.sum(WI * rsq4)
         M22n = M22/(M11**2)
         M33n = M33/(M11**3)
@@ -495,109 +496,307 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
         ret += (M22n,M33n,M44n)
 
     if errors:
-        # If we take W, w to be fixed and assume that var(I) = 1/w, then just considering the
-        # error in the numerator gives:
 
-        # var(M00) = sum W^2 1/w
-        # var(M10) = sum W^2 1/w u^2 / M00^2
-        # var(M01) = sum W^2 1/w v^2 / M00^2
-        # var(M11) = sum W^2 1/w (u^2 + v^2)^2 / M00^2
-        # var(M20) = sum W^2 1/w (u^2 - v^2)^2 / M00^2
-        # var(M02) = sum W^2 1/w (2uv)^2 / M00^2
+        #
+        # Consider M00 first.
+        #
+
+        # If we take W, w to be fixed and assume that var(I) = 1/w, then
+        #
+        # var(M00) = var(sum_k W_k I_k)
+        #          = sum_k W_k^2 var(I_k)
+        #          = sum W_k^2 (1/w_k)
+        #
+        # However, W is not actually noiseless, since it is estimated from the data.
+        # In particular it is set to null 5 constraint equations, which are:
+        #
+        # sum_k W_k I_k (u-u0) = 0
+        # sum_k W_k I_k (v-v0) = 0
+        # sum_k W_k I_k (rsq - ssq) = 0
+        # sum_k W_k I_k (usqmvsq - e1 ssq) = 0
+        # sum_k W_k I_k (2 uv - e2 ssq) = 0
+        #
+        # This means dW_i/dI_k != 0.  So,
+        #
+        # var(M00) = sum_k (dM00/dI_k)^2 (1/w_k)
+        #          = sum_k (W_k + sum_i I_i dW_i/dI_k)^2 (1/w_k)
+        #
+        # dW_i/dI_k = (dW_i/du0) (du0/dI_k)
+        #             + (dW_i/dv0) (dv0/dI_k)
+        #             + (dW_i/dssq) (dssq/dI_k)
+        #             + (dW_i/de1) (de1/dI_k)
+        #             + (dW_i/de2) (de2/dI_k)
+        #
+        # The first factor in each term comes directly from the Gaussian form of W:
+        #
+        # dW_i/du0 = W_i (u_i - u0) / ssq
+        # dW_i/du0 = W_i (v_i - v0) / ssq
+        # dW_i/dssq = W_i (rsq_i - 2ssq) / (2ssq^2)
+        # dW_i/de1 = W_i usqmvsq_i / (2ssq)
+        # dW_i/de2 = W_i 2 uv_i / (2ssq)
+        #
+        # The second factors we can get from the three constraint equations by perturbing in
+        # {du0, dv0, dssq} and dI_k and taking the 1st order terms.  After some algebra, we get:
+        #
+        # du0/dI_k = 2 W_k (u_k - u0) / M00
+        # dv0/dI_k = 2 W_k (v_k - v0) / M00
+        # dssq/dI_k = 2 W_k (rsq_k - ssq) / M00 / (3-M22/ssq^2)
+        # de1/dI_k = 2 W_k (usqmvsq_k / ssq) / M00 / (2-M22/2ssq^2)
+        # de2/dI_k = 2 W_k (2 uv_k / ssq) / M00 / (2-M22/2ssq^2)
+        #
+        # Note: those final factors in the last 3 eqns are 1 for Gaussian profiles, but make a
+        # difference for highly non-Gaussian profile, such as low-beta Moffat profiles.
+        # To simplify notation, we define:
+        #
+        # A = 1/(3-M22/ssq^2)
+        # B = 1/(2-M22/2ssq^2)
+        #
+        # So,
+        #
+        # dssq/dI_k = 2A W_k (rsq_k - ssq) / M00
+        # de1/dI_k = 2B W_k (usqmvsq_k / ssq) / M00
+        # de2/dI_k = 2B W_k (2 uv_k / ssq) / M00
+        #
+        # Putting these together:
+        #
+        # dW_i/dI_k = (2 W_i W_k / ssq M00) [ (u_i - u0) (u_k - u0)
+        #                                     + (v_i - v0) (v_k - v0)
+        #                                     + A (rsq_i - 2ssq) (rsq_k - ssq) / 2 ssq
+        #                                     + B (usqmvsq_i / 2) (usqmvsq_k / ssq)
+        #                                     + 2B (uv_i) (uv_k / ssq) ]
+        #
+        # Note: For most of these calculations we'll ignore terms that are first order in e1 or e2,
+        #       since stars usually have fairly small ellitpicities, and including those factors
+        #       properly adds a lot of complication with little impact on accuracy.
+        #
+        # dM00/dI_k = W_k + A [sum_i I_i W_i (rsq_i/ssq - 2)/M00] W_k (rsq_k/ssq - 1)]
+        #                   Note: [..] = -1  (And the u0,v0 sums = 0.)
+        #           = W_k (1 - A (rsq_k/ssq - 1))
 
         # WV = W^2 1/w
         WV = kernel**2
         WV[~mask] /= weight[~mask]  # Only use 1/w where w != 0
         WV[mask] /= np.mean(weight[~mask])
 
-        # varM00
-        varM00 = np.sum(WV)
+        A = 1/(3-M22/M11**2)
+        B = 2/(4-M22/M11**2)
+        dM00 = 1 - A*(rsq/M11-1)
+        varM00 = np.sum(WV * dM00**2)
 
-        # now set WV = W^2 1/w / M00^2
+        # Set WV = W^2 1/w / M00^2 to incorporate the normalization into the weight for the rest.
         WV /= M00**2
 
-        # varMnm for 1st and 2nd moments
-        #  really varu0 u = u-u0 so this also includes error on M00 denominator
-        varM10 = np.sum( WV * (u)**2 )
-        varM01 = np.sum( WV * (v)**2 )
-        #  -M11 term includes error on M00 denominator
-        varM11 = np.sum( WV * (rsq - M11)**2 )
-        #  -M20 term includes error on M00 denominator
-        varM20 = np.sum( WV * (usqmvsq - M20)**2 )
-        #  -M02 term includes error on M00 denominator
-        varM02 = np.sum( WV * (2.*uv - M02)**2 )
-
-        # scale variances
-        # cf. calibrate_moment_errors in devel directory.
-        # The output of that script is:
         #
-        # M00: mean ratio = 2.355 +- 0.356
-        # M10: mean ratio = 4.029 +- 0.148
-        # M01: mean ratio = 4.009 +- 0.132
-        # M11: mean ratio = 5.354 +- 1.350
-        # M20: mean ratio = 4.654 +- 0.569
-        # M02: mean ratio = 4.602 +- 0.532
-        # M21: mean ratio = 0.360 +- 0.026
-        # M12: mean ratio = 0.355 +- 0.017
-        # M30: mean ratio = 0.884 +- 0.080
-        # M03: mean ratio = 0.881 +- 0.079
-        # M22: mean ratio = 5.113 +- 1.773
-        # M31: mean ratio = 4.328 +- 1.005
-        # M13: mean ratio = 4.270 +- 0.954
-        # M40: mean ratio = 1.911 +- 0.519
-        # M04: mean ratio = 1.975 +- 0.626
-        # M22n: mean ratio = 1.208 +- 0.106
-        # M33n: mean ratio = 1.149 +- 0.081
-        # M44n: mean ratio = 1.092 +- 0.062
+        # First order moments:
+        #
 
-        varM00 *= 2.355
-        varM10 *= 4.029
-        varM01 *= 4.009
-        varM11 *= 5.354
-        varM20 *= 4.654
-        varM02 *= 4.602
+        # For these, we add on the hsm centroid estimate
+        #
+        # M10 = sum(WIu) / M00 + u0
+        # M01 = sum(WIv) / M00 + v0
+        #
+        # So var(u0) and var(v0) need to be included in the variance of M10, M01.
+        # But also, the first term is something that is designed to be essentially 0 in the
+        # HSM solution.  So the variances are really just var(u0), var(v0).
+        #
+        # var(u0) = sum_k (du0/dI_k)^2 var(I_k)
+        # var(v0) = sum_k (dv0/dI_k)^2 var(I_k)
+        #
+        # To get var(u0) and var(v0), we need to look at the first two constraint equations.
+        # They are exactly analogous, so just do u0:
+        #
+        # sum_k W_k I_k (u-u0) = 0
+        #
+        # Do a perturbation of this in du0 and dI_k to obtain:
+        #
+        # sum_i W_i I_i [(u-u0)^2/ssq - 1] du0 = -W_k (u_k - u0) dI_k
+        #
+        # The LHS is basically (<(u-u0)^2>/ssq - 1) M00.
+        # By symmetry considerations and the fact that <(u-u0)^2 + (v-v0)^2> = ssq, we know that
+        # <(u-u0)^2>/ssq = 1/2.  (This trick will show up a few times below too.)  So,
+        #
+        # -1/2 M00 du0 = -W_k (u_k - u0) dI_k
+        #
+        # du0/dI_k = 2 W_k (u_k - u0) / M00
+        #
+        # var(u0) = sum (2 W (u-u0) / M00)^2 1/w
+        #         = 4 sum WV (u-u0)^2
 
+        varM10 = 4 * np.sum(WV * usq)
+        varM01 = 4 * np.sum(WV * vsq)
+
+        #
+        # Second order moments:
+        #
+
+        # M11 = ssq, so we already have what we need to calculate the variance from what we
+        # derived above for varM00.
+        #
+        # dssq/dI_k = 2A W_k (rsq_k - ssq) / M00
+        #
+        # var(M11) = sum_k (dM11/dI_k)^2 var(I_k)
+        #          = sum_k (dssq/dI_k)^2 1/w
+        #          = sum_k (2A W_k/M00 (rsq-ssq))^2 1/w
+        #          = 4A^2 sum_k WV (rsq-ssq)**2
+
+        varM11 = 4 * A**2 * np.sum(WV * (rsq - M11)**2)
+
+        # M20 = ssq e1
+        # M02 = ssq e2
+        #
+        # de1/dI_k = 2B W_k (usqmvsq_k / ssq) / M00
+        #
+        # dM20/dI_k = e1 dssq/dI_k + ssq de1/dI_k
+        #           = 2 W_k / M00 (e1 A (rsq_k-ssq) + B usqmvsq_k)
+        #
+        # var(M20) = sum_k (dM20/dI_k)^2 var(I_k)
+        #          = sum_k (2 W_k/M00 (B usqmvsq_k + e1 A (rsq_k - ssq)))^2 1/w
+        #          = 4 sum_k WV (B usqmvsq_k + A e1 (rsq_k - ssq))^2
+        #
+        # Likewise,
+        #
+        # var(M02) = 4 sum_k WV (2B uv_k + A e2 (rsq_k - ssq))^2
+
+        varM20 = 4 * np.sum(WV * (B*usqmvsq + A*M20 * (rsq/M11 - 1))**2)
+        varM02 = 4 * np.sum(WV * (2*B*uv + A*M02 * (rsq/M11 - 1))**2)
+
+        # Add these to the return tuple
         ret += (varM00, varM10, varM01, varM11, varM20, varM02)
 
-        # variance for 3rd moments
-        if third_order:
-            varM21 = np.sum( WV * (u*rsq - M21)**2 )
-            varM12 = np.sum( WV * (v*rsq - M12)**2 )
-            varM30 = np.sum( WV * (u*(usq-3*vsq) - M30)**2 )
-            varM03 = np.sum( WV * (v*(3*usq-vsq) - M03)**2 )
+        #
+        # Third order moments:
+        #
 
-            varM21 *= 0.360
-            varM12 *= 0.355
-            varM30 *= 0.884
-            varM03 *= 0.881
+        # The third order moments M21 and M12 are strongly affected by the u0,v0 constraints,
+        # so their variances are quite a bit lower than what you get from assuming W is constant.
+        #
+        # M21 = sum_k W_k I_k ((u-u0)^2 + (v-v0)^2) (u-u0) / M00
+        #
+        # From above:
+        #
+        # du0/dI_k = 2 W_k (u_k - u0) / M00
+        # dM00/dI_k = W_k dM00
+        # dW_i/dI_k = (2 W_i W_k / ssq M00) [ (u_i - u0) (u_k - u0)
+        #                                     + (v_i - v0) (v_k - v0)
+        #                                     + A (rsq_i - 2ssq) (rsq_k - ssq) / 2ssq
+        #                                     + B (usqmvsq_i / 2) (usqmvsq_k / ssq)
+        #                                     + 2B (uv_i) (uv_k / ssq) ]
+        #
+        # (For dW_i/dI_k, only the u-u0 term is important.)
+        #
+        # dM21/dI_k = W_k rsq_k (u_k-u0) / M00
+        #             + sum_i W_i I_i (-3(u-u0)^2 - (v-v0)^2)) du0/dI_k / M00
+        #             + sum_i dW_i/dI_k I_i rsq_i (u_i-u0) / M00
+        #             - M21/M00 dM00/dI_k
+        #           = W_k rsq_k (u_k-u0) / M00
+        #             - 2 W_k (u_k-u0) / M00 [sum_i W_i I_i (rsq + 2(u-u0)^2)] / M00
+        #             + 2 W_k (u_k-u0) / M00 [sum_i W_i I_i rsq_i/ssq (u_i-u0)^2] / M00
+        #             - W_k M21/M00 dM00
+        #           = W_k/M00 [(rsq - 4*M11 + M22/M11) (u-u0) - M21 dM00]
+        # (where, as usual, we ignore terms related to e1,e2.)
+        #
+        # Similarly,
+        #
+        # dM12/dI_k = W_k/M00 [(rsq - 4*M11 + M22/M11) (v-v0) - M12 dM00]
+        #
+        # It turns out that M30 and M03 are not significantly affected by any of the constraint
+        # equations.  The result is what you would get by keeping W constant:
+        #
+        # M30 = sum_k W_k I_k ((u-u0)^2 - 3(v-v0)^2) (u-u0) / M00
+        #
+        # dM30/dI_k = W_k (u_k-u0)^2 - 3(v_k-v0)^2) (u_k-u0) / M00
+        #             + sum_i W_i I_i (-3(u-u0)^2 + 3(v-v0)^2)) du0/dI_k / M00
+        #             + sum_i W_i I_i (6(v-v0)^2 (u-u0)) dv0/dI_k / M00
+        #             + sum_i dW_i/dI_k I_i ((u_i-u0)^2 - 3(v-v0)^2) (u_i-u0) / M00
+        #             - M30/M00 dM00/dI_k
+        #           = W_k/M00 [(u^2-3v^2) (u-u0) - M30 dM00]
+        #
+        # dM03/dI_k = W_k/M00 [(3u^2-v^2) (v-v0) - M13 dM00]
+
+        if third_order:
+            varM21 = np.sum(WV * (u*(rsq - 4*M11 + M22/M11) - M21 * dM00)**2)
+            varM12 = np.sum(WV * (v*(rsq - 4*M11 + M22/M11) - M12 * dM00)**2)
+            varM30 = np.sum(WV * (u*(usq-3*vsq) - M30 * dM00)**2)
+            varM03 = np.sum(WV * (v*(3*usq-vsq) - M03 * dM00)**2)
 
             ret += (varM21, varM12, varM30, varM03)
 
-        # variance for r4th moments
-        if fourth_order:
-            varM22 = np.sum( WV * (rsq2 - M22)**2 )
-            varM31 = np.sum( WV * (rsq*usqmvsq - M31)**2 )
-            varM13 = np.sum( WV * (2*rsq*uv - M13)**2 )
-            varM40 = np.sum( WV * (usqmvsq**2 - 4*uv**2 - M40)**2)
-            varM04 = np.sum( WV * (4*usqmvsq*uv - M04)**2 )
+        #
+        # Fourth order moments:
+        #
 
-            varM22 *= 5.113
-            varM31 *= 4.328
-            varM13 *= 4.270
-            varM40 *= 1.911
-            varM04 *= 1.975
+        # M22 is primarily affected by the ssq constraint perturbing W:
+        #
+        # dW_i/dI_k = (2A W_i W_k / ssq M00) (rsq_i - 2ssq) (rsq_k - ssq) / 2ssq
+        #
+        # M22 = sum_k W_k I_k rsq^2 / M00
+        #
+        # dM22/dI_k = W_k rsq_k^2 / M00
+        #             + W_k A (rsq_k/ssq-1)/(ssq M00) sum_i W_i I_i rsq_i^2 (rsq_i-2ssq) / M00
+        #             - M22/M00 dM00/dI_k
+        #           = W_k rsq_k^2 / M00
+        #             + W_k A (rsq_k/ssq-1)/M00 (M33/ssq - 2M22)
+        #             - W_k M22/M00 dM00
+        #           = W_k/M00 [rsq^2 + A*(rsq/ssq-1)*(M33/ssq - 2M22) - M22 dM00]
+        #
+        # M31 is affected by the e1 constraint equation:
+        #
+        # dW_i/dI_k = B (W_i W_k / ssq M00) usqmvsq_i usqmvsq_k / ssq
+        #
+        # M31 = sum_k W_k I_k rsq * ((u-u0)^2 - (v-v0)^2) / M00
+        #
+        # dM31/dI_k = W_k rsq_k usqmvsq_k / M00
+        #             + B W_k usqmvsq_k/(ssq^2 M00) sum_i W_i I_i rsq_i usqmvsq_i^2 / M00
+        #             - M31/M00 dM00/dI_k
+        #           = W_k rsq_k usqmvsq_k / M00
+        #             + B W_k usqmvsq_k/(ssq^2 M00) (M33/2)
+        #             - W_k M31/M00 dM00
+        #           = W_k/M00 [usqmvsq (rsq + B M33/(2ssq^2)) - M31 dM00]
+        #
+        # Similarly (using the e2 constraint),
+        #
+        # dM13/dI_k = W_k/M00 [2*uv (rsq + M33/(2ssq^2)) - M13 dM00]
+        #
+        # M40 and M04 are essentialy unaffected by the constraints, so the naive calculation
+        # is pretty accurate (just like M30 and M03).
+        #
+        # dM40/dI_k = W_k/M00 [(usq^2 - 6uv^2 + vsq^2) - M40 dM00]
+        # dM04/dI_k = W_k/M00 [(usq - vsq)(4uv) - M40 dM00]
+
+        if fourth_order or radial:
+            varM22 = np.sum(WV * (rsq2 + A*(rsq/M11-1)*(M33/M11-2*M22) - M22 * dM00)**2)
+        if fourth_order:
+            varM31 = np.sum(WV * (usqmvsq * (rsq + B*M33/(2*M11**2)) - M31 * dM00)**2)
+            varM13 = np.sum(WV * (2*uv * (rsq + B*M33/(2*M11**2)) - M13 * dM00)**2)
+            varM40 = np.sum(WV * (usqmvsq**2 - 4*uv**2 - M40 * dM00)**2)
+            varM04 = np.sum(WV * (4*usqmvsq*uv - M04 * dM00)**2)
 
             ret += (varM22, varM31, varM13, varM40, varM04)
 
-        # variance for normalized radial moments
-        if radial:
-            varM22n = np.sum(WV *( rsq2 - 2*M22*rsq/M11 + M22 )**2) / (M11**4)
-            varM33n = np.sum(WV *( rsq3 - 3*M33*rsq/M11 + 2*M33 )**2) / (M11**6)
-            varM44n = np.sum(WV *( rsq4 - 4*M44*rsq/M11 + 3*M44 )**2) / (M11**8)
+        #
+        # Normalized radial moments
+        #
 
-            varM22n *= 1.208
-            varM33n *= 1.149
-            varM44n *= 1.092
+        # The normalized radial moment of degree d is
+        #
+        # Mddn = Mdd M11^-d
+        #      = sum_k W_k I_k (rsq/ssq)^d / M00
+        #
+        # dMddn/dI_k = W_k (rsq_k/ssq)^d / M00
+        #              + (1/M00) sum_i W_i I_i rsq_i^d (-d ssq^-(d+1)) dssq/dI_k
+        #              + W_k A (rsq/ssq-1)/(ssq M00) sum_i W_i I_i (rsq_i/ssq)^d (rsq_i-2ssq) / M00
+        #              - W_k Mddn/M00 dM00
+        #            = W_k (rsq_k/ssq)^d / M00
+        #              - W_k/M00 A (rsq/ssq-1) (2d Mddn)
+        #              + W_k/M00 A (rsq/ssq-1) (Md+1,d+1n - 2 Mddn)
+        #              - W_k/M00 Mddn dM00
+        #            = W_k/M00 [(rsq/ssq)^d + A (rsq/ssq - 1) (Md+1,d+1n - (2d+2) Mddn) - Mddn dM00]
+
+        if radial:
+            M55n = np.sum(WI * rsq4 * rsq) / M11**5
+            varM22n = np.sum(WV * (rsq2/M11**2 + A*(rsq/M11-1)*(M33n - 6*M22n) - M22n*dM00)**2)
+            varM33n = np.sum(WV * (rsq3/M11**3 + A*(rsq/M11-1)*(M44n - 8*M33n) - M33n*dM00)**2)
+            varM44n = np.sum(WV * (rsq4/M11**4 + A*(rsq/M11-1)*(M55n - 10*M44n) - M44n*dM00)**2)
 
             ret += (varM22n, varM33n, varM44n)
 
