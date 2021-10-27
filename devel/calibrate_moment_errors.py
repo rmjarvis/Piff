@@ -1,4 +1,4 @@
-# Copyright (c) 2016 by Mike Jarvis and the other collaborators on GitHub at
+# Copyright (c) 2021 by Mike Jarvis and the other collaborators on GitHub at
 # https://github.com/rmjarvis/Piff  All rights reserved.
 #
 # Piff is free software: Redistribution and use in source and binary forms
@@ -59,16 +59,11 @@ def calculate_moments(star):
         star.image.write('failed_image.fits')
         star.weight.write('failed_weight.fits')
         raise RuntimeError("flag = %d from hsm"%flag)
+
     profile = galsim.Gaussian(sigma=sigma, flux=1.0).shear(g1=g1, g2=g2).shift(u0, v0)
     image = star.image.copy()
     profile.drawImage(image, method='no_pixel', center=star.image_pos)
-    # convert image into kernel
     W = image.array.flatten()
-    # Anywhere the data is masked, fill in with the hsm profile.
-    mask = weight == 0.
-    if np.any(mask):
-        print('mask = ',np.where(mask))
-        data[mask] = W[mask] * np.sum(data[~mask])/np.sum(W[~mask])
 
     WI = W * data
     M00 = np.sum(WI)
@@ -163,14 +158,10 @@ def calculate_moments(star):
     mom = np.array([M00, M10, M01, M11, M20, M02, M21, M12, M30, M03,
                     M22, M31, M13, M40, M04, M22n, M33n, M44n])
 
-    # Calculate naive estimates of errors:
-    WV = W**2
-    WV[~mask] /= weight[~mask]
-    WV[mask] /= np.mean(weight[~mask])
-
     A = 1/(3-M22/M11**2)
     B = 2/(4-M22/M11**2)
     dM00 = 1 - A*(rsq/M11-1)
+    WV = W**2
     varM00 = np.sum(WV * dM00**2)
     WV /= M00**2
 
