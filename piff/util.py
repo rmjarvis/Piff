@@ -415,7 +415,6 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
 
     # build the HSM weight, writing into image
     profile = galsim.Gaussian(sigma=sigma, flux=1.0).shear(g1=g1, g2=g2).shift(u0, v0)
-
     image = profile.drawImage(star.image.copy(), method='sb', center=star.image_pos)
 
     # convert image into kernel
@@ -452,7 +451,7 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
     WIrsq = WI * rsq
     WIuv = WI * uv
 
-    # centroids
+    # 1st moments, including the centroids
     M10 = np.sum(WIu) + u0
     M01 = np.sum(WIv) + v0
 
@@ -535,18 +534,22 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
         # dW_i/de1 = W_i usqmvsq_i / (2ssq)
         # dW_i/de2 = W_i 2 uv_i / (2ssq)
         #
-        # The second factors we can get from the three constraint equations by perturbing in
-        # {du0, dv0, dssq} and dI_k and taking the 1st order terms.  After some algebra, we get:
+        # The second factors we can get from the three constraint equations by taking the
+        # derivative of the whole equation with respect to I_k and then solving for the relevant
+        # derivative (du0/dI_k, etc.) in each case.  We show the work to derive these below,
+        # but here are the results:
         #
         # du0/dI_k = 2 W_k (u_k - u0) / M00
         # dv0/dI_k = 2 W_k (v_k - v0) / M00
-        # dssq/dI_k = 2 W_k (rsq_k - ssq) / M00 / (3-M22/ssq^2)
-        # de1/dI_k = 2 W_k (usqmvsq_k / ssq) / M00 / (2-M22/2ssq^2)
-        # de2/dI_k = 2 W_k (2 uv_k / ssq) / M00 / (2-M22/2ssq^2)
+        # dssq/dI_k = 2 W_k (rsq_k - ssq) / M00 / (3 - M22/ssq^2)
+        # de1/dI_k = 2 W_k (usqmvsq_k / ssq) / M00 / (2 - M22/2ssq^2)
+        # de2/dI_k = 2 W_k (2 uv_k / ssq) / M00 / (2 - M22/2ssq^2)
         #
-        # Note: those final factors in the last 3 eqns are 1 for Gaussian profiles, but make a
-        # difference for highly non-Gaussian profile, such as low-beta Moffat profiles.
-        # To simplify notation, we define:
+        # Note: those final factors in the last 3 eqns are 1 for Gaussian profiles, but are not
+        # in general.  Including them makes a difference for highly non-Gaussian profile, such as
+        # low-beta Moffat profiles.
+        #
+        # To simplify the subsequent notation, we define:
         #
         # A = 1/(3-M22/ssq^2)
         # B = 1/(2-M22/2ssq^2)
@@ -570,8 +573,12 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
         #       properly adds a lot of complication with little impact on accuracy.
         #
         # dM00/dI_k = W_k + A [sum_i I_i W_i (rsq_i/ssq - 2)/M00] W_k (rsq_k/ssq - 1)]
-        #                   Note: [..] = -1  (And the u0,v0 sums = 0.)
+        #                   Note: [..] = -1  (And the corresponding u0,v0,e1,e2 sums are all 0.)
         #           = W_k (1 - A (rsq_k/ssq - 1))
+        #
+        # So, finally, we have
+        #
+        # var(M00) = sum_k W_k^2/w_k (1 - A (rsq_k/ssq - 1))^2
 
         # WV = W^2 1/w
         WV = kernel**2
@@ -580,7 +587,7 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
 
         A = 1/(3-M22/M11**2)
         B = 2/(4-M22/M11**2)
-        dM00 = 1 - A*(rsq/M11-1)
+        dM00 = 1 - A*(rsq/M11-1)  # We'll need this combination a lot below, so save it.
         varM00 = np.sum(WV * dM00**2)
 
         # Set WV = W^2 1/w / M00^2 to incorporate the normalization into the weight for the rest.
@@ -602,25 +609,39 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
         # var(u0) = sum_k (du0/dI_k)^2 var(I_k)
         # var(v0) = sum_k (dv0/dI_k)^2 var(I_k)
         #
-        # To get var(u0) and var(v0), we need to look at the first two constraint equations.
-        # They are exactly analogous, so just do u0:
+        # We already gave these derivatives above, but we didn't really derive them.
+        # We can do that here for du0/dI_k to show how that goes.
         #
-        # sum_k W_k I_k (u-u0) = 0
+        # We will need the relation:
         #
-        # Do a perturbation of this in du0 and dI_k to obtain:
+        # dW_i/du0 = W_i (u_i - u0) / ssq
         #
-        # sum_i W_i I_i [(u-u0)^2/ssq - 1] du0 = -W_k (u_k - u0) dI_k
+        # Start with
         #
-        # The LHS is basically (<(u-u0)^2>/ssq - 1) M00.
+        # sum_i W_i I_i (u_i-u0) = 0
+        #
+        # and differentiate with respect to I_k (for some particular, but arbitrary k):
+        #
+        # d/dI_k (sum_i W_i I_i (u_i-u0)) = 0
+        #
+        # sum_i W_i I_i (-1) du0/dI_k + sum_i (dW_i/du0 du0/dI_k) I_i (u_i-u0) + W_k (u_k-u0) = 0
+        #
+        # (du0/dI_k) [sum_i W_i I_i ((u_i-u0)^2/ssq - 1)] = -W_k (u_k-u0)
+        #
+        # The sum in bracets is basically (<(u-u0)^2>/ssq - 1) M00.
         # By symmetry considerations and the fact that <(u-u0)^2 + (v-v0)^2> = ssq, we know that
         # <(u-u0)^2>/ssq = 1/2.  (This trick will show up a few times below too.)  So,
         #
-        # -1/2 M00 du0 = -W_k (u_k - u0) dI_k
+        # (du0/dI_k) (-1/2 M00) = -W_k (u_k-u0)
         #
-        # du0/dI_k = 2 W_k (u_k - u0) / M00
+        # du0/dI_k = 2 W_k (u_k-u0) / M00
         #
         # var(u0) = sum (2 W (u-u0) / M00)^2 1/w
         #         = 4 sum WV (u-u0)^2
+        #
+        # Likewise,
+        #
+        # var(v0) = 4 sum WV (v-v0)^2
 
         varM10 = 4 * np.sum(WV * usq)
         varM01 = 4 * np.sum(WV * vsq)
@@ -634,6 +655,23 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
         #
         # dssq/dI_k = 2A W_k (rsq_k - ssq) / M00
         #
+        # Again, we quoted this result above, but let's derive it here.
+        # Note: sigma never appears unsquared, so we treat the squared value ssq = sigma^2
+        #       as the relevant variable.
+        #
+        # d/dI_k (sum_i W_i I_i (rsq_i - ssq)) = 0
+        #
+        # sum_i W_i I_i (-1) dssq/dI_k
+        #       + sum_i (dW_i/dssq dssq/dI_k) I_i (rsq_i-ssq)
+        #       + W_k (rsq_k-ssq) = 0
+        #
+        # (dssq/dI_k) [sum_i W_i I_i ((rsq_i-2ssq)(rsq_i-ssq)/2ssq^2 - 1)] = -W_k (rsq_k - ssq)
+        # (dssq/dI_k) [sum_i W_i I_i ((1/2 rsq_i^4/ssq^2 - 3/2 rsq_i/ssq)] = -W_k (rsq_k - ssq)
+        # (dssq/dI_k) M00 (1/2 M22/M11^2 - 3/2) = -W_k (rsq_k - ssq)
+        #
+        # dssq/dI_k = 2 W_k (rsq_k - ssq) / M00 / (3 - M22/M11^2)
+        #           = 2A W_k (rsq_k - ssq) / M00
+        #
         # var(M11) = sum_k (dM11/dI_k)^2 var(I_k)
         #          = sum_k (dssq/dI_k)^2 1/w
         #          = sum_k (2A W_k/M00 (rsq-ssq))^2 1/w
@@ -645,6 +683,25 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
         # M02 = ssq e2
         #
         # de1/dI_k = 2B W_k (usqmvsq_k / ssq) / M00
+        #
+        # Derivation:
+        #
+        # d/dI_k (sum_i W_i I_i (usq_i - vsq_i - e1 ssq)) = 0
+        #
+        # sum_i W_i I_i (-ssq) de1/dI_k
+        #       + sum_i (dW_i/de1 de1/dI_k) I_i (usq_i - vsq_i - e1 ssq)
+        #       + W_k (usq_k - vsq_k - e1 ssq) = 0
+        #
+        # (de1/dI_k) [sum_i W_i I_i ((usq_i - vsq_i)(usq_i - vsq_i - e1 ssq)/2ssq - ssq)]
+        #                   = -W_k (usq_k - vsq_k - e1 ssq)
+        # (de1/dI_k) [ sum_i W_i I_i (usq_i-vsq_i)^2/2ssq
+        #              - e1/2 sum_i W_i I_i (usq_i-vsq_i)
+        #              - ssq sum_i W_i I_i ] = -W_k (usq_k - vsq_k - e1 ssq)
+        # Discard the terms linear in e1.
+        # (de1/dI_k) M00 ssq (M22/4M11^2 - 1) = -W_k (usq_k - vsq_k)
+        #
+        # de1/dI_k = 2 W_k (usqmvsq_k / ssq) / M00 / (2 - M22/2M11^2)
+        #          = 2B W_k (rsq_k - ssq) / M00
         #
         # dM20/dI_k = e1 dssq/dI_k + ssq de1/dI_k
         #           = 2 W_k / M00 (e1 A (rsq_k-ssq) + B usqmvsq_k)
