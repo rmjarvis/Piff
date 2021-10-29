@@ -397,13 +397,14 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
     :param errors:          Return the variance estimates of other returned values? [default: False]
     :param logger:          A logger object for logging debug info.  [default: None]
 
-    :returns: A tuple of the calculated moments:
+    :returns: A dict of the calculated moments, with the following keys/values:
 
         * M_00, M_10, M_01, M_11, M_20, M_02
         * M_21, M_12, M_30, M_03                          if ``third_order`` = True
         * M_22, M_31, M_13, M_40, M_04                    if ``fourth_order`` = True
         * M_22n, M_33n, M_44n                             if ``radial`` = True
-        * variance of all previous values (in same order) if ``errors`` = True
+
+    If ``errors`` = True, then also a second dict (with the same keys) giving the variances.
     """
     # get vectors for data, weight and u, v
     data, weight, u, v = star.data.getDataVector()
@@ -461,7 +462,7 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
     M02 = 2 * np.sum(WIuv)
 
     # Keep track of the tuple to return.  We may add more.
-    ret = (M00, M10, M01, M11, M20, M02)
+    ret = dict(M00=M00, M10=M10, M01=M01, M11=M11, M20=M20, M02=M02)
 
     # 3rd moments
     if third_order:
@@ -469,7 +470,7 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
         M12 = np.sum(WIv * rsq)
         M30 = np.sum(WIu * (usq-3*vsq))
         M03 = np.sum(WIv * (3*usq-vsq))
-        ret += (M21, M12, M30, M03)
+        ret.update(M21=M21, M12=M12, M30=M30, M03=M03)
 
     # 4th moments
     if fourth_order or radial or errors:
@@ -480,7 +481,7 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
         M13 = 2 * np.sum(WIrsq * uv)
         M40 = np.sum(WI * (usqmvsq**2 - 4*uv**2))
         M04 = 4 * np.sum(WIuv * usqmvsq)
-        ret += (M22, M31, M13, M40, M04)
+        ret.update(M22=M22, M31=M31, M13=M13, M40=M40, M04=M04)
 
     # normalized radial moments
     if radial or (fourth_order and errors):
@@ -492,7 +493,7 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
         M22n = M22/(M11**2)
         M33n = M33/(M11**3)
         M44n = M44/(M11**4)
-        ret += (M22n,M33n,M44n)
+        ret.update(M22n=M22n, M33n=M33n, M44n=M44n)
 
     if errors:
 
@@ -546,7 +547,7 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
         # de2/dI_k = 2 W_k (2 uv_k / ssq) / M00 / (2 - M22/2ssq^2)
         #
         # Note: those final factors in the last 3 eqns are 1 for Gaussian profiles, but are not
-        # in general.  Including them makes a difference for highly non-Gaussian profile, such as
+        # in general.  Including them makes a difference for highly non-Gaussian profiles, such as
         # low-beta Moffat profiles.
         #
         # To simplify the subsequent notation, we define:
@@ -572,7 +573,7 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
         #       since stars usually have fairly small ellitpicities, and including those factors
         #       properly adds a lot of complication with little impact on accuracy.
         #
-        # dM00/dI_k = W_k + A [sum_i I_i W_i (rsq_i/ssq - 2)/M00] W_k (rsq_k/ssq - 1)]
+        # dM00/dI_k = W_k + A ([sum_i I_i W_i (rsq_i/ssq - 2)/M00] W_k (rsq_k/ssq - 1))
         #                   Note: [..] = -1  (And the corresponding u0,v0,e1,e2 sums are all 0.)
         #           = W_k (1 - A (rsq_k/ssq - 1))
         #
@@ -620,7 +621,7 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
         #
         # sum_i W_i I_i (u_i-u0) = 0
         #
-        # and differentiate with respect to I_k (for some particular, but arbitrary k):
+        # and differentiate with respect to I_k (for some particular, but arbitrary, k):
         #
         # d/dI_k (sum_i W_i I_i (u_i-u0)) = 0
         #
@@ -718,7 +719,7 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
         varM02 = 4 * np.sum(WV * (2*B*uv + A*M02 * (rsq/M11 - 1))**2)
 
         # Add these to the return tuple
-        ret += (varM00, varM10, varM01, varM11, varM20, varM02)
+        ret_var = dict(M00=varM00, M10=varM10, M01=varM01, M11=varM11, M20=varM20, M02=varM02)
 
         #
         # Third order moments:
@@ -775,8 +776,7 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
             varM12 = np.sum(WV * (v*(rsq - 4*M11 + M22/M11) - M12 * dM00)**2)
             varM30 = np.sum(WV * (u*(usq-3*vsq) - M30 * dM00)**2)
             varM03 = np.sum(WV * (v*(3*usq-vsq) - M03 * dM00)**2)
-
-            ret += (varM21, varM12, varM30, varM03)
+            ret_var.update(M21=varM21, M12=varM12, M30=varM30, M03=varM03)
 
         #
         # Fourth order moments:
@@ -827,8 +827,7 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
             varM13 = np.sum(WV * (2*uv * (rsq + B*M33/(2*M11**2)) - M13 * dM00)**2)
             varM40 = np.sum(WV * (usqmvsq**2 - 4*uv**2 - M40 * dM00)**2)
             varM04 = np.sum(WV * (4*usqmvsq*uv - M04 * dM00)**2)
-
-            ret += (varM22, varM31, varM13, varM40, varM04)
+            ret_var.update(M22=varM22, M31=varM31, M13=varM13, M40=varM40, M04=varM04)
 
         #
         # Normalized radial moments
@@ -854,7 +853,9 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
             varM22n = np.sum(WV * (rsq2/M11**2 + A*(rsq/M11-1)*(M33n - 6*M22n) - M22n*dM00)**2)
             varM33n = np.sum(WV * (rsq3/M11**3 + A*(rsq/M11-1)*(M44n - 8*M33n) - M33n*dM00)**2)
             varM44n = np.sum(WV * (rsq4/M11**4 + A*(rsq/M11-1)*(M55n - 10*M44n) - M44n*dM00)**2)
+            ret_var.update(M22n=varM22n, M33n=varM33n, M44n=varM44n)
 
-            ret += (varM22n, varM33n, varM44n)
+        return ret, ret_var
 
-    return ret
+    else:
+        return ret
