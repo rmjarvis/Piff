@@ -161,7 +161,7 @@ def calculate_moments(star):
     A = 1/(3-M22/M11**2)
     B = 2/(4-M22/M11**2)
     dM00 = 1 - A*(rsq/M11-1)
-    WV = W**2
+    WV = W**2 / weight
     varM00 = np.sum(WV * dM00**2)
     WV /= M00**2
 
