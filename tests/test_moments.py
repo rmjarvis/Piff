@@ -86,12 +86,13 @@ def test_moments_return():
     noiseless_stars, _ = makeStars(nstar=3, beta=5.)
 
     for star in noiseless_stars:
-        moments = calculate_moments(star, errors=True,
-                                    third_order=True, fourth_order=True, radial=True)
+        moments, var_moments = calculate_moments(star, errors=True,
+                                                 third_order=True, fourth_order=True, radial=True)
         moments_check = calculate_moments(star, errors=False,
                                           third_order=True, fourth_order=True, radial=True)
         nval = len(moments_check)
-        np.testing.assert_equal(np.array(moments)[0:nval], np.array(moments_check))
+        np.testing.assert_array_equal(list(moments.values()), list(moments_check.values()))
+        np.testing.assert_array_equal(list(moments.keys()), list(moments_check.keys()))
 
 @timer
 def test_moments_mask():
@@ -99,16 +100,17 @@ def test_moments_mask():
     _, noisy_stars = makeStars(nstar=20, beta=5.)
 
     for star in noisy_stars:
-        moments_noise = calculate_moments(star, errors=True,
-                                          third_order=True, fourth_order=True, radial=True)
+        mom_noise, var_noise = calculate_moments(star, errors=True,
+                                                 third_order=True, fourth_order=True, radial=True)
 
         copy_star = copy.deepcopy(star)
         # mask out a pixel that is not too close to the center of the stamp.
         copy_star.weight[5, 5] = 0
-        test_moments = calculate_moments(copy_star, errors=True,
-                                         third_order=True, fourth_order=True, radial=True)
+        mom_test, var_test = calculate_moments(copy_star, errors=True,
+                                               third_order=True, fourth_order=True, radial=True)
         # make sure that they did actually change
-        assert (np.array(moments_noise) != np.array(test_moments)).all()
+        assert (np.array(list(mom_noise.values())) != np.array(list(mom_test.values()))).all()
+        assert (np.array(list(var_noise.values())) != np.array(list(var_test.values()))).all()
 
 @timer
 def test_moments_options():
@@ -116,51 +118,53 @@ def test_moments_options():
     noiseless_stars, _ = makeStars(nstar=2, beta=5.)
 
     for star in noiseless_stars:
-        moments = calculate_moments(star, errors=True,
-                                    third_order=True, fourth_order=True, radial=True)
+        mom, var_mom = calculate_moments(star, errors=True,
+                                         third_order=True, fourth_order=True, radial=True)
 
-        moments_34 = calculate_moments(star, errors=True,
-                                       third_order=True, fourth_order=True, radial=False)
+        mom_34, var_34 = calculate_moments(star, errors=True,
+                                           third_order=True, fourth_order=True, radial=False)
         # No radial moments, skip items 16-18 of moments and errors
         mask_34 = [True, True, True, True, True, True, True, True, True, True,
-                   True, True, True, True, True, False, False, False,
-                   True, True, True, True, True, True, True, True, True, True,
                    True, True, True, True, True, False, False, False]
-        np.testing.assert_equal(np.array(moments)[mask_34], moments_34)
+        print('mom = ',mom)
+        print('var_mom = ',var_mom)
+        print('mom_34 = ',mom_34)
+        print('var_34 = ',var_34)
+        np.testing.assert_equal(np.array(list(mom.values()))[mask_34], list(mom_34.values()))
+        np.testing.assert_equal(np.array(list(var_mom.values()))[mask_34], list(var_34.values()))
+        np.testing.assert_equal(np.array(list(mom.keys()))[mask_34], list(mom_34.keys()))
 
-        moments_3r = calculate_moments(star, errors=True,
-                                       third_order=True, fourth_order=False, radial=True)
+
+        mom_3r, var_3r = calculate_moments(star, errors=True,
+                                           third_order=True, fourth_order=False, radial=True)
         # No third order moments, skip items 11-15 of moments and errors
         mask_3r = [True, True, True, True, True, True, True, True, True, True,
-                   False, False, False, False, False, True, True, True,
-                   True, True, True, True, True, True, True, True, True, True,
                    False, False, False, False, False, True, True, True]
-        np.testing.assert_equal(np.array(moments)[mask_3r], moments_3r)
+        np.testing.assert_equal(np.array(list(mom.values()))[mask_3r], list(mom_3r.values()))
+        np.testing.assert_equal(np.array(list(var_mom.values()))[mask_3r], list(var_3r.values()))
+        np.testing.assert_equal(np.array(list(mom.keys()))[mask_3r], list(mom_3r.keys()))
 
-        moments_4r = calculate_moments(star, errors=True,
-                                       third_order=False, fourth_order=True, radial=True)
+        mom_4r, var_4r = calculate_moments(star, errors=True,
+                                           third_order=False, fourth_order=True, radial=True)
         # No third order moments, skip items 7-10 of moments and errors
         mask_4r = [True, True, True, True, True, True, False, False, False, False,
-                   True, True, True, True, True, True, True, True,
-                   True, True, True, True, True, True, False, False, False, False,
                    True, True, True, True, True, True, True, True]
-        np.testing.assert_equal(np.array(moments)[mask_4r], moments_4r)
+        np.testing.assert_equal(np.array(list(mom.values()))[mask_4r], list(mom_4r.values()))
+        np.testing.assert_equal(np.array(list(var_mom.values()))[mask_4r], list(var_4r.values()))
+        np.testing.assert_equal(np.array(list(mom.keys()))[mask_4r], list(mom_4r.keys()))
 
-        moments_12 = calculate_moments(star, errors=True)
+        mom_12, var_12 = calculate_moments(star, errors=True)
         # Default is only up to 2nd order, so 0-5
         mask_12 = [True, True, True, True, True, True, False, False, False, False,
-                   False, False, False, False, False, False, False, False,
-                   True, True, True, True, True, True, False, False, False, False,
                    False, False, False, False, False, False, False, False]
-        np.testing.assert_equal(np.array(moments)[mask_12], moments_12)
+        np.testing.assert_equal(np.array(list(mom.values()))[mask_12], list(mom_12.values()))
+        np.testing.assert_equal(np.array(list(var_mom.values()))[mask_12], list(var_12.values()))
+        np.testing.assert_equal(np.array(list(mom.keys()))[mask_12], list(mom_12.keys()))
 
-        moments_def = calculate_moments(star)
+        mom_def = calculate_moments(star)
         # Default is that but also without error terms.
-        mask_def = [True, True, True, True, True, True, False, False, False, False,
-                    False, False, False, False, False, False, False, False,
-                    False, False, False, False, False, False, False, False, False, False,
-                    False, False, False, False, False, False, False, False]
-        np.testing.assert_equal(np.array(moments)[mask_def], moments_def)
+        np.testing.assert_equal(np.array(list(mom.values()))[mask_12], list(mom_def.values()))
+        np.testing.assert_equal(np.array(list(mom.keys()))[mask_12], list(mom_def.keys()))
 
 @timer
 def test_moments_fail():
@@ -223,11 +227,12 @@ def test_moments_errors():
             for noiseless_star, noisy_star in zip(noiseless_stars, noisy_stars):
                 moments = calculate_moments(noiseless_star, errors=False,
                                             third_order=True, fourth_order=True, radial=True)
-                moments_noise = calculate_moments(noisy_star, errors=True,
-                                                third_order=True, fourth_order=True, radial=True)
-                noiseless_moments.append(moments)
-                noisy_moments.append(moments_noise[:18])
-                var_moments.append(moments_noise[18:])
+                moments_noise, var_noise = calculate_moments(noisy_star, errors=True,
+                                                             third_order=True, fourth_order=True,
+                                                             radial=True)
+                noiseless_moments.append(list(moments.values()))
+                noisy_moments.append(list(moments_noise.values()))
+                var_moments.append(list(var_noise.values()))
 
             # Transpose from arrays of moments by star to array of values by moment nameI
             noiseless_moments = np.column_stack(noiseless_moments)
@@ -256,11 +261,13 @@ def test_moments_errors():
         # Now test a single star to check that the error estimates match the empirical estimates.
         _, noisy_stars = makeStars(nstar=1, beta=beta, g1=g1, g2=g2, size=size)
         star = noisy_stars[0]
-        moments = calculate_moments(star, errors=True,
-                                    third_order=True, fourth_order=True, radial=True)
+        moments, var_moments = calculate_moments(star, errors=True,
+                                                 third_order=True, fourth_order=True, radial=True)
+        assert moments.keys() == tol_dict.keys()
+        assert var_moments.keys() == tol_dict.keys()
         for k, name in enumerate(tol_dict.keys()):
-            mom = moments[k]
-            var = moments[k+18]
+            mom = moments[name]
+            var = var_moments[name]
             print("{}: mom, var = {:0.2f}, {:0.2e}  cf. {:0.2f}, {:0.2e}".format(
                     name, mom, var, np.mean(noisy_moments[k]), np.var(noisy_moments[k])))
             np.testing.assert_allclose(mom, np.mean(noisy_moments[k]), rtol=0.2, atol=0.01)
