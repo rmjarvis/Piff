@@ -1,14 +1,7 @@
-Changes from version 1.0 to 1.1
+Changes from version 1.1 to 1.2
 ===============================
 
-
-Performance improvements
-------------------------
-
-
-New features
-------------
-
-
-Bug fixes
----------
+This version adds new options on how to select the input stars.
+Including new select types: SizeMag, Properties, Flags, and
+SmallBright (the last of which is really only designed as an
+inital pass for the SizeMag selector).
