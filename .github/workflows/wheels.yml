@@ -7,30 +7,8 @@ on:
       - published
 
 jobs:
-  build_wheels:
-    name: Build wheels on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-20.04, macos-10.15]
-
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Build wheels
-        uses: pypa/cibuildwheel@v1.12.0
-        env:
-          CIBW_BEFORE_ALL_LINUX: yum install -y libffi-devel
-          CIBW_BEFORE_ALL_MACOS: brew install libffi
-
-      - uses: actions/upload-artifact@v2
-        with:
-          path: ./wheelhouse/*.whl
-
   build_sdist:
-    name: Build sdist and upload to PyPI
-    needs: build_wheels
-    # Just need to build sdist on a single machine
+    name: Build platform-independent wheel and sdist and upload to PyPI
     runs-on: ubuntu-latest
 
     steps:
@@ -46,10 +24,10 @@ jobs:
           pip install -U numpy setuptools
           pip install -U -r requirements.txt
 
-      - name: Download wheels
-        uses: actions/download-artifact@v2
-        with:
-          path: ./wheels
+      - name: Build wheel
+        run: |
+          pip wheel -w dist .
+          ls -l dist
 
       - name: Build sdist
         run: |
@@ -57,19 +35,9 @@ jobs:
           ls -l dist
           tar tvfz dist/Piff-*.tar.gz
 
-      - name: Copy wheels
-        run: |
-          echo ls -l wheels
-          ls -l wheels
-          echo ls -l wheels/artifact
-          ls -l wheels/artifact
-          cp wheels/artifact/*.whl dist
-          echo ls -l dist
-          ls -l dist
-
-      - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-            user: rmjarvis
-            password: ${{ secrets.PYPI_PASSWORD }}
-            verbose: true
+      #- name: Publish to PyPI
+        #uses: pypa/gh-action-pypi-publish@release/v1
+        #with:
+            #user: rmjarvis
+            #password: ${{ secrets.PYPI_PASSWORD }}
+            #verbose: true
