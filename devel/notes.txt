@@ -17,6 +17,7 @@ Checklist for making a new release:
 - Release Title = Version M.m.r
 - For Description, link to changelog and full docs.
 - Click Publish Release
+- Cherry pick any commits made on release/M.m that belong also on main (not doc build).
 
 If major release:
 - Back in master, update version number to M.(m+1) (i.e. no .r)
