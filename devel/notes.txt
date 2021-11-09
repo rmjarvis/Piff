@@ -8,20 +8,17 @@ Checklist for making a new release:
 - Update any docs that might need updating.
 - python setup.py install  (make sure this is current)
 - In docs directory, run update_docs
+- Open docs/index.html if you want to see rendered docs.
 - Commit new docs in releases/M.m branch as single commit.
 - git push
-- Cherry-pick docs commit onto master and push there.
-- Now, back on releases/M.m branch...
-- git tag -a vM.m.r -m vM.m.r
-- git push --tags
-- Delete the Piff.egg-info directory (in case has extra files)
-- python setup.py sdist
-- Inspect the dist/Piff-M.m.r.tar.gz tarball to make sure it is accurate.
-- twine upload dist/Piff-M.m.r.tar.gz
-- From another directory try out pip install TreeCorr --upgrade
+- Go to https://github.com/rmjarvis/Piff/releases/new
+- Set vM.m.r in the Choose a tag pull down.  (You'll have to type it in.)
+- Set Target to the releases/M.m branch
+- Release Title = Version M.m.r
+- For Description, link to changelog and full docs.
+- Click Publish Release
 
 If major release:
 - Back in master, update version number to M.(m+1) (i.e. no .r)
-- Add tagged CHANGELOG blob to the history page in the docs.
 - Clear out CHANGELOG.rst
 - Change github home page to point to releases/M.m
