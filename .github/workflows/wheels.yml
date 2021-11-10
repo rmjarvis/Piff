@@ -30,7 +30,8 @@ jobs:
 
       - name: Build wheel
         run: |
-          pip wheel -w dist .
+          pip wheel -w wheel .
+          cp wheel/Piff* dist
           ls -l dist
 
       - name: Build sdist
