@@ -30,13 +30,13 @@ jobs:
 
       - name: Build wheel
         run: |
-          pip wheel -w wheel .
-          cp wheel/Piff* dist
-          ls -l dist
+          pip wheel -w wheels .
+          ls -l wheels
 
       - name: Build sdist
         run: |
           python setup.py sdist
+          cp wheels/Piff* dist
           ls -l dist
           tar tvfz dist/Piff-*.tar.gz
 
