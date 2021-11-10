@@ -40,9 +40,9 @@ jobs:
           ls -l dist
           tar tvfz dist/Piff-*.tar.gz
 
-      #- name: Publish to PyPI
-        #uses: pypa/gh-action-pypi-publish@release/v1
-        #with:
-            #user: rmjarvis
-            #password: ${{ secrets.PYPI_PASSWORD }}
-            #verbose: true
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+            user: rmjarvis
+            password: ${{ secrets.PYPI_PASSWORD }}
+            verbose: true
