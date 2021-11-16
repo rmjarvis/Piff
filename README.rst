@@ -68,13 +68,13 @@ If you need the bleeding edge version on the main branch, you can download or cl
 the repo and install with::
 
     pip install -r requirements.txt
-    python setup.py install
+    pip install .
 
-Depending on your setup, you might prefer/need one of these variants::
+Depending on your system, you might prefer/need one of these variants::
 
-    sudo python setup.py install
-    python setup.py install --user
-    python setup.py install --prefix=PREFIX
+    sudo pip install .
+    pip install . --user
+    pip install . --install-option="--prefix=PREFIX"
 
 
 Running Tests
