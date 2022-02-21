@@ -30,8 +30,8 @@ the :class:`Polynomial` class for interpolation.  It uses the default
 the PSF.::
 
     input:
-        images: some_exposure/image*.fits.fz
-        cats: some_exposure/cat*.fits
+        image_file_name: some_exposure/image*.fits.fz
+        cat_file_name: some_exposure/cat*.fits
         x_col: X_IMAGE
         y_col: Y_IMAGE
         weight_hdu: 3
