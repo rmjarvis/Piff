@@ -32,13 +32,18 @@
 # not just chip 12.
 #
 # Also, this configuration requilres the pixmappy Python package, which can be
-# installed via
+# installed via either of:
 #
-#   pip install git+https://github.com/gbernstein/pixmappy.git
+#   conda install pixmappy
+#   pip install pixmappy
 #
 # However, if you don't want to use that, you can remove (or comment out) the
 # modules and input.wcs fields, in which case, the code will use the (less
 # accurate) WCS that ships with the image in the fits file.
+#
+# It also originally used Piff version 1.0.  We have made minor updates to this
+# file to keep it current with the latest Piff version, so it can serve as a
+# more useful template for people looking for an example Piff configuration.
 
 modules:
     - pixmappy
@@ -46,10 +51,10 @@ modules:
 input:
 
     # If you have the full y1_test directory on your system, update this
-    # line to point to that.  Otherwise, the output file will only have CCD
+    # line to point to that.  Otherwise, the output file will only have CCD 12.
     dir: "350139"
 
-    # Note the * here.  For now, you can specif this eithe as a single filenames, a list of
+    # Note the * here.  For now, you can specify this either as a single filename, a list of
     # filenames, or something that glob.glob() will understand.
     image_file_name: "D00350139_i_c*_r2149p01_immasked.fits.fz"
     image_hdu: 1    # When rice-compressed, image is in hdu=1, not hdu=0.
@@ -73,10 +78,6 @@ input:
     ra_col: ra
     dec_col: dec
 
-    # Reserve 20% of the stars for diagnostics
-    reserve_frac: 0.2
-    seed: 1234  # If you want the reserve choice consistent across runs, set this to something.
-
     # The telescop pointing is in the image header
     ra: TELRA
     dec: TELDEC
@@ -84,17 +85,11 @@ input:
     # DES Y3 processed images are normalized to have gain=1.
     gain: 1.0
 
-    # For bright stars, weight them equivalent to snr=100 stars, not higher.
-    max_snr: 100
-
-    # Remove stars with snr < 20
-    min_snr: 20
+    # Use all cores for reading the input files
+    nproc: -1
 
     # How large should the postage stamp cutouts of the stars be?
     stamp_size: 25
-
-    # Use all cores for reading the input files
-    nproc: -1
 
     # Tell Piff to use the better Pixmappy WCS, not the one in the FITS file.
     # If you don't want to install Pixmappy, you can just comment out this bit and the
@@ -104,9 +99,31 @@ input:
         dir: "350139"
         # Note: This file was modified to only include the parts relevant to this exposure.
         # DES users would normally just use the full zone135.astro file.
-        file_name: 'zone135_mod.astro'
+        yaml_file: 'zone135_mod.astro'
         exp: 350139
         ccdnum: '@input.chipnum'
+
+select:
+
+    # The default select type uses assumes all the input objects are stars, so they are
+    # all potentially good PSF candidates (i.e. galaxies and other objects are not included
+    # in the input catalog).
+    # However, there are various options for how to select from these which objects you actually
+    # want to use for PSF characterization.
+
+    # Remove stars with snr < 20
+    min_snr: 20
+
+    # Reserve 20% of the stars for diagnostics
+    reserve_frac: 0.2
+    seed: 1234  # If you want the reserve choice consistent across runs, set this to something.
+
+    # For bright stars, weight them equivalent to snr=100 stars, not higher.
+    # Note: This isn't technically a selection, but it is also handled by the selction code,
+    # so it goes in this field of the configuration file.  This item doesn't change which
+    # objects are selected; it just downweights the brightest stars so they don't dominate
+    # the interpolation fit.
+    max_snr: 100
 
 psf:
 
@@ -114,6 +131,10 @@ psf:
     # But all the solutions will be given in a single output file.
     # For the DES Y3 solutions, we actually did type: Simple, which is almost the
     # same, but makes a separate file for each CCD.
+    #
+    # Note that when using SingleChip type, you will need to specify the chipnum
+    # when using functions like psf.draw, even if there is only one chip in the input files.
+    # (Since in general, one uses this type when there are multiple chips being processed.)
     type: SingleChip
 
     # Also use all cores when finding psf
