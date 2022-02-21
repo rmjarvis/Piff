@@ -36,12 +36,6 @@ jobs:
                       CC: cc
                       CXX: c++
 
-                    # Check one with clang compiler
-                    - os: ubuntu-latest
-                      py: 3.8
-                      CC: clang
-                      CXX: clang++
-
         steps:
             - uses: actions/checkout@v2
 
