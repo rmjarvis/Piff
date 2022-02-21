@@ -135,6 +135,8 @@ psf:
     # Note that when using SingleChip type, you will need to specify the chipnum
     # when using functions like psf.draw, even if there is only one chip in the input files.
     # (Since in general, one uses this type when there are multiple chips being processed.)
+    # Therefore, if you haven't downloaded the full set of 60 ccds to use, then you'll need
+    # to call `psf.draw(..., chipnum=12)`.
     type: SingleChip
 
     # Also use all cores when finding psf
