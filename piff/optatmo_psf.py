@@ -51,12 +51,15 @@ class OptAtmoPSF(PSF):
                  wavefront_kwargs=None,
                  ofit_double_zernike_terms=[[4, 1], [5, 3], [6, 3], [7, 1], [8, 1], [9, 1],
                                             [10, 1], [11, 1], [14, 1], [15, 1]],
-                 ofit_initvalues= {"opt_L0":25.,"opt_size":1.0},
-                 ofit_bounds={"opt_L0":[5.,100.0]},
+                 ofit_initvalues= {"opt_L0":7.,"opt_size":1.0},
+                 ofit_bounds={"opt_L0":[3.,100.0],"opt_size":[0.4,2.0],"opt_g1":[-0.7,0.7],"opt_g1":[-0.7,0.7]},
+                 ofit_initerrors={"opt_L0":0.02,"opt_size":0.0025,"opt_g1":0.002,"opt_g2":0.002},
                  ofit_fix=None,
                  ofit_type='shape',
                  ofit_nstars=500,
                  ofit_optimizer='iminuit',
+                 ofit_strategy=0,
+                 ofit_tol=100.,
                  ofit_shape_kwargs={'moment_list':['e0','e1','e2'],'weights':None,'systerrors':None},
                  ofit_pixel_kwargs=None,
                  sfit_pixel_kwargs={'pixel_radius':2.0},
@@ -74,11 +77,14 @@ class OptAtmoPSF(PSF):
         :param wavefront_kwargs: Options for Reference Wavefront interpolation [default: None]
         :param ofit_double_zernike_terms:   A list of the double Zernike coefficients (pupil,focal) to use as free parameters. [default:=[[4, 1], [5, 3], [6, 3], [7, 1], [8, 1], [9, 1],
                                             [10, 1], [11, 1], [14, 1], [15, 1]]]
-        :param ofit_type:    Type of optical fit, shape or pixel [default: shape]
+        :param ofit_type:    Type of optical fit, shape, shapegrad or pixel [default: shape]
         :param ofit_nstars:  Number of stars to use in Optical fit [default: 500]
         :param ofit_optimizer:    Optimizer to use for Optical fit, iminuit or least_squares [default: 'iminuit']
-        :param ofit_initvalues:   Dictionary of initial values for Optical fit parameters [default: {"opt_L0":25.,"opt_size":1.0}]
-        :param ofit_bounds:       Dictionary of bounds for Optical fit parameters [default: {"opt_L0":[5.,100.0]}]
+        :param ofit_strategy:     Optimizer strategy, for iminuit 0,1,2 [default:0]
+        :param ofit_tol:          Optimizer tolerance, for iminuit [default:100]
+        :param ofit_initvalues:   Dictionary of initial values for Optical fit parameters [default: {"opt_L0":7.,"opt_size":1.0}]
+        :param ofit_bounds:       Dictionary of bounds for Optical fit parameters [default: {"opt_L0":[3.,100.0],"opt_size":[0.4,2.0],"opt_g1",[-0.7,0.7],"opt_g1",[-0.7,0.7]}]
+        :param ofit_initerrors:   Dictionary of initial errors for Optical fit parameters [default: {"opt_L0":0.02,"opt_size":0.0025,"opt_g1":0.002,"opt_g2":0.002}]
         :param ofit_fix:          List of fixed parameters for Optical fit [default:None]
         :param ofit_shape_kwargs: Dictionary with options for shape Optical fit [default: {'moment_list':['e0','e1','e2'],'weights':None,'systerrors':None}]
         :param ofit_pixel_kwargs: Dictionary with options for pixel Optical fit [default: None]
@@ -99,22 +105,46 @@ class OptAtmoPSF(PSF):
         # save wavefront kwargs
         self.wavefront_kwargs = wavefront_kwargs
 
+        # moment calculation flags and moment names
+        self.moment_kernel = moment_kernel
+        self.calc_moments_kwargs = {}
+        self.calc_moments_kwargs['errors'] = True
+        self.calc_moments_kwargs['third_order'] = True
+        self.calc_moments_kwargs['fourth_order'] = False
+        self.calc_moments_kwargs['radial'] = True
+        self.calc_moments_kwargs['kernel'] = moment_kernel
+        self.ofit_moment_names = get_moment_names(**self.calc_moments_kwargs)
+
+        self.calc_model_moments_kwargs = {}
+        self.calc_model_moments_kwargs['errors'] = False
+        self.calc_model_moments_kwargs['third_order'] = True
+        self.calc_model_moments_kwargs['fourth_order'] = False
+        self.calc_model_moments_kwargs['radial'] = True
+        self.calc_model_moments_kwargs['kernel'] = moment_kernel
+
         # other kwargs
         self.ofit_double_zernike_terms = ofit_double_zernike_terms
+        self.ofit_type = ofit_type
         self.ofit_nstars = ofit_nstars
         self.ofit_optimizer = ofit_optimizer
+        self.ofit_strategy = ofit_strategy
+        self.ofit_tol = ofit_tol
         self.ofit_initvalues = ofit_initvalues
         self.ofit_bounds = ofit_bounds
+        self.ofit_initerrors = ofit_initerrors
         self.ofit_fix = ofit_fix
         self.ofit_shape_kwargs = ofit_shape_kwargs
         self.ofit_pixel_kwargs = ofit_pixel_kwargs
         self.sfit_pixel_kwargs = sfit_pixel_kwargs
         self.sfit_optimizer = sfit_optimizer
-        self.moment_kernel = moment_kernel
         self.fov_radius = fov_radius
 
         # no additional properties are used, so set to empty list
         self.extra_interp_properties = []
+
+        # data to keep track of optimization progress, list of ndarrays with Chi2 and parameters for each optimization interation
+        self.ofit_chiparam = []
+        self.sfit_chiparam = []
 
         # save options needed when reading .piff file
         self.kwargs = {
@@ -184,17 +214,28 @@ class OptAtmoPSF(PSF):
         if len(stars) == 0:
             raise RuntimeError("No stars.  Cannot find PSF model.")
 
+        results = {}
+
         if self.do_ofit:
             logger.info("Step 1: Optical Wavefront & Constant Turbulence Kernel Fit")
             ofit_results,ofit_params,ofit_model_stars = self.ofit(stars,wcs,pointing,logger=logger)
 
+            results['ofit_results'] = ofit_results
+            results['ofit_params'] = ofit_params
+            results['ofit_model_stars'] = ofit_model_stars
+            results['ofit_chiparam'] = self.ofit_chiparam
+
         if self.do_sfit:
             logger.info("Step 2: Individual Star Turbulence Kernel Fit")
-            sfit_results,sfit_params,sfit_model_stars = self.sfit(stars,wcs,pointing,logger=logger)
+            sfit_results,sfit_params,sfit_model_stars = self.sfit(self.stars,wcs,pointing,logger=logger)
+
+            results['sfit_results'] = sfit_results
+            results['sfit_params'] = sfit_params
+            results['sfit_model_stars'] = sfit_model_stars
 
         logger.info("Step 3: Interpolation of Turbulence Kernels")
 
-        return ofit_results,ofit_params,sfit_results,sfit_params
+        return results
 
     def ofit(self,stars,wcs,pointing,logger=None):
         """Optical Fit step of the OptAtmo PSF
@@ -211,24 +252,16 @@ class OptAtmoPSF(PSF):
         # kwargs:  self.ofit_initvalues, self.ofit_bounds, self.ofit_double_zernike_terms, self.ofit_fix, self.ofit_optimizer
         #          self.ofit_nstars, self.ofit_shape_kwargs
         #          self.model
-        # outout:  self.ofit_chiparam
-
-        # setup the optical + constant atmosphere (ofit) parameters
-        ofit_params = self._setup_ofit_params(self.ofit_initvalues,self.ofit_bounds,self.ofit_double_zernike_terms,self.ofit_fix)
 
         # add Zernike wavefront coefficients to stars, overwrite self.stars list
         new_stars = self._get_refwavefront(stars, logger)
         self.stars = new_stars
 
+        # setup the optical + constant atmosphere (ofit) parameters
+        ofit_params = self._setup_ofit_params(self.stars,self.ofit_initvalues,self.ofit_bounds,self.ofit_initerrors,self.ofit_double_zernike_terms,self.ofit_fix,self.ofit_type)
+
         # calculate moments for all Stars, currently options are hardcoded - TODO: put ofit_model_names in init...
-        calc_moments_kwargs = {}
-        calc_moments_kwargs['errors'] = True
-        calc_moments_kwargs['third_order'] = True
-        calc_moments_kwargs['fourth_order'] = False
-        calc_moments_kwargs['radial'] = True
-        self.ofit_moment_names = get_moment_names(**calc_moments_kwargs)
-        calc_moments_kwargs['kernel'] = self.moment_kernel
-        star_moments = self._calc_moments(stars=new_stars, logger=logger, **calc_moments_kwargs,addtostar=True)
+        star_moments = self._calc_moments(stars=self.stars, logger=logger, **self.calc_moments_kwargs,addtostar=True)
 
         # select a smaller subset of stars, for use in the Optical fitting step
         select_ofit_stars_kwargs = {'nstars': self.ofit_nstars}
@@ -240,14 +273,11 @@ class OptAtmoPSF(PSF):
         ofit_kwargs = {'diff_step': 1.e-5, 'ftol': 1.e-4, 'xtol': 1.e-4}
         ofit_func_kwargs = {}  # TODO: things for chivec calculation
 
-        # list of ndarrays with Chi2 and parameters for each optimization interation
-        self.ofit_chiparam = []
-
         # perform ofit minimization, TODO: make this an option
         # add to yaml ofit_optimizer = 'iminuit'
         ofit_model = self.model
 
-        if self.ofit_optimizer=='least_squares':
+        if self.ofit_optimizer=='least_squares':  #only shape is implemented here
 
             ofit_results = least_squares(self._calc_ofit_residuals, ofit_params.getFloatingValues(), bounds=ofit_params.getFloatingBounds(), **ofit_func_kwargs,
                                          args=(ofit_params, ofit_stars, ofit_moments, ofit_model, logger, self.ofit_shape_kwargs))
@@ -256,10 +286,19 @@ class OptAtmoPSF(PSF):
             ofit_params.setFloatingValues(ofit_results.x)
 
         elif self.ofit_optimizer=='iminuit':
+
             # setup MINUIT
             self.Minuit_args = (ofit_params, ofit_stars, ofit_moments, ofit_model, logger, self.ofit_shape_kwargs)  #there is no Minuit mechanism to pass args to the function
-            gMinuit = Minuit(self._calc_ofit_chi2,ofit_params.getValues(),name=ofit_params.getNames())
-            self._setup_minuit(gMinuit,ofit_params)
+            if self.ofit_type == 'shapegrad':
+                gMinuit = Minuit(self._calc_ofit_chi2,ofit_params.getValues(),name=ofit_params.getNames(),grad=self._calc_ofit_grad)
+                self._setup_minuit(gMinuit,ofit_params,strategy=self.ofit_strategy,tol=self.ofit_tol)
+            elif self.ofit_type == 'shape':
+                gMinuit = Minuit(self._calc_ofit_chi2,ofit_params.getValues(),name=ofit_params.getNames())
+                self._setup_minuit(gMinuit,ofit_params,strategy=self.ofit_strategy,tol=self.ofit_tol)
+            elif self.ofit_type == 'pixel':
+                gMinuit = Minuit(self._calc_pixel_chi2,ofit_params.getValues(),name=ofit_params.getNames(),grad=self._calc_pixel_grad)
+                self._setup_minuit(gMinuit,ofit_params,strategy=self.ofit_strategy,tol=self.ofit_tol)
+
 
             # print out
             print(tab.tabulate(*gMinuit.params.to_table()))
@@ -269,47 +308,31 @@ class OptAtmoPSF(PSF):
 
             # print results
             print(tab.tabulate(*gMinuit.params.to_table()))
-
-            # get fit details from iminuit
-            amin = gMinuit.fmin.fval
-            edm = gMinuit.fmin.edm
-            errdef = gMinuit.fmin.errordef
-            nvpar = gMinuit.nfit
-            nparx = gMinuit.npar
-            icstat = int(gMinuit.fmin.is_valid) + 2*int(gMinuit.fmin.has_accurate_covar)
-            dof = pow(19,2) - nvpar   #stamp_size is = 19
-
-            mytxt = "amin = %.3f, edm = %.3f,   effdef = %.3f,   nvpar = %d,  nparx = %d, icstat = %d " % (amin,edm,errdef,nvpar,nparx,icstat)
-            print('donutfit: ',mytxt)
+            print(gMinuit)
 
             # get fit values and print errors
             ofit_params.setValues(gMinuit.values)
-            print(gMinuit.errors)
 
-            # save results...
-            ofit_results = gMinuit
+            # save results in a new dictionary, since gMinuit doesn't serialize correctly
+            ofit_results = {'fval':gMinuit.fmin.fval,'edm':gMinuit.fmin.edm,'errordef':gMinuit.fmin.errordef,
+                            'nfit':gMinuit.nfit,'npar':gMinuit.npar,'is_valid':gMinuit.fmin.is_valid,'has_accurate_covar':gMinuit.fmin.has_accurate_covar,
+                            'values':gMinuit.values,'errors':gMinuit.errors,'covariance':gMinuit.covariance}
+
+            #ofit_results = gMinuit
 
 
         # print some results
         logger.info("Optical Fit: fit results")
-        print(ofit_results)
         ofit_params.print()
 
-        # save results for output
-        # self.ofit_param_values = ofit_params.getValues()
-
-        # make model stars for all stars
-        ofit_model_stars = self.make_modelstars(ofit_params,self.stars,self.model,logger=logger)
+        # make model stars for all stars, and store in object for use in sfit
+        self.ofit_model_stars = self.make_modelstars(ofit_params,self.stars,self.model,logger=logger)
+        self.ofit_params = ofit_params
 
         # calculate moments for model stars, currently options are hardcoded, and moments are added to the modeL_stars
-        calc_moments_kwargs = {}
-        calc_moments_kwargs['errors'] = False
-        calc_moments_kwargs['third_order'] = True
-        calc_moments_kwargs['fourth_order'] = False
-        calc_moments_kwargs['radial'] = True
-        ofit_model_moments = self._calc_moments(ofit_model_stars,logger=logger,**calc_moments_kwargs,addtostar=True)
+        ofit_model_moments = self._calc_moments(self.ofit_model_stars,logger=logger,**self.calc_model_moments_kwargs,addtostar=True)
 
-        return ofit_results,ofit_params,ofit_model_stars
+        return ofit_results,self.ofit_params,self.ofit_model_stars
 
     def sfit(self,stars,wcs,pointing,logger=None):
         """Single Star Fit step of the OptAtmo PSF
@@ -326,13 +349,11 @@ class OptAtmoPSF(PSF):
         # kwargs:  self.sfit_pixel_kwargs
         #          self.ofit_model_stars
         #          self.model
-        # outout:  self.sfit_chiparam
 
         # output lists
         sfit_results_list = []
         sfit_params_list = []
         sfit_model_stars_list = []
-        self.sfit_chiparam = []
 
 
         # loop over ALL stars, and fit an individual size,L0,g1,g2 using a pixel-based fit
@@ -346,7 +367,7 @@ class OptAtmoPSF(PSF):
             # build sfit parameters for this star
             ofit_model_star = self.ofit_model_stars[i]
 
-            # TODO: get the ofit_params from the Fit of the data_stars
+            # get the ofit_params from the Fit of the data_stars
             sfit_params = self._setup_sfit_params(self.ofit_params,data_star,ofit_model_star) #use values from ofit, and get good starting values from the difference in e0,e1,e2,du,dv between data and ofit_model
 
             if self.sfit_optimizer=='least_squares':
@@ -406,14 +427,7 @@ class OptAtmoPSF(PSF):
             # TODO: build a new data star with the sfit results in the Fit object
 
         # calculate moments for all sfit_model_stars_list
-        calc_moments_kwargs = {}
-        # TODO: add kernel type - or better get these settings from init
-        calc_moments_kwargs['errors'] = False
-        calc_moments_kwargs['third_order'] = True
-        calc_moments_kwargs['fourth_order'] = False
-        calc_moments_kwargs['radial'] = True
-        sfit_model_moments = self._calc_moments(sfit_model_stars_list,logger=logger,**calc_moments_kwargs,addtostar=True)
-
+        sfit_model_moments = self._calc_moments(sfit_model_stars_list,logger=logger,**self.calc_model_moments_kwargs,addtostar=True)
 
         # return
         return sfit_results_list,sfit_params_list,sfit_model_stars_list
@@ -456,30 +470,41 @@ class OptAtmoPSF(PSF):
         select_stars = [stars[index] for index in sorted_list[-nstars:]]
         return select_stars
 
-    def _setup_ofit_params(self,ofit_initvalues,ofit_bounds,ofit_double_zernike_terms,ofit_fix=None):
+    def _setup_ofit_params(self,ofit_stars,ofit_initvalues,ofit_bounds,ofit_initerrors,ofit_double_zernike_terms,ofit_fix=None,ofit_type='shape'):
         """ Setup the Optical fit parameters
 
-        :param ofit_initvalues:
+        :param ofit_stars:                        List of stars to be fit
+        :param ofit_initvalues:                   Dictionary  with initial values
         :param ofit_bounds:
         :param ofit_double_zernike_terms:
         """
         ofit_params = Params()
-        ofit_params.register('opt_size',initvalue=ofit_initvalues.get('opt_size',1.0),bounds=ofit_bounds.get('opt_size'))
-        ofit_params.register('opt_L0',initvalue=ofit_initvalues.get('opt_L0',25.0),bounds=ofit_bounds.get('opt_L0',[5.0,100.0]))
-        ofit_params.register('opt_g1',initvalue=ofit_initvalues.get('opt_g1',0.0),bounds=ofit_bounds.get('opt_g1'))
-        ofit_params.register('opt_g2',initvalue=ofit_initvalues.get('opt_g2',0.0),bounds=ofit_bounds.get('opt_g2'))
+        ofit_params.register('opt_size',initvalue=ofit_initvalues.get('opt_size',1.0),bounds=ofit_bounds.get('opt_size',[0.4,2.0]),initerror=ofit_initerrors.get('opt_size',0.0025))
+        ofit_params.register('opt_L0',initvalue=ofit_initvalues.get('opt_L0',7.0),bounds=ofit_bounds.get('opt_L0',[3.0,100.0]),initerror=ofit_initerrors.get('opt_L0',0.02))
+        ofit_params.register('opt_g1',initvalue=ofit_initvalues.get('opt_g1',0.0),bounds=ofit_bounds.get('opt_g1',[-0.7,0.7]),initerror=ofit_initerrors.get('opt_g1',0.002))
+        ofit_params.register('opt_g2',initvalue=ofit_initvalues.get('opt_g2',0.0),bounds=ofit_bounds.get('opt_g2',[-0.7,0.7]),initerror=ofit_initerrors.get('opt_g2',0.002))
 
         # add double Zernike coeffiencts
         for zf_pair in ofit_double_zernike_terms:
             iZ, nF = zf_pair
             for iF in range(1,nF+1):
                 name = 'z%df%d' % (iZ,iF)
-                ofit_params.register(name,initvalue=ofit_initvalues.get(name,0.0),bounds=ofit_bounds.get(name))
+                ofit_params.register(name,initvalue=ofit_initvalues.get(name,0.0),bounds=ofit_bounds.get(name),initerror=ofit_initerrors.get(name,0.01))
 
         # fix parameters as desired
         if ofit_fix:
             for name in ofit_fix:
                 ofit_params.fix(name)
+
+        # for pixel mode add du,dv parameters per star
+        if ofit_type=='pixel':
+            for i in range(len(stars)):
+                ofit_params.register('du_%04d' % (i),initvalue=0.0,bounds=[-0.7,0.7])
+                ofit_params.register('dv_%04d' % (i),initvalue=0.0,bounds=[-0.7,0.7])
+
+
+        # TODO: add du,dv per star for pixel mode
+        # call these for  du_NNNN  and dv_NNNN
 
         return ofit_params
 
@@ -500,13 +525,8 @@ class OptAtmoPSF(PSF):
         # make model stars, one for each ofit star
         model_stars = self.make_modelstars(params,stars,model,logger=logger)
 
-        # calculate moments for model stars, currently options are hardcoded
-        calc_moments_kwargs = {}
-        calc_moments_kwargs['errors'] = False
-        calc_moments_kwargs['third_order'] = True
-        calc_moments_kwargs['fourth_order'] = False
-        calc_moments_kwargs['radial'] = True
-        model_moments = self._calc_moments(model_stars,logger=logger,**calc_moments_kwargs,addtostar=False)
+        # calculate model moments
+        model_moments = self._calc_moments(model_stars,logger=logger,**self.calc_model_moments_kwargs,addtostar=False)
 
         # calculate the chi vector - dimensionality and ordering given by [nstars,nparams]
         calc_chivec_kwargs = kwargs  #moment_list,weights,systerrors
@@ -514,7 +534,7 @@ class OptAtmoPSF(PSF):
 
         # info printout
         chi2 = np.sum(chivec*chivec)
-        logger.info("Chi2 = %f" % (chi2))
+        print("Chi2 = %f" % (chi2))
 
         # save chi2,parameter values for each interation
         parvalues = params.getValues()
@@ -548,6 +568,167 @@ class OptAtmoPSF(PSF):
         chi2 = np.sum(residuals*residuals)
         return chi2
 
+    def _calc_ofit_grad(self,ofit_values):
+        """Calculate gradient of the Chi2
+
+        : param ofit_values     An ndarray of parameter values
+        """
+
+        # unpack saved quantities
+        ofit_params,ofit_stars,ofit_moments,ofit_model,logger,kwargs = self.Minuit_args
+
+        # set ofit_params to values input from Minuit, includes both Floating and Fixed parameters
+        ofit_params.setValues(ofit_values)
+
+        # for debugging...
+        ofit_params.printChanges()
+
+        # calculate Chi2 for these parameters...
+        chi2 = self._calc_ofit_chi2(ofit_values)
+
+        # loop over parameters, calculating the gradient in the Chi2...
+        nparam = len(ofit_params.getNames())
+        grad = np.zeros((nparam))
+        delta = 1.0e-8
+        for k,parname in enumerate(ofit_params.getNames()):
+
+            original_value = ofit_params.get(parname)
+            ofit_params.setValue(parname,original_value+delta)
+            updated_values = ofit_params.getValues()
+            updated_chi2 = self._calc_ofit_chi2(updated_values)
+            grad[k] = (updated_chi2 - chi2) / delta
+            ofit_params.setValue(parname,original_value)
+
+        return grad
+
+    def _calc_pixel_chi2(self,param_values):
+        """Calculate Pixel mode chi2
+
+        :param param_values:    A List with the parameter values of the Optical+UniformAtmosphere PSF
+        """
+
+        # unpack saved quantities
+        ofit_params,ofit_stars,ofit_moments,ofit_model,logger,kwargs = self.Minuit_args
+
+        # calculate chi2
+        chi2 = _calc_pixel_chi2grad(self,param_values,ofit_params,ofit_stars,ofit_model,logger=logger,dograd=False,delta=1.0e-8)
+        return chi2
+
+    def _calc_pixel_grad(self,param_values):
+        """Calculate Pixel mode gradient
+
+        :param param_values:    A List with the parameter values of the Optical+UniformAtmosphere PSF
+        """
+
+        # unpack saved quantities
+        ofit_params,ofit_stars,ofit_moments,ofit_model,logger,kwargs = self.Minuit_args
+
+        # calculate chi2
+        chi2,grad = _calc_pixel_chi2grad(self,param_values,ofit_params,ofit_stars,ofit_model,logger=logger,dograd=True,delta=1.0e-8)
+        return grad
+
+    def _calc_pixel_chi2grad(self,param_values,params,stars,model,logger=None,dograd=False,delta=1.0e-8):
+        """Calculate Pixel mode chi2 and gradient
+
+        :param param_values:    A List with the parameter values of the Optical+UniformAtmosphere PSF
+        :param params:          A Params object with all parameters
+        :param stars:           A list of Stars to be used in the fit
+        :param model:           A Piff Model object encapsulating the Optical+UniformAtmosphere PSF
+        :param logger:          A logger object for logging debug info. [default: None]
+        :param dograd:          Do the gradient calculation? [default:False]
+        :param delta:           Change in parameter to use for gradient. [default: 1.0e-8]
+        """
+        # load param_values from Optimizer into params object
+        params.setValues(param_values)
+
+        # make model stars, one for each ofit star
+        model_stars = self.make_modelstars(params,stars,model,logger=logger)
+
+        # TODO, make/use a mask.
+
+        # calculate the pixel Chi2
+        chi2perstar = self._calc_chi2perstar(stars,model_stars,rettype='chi2')
+
+        # sum the chi2
+        chi2 = np.sum(chi2perstar)
+
+        if dograd:
+            # now calculate the gradient of the Chi2 wrt each parameters
+            # for many parameters, the gradient only involves re-calculating a single star's Model
+            nparam = len(params.getNames())
+            grad = np.zeros((nparam))
+            for k,parname in enumerate(params.getNames()):
+
+                original_value = params.getValue(parname)
+                params.setValue(parname,original_value+delta)
+
+                idx = self._get_updatelist(parname)  #returns index of star which needs updating for a change in this parameter, or None for all stars
+                if idx>=0:
+                    updated_model_star = self.make_modelstars(params,stars[idx],model,logger=logger)
+                    updated_chi2perstar = self._calc_chi2perstar(stars[idx],updated_model_star,rettype='chi2')
+                    grad[k] = (updated_chi2perstar[0] - chi2perstar[idx]) / delta
+                else:
+                    updated_model_stars = self.make_modelstars(params,stars,model,logger=logger)
+                    updated_chi2perstar = self._calc_chi2perstar(stars,updated_model_stars,rettype='chi2')
+                    grad[k] = (np.sum(updated_chi2perstar)-chi2) / delta
+
+            outtup = (chi2,grad)
+        else:
+            outtup = chi2
+
+        return outtup
+
+    def _get_updatelist(parname):
+        """ Parse parameter name for Star list index number
+        """
+        if parname[0:3]=='du_' or parname[0:3]=='dv_':
+            idx = int(parname[3:])
+        else:
+            idx = None
+        return idx
+
+    def _calc_chi2perstar(self,stars,model_stars,mask=None,rettype='chi2'):
+        """ Calculate pixel-level Chi2 per star
+
+        :param stars:                Data Stars
+        :param model_stars:          Model stars from Optical fit
+        :param mask:                 1-D Mask for pixel image array, [default=None]
+        :param rettype:              Return type, either a single Chi2 value per star ('chi2')
+                                     or a Pull vector over pixels ('chivec'), [default='chi2']
+        """
+        nstar = len(stars)
+        # find number of pixels being used
+        if mask:
+            npixel = int(np.sum(mask))
+        else:
+            data, weight, u, v = stars[0].data.getDataVector(include_zero_weight=True)
+            npixel = data.shape[0]
+        chi2perstar = np.zeros((nstar))
+        chivec = np.zeros((nstar,npixel))
+
+        for i in range(nstar):
+            data, weight, u, v = star.data.getDataVector(include_zero_weight=True)
+            model_data = model_stars[i].image.array.flatten()
+
+            # normalize model_data to data, with a simple sum?
+            # model_data_normed = model_data * np.sum(data)/np.sum(model_data)
+            # chivec[i,:] = (data[mask]-model_data_normed[mask])*np.sqrt(weight[mask])
+            # calculate the pull or chi vector
+            if mask:
+                chivec[i,:] = (data[mask]-model_data[mask])*np.sqrt(weight[mask])
+            else:
+                chivec[i,:] = (data-model_data)*np.sqrt(weight)
+
+        retval = None
+        if rettype=='chi2':
+            chi2perstar = np.sum(chivec**2,axis=1) # sum over stars
+            retval = chi2perstar
+        elif rettype=='chivec':
+            retval = chivec
+        else:
+            logger.Error("_calc_chi2perstar: rettype not an allowed value")
+
+        return retval
 
 ### Single Star Fit functions
 
@@ -579,6 +760,8 @@ class OptAtmoPSF(PSF):
         sfit_params.register('atmo_g1',initvalue=init_g1,bounds=[-0.707,0.707],initerror=0.005)  # dont allow g1**2+g2**2 > 1
         sfit_params.register('atmo_g2',initvalue=init_g2,bounds=[-0.707,0.707],initerror=0.005)
         twopixel = 0.263*2.0    # need a range of 2 pixels to allow for Coma
+
+        #TODO: don't need these if ofit was in pixel mode, and we already have these...
         sfit_params.register('du',initvalue=init_du,bounds=[-twopixel,twopixel],initerror=0.005)
         sfit_params.register('dv',initvalue=init_dv,bounds=[-twopixel,twopixel],initerror=0.005)
         sfit_params.register('flux',initvalue=init_flux,bounds=[init_flux*0.9,init_flux*1.1],initerror=np.sqrt(init_flux))
@@ -587,6 +770,7 @@ class OptAtmoPSF(PSF):
         return sfit_params
 
     def _calc_sfit_residuals(self,free_params,params,stars,model,logger,kwargs):
+        #TODO: rewrite to merge with _calc_chi2perstar
         """Calculate Optical fit residuals. Note: this is designed to work for a
         list of input stars or with a list of a single star
 
@@ -610,7 +794,7 @@ class OptAtmoPSF(PSF):
         nstar = len(stars)
 
         # calculate the number of pixels, using a mask based on the opt_size
-        # TODO: this is done for every iteration - do only once per star!
+        # TODO: this is done for every iteration - do only once per star and/or use a fixed size, not a variable one...
 
         usemask = False
         if usemask:
@@ -911,7 +1095,7 @@ class OptAtmoPSF(PSF):
         # add systematic errors to moment errors
         if systerrors != 'None' and systerrors != None :
             s = np.array(systerrors)
-            e2 = np.sqrt(e2 + s*s)
+            e2 = e2 + s*s
 
         # calculate chivec
         chivec = (d-m)/np.sqrt(e2)

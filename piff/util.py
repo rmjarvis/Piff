@@ -635,7 +635,7 @@ def calculate_moments(star, kernel='Gaussian', third_order=False, fourth_order=F
     else:
         return ret
 
-def get_moment_names(third_order=False, fourth_order=False, radial=False, errors=False):
+def get_moment_names(third_order=False, fourth_order=False, radial=False, errors=False, kernel=None):
     """Fill vector with moment names, based on arguments to calculate_moments
 
     :return: names         A list of moment variable names

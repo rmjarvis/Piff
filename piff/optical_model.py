@@ -277,10 +277,10 @@ class Optical(Model):
     @lru_cache(maxsize=512)
     def getAtmosphere(self, r0, L0, g1, g2):
         if self.atmo_type == 'VonKarman':
-            atm = galsim.VonKarman(
-                lam=self.lam, r0=r0, L0=L0, flux=1.0, gsparams=self.gsparams
-#                force_stepk=0.8
-            )
+            try:
+                atm = galsim.VonKarman(lam=self.lam, r0=r0, L0=L0, flux=1.0, gsparams=self.gsparams)
+            except:
+                print('r0,L0 = ',r0,L0)
         else:
             atm = galsim.Kolmogorov(lam=self.lam, r0=r0, flux=1.0, gsparams=self.gsparams)
         # shear

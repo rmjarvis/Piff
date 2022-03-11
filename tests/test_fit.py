@@ -29,7 +29,7 @@ from piff_test_helper import get_script_name, timer, CaptureLog
 
 
 @timer
-def test_fit(config_file='psf_optatmo.yaml',variables='',output_file='temp.pkl',verbose_level=1):
+def test_fit(config_file='psf_optatmo.yaml',variables='',input_file="stars-228724.pkl",output_file='temp.pkl',verbose_level=1):
     """This test makes stars
     """
     config = piff.read_config(config_file)
@@ -39,8 +39,7 @@ def test_fit(config_file='psf_optatmo.yaml',variables='',output_file='temp.pkl',
     piff.config.parse_variables(config, variables, logger)
 
     # load stars
-    doinput = False
-    if doinput:
+    if input_file==None:
         logger = piff.setup_logger(verbose=True)
         stars, wcs, pointing = piff.Input.process(config['input'], logger=logger)
         print(len(stars))
@@ -50,22 +49,26 @@ def test_fit(config_file='psf_optatmo.yaml',variables='',output_file='temp.pkl',
         pickle.dump(outdict,open("stars-228724.pkl",'wb'))
 
     else:
-        newdict = pickle.load(open("stars-228724.pkl",'rb'))
+        newdict = pickle.load(open(input_file,'rb'))
         stars = newdict['stars']
-        wcs = newdict['wcs']
-        pointing = newdict['pointing']
+        if 'wcs' in newdict:
+            wcs = newdict['wcs']
+        else:
+            wcs = None
+        if 'pointing' in newdict:
+            pointing = newdict['pointing']
+        else:
+            pointing = None
         print(len(stars))
 
     # make a psf object!
     psf = piff.PSF.process(config['psf'],logger=logger)
 
-    ofit_results,params,chiparam = psf.fit(stars, wcs, pointing, logger=logger)
-    print(ofit_results)
-    params.print()
+    fit_results = psf.fit(stars, wcs, pointing, logger=logger)
+    fit_results['ofit_chiparam'] = psf.ofit_chiparam
 
     # dump all output
-    resdict = {'results':ofit_results,'params':params,'chiparam':chiparam,'data_stars':psf.stars,'model_stars':psf.ofit_model_stars}
-    pickle.dump(resdict,open(output_file,'wb'))
+    pickle.dump(fit_results,open(output_file,'wb'))
 
 if __name__ == '__main__':
     import argparse
@@ -73,6 +76,7 @@ if __name__ == '__main__':
 
     parser.add_argument('config_file',type=str,help="Configuration Filename")
     parser.add_argument('variables',type=str,nargs='*',help="add options to configuration")
+    parser.add_argument('-f', '--input_file', dest='input_file',type=str,help="Input Filename",default=None)
     parser.add_argument('-r', '--output_file', dest='output_file',type=str,help="Output Filename")
     options = parser.parse_args()
     kwargs = vars(options)

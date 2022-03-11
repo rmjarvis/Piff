@@ -119,7 +119,7 @@ class Params(object):
         for i,name in enumerate(self.names):
             self.errors[name] = errors[i]
 
-    def get(self,name):
+    def get(self,name):  #TODO: probably should change to getValue(name) for consistency
         """ Get value of parameter
 
         :return value:          Parameter value

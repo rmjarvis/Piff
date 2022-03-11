@@ -44,7 +44,7 @@ input:
       simage_file_name: '@input.image_file_name'
       str: image_file_name.split('_')[-1].split('.fits')[0]
       type: Eval
-    dir: /nfs/slac/g/ki/ki19/des/cpd/y3_piff/astro/
+    dir: /sdf/group/kipac/g/des/ki19/cpd/y3_piff/astro/
     exp: 228724
     type: Pixmappy
     yaml_file: zone176.astro
@@ -97,19 +97,19 @@ psf:
            chip: None
            type: Rbf
   ofit_double_zernike_terms:  [[4, 1], [5, 3], [6, 3], [7, 1], [8, 1], [9, 1], [10, 1], [11, 1]]  # drop for speed [14, 1], [15, 1]]
-  ofit_type: shape  # shape or pixel
+  ofit_type: shape  # shape or pixel or shapegrad
   ofit_nstars: 500
   ofit_optimizer: 'iminuit' # 'least_squares' or 'iminuit'
   ofit_initvalues: {"opt_L0":25.,"opt_size":1.0}
-  ofit_bounds: {"opt_L0":[1.0,100.0]}
+  ofit_bounds: {"opt_L0":[1.0,100.0],"opt_g1":[-0.7,0.7],"opt_g2":[-0.7,0.7]}
   ofit_shape_kwargs:
-      moment_list: ["e0","e1","e2","M21","M12","M30","M03","M22n","M33n","M44n"]  #TODO: change to zeta1,zeta2,delta1,delta2
+      moment_list: ["e0","e1","e2","M21","M12","M30","M03","M22n","M33n","M44n"]
       weights: [0.5,1.0,1.0,1.0,1.0,1.0,1.0,1.0,0.0,0.0]  # don't use M33n,M44n
-      systerrors: [0.005,0.002,0.002,0.0005,0.0005,0.0005,0.0005,0.1,0.2,0.3]
+      #systerrors: [0.005,0.002,0.002,0.0005,0.0005,0.0005,0.0005,0.1,0.2,0.3]
   sfit_optimizer: 'iminuit'
 #  sfit_tol: 100.0
   sfit_pixel_kwargs: {'pixel_radius':2.0}  # number of HWHM radii to include in pixel-based Chi2
-  moment_kernel: 'VonKarman'               # use Von-Karman kernel for calculating moments
+#  moment_kernel: 'VonKarman'               # use Von-Karman kernel for calculating moments
   fov_radius: 4500.0
 
 verbose: 2
