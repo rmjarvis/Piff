@@ -100,8 +100,9 @@ def test_smallbright():
     stars = piff.Select.process(config['select'], objects, logger=logger)
 
     # Fewer stars since limited to brighter subset
+    # Different systems give slightly different results here.  So give a range.
     print('nstars = ',len(stars))
-    assert len(stars) == 34
+    assert 30 < len(stars) < 40
 
     # But still finds all high confidence stars
     class_star = np.array([s['CLASS_STAR'] for s in stars])
