@@ -101,7 +101,7 @@ def test_smallbright():
 
     # Fewer stars since limited to brighter subset
     print('nstars = ',len(stars))
-    assert len(stars) == 51
+    assert len(stars) == 53
 
     # But still finds all high confidence stars
     class_star = np.array([s['CLASS_STAR'] for s in stars])

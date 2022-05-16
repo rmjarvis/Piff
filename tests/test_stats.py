@@ -64,13 +64,14 @@ def test_twodstats():
     jcenter = 2000
     # the average value in the bin should match up with the model for the average coordinates
     sigma, g1, g2 = psf_model(icen, jcen, icenter, jcenter)
-    sigma_average = stats.twodhists['T'][v_i, u_i]
+    T = 2*sigma**2
+    T_average = stats.twodhists['T'][v_i, u_i]
     g1_average = stats.twodhists['g1'][v_i, u_i]
     g2_average = stats.twodhists['g2'][v_i, u_i]
     # assert equal to 4th decimal
-    print('sigma, g1, g2 = ',[sigma,g1,g2])
-    print('av sigma, g1, g2 = ',[sigma_average,g1_average,g2_average])
-    np.testing.assert_almost_equal([sigma, g1, g2], [sigma_average, g1_average, g2_average],
+    print('T, g1, g2 = ',[T,g1,g2])
+    print('av T, g1, g2 = ',[T_average,g1_average,g2_average])
+    np.testing.assert_almost_equal([T, g1, g2], [T_average, g1_average, g2_average],
                                    decimal=2)
 
     # Test the plotting and writing
@@ -475,10 +476,11 @@ def test_shapestats_config():
 
     # test their characteristics
     sigma = 1.3  # (copied from setup())
+    T = 2*sigma**2
     g1 = 0.23
     g2 = -0.17
-    np.testing.assert_array_almost_equal(sigma, shapeStats.T, decimal=4)
-    np.testing.assert_array_almost_equal(sigma, shapeStats.T_model, decimal=3)
+    np.testing.assert_array_almost_equal(T, shapeStats.T, decimal=4)
+    np.testing.assert_array_almost_equal(T, shapeStats.T_model, decimal=3)
     np.testing.assert_array_almost_equal(g1, shapeStats.g1, decimal=4)
     np.testing.assert_array_almost_equal(g1, shapeStats.g1_model, decimal=3)
     np.testing.assert_array_almost_equal(g2, shapeStats.g2, decimal=4)

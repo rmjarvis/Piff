@@ -161,6 +161,9 @@ class Stats(object):
         # but makes things work right if len(stars)=0.
         shapes_truth = shapes_truth.reshape((len(stars),7))
 
+        # Convert from sigma to T
+        shapes_truth[:,3] = 2*shapes_truth[:,3]**2
+
         # Pull out the positions to return
         positions = np.array([ (star.data.properties['u'], star.data.properties['v'])
                                for star in stars ])
@@ -172,6 +175,7 @@ class Stats(object):
             logger.debug("Generating and Measuring Model Stars")
             shapes_model = np.array([ star.hsm for star in psf.drawStarList(stars)])
             shapes_model = shapes_model.reshape((len(stars),7))
+            shapes_model[:,3] = 2*shapes_model[:,3]**2
             for star, shape in zip(stars, shapes_model):
                 logger.debug("model shape for star at %s is %s",star.image_pos, shape)
 
