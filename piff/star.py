@@ -70,7 +70,7 @@ class Star(object):
         star.flux       The flux of the object
         star.center     The nominal center of the object (not necessarily the centroid)
         star.is_reserve Whether the star is reserved from being used to fit the PSF
-        star.hsm        HSM measurements for this star as a tuple: (flux, cenu, cenv, size, g1, g2)
+        star.hsm        HSM measurements for this star as a tuple: (flux, cenu, cenv, sigma, g1, g2)
     """
     def __init__(self, data, fit):
         """Constructor for Star instance.
@@ -165,7 +165,7 @@ class Star(object):
         This usually isn't called directly.  The results are accessible as star.hsm,
         which caches the results, so repeated access is efficient.
 
-        :returns: (flux, cenu, cenv, size, g1, g2, flag)
+        :returns: (flux, cenu, cenv, sigma, g1, g2, flag)
         """
         image, weight, image_pos = self.data.getImage()
         # Note that FindAdaptiveMom only respects the weight function in a binary sense.
