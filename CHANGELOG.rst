@@ -1,4 +1,4 @@
-Changes from version 1.0 to 1.1
+Changes from version 1.2 to 1.3
 ===============================
 
 
@@ -14,4 +14,4 @@ Bug fixes
 ---------
 
 - Fixed bug in output stats that what we called T was really sigma.  Now, it's correctly
-  T = Ixx + Iyy = 2*sigma^2.
+  T = Ixx + Iyy = 2*sigma^2. (#133)
