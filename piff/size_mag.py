@@ -215,7 +215,7 @@ class SmallBrightSelect(Select):
         obj_shapes = np.array([ obj.hsm for obj in objects ])
         flag_obj = obj_shapes[:, 6]
         f_obj = obj_shapes[:, 0]
-        T_obj = obj_shapes[:, 3]
+        T_obj = 2*obj_shapes[:, 3]**2
 
         # Getting rid of the flags will mess with the indexing, so keep track of the original
         # index numbers.
@@ -304,7 +304,7 @@ class SmallBrightSelect(Select):
         select_index = orig_index[select]
         logger.debug("select_index = %s",select_index)
         stars = [objects[i] for i in select_index]
-        logger.debug("sizes of stars = %s",[s.hsm[3] for s in stars])
+        logger.debug("sizes of stars = %s",[2*s.hsm[3]**2 for s in stars])
         logger.debug("fluxs of stars = %s",[s.hsm[0] for s in stars])
 
         return stars
@@ -401,7 +401,7 @@ class SizeMagSelect(Select):
         obj_shapes = np.array([ obj.hsm for obj in objects ])
         flag_obj = obj_shapes[:, 6]
         f_obj = obj_shapes[:, 0]
-        T_obj = obj_shapes[:, 3]
+        T_obj = 2*obj_shapes[:, 3]**2
         u_obj = np.array([ obj.u for obj in objects ])
         v_obj = np.array([ obj.v for obj in objects ])
 
@@ -433,7 +433,7 @@ class SizeMagSelect(Select):
         star_shapes = np.array([ star.hsm for star in stars ])
         mask = star_shapes[:, 6] == 0
         logf_star = np.log(star_shapes[mask, 0])
-        logT_star = np.log(star_shapes[mask, 3])
+        logT_star = np.log(2*star_shapes[mask, 3]**2)
         u_star = np.array([ star.u for star in stars ])[mask]
         v_star = np.array([ star.v for star in stars ])[mask]
         logger.debug("logf_star = %s",logf_star)
@@ -531,7 +531,7 @@ class SizeMagSelect(Select):
         select_index = orig_index[select]
         logger.debug("select_index = %s",select_index)
         stars = [objects[i] for i in select_index]
-        logger.debug("sizes of stars = %s",[s.hsm[3] for s in stars])
+        logger.debug("sizes of stars = %s",[2*s.hsm[3]**2 for s in stars])
         logger.debug("fluxs of stars = %s",[s.hsm[0] for s in stars])
         return stars
 
