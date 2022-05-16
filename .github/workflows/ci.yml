@@ -117,7 +117,7 @@ jobs:
                 pwd -P
                 cd tests
                 ls -la
-                coverage combine
+                coverage combine || true
                 coverage report
                 ls -la
                 #codecov  # This didn't work.
