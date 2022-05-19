@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>piff.star &mdash; Piff 1.2.0 documentation</title><link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <title>piff.star &mdash; Piff 1.2.1 documentation</title><link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
     <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
   <!--[if lt IE 9]>
     <script src="../../_static/js/html5shiv.min.js"></script>
@@ -146,7 +146,7 @@
 <span class="sd">        star.flux       The flux of the object</span>
 <span class="sd">        star.center     The nominal center of the object (not necessarily the centroid)</span>
 <span class="sd">        star.is_reserve Whether the star is reserved from being used to fit the PSF</span>
-<span class="sd">        star.hsm        HSM measurements for this star as a tuple: (flux, cenu, cenv, size, g1, g2)</span>
+<span class="sd">        star.hsm        HSM measurements for this star as a tuple: (flux, cenu, cenv, sigma, g1, g2)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">fit</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Constructor for Star instance.</span>
@@ -241,7 +241,7 @@
 <span class="sd">        This usually isn&#39;t called directly.  The results are accessible as star.hsm,</span>
 <span class="sd">        which caches the results, so repeated access is efficient.</span>
 
-<span class="sd">        :returns: (flux, cenu, cenv, size, g1, g2, flag)</span>
+<span class="sd">        :returns: (flux, cenu, cenv, sigma, g1, g2, flag)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">image</span><span class="p">,</span> <span class="n">weight</span><span class="p">,</span> <span class="n">image_pos</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">getImage</span><span class="p">()</span>
         <span class="c1"># Note that FindAdaptiveMom only respects the weight function in a binary sense.</span>
