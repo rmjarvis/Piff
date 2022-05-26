@@ -62,7 +62,7 @@ def test_init():
     config = {'wavefront_kwargs':
                 {'survey': 'des',
                  'source1':
-                   {'file': 'des/GPInterp-20140212s2-v22i2.fits',
+                   {'file': 'input/GPInterp-20140212s2-v22i2.fits',
                     'ext': 1,
                     'zlist': [4],
                     'keys': {"x_fp":"x","y_fp":"y"},     # key in Star : key in .fits
@@ -70,7 +70,7 @@ def test_init():
                     'type': 'Rgi',
                     'wavelength': 700.0 },
                  'source2':
-                   {'file':  'des/decam_2012-nominalzernike.fits',
+                   {'file':  'input/decam_2012-nominalzernike.fits',
                     'ext': 1,
                     'zlist': [22],
                     'keys': {"x_fp":"xfp","y_fp":"yfp"},
@@ -96,7 +96,7 @@ def test_interp1():
     config = {'wavefront_kwargs':
                 {'survey': 'des',
                  'source1':
-                   {'file': 'des/GPInterp-20140212s2-v22i2.fits',
+                   {'file': 'input/GPInterp-20140212s2-v22i2.fits',
                     'ext': 1,
                     'zlist': [iZ_source1],
                     'keys': {"x_fp":"x","y_fp":"y"},     # key in Star : key in .fits
@@ -104,7 +104,7 @@ def test_interp1():
                     'type': 'Rgi',
                     'wavelength': 700.0 },
                  'source2':
-                   {'file':  'des/decam_2012-nominalzernike.fits',
+                   {'file':  'input/decam_2012-nominalzernike.fits',
                     'ext': 1,
                     'zlist': [iZ_source2],
                     'keys': {"x_fp":"xfp","y_fp":"yfp"},
@@ -141,7 +141,7 @@ def test_interp2():
     config = {'wavefront_kwargs':
                 {'survey': 'des',
                  'source1':
-                   {'file': 'des/GPInterp-20140212s2-v22i2.fits',
+                   {'file': 'input/GPInterp-20140212s2-v22i2.fits',
                     'ext': 1,
                     'zlist': [iZ_source1],
                     'keys': {"x_fp":"x","y_fp":"y"},     # key in Star : key in .fits
@@ -149,7 +149,7 @@ def test_interp2():
                     'type': 'Rgi',
                     'wavelength': 700.0 },
                  'source2':
-                   {'file':  'des/decam_2012-nominalzernike.fits',
+                   {'file':  'input/decam_2012-nominalzernike.fits',
                     'ext': 1,
                     'zlist': [iZ_source2],
                     'keys': {"x_fp":"xfp","y_fp":"yfp"},
@@ -181,7 +181,7 @@ def test_interp_values():
     config_data = {'wavefront_kwargs':
                 {'survey': 'des',
                  'source1':
-                   {'file': 'des/GPInterp-20140212s2-v22i2.fits',
+                   {'file': 'input/GPInterp-20140212s2-v22i2.fits',
                     'ext': 1,
                     'zlist': [6],
                     'keys': {"x_fp":"x","y_fp":"y"},     # key in Star : key in .fits
@@ -197,7 +197,7 @@ def test_interp_values():
     config_zemax = {'wavefront_kwargs':
                 {'survey': 'des',
                  'source1':
-                   {'file':  'des/decam_2012-nominalzernike.fits',
+                   {'file':  'input/decam_2012-nominalzernike.fits',
                     'ext': 1,
                     'zlist': [6],
                     'keys': {"x_fp":"xfp","y_fp":"yfp"},
@@ -209,7 +209,7 @@ def test_interp_values():
     wfobj_zemax = Wavefront(config_zemax['wavefront_kwargs'],logger=logger)
 
     # get a list of positions & interpolated values from a file
-    interp_file = fitsio.FITS('des/wavefront_interp_unittest.fits')
+    interp_file = fitsio.FITS('input/wavefront_interp_unittest.fits')
 
     interp_table = interp_file[1].read()
     chipnums = interp_table['chipnum']
@@ -248,7 +248,7 @@ def test_interp_scalewavelenth():
     config = {'wavefront_kwargs':
                 {'survey': 'des',
                  'source1':
-                   {'file': 'des/GPInterp-20140212s2-v22i2.fits',
+                   {'file': 'input/GPInterp-20140212s2-v22i2.fits',
                     'ext': 1,
                     'zlist': [iZ_source1],
                     'keys': {"x_fp":"x","y_fp":"y"},     # key in Star : key in .fits
@@ -256,7 +256,7 @@ def test_interp_scalewavelenth():
                     'type': 'Rgi',
                     'wavelength': 700.0 },
                  'source2':
-                   {'file':  'des/decam_2012-nominalzernike.fits',
+                   {'file':  'input/decam_2012-nominalzernike.fits',
                     'ext': 1,
                     'zlist': [iZ_source2],
                     'keys': {"x_fp":"xfp","y_fp":"yfp"},
@@ -296,7 +296,7 @@ def test_interp_des():
     config = {'wavefront_kwargs':
                 {'survey': 'other',
                  'source1':
-                   {'file':  'des/decam_2012-nominalzernike.fits',
+                   {'file':  'input/decam_2012-nominalzernike.fits',
                     'ext': 1,
                     'zlist': iZ_source,
                     'keys': {"x_fp":"xfp","y_fp":"yfp"},
@@ -309,7 +309,7 @@ def test_interp_des():
     config_des = {'wavefront_kwargs':
                 {'survey': 'des',
                  'source1':
-                   {'file':  'des/decam_2012-nominalzernike.fits',
+                   {'file':  'input/decam_2012-nominalzernike.fits',
                     'ext': 1,
                     'zlist': iZ_source,
                     'keys': {"x_fp":"xfp","y_fp":"yfp"},
