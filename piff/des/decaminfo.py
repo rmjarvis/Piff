@@ -167,7 +167,7 @@ class DECamInfo(object):
         """
         # do getPixel but with chipnum instead
         chipnums = np.array(chipnums, dtype=int, copy=False)
-        
+
         xpixHalfSize = 1024. * np.ones(chipnums.shape)
         ypixHalfSize = 1024. * np.ones(chipnums.shape)
         ypixHalfSize = np.where(chipnums > 62, 1024., 2048.)
@@ -186,6 +186,13 @@ class DECamInfo(object):
 
         :returns chipnums ix, iy:   Arrays of chipnumbers, x and y coordinates in pixels
         """
+
+        # fill default values of chipnum,ix,iy
+        n = len(xPos)
+        chipnums_all = -1 * np.ones(n)
+        ix = np.zeros(n)
+        iy = np.zeros(n)
+
         # get chipnums
         pos = np.vstack((xPos, yPos)).T
         # (Nsamp, Nchip, Ndim) = (len(xPos), 71, 2)
@@ -196,8 +203,19 @@ class DECamInfo(object):
                  (pos[:, None, 1] <= self.infoUpperRightCorner[None, 1:, 1]))
         chipnums = np.argwhere(conds)[:, 1] + 1
 
-        ix, iy = self.getPixel_chipnum(chipnums, xPos, yPos)
-        return chipnums, ix, iy
+        # deal with case that some of these positions are not in ANY sensor
+        #     chipsnums array is filled only for case where one conds is True
+        ok = np.count_nonzero(conds,axis=1)
+        okk = np.where(ok==1,True,False)
+
+        # get pixel positions
+        ixx, iyy = self.getPixel_chipnum(chipnums, xPos[okk], yPos[okk])
+
+        # fill default arrays with values inside any sensor
+        ix[okk] = ixx
+        iy[okk] = iyy
+        chipnums_all[okk] = chipnums
+        return chipnums_all, ix, iy
 
     def pixel_to_focal_stardata(self, stardata):
         """Take stardata and add focal plane position to properties
