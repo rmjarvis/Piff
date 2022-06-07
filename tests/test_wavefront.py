@@ -269,15 +269,61 @@ def test_interp_scalewavelenth():
 @timer
 def test_interp_des():
 
-    # Configure Wavefront with two sources, with just one Zernike term each
-    #   source1 is from DES data, and is divided by chipnum
-    #   source2 is from Zemax simulation, and interpolates over the entire focal plane
+    # Configure Wavefront with two sources, one from des and another from 'other'
 
     iZ_source = [5,6,7,8]
 
     config = {'wavefront_kwargs':
                 {'survey': 'other',
                  'source1':
+                   {'file': 'input/decam_2012-iband-700nm.npz',
+                    'zlist': iZ_source,
+                    'keys': {"x_fp":"xfp","y_fp":"yfp"},     # key in Star: key in .npz
+                    'chip': 'None',
+                    'wavelength': 700.0 }
+                }
+                  }
+
+    config_des = {'wavefront_kwargs':
+                {'survey': 'des',
+                 'source1':
+                   {'file':  'input/decam_2012-iband-700nm.npz',
+                    'zlist': iZ_source,
+                    'keys': {"x_fp":"xfp","y_fp":"yfp"},
+                    'chip': 'None',
+                    'wavelength': 700.0 }
+                }
+              }
+
+    # make sure we can init the wavefront class
+    logger = piff.config.setup_logger(verbose=2)
+    wfobj = Wavefront(config['wavefront_kwargs'],logger=logger)
+    wfobj_des = Wavefront(config_des['wavefront_kwargs'],logger=logger)
+
+    # get wavefronts for a set of locations on the focal Plane
+    nstars = 100
+    stars = make_blank_stars(nstars=nstars)
+
+    # fill Wavefront in star.data.properties
+    wf_arr = wfobj.fillWavefront(stars,logger=logger,addtostars=False)
+    wf_arr_des = wfobj_des.fillWavefront(stars,logger=logger,addtostars=False)
+
+    # check that wavefront terms are shifted from nominal to des coordinates
+    for i in range(len(stars)):
+        np.testing.assert_almost_equal(wf_arr_des[i][5],wf_arr[i][5],decimal=6)
+        np.testing.assert_almost_equal(wf_arr_des[i][6],-wf_arr[i][6],decimal=6)
+        np.testing.assert_almost_equal(wf_arr_des[i][7],-wf_arr[i][8],decimal=6)
+        np.testing.assert_almost_equal(wf_arr_des[i][8],-wf_arr[i][7],decimal=6)
+
+@timer
+def test_interp_des2():
+
+    # Configure Wavefront with two sources, one from des and another unspecified
+
+    iZ_source = [5,6,7,8]
+
+    config = {'wavefront_kwargs':
+               {'source1':
                    {'file': 'input/decam_2012-iband-700nm.npz',
                     'zlist': iZ_source,
                     'keys': {"x_fp":"xfp","y_fp":"yfp"},     # key in Star: key in .npz
@@ -326,3 +372,4 @@ if __name__ == '__main__':
     test_interp_values()
     test_interp_scalewavelenth()
     test_interp_des()
+    test_interp_des2()
