@@ -62,20 +62,16 @@ def test_init():
     config = {'wavefront_kwargs':
                 {'survey': 'des',
                  'source1':
-                   {'file': 'input/GPInterp-20140212s2-v22i2.fits',
-                    'ext': 1,
+                   {'file': 'input/GPInterp-20140212s2-v22i2.npz',
                     'zlist': [4],
-                    'keys': {"x_fp":"x","y_fp":"y"},     # key in Star : key in .fits
-                    'chip': {"chipnum":"chipnum"},       # key in Star: key in .fits to interpolate in sub-regions
-                    'type': 'Rgi',
+                    'keys': {"x_fp":"xfp","y_fp":"yfp"},     # key in Star: key in .npz
+                    'chip': {"chipnum":range(1,62+1)},       # key in Star: list of chipnum's
                     'wavelength': 700.0 },
                  'source2':
-                   {'file':  'input/decam_2012-nominalzernike.fits',
-                    'ext': 1,
+                   {'file':  'input/decam_2012-iband-700nm.npz',
                     'zlist': [22],
                     'keys': {"x_fp":"xfp","y_fp":"yfp"},
                     'chip': 'None',
-                    'type': 'Rbf',
                     'wavelength': 700.0 }
                 }
               }
@@ -96,20 +92,16 @@ def test_interp1():
     config = {'wavefront_kwargs':
                 {'survey': 'des',
                  'source1':
-                   {'file': 'input/GPInterp-20140212s2-v22i2.fits',
-                    'ext': 1,
+                   {'file': 'input/GPInterp-20140212s2-v22i2.npz',
                     'zlist': [iZ_source1],
-                    'keys': {"x_fp":"x","y_fp":"y"},     # key in Star : key in .fits
-                    'chip': {"chipnum":"chipnum"},       # key in Star: key in .fits to interpolate in sub-regions
-                    'type': 'Rgi',
+                    'keys': {"x_fp":"xfp","y_fp":"yfp"},     # key in Star: key in .npz
+                    'chip': {"chipnum":range(1,62+1)},       # key in Star: list of chipnum's
                     'wavelength': 700.0 },
                  'source2':
-                   {'file':  'input/decam_2012-nominalzernike.fits',
-                    'ext': 1,
+                   {'file':  'input/decam_2012-iband-700nm.npz',
                     'zlist': [iZ_source2],
                     'keys': {"x_fp":"xfp","y_fp":"yfp"},
                     'chip': 'None',
-                    'type': 'Rbf',
                     'wavelength': 700.0 }
                 }
               }
@@ -141,20 +133,16 @@ def test_interp2():
     config = {'wavefront_kwargs':
                 {'survey': 'des',
                  'source1':
-                   {'file': 'input/GPInterp-20140212s2-v22i2.fits',
-                    'ext': 1,
+                   {'file': 'input/GPInterp-20140212s2-v22i2.npz',
                     'zlist': [iZ_source1],
-                    'keys': {"x_fp":"x","y_fp":"y"},     # key in Star : key in .fits
-                    'chip': {"chipnum":"chipnum"},       # key in Star: key in .fits to interpolate in sub-regions
-                    'type': 'Rgi',
+                    'keys': {"x_fp":"xfp","y_fp":"yfp"},     # key in Star: key in .npz
+                    'chip': {"chipnum":range(1,62+1)},       # key in Star: list of chipnum's
                     'wavelength': 700.0 },
                  'source2':
-                   {'file':  'input/decam_2012-nominalzernike.fits',
-                    'ext': 1,
+                   {'file':  'input/decam_2012-iband-700nm.npz',
                     'zlist': [iZ_source2],
                     'keys': {"x_fp":"xfp","y_fp":"yfp"},
                     'chip': 'None',
-                    'type': 'Rbf',
                     'wavelength': 700.0 }
                 }
               }
@@ -177,18 +165,18 @@ def test_interp2():
 @timer
 def test_interp_values():
 
+    iZ_source = 6
     # Configure Wavefront with from DES data, and is divided by chipnum
     config_data = {'wavefront_kwargs':
                 {'survey': 'des',
                  'source1':
-                   {'file': 'input/GPInterp-20140212s2-v22i2.fits',
-                    'ext': 1,
-                    'zlist': [6],
-                    'keys': {"x_fp":"x","y_fp":"y"},     # key in Star : key in .fits
-                    'chip': {"chipnum":"chipnum"},       # key in Star: key in .fits to interpolate in sub-regions
-                    'type': 'Rgi',
-                    'wavelength': 700.0 }, }
-              }
+                   {'file': 'input/GPInterp-20140212s2-v22i2.npz',
+                    'zlist': [iZ_source],
+                    'keys': {"x_fp":"xfp","y_fp":"yfp"},     # key in Star: key in .npz
+                    'chip': {"chipnum":range(1,62+1)},       # key in Star: list of chipnum's
+                    'wavelength': 700.0 }
+                }
+                  }
 
     logger = piff.config.setup_logger(verbose=2)
     wfobj_data = Wavefront(config_data['wavefront_kwargs'],logger=logger)
@@ -197,12 +185,10 @@ def test_interp_values():
     config_zemax = {'wavefront_kwargs':
                 {'survey': 'des',
                  'source1':
-                   {'file':  'input/decam_2012-nominalzernike.fits',
-                    'ext': 1,
-                    'zlist': [6],
+                   {'file':  'input/decam_2012-iband-700nm.npz',
+                    'zlist': [iZ_source],
                     'keys': {"x_fp":"xfp","y_fp":"yfp"},
                     'chip': 'None',
-                    'type': 'Rbf',
                     'wavelength': 700.0 }
                 }
               }
@@ -248,20 +234,16 @@ def test_interp_scalewavelenth():
     config = {'wavefront_kwargs':
                 {'survey': 'des',
                  'source1':
-                   {'file': 'input/GPInterp-20140212s2-v22i2.fits',
-                    'ext': 1,
+                   {'file': 'input/GPInterp-20140212s2-v22i2.npz',
                     'zlist': [iZ_source1],
-                    'keys': {"x_fp":"x","y_fp":"y"},     # key in Star : key in .fits
-                    'chip': {"chipnum":"chipnum"},       # key in Star: key in .fits to interpolate in sub-regions
-                    'type': 'Rgi',
+                    'keys': {"x_fp":"xfp","y_fp":"yfp"},     # key in Star: key in .npz
+                    'chip': {"chipnum":range(1,62+1)},       # key in Star: list of chipnum's
                     'wavelength': 700.0 },
                  'source2':
-                   {'file':  'input/decam_2012-nominalzernike.fits',
-                    'ext': 1,
+                   {'file':  'input/decam_2012-iband-700nm.npz',
                     'zlist': [iZ_source2],
                     'keys': {"x_fp":"xfp","y_fp":"yfp"},
                     'chip': 'None',
-                    'type': 'Rbf',
                     'wavelength': 700.0 }
                 }
               }
@@ -296,28 +278,25 @@ def test_interp_des():
     config = {'wavefront_kwargs':
                 {'survey': 'other',
                  'source1':
-                   {'file':  'input/decam_2012-nominalzernike.fits',
-                    'ext': 1,
+                   {'file': 'input/decam_2012-iband-700nm.npz',
                     'zlist': iZ_source,
-                    'keys': {"x_fp":"xfp","y_fp":"yfp"},
+                    'keys': {"x_fp":"xfp","y_fp":"yfp"},     # key in Star: key in .npz
                     'chip': 'None',
-                    'type': 'Rbf',
                     'wavelength': 700.0 }
                 }
-              }
+                  }
 
     config_des = {'wavefront_kwargs':
                 {'survey': 'des',
                  'source1':
-                   {'file':  'input/decam_2012-nominalzernike.fits',
-                    'ext': 1,
+                   {'file':  'input/decam_2012-iband-700nm.npz',
                     'zlist': iZ_source,
                     'keys': {"x_fp":"xfp","y_fp":"yfp"},
                     'chip': 'None',
-                    'type': 'Rbf',
                     'wavelength': 700.0 }
                 }
               }
+
     # make sure we can init the wavefront class
     logger = piff.config.setup_logger(verbose=2)
     wfobj = Wavefront(config['wavefront_kwargs'],logger=logger)
