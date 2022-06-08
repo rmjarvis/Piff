@@ -65,7 +65,7 @@ def test_init():
                    {'file': 'input/GPInterp-20140212s2-v22i2.npz',
                     'zlist': [4],
                     'keys': {"x_fp":"xfp","y_fp":"yfp"},     # key in Star: key in .npz
-                    'chip': {"chipnum":range(1,62+1)},       # key in Star: list of chipnum's
+                    'chip': "chipnum",
                     'wavelength': 700.0 },
                  'source2':
                    {'file':  'input/decam_2012-iband-700nm.npz',
@@ -95,7 +95,7 @@ def test_interp1():
                    {'file': 'input/GPInterp-20140212s2-v22i2.npz',
                     'zlist': [iZ_source1],
                     'keys': {"x_fp":"xfp","y_fp":"yfp"},     # key in Star: key in .npz
-                    'chip': {"chipnum":range(1,62+1)},       # key in Star: list of chipnum's
+                    'chip': "chipnum",
                     'wavelength': 700.0 },
                  'source2':
                    {'file':  'input/decam_2012-iband-700nm.npz',
@@ -136,7 +136,7 @@ def test_interp2():
                    {'file': 'input/GPInterp-20140212s2-v22i2.npz',
                     'zlist': [iZ_source1],
                     'keys': {"x_fp":"xfp","y_fp":"yfp"},     # key in Star: key in .npz
-                    'chip': {"chipnum":range(1,62+1)},       # key in Star: list of chipnum's
+                    'chip': "chipnum",
                     'wavelength': 700.0 },
                  'source2':
                    {'file':  'input/decam_2012-iband-700nm.npz',
@@ -173,7 +173,7 @@ def test_interp_values():
                    {'file': 'input/GPInterp-20140212s2-v22i2.npz',
                     'zlist': [iZ_source],
                     'keys': {"x_fp":"xfp","y_fp":"yfp"},     # key in Star: key in .npz
-                    'chip': {"chipnum":range(1,62+1)},       # key in Star: list of chipnum's
+                    'chip': "chipnum",
                     'wavelength': 700.0 }
                 }
                   }
@@ -237,7 +237,7 @@ def test_interp_scalewavelenth():
                    {'file': 'input/GPInterp-20140212s2-v22i2.npz',
                     'zlist': [iZ_source1],
                     'keys': {"x_fp":"xfp","y_fp":"yfp"},     # key in Star: key in .npz
-                    'chip': {"chipnum":range(1,62+1)},       # key in Star: list of chipnum's
+                    'chip': "chipnum",
                     'wavelength': 700.0 },
                  'source2':
                    {'file':  'input/decam_2012-iband-700nm.npz',
