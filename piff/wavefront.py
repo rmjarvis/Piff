@@ -132,13 +132,14 @@ class Wavefront(object):
             if kwargs['chip'] != 'None':
 
                 # column name in .fits file
-                chipkey = list(kwargs['chip'].keys())[0]
+                chipkey = kwargs['chip']
 
                 # store chip key into Star object for this file
                 self.chipkeys.append(chipkey)
 
-                # get list of chips
-                chips = kwargs['chip'][chipkey]
+                # get list of chips from array size...
+                nchips = xarray.shape[0] - 1 
+                chips = range(1,nchips+1)
                 self.chiplists.append(chips)
 
                 for achip in chips:
