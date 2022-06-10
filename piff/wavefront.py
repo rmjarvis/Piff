@@ -70,7 +70,7 @@ class Wavefront(object):
     def __init__(self,wavefront_kwargs,logger=None):
         """ Parse the input options
 
-        param: wavefront_kwargs    A dictionaries holding the options for each
+        param: wavefront_kwargs    A dictionary holding the options for each
                                    source of Zernike Coefficients.  Multiple input files are allowed,
                                    with Dictionaries keyed by 'source1','source2'...
                                    Each 'sourceN' dictionary has keys: 'file','zlist','keys','chip','wavelength'
