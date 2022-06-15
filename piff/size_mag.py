@@ -63,19 +63,19 @@ class SizeMagStats(Stats):
 
         # Pull out the sizes and fluxes
         flag_star = star_shapes[:, 6]
-        mask = flag_star == 0
+        mask = (flag_star == 0) & (star_shapes[:,0] > 0)
         self.f_star = star_shapes[mask, 0]
         self.T_star = star_shapes[mask, 3]
         flag_psf = psf_shapes[:, 6]
-        mask = flag_psf == 0
+        mask = (flag_psf == 0) & (psf_shapes[:,0] > 0)
         self.f_psf = psf_shapes[mask, 0]
         self.T_psf = psf_shapes[mask, 3]
         flag_obj = obj_shapes[:, 6]
-        mask = flag_obj == 0
+        mask = (flag_obj == 0) & (obj_shapes[:,0] > 0)
         self.f_obj = obj_shapes[mask, 0]
         self.T_obj = obj_shapes[mask, 3]
         flag_init = init_shapes[:, 6]
-        mask = flag_init == 0
+        mask = (flag_init == 0) & (init_shapes[:,0] > 0)
         self.f_init = init_shapes[mask, 0]
         self.T_init = init_shapes[mask, 3]
 
@@ -98,11 +98,16 @@ class SizeMagStats(Stats):
         fig = Figure(figsize=(8,6))
         ax = fig.add_subplot(1,1,1)
 
-        xmin = np.floor(np.min(self.m_star))
-        xmin = np.min(self.m_init, initial=xmin)  # Do it this way in case m_init is empty.
-        xmax = np.ceil(np.max(self.m_star))
-        xmax = np.max(self.m_obj, initial=xmax)   # Likewise, m_obj might be empty.
-        ymax = max(np.median(self.T_star)*2, np.max(self.T_star)*1.01)
+        if len(self.m_star) == 0:
+            xmin = np.floor(np.min(self.m_obj, initial=0))
+            xmax = np.ceil(np.max(self.m_obj, initial=100))
+            ymax = np.median(self.T_obj)*2 if len(self.T_obj) > 0 else 1.0
+        else:
+            xmin = np.floor(np.min(self.m_star))
+            xmin = np.min(self.m_init, initial=xmin)  # Do it this way in case m_init is empty.
+            xmax = np.ceil(np.max(self.m_star))
+            xmax = np.max(self.m_obj, initial=xmax)   # Likewise, m_obj might be empty.
+            ymax = max(np.median(self.T_star)*2, np.max(self.T_star)*1.01)
         ax.set_xlim(xmin, xmax)
         ax.set_ylim(0, ymax)
         ax.set_xlabel('Magnitude (ZP=%s)'%self.zeropoint, fontsize=15)
