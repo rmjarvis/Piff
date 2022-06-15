@@ -706,6 +706,7 @@ def test_bad_hsm():
     shape_file = os.path.join('output','bad_hsm_shape.pdf')
     star_file = os.path.join('output','bad_hsm_star.pdf')
     hsm_file = os.path.join('output','bad_hsm_hsm.fits')
+    sizemag_file = os.path.join('output','bad_hsm_sizemag.png')
 
     stamp_size = 25
 
@@ -753,6 +754,10 @@ def test_bad_hsm():
                     'file_name': star_file,
                 },
                 {
+                    'type': 'SizeMag',
+                    'file_name': sizemag_file,
+                },
+                {
                     'type': 'HSMCatalog',
                     'file_name': hsm_file,
                 },
@@ -791,7 +796,7 @@ def test_bad_hsm():
     assert len(psf.stars) == 1
     assert psf.nremoved == 7    # There were 8 to start.
 
-    for f in [twodhist_file, rho_file, shape_file, star_file, hsm_file]:
+    for f in [twodhist_file, rho_file, shape_file, star_file, sizemag_file, hsm_file]:
         assert os.path.exists(f)
 
 @timer
