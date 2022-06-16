@@ -11,3 +11,9 @@ Changes from version 1.2.0 to 1.2.1
 
 - Fixed bug in output stats that what we called T was really sigma.  Now, it's correctly
   T = Ixx + Iyy = 2*sigma^2.
+
+Changes from version 1.2.1 to 1.2.2
+-----------------------------------
+
+- Fixed bug in making SizeMag stats plot when some flux values from hsm end up
+  negative or if there are no stars found. (#1156)
