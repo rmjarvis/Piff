@@ -17,3 +17,9 @@ Changes from version 1.2.1 to 1.2.2
 
 - Fixed bug in making SizeMag stats plot when some flux values from hsm end up
   negative or if there are no stars found. (#1156)
+
+Changes from version 1.2.2 to 1.2.3
+-----------------------------------
+
+- Don't skip stars in HSM output file.  Rather just mark failed HSM measurements with
+  flag_truth=-1 or flag_model=-1 as appropriate.
