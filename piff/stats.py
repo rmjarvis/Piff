@@ -606,6 +606,8 @@ class HSMCatalogStats(Stats):
         :g1_model:  The g1 component of the PSF model.
         :g2_model:  The g2 component of the PSF model.
         :reserve:   Whether the star was a reserve star.
+        :flag_truth: 0 where HSM succeeded on the observed star, -1 where it failed.
+        :flag_model: 0 where HSM succeeded on the PSF model, -1 where it failed.
     """
     def __init__(self, file_name=None, logger=None):
         """
@@ -624,24 +626,21 @@ class HSMCatalogStats(Stats):
         logger.warning("Calculating shape histograms for %d stars",len(stars))
         positions, shapes_truth, shapes_model = self.measureShapes(psf, stars, logger=logger)
 
-        # Only use stars for which hsm was successful
-        flag_truth = shapes_truth[:, 6]
-        flag_model = shapes_model[:, 6]
-        mask = (flag_truth == 0) & (flag_model == 0)
-
         # define terms for the catalogs
-        self.u = positions[mask, 0]
-        self.v = positions[mask, 1]
-        self.flux = shapes_truth[mask, 0]
+        self.u = positions[:, 0]
+        self.v = positions[:, 1]
+        self.flux = shapes_truth[:, 0]
         self.reserve = np.array([s.is_reserve for s in stars], dtype=bool)
-        self.T_data = shapes_truth[mask, 3]
-        self.g1_data = shapes_truth[mask, 4]
-        self.g2_data = shapes_truth[mask, 5]
-        self.T_model = shapes_model[mask, 3]
-        self.g1_model = shapes_model[mask, 4]
-        self.g2_model = shapes_model[mask, 5]
-        self.x = np.array([star.image_pos.x for star in stars])[mask]
-        self.y = np.array([star.image_pos.y for star in stars])[mask]
+        self.T_data = shapes_truth[:, 3]
+        self.g1_data = shapes_truth[:, 4]
+        self.g2_data = shapes_truth[:, 5]
+        self.T_model = shapes_model[:, 3]
+        self.g1_model = shapes_model[:, 4]
+        self.g2_model = shapes_model[:, 5]
+        self.flag_truth = shapes_truth[:, 6]
+        self.flag_model = shapes_model[:, 6]
+        self.x = np.array([star.image_pos.x for star in stars])
+        self.y = np.array([star.image_pos.y for star in stars])
         if isinstance(stars[0].image.wcs, galsim.wcs.CelestialWCS):
             self.ra = np.array([star.image.wcs.toWorld(star.image_pos).ra.deg for star in stars])
             self.dec = np.array([star.image.wcs.toWorld(star.image_pos).dec.deg for star in stars])
@@ -668,13 +667,14 @@ class HSMCatalogStats(Stats):
         logger.warning("Writing HSM catalog to file %s",file_name)
 
         cols = [self.u, self.v, self.x, self.y, self.ra, self.dec,
-                self.flux, self.reserve,
+                self.flux, self.reserve, self.flag_truth, self.flag_model,
                 self.T_data, self.g1_data, self.g2_data,
                 self.T_model, self.g1_model, self.g2_model]
         dtypes = [('u', float), ('v', float),
                   ('x', float), ('y', float),
                   ('ra', float), ('dec', float),
                   ('flux', float), ('reserve', float),
+                  ('flag_truth', int), ('flag_model', int),
                   ('T_data', float), ('g1_data', float), ('g2_data', float),
                   ('T_model', float), ('g1_model', float), ('g2_model', float)]
         data = np.array(list(zip(*cols)), dtype=dtypes)
