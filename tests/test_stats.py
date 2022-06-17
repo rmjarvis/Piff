@@ -644,7 +644,7 @@ def test_hsmcatalog():
     for col in ['ra', 'dec', 'x', 'y', 'u', 'v',
                 'T_data', 'g1_data', 'g2_data',
                 'T_model', 'g1_model', 'g2_model',
-                'flux', 'reserve']:
+                'flux', 'reserve', 'flag_truth', 'flag_model']:
         assert len(data[col]) == 10
     true_data = fitsio.read(cat_file)
 
@@ -658,6 +658,10 @@ def test_hsmcatalog():
     np.testing.assert_allclose(data['T_model'], data['T_data'], rtol=1.e-4)
     np.testing.assert_allclose(data['g1_model'], data['g1_data'], rtol=1.e-4)
     np.testing.assert_allclose(data['g2_model'], data['g2_data'], rtol=1.e-4)
+
+    # On this file, no hsm errors
+    np.testing.assert_array_equal(data['flag_truth'], 0)
+    np.testing.assert_array_equal(data['flag_model'], 0)
 
     image = galsim.fits.read(image_file)
     world = [image.wcs.toWorld(galsim.PositionD(x,y)) for x,y in zip(data['x'],data['y'])]
@@ -798,6 +802,20 @@ def test_bad_hsm():
 
     for f in [twodhist_file, rho_file, shape_file, star_file, sizemag_file, hsm_file]:
         assert os.path.exists(f)
+
+    # Check hsm file with bad measurements
+    # The one star that was left still fails hsm measurement here.
+    data = fitsio.read(hsm_file)
+    for col in ['ra', 'dec', 'x', 'y', 'u', 'v',
+                'T_data', 'g1_data', 'g2_data',
+                'T_model', 'g1_model', 'g2_model',
+                'flux', 'reserve', 'flag_truth', 'flag_model']:
+        assert len(data[col]) == 1
+    print('flag_truth = ',data['flag_truth'])
+    print('flag_model = ',data['flag_model'])
+    np.testing.assert_array_equal(data['flag_truth'], -1)
+    np.testing.assert_array_equal(data['flag_model'], -1)
+
 
 @timer
 def test_base_stats():
