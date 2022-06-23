@@ -57,7 +57,7 @@ class Select(object):
             self.hsm_size_reject = 10.
 
     @classmethod
-    def process(cls, config_select, objects, logger=None):
+    def process(cls, config_select, objects, logger=None, select_only=False):
         """Parse the select field of the config dict.
 
         This stage handles three somewhat separate actions:
@@ -119,6 +119,7 @@ class Select(object):
         :param objects:         A list of Star instances, which are at this point all potential
                                 objects to consider as possible stars.
         :param logger:          A logger object for logging debug info. [default: None]
+        :param select_only:     Whether to stop after the primary selection step. [default: False]
 
         :returns: stars, the subset of objects which are to be considered stars
         """
@@ -137,8 +138,14 @@ class Select(object):
         if len(stars) == 0:
             raise RuntimeError("No stars were selected.")
 
+        if select_only:
+            return stars
+
         # Reject bad stars
         stars = select_handler.rejectStars(stars, logger)
+
+        if len(stars) == 0:
+            raise RuntimeError("All stars were rejected.")
 
         # Mark the reserve stars
         select_handler.reserveStars(stars, logger)

@@ -397,7 +397,7 @@ class SizeMagSelect(Select):
 
         logger.info("Selecting stars according to locus in size-magnitude diagram")
 
-        stars = Select.process(self.initial_select, objects, logger=logger)
+        stars = Select.process(self.initial_select, objects, logger=logger, select_only=True)
 
         logger.debug("N objects = %s", len(objects))
         logger.debug("N initial stars = %s", len(stars))
