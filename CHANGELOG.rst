@@ -23,3 +23,11 @@ Changes from version 1.2.2 to 1.2.3
 
 - Don't skip stars in HSM output file.  Rather just mark failed HSM measurements with
   flag_truth=-1 or flag_model=-1 as appropriate.
+
+Changes from version 1.2.3 to 1.2.4
+-----------------------------------
+
+- Flag objects when HSM returns a negative flux or moves the centroid by more than 1 pixel. (#136)
+- Fixed labeling error in SizeMag plot (model and data were reversed). (#136)
+- Fixed bug in StarStat plot when nplot=0. (#136)
+- Fixed bug in SizeMag selector that the reserve and reject steps were applied twice. (#136)
