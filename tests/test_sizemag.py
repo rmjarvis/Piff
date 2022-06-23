@@ -234,7 +234,7 @@ def test_sizemag():
 
     # This finds more stars than the simple SmallBright selector found.
     print('nstars = ',len(stars))
-    assert len(stars) == 142
+    assert len(stars) == 140
 
     # A few of these have lower CLASS_STAR values, but still most are > 0.95
     class_star = np.array([s['CLASS_STAR'] for s in stars])
@@ -273,13 +273,13 @@ def test_sizemag():
 
     # Somewhat fewer, but still works reasonably ok.
     print('nstars = ',len(stars))
-    assert len(stars) == 119
+    assert len(stars) == 135
 
     class_star = np.array([s['CLASS_STAR'] for s in stars])
     print('class_star = ',class_star)
     print('min class_star = ',np.min(class_star))
     print('N class_star > 0.95 = ',np.sum(class_star > 0.95))
-    assert np.sum(class_star > 0.95) == 117
+    assert np.sum(class_star > 0.95) == 135
 
     sizes = [s.hsm[3] for s in stars]
     print('mean size = ',np.mean(sizes))
