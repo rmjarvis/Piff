@@ -815,8 +815,8 @@ def test_bad_hsm():
         assert len(data[col]) == 1
     print('flag_truth = ',data['flag_truth'])
     print('flag_model = ',data['flag_model'])
-    np.testing.assert_array_equal(data['flag_truth'], -1)
-    np.testing.assert_array_equal(data['flag_model'], -1)
+    np.testing.assert_array_equal(data['flag_truth'], 7)
+    np.testing.assert_array_equal(data['flag_model'], 7)
 
 
 @timer

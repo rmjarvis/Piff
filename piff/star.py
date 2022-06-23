@@ -190,7 +190,15 @@ class Star(object):
 
         localwcs = image.wcs.local(image_pos)
         center = localwcs.toWorld(mom.moments_centroid) - localwcs.toWorld(image_pos)
+
+        # Do a few sanity checks and flag likely bad fits.
         flag = mom.moments_status
+        if flag != 0:
+            flag = 1
+        if flux < 0:
+            flag |= 2
+        if center.x**2 + center.y**2 > 1:
+            flag |= 4
 
         return flux, center.x, center.y, sigma, shape.g1, shape.g2, flag
 
