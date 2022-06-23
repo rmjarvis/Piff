@@ -142,7 +142,8 @@ class StarStats(Stats):
         logger = galsim.config.LoggerWrapper(logger)
 
         # 6 x nplot/2 images, with each image (3.5 x 3)
-        nrows = (self.nplot+1)//2
+        nplot = len(self.indices)
+        nrows = (nplot+1)//2
         fig = Figure(figsize = (21,3*nrows))
         axs = fig.subplots(ncols=6, nrows=nrows, squeeze=False)
 
