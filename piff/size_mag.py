@@ -136,11 +136,11 @@ class SizeMagStats(Stats):
                              color='black', marker='o', s=2., **kwargs)
             init = ax.scatter(m[s][g[s] == 2], T[s][g[s] == 2],
                               color='magenta', marker='o', s=8., **kwargs)
-            psf = ax.scatter(m[s][g[s] == 3], T[s][g[s] == 3],
+            star = ax.scatter(m[s][g[s] == 3], T[s][g[s] == 3],
+                              color='green', marker='*', s=40., **kwargs)
+            psf = ax.scatter(m[s][g[s] == 4], T[s][g[s] == 4],
                              marker='o', s=50.,
                              facecolors='none', edgecolors='cyan', **kwargs)
-            star = ax.scatter(m[s][g[s] == 4], T[s][g[s] == 4],
-                              color='green', marker='*', s=40., **kwargs)
 
         ax.legend([obj, init, star, psf],
               ['Detected Object', 'Candidate Star', 'PSF Star', 'PSF Model'],
