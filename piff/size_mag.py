@@ -63,19 +63,19 @@ class SizeMagStats(Stats):
 
         # Pull out the sizes and fluxes
         flag_star = star_shapes[:, 6]
-        mask = (flag_star == 0) & (star_shapes[:,0] > 0)
+        mask = flag_star == 0
         self.f_star = star_shapes[mask, 0]
         self.T_star = star_shapes[mask, 3]
         flag_psf = psf_shapes[:, 6]
-        mask = (flag_psf == 0) & (psf_shapes[:,0] > 0)
+        mask = flag_psf == 0
         self.f_psf = psf_shapes[mask, 0]
         self.T_psf = psf_shapes[mask, 3]
         flag_obj = obj_shapes[:, 6]
-        mask = (flag_obj == 0) & (obj_shapes[:,0] > 0)
+        mask = flag_obj == 0
         self.f_obj = obj_shapes[mask, 0]
         self.T_obj = obj_shapes[mask, 3]
         flag_init = init_shapes[:, 6]
-        mask = (flag_init == 0) & (init_shapes[:,0] > 0)
+        mask = flag_init == 0
         self.f_init = init_shapes[mask, 0]
         self.T_init = init_shapes[mask, 3]
 

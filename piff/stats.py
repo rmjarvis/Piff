@@ -591,6 +591,18 @@ class HSMCatalogStats(Stats):
     This will compute the size and shapes of the observed stars and the PSF models
     and write these data to a file.
 
+    The HSM adaptive momemnt measurements sometimes fail in various ways.  When it does,
+    we still output the information that we have for a star, but mark the failure with
+    a flag: flag_truth for errors in the data measurement, flag_model for errors in the
+    model measurement.  The meaning of these flags are (treated as a bit mask):
+
+    Flags:
+
+        0 = Success
+        1 = HSM returned a non-zero moments_status.
+        2 = HSM returned a negative flux.
+        4 = HSM's centroid moved by more than 1 pixel from the input position.
+
     The output file will include the following columns:
 
         :ra:        The RA of the star in degrees. (or 0 if the wcs is not a CelestialWCS)
@@ -606,8 +618,8 @@ class HSMCatalogStats(Stats):
         :g1_model:  The g1 component of the PSF model.
         :g2_model:  The g2 component of the PSF model.
         :reserve:   Whether the star was a reserve star.
-        :flag_truth: 0 where HSM succeeded on the observed star, -1 where it failed.
-        :flag_model: 0 where HSM succeeded on the PSF model, -1 where it failed.
+        :flag_truth: 0 where HSM succeeded on the observed star, >0 where it failed (see above).
+        :flag_model: 0 where HSM succeeded on the PSF model, >0 where it failed (see above).
     """
     def __init__(self, file_name=None, logger=None):
         """
