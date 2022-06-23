@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>piff.stats &mdash; Piff 1.2.3 documentation</title><link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <title>piff.stats &mdash; Piff 1.2.4 documentation</title><link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
     <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
   <!--[if lt IE 9]>
     <script src="../../_static/js/html5shiv.min.js"></script>
@@ -667,6 +667,18 @@
 <span class="sd">    This will compute the size and shapes of the observed stars and the PSF models</span>
 <span class="sd">    and write these data to a file.</span>
 
+<span class="sd">    The HSM adaptive momemnt measurements sometimes fail in various ways.  When it does,</span>
+<span class="sd">    we still output the information that we have for a star, but mark the failure with</span>
+<span class="sd">    a flag: flag_truth for errors in the data measurement, flag_model for errors in the</span>
+<span class="sd">    model measurement.  The meaning of these flags are (treated as a bit mask):</span>
+
+<span class="sd">    Flags:</span>
+
+<span class="sd">        0 = Success</span>
+<span class="sd">        1 = HSM returned a non-zero moments_status.</span>
+<span class="sd">        2 = HSM returned a negative flux.</span>
+<span class="sd">        4 = HSM&#39;s centroid moved by more than 1 pixel from the input position.</span>
+
 <span class="sd">    The output file will include the following columns:</span>
 
 <span class="sd">        :ra:        The RA of the star in degrees. (or 0 if the wcs is not a CelestialWCS)</span>
@@ -682,8 +694,8 @@
 <span class="sd">        :g1_model:  The g1 component of the PSF model.</span>
 <span class="sd">        :g2_model:  The g2 component of the PSF model.</span>
 <span class="sd">        :reserve:   Whether the star was a reserve star.</span>
-<span class="sd">        :flag_truth: 0 where HSM succeeded on the observed star, -1 where it failed.</span>
-<span class="sd">        :flag_model: 0 where HSM succeeded on the PSF model, -1 where it failed.</span>
+<span class="sd">        :flag_truth: 0 where HSM succeeded on the observed star, &gt;0 where it failed (see above).</span>
+<span class="sd">        :flag_model: 0 where HSM succeeded on the PSF model, &gt;0 where it failed (see above).</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>

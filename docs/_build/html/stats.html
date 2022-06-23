@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Output statistics &mdash; Piff 1.2.3 documentation</title><link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <title>Output statistics &mdash; Piff 1.2.4 documentation</title><link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
   <!--[if lt IE 9]>
     <script src="_static/js/html5shiv.min.js"></script>
@@ -548,6 +548,17 @@ residual of the two.</p>
 <dd><p>Stats class for writing the shape information to an output file.</p>
 <p>This will compute the size and shapes of the observed stars and the PSF models
 and write these data to a file.</p>
+<p>The HSM adaptive momemnt measurements sometimes fail in various ways.  When it does,
+we still output the information that we have for a star, but mark the failure with
+a flag: flag_truth for errors in the data measurement, flag_model for errors in the
+model measurement.  The meaning of these flags are (treated as a bit mask):</p>
+<p>Flags:</p>
+<blockquote>
+<div><p>0 = Success
+1 = HSM returned a non-zero moments_status.
+2 = HSM returned a negative flux.
+4 = HSM’s centroid moved by more than 1 pixel from the input position.</p>
+</div></blockquote>
 <p>The output file will include the following columns:</p>
 <blockquote>
 <div><dl class="field-list simple">
@@ -591,10 +602,10 @@ and write these data to a file.</p>
 <dd class="field-odd"><p>Whether the star was a reserve star.</p>
 </dd>
 <dt class="field-even">flag_truth</dt>
-<dd class="field-even"><p>0 where HSM succeeded on the observed star, -1 where it failed.</p>
+<dd class="field-even"><p>0 where HSM succeeded on the observed star, &gt;0 where it failed (see above).</p>
 </dd>
 <dt class="field-odd">flag_model</dt>
-<dd class="field-odd"><p>0 where HSM succeeded on the PSF model, -1 where it failed.</p>
+<dd class="field-odd"><p>0 where HSM succeeded on the PSF model, &gt;0 where it failed (see above).</p>
 </dd>
 </dl>
 </div></blockquote>
