@@ -657,6 +657,13 @@ def test_flag_select():
     with np.testing.assert_raises(RuntimeError):
         piff.Select.process(config['select'], stars1)
 
+    # Raises at different place if all stars are rejected.
+    config['select']['use_flag'] = 1
+    config['select']['reject_where'] = 'True'
+    with np.testing.assert_raises(RuntimeError):
+        piff.Select.process(config['select'], stars1)
+    del config['select']['reject_where']
+
     # Base class selectStars function is not implemented.
     select = piff.Select(config['select'])
     with np.testing.assert_raises(NotImplementedError):
