@@ -205,7 +205,7 @@ class SmallBrightSelect(Select):
         """
         logger = galsim.config.LoggerWrapper(logger)
 
-        logger.info("Selecting small/bright objects as stars")
+        logger.warning("Selecting small/bright objects as stars")
 
         logger.debug("Initial count = %s", len(objects))
 
@@ -311,6 +311,7 @@ class SmallBrightSelect(Select):
         stars = [objects[i] for i in select_index]
         logger.debug("sizes of stars = %s",[2*s.hsm[3]**2 for s in stars])
         logger.debug("fluxs of stars = %s",[s.hsm[0] for s in stars])
+        logger.warning("Bright/small selection found %d likely stars",len(stars))
 
         return stars
 
@@ -395,7 +396,7 @@ class SizeMagSelect(Select):
         """
         logger = galsim.config.LoggerWrapper(logger)
 
-        logger.info("Selecting stars according to locus in size-magnitude diagram")
+        logger.warning("Selecting stars according to locus in size-magnitude diagram")
 
         stars = Select.process(self.initial_select, objects, logger=logger, select_only=True)
 
@@ -530,14 +531,16 @@ class SizeMagSelect(Select):
             logT_star = logT_obj[select]
             u_star = u_obj[select]
             v_star = v_obj[select]
-            logger.info("SizeMag iteration %d => N stars = %d", i_iter, len(logf_star))
-            logger.info("Mean logT of stars = %s, std = %s", np.mean(logT_star), np.std(logT_star))
+            logger.warning("SizeMag iteration %d => N stars = %d", i_iter, len(logf_star))
+            logger.warning("Mean logT of stars = %s, std = %s", np.mean(logT_star), np.std(logT_star))
 
         select_index = orig_index[select]
         logger.debug("select_index = %s",select_index)
         stars = [objects[i] for i in select_index]
         logger.debug("sizes of stars = %s",[2*s.hsm[3]**2 for s in stars])
         logger.debug("fluxs of stars = %s",[s.hsm[0] for s in stars])
+        logger.warning("SizeMag selection found %d likely stars",len(stars))
+
         return stars
 
     @staticmethod

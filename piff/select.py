@@ -181,14 +181,17 @@ class Select(object):
         # one of the ccds by accident, for instance.
         chipnums = np.unique(list(s['chipnum'] for s in stars))
         all_stars = [ [s for s in stars if s['chipnum'] == chipnum] for chipnum in chipnums]
+        nreserve_all = 0
         for chip_stars in all_stars:
             # Mark a fraction of the stars as reserve stars
             nreserve = int(self.reserve_frac * len(chip_stars))  # round down
+            nreserve_all += nreserve
             logger.info("Reserve %s of %s (reserve_frac=%s) input stars on chip %s",
                         nreserve, len(stars), self.reserve_frac, chip_stars[0]['chipnum'])
             reserve_list = self.rng.choice(len(chip_stars), nreserve, replace=False)
             for i, star in enumerate(chip_stars):
                 star.data.properties['is_reserve'] = i in reserve_list
+        logger.warning("Reserved %s of %s total stars", nreserve_all, len(stars))
 
     def rejectStars(self, stars, logger=None):
         """Reject some nominal stars that may not be good exemplars of the PSF.
@@ -199,6 +202,7 @@ class Select(object):
         :returns: The subset of the input list that passed the rejection cuts.
         """
         logger = galsim.config.LoggerWrapper(logger)
+        logger.info('start rejectStars: %s',len(stars))
 
         if self.max_edge_frac is not None and len(stars) > 0:
             stamp_size = stars[0].image.array.shape[0]
@@ -216,9 +220,9 @@ class Select(object):
             if self.max_mask_pixels is not None:
                 n_masked = np.prod(star.weight.array.shape) - np.count_nonzero(star.weight.array)
                 if n_masked >= self.max_mask_pixels:
-                    logger.warning("Star at position %f,%f has %i masked pixels, ",
-                                   star.image_pos.x, star.image_pos.y, n_masked)
-                    logger.warning("Skipping this star.")
+                    logger.info("Star at position %f,%f has %i masked pixels, ",
+                                star.image_pos.x, star.image_pos.y, n_masked)
+                    logger.info("Skipping this star.")
                     continue
 
             # Check the snr and limit it if appropriate
@@ -234,6 +238,7 @@ class Select(object):
                              factor, self.max_snr)
                 star.data.weight *= factor
                 snr = self.max_snr
+                logger.debug("SNR => %f",snr)
             star.data.properties['snr'] = snr
 
             # Reject stars with lots of flux near the edge of the stamp.
@@ -243,25 +248,25 @@ class Select(object):
                     flux_extra = np.sum(star.image.array[edge_mask])
                     flux_frac = flux_extra / flux
                 except IndexError:
-                    logger.warning("Star at position %f,%f overlaps the edge of the image and "+
-                                   "max_edge_frac cut is set.",
-                                   star.image_pos.x, star.image_pos.y)
-                    logger.warning("Skipping this star.")
+                    logger.info("Star at position %f,%f overlaps the edge of the image and "+
+                                "max_edge_frac cut is set.",
+                                star.image_pos.x, star.image_pos.y)
+                    logger.info("Skipping this star.")
                     continue
                 if flux_frac > self.max_edge_frac:
-                    logger.warning("Star at position %f,%f fraction of flux near edge of stamp "+
-                                   "exceeds cut: %f > %f",
-                                   star.image_pos.x, star.image_pos.y,
-                                   flux_frac, self.max_edge_frac)
-                    logger.warning("Skipping this star.")
+                    logger.info("Star at position %f,%f fraction of flux near edge of stamp "+
+                                "exceeds cut: %f > %f",
+                                star.image_pos.x, star.image_pos.y,
+                                flux_frac, self.max_edge_frac)
+                    logger.info("Skipping this star.")
                     continue
 
             if self.reject_where is not None:
                 # Use the eval_where function of PropertiesSelect
                 reject = PropertiesSelect.eval_where([star], self.reject_where, logger=logger)
                 if reject:
-                    logger.warning("Skipping star at position %f,%f due to reject_where",
-                                   star.image_pos.x, star.image_pos.y)
+                    logger.info("Skipping star at position %f,%f due to reject_where",
+                                star.image_pos.x, star.image_pos.y)
                     logger.debug("reject_where string: %s",self.reject_where)
                     logger.debug("star properties = %s",star.data.properties)
                     continue
@@ -313,6 +318,8 @@ class Select(object):
                             np.sum(flux>=flux_cut), flux_cut, self.max_pixel_cut)
                 good_stars = [s for f,s in zip(flux,good_stars) if f < flux_cut]
 
+        logger.warning("Rejected a total of %d stars out of %s total candidates",
+                       len(stars) - len(good_stars), len(stars))
         return good_stars
 
 
@@ -428,9 +435,9 @@ class PropertiesSelect(Select):
         try:
             select = eval(where, gdict, ldict)
         except Exception as e:
-            logger.warning("Caught exception trying to evaluate where string")
-            logger.warning("%r",e)
-            logger.warning("Trying slower non-numpy array method")
+            logger.info("Caught exception trying to evaluate where string")
+            logger.info("%r",e)
+            logger.info("Trying slower non-numpy array method")
             select = []
             for obj in objects:
                 ldict = {}
