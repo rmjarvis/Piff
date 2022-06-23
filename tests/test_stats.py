@@ -558,6 +558,7 @@ def test_starstats_config():
     # if use all stars, no randomness
     np.testing.assert_array_equal(starStats.stars[3].image.array, orig_stars[3].image.array)
     np.testing.assert_array_equal(starStats.indices, np.arange(len(orig_stars)))
+    starStats.plot()  # Make sure this runs without error and in finite time.
 
     # check nplot = 0
     starStats = piff.StarStats(nplot=0)
@@ -566,6 +567,7 @@ def test_starstats_config():
     # if use all stars, no randomness
     np.testing.assert_array_equal(starStats.stars[3].image.array, orig_stars[3].image.array)
     np.testing.assert_array_equal(starStats.indices, np.arange(len(orig_stars)))
+    starStats.plot()  # Make sure this runs without error.
 
     # rerun with adjust stars and see if it did the right thing
     # first with starstats == False
