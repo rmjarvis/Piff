@@ -16,9 +16,6 @@
 """
 .. module:: optical_model
 """
-
-from __future__ import print_function
-
 import galsim
 import coord
 import fitsio
@@ -33,7 +30,7 @@ optical_templates = {
              'nstruts': 4,
              'diam': 4.010,  # meters
              'lam': 700, # nm
-             'strut_thick': 3.5 * 0.019 * (1462.526 / 4010.) / 2.0,  #updated to match big DES donuts, ignores one larger spider leg
+             'strut_thick': 0.0166,  # 66.5mm thick / 4010mm pupil - tuned to match DECam big donut images
              'strut_angle': 45 * galsim.degrees,
              'pad_factor': 1 ,
              'oversampling': 1,
@@ -99,10 +96,14 @@ class Optical(Model):
         :param oversampling     Numerical factor by which to oversample the FFT [default: 1]
         :param pupil_plane_im:  The name of a file containing the pupil plane image to use instead
                                 of creating one from obscuration, struts, etc. [default: None]
+
+        The next two parameters are specific to our treatment of the Optical PSF. If given,
+        they are used to create an additional galsim.PhaseScreen describing the mirror's own contribution to the wavefront.
+
         :param mirror_figure_im: The name of a file containing an additional phase contribution, for example
                                  from the figure of the primary mirror. [default: None]
         :param mirror_figure_halfsize:   The radius of the image containting the mirror_figure_im. [default: None]
-        :param sigma            Gaussian CCD diffusion in arcsec [default:0.]
+
 
         Second, there is an atmospheric component, which uses either a galsim.Kolmogorov or
         galsim.VonKarman to model the profile.
@@ -110,6 +111,7 @@ class Optical(Model):
         :param atmo_type        The name of the Atmospheric kernel. [default 'VonKarman']
 
         Finally, there is both an additional Gaussian component to describe CCD diffusion and separately an applied shear.
+        :param sigma            Gaussian CCD diffusion in arcsec [default:0.]
 
         Since there are a lot of parameters here, we provide the option of setting many of them
         from a template value.  e.g. template = 'des' will use the values stored in the dict
@@ -124,7 +126,10 @@ class Optical(Model):
         override the values from the template.  e.g.  to simulate what DES would be like at
         lambda=1000 nm (the default is 700), you could do:
 
-                >>> model = piff.OptatmoModel(template='des', lam=1000)
+                >>> model = piff.Optical(template='des', lam=1000)
+
+        Note that the Zernike coeffients (zernike_coeff), Atmospheric parameters (ie. r0,L0) and Shear (g1,g2) are
+        fitted parameters, passed via the arguments to getProfile.
         """
         self.logger = galsim.config.LoggerWrapper(logger)
 
@@ -288,12 +293,12 @@ class Optical(Model):
     def getAtmosphere(self, r0, L0=None, g1=0.0, g2=0.0):
         """ Get the Atmospheric PSF component.
 
-        : param r0:          Fried parameter
-        : param L0:          Outer scale
-        : param g1:          Shear g1 component
-        : param g2:          Shear g2 component
+        :param r0:          Fried parameter
+        :param L0:          Outer scale
+        :param g1:          Shear g1 component
+        :param g2:          Shear g2 component
 
-        : returns: a galsim.GSObject instance
+        :returns: a galsim.GSObject instance
         """
         if self.atmo_type == 'VonKarman':
             if L0 is None or L0==0.:
@@ -304,6 +309,8 @@ class Optical(Model):
                 self.logger.error("Problem making a VonKarman r0,L0 = %f,%f" % (r0,L0))
         elif self.atmo_type == 'Kolmogorov':
             atm = galsim.Kolmogorov(lam=self.lam, r0=r0, flux=1.0, gsparams=self.gsparams)
+        elif self.atmo_type == 'None' or self.atmo_type == None:
+            atm = None
         else:
             raise ValueError("Invalid atmo_type ",self.atmo_type)
 
@@ -366,25 +373,27 @@ class Optical(Model):
         return params
 
 
-    def getProfile(self,*arguments,**kwargs):
+    def getProfile(self,*params,zernike_coeff=None,r0=None,L0=None,g1=None,g2=None):
         """Get a version of the model as a GalSim GSObject
 
-        :param arguments            An ndarray with params ordered via idx_PARAM data members
-        :param kwargs               A dictionary with named parameters: zernike_coeff, r0, L0, g1, g2
+        :param params          An ndarray with the parameters ordered via idx_PARAM data members
+        :param zernike_coeff   A list of the Zernike coefficients in units of [waves]
+        :param r0              Atmospheric Fried parameter [meters]
+        :param L0              Atmospheric Outer scale [meters]
+        :param g1              Atmospheric g1 Shear
+        :param g2              Atmospheric g2 Shear
 
-        :returns: a galsim.GSObject instance of the combined OptAtmo PSF
+        :returns: a galsim.GSObject instance of the combined optics, atmosphere and diffusion PSF
         """
 
-        # decode input, if params array or list is present use it alone, otherwise use kwargs
-        if len(arguments)==1 :
-            params = arguments[0]
-        elif len(arguments)==0 :
-            params = self.kwargs_toparams(**kwargs)
-        else:
-            logger.error("getProfile cannot decode arguments:",arguments,kwargs)
+        # decode input, if params array or list is present use it alone,
+        # otherwise parameters are in getProfile argument list
+        if len(params)==1 :
+            zernike_coeff,r0,L0,g1,g2 = self.unpack_params(params[0])
+        elif len(params)!=0 :
+            logger.error("getProfile cannot decode arguments:",params)
 
-        zernike_coeff,r0,L0,g1,g2 = self.unpack_params(params)
-
+        # list of PSF components
         prof = []
 
         # gaussian for CCD Diffusion
@@ -396,7 +405,9 @@ class Optical(Model):
                 prof.append(gaussian)
 
         # atmospheric kernel
-        prof.append(self.getAtmosphere(r0, L0, g1, g2))
+        atmopsf = self.getAtmosphere(r0, L0, g1, g2)
+        if atmopsf != None:
+            prof.append(atmopsf)
 
         # optics
         prof.append(self.getOptics(tuple(zernike_coeff)))

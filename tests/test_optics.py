@@ -218,10 +218,10 @@ def test_disk():
 
 @timer
 def test_makestars(nstars=100):
-    model = piff.Optical(template='des',atmo_type='VonKarman')
-    params = random_params(nstars,model)
-    stars = make_stars(nstars,model,params)
 
+    model = piff.Optical(template='des',atmo_type='VonKarman',gsparams='starby2')
+    params = random_params(nstars,model,constant_atmoparams=True)
+    stars = make_stars(nstars,model,params)
 
 #####
 # convenience functions
@@ -261,7 +261,7 @@ def make_empty_star(icen=500, jcen=700, ccdnum=28, params=None, stamp_size=40,
 
     return star
 
-def random_params(nstars,model,seed=12345):
+def random_params(nstars,model,seed=12345,constant_atmoparams=False):
     # make up some random star parameters
     rng = default_rng(seed)
     z4s = rng.uniform(-0.2,0.2,nstars)
@@ -277,6 +277,10 @@ def random_params(nstars,model,seed=12345):
     g1s = rng.uniform(-0.05,0.05,nstars)
     g2s = rng.uniform(-0.05,0.05,nstars)
     L0s = rng.uniform(5.0,15.0,nstars)
+
+    if constant_atmoparams:
+        r0s = 0.15 * np.ones(nstars)
+        L0s = 7.5 * np.ones(nstars)
 
     params = []
     for i in range(nstars):
@@ -296,12 +300,17 @@ def make_stars(nstars,model,params,npixels=19):
 
     # fill stars
     stars = []
+
     for i in range(nstars):
         # make the shell of a Star object
         star = make_empty_star(icen[i],jcen[i],chipnum[i],params[i],stamp_size=npixels)
 
         # draw the star
-        star = model.draw(star)
+        #star = model.draw(star)
+
+        # draw using drawProfile instead of just draw
+        prof = model.getProfile(star.fit.params).shift(star.fit.center) * star.fit.flux
+        star = model.drawProfile(star, prof, params[i], use_fit=True, copy_image=True)
 
         stars.append(star)
 
@@ -318,4 +327,4 @@ if __name__ == '__main__':
     test_shearing()
     test_gaussian()
     test_disk()
-    test_makestars(nstars=100)
+    test_makestars(nstars=250)
