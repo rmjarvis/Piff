@@ -61,7 +61,6 @@ gsparams_templates = {
     'starby2': {  'minimum_fft_size': 64, 'folding_threshold': 0.01 },
     'starby4': {  'minimum_fft_size': 128, 'folding_threshold': 0.005 },
     'donut': { 'minimum_fft_size': 128, 'folding_threshold': 0.005 },
-    'donutby4': { 'minimum_fft_size': 512, 'folding_threshold': 0.00125 },
 }
 
 class Optical(Model):
