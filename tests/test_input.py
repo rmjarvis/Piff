@@ -47,7 +47,7 @@ def setup():
     sky = np.mean(data['sky'])
     gain = np.mean(data['gain'])
     print('sky, gain = ',sky,gain)
-    satur = 2000  # Exactly 1 star has a pixel > 2000, so pretend this is the saturation level.
+    satur = 1890  # Exactly 1 star has a pixel > 1890, so pretend this is the saturation level.
 
     # Write a sky image file
     sky_im = galsim.Image(1024,1024, init_value=sky)
@@ -397,12 +397,12 @@ def test_cols():
                 'cat_file_name' : 'test_input_cat_00.fits',
                 'sky' : 'SKYLEVEL',
                 'gain' : 'GAIN_A',
-                'satur' : 2000,
+                'satur' : 1890,
              }
     input = piff.InputFiles(config, logger=logger)
     _, _, image_pos, props = input.getRawImageData(0)
     satur = props['satur'][0]
-    assert satur == 2000
+    assert satur == 1890
     assert len(image_pos) == 100
 
     config = {
@@ -416,7 +416,7 @@ def test_cols():
     input = piff.InputFiles(config, logger=logger)
     _, _, image_pos, props = input.getRawImageData(0)
     satur = props['satur'][0]
-    assert satur == 2000
+    assert satur == 1890
     assert len(image_pos) == 100
 
     # Using flag will skip flagged columns.  Here every 5th item is flagged.
@@ -1169,7 +1169,7 @@ def test_stars():
     print('len should be ',len(snr_list[snr_list >= 50]))
     print('actual len is ',len(stars))
     assert len(stars) == len(snr_list[snr_list >= 50])
-    assert len(stars) == 93  # hard-coded for this case, just to make sure
+    assert len(stars) == 94  # hard-coded for this case, just to make sure
     snr_list = np.array([ star['snr'] for star in stars ])
     print('snr = ', np.min(snr_list), np.max(snr_list))
     assert np.min(snr_list) >= 50.
@@ -1188,39 +1188,39 @@ def test_stars():
     stars = input.makeStars(logger=logger)
     stars = select.rejectStars(stars, logger=logger)
     print('new len is ',len(stars))
-    assert len(stars) == 91  # skipped 2 additional stars
+    assert len(stars) == 90  # skipped 4 additional stars
 
     # use_partial=False is the default
     del config['input']['use_partial']
     input = piff.InputFiles(config['input'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.rejectStars(stars, logger=logger)
-    assert len(stars) == 91
+    assert len(stars) == 90
 
     # Setting satur will skip any stars with a pixel above that value.
-    # Here there is 1 star with a pixel > 2000.
+    # Here there is 1 star with a pixel > 1890
     config['input']['satur'] = 'SATURAT'
     input = piff.InputFiles(config['input'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.rejectStars(stars, logger=logger)
-    assert len(stars) == 90
-    # 7 stars have pixels > 1900
-    config['input']['satur'] = 1900
+    assert len(stars) == 89
+    # 3 more stars have pixels > 1850
+    config['input']['satur'] = 1850
     input = piff.InputFiles(config['input'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.rejectStars(stars, logger=logger)
-    assert len(stars) == 84
+    assert len(stars) == 86
     del config['input']['satur']
 
     # maxpixel_cut is almost the same thing, but figures out an equivalent flux cut and uses
     # that to avoid imparting a size selection bias.
     # For this set, it pulls in a few more to reject.
-    config['select']['max_pixel_cut'] = 1900
+    config['select']['max_pixel_cut'] = 1850
     input = piff.InputFiles(config['input'], logger=logger)
     select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.rejectStars(stars, logger=logger)
-    assert len(stars) == 78
+    assert len(stars) == 79
 
     # Gratuitous coverage test.  If all objects have snr < 40, then max_pixel_cut doesn't
     # remove anything, since it only considers stars with snr > 40.
@@ -1229,7 +1229,7 @@ def test_stars():
     select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.rejectStars(stars, logger=logger)
-    assert len(stars) == 91
+    assert len(stars) == 90
     del config['select']['max_snr']
     del config['select']['max_pixel_cut']
 
@@ -1251,7 +1251,7 @@ def test_stars():
     select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.rejectStars(stars, logger=logger)
-    assert len(stars) == 84
+    assert len(stars) == 85
     config['select']['hsm_size_reject'] = 10.
     select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
@@ -1269,7 +1269,7 @@ def test_stars():
     stars = input.makeStars(logger=logger)
     stars = select.rejectStars(stars, logger=logger)
     print('new len is ',len(stars))
-    assert len(stars) == 37
+    assert len(stars) == 36
 
     # Also skip objects which are all weight=0
     config['input']['weight_hdu'] = 3
@@ -1285,7 +1285,7 @@ def test_stars():
     stars = input.makeStars(logger=logger)
     stars = select.rejectStars(stars, logger=logger)
     print('new len is ',len(stars))
-    assert len(stars) == 37
+    assert len(stars) == 36
 
     # Check the masked pixel cut
     # This is a bit artificial, b/c 512 / 1024 of the pixels are masked in the test case
@@ -1298,7 +1298,7 @@ def test_stars():
     stars = input.makeStars(logger=logger)
     stars = select.rejectStars(stars, logger=logger)
     print('new len is ',len(stars))
-    assert len(stars) == 98
+    assert len(stars) == 95
 
     config['select']['max_mask_pixels'] = 500
     select = piff.FlagSelect(config['select'], logger=logger)
@@ -1308,7 +1308,7 @@ def test_stars():
     assert len(stars) == 0
 
     # Check the edge fraction cut
-    # with use_partial=True to make sure it catch edge case
+    # with use_partial=True to make sure it catches edge case
     del config['select']['max_mask_pixels']
     config['select']['max_edge_frac'] = 0.25
     config['input']['use_partial'] = True
@@ -1317,7 +1317,7 @@ def test_stars():
     stars = input.makeStars(logger=logger)
     stars = select.rejectStars(stars, logger=logger)
     print('new len is ',len(stars))
-    assert len(stars) == 94
+    assert len(stars) == 91
 
     # Check that negative snr flux yields 0, not an error (from sqrt(neg))
     # Negative flux is actually ok, since it gets squared, but if an image has negative weights
