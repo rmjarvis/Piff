@@ -165,7 +165,7 @@ class Select(object):
     def reserveStars(self, stars, logger=None):
         """Mark some of the stars as reserve stars.
 
-        This operates on the star list in place, adding the property `is_reserve`
+        This operates on the star list in place, adding the property ``is_reserve``
         to each star (only if some stars are being reserved).
 
         :param stars:       A list of Star instances.

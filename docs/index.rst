@@ -9,6 +9,7 @@ Piff Documentation
    overview
    piffify
    input
+   select
    model
    interp
    psf
