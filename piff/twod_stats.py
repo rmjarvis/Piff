@@ -39,18 +39,16 @@ class TwoDHistStats(Stats):
 
     These histograms are two dimensional masked arrays where the value of the
     pixel corresponds to reducing_function([objects in u-v voxel])
-    """
 
+    :param nbins_u:             Number of bins in u direction [default: 20]
+    :param nbins_v:             Number of bins in v direction [default: 20]
+    :param reducing_function:   Type of function to apply to grouped objects. numpy functions
+                                are prefixed by np. [default: 'np.median']
+    :param file_name:           Name of the file to output to. [default: None]
+    :param logger:              A logger object for logging debug info. [default: None]
+    """
     def __init__(self, nbins_u=20, nbins_v=20, reducing_function='np.median',
                  file_name=None, logger=None):
-        """
-        :param nbins_u:             Number of bins in u direction [default: 20]
-        :param nbins_v:             Number of bins in v direction [default: 20]
-        :param reducing_function:   Type of function to apply to grouped objects. numpy functions
-                                    are prefixed by np. [default: 'np.median']
-        :param file_name:           Name of the file to output to. [default: None]
-        :param logger:              A logger object for logging debug info. [default: None]
-        """
         self.nbins_u = nbins_u
         self.nbins_v = nbins_v
         self.reducing_function = eval(reducing_function)
@@ -413,21 +411,20 @@ class WhiskerStats(Stats):
             w2 = r sin(theta)
 
     Because e1, e2 do not have units, w does not either.
+
+    :param file_name:           Name of the file to output to. [default: None]
+    :param nbins_u:             Number of bins in u direction [default: 20]
+    :param nbins_v:             Number of bins in v direction [default: 20]
+    :param reducing_function:   Type of function to apply to grouped objects. numpy functions
+                                are prefixed by np. [default: 'np.median']
+    :param scale:               An overal scale factor by which to scale the size of the
+                                all whiskers. [default: 1]
+    :param resid_scale:         An additional factor for the scale size of the residual
+                                whiskers only. [default: 2]
+    :param logger:              A logger object for logging debug info. [default: None]
     """
     def __init__(self, file_name=None, nbins_u=20, nbins_v=20, reducing_function='np.median',
                  scale=1, resid_scale=2, logger=None):
-        """
-        :param file_name:           Name of the file to output to. [default: None]
-        :param nbins_u:             Number of bins in u direction [default: 20]
-        :param nbins_v:             Number of bins in v direction [default: 20]
-        :param reducing_function:   Type of function to apply to grouped objects. numpy functions
-                                    are prefixed by np. [default: 'np.median']
-        :param scale:               An overal scale factor by which to scale the size of the
-                                    all whiskers. [default: 1]
-        :param resid_scale:         An additional factor for the scale size of the residual
-                                    whiskers only. [default: 2]
-        :param logger:              A logger object for logging debug info. [default: None]
-        """
         self.file_name = file_name
         self.nbins_u = nbins_u
         self.nbins_v = nbins_v

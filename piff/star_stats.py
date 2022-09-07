@@ -35,19 +35,16 @@ class StarStats(Stats):
         :stars:         List of stars used for plotting
         :models:        List of models of stars used for plotting
         :indices:       Indices of input stars that the plotting stars correspond to
+
+    :param nplot:           Number of stars we wish to plot. If 0 or nplot > nstars in PSF,
+                            then we plot all stars. Otherwise, we draw nplot stars at random
+                            (without replacement). [default: 10]
+    :param adjust_stars:    Boolean. If true, when computing, will also fit for best
+                            starfit center and flux to match observed star. [default: False]
+    :param file_name:       Name of the file to output to. [default: None]
+    :param logger:          A logger object for logging debug info. [default: None]
     """
-
     def __init__(self, nplot=10, adjust_stars=False, file_name=None, logger=None):
-        """
-        :param nplot:           Number of stars we wish to plot. If 0 or nplot > nstars in PSF,
-                                then we plot all stars. Otherwise, we draw nplot stars at random
-                                (without replacement). [default: 10]
-        :param adjust_stars:    Boolean. If true, when computing, will also fit for best
-                                starfit center and flux to match observed star. [default: False]
-        :param file_name:       Name of the file to output to. [default: None]
-        :param logger:          A logger object for logging debug info. [default: None]
-        """
-
         self.nplot = nplot
         self.file_name = file_name
         self.adjust_stars = adjust_stars

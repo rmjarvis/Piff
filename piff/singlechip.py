@@ -40,14 +40,13 @@ def single_chip_run(chipnum, single_psf, stars, wcs, pointing, convert_func, log
 
 class SingleChipPSF(PSF):
     """A PSF class that uses a separate PSF solution for each chip
+
+    :param single_psf:  A PSF instance to use for the PSF solution on each chip.
+                        (This will be turned into nchips copies of the provided object.)
+    :param nproc:       How many multiprocessing processes to use for running multiple
+                        chips at once. [default: 1]
     """
     def __init__(self, single_psf, nproc=1):
-        """
-        :param single_psf:  A PSF instance to use for the PSF solution on each chip.
-                            (This will be turned into nchips copies of the provided object.)
-        :param nproc:       How many multiprocessing processes to use for running multiple
-                            chips at once. [default: 1]
-        """
         self.single_psf = single_psf
         self.nproc = nproc
 

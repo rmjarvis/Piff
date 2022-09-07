@@ -71,13 +71,11 @@ class Star(object):
         star.center     The nominal center of the object (not necessarily the centroid)
         star.is_reserve Whether the star is reserved from being used to fit the PSF
         star.hsm        HSM measurements for this star as a tuple: (flux, cenu, cenv, sigma, g1, g2)
+
+    :param data: A StarData instance (invariant)
+    :param fit:  A StarFit instance (invariant)
     """
     def __init__(self, data, fit):
-        """Constructor for Star instance.
-
-        :param data: A StarData instance (invariant)
-        :param fit:  A StarFit instance (invariant)
-        """
         self.data = data
         if fit is None:
             fit = StarFit(None, flux=1.0, center=(0.,0.))
@@ -849,22 +847,20 @@ class StarFit(object):
     :A, b:        matrix, vector, giving design matrix equation for the Taylor expansion of chisq
                   wrt params about their current values. The alpha matrix, AT A, is also the
                   inverse covariance matrix of the params.
+
+    :param params: A 1d numpy array holding estimated PSF parameters
+    :param params_var: A 1d numpy array holding estimates PSF variance error parameters
+    :param flux:   Estimated flux for this star
+    :param center: Estimated or fixed center position (u,v) of this star relative to
+                    the StarData.image_pos reference point.
+    :param A:      Design matrix for the quadratic dependence of chi-squared on params about
+                    current values.  Quatratic terms is dpT AT A dp.
+    :param b:      Vector portion of design equation. Linear term of chi-squared dependence
+                    on params about current values is -2 AT b.
+    :param chisq:  chi-squared value at current parameters.
     """
     def __init__(self, params, flux=1., center=(0.,0.), params_var=None, A=None, b=None,
                  chisq=None, dof=None):
-        """Constructor for base version of StarFit
-
-        :param params: A 1d numpy array holding estimated PSF parameters
-        :param params_var: A 1d numpy array holding estimates PSF variance error parameters
-        :param flux:   Estimated flux for this star
-        :param center: Estimated or fixed center position (u,v) of this star relative to
-                       the StarData.image_pos reference point.
-        :param A:      Design matrix for the quadratic dependence of chi-squared on params about
-                       current values.  Quatratic terms is dpT AT A dp.
-        :param b:      Vector portion of design equation. Linear term of chi-squared dependence
-                       on params about current values is -2 AT b.
-        :param chisq:  chi-squared value at current parameters.
-        """
         # center might be a galsim.PositionD.  That's fine, but we'll convert to a tuple here.
         try:
             center = (center.x, center.y)

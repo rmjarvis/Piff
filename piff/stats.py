@@ -204,14 +204,13 @@ class ShapeHistStats(Stats):
         :dT:        The size residual, T - T_model
         :dg1:       The g1 residual, g1 - g1_model
         :dg2:       The g2 residual, g2 - g2_model
+
+    :param file_name:   Name of the file to output to. [default: None]
+    :param nbins:       Number of bins to use. [default: sqrt(n_stars)]
+    :param cut_frac:    Fraction to cut off from histograms at the high and low ends.
+                        [default: 0.01]
     """
     def __init__(self, file_name=None, nbins=None, cut_frac=0.01, logger=None):
-        """
-        :param file_name:   Name of the file to output to. [default: None]
-        :param nbins:       Number of bins to use. [default: sqrt(n_stars)]
-        :param cut_frac:    Fraction to cut off from histograms at the high and low ends.
-                            [default: 0.01]
-        """
         self.file_name = file_name
         self.nbins = nbins
         self.cut_frac = cut_frac
@@ -350,7 +349,7 @@ class ShapeHistStats(Stats):
         return fig, ax
 
 class RhoStats(Stats):
-    """Stats class for calculating rho statistics.
+    r"""Stats class for calculating rho statistics.
 
     This will plot the 5 rho statistics described in Jarvis et al, 2015, section 3.4.
 
@@ -380,17 +379,16 @@ class RhoStats(Stats):
     The value of the canonical rho statistic is in the ``xip`` attribute of each of the above
     TreeCorr GGCorrelation instances.  But there are other quantities that may be of interest
     in some cases, so we provide access to the full object.
+
+    :param min_sep:     Minimum separation (in arcmin) for pairs. [default: 0.5]
+    :param max_sep:     Maximum separation (in arcmin) for pairs. [default: 300]
+    :param bin_size:    Size of bins in log(sep). [default 0.1]
+    :param file_name:   Name of the file to output to. [default: None]
+    :param logger:      A logger object for logging debug info. [default: None]
+    :param \**kwargs:    Any additional kwargs are passed on to TreeCorr.
     """
     def __init__(self, min_sep=0.5, max_sep=300, bin_size=0.1, file_name=None,
                  logger=None, **kwargs):
-        r"""
-        :param min_sep:     Minimum separation (in arcmin) for pairs. [default: 0.5]
-        :param max_sep:     Maximum separation (in arcmin) for pairs. [default: 300]
-        :param bin_size:    Size of bins in log(sep). [default 0.1]
-        :param file_name:   Name of the file to output to. [default: None]
-        :param logger:      A logger object for logging debug info. [default: None]
-        :param \**kwargs:    Any additional kwargs are passed on to TreeCorr.
-        """
         self.tckwargs = kwargs
         self.tckwargs['min_sep'] = min_sep
         self.tckwargs['max_sep'] = max_sep
@@ -620,11 +618,10 @@ class HSMCatalogStats(Stats):
         :reserve:   Whether the star was a reserve star.
         :flag_truth: 0 where HSM succeeded on the observed star, >0 where it failed (see above).
         :flag_model: 0 where HSM succeeded on the PSF model, >0 where it failed (see above).
+
+    :param file_name:   Name of the file to output to. [default: None]
     """
     def __init__(self, file_name=None, logger=None):
-        """
-        :param file_name:   Name of the file to output to. [default: None]
-        """
         self.file_name = file_name
 
     def compute(self, psf, stars, logger=None):

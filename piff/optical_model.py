@@ -39,66 +39,65 @@ optical_templates = {
 }
 
 class Optical(Model):
+    """Initialize the Optical Model
 
+    There are potentially three components to this model that are convolved together.
+
+    First, there is an optical component, which uses a galsim.OpticalPSF to model the
+    profile.  The aberrations are considered fitted parameters, but the other attributes
+    are fixed and are given at initialization.  These parameters are passed to GalSim, so
+    they have the same definitions as used there.
+
+    :param diam:            Diameter of telescope aperture in meters. [required (but cf.
+                            template option)]
+    :param lam:             Wavelength of observations in nanometers. [required (but cf.
+                            template option)]
+    :param obscuration:     Linear dimension of central obscuration as fraction of pupil
+                            linear dimension, [0., 1.). [default: 0]
+    :param nstruts:         Number of radial support struts to add to the central obscuration.
+                            [default: 0]
+    :param strut_thick:     Thickness of support struts as a fraction of pupil diameter.
+                            [default: 0.05]
+    :param strut_angle:     Angle made between the vertical and the strut starting closest to
+                            it, defined to be positive in the counter-clockwise direction.
+                            [default: 0. * galsim.degrees]
+    :param pupil_plane_im:  The name of a file containing the pupil plane image to use instead
+                            of creating one from obscuration, struts, etc. [default: None]
+
+    Second, there may be an atmospheric component, which uses either a galsim.Kolmogorov or
+    galsim.VonKarman to model the profile.
+
+    :param fwhm:            The full-width half-max of the atmospheric part of the PSF.
+                            [default: None]
+    :param r0:              The Fried parameter in units of meters to use for the Kolmogorov
+                            profile. [default: None]
+    :param L0:              The outer scale in units of meters if desired, in which case
+                            the atmospheric part will be a VonKarman. [default: None]
+
+    Finally, there is allowed to be a final Gaussian component and an applied shear.
+
+    :param sigma:           Convolve with gaussian of size sigma. [default: 0]
+    :param g1, g2:          Shear to apply to final image. Simulates vibrational modes.
+                            [default: 0]
+
+    Since there are a lot of parameters here, we provide the option of setting many of them
+    from a template value.  e.g. template = 'des' will use the values stored in the dict
+    piff.optical_model.optical_templates['des'].
+
+    :param template:        A key word in the dict piff.optical_model.optical_template to use
+                            for setting values of these parameters.  [default: None]
+
+    If you use a template as well as other specific parameters, the specific parameters will
+    override the values from the template.  e.g.  to simulate what DES would be like at
+    lambda=1000 nm (the default is 700), you could do:
+
+            >>> model = piff.OpticalModel(template='des', lam=1000)
+    """
     _method = 'no_pixel'
     _centered = True
     _model_can_be_offset = False
 
     def __init__(self, template=None, logger=None, **kwargs):
-        """Initialize the Optical Model
-
-        There are potentially three components to this model that are convolved together.
-
-        First, there is an optical component, which uses a galsim.OpticalPSF to model the
-        profile.  The aberrations are considered fitted parameters, but the other attributes
-        are fixed and are given at initialization.  These parameters are passed to GalSim, so
-        they have the same definitions as used there.
-
-        :param diam:            Diameter of telescope aperture in meters. [required (but cf.
-                                template option)]
-        :param lam:             Wavelength of observations in nanometers. [required (but cf.
-                                template option)]
-        :param obscuration:     Linear dimension of central obscuration as fraction of pupil
-                                linear dimension, [0., 1.). [default: 0]
-        :param nstruts:         Number of radial support struts to add to the central obscuration.
-                                [default: 0]
-        :param strut_thick:     Thickness of support struts as a fraction of pupil diameter.
-                                [default: 0.05]
-        :param strut_angle:     Angle made between the vertical and the strut starting closest to
-                                it, defined to be positive in the counter-clockwise direction.
-                                [default: 0. * galsim.degrees]
-        :param pupil_plane_im:  The name of a file containing the pupil plane image to use instead
-                                of creating one from obscuration, struts, etc. [default: None]
-
-        Second, there may be an atmospheric component, which uses either a galsim.Kolmogorov or
-        galsim.VonKarman to model the profile.
-
-        :param fwhm:            The full-width half-max of the atmospheric part of the PSF.
-                                [default: None]
-        :param r0:              The Fried parameter in units of meters to use for the Kolmogorov
-                                profile. [default: None]
-        :param L0:              The outer scale in units of meters if desired, in which case
-                                the atmospheric part will be a VonKarman. [default: None]
-
-        Finall, there is allowed to be a final Gaussian component and an applied shear.
-
-        :param sigma:           Convolve with gaussian of size sigma. [default: 0]
-        :param g1, g2:          Shear to apply to final image. Simulates vibrational modes.
-                                [default: 0]
-
-        Since there are a lot of parameters here, we provide the option of setting many of them
-        from a template value.  e.g. template = 'des' will use the values stored in the dict
-        piff.optical_model.optical_templates['des'].
-
-        :param template:        A key word in the dict piff.optical_model.optical_template to use
-                                for setting values of these parameters.  [default: None]
-
-        If you use a template as well as other specific parameters, the specific parameters will
-        override the values from the template.  e.g.  to simulate what DES would be like at
-        lambda=1000 nm (the default is 700), you could do:
-
-                >>> model = piff.OpticalModel(template='des', lam=1000)
-        """
         logger = galsim.config.LoggerWrapper(logger)
         # If pupil_angle and strut angle are provided as strings, eval them.
         for key in ['pupil_angle', 'strut_angle']:
