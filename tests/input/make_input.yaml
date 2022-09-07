@@ -32,7 +32,7 @@ image:
         max: 300
         index_key: file_num
 
-    random_seed: 12345
+    random_seed: 1234
 
 output:
     nfiles: 3
