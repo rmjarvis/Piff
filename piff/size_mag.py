@@ -24,14 +24,12 @@ from .select import Select
 class SizeMagStats(Stats):
     """Statistics class that plots a size magnitude diagram to check the quality of
     the star selection.
-    """
 
+    :param file_name:       Name of the file to output to. [default: None]
+    :param zeropoint:       Zeropoint to use = the magnitude of flux=1. [default: 30]
+    :param logger:          A logger object for logging debug info. [default: None]
+    """
     def __init__(self, file_name=None, zeropoint=30, logger=None):
-        """
-        :param file_name:       Name of the file to output to. [default: None]
-        :param zeropoint:       Zeropoint to use = the magnitude of flux=1. [default: 30]
-        :param logger:          A logger object for logging debug info. [default: None]
-        """
         self.file_name = file_name
         self.zeropoint = zeropoint
 
@@ -155,32 +153,30 @@ class SmallBrightSelect(Select):
 
     This is a very crude selection.  It is typically used to provide an initial selection to
     the SizeMag selector.
+
+    The following parameters are tunable in the config field, but they all have reasonable
+    default values:
+
+        :bright_fraction:   The fraction of the detected objects to consider "bright" and
+                            thus available for consideration for star selection.
+                            [default: 0.2]
+        :small_fraction:    The fraction of the bright objects to consider "small".
+                            [default: 0.2]
+        :locus_fraction:    The fraction of the initial small, bright objects to look for
+                            having all nearly the same size.  These constitude the first
+                            extremely crude selection of high-confidence stars. [default: 0.5]
+        :max_spread:        The maximum spread in log(T) to allow for the final set of stars.
+                            From the initial high-confidence stars, we expand the range in
+                            size to try to capture the full stellar locus based on the
+                            inter-quartile range of the candidate stars.  This parameter sets
+                            a maximum range to allow for this locus to make sure it doesn't
+                            erroneously expand to include everything. [default: 0.1]
+
+    :param config:      The configuration dict used to define the above parameters.
+                        (Normally the 'select' field in the overall configuration dict).
+    :param logger:      A logger object for logging debug info. [default: None]
     """
     def __init__(self, config, logger=None):
-        """
-        Parse the config dict (Normally the 'select' field in the overall configuration dict).
-
-        The following parameters are tunable in the config field, but they all have reasonable
-        default values:
-
-            :bright_fraction:   The fraction of the detected objects to consider "bright" and
-                                thus available for consideration for star selection.
-                                [default: 0.2]
-            :small_fraction:    The fraction of the bright objects to consider "small".
-                                [default: 0.2]
-            :locus_fraction:    The fraction of the initial small, bright objects to look for
-                                having all nearly the same size.  These constitude the first
-                                extremely crude selection of high-confidence stars. [default: 0.5]
-            :max_spread:        The maximum spread in log(T) to allow for the final set of stars.
-                                From the initial high-confidence stars, we expand the range in
-                                size to try to capture the full stellar locus based on the
-                                inter-quartile range of the candidate stars.  This parameter sets
-                                a maximum range to allow for this locus to make sure it doesn't
-                                erroneously expand to include everything. [default: 0.1]
-
-        :param config:      The configuration dict used to define the above parameters.
-        :param logger:      A logger object for logging debug info. [default: None]
-        """
         super(SmallBrightSelect, self).__init__(config, logger)
 
         opt = {
@@ -320,52 +316,50 @@ class SizeMagSelect(Select):
 
     By default, the initial selection uses the SmallBright selector, but you can provide
     any other selection algorithm for the initial stars.
+
+    The following parameters are tunable in the config field, but they all have reasonable
+    default values:
+
+        :fit_order:     The order of the polynomial fit of log(size) vs (u,v) across the
+                        field of view.  This is used to subtract off the gross size variation
+                        across the focal plane, which tends to tighten up the stellar locus.
+                        [default: 2]
+        :purity:        The maximum ratio of objects at the minimum between the stellar locus
+                        and the galaxy locus to the number of stars found. [default: 0.01]
+        :num_iter:      How many iterations to repeat the processing of building a histogram
+                        looking for when it merges with the galaxy locus. [default: 3]
+
+    In addition to these, you may specify the algorithm for making the initial selection
+    in an ``inital_select`` dict, which should specify the selection algorithm to use.
+    The default is to use the SmallBright selection algorithm with default parameters.
+    But you could specify non-default parameters for that as follows (e.g.)::
+
+        select:
+            type: SizeMag
+
+            initial_select:
+                type: SmallBright
+                bright_fraction: 0.3
+                small_fraction: 0.4
+                locus_fraction: 0.3
+
+            fit_order: 3
+
+    Or, you may want to start with stars according to some other selection algorith.
+    E.g. to use some column(s) from the input catalog::
+
+        select:
+            type: SizeMag
+
+            initial_select:
+                type: Properties
+                where: (CLASS_STAR > 0.9) & (MAX_AUTO < 16)
+
+    :param config:      The configuration dict used to define the above parameters.
+                        (Normally the 'select' field in the overall configuration dict)
+    :param logger:      A logger object for logging debug info. [default: None]
     """
     def __init__(self, config, logger=None):
-        """
-        Parse the config dict (Normally the 'select' field in the overall configuration dict).
-
-        The following parameters are tunable in the config field, but they all have reasonable
-        default values:
-
-            :fit_order:     The order of the polynomial fit of log(size) vs (u,v) across the
-                            field of view.  This is used to subtract off the gross size variation
-                            across the focal plane, which tends to tighten up the stellar locus.
-                            [default: 2]
-            :purity:        The maximum ratio of objects at the minimum between the stellar locus
-                            and the galaxy locus to the number of stars found. [default: 0.01]
-            :num_iter:      How many iterations to repeat the processing of building a histogram
-                            looking for when it merges with the galaxy locus. [default: 3]
-
-        In addition to these, you may specify the algorithm for making the initial selection
-        in an ``inital_select`` dict, which should specify the selection algorithm to use.
-        The default is to use the SmallBright selection algorithm with default parameters.
-        But you could specify non-default parameters for that as follows (e.g.)::
-
-            select:
-                type: SizeMag
-
-                initial_select:
-                    type: SmallBright
-                    bright_fraction: 0.3
-                    small_fraction: 0.4
-                    locus_fraction: 0.3
-
-                fit_order: 3
-
-        Or, you may want to start with stars according to some other selection algorith.
-        E.g. to use some column(s) from the input catalog::
-
-            select:
-                type: SizeMag
-
-                initial_select:
-                    type: Properties
-                    where: (CLASS_STAR > 0.9) & (MAX_AUTO < 16)
-
-        :param config:      The configuration dict used to define the above parameters.
-        :param logger:      A logger object for logging debug info. [default: None]
-        """
         super(SizeMagSelect, self).__init__(config, logger)
 
         opt = {

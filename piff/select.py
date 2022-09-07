@@ -311,27 +311,25 @@ class Select(object):
 
 class FlagSelect(Select):
     """An Select handler that picks stars according to a flag column in the input catalog.
+
+    The Flag type uses the following parameters, all optional.
+
+        :flag_name:     The name of the flag property (typically the column name in the
+                        input file) to use for selecting stars. [default: None]
+        :use_flag:      The flag indicating which items to use. [default: None]
+                        Items with flag & use_flag != 0 will be used.
+        :skip_flag:     The flag indicating which items not to use. [default: -1]
+                        Items with flag & skip_flag != 0 will be skipped.
+
+    The default behavior if flag_name is not given is to consier all input objects as stars.
+    If flag_name is given, but the others are not, then it selects all objects with flag=0.
+    Otherwise, it will select according to the prescriptions given above.
+
+    :param config:      The configuration dict used to define the above parameters.
+                        (Normally the 'select' field in the overall configuration dict).
+    :param logger:      A logger object for logging debug info. [default: None]
     """
     def __init__(self, config, logger=None):
-        """
-        Parse the config dict (Normally the 'select' field in the overall configuration dict).
-
-        The Flag type uses the following parameters, all optional.
-
-            :flag_name:     The name of the flag property (typically the column name in the
-                            input file) to use for selecting stars. [default: None]
-            :use_flag:      The flag indicating which items to use. [default: None]
-                            Items with flag & use_flag != 0 will be used.
-            :skip_flag:     The flag indicating which items not to use. [default: -1]
-                            Items with flag & skip_flag != 0 will be skipped.
-
-        The default behavior if flag_name is not given is to consier all input objects as stars.
-        If flag_name is given, but the others are not, then it selects all objects with flag=0.
-        Otherwise, it will select according to the prescriptions given above.
-
-        :param config:      The configuration dict used to define the above parameters.
-        :param logger:      A logger object for logging debug info. [default: None]
-        """
         super(FlagSelect, self).__init__(config, logger)
 
         opt = {
@@ -379,21 +377,20 @@ class FlagSelect(Select):
 class PropertiesSelect(Select):
     """A Select handler that picks stars according to any property or combination of properties
     in the input catalog.
+
+    Parse the config dict (Normally the 'where' field in the overall configuration dict).
+
+    The Properties type uses the following parameter, which is required.
+
+        :where:     A string to be evaluated, which is allowed to use any properties of
+                    the stars as variables.  It should evaluate to a bool for a single object
+                    or an array of bool if the variables are arrays of property values for all
+                    the objects.
+
+    :param config:      The configuration dict used to define the above parameters.
+    :param logger:      A logger object for logging debug info. [default: None]
     """
     def __init__(self, config, logger=None):
-        """
-        Parse the config dict (Normally the 'where' field in the overall configuration dict).
-
-        The Properties type uses the following parameter, which is required.
-
-            :where:     A string to be evaluated, which is allowed to use any properties of
-                        the stars as variables.  It should evaluate to a bool for a single object
-                        or an array of bool if the variables are arrays of property values for all
-                        the objects.
-
-        :param config:      The configuration dict used to define the above parameters.
-        :param logger:      A logger object for logging debug info. [default: None]
-        """
         super(PropertiesSelect, self).__init__(config, logger)
 
         req = { 'where': str }

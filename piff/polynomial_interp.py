@@ -41,24 +41,22 @@ class Polynomial(Interp):
     """
     An interpolator that uses  scipy curve_fit command to fit a polynomial
     surface to each parameter passed in independently.
+
+    :param order:       The maximum order in the polynomial. i.e. the maximum
+                        value of i+j where p(u,v) = sum c_{ij} x^i y^j.
+                        [required, unless orders is given]
+    :param orders:      Optionally, a list of orders, one for each parameter
+                        to be interpolated.  This list should be the same length
+                        as the number of parameters that will be given to
+                        interpolate.
+    :param poly_type:   A string, one of the keys in the polynomial_types
+                        dictionary. By default these are "poly" (ordinary
+                        polynomials), "chebyshev", "legendre", "laguerre",
+                        "hermite". To add more you can add a key to
+                        polynomial_types with the value of a function with
+                        the signature of numpy.polynomial.polynomial.polyval2d
     """
     def __init__(self, order=None, orders=None, poly_type="poly", logger=None):
-        """Create a Polynomial interpolator.
-
-        :param order:       The maximum order in the polynomial. i.e. the maximum
-                            value of i+j where p(u,v) = sum c_{ij} x^i y^j.
-                            [required, unless orders is given]
-        :param orders:      Optionally, a list of orders, one for each parameter
-                            to be interpolated.  This list should be the same length
-                            as the number of parameters that will be given to
-                            interpolate.
-        :param poly_type:   A string, one of the keys in the polynomial_types
-                            dictionary. By default these are "poly" (ordinary
-                            polynomials), "chebyshev", "legendre", "laguerre",
-                            "hermite". To add more you can add a key to
-                            polynomial_types with the value of a function with
-                            the signature of numpy.polynomial.polynomial.polyval2d
-        """
         if order is None and orders is None:
             raise TypeError("Either order or orders is required")
         if order is not None and orders is not None:

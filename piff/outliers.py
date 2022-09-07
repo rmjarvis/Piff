@@ -161,16 +161,15 @@ class MADOutliers(Outliers):  # pragma: no cover  (This isn't functional yet.)
         1. The user can specify nmad directly.
         2. The user can specify nsigma, in which case nmad = sqrt(pi/2) nsigma, the equivalent
            value for a Gaussian distribution.
+
+    Either nmad or nsigma must be provided.
+
+    :param nmad:        The number of mean absolute deviations from the median at which
+                        something is declared an outlier.
+    :param nsigma:      The number of sigma equivalent if the underlying distribution is
+                        Gaussian.
     """
     def __init__(self, nmad=None, nsigma=None):
-        """
-        Either nmad or nsigma must be provided.
-
-        :param nmad:        The number of mean absolute deviations from the median at which
-                            something is declared an outlier.
-        :param nsigma:      The number of sigma equivalent if the underlying distribution is
-                            Gaussian.
-        """
         if nmad is None and nsigma is None:
             raise TypeError("Either nmad or nsigma is required")
         if nsigma is not None:
@@ -207,31 +206,30 @@ class ChisqOutliers(Outliers):
         4. The user can specify nsigma, in which case thresh is calculated according to the
            chisq distribution to give the equivalent rejection probability that corresponds
            to that many sigma.
+
+    Exactly one of thresh, ndof, nsigma, prob must be provided.
+
+    There is an option to include reserve stars in the outlier rejection, which is enabled
+    by setting ``include_reserve=True``.  This is probably not a good idea normally.
+    Reserve stars are often preferentially targeted by the outlier removal, which somewhat
+    lessens their case as fair test points for diagnostics.  However, it is still an option
+    in case you want to use it.
+
+    :param thresh:          The threshold in chisq above which an object is declared an outlier.
+    :param ndof:            The threshold as a multiple of the model's dof.
+    :param prob:            The probability limit that a chisq distribution with the model's dof
+                            would exceed the given value.
+    :param nsigma:          The number of sigma equivalent for the probability that a chisq
+                            distribution would exceed the given value.
+    :param max_remove:      The maximum number of outliers to remove on each iteration.  If this
+                            is a float < 1.0, then this is interpreted as a maximum fraction of
+                            stars to remove.  e.g. 0.01 will remove at most 1% of the stars.
+                            [default: None]
+    :param include_reserve: Whether to include reserve stars as potential stars to be
+                            removed as outliers. [default: False]
     """
     def __init__(self, thresh=None, ndof=None, prob=None, nsigma=None, max_remove=None,
                  include_reserve=False):
-        """
-        Exactly one of thresh, ndof, nsigma, prob must be provided.
-
-        There is an option to include reserve stars in the outlier rejection, which is enabled
-        by setting ``include_reserve=True``.  This is probably not a good idea normally.
-        Reserve stars are often preferentially targeted by the outlier removal, which somewhat
-        lessens their case as fair test points for diagnostics.  However, it is still an option
-        in case you want to use it.
-
-        :param thresh:          The threshold in chisq above which an object is declared an outlier.
-        :param ndof:            The threshold as a multiple of the model's dof.
-        :param prob:            The probability limit that a chisq distribution with the model's dof
-                                would exceed the given value.
-        :param nsigma:          The number of sigma equivalent for the probability that a chisq
-                                distribution would exceed the given value.
-        :param max_remove:      The maximum number of outliers to remove on each iteration.  If this
-                                is a float < 1.0, then this is interpreted as a maximum fraction of
-                                stars to remove.  e.g. 0.01 will remove at most 1% of the stars.
-                                [default: None]
-        :param include_reserve: Whether to include reserve stars as potential stars to be
-                                removed as outliers. [default: False]
-        """
         if all( (thresh is None, ndof is None, prob is None, nsigma is None) ):
             raise TypeError("One of thresh, ndof, prob, or nsigma is required.")
         if thresh is not None and any( (ndof is not None, prob is not None, nsigma is not None) ):

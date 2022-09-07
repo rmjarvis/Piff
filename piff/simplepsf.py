@@ -31,17 +31,16 @@ class SimplePSF(PSF):
     A SimplePSF is built from a Model and an Interp object.
     The model defines the functional form of the surface brightness profile, and the
     interpolator defines how the parameters of the model vary across the field of view.
+
+    :param model:       A Model instance used for modeling the surface brightness profile.
+    :param interp:      An Interp instance used to interpolate across the field of view.
+    :param outliers:    Optionally, an Outliers instance used to remove outliers.
+                        [default: None]
+    :param chisq_thresh: Change in reduced chisq at which iteration will terminate.
+                        [default: 0.1]
+    :param max_iter:    Maximum number of iterations to try. [default: 30]
     """
     def __init__(self, model, interp, outliers=None, chisq_thresh=0.1, max_iter=30):
-        """
-        :param model:       A Model instance used for modeling the surface brightness profile.
-        :param interp:      An Interp instance used to interpolate across the field of view.
-        :param outliers:    Optionally, an Outliers instance used to remove outliers.
-                            [default: None]
-        :param chisq_thresh: Change in reduced chisq at which iteration will terminate.
-                            [default: 0.1]
-        :param max_iter:    Maximum number of iterations to try. [default: 30]
-        """
         self.model = model
         self.interp = interp
         self.outliers = outliers

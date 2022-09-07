@@ -98,14 +98,13 @@ class OutputFile(Output):
 
     It includes specification of both the output file name as well as potentially some
     statistics to output as well.
+
+    :param file_name:   The file name to write the data to.
+    :param dir:         Optionally specify a directory for this file. [default: None]
+    :param stats_list:  Optionally a list of Stats instances to also output. [default: None]
+    :param logger:      A logger object for logging debug info. [default: None]
     """
     def __init__(self, file_name, dir=None, stats_list=None, logger=None):
-        """
-        :param file_name:   The file name to write the data to.
-        :param dir:         Optionally specify a directory for this file. [default: None]
-        :param stats_list:  Optionally a list of Stats instances to also output. [default: None]
-        :param logger:      A logger object for logging debug info. [default: None]
-        """
         self.file_name = file_name
         if stats_list is not None:
             self.stats_list = stats_list

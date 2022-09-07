@@ -130,122 +130,120 @@ class Input(object):
 
 class InputFiles(Input):
     """An Input handler that just takes a list of image files and catalog files.
+
+    Parse the input config dict (Normally the 'input' field in the overall configuration dict).
+
+    The two required fields in the input dict are:
+
+        :image_file_name:   The file name(s) of the input image(s).
+        :cat_file_name:     The file name(s) of the input catalog(s).
+
+    There are a number of ways to specify these file names.
+
+    1. A string giving a single file name.  e.g.::
+
+            image_file_name: image.fits
+            cat_file_name: input_cat.fits
+
+    2. A list of several file names.  e.g.::
+
+            image_file_name: [image_00.fits, image_01.fits, image_02.fits]
+            cat_file_name: [input_cat_00.fits, input_cat_01.fits, input_cat_02.fits]
+
+    3. A string that glob can recognize to list several file names.  e.g.::
+
+            image_file_name: image_*.fits
+            cat_file_name: input_cat_*.fits
+
+    4. A dict parseable as a string value according to the GalSim configuration parsing types.
+       In this case, you also must specify nimages to say how many file names to generate
+       in this way.  e.g.::
+
+            nimages: 20
+            image_file_name:
+                type: FormattedStr
+                format: image_%03d_%02d.fits.fz
+                items:
+                    - { type : Sequence, first: 0, repeat: 4 }  # Exposure number
+                    - { type : Sequence, first: 1, last: 4 }    # Chip number
+            cat_file_name:
+                type: Eval
+                str: "image_file_name.replace('image','input_cat')"
+                simage_file_name: '@input.image_file_name'
+
+        See the description of the GalSim config parser for more details about the various
+        types that are valid here.
+
+            `https://github.com/GalSim-developers/GalSim/wiki/Config-Values`_
+
+    There are many other optional parameters, which help govern how the input files are
+    read or interpreted:
+
+        :chipnum:       The id number of this chip used to reference this image [default:
+                        image_num]
+
+        :image_hdu:     The hdu to use in the image files. [default: None, which means use
+                        either 0 or 1 as typical given the compression sceme of the file]
+        :weight_hdu:    The hdu to use for weight images. [default: None, which means a weight
+                        image with all 1's will be automatically created]
+        :badpix_hdu:    The hdu to use for badpix images. Pixels with badpix != 0 will be given
+                        weight == 0. [default: None]
+        :noise:         Rather than a weight image, provide the noise variance in the image.
+                        (Useful for simulations where this is a known value.) [default: None]
+
+        :cat_hdu:       The hdu to use in the catalog files. [default: 1]
+        :x_col:         The name of the X column in the input catalogs. [default: 'x']
+        :y_col:         The name of the Y column in the input catalogs. [default: 'y']
+        :ra_col:        (Alternative to x_col, y_col) The name of a right ascension column in
+                        the input catalogs.  Will use the WCS to find (x,y) [default: None]
+        :dec_col:       (Alternative to x_col, y_col) The name of a declination column in
+                        the input catalogs.  Will use the WCS to find (x,y) [default: None]
+        :flag_col:      The name of a flag column in the input catalogs. [default: None]
+                        By default, this will skip any objects with flag != 0, but see
+                        skip_flag and use_flag for other possible meanings for how the
+                        flag column can be used to select stars.
+        :skip_flag:     The flag indicating which items to not use. [default: -1]
+                        Items with flag & skip_flag != 0 will be skipped.
+        :use_flag:      The flag indicating which items to use. [default: None]
+                        Items with flag & use_flag == 0 will be skipped.
+        :property_cols: A list of column names of star properties (e.g. star colors).
+                        [default: None]
+        :sky_col:       The name of a column with sky values. [default: None]
+        :gain_col:      The name of a column with gain values. [default: None]
+        :sky:           The sky level to subtract from the image values. [default: None]
+                        Note: It is an error to specify both sky and sky_col. If both are None,
+                        no sky level will be subtracted off.
+        :gain:          The gain to use for adding Poisson noise to the weight map.  [default:
+                        None] It is an error for both gain and gain_col to be specified.
+                        If both are None, then no additional noise will be added to account
+                        for the Poisson noise from the galaxy flux.
+        :satur:         The staturation level.  If any pixels for a star exceed this, then
+                        the star is skipped. [default: None]
+        :use_partial:   Whether to use stars whose postage stamps are only partially on the
+                        full image.  [default: False]
+        :nstars:        Stop reading the input file at this many stars.  (This is applied
+                        separately to each input catalog.)  [default: None]
+        :nproc:         How many multiprocessing processes to use for reading in data from
+                        multiple files at once. [default: 1]
+
+        :wcs:           Normally, the wcs is automatically read in when reading the image.
+                        However, this parameter allows you to optionally provide a different
+                        WCS.  It should be defined using the same style as a wcs object
+                        in GalSim config files. [defulat: None]
+
+    The above values are parsed separately for each input image/catalog.  In addition, there
+    are a couple other parameters that are just parsed once:
+
+        :stamp_size:    The size of the postage stamps to use for the cutouts.  Note: some
+                        stamps may be smaller than this if the star is near a chip boundary.
+                        [default: 32]
+        :ra, dec:       The RA, Dec of the telescope pointing. [default: None; See
+                        `setPointing` for details about how this can be specified]
+
+    :param config:      The configuration dict used to define the above parameters.
+    :param logger:      A logger object for logging debug info. [default: None]
     """
     def __init__(self, config, logger=None):
-        """
-        Parse the input config dict (Normally the 'input' field in the overall configuration dict).
-
-        The two required fields in the input dict are:
-
-            :image_file_name:   The file name(s) of the input image(s).
-            :cat_file_name:     The file name(s) of the input catalog(s).
-
-        There are a number of ways to specify these file names.
-
-        1. A string giving a single file name.  e.g.::
-
-                image_file_name: image.fits
-                cat_file_name: input_cat.fits
-
-        2. A list of several file names.  e.g.::
-
-                image_file_name: [image_00.fits, image_01.fits, image_02.fits]
-                cat_file_name: [input_cat_00.fits, input_cat_01.fits, input_cat_02.fits]
-
-        3. A string that glob can recognize to list several file names.  e.g.::
-
-                image_file_name: image_*.fits
-                cat_file_name: input_cat_*.fits
-
-        4. A dict parseable as a string value according to the GalSim configuration parsing types.
-           In this case, you also must specify nimages to say how many file names to generate
-           in this way.  e.g.::
-
-                nimages: 20
-                image_file_name:
-                    type: FormattedStr
-                    format: image_%03d_%02d.fits.fz
-                    items:
-                        - { type : Sequence, first: 0, repeat: 4 }  # Exposure number
-                        - { type : Sequence, first: 1, last: 4 }    # Chip number
-                cat_file_name:
-                    type: Eval
-                    str: "image_file_name.replace('image','input_cat')"
-                    simage_file_name: '@input.image_file_name'
-
-           See the description of the GalSim config parser for more details about the various
-           types that are valid here.
-
-                `https://github.com/GalSim-developers/GalSim/wiki/Config-Values`_
-
-        There are many other optional parameters, which help govern how the input files are
-        read or interpreted:
-
-            :chipnum:       The id number of this chip used to reference this image [default:
-                            image_num]
-
-            :image_hdu:     The hdu to use in the image files. [default: None, which means use
-                            either 0 or 1 as typical given the compression sceme of the file]
-            :weight_hdu:    The hdu to use for weight images. [default: None, which means a weight
-                            image with all 1's will be automatically created]
-            :badpix_hdu:    The hdu to use for badpix images. Pixels with badpix != 0 will be given
-                            weight == 0. [default: None]
-            :noise:         Rather than a weight image, provide the noise variance in the image.
-                            (Useful for simulations where this is a known value.) [default: None]
-
-            :cat_hdu:       The hdu to use in the catalog files. [default: 1]
-            :x_col:         The name of the X column in the input catalogs. [default: 'x']
-            :y_col:         The name of the Y column in the input catalogs. [default: 'y']
-            :ra_col:        (Alternative to x_col, y_col) The name of a right ascension column in
-                            the input catalogs.  Will use the WCS to find (x,y) [default: None]
-            :dec_col:       (Alternative to x_col, y_col) The name of a declination column in
-                            the input catalogs.  Will use the WCS to find (x,y) [default: None]
-            :flag_col:      The name of a flag column in the input catalogs. [default: None]
-                            By default, this will skip any objects with flag != 0, but see
-                            skip_flag and use_flag for other possible meanings for how the
-                            flag column can be used to select stars.
-            :skip_flag:     The flag indicating which items to not use. [default: -1]
-                            Items with flag & skip_flag != 0 will be skipped.
-            :use_flag:      The flag indicating which items to use. [default: None]
-                            Items with flag & use_flag == 0 will be skipped.
-            :property_cols: A list of column names of star properties (e.g. star colors).
-                            [default: None]
-            :sky_col:       The name of a column with sky values. [default: None]
-            :gain_col:      The name of a column with gain values. [default: None]
-            :sky:           The sky level to subtract from the image values. [default: None]
-                            Note: It is an error to specify both sky and sky_col. If both are None,
-                            no sky level will be subtracted off.
-            :gain:          The gain to use for adding Poisson noise to the weight map.  [default:
-                            None] It is an error for both gain and gain_col to be specified.
-                            If both are None, then no additional noise will be added to account
-                            for the Poisson noise from the galaxy flux.
-            :satur:         The staturation level.  If any pixels for a star exceed this, then
-                            the star is skipped. [default: None]
-            :use_partial:   Whether to use stars whose postage stamps are only partially on the
-                            full image.  [default: False]
-            :nstars:        Stop reading the input file at this many stars.  (This is applied
-                            separately to each input catalog.)  [default: None]
-            :nproc:         How many multiprocessing processes to use for reading in data from
-                            multiple files at once. [default: 1]
-
-            :wcs:           Normally, the wcs is automatically read in when reading the image.
-                            However, this parameter allows you to optionally provide a different
-                            WCS.  It should be defined using the same style as a wcs object
-                            in GalSim config files. [defulat: None]
-
-        The above values are parsed separately for each input image/catalog.  In addition, there
-        are a couple other parameters that are just parsed once:
-
-            :stamp_size:    The size of the postage stamps to use for the cutouts.  Note: some
-                            stamps may be smaller than this if the star is near a chip boundary.
-                            [default: 32]
-            :ra, dec:       The RA, Dec of the telescope pointing. [default: None; See
-                            `setPointing` for details about how this can be specified]
-
-
-        :param config:      The configuration dict used to define the above parameters.
-        :param logger:      A logger object for logging debug info. [default: None]
-        """
         import copy
         logger = galsim.config.LoggerWrapper(logger)
 

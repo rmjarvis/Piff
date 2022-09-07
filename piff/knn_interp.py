@@ -26,19 +26,22 @@ class kNNInterp(Interp):
     """
     An interpolator that uses sklearn KNeighborsRegressor to interpolate a
     single surface
+
+    :param keys:        A list of star attributes to interpolate from [default: ('u', 'v')]
+    :param n_neighbors: Number of neighbors used for interpolation. [default: 15]
+    :param weights:     Weight function used in prediction. Possible values are 'uniform',
+                        'distance', and a callable function which accepts an array of distances
+                        and returns an array of the same shape containing the weights.
+                        [default: 'uniform']
+    :param algorithm:   Algorithm used to compute nearest neighbors. Possible values are
+                        'ball_tree', 'kd_tree', 'brute', and 'auto', which tries to determine the
+                        best choice. [default: 'auto']
+    :param p:           Power parameter of distance metrice. p=2 is default euclidean distance,
+                        p=1 is manhattan. [default: 2]
+    :param logger:      A logger object for logging debug info. [default: None]
     """
     def __init__(self, keys=('u','v'), n_neighbors=15, weights='uniform', algorithm='auto',
                  p=2,logger=None):
-        """Create the kNN interpolator
-
-        :param keys:        A list of star attributes to interpolate from [default: ('u', 'v')]
-        :param n_neighbors: Number of neighbors used for interpolation. [default: 15]
-        :param weights:     Weight function used in prediction. Possible values are 'uniform', 'distance', and a callable function which accepts an array of distances and returns an array of the same shape containing the weights. [default: 'uniform']
-        :param algorithm:   Algorithm used to compute nearest neighbors. Possible values are 'ball_tree', 'kd_tree', 'brute', and 'auto', which tries to determine the best choice. [default: 'auto']
-        :param p:           Power parameter of distance metrice. p=2 is default euclidean distance, p=1 is manhattan. [default: 2]
-        :param logger:      A logger object for logging debug info. [default: None]
-        """
-
         self.kwargs = {
             'keys': keys,
             }
