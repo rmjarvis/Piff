@@ -39,6 +39,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../overview.html">PIFF: PSFs In the Full FOV</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../piffify.html">The piffify executable</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../input.html">Reading in Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../select.html">Selecting Good PSF Stars</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../model.html">Models</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../interp.html">Interpolation Schemes</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../psf.html">PSF classes</a></li>
@@ -115,66 +116,65 @@
 <span class="p">}</span>
 
 <div class="viewcode-block" id="Optical"><a class="viewcode-back" href="../../model.html#piff.Optical">[docs]</a><span class="k">class</span> <span class="nc">Optical</span><span class="p">(</span><span class="n">Model</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Initialize the Optical Model</span>
 
+<span class="sd">    There are potentially three components to this model that are convolved together.</span>
+
+<span class="sd">    First, there is an optical component, which uses a galsim.OpticalPSF to model the</span>
+<span class="sd">    profile.  The aberrations are considered fitted parameters, but the other attributes</span>
+<span class="sd">    are fixed and are given at initialization.  These parameters are passed to GalSim, so</span>
+<span class="sd">    they have the same definitions as used there.</span>
+
+<span class="sd">    :param diam:            Diameter of telescope aperture in meters. [required (but cf.</span>
+<span class="sd">                            template option)]</span>
+<span class="sd">    :param lam:             Wavelength of observations in nanometers. [required (but cf.</span>
+<span class="sd">                            template option)]</span>
+<span class="sd">    :param obscuration:     Linear dimension of central obscuration as fraction of pupil</span>
+<span class="sd">                            linear dimension, [0., 1.). [default: 0]</span>
+<span class="sd">    :param nstruts:         Number of radial support struts to add to the central obscuration.</span>
+<span class="sd">                            [default: 0]</span>
+<span class="sd">    :param strut_thick:     Thickness of support struts as a fraction of pupil diameter.</span>
+<span class="sd">                            [default: 0.05]</span>
+<span class="sd">    :param strut_angle:     Angle made between the vertical and the strut starting closest to</span>
+<span class="sd">                            it, defined to be positive in the counter-clockwise direction.</span>
+<span class="sd">                            [default: 0. * galsim.degrees]</span>
+<span class="sd">    :param pupil_plane_im:  The name of a file containing the pupil plane image to use instead</span>
+<span class="sd">                            of creating one from obscuration, struts, etc. [default: None]</span>
+
+<span class="sd">    Second, there may be an atmospheric component, which uses either a galsim.Kolmogorov or</span>
+<span class="sd">    galsim.VonKarman to model the profile.</span>
+
+<span class="sd">    :param fwhm:            The full-width half-max of the atmospheric part of the PSF.</span>
+<span class="sd">                            [default: None]</span>
+<span class="sd">    :param r0:              The Fried parameter in units of meters to use for the Kolmogorov</span>
+<span class="sd">                            profile. [default: None]</span>
+<span class="sd">    :param L0:              The outer scale in units of meters if desired, in which case</span>
+<span class="sd">                            the atmospheric part will be a VonKarman. [default: None]</span>
+
+<span class="sd">    Finally, there is allowed to be a final Gaussian component and an applied shear.</span>
+
+<span class="sd">    :param sigma:           Convolve with gaussian of size sigma. [default: 0]</span>
+<span class="sd">    :param g1, g2:          Shear to apply to final image. Simulates vibrational modes.</span>
+<span class="sd">                            [default: 0]</span>
+
+<span class="sd">    Since there are a lot of parameters here, we provide the option of setting many of them</span>
+<span class="sd">    from a template value.  e.g. template = &#39;des&#39; will use the values stored in the dict</span>
+<span class="sd">    piff.optical_model.optical_templates[&#39;des&#39;].</span>
+
+<span class="sd">    :param template:        A key word in the dict piff.optical_model.optical_template to use</span>
+<span class="sd">                            for setting values of these parameters.  [default: None]</span>
+
+<span class="sd">    If you use a template as well as other specific parameters, the specific parameters will</span>
+<span class="sd">    override the values from the template.  e.g.  to simulate what DES would be like at</span>
+<span class="sd">    lambda=1000 nm (the default is 700), you could do:</span>
+
+<span class="sd">            &gt;&gt;&gt; model = piff.OpticalModel(template=&#39;des&#39;, lam=1000)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">_method</span> <span class="o">=</span> <span class="s1">&#39;no_pixel&#39;</span>
     <span class="n">_centered</span> <span class="o">=</span> <span class="kc">True</span>
     <span class="n">_model_can_be_offset</span> <span class="o">=</span> <span class="kc">False</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">template</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Initialize the Optical Model</span>
-
-<span class="sd">        There are potentially three components to this model that are convolved together.</span>
-
-<span class="sd">        First, there is an optical component, which uses a galsim.OpticalPSF to model the</span>
-<span class="sd">        profile.  The aberrations are considered fitted parameters, but the other attributes</span>
-<span class="sd">        are fixed and are given at initialization.  These parameters are passed to GalSim, so</span>
-<span class="sd">        they have the same definitions as used there.</span>
-
-<span class="sd">        :param diam:            Diameter of telescope aperture in meters. [required (but cf.</span>
-<span class="sd">                                template option)]</span>
-<span class="sd">        :param lam:             Wavelength of observations in nanometers. [required (but cf.</span>
-<span class="sd">                                template option)]</span>
-<span class="sd">        :param obscuration:     Linear dimension of central obscuration as fraction of pupil</span>
-<span class="sd">                                linear dimension, [0., 1.). [default: 0]</span>
-<span class="sd">        :param nstruts:         Number of radial support struts to add to the central obscuration.</span>
-<span class="sd">                                [default: 0]</span>
-<span class="sd">        :param strut_thick:     Thickness of support struts as a fraction of pupil diameter.</span>
-<span class="sd">                                [default: 0.05]</span>
-<span class="sd">        :param strut_angle:     Angle made between the vertical and the strut starting closest to</span>
-<span class="sd">                                it, defined to be positive in the counter-clockwise direction.</span>
-<span class="sd">                                [default: 0. * galsim.degrees]</span>
-<span class="sd">        :param pupil_plane_im:  The name of a file containing the pupil plane image to use instead</span>
-<span class="sd">                                of creating one from obscuration, struts, etc. [default: None]</span>
-
-<span class="sd">        Second, there may be an atmospheric component, which uses either a galsim.Kolmogorov or</span>
-<span class="sd">        galsim.VonKarman to model the profile.</span>
-
-<span class="sd">        :param fwhm:            The full-width half-max of the atmospheric part of the PSF.</span>
-<span class="sd">                                [default: None]</span>
-<span class="sd">        :param r0:              The Fried parameter in units of meters to use for the Kolmogorov</span>
-<span class="sd">                                profile. [default: None]</span>
-<span class="sd">        :param L0:              The outer scale in units of meters if desired, in which case</span>
-<span class="sd">                                the atmospheric part will be a VonKarman. [default: None]</span>
-
-<span class="sd">        Finall, there is allowed to be a final Gaussian component and an applied shear.</span>
-
-<span class="sd">        :param sigma:           Convolve with gaussian of size sigma. [default: 0]</span>
-<span class="sd">        :param g1, g2:          Shear to apply to final image. Simulates vibrational modes.</span>
-<span class="sd">                                [default: 0]</span>
-
-<span class="sd">        Since there are a lot of parameters here, we provide the option of setting many of them</span>
-<span class="sd">        from a template value.  e.g. template = &#39;des&#39; will use the values stored in the dict</span>
-<span class="sd">        piff.optical_model.optical_templates[&#39;des&#39;].</span>
-
-<span class="sd">        :param template:        A key word in the dict piff.optical_model.optical_template to use</span>
-<span class="sd">                                for setting values of these parameters.  [default: None]</span>
-
-<span class="sd">        If you use a template as well as other specific parameters, the specific parameters will</span>
-<span class="sd">        override the values from the template.  e.g.  to simulate what DES would be like at</span>
-<span class="sd">        lambda=1000 nm (the default is 700), you could do:</span>
-
-<span class="sd">                &gt;&gt;&gt; model = piff.OpticalModel(template=&#39;des&#39;, lam=1000)</span>
-<span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">logger</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">LoggerWrapper</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
         <span class="c1"># If pupil_angle and strut angle are provided as strings, eval them.</span>
         <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;pupil_angle&#39;</span><span class="p">,</span> <span class="s1">&#39;strut_angle&#39;</span><span class="p">]:</span>

@@ -39,6 +39,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../overview.html">PIFF: PSFs In the Full FOV</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../piffify.html">The piffify executable</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../input.html">Reading in Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../select.html">Selecting Good PSF Stars</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../model.html">Models</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../interp.html">Interpolation Schemes</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../psf.html">PSF classes</a></li>
@@ -111,19 +112,16 @@
 <span class="sd">        :stars:         List of stars used for plotting</span>
 <span class="sd">        :models:        List of models of stars used for plotting</span>
 <span class="sd">        :indices:       Indices of input stars that the plotting stars correspond to</span>
+
+<span class="sd">    :param nplot:           Number of stars we wish to plot. If 0 or nplot &gt; nstars in PSF,</span>
+<span class="sd">                            then we plot all stars. Otherwise, we draw nplot stars at random</span>
+<span class="sd">                            (without replacement). [default: 10]</span>
+<span class="sd">    :param adjust_stars:    Boolean. If true, when computing, will also fit for best</span>
+<span class="sd">                            starfit center and flux to match observed star. [default: False]</span>
+<span class="sd">    :param file_name:       Name of the file to output to. [default: None]</span>
+<span class="sd">    :param logger:          A logger object for logging debug info. [default: None]</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nplot</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">adjust_stars</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">file_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        :param nplot:           Number of stars we wish to plot. If 0 or nplot &gt; nstars in PSF,</span>
-<span class="sd">                                then we plot all stars. Otherwise, we draw nplot stars at random</span>
-<span class="sd">                                (without replacement). [default: 10]</span>
-<span class="sd">        :param adjust_stars:    Boolean. If true, when computing, will also fit for best</span>
-<span class="sd">                                starfit center and flux to match observed star. [default: False]</span>
-<span class="sd">        :param file_name:       Name of the file to output to. [default: None]</span>
-<span class="sd">        :param logger:          A logger object for logging debug info. [default: None]</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-
         <span class="bp">self</span><span class="o">.</span><span class="n">nplot</span> <span class="o">=</span> <span class="n">nplot</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">file_name</span> <span class="o">=</span> <span class="n">file_name</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">adjust_stars</span> <span class="o">=</span> <span class="n">adjust_stars</span>

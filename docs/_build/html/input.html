@@ -15,7 +15,7 @@
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Models" href="model.html" />
+    <link rel="next" title="Selecting Good PSF Stars" href="select.html" />
     <link rel="prev" title="The piffify executable" href="piffify.html" /> 
 </head>
 
@@ -41,6 +41,7 @@
 <li class="toctree-l1"><a class="reference internal" href="overview.html">PIFF: PSFs In the Full FOV</a></li>
 <li class="toctree-l1"><a class="reference internal" href="piffify.html">The piffify executable</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Reading in Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="select.html">Selecting Good PSF Stars</a></li>
 <li class="toctree-l1"><a class="reference internal" href="model.html">Models</a></li>
 <li class="toctree-l1"><a class="reference internal" href="interp.html">Interpolation Schemes</a></li>
 <li class="toctree-l1"><a class="reference internal" href="psf.html">PSF classes</a></li>
@@ -170,6 +171,184 @@ pointing is either a galsim.CelestialCoord or None.</p>
 <dt id="piff.InputFiles">
 <em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">piff.</span></code><code class="sig-name descname"><span class="pre">InputFiles</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/input.html#InputFiles"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.InputFiles" title="Permalink to this definition">¶</a></dt>
 <dd><p>An Input handler that just takes a list of image files and catalog files.</p>
+<p>Parse the input config dict (Normally the ‘input’ field in the overall configuration dict).</p>
+<p>The two required fields in the input dict are:</p>
+<blockquote>
+<div><dl class="field-list simple">
+<dt class="field-odd">image_file_name</dt>
+<dd class="field-odd"><p>The file name(s) of the input image(s).</p>
+</dd>
+<dt class="field-even">cat_file_name</dt>
+<dd class="field-even"><p>The file name(s) of the input catalog(s).</p>
+</dd>
+</dl>
+</div></blockquote>
+<p>There are a number of ways to specify these file names.</p>
+<ol class="arabic">
+<li><p>A string giving a single file name.  e.g.:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">image_file_name</span><span class="p">:</span> <span class="n">image</span><span class="o">.</span><span class="n">fits</span>
+<span class="n">cat_file_name</span><span class="p">:</span> <span class="n">input_cat</span><span class="o">.</span><span class="n">fits</span>
+</pre></div>
+</div>
+</li>
+<li><p>A list of several file names.  e.g.:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">image_file_name</span><span class="p">:</span> <span class="p">[</span><span class="n">image_00</span><span class="o">.</span><span class="n">fits</span><span class="p">,</span> <span class="n">image_01</span><span class="o">.</span><span class="n">fits</span><span class="p">,</span> <span class="n">image_02</span><span class="o">.</span><span class="n">fits</span><span class="p">]</span>
+<span class="n">cat_file_name</span><span class="p">:</span> <span class="p">[</span><span class="n">input_cat_00</span><span class="o">.</span><span class="n">fits</span><span class="p">,</span> <span class="n">input_cat_01</span><span class="o">.</span><span class="n">fits</span><span class="p">,</span> <span class="n">input_cat_02</span><span class="o">.</span><span class="n">fits</span><span class="p">]</span>
+</pre></div>
+</div>
+</li>
+<li><p>A string that glob can recognize to list several file names.  e.g.:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">image_file_name</span><span class="p">:</span> <span class="n">image_</span><span class="o">*.</span><span class="n">fits</span>
+<span class="n">cat_file_name</span><span class="p">:</span> <span class="n">input_cat_</span><span class="o">*.</span><span class="n">fits</span>
+</pre></div>
+</div>
+</li>
+<li><p>A dict parseable as a string value according to the GalSim configuration parsing types.
+In this case, you also must specify nimages to say how many file names to generate
+in this way.  e.g.:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>    nimages: 20
+    image_file_name:
+        type: FormattedStr
+        format: image_%03d_%02d.fits.fz
+        items:
+            - { type : Sequence, first: 0, repeat: 4 }  # Exposure number
+            - { type : Sequence, first: 1, last: 4 }    # Chip number
+    cat_file_name:
+        type: Eval
+        str: &quot;image_file_name.replace(&#39;image&#39;,&#39;input_cat&#39;)&quot;
+        simage_file_name: &#39;@input.image_file_name&#39;
+
+See the description of the GalSim config parser for more details about the various
+types that are valid here.
+
+    `https://github.com/GalSim-developers/GalSim/wiki/Config-Values`_
+</pre></div>
+</div>
+</li>
+</ol>
+<p>There are many other optional parameters, which help govern how the input files are
+read or interpreted:</p>
+<blockquote>
+<div><dl class="field-list simple">
+<dt class="field-odd">chipnum</dt>
+<dd class="field-odd"><p>The id number of this chip used to reference this image [default:
+image_num]</p>
+</dd>
+<dt class="field-even">image_hdu</dt>
+<dd class="field-even"><p>The hdu to use in the image files. [default: None, which means use
+either 0 or 1 as typical given the compression sceme of the file]</p>
+</dd>
+<dt class="field-odd">weight_hdu</dt>
+<dd class="field-odd"><p>The hdu to use for weight images. [default: None, which means a weight
+image with all 1’s will be automatically created]</p>
+</dd>
+<dt class="field-even">badpix_hdu</dt>
+<dd class="field-even"><p>The hdu to use for badpix images. Pixels with badpix != 0 will be given
+weight == 0. [default: None]</p>
+</dd>
+<dt class="field-odd">noise</dt>
+<dd class="field-odd"><p>Rather than a weight image, provide the noise variance in the image.
+(Useful for simulations where this is a known value.) [default: None]</p>
+</dd>
+<dt class="field-even">cat_hdu</dt>
+<dd class="field-even"><p>The hdu to use in the catalog files. [default: 1]</p>
+</dd>
+<dt class="field-odd">x_col</dt>
+<dd class="field-odd"><p>The name of the X column in the input catalogs. [default: ‘x’]</p>
+</dd>
+<dt class="field-even">y_col</dt>
+<dd class="field-even"><p>The name of the Y column in the input catalogs. [default: ‘y’]</p>
+</dd>
+<dt class="field-odd">ra_col</dt>
+<dd class="field-odd"><p>(Alternative to x_col, y_col) The name of a right ascension column in
+the input catalogs.  Will use the WCS to find (x,y) [default: None]</p>
+</dd>
+<dt class="field-even">dec_col</dt>
+<dd class="field-even"><p>(Alternative to x_col, y_col) The name of a declination column in
+the input catalogs.  Will use the WCS to find (x,y) [default: None]</p>
+</dd>
+<dt class="field-odd">flag_col</dt>
+<dd class="field-odd"><p>The name of a flag column in the input catalogs. [default: None]
+By default, this will skip any objects with flag != 0, but see
+skip_flag and use_flag for other possible meanings for how the
+flag column can be used to select stars.</p>
+</dd>
+<dt class="field-even">skip_flag</dt>
+<dd class="field-even"><p>The flag indicating which items to not use. [default: -1]
+Items with flag &amp; skip_flag != 0 will be skipped.</p>
+</dd>
+<dt class="field-odd">use_flag</dt>
+<dd class="field-odd"><p>The flag indicating which items to use. [default: None]
+Items with flag &amp; use_flag == 0 will be skipped.</p>
+</dd>
+<dt class="field-even">property_cols</dt>
+<dd class="field-even"><p>A list of column names of star properties (e.g. star colors).
+[default: None]</p>
+</dd>
+<dt class="field-odd">sky_col</dt>
+<dd class="field-odd"><p>The name of a column with sky values. [default: None]</p>
+</dd>
+<dt class="field-even">gain_col</dt>
+<dd class="field-even"><p>The name of a column with gain values. [default: None]</p>
+</dd>
+<dt class="field-odd">sky</dt>
+<dd class="field-odd"><p>The sky level to subtract from the image values. [default: None]
+Note: It is an error to specify both sky and sky_col. If both are None,
+no sky level will be subtracted off.</p>
+</dd>
+<dt class="field-even">gain</dt>
+<dd class="field-even"><p>The gain to use for adding Poisson noise to the weight map.  [default:
+None] It is an error for both gain and gain_col to be specified.
+If both are None, then no additional noise will be added to account
+for the Poisson noise from the galaxy flux.</p>
+</dd>
+<dt class="field-odd">satur</dt>
+<dd class="field-odd"><p>The staturation level.  If any pixels for a star exceed this, then
+the star is skipped. [default: None]</p>
+</dd>
+<dt class="field-even">use_partial</dt>
+<dd class="field-even"><p>Whether to use stars whose postage stamps are only partially on the
+full image.  [default: False]</p>
+</dd>
+<dt class="field-odd">nstars</dt>
+<dd class="field-odd"><p>Stop reading the input file at this many stars.  (This is applied
+separately to each input catalog.)  [default: None]</p>
+</dd>
+<dt class="field-even">nproc</dt>
+<dd class="field-even"><p>How many multiprocessing processes to use for reading in data from
+multiple files at once. [default: 1]</p>
+</dd>
+<dt class="field-odd">wcs</dt>
+<dd class="field-odd"><p>Normally, the wcs is automatically read in when reading the image.
+However, this parameter allows you to optionally provide a different
+WCS.  It should be defined using the same style as a wcs object
+in GalSim config files. [defulat: None]</p>
+</dd>
+</dl>
+</div></blockquote>
+<p>The above values are parsed separately for each input image/catalog.  In addition, there
+are a couple other parameters that are just parsed once:</p>
+<blockquote>
+<div><dl class="field-list simple">
+<dt class="field-odd">stamp_size</dt>
+<dd class="field-odd"><p>The size of the postage stamps to use for the cutouts.  Note: some
+stamps may be smaller than this if the star is near a chip boundary.
+[default: 32]</p>
+</dd>
+<dt class="field-even">ra, dec</dt>
+<dd class="field-even"><p>The RA, Dec of the telescope pointing. [default: None; See
+<a class="reference internal" href="#piff.InputFiles.setPointing" title="piff.InputFiles.setPointing"><code class="xref any py py-meth docutils literal notranslate"><span class="pre">setPointing</span></code></a> for details about how this can be specified]</p>
+</dd>
+</dl>
+</div></blockquote>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>config</strong> – The configuration dict used to define the above parameters.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+</dl>
 <dl class="py method">
 <dt id="piff.InputFiles.load_images">
 <code class="sig-name descname"><span class="pre">load_images</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/input.html#InputFiles.load_images"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.InputFiles.load_images" title="Permalink to this definition">¶</a></dt>
@@ -282,7 +461,7 @@ individual WCS functions. [Not implemented currently.]</p></li>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="piffify.html" class="btn btn-neutral float-left" title="The piffify executable" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="model.html" class="btn btn-neutral float-right" title="Models" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="select.html" class="btn btn-neutral float-right" title="Selecting Good PSF Stars" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

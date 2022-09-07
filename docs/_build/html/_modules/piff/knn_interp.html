@@ -39,6 +39,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../overview.html">PIFF: PSFs In the Full FOV</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../piffify.html">The piffify executable</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../input.html">Reading in Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../select.html">Selecting Good PSF Stars</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../model.html">Models</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../interp.html">Interpolation Schemes</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../psf.html">PSF classes</a></li>
@@ -102,19 +103,22 @@
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    An interpolator that uses sklearn KNeighborsRegressor to interpolate a</span>
 <span class="sd">    single surface</span>
+
+<span class="sd">    :param keys:        A list of star attributes to interpolate from [default: (&#39;u&#39;, &#39;v&#39;)]</span>
+<span class="sd">    :param n_neighbors: Number of neighbors used for interpolation. [default: 15]</span>
+<span class="sd">    :param weights:     Weight function used in prediction. Possible values are &#39;uniform&#39;,</span>
+<span class="sd">                        &#39;distance&#39;, and a callable function which accepts an array of distances</span>
+<span class="sd">                        and returns an array of the same shape containing the weights.</span>
+<span class="sd">                        [default: &#39;uniform&#39;]</span>
+<span class="sd">    :param algorithm:   Algorithm used to compute nearest neighbors. Possible values are</span>
+<span class="sd">                        &#39;ball_tree&#39;, &#39;kd_tree&#39;, &#39;brute&#39;, and &#39;auto&#39;, which tries to determine the</span>
+<span class="sd">                        best choice. [default: &#39;auto&#39;]</span>
+<span class="sd">    :param p:           Power parameter of distance metrice. p=2 is default euclidean distance,</span>
+<span class="sd">                        p=1 is manhattan. [default: 2]</span>
+<span class="sd">    :param logger:      A logger object for logging debug info. [default: None]</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">keys</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;u&#39;</span><span class="p">,</span><span class="s1">&#39;v&#39;</span><span class="p">),</span> <span class="n">n_neighbors</span><span class="o">=</span><span class="mi">15</span><span class="p">,</span> <span class="n">weights</span><span class="o">=</span><span class="s1">&#39;uniform&#39;</span><span class="p">,</span> <span class="n">algorithm</span><span class="o">=</span><span class="s1">&#39;auto&#39;</span><span class="p">,</span>
                  <span class="n">p</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span><span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Create the kNN interpolator</span>
-
-<span class="sd">        :param keys:        A list of star attributes to interpolate from [default: (&#39;u&#39;, &#39;v&#39;)]</span>
-<span class="sd">        :param n_neighbors: Number of neighbors used for interpolation. [default: 15]</span>
-<span class="sd">        :param weights:     Weight function used in prediction. Possible values are &#39;uniform&#39;, &#39;distance&#39;, and a callable function which accepts an array of distances and returns an array of the same shape containing the weights. [default: &#39;uniform&#39;]</span>
-<span class="sd">        :param algorithm:   Algorithm used to compute nearest neighbors. Possible values are &#39;ball_tree&#39;, &#39;kd_tree&#39;, &#39;brute&#39;, and &#39;auto&#39;, which tries to determine the best choice. [default: &#39;auto&#39;]</span>
-<span class="sd">        :param p:           Power parameter of distance metrice. p=2 is default euclidean distance, p=1 is manhattan. [default: 2]</span>
-<span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-
         <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span> <span class="o">=</span> <span class="p">{</span>
             <span class="s1">&#39;keys&#39;</span><span class="p">:</span> <span class="n">keys</span><span class="p">,</span>
             <span class="p">}</span>

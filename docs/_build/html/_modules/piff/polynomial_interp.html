@@ -39,6 +39,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../overview.html">PIFF: PSFs In the Full FOV</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../piffify.html">The piffify executable</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../input.html">Reading in Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../select.html">Selecting Good PSF Stars</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../model.html">Models</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../interp.html">Interpolation Schemes</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../psf.html">PSF classes</a></li>
@@ -117,24 +118,22 @@
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    An interpolator that uses  scipy curve_fit command to fit a polynomial</span>
 <span class="sd">    surface to each parameter passed in independently.</span>
+
+<span class="sd">    :param order:       The maximum order in the polynomial. i.e. the maximum</span>
+<span class="sd">                        value of i+j where p(u,v) = sum c_{ij} x^i y^j.</span>
+<span class="sd">                        [required, unless orders is given]</span>
+<span class="sd">    :param orders:      Optionally, a list of orders, one for each parameter</span>
+<span class="sd">                        to be interpolated.  This list should be the same length</span>
+<span class="sd">                        as the number of parameters that will be given to</span>
+<span class="sd">                        interpolate.</span>
+<span class="sd">    :param poly_type:   A string, one of the keys in the polynomial_types</span>
+<span class="sd">                        dictionary. By default these are &quot;poly&quot; (ordinary</span>
+<span class="sd">                        polynomials), &quot;chebyshev&quot;, &quot;legendre&quot;, &quot;laguerre&quot;,</span>
+<span class="sd">                        &quot;hermite&quot;. To add more you can add a key to</span>
+<span class="sd">                        polynomial_types with the value of a function with</span>
+<span class="sd">                        the signature of numpy.polynomial.polynomial.polyval2d</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">orders</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">poly_type</span><span class="o">=</span><span class="s2">&quot;poly&quot;</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Create a Polynomial interpolator.</span>
-
-<span class="sd">        :param order:       The maximum order in the polynomial. i.e. the maximum</span>
-<span class="sd">                            value of i+j where p(u,v) = sum c_{ij} x^i y^j.</span>
-<span class="sd">                            [required, unless orders is given]</span>
-<span class="sd">        :param orders:      Optionally, a list of orders, one for each parameter</span>
-<span class="sd">                            to be interpolated.  This list should be the same length</span>
-<span class="sd">                            as the number of parameters that will be given to</span>
-<span class="sd">                            interpolate.</span>
-<span class="sd">        :param poly_type:   A string, one of the keys in the polynomial_types</span>
-<span class="sd">                            dictionary. By default these are &quot;poly&quot; (ordinary</span>
-<span class="sd">                            polynomials), &quot;chebyshev&quot;, &quot;legendre&quot;, &quot;laguerre&quot;,</span>
-<span class="sd">                            &quot;hermite&quot;. To add more you can add a key to</span>
-<span class="sd">                            polynomial_types with the value of a function with</span>
-<span class="sd">                            the signature of numpy.polynomial.polynomial.polyval2d</span>
-<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">order</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">orders</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Either order or orders is required&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">order</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">orders</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>

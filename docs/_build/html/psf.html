@@ -41,6 +41,7 @@
 <li class="toctree-l1"><a class="reference internal" href="overview.html">PIFF: PSFs In the Full FOV</a></li>
 <li class="toctree-l1"><a class="reference internal" href="piffify.html">The piffify executable</a></li>
 <li class="toctree-l1"><a class="reference internal" href="input.html">Reading in Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="select.html">Selecting Good PSF Stars</a></li>
 <li class="toctree-l1"><a class="reference internal" href="model.html">Models</a></li>
 <li class="toctree-l1"><a class="reference internal" href="interp.html">Interpolation Schemes</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">PSF classes</a><ul>
@@ -435,6 +436,19 @@ pointing is a galsim.CelestialCoord instance</p>
 <p>A SimplePSF is built from a Model and an Interp object.
 The model defines the functional form of the surface brightness profile, and the
 interpolator defines how the parameters of the model vary across the field of view.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model</strong> – A Model instance used for modeling the surface brightness profile.</p></li>
+<li><p><strong>interp</strong> – An Interp instance used to interpolate across the field of view.</p></li>
+<li><p><strong>outliers</strong> – Optionally, an Outliers instance used to remove outliers.
+[default: None]</p></li>
+<li><p><strong>chisq_thresh</strong> – Change in reduced chisq at which iteration will terminate.
+[default: 0.1]</p></li>
+<li><p><strong>max_iter</strong> – Maximum number of iterations to try. [default: 30]</p></li>
+</ul>
+</dd>
+</dl>
 <dl class="py method">
 <dt id="piff.SimplePSF.fit">
 <code class="sig-name descname"><span class="pre">fit</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wcs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pointing</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">convert_func</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/simplepsf.html#SimplePSF.fit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SimplePSF.fit" title="Permalink to this definition">¶</a></dt>
@@ -512,6 +526,16 @@ initializing an instance of the class.</p>
 <dt id="piff.SingleChipPSF">
 <em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">piff.</span></code><code class="sig-name descname"><span class="pre">SingleChipPSF</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">single_psf</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nproc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/singlechip.html#SingleChipPSF"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SingleChipPSF" title="Permalink to this definition">¶</a></dt>
 <dd><p>A PSF class that uses a separate PSF solution for each chip</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>single_psf</strong> – A PSF instance to use for the PSF solution on each chip.
+(This will be turned into nchips copies of the provided object.)</p></li>
+<li><p><strong>nproc</strong> – How many multiprocessing processes to use for running multiple
+chips at once. [default: 1]</p></li>
+</ul>
+</dd>
+</dl>
 <dl class="py method">
 <dt id="piff.SingleChipPSF.fit">
 <code class="sig-name descname"><span class="pre">fit</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wcs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pointing</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">convert_func</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/singlechip.html#SingleChipPSF.fit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SingleChipPSF.fit" title="Permalink to this definition">¶</a></dt>

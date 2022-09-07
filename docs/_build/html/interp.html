@@ -42,6 +42,7 @@
 <li class="toctree-l1"><a class="reference internal" href="overview.html">PIFF: PSFs In the Full FOV</a></li>
 <li class="toctree-l1"><a class="reference internal" href="piffify.html">The piffify executable</a></li>
 <li class="toctree-l1"><a class="reference internal" href="input.html">Reading in Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="select.html">Selecting Good PSF Stars</a></li>
 <li class="toctree-l1"><a class="reference internal" href="model.html">Models</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Interpolation Schemes</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#the-interp-base-class">The Interp base class</a></li>
@@ -326,6 +327,25 @@ vectors and uses that at every position.</p>
 <em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">piff.</span></code><code class="sig-name descname"><span class="pre">Polynomial</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">order</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">orders</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">poly_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'poly'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/polynomial_interp.html#Polynomial"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Polynomial" title="Permalink to this definition">¶</a></dt>
 <dd><p>An interpolator that uses  scipy curve_fit command to fit a polynomial
 surface to each parameter passed in independently.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>order</strong> – The maximum order in the polynomial. i.e. the maximum
+value of i+j where p(u,v) = sum c_{ij} x^i y^j.
+[required, unless orders is given]</p></li>
+<li><p><strong>orders</strong> – Optionally, a list of orders, one for each parameter
+to be interpolated.  This list should be the same length
+as the number of parameters that will be given to
+interpolate.</p></li>
+<li><p><strong>poly_type</strong> – A string, one of the keys in the polynomial_types
+dictionary. By default these are “poly” (ordinary
+polynomials), “chebyshev”, “legendre”, “laguerre”,
+“hermite”. To add more you can add a key to
+polynomial_types with the value of a function with
+the signature of numpy.polynomial.polynomial.polyval2d</p></li>
+</ul>
+</dd>
+</dl>
 <dl class="py method">
 <dt id="piff.Polynomial.initialize">
 <code class="sig-name descname"><span class="pre">initialize</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/polynomial_interp.html#Polynomial.initialize"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Polynomial.initialize" title="Permalink to this definition">¶</a></dt>
@@ -577,6 +597,24 @@ interpolation.</p>
 <em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">piff.</span></code><code class="sig-name descname"><span class="pre">kNNInterp</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">keys</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">('u',</span> <span class="pre">'v')</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_neighbors</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">15</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weights</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'uniform'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">algorithm</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'auto'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">p</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/knn_interp.html#kNNInterp"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.kNNInterp" title="Permalink to this definition">¶</a></dt>
 <dd><p>An interpolator that uses sklearn KNeighborsRegressor to interpolate a
 single surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>keys</strong> – A list of star attributes to interpolate from [default: (‘u’, ‘v’)]</p></li>
+<li><p><strong>n_neighbors</strong> – Number of neighbors used for interpolation. [default: 15]</p></li>
+<li><p><strong>weights</strong> – Weight function used in prediction. Possible values are ‘uniform’,
+‘distance’, and a callable function which accepts an array of distances
+and returns an array of the same shape containing the weights.
+[default: ‘uniform’]</p></li>
+<li><p><strong>algorithm</strong> – Algorithm used to compute nearest neighbors. Possible values are
+‘ball_tree’, ‘kd_tree’, ‘brute’, and ‘auto’, which tries to determine the
+best choice. [default: ‘auto’]</p></li>
+<li><p><strong>p</strong> – Power parameter of distance metrice. p=2 is default euclidean distance,
+p=1 is manhattan. [default: 2]</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+</dl>
 <dl class="py method">
 <dt id="piff.kNNInterp.getProperties">
 <code class="sig-name descname"><span class="pre">getProperties</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/knn_interp.html#kNNInterp.getProperties"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.kNNInterp.getProperties" title="Permalink to this definition">¶</a></dt>

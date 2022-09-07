@@ -16,7 +16,7 @@
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="Interpolation Schemes" href="interp.html" />
-    <link rel="prev" title="Reading in Files" href="input.html" /> 
+    <link rel="prev" title="Selecting Good PSF Stars" href="select.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -41,6 +41,7 @@
 <li class="toctree-l1"><a class="reference internal" href="overview.html">PIFF: PSFs In the Full FOV</a></li>
 <li class="toctree-l1"><a class="reference internal" href="piffify.html">The piffify executable</a></li>
 <li class="toctree-l1"><a class="reference internal" href="input.html">Reading in Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="select.html">Selecting Good PSF Stars</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Models</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#the-model-base-class">The Model base class</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#models-based-on-galsim-objects">Models based on GalSim objects</a></li>
@@ -551,7 +552,73 @@ isolate the effect of just this model component. [default: None]</p></li>
 <dl class="py class">
 <dt id="piff.Optical">
 <em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">piff.</span></code><code class="sig-name descname"><span class="pre">Optical</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">template</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/optical_model.html#Optical"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Optical" title="Permalink to this definition">¶</a></dt>
-<dd><dl class="py method">
+<dd><p>Initialize the Optical Model</p>
+<p>There are potentially three components to this model that are convolved together.</p>
+<p>First, there is an optical component, which uses a galsim.OpticalPSF to model the
+profile.  The aberrations are considered fitted parameters, but the other attributes
+are fixed and are given at initialization.  These parameters are passed to GalSim, so
+they have the same definitions as used there.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>diam</strong> – Diameter of telescope aperture in meters. [required (but cf.
+template option)]</p></li>
+<li><p><strong>lam</strong> – Wavelength of observations in nanometers. [required (but cf.
+template option)]</p></li>
+<li><p><strong>obscuration</strong> – Linear dimension of central obscuration as fraction of pupil
+linear dimension, [0., 1.). [default: 0]</p></li>
+<li><p><strong>nstruts</strong> – Number of radial support struts to add to the central obscuration.
+[default: 0]</p></li>
+<li><p><strong>strut_thick</strong> – Thickness of support struts as a fraction of pupil diameter.
+[default: 0.05]</p></li>
+<li><p><strong>strut_angle</strong> – Angle made between the vertical and the strut starting closest to
+it, defined to be positive in the counter-clockwise direction.
+[default: 0. * galsim.degrees]</p></li>
+<li><p><strong>pupil_plane_im</strong> – The name of a file containing the pupil plane image to use instead
+of creating one from obscuration, struts, etc. [default: None]</p></li>
+</ul>
+</dd>
+</dl>
+<p>Second, there may be an atmospheric component, which uses either a galsim.Kolmogorov or
+galsim.VonKarman to model the profile.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fwhm</strong> – The full-width half-max of the atmospheric part of the PSF.
+[default: None]</p></li>
+<li><p><strong>r0</strong> – The Fried parameter in units of meters to use for the Kolmogorov
+profile. [default: None]</p></li>
+<li><p><strong>L0</strong> – The outer scale in units of meters if desired, in which case
+the atmospheric part will be a VonKarman. [default: None]</p></li>
+</ul>
+</dd>
+</dl>
+<p>Finally, there is allowed to be a final Gaussian component and an applied shear.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sigma</strong> – Convolve with gaussian of size sigma. [default: 0]</p></li>
+<li><p><strong>g2</strong> (<em>g1</em><em>,</em>) – Shear to apply to final image. Simulates vibrational modes.
+[default: 0]</p></li>
+</ul>
+</dd>
+</dl>
+<p>Since there are a lot of parameters here, we provide the option of setting many of them
+from a template value.  e.g. template = ‘des’ will use the values stored in the dict
+piff.optical_model.optical_templates[‘des’].</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>template</strong> – A key word in the dict piff.optical_model.optical_template to use
+for setting values of these parameters.  [default: None]</p>
+</dd>
+</dl>
+<p>If you use a template as well as other specific parameters, the specific parameters will
+override the values from the template.  e.g.  to simulate what DES would be like at
+lambda=1000 nm (the default is 700), you could do:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">model</span> <span class="o">=</span> <span class="n">piff</span><span class="o">.</span><span class="n">OpticalModel</span><span class="p">(</span><span class="n">template</span><span class="o">=</span><span class="s1">&#39;des&#39;</span><span class="p">,</span> <span class="n">lam</span><span class="o">=</span><span class="mi">1000</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="py method">
 <dt id="piff.Optical.fit">
 <code class="sig-name descname"><span class="pre">fit</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/optical_model.html#Optical.fit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Optical.fit" title="Permalink to this definition">¶</a></dt>
 <dd><p>Warning: This method just updates the fit with the chisq and dof!</p>
@@ -588,7 +655,7 @@ isolate the effect of just this model component. [default: None]</p></li>
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="input.html" class="btn btn-neutral float-left" title="Reading in Files" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="select.html" class="btn btn-neutral float-left" title="Selecting Good PSF Stars" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
         <a href="interp.html" class="btn btn-neutral float-right" title="Interpolation Schemes" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 

@@ -41,6 +41,7 @@
 <li class="toctree-l1"><a class="reference internal" href="overview.html">PIFF: PSFs In the Full FOV</a></li>
 <li class="toctree-l1"><a class="reference internal" href="piffify.html">The piffify executable</a></li>
 <li class="toctree-l1"><a class="reference internal" href="input.html">Reading in Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="select.html">Selecting Good PSF Stars</a></li>
 <li class="toctree-l1"><a class="reference internal" href="model.html">Models</a></li>
 <li class="toctree-l1"><a class="reference internal" href="interp.html">Interpolation Schemes</a></li>
 <li class="toctree-l1"><a class="reference internal" href="psf.html">PSF classes</a></li>
@@ -161,6 +162,16 @@ might want to override this if they need to do something more sophisticated with
 with a <code class="docutils literal notranslate"><span class="pre">type</span></code> field.</p>
 <p>It includes specification of both the output file name as well as potentially some
 statistics to output as well.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>file_name</strong> – The file name to write the data to.</p></li>
+<li><p><strong>dir</strong> – Optionally specify a directory for this file. [default: None]</p></li>
+<li><p><strong>stats_list</strong> – Optionally a list of Stats instances to also output. [default: None]</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+</dl>
 <dl class="py method">
 <dt id="piff.OutputFile.parseKwargs">
 <em class="property"><span class="pre">classmethod</span> </em><code class="sig-name descname"><span class="pre">parseKwargs</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_output</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/output.html#OutputFile.parseKwargs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.OutputFile.parseKwargs" title="Permalink to this definition">¶</a></dt>

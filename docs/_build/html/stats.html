@@ -41,6 +41,7 @@
 <li class="toctree-l1"><a class="reference internal" href="overview.html">PIFF: PSFs In the Full FOV</a></li>
 <li class="toctree-l1"><a class="reference internal" href="piffify.html">The piffify executable</a></li>
 <li class="toctree-l1"><a class="reference internal" href="input.html">Reading in Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="select.html">Selecting Good PSF Stars</a></li>
 <li class="toctree-l1"><a class="reference internal" href="model.html">Models</a></li>
 <li class="toctree-l1"><a class="reference internal" href="interp.html">Interpolation Schemes</a></li>
 <li class="toctree-l1"><a class="reference internal" href="psf.html">PSF classes</a></li>
@@ -246,6 +247,16 @@ and data color coded.  The bottom row will have histograms of the differences.</
 </dd>
 </dl>
 </div></blockquote>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>file_name</strong> – Name of the file to output to. [default: None]</p></li>
+<li><p><strong>nbins</strong> – Number of bins to use. [default: sqrt(n_stars)]</p></li>
+<li><p><strong>cut_frac</strong> – Fraction to cut off from histograms at the high and low ends.
+[default: 0.01]</p></li>
+</ul>
+</dd>
+</dl>
 <dl class="py method">
 <dt id="piff.ShapeHistStats.compute">
 <code class="sig-name descname"><span class="pre">compute</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psf</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/stats.html#ShapeHistStats.compute"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.ShapeHistStats.compute" title="Permalink to this definition">¶</a></dt>
@@ -318,6 +329,18 @@ plotted, since the imaginary parts are uninteresting.</p>
 <p>The value of the canonical rho statistic is in the <code class="docutils literal notranslate"><span class="pre">xip</span></code> attribute of each of the above
 TreeCorr GGCorrelation instances.  But there are other quantities that may be of interest
 in some cases, so we provide access to the full object.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>min_sep</strong> – Minimum separation (in arcmin) for pairs. [default: 0.5]</p></li>
+<li><p><strong>max_sep</strong> – Maximum separation (in arcmin) for pairs. [default: 300]</p></li>
+<li><p><strong>bin_size</strong> – Size of bins in log(sep). [default 0.1]</p></li>
+<li><p><strong>file_name</strong> – Name of the file to output to. [default: None]</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+<li><p><strong>**kwargs</strong> – Any additional kwargs are passed on to TreeCorr.</p></li>
+</ul>
+</dd>
+</dl>
 <dl class="py method">
 <dt id="piff.RhoStats.compute">
 <code class="sig-name descname"><span class="pre">compute</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psf</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/stats.html#RhoStats.compute"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.RhoStats.compute" title="Permalink to this definition">¶</a></dt>
@@ -372,6 +395,18 @@ the objects in particular u-v voxel.</p>
 </div></blockquote>
 <p>These histograms are two dimensional masked arrays where the value of the
 pixel corresponds to reducing_function([objects in u-v voxel])</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>nbins_u</strong> – Number of bins in u direction [default: 20]</p></li>
+<li><p><strong>nbins_v</strong> – Number of bins in v direction [default: 20]</p></li>
+<li><p><strong>reducing_function</strong> – Type of function to apply to grouped objects. numpy functions
+are prefixed by np. [default: ‘np.median’]</p></li>
+<li><p><strong>file_name</strong> – Name of the file to output to. [default: None]</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+</dl>
 <dl class="py method">
 <dt id="piff.TwoDHistStats.compute">
 <code class="sig-name descname"><span class="pre">compute</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psf</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/twod_stats.html#TwoDHistStats.compute"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.TwoDHistStats.compute" title="Permalink to this definition">¶</a></dt>
@@ -436,6 +471,22 @@ w2 = r sin(theta)</p>
 </div></blockquote>
 </div>
 <p>Because e1, e2 do not have units, w does not either.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>file_name</strong> – Name of the file to output to. [default: None]</p></li>
+<li><p><strong>nbins_u</strong> – Number of bins in u direction [default: 20]</p></li>
+<li><p><strong>nbins_v</strong> – Number of bins in v direction [default: 20]</p></li>
+<li><p><strong>reducing_function</strong> – Type of function to apply to grouped objects. numpy functions
+are prefixed by np. [default: ‘np.median’]</p></li>
+<li><p><strong>scale</strong> – An overal scale factor by which to scale the size of the
+all whiskers. [default: 1]</p></li>
+<li><p><strong>resid_scale</strong> – An additional factor for the scale size of the residual
+whiskers only. [default: 2]</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+</dl>
 <dl class="py method">
 <dt id="piff.WhiskerStats.compute">
 <code class="sig-name descname"><span class="pre">compute</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psf</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/twod_stats.html#WhiskerStats.compute"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.WhiskerStats.compute" title="Permalink to this definition">¶</a></dt>
@@ -491,6 +542,19 @@ residual of the two.</p>
 </dd>
 </dl>
 </div></blockquote>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>nplot</strong> – Number of stars we wish to plot. If 0 or nplot &gt; nstars in PSF,
+then we plot all stars. Otherwise, we draw nplot stars at random
+(without replacement). [default: 10]</p></li>
+<li><p><strong>adjust_stars</strong> – Boolean. If true, when computing, will also fit for best
+starfit center and flux to match observed star. [default: False]</p></li>
+<li><p><strong>file_name</strong> – Name of the file to output to. [default: None]</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+</dl>
 <dl class="py method">
 <dt id="piff.StarStats.compute">
 <code class="sig-name descname"><span class="pre">compute</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psf</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/star_stats.html#StarStats.compute"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.StarStats.compute" title="Permalink to this definition">¶</a></dt>
@@ -609,6 +673,11 @@ model measurement.  The meaning of these flags are (treated as a bit mask):</p>
 </dd>
 </dl>
 </div></blockquote>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>file_name</strong> – Name of the file to output to. [default: None]</p>
+</dd>
+</dl>
 <dl class="py method">
 <dt id="piff.HSMCatalogStats.compute">
 <code class="sig-name descname"><span class="pre">compute</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psf</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/stats.html#HSMCatalogStats.compute"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.HSMCatalogStats.compute" title="Permalink to this definition">¶</a></dt>

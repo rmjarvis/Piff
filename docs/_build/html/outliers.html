@@ -41,6 +41,7 @@
 <li class="toctree-l1"><a class="reference internal" href="overview.html">PIFF: PSFs In the Full FOV</a></li>
 <li class="toctree-l1"><a class="reference internal" href="piffify.html">The piffify executable</a></li>
 <li class="toctree-l1"><a class="reference internal" href="input.html">Reading in Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="select.html">Selecting Good PSF Stars</a></li>
 <li class="toctree-l1"><a class="reference internal" href="model.html">Models</a></li>
 <li class="toctree-l1"><a class="reference internal" href="interp.html">Interpolation Schemes</a></li>
 <li class="toctree-l1"><a class="reference internal" href="psf.html">PSF classes</a></li>
@@ -174,6 +175,30 @@ chisq distribution to give the equivalent rejection probability that corresponds
 to that many sigma.</p></li>
 </ol>
 </div></blockquote>
+<p>Exactly one of thresh, ndof, nsigma, prob must be provided.</p>
+<p>There is an option to include reserve stars in the outlier rejection, which is enabled
+by setting <code class="docutils literal notranslate"><span class="pre">include_reserve=True</span></code>.  This is probably not a good idea normally.
+Reserve stars are often preferentially targeted by the outlier removal, which somewhat
+lessens their case as fair test points for diagnostics.  However, it is still an option
+in case you want to use it.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>thresh</strong> – The threshold in chisq above which an object is declared an outlier.</p></li>
+<li><p><strong>ndof</strong> – The threshold as a multiple of the model’s dof.</p></li>
+<li><p><strong>prob</strong> – The probability limit that a chisq distribution with the model’s dof
+would exceed the given value.</p></li>
+<li><p><strong>nsigma</strong> – The number of sigma equivalent for the probability that a chisq
+distribution would exceed the given value.</p></li>
+<li><p><strong>max_remove</strong> – The maximum number of outliers to remove on each iteration.  If this
+is a float &lt; 1.0, then this is interpreted as a maximum fraction of
+stars to remove.  e.g. 0.01 will remove at most 1% of the stars.
+[default: None]</p></li>
+<li><p><strong>include_reserve</strong> – Whether to include reserve stars as potential stars to be
+removed as outliers. [default: False]</p></li>
+</ul>
+</dd>
+</dl>
 <dl class="py method">
 <dt id="piff.ChisqOutliers.removeOutliers">
 <code class="sig-name descname"><span class="pre">removeOutliers</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/outliers.html#ChisqOutliers.removeOutliers"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.ChisqOutliers.removeOutliers" title="Permalink to this definition">¶</a></dt>

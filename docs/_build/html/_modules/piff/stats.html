@@ -39,6 +39,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../overview.html">PIFF: PSFs In the Full FOV</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../piffify.html">The piffify executable</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../input.html">Reading in Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../select.html">Selecting Good PSF Stars</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../model.html">Models</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../interp.html">Interpolation Schemes</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../psf.html">PSF classes</a></li>
@@ -280,14 +281,13 @@
 <span class="sd">        :dT:        The size residual, T - T_model</span>
 <span class="sd">        :dg1:       The g1 residual, g1 - g1_model</span>
 <span class="sd">        :dg2:       The g2 residual, g2 - g2_model</span>
+
+<span class="sd">    :param file_name:   Name of the file to output to. [default: None]</span>
+<span class="sd">    :param nbins:       Number of bins to use. [default: sqrt(n_stars)]</span>
+<span class="sd">    :param cut_frac:    Fraction to cut off from histograms at the high and low ends.</span>
+<span class="sd">                        [default: 0.01]</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">nbins</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">cut_frac</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        :param file_name:   Name of the file to output to. [default: None]</span>
-<span class="sd">        :param nbins:       Number of bins to use. [default: sqrt(n_stars)]</span>
-<span class="sd">        :param cut_frac:    Fraction to cut off from histograms at the high and low ends.</span>
-<span class="sd">                            [default: 0.01]</span>
-<span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">file_name</span> <span class="o">=</span> <span class="n">file_name</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">nbins</span> <span class="o">=</span> <span class="n">nbins</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">cut_frac</span> <span class="o">=</span> <span class="n">cut_frac</span>
@@ -426,7 +426,7 @@
         <span class="k">return</span> <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span></div></div>
 
 <div class="viewcode-block" id="RhoStats"><a class="viewcode-back" href="../../stats.html#piff.RhoStats">[docs]</a><span class="k">class</span> <span class="nc">RhoStats</span><span class="p">(</span><span class="n">Stats</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Stats class for calculating rho statistics.</span>
+    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Stats class for calculating rho statistics.</span>
 
 <span class="sd">    This will plot the 5 rho statistics described in Jarvis et al, 2015, section 3.4.</span>
 
@@ -456,17 +456,16 @@
 <span class="sd">    The value of the canonical rho statistic is in the ``xip`` attribute of each of the above</span>
 <span class="sd">    TreeCorr GGCorrelation instances.  But there are other quantities that may be of interest</span>
 <span class="sd">    in some cases, so we provide access to the full object.</span>
+
+<span class="sd">    :param min_sep:     Minimum separation (in arcmin) for pairs. [default: 0.5]</span>
+<span class="sd">    :param max_sep:     Maximum separation (in arcmin) for pairs. [default: 300]</span>
+<span class="sd">    :param bin_size:    Size of bins in log(sep). [default 0.1]</span>
+<span class="sd">    :param file_name:   Name of the file to output to. [default: None]</span>
+<span class="sd">    :param logger:      A logger object for logging debug info. [default: None]</span>
+<span class="sd">    :param \**kwargs:    Any additional kwargs are passed on to TreeCorr.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">min_sep</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">max_sep</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span> <span class="n">bin_size</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">file_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                  <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        :param min_sep:     Minimum separation (in arcmin) for pairs. [default: 0.5]</span>
-<span class="sd">        :param max_sep:     Maximum separation (in arcmin) for pairs. [default: 300]</span>
-<span class="sd">        :param bin_size:    Size of bins in log(sep). [default 0.1]</span>
-<span class="sd">        :param file_name:   Name of the file to output to. [default: None]</span>
-<span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
-<span class="sd">        :param \**kwargs:    Any additional kwargs are passed on to TreeCorr.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tckwargs</span> <span class="o">=</span> <span class="n">kwargs</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tckwargs</span><span class="p">[</span><span class="s1">&#39;min_sep&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">min_sep</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tckwargs</span><span class="p">[</span><span class="s1">&#39;max_sep&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">max_sep</span>
@@ -696,11 +695,10 @@
 <span class="sd">        :reserve:   Whether the star was a reserve star.</span>
 <span class="sd">        :flag_truth: 0 where HSM succeeded on the observed star, &gt;0 where it failed (see above).</span>
 <span class="sd">        :flag_model: 0 where HSM succeeded on the PSF model, &gt;0 where it failed (see above).</span>
+
+<span class="sd">    :param file_name:   Name of the file to output to. [default: None]</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        :param file_name:   Name of the file to output to. [default: None]</span>
-<span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">file_name</span> <span class="o">=</span> <span class="n">file_name</span>
 
 <div class="viewcode-block" id="HSMCatalogStats.compute"><a class="viewcode-back" href="../../stats.html#piff.HSMCatalogStats.compute">[docs]</a>    <span class="k">def</span> <span class="nf">compute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">psf</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
