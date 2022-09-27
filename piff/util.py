@@ -234,7 +234,11 @@ def run_multi(func, nproc, raise_except, args, logger, kwargs=None):
     if galsim.__version_info__ >= (2,4):
         from galsim.utilities import single_threaded
     else:
-        from contextlib import nullcontext as single_threaded
+        try:
+            from contextlib import nullcontext as single_threaded
+        except ImportError:
+            # python 3.6 equivalent of nullcontext (when we don't need the `as` part)
+            from contextlib import suppress as single_threaded
 
     njobs = len(args)
     nproc = galsim.config.util.UpdateNProc(nproc, len(args), {}, logger)
