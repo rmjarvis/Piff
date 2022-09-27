@@ -121,6 +121,7 @@ class Stats(object):
         # Note: don't import matplotlib.pyplot, since that can mess around with the user's
         # pyplot state.  Better to do everything with the matplotlib object oriented API.
         # cf. http://www.dalkescientific.com/writings/diary/archive/2005/04/23/matplotlib_without_gui.html
+        import matplotlib
         from matplotlib.backends.backend_agg import FigureCanvasAgg
 
         logger = galsim.config.LoggerWrapper(logger)
@@ -136,7 +137,10 @@ class Stats(object):
 
         canvas = FigureCanvasAgg(fig)
         # Do this after we've set the canvas to use Agg to avoid warning.
-        fig.set_tight_layout(True)
+        if matplotlib.__version_info__ >= (3,6):
+            fig.set_layout_engine('tight')
+        else:
+            fig.set_tight_layout(True)
         canvas.print_figure(file_name, dpi=100)
 
     def measureShapes(self, psf, stars, logger=None):
