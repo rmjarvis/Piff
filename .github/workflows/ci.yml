@@ -78,7 +78,7 @@ jobs:
                 pip install -U -r requirements.txt
 
                 # Extra packages needed for testing
-                pip install -U nose codecov coverage
+                pip install -U nose codecov coverage pytest
 
             - name: Install Pixmappy (not on pip)
               run: |
@@ -101,7 +101,7 @@ jobs:
             - name: Run unit tests
               run: |
                 cd tests
-                nosetests --with-coverage --cover-package=piff --with-doctest
+                converage run -m pytest -v
                 cd ..  # N.B. This seems to happen automatically if omitted.
                        # Less confusing to include it explicitly.
 
