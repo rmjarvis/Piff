@@ -2,8 +2,8 @@ numpy>=1.17
 scipy>=1.2
 pyyaml>=5.1
 lsstdesc.coord>=1.2
-treecorr>=4.2
+treecorr==4.2
 fitsio>=1.0
 matplotlib>=3.3
-galsim>=2.3
+galsim==2.3
 treegp>=0.6
