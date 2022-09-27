@@ -101,7 +101,7 @@ jobs:
             - name: Run unit tests
               run: |
                 cd tests
-                converage run -m pytest -v
+                coverage run -m pytest -v
                 cd ..  # N.B. This seems to happen automatically if omitted.
                        # Less confusing to include it explicitly.
 
