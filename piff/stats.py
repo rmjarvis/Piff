@@ -137,7 +137,7 @@ class Stats(object):
 
         canvas = FigureCanvasAgg(fig)
         # Do this after we've set the canvas to use Agg to avoid warning.
-        if matplotlib.__version_info__ >= (3,6):
+        if matplotlib.__version__ >= "3.6":
             fig.set_layout_engine('tight')
         else:
             fig.set_tight_layout(True)
