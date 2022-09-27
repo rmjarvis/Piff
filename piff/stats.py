@@ -295,8 +295,8 @@ class ShapeHistStats(Stats):
         all_T = np.concatenate([self.T_model, self.T])
         logger.info("nbins = %s",nbins)
         logger.info("cut_frac = %s",self.cut_frac)
-        rng = (np.quantile(all_T, self.cut_frac, interpolation='lower'),
-               np.quantile(all_T, 1-self.cut_frac, interpolation='higher'))
+        rng = (np.quantile(all_T, self.cut_frac, method='lower'),
+               np.quantile(all_T, 1-self.cut_frac, method='higher'))
         logger.info("T_d: Full range = (%f, %f)",np.min(self.T),np.max(self.T))
         logger.info("T_m: Full range = (%f, %f)",np.min(self.T_model),np.max(self.T_model))
         logger.info("Display range = (%f, %f)",rng[0],rng[1])
@@ -304,8 +304,8 @@ class ShapeHistStats(Stats):
         ax.legend(loc='upper right')
         # axs[0,1] = size difference
         ax = axs[1, 0]
-        rng = (np.quantile(self.dT, self.cut_frac, interpolation='lower'),
-               np.quantile(self.dT, 1-self.cut_frac, interpolation='higher'))
+        rng = (np.quantile(self.dT, self.cut_frac, method='lower'),
+               np.quantile(self.dT, 1-self.cut_frac, method='higher'))
         logger.info("dT: Full range = (%f, %f)",np.min(self.dT),np.max(self.dT))
         logger.info("Display range = (%f, %f)",rng[0],rng[1])
         ax.hist(self.dT, bins=nbins, range=rng, **kwargs)
@@ -313,8 +313,8 @@ class ShapeHistStats(Stats):
         # axs[1,0] = g1 distribution
         ax = axs[0, 1]
         all_g1 = np.concatenate([self.g1_model, self.g1])
-        rng = (np.quantile(all_g1, self.cut_frac, interpolation='lower'),
-               np.quantile(all_g1, 1-self.cut_frac, interpolation='higher'))
+        rng = (np.quantile(all_g1, self.cut_frac, method='lower'),
+               np.quantile(all_g1, 1-self.cut_frac, method='higher'))
         logger.info("g1_d: Full range = (%f, %f)",np.min(self.g1),np.max(self.g1))
         logger.info("g1_m: Full range = (%f, %f)",np.min(self.g1_model),np.max(self.g1_model))
         logger.info("Display range = (%f, %f)",rng[0],rng[1])
@@ -322,8 +322,8 @@ class ShapeHistStats(Stats):
         ax.legend(loc='upper right')
         # axs[1,0] = g1 difference
         ax = axs[1, 1]
-        rng = (np.quantile(self.dg1, self.cut_frac, interpolation='lower'),
-               np.quantile(self.dg1, 1-self.cut_frac, interpolation='higher'))
+        rng = (np.quantile(self.dg1, self.cut_frac, method='lower'),
+               np.quantile(self.dg1, 1-self.cut_frac, method='higher'))
         logger.info("dg1: Full range = (%f, %f)",np.min(self.dg1),np.max(self.dg1))
         logger.info("Display range = (%f, %f)",rng[0],rng[1])
         ax.hist(self.dg1, bins=nbins, range=rng, **kwargs)
@@ -331,8 +331,8 @@ class ShapeHistStats(Stats):
         # axs[2,0] = g2 distribution
         ax = axs[0, 2]
         all_g2 = np.concatenate([self.g2_model, self.g2])
-        rng = (np.quantile(all_g2, self.cut_frac, interpolation='lower'),
-               np.quantile(all_g2, 1-self.cut_frac, interpolation='higher'))
+        rng = (np.quantile(all_g2, self.cut_frac, method='lower'),
+               np.quantile(all_g2, 1-self.cut_frac, method='higher'))
         logger.info("g2_d: Full range = (%f, %f)",np.min(self.g2),np.max(self.g2))
         logger.info("g2_m: Full range = (%f, %f)",np.min(self.g2_model),np.max(self.g2_model))
         logger.info("Display range = (%f, %f)",rng[0],rng[1])
@@ -340,8 +340,8 @@ class ShapeHistStats(Stats):
         ax.legend(loc='upper right')
         # axs[2,0] = g2 difference
         ax = axs[1, 2]
-        rng = (np.quantile(self.dg2, self.cut_frac, interpolation='lower'),
-               np.quantile(self.dg2, 1-self.cut_frac, interpolation='higher'))
+        rng = (np.quantile(self.dg2, self.cut_frac, method='lower'),
+               np.quantile(self.dg2, 1-self.cut_frac, method='higher'))
         logger.info("dg2: Full range = (%f, %f)",np.min(self.dg2),np.max(self.dg2))
         logger.info("Display range = (%f, %f)",rng[0],rng[1])
         ax.hist(self.dg2, bins=nbins, range=rng, **kwargs)
