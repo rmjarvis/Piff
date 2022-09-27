@@ -346,7 +346,7 @@ class TwoDHistStats(Stats):
               `midpoint` and 1.0.
         '''
         from matplotlib.colors import LinearSegmentedColormap
-        from matplotlib import cm
+
         cdict = {
             'red': [],
             'green': [],
@@ -377,11 +377,6 @@ class TwoDHistStats(Stats):
         newcmap.set_bad(color='g', alpha=0.75)
         newcmap.set_over(color='m', alpha=0.75)
         newcmap.set_under(color='c', alpha=0.75)
-        with warnings.catch_warnings():
-            # I can't figure out how to tell matplot lib to "add this cmap if it's not
-            # already registered".  So just ignore the warning they started emitting here.
-            warnings.simplefilter("ignore")
-            cm.register_cmap(cmap=newcmap)
 
         return newcmap
 
