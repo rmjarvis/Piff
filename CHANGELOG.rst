@@ -31,3 +31,10 @@ Changes from version 1.2.3 to 1.2.4
 - Fixed labeling error in SizeMag plot (model and data were reversed). (#136)
 - Fixed bug in StarStat plot when nplot=0. (#136)
 - Fixed bug in SizeMag selector that the reserve and reject steps were applied twice. (#136)
+
+Changes from version 1.2.4 to 1.2.5
+-----------------------------------
+
+- Use single_threaded context when doing multiprocessing.
+- Fix error that started in matplotlib v3.6.
+- Fix several deprecation warnings from recent matplotlib and scipy versions.
