@@ -635,6 +635,7 @@ def test_newdes():
     with warnings.catch_warnings():
         # This file was written with GalSim 2.1, and now raises a deprecation warning for 2.2.
         warnings.simplefilter("ignore", galsim.GalSimDeprecationWarning)
+        warnings.simplefilter("ignore", DeprecationWarning)
         psf = piff.PSF.read(fname, logger=logger)
 
     print('psf.wcs = ',psf.wcs[0])
