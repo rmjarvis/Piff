@@ -231,6 +231,10 @@ def run_multi(func, nproc, raise_except, args, logger, kwargs=None):
     :returns:   The output of func(\*args[i], \*\*kwargs[i]) for each item in the args, kwargs lists.
     """
     from multiprocessing import Pool
+    if galsim.__version_info__ >= (2,4):
+        from galsim.utilities import single_threaded
+    else:
+        from contextlib import nullcontext as single_threaded
 
     njobs = len(args)
     nproc = galsim.config.util.UpdateNProc(nproc, len(args), {}, logger)
@@ -267,26 +271,28 @@ def run_multi(func, nproc, raise_except, args, logger, kwargs=None):
             else:
                 output_list[i] = out
     else:
-        pool = Pool(nproc)
-        results = []
-        for i in range(njobs):
-            if isinstance(kwargs, dict):
-                k = kwargs
-            elif kwargs is None:
-                k = {}
-            else:  # pragma: no cover  (We don't use this option currently)
-                k = kwargs[i]
-            result = pool.apply_async(_run_multi_helper,
-                                      args=(func, i, args[i], k, logger.logger.level),
-                                      callback=log_output)
-            results.append(result)
-        # Make sure we get all the results.  Without this, it works fine on success, but
-        # errors seems to be swallowed.
-        [result.get() for result in results]
-        # These are always necessary to close out the pool.
-        pool.close()
-        pool.join()
-        pool.terminate()
+        with single_threaded():
+            pool = Pool(nproc)
+            results = []
+            for i in range(njobs):
+                if isinstance(kwargs, dict):
+                    k = kwargs
+                elif kwargs is None:
+                    k = {}
+                else:  # pragma: no cover  (We don't use this option currently)
+                    k = kwargs[i]
+                result = pool.apply_async(_run_multi_helper,
+                                          args=(func, i, args[i], k, logger.logger.level),
+                                          callback=log_output)
+                results.append(result)
+            # Make sure we get all the results.  Without this, it works fine on success, but
+            # errors seems to be swallowed.
+            [result.get() for result in results]
+            # These are always necessary to close out the pool.
+            pool.close()
+            pool.join()
+            pool.terminate()
+
         # Now we can raise an error if there was one.
         if raise_except:
             errs = [e for e in err_list if e is not None]
