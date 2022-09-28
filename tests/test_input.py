@@ -1126,7 +1126,7 @@ def test_stars():
     np.testing.assert_almost_equal(snr_list, snr_list2, decimal=5)
     print('min_snr = ',np.min(snr_list))
     print('max_snr = ',np.max(snr_list))
-    assert np.min(snr_list) < 20.
+    assert np.min(snr_list) < 30.
     assert np.max(snr_list) > 600.
 
     # max_snr increases the noise to achieve a maximum snr
@@ -1137,7 +1137,7 @@ def test_stars():
     assert len(stars) == 100
     snr_list = [ star['snr'] for star in stars ]
     print('snr = ', np.min(snr_list), np.max(snr_list))
-    assert np.min(snr_list) < 20.
+    assert np.min(snr_list) < 30.
     assert np.max(snr_list) == 120.
     snr_list2 = [ piff.util.calculateSNR(star.data.image, star.data.orig_weight) for star in stars ]
     snr_list = np.array(snr_list)
@@ -1158,7 +1158,7 @@ def test_stars():
     assert len(stars) == 100
     snr_list = np.array([ star['snr'] for star in stars ])
     print('snr = ', np.min(snr_list), np.max(snr_list))
-    assert np.min(snr_list) < 20.
+    assert np.min(snr_list) < 30.
     assert np.max(snr_list) == 100.
     snr_list2 = [ piff.util.calculateSNR(star.data.image, star.data.orig_weight) for star in stars ]
     snr_list = np.array(snr_list)
