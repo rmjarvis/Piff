@@ -7,3 +7,4 @@ fitsio>=1.0
 matplotlib>=3.3
 galsim>=2.3
 treegp>=0.6
+threadpoolctl>=3.1
