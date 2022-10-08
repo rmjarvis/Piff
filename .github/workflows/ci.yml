@@ -84,7 +84,7 @@ jobs:
               run: |
                 git clone https://github.com/gbernstein/pixmappy.git
                 cd pixmappy
-                python setup.py install
+                pip install .
                 cd ..
 
             - name: List all installed packages for reference
