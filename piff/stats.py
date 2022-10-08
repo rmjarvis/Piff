@@ -416,6 +416,7 @@ class RhoStats(Stats):
         :param logger:      A logger object for logging debug info. [default: None]
         """
         import treecorr
+        treecorr.set_max_omp_threads(1)
 
         logger = galsim.config.LoggerWrapper(logger)
         # get the shapes
@@ -465,6 +466,7 @@ class RhoStats(Stats):
         self.rho4.process(cat_dg, cat_gdTT)
         self.rho5 = treecorr.GGCorrelation(self.tckwargs)
         self.rho5.process(cat_g, cat_gdTT)
+        treecorr.set_max_omp_threads(None)
 
     def alt_plot(self, logger=None, **kwargs):  # pragma: no cover
         # Leaving this version here in case useful, but I (MJ) have a new version of this
