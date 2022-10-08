@@ -466,7 +466,7 @@ class RhoStats(Stats):
         self.rho4.process(cat_dg, cat_gdTT)
         self.rho5 = treecorr.GGCorrelation(self.tckwargs)
         self.rho5.process(cat_g, cat_gdTT)
-        set_max_omp_threads(None)
+        treecorr.set_max_omp_threads(None)
 
     def alt_plot(self, logger=None, **kwargs):  # pragma: no cover
         # Leaving this version here in case useful, but I (MJ) have a new version of this
