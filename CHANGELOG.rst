@@ -36,5 +36,7 @@ Changes from version 1.2.4 to 1.2.5
 -----------------------------------
 
 - Use single_threaded context when doing multiprocessing.
+- Turn off TreeCorr's multi-threading, since it can conflict with other threading
+  (which are more important in Piff) on some systems.
 - Fix error that started in matplotlib v3.6.
 - Fix several deprecation warnings from recent matplotlib and scipy versions.
