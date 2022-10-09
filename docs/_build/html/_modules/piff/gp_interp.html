@@ -237,9 +237,18 @@
 <span class="sd">        :param y_err: Error of y. (n_samples, n_targets)</span>
 <span class="sd">        :param logger:  A logger object for logging debug info. [default: None]</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># If the treecorr libomp is different from galsim&#39;s libomp linkage, then</span>
+        <span class="c1"># calling treecorr from here can result in a seg fault.  I couldn&#39;t figure</span>
+        <span class="c1"># out a reliable way to avoid thiss -- it happened on GHA&#39;s MacOs system.</span>
+        <span class="c1"># But the parallel computation in TreeCorr here isn&#39;t actually particularly</span>
+        <span class="c1"># useful -- it&#39;s not a tall pole in this calculation.  So to be safe, just</span>
+        <span class="c1"># set the treecorr max_threads to 1 during this calculation.</span>
+        <span class="kn">from</span> <span class="nn">treecorr</span> <span class="kn">import</span> <span class="n">set_max_omp_threads</span>
+        <span class="n">set_max_omp_threads</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nparams</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">gps</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">initialize</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">[:,</span><span class="n">i</span><span class="p">],</span> <span class="n">y_err</span><span class="o">=</span><span class="n">y_err</span><span class="p">[:,</span><span class="n">i</span><span class="p">])</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">gps</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">solve</span><span class="p">()</span>
+        <span class="n">set_max_omp_threads</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_predict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">Xstar</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot; Predict responses given covariates.</span>
