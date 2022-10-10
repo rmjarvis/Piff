@@ -137,7 +137,7 @@ class Stats(object):
 
         canvas = FigureCanvasAgg(fig)
         # Do this after we've set the canvas to use Agg to avoid warning.
-        if matplotlib.__version__ >= "3.6":
+        if matplotlib.__version__ >= "3.6":  # pragma: no branch
             fig.set_layout_engine('tight')
         else:
             fig.set_tight_layout(True)
@@ -294,7 +294,7 @@ class ShapeHistStats(Stats):
             nbins = int(np.sqrt(len(self.T))+1)
             logger.info("nstars = %d, using %d bins for Shape Histograms",len(self.T),nbins)
 
-        if np.__version__ >= '1.23':
+        if np.__version__ >= '1.23':  # pragma: no branch
             lower = dict(method='lower')
             higher = dict(method='higher')
         else:
