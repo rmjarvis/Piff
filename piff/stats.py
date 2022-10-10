@@ -137,9 +137,9 @@ class Stats(object):
 
         canvas = FigureCanvasAgg(fig)
         # Do this after we've set the canvas to use Agg to avoid warning.
-        if matplotlib.__version__ >= "3.6":  # pragma: no branch
+        if matplotlib.__version__ >= "3.6":
             fig.set_layout_engine('tight')
-        else:
+        else:  # pragma: no cover
             fig.set_tight_layout(True)
         canvas.print_figure(file_name, dpi=100)
 

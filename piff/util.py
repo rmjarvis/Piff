@@ -231,9 +231,9 @@ def run_multi(func, nproc, raise_except, args, logger, kwargs=None):
     :returns:   The output of func(\*args[i], \*\*kwargs[i]) for each item in the args, kwargs lists.
     """
     from multiprocessing import Pool
-    if galsim.__version_info__ >= (2,4):  # pragma: no branch
+    if galsim.__version_info__ >= (2,4):
         from galsim.utilities import single_threaded
-    else:
+    else:  # pragma: no cover
         from contextlib import nullcontext as single_threaded
 
     njobs = len(args)
