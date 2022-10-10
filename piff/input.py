@@ -293,13 +293,6 @@ class InputFiles(Input):
                  'index_key' : 'image_num',
                }
 
-        # We use a feature in GalSim 2.3.  For now that's not released, so monkey-patch it here.
-        # (It's not even really a monkey-patch, it's just adding an additional registered type.)
-        # Once we can require galsim>=2.3, we can remove this.
-        if galsim.version < '2.3':  # pragma: no cover
-            galsim.config.value.RegisterValueType(
-                    'List_str', galsim.config.value._GenerateFromList, [str, None])
-
         # Convert options 2 and 3 above into option 4.  (1 is also parseable by GalSim's config.)
         nimages = None
         image_list = None
