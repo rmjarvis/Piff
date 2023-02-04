@@ -842,8 +842,147 @@ def test_base_stats():
     np.testing.assert_raises(NotImplementedError, stats.compute, None, None)
     np.testing.assert_raises(NotImplementedError, stats.plot)
 
+@timer
+def test_model_properties():
+    """Test the model_properties option for hsm catalog.
+    """
+    # Use PSF with the size a function of color.
+    # Note: This test is similar to test_color in test_pixel.py.
+
+    pixel_scale = 0.3
+    image = galsim.ImageF(1024,1024, scale=pixel_scale)
+
+    # Draw stars in a grid so we know they don't overlap.
+    x_list = []
+    y_list = []
+    color_list = []
+    np_rng = np.random.RandomState(1234)
+    rng = galsim.UniformDeviate(1234)
+    for x in range(50,1000,100):
+        for y in range(50,1000,100):
+            # color is random between -1 and +1.
+            color = np_rng.uniform(-1,1)
+            # Add a +- 1 pixel offset to nominal position.
+            xcen = x + np_rng.uniform(-1,1)
+            ycen = y + np_rng.uniform(-1,1)
+            T = 1.0 + 0.1 * color  # T is linear in color.
+            sigma = np.sqrt(T/2)
+            star = galsim.Gaussian(sigma=sigma, flux=150.)
+            b = galsim.BoundsI(x-16,x+16,y-16,y+16)
+            star.drawImage(image=image[b], center=galsim.PositionD(xcen,ycen))
+            x_list.append(xcen)
+            y_list.append(ycen)
+            color_list.append(color)
+
+    noise_sigma = 0.1
+    image.addNoise(galsim.GaussianNoise(sigma=noise_sigma, rng=rng))
+
+    # Write out the image and catalog
+    image_file = os.path.join('output','hsm_color_image.fits')
+    image.write(image_file)
+    dtype = [ ('x','f8'), ('y','f8'), ('color','f8') ]
+    data = np.empty(len(x_list), dtype=dtype)
+    data['x'] = x_list
+    data['y'] = y_list
+    data['color'] = color_list
+    cat_file = os.path.join('output','pixel_color_cat.fits')
+    fitsio.write(cat_file, data, clobber=True)
+
+    psf_file = os.path.join('output','hsm_color.piff')
+    hsm_file = os.path.join('output','hsm_color.fits')
+    config = {
+        'input' : {
+            'image_file_name' : image_file,
+            'cat_file_name' : cat_file,
+            'x_col' : 'x',
+            'y_col' : 'y',
+            'property_cols' : ['color'],
+            'noise' : noise_sigma**2,
+            'stamp_size' : 32,
+        },
+        'output' : {
+            'file_name' : psf_file,
+            'stats': [
+                {
+                    'type': 'HSMCatalog',
+                    'file_name': hsm_file,
+                },
+            ],
+        },
+        'psf' : {
+            'model' : {
+                'type' : 'PixelGrid',
+                'scale' : pixel_scale,
+                'size' : 15
+            },
+            'interp' : {
+                'type' : 'BasisPolynomial',
+                'order' : [1, 1, 1],
+                'keys': ['u', 'v', 'color'],
+            },
+        },
+    }
+    if __name__ == '__main__':
+        config['verbose'] = 2
+    else:
+        config['verbose'] = 0
+
+    piff.piffify(config)
+    hsm1 = fitsio.read(hsm_file)
+
+    # This run measures each star at its own color
+    # So there should be no slope in T_data-T_model vs color
+    color = hsm1['color']
+    T_model = hsm1['T_model']
+    T_data = hsm1['T_data']
+    m, b = np.polyfit(color, T_data-T_model, 1)
+    print('dT vs color: m, b = ',m,b)
+    assert np.abs(m) < 1.e-3
+    assert np.abs(b) < 1.e-3
+
+    # But the raw data does have a significant slope.
+    m, b = np.polyfit(color, T_data, 1)
+    print('T_data vs color: m, b = ',m,b)
+    assert np.abs(m-0.1) < 1.e-3
+
+    # Likewise the model (which follows from the above two tests, but check anyway):
+    m, b = np.polyfit(color, T_model, 1)
+    print('T_model vs color: m, b = ',m,b)
+    assert np.abs(m-0.1) < 1.e-3
+
+    # Repeat this forcing the model to be at a specific color
+    config['output']['stats'][0]['model_properties'] = dict(color=0.5)
+    piff.piffify(config)
+    hsm2 = fitsio.read(hsm_file)
+    color = hsm2['color']
+    T_model = hsm2['T_model']
+    T_data = hsm2['T_data']
+
+    # Now the model should all have a size close to T(color=0.5)
+    print('T_model = ',np.mean(T_model),' +- ',np.std(T_model))
+    assert np.isclose(np.mean(T_model), 1 + 0.1 * 0.5, rtol=0.02)
+    assert np.std(T_model) < 0.005
+    m, b = np.polyfit(color, T_model, 1)
+    print('T_model vs color: m, b = ',m,b)
+    assert np.abs(m) < 2.e-3
+
+    # But the data still covers the whole range
+    print('T_data = ',np.mean(T_data),' +- ',np.std(T_data))
+    assert np.isclose(np.mean(T_data), 1, rtol=0.03)
+    assert np.std(T_data) > 0.05
+    m, b = np.polyfit(color, T_data, 1)
+    print('T_data vs color: m, b = ',m,b)
+    assert np.abs(m-0.1) < 2.e-3
+
+    # Finally, T_data - T_model  should show the input slope of 0.1
+    m, b = np.polyfit(color, T_data-T_model, 1)
+    print('dT vs color: m, b = ',m,b)
+    assert np.abs(m-0.1) < 2.e-3
+
 
 if __name__ == '__main__':
+    test_model_properties()
+    quit()
     setup()
     test_twodstats()
     test_shift_cmap()
@@ -853,3 +992,5 @@ if __name__ == '__main__':
     test_starstats_config()
     test_hsmcatalog()
     test_bad_hsm()
+    test_base_stats()
+    test_model_properties()
