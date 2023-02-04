@@ -371,6 +371,10 @@ def test_star():
     assert star.flux == 1.
     assert star.center == (0,0)
     assert star.is_reserve == False
+    assert star['color_ri'] == 0.5
+    assert star['color_iz'] == -0.2
+    with np.testing.assert_raises(KeyError):
+        star['color_gi']
 
     star = star.withFlux(7)
     assert star.flux == 7.
@@ -387,6 +391,12 @@ def test_star():
     star = star.withFlux(flux=2)
     assert star.flux == 2.
     assert star.center == (12,20)
+
+    # Test withProperties
+    star = star.withProperties(color_iz=-0.3, color_gi=1.1)
+    assert star['color_ri'] == 0.5
+    assert star['color_iz'] == -0.3
+    assert star['color_gi'] == 1.1
 
     # Test using makeTarget
     star = piff.Star.makeTarget(properties=stardata.properties, image=image, weight=weight)
