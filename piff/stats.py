@@ -217,7 +217,7 @@ class ShapeHistStats(Stats):
     :param nbins:       Number of bins to use. [default: sqrt(n_stars)]
     :param cut_frac:    Fraction to cut off from histograms at the high and low ends.
                         [default: 0.01]
-    :param model_properties: Optional properties to use for the model rendering. (default: None)
+    :param model_properties: Optional properties to use for the model rendering. [default: None]
     """
     def __init__(self, file_name=None, nbins=None, cut_frac=0.01, model_properties=None,
                  logger=None):
@@ -403,7 +403,7 @@ class RhoStats(Stats):
     :param max_sep:     Maximum separation (in arcmin) for pairs. [default: 300]
     :param bin_size:    Size of bins in log(sep). [default 0.1]
     :param file_name:   Name of the file to output to. [default: None]
-    :param model_properties: Optional properties to use for the model rendering. (default: None)
+    :param model_properties: Optional properties to use for the model rendering. [default: None]
     :param logger:      A logger object for logging debug info. [default: None]
     :param \**kwargs:    Any additional kwargs are passed on to TreeCorr.
     """

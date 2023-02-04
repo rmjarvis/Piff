@@ -27,7 +27,6 @@ class SizeMagStats(Stats):
 
     :param file_name:       Name of the file to output to. [default: None]
     :param zeropoint:       Zeropoint to use = the magnitude of flux=1. [default: 30]
-    :param model_properties: Optional properties to use for the model rendering. (default: None)
     :param logger:          A logger object for logging debug info. [default: None]
     """
     def __init__(self, file_name=None, zeropoint=30, logger=None):
