@@ -989,8 +989,6 @@ def test_model_properties():
 
 
 if __name__ == '__main__':
-    test_model_properties()
-    quit()
     setup()
     test_twodstats()
     test_shift_cmap()
