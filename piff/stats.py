@@ -669,6 +669,15 @@ class HSMCatalogStats(Stats):
         else:
             self.ra = np.zeros_like(self.u)
             self.dec = np.zeros_like(self.u)
+        # Also write any other properties saved in the stars.
+        self.props = {}
+        prop_keys = list(stars[0].data.properties)
+        # Already did the position ones.
+        for key in [ 'x', 'y', 'u', 'v' ]:
+            prop_keys.remove(key)
+        # Add any remaining properties
+        for key in prop_keys:
+            self.props[key] = [ s.data.properties[key] for s in stars ]
 
     def write(self, file_name=None, logger=None):
         """Write catalog to file.
@@ -699,6 +708,9 @@ class HSMCatalogStats(Stats):
                   ('flag_truth', int), ('flag_model', int),
                   ('T_data', float), ('g1_data', float), ('g2_data', float),
                   ('T_model', float), ('g1_model', float), ('g2_model', float)]
+        for key, col in self.props.items():
+            dtypes.append((key, float))
+            cols.append(col)
         data = np.array(list(zip(*cols)), dtype=dtypes)
         with fitsio.FITS(file_name, 'rw', clobber=True) as f:
             f.write_table(data)
