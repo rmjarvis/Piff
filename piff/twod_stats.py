@@ -45,7 +45,8 @@ class TwoDHistStats(Stats):
     :param reducing_function:   Type of function to apply to grouped objects. numpy functions
                                 are prefixed by np. [default: 'np.median']
     :param file_name:           Name of the file to output to. [default: None]
-    :param model_properties:    Optional properties to use for the model rendering. [default: None]
+    :param model_properties:    Optionally a dict of properties to use for the model rendering.
+                                [default: None]
     :param logger:              A logger object for logging debug info. [default: None]
     """
     def __init__(self, nbins_u=20, nbins_v=20, reducing_function='np.median',
@@ -419,7 +420,8 @@ class WhiskerStats(Stats):
                                 all whiskers. [default: 1]
     :param resid_scale:         An additional factor for the scale size of the residual
                                 whiskers only. [default: 2]
-    :param model_properties:    Optional properties to use for the model rendering. [default: None]
+    :param model_properties:    Optionally a dict of properties to use for the model rendering.
+                                [default: None]
     :param logger:              A logger object for logging debug info. [default: None]
     """
     def __init__(self, file_name=None, nbins_u=20, nbins_v=20, reducing_function='np.median',
