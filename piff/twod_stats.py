@@ -45,15 +45,17 @@ class TwoDHistStats(Stats):
     :param reducing_function:   Type of function to apply to grouped objects. numpy functions
                                 are prefixed by np. [default: 'np.median']
     :param file_name:           Name of the file to output to. [default: None]
+    :param model_properties:    Optional properties to use for the model rendering. (default: None)
     :param logger:              A logger object for logging debug info. [default: None]
     """
     def __init__(self, nbins_u=20, nbins_v=20, reducing_function='np.median',
-                 file_name=None, logger=None):
+                 file_name=None, model_properties=None, logger=None):
         self.nbins_u = nbins_u
         self.nbins_v = nbins_v
         self.reducing_function = eval(reducing_function)
 
         self.file_name = file_name
+        self.model_properties = model_properties
         self.skip = False
 
     def compute(self, psf, stars, logger=None):
@@ -67,7 +69,8 @@ class TwoDHistStats(Stats):
 
         # get the shapes
         logger.info("Measuring Star and Model Shapes")
-        positions, shapes_truth, shapes_model = self.measureShapes(psf, stars, logger=logger)
+        positions, shapes_truth, shapes_model = self.measureShapes(
+            psf, stars, model_properties=self.model_properties, logger=logger)
 
         # Only use stars for which hsm was successful
         flag_truth = shapes_truth[:, 6]
@@ -416,16 +419,18 @@ class WhiskerStats(Stats):
                                 all whiskers. [default: 1]
     :param resid_scale:         An additional factor for the scale size of the residual
                                 whiskers only. [default: 2]
+    :param model_properties:    Optional properties to use for the model rendering. (default: None)
     :param logger:              A logger object for logging debug info. [default: None]
     """
     def __init__(self, file_name=None, nbins_u=20, nbins_v=20, reducing_function='np.median',
-                 scale=1, resid_scale=2, logger=None):
+                 scale=1, resid_scale=2, model_properties=None, logger=None):
         self.file_name = file_name
         self.nbins_u = nbins_u
         self.nbins_v = nbins_v
         self.reducing_function = eval(reducing_function)
         self.scale = scale
         self.resid_scale = resid_scale
+        self.model_properties = model_properties
         self.skip = False
 
     def compute(self, psf, stars, logger=None):
@@ -439,7 +444,8 @@ class WhiskerStats(Stats):
 
         # get the shapes
         logger.info("Measuring Star and Model Shapes")
-        positions, shapes_truth, shapes_model = self.measureShapes(psf, stars, logger=logger)
+        positions, shapes_truth, shapes_model = self.measureShapes(
+            psf, stars, model_properties=self.model_properties, logger=logger)
 
         # Only use stars for which hsm was successful
         flag_truth = shapes_truth[:, 6]
