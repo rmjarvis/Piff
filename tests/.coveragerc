@@ -1,7 +1,7 @@
 [run]
 branch = True
 
-include = *piff/*
+include = **/piff/*
 
 # This lets coverage include lines that happen in multiprocessing mode
 concurrency = multiprocessing
