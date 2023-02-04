@@ -689,9 +689,8 @@ class HSMCatalogStats(Stats):
         # Also write any other properties saved in the stars.
         self.props = {}
         prop_keys = list(stars[0].data.properties)
-        # Already did the position ones.
-        for key in [ 'x', 'y', 'u', 'v' ]:
-            prop_keys.remove(key)
+        # Remove all the position ones, which are handled separately.
+        prop_keys = [key for key in prop_keys if key not in ['x', 'y', 'u', 'v', 'ra', 'dec']]
         # Add any remaining properties
         for key in prop_keys:
             self.props[key] = [ s.data.properties[key] for s in stars ]
