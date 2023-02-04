@@ -148,7 +148,10 @@ class Stats(object):
 
         :param psf:         A PSF Object
         :param stars:       A list of Star instances.
-        :param model_properties: Optional properties to use for the model rendering.
+        :param model_properties: Optionally a dict of properties to use for the model rendering.
+                                 The default behavior is to use the properties of the star itself
+                                 for any properties that are not overridden by model_properties.
+                                 [default: None]
         :param logger:      A logger object for logging debug info. [default: None]
 
         :returns:           positions of stars, shapes of stars, and shapes of
@@ -217,7 +220,8 @@ class ShapeHistStats(Stats):
     :param nbins:       Number of bins to use. [default: sqrt(n_stars)]
     :param cut_frac:    Fraction to cut off from histograms at the high and low ends.
                         [default: 0.01]
-    :param model_properties: Optional properties to use for the model rendering. [default: None]
+    :param model_properties: Optionally a dict of properties to use for the model rendering.
+                             [default: None]
     """
     def __init__(self, file_name=None, nbins=None, cut_frac=0.01, model_properties=None,
                  logger=None):
@@ -403,7 +407,8 @@ class RhoStats(Stats):
     :param max_sep:     Maximum separation (in arcmin) for pairs. [default: 300]
     :param bin_size:    Size of bins in log(sep). [default 0.1]
     :param file_name:   Name of the file to output to. [default: None]
-    :param model_properties: Optional properties to use for the model rendering. [default: None]
+    :param model_properties: Optionally a dict of properties to use for the model rendering.
+                             [default: None]
     :param logger:      A logger object for logging debug info. [default: None]
     :param \**kwargs:    Any additional kwargs are passed on to TreeCorr.
     """
@@ -645,9 +650,9 @@ class HSMCatalogStats(Stats):
 
     :param file_name:        Name of the file to output to. [default: None]
     :param model_properties: Optionally a dict of properties to use for the model rendering.
-                             The default behavior, which applies to all relevant properties
-                             if this is None (default) or to any missing from the dict, is to
-                             use the properties of the star being compared to.
+                             The default behavior is to use the properties of the star itself
+                             for any properties that are not overridden by model_properties.
+                             [default: None]
     """
     def __init__(self, file_name=None, model_properties=None, logger=None):
         self.file_name = file_name
