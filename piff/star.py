@@ -94,6 +94,19 @@ class Star(object):
             fit.center = center
         return Star(self.data, fit)
 
+    def withProperties(self, **kwargs):
+        """Set or change any properties in the star.
+
+        :param **kwargs:    Each named kwarg is taken to be a property to set in the returned star.
+
+        :returns: a new Star with the given properties, but is otherwise the same as self.
+        """
+        data = self.data.copy()
+        props = data.properties.copy()
+        props.update(kwargs)
+        data.properties = props
+        return Star(data, self.fit)
+
     def __getitem__(self, key):
         """Get a property of the star.
 
