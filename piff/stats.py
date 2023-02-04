@@ -695,7 +695,7 @@ class HSMCatalogStats(Stats):
         dtypes = [('u', float), ('v', float),
                   ('x', float), ('y', float),
                   ('ra', float), ('dec', float),
-                  ('flux', float), ('reserve', float),
+                  ('flux', float), ('reserve', int),
                   ('flag_truth', int), ('flag_model', int),
                   ('T_data', float), ('g1_data', float), ('g2_data', float),
                   ('T_model', float), ('g1_model', float), ('g2_model', float)]
