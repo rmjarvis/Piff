@@ -143,11 +143,12 @@ class Stats(object):
             fig.set_tight_layout(True)
         canvas.print_figure(file_name, dpi=100)
 
-    def measureShapes(self, psf, stars, logger=None):
+    def measureShapes(self, psf, stars, model_properties=None, logger=None):
         """Compare PSF and true star shapes with HSM algorithm
 
         :param psf:         A PSF Object
         :param stars:       A list of Star instances.
+        :param model_properties: Optional properties to use for the model rendering.
         :param logger:      A logger object for logging debug info. [default: None]
 
         :returns:           positions of stars, shapes of stars, and shapes of
@@ -177,6 +178,9 @@ class Stats(object):
             shapes_model = None
         else:
             logger.debug("Generating and Measuring Model Stars")
+            if model_properties is not None:
+                stars = [star.withProperties(**model_properties) for star in stars]
+                stars = psf.interpolateStarList(stars)
             shapes_model = np.array([ star.hsm for star in psf.drawStarList(stars)])
             shapes_model = shapes_model.reshape((len(stars),7))
             shapes_model[:,3] = 2*shapes_model[:,3]**2
@@ -213,11 +217,14 @@ class ShapeHistStats(Stats):
     :param nbins:       Number of bins to use. [default: sqrt(n_stars)]
     :param cut_frac:    Fraction to cut off from histograms at the high and low ends.
                         [default: 0.01]
+    :param model_properties: Optional properties to use for the model rendering. (default: None)
     """
-    def __init__(self, file_name=None, nbins=None, cut_frac=0.01, logger=None):
+    def __init__(self, file_name=None, nbins=None, cut_frac=0.01, model_properties=None,
+                 logger=None):
         self.file_name = file_name
         self.nbins = nbins
         self.cut_frac = cut_frac
+        self.model_properties = model_properties
         self.skip = False
 
     def compute(self, psf, stars, logger=None):
@@ -229,7 +236,8 @@ class ShapeHistStats(Stats):
         logger = galsim.config.LoggerWrapper(logger)
         # get the shapes
         logger.warning("Calculating shape histograms for %d stars",len(stars))
-        positions, shapes_truth, shapes_model = self.measureShapes(psf, stars, logger=logger)
+        positions, shapes_truth, shapes_model = self.measureShapes(
+                psf, stars, model_properties=self.model_properties, logger=logger)
 
         # Only use stars for which hsm was successful
         flag_truth = shapes_truth[:, 6]
@@ -395,11 +403,12 @@ class RhoStats(Stats):
     :param max_sep:     Maximum separation (in arcmin) for pairs. [default: 300]
     :param bin_size:    Size of bins in log(sep). [default 0.1]
     :param file_name:   Name of the file to output to. [default: None]
+    :param model_properties: Optional properties to use for the model rendering. (default: None)
     :param logger:      A logger object for logging debug info. [default: None]
     :param \**kwargs:    Any additional kwargs are passed on to TreeCorr.
     """
     def __init__(self, min_sep=0.5, max_sep=300, bin_size=0.1, file_name=None,
-                 logger=None, **kwargs):
+                 model_properties=None, logger=None, **kwargs):
         self.tckwargs = kwargs
         self.tckwargs['min_sep'] = min_sep
         self.tckwargs['max_sep'] = max_sep
@@ -407,6 +416,7 @@ class RhoStats(Stats):
         if 'sep_units' not in self.tckwargs:
             self.tckwargs['sep_units'] = 'arcmin'
         self.file_name = file_name
+        self.model_properties = model_properties
         self.skip = False  # Set this to true if there is a problem and we need to skip plots.
 
     def compute(self, psf, stars, logger=None):
@@ -421,7 +431,8 @@ class RhoStats(Stats):
         logger = galsim.config.LoggerWrapper(logger)
         # get the shapes
         logger.warning("Calculating rho statistics for %d stars",len(stars))
-        positions, shapes_truth, shapes_model = self.measureShapes(psf, stars, logger=logger)
+        positions, shapes_truth, shapes_model = self.measureShapes(
+                psf, stars, model_properties=self.model_properties, logger=logger)
 
         # Only use stars for which hsm was successful
         flag_truth = shapes_truth[:, 6]
@@ -632,10 +643,15 @@ class HSMCatalogStats(Stats):
         :flag_truth: 0 where HSM succeeded on the observed star, >0 where it failed (see above).
         :flag_model: 0 where HSM succeeded on the PSF model, >0 where it failed (see above).
 
-    :param file_name:   Name of the file to output to. [default: None]
+    :param file_name:        Name of the file to output to. [default: None]
+    :param model_properties: Optionally a dict of properties to use for the model rendering.
+                             The default behavior, which applies to all relevant properties
+                             if this is None (default) or to any missing from the dict, is to
+                             use the properties of the star being compared to.
     """
-    def __init__(self, file_name=None, logger=None):
+    def __init__(self, file_name=None, model_properties=None, logger=None):
         self.file_name = file_name
+        self.model_properties = model_properties
 
     def compute(self, psf, stars, logger=None):
         """
@@ -646,7 +662,8 @@ class HSMCatalogStats(Stats):
         logger = galsim.config.LoggerWrapper(logger)
         # get the shapes
         logger.warning("Calculating shape histograms for %d stars",len(stars))
-        positions, shapes_truth, shapes_model = self.measureShapes(psf, stars, logger=logger)
+        positions, shapes_truth, shapes_model = self.measureShapes(
+                psf, stars, model_properties=self.model_properties, logger=logger)
 
         # define terms for the catalogs
         self.u = positions[:, 0]
