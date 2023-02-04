@@ -889,7 +889,8 @@ def test_model_properties():
     fitsio.write(cat_file, data, clobber=True)
 
     psf_file = os.path.join('output','hsm_color.piff')
-    hsm_file = os.path.join('output','hsm_color.fits')
+    hsm1_file = os.path.join('output','hsm_color.fits')
+    hsm2_file = os.path.join('output','hsm_color_05.fits')
     config = {
         'input' : {
             'image_file_name' : image_file,
@@ -905,7 +906,12 @@ def test_model_properties():
             'stats': [
                 {
                     'type': 'HSMCatalog',
-                    'file_name': hsm_file,
+                    'file_name': hsm1_file,
+                },
+                {
+                    'type': 'HSMCatalog',
+                    'file_name': hsm2_file,
+                    'model_properties': {'color' : 0.5},
                 },
             ],
         },
@@ -928,7 +934,7 @@ def test_model_properties():
         config['verbose'] = 0
 
     piff.piffify(config)
-    hsm1 = fitsio.read(hsm_file)
+    hsm1 = fitsio.read(hsm1_file)
 
     # This run measures each star at its own color
     # So there should be no slope in T_data-T_model vs color
@@ -936,6 +942,8 @@ def test_model_properties():
     T_model = hsm1['T_model']
     T_data = hsm1['T_data']
     m, b = np.polyfit(color, T_data-T_model, 1)
+    print()
+    print('Not using model_properties:')
     print('dT vs color: m, b = ',m,b)
     assert np.abs(m) < 1.e-3
     assert np.abs(b) < 1.e-3
@@ -950,15 +958,15 @@ def test_model_properties():
     print('T_model vs color: m, b = ',m,b)
     assert np.abs(m-0.1) < 1.e-3
 
-    # Repeat this forcing the model to be at a specific color
-    config['output']['stats'][0]['model_properties'] = dict(color=0.5)
-    piff.piffify(config)
-    hsm2 = fitsio.read(hsm_file)
+    # Check the other output file, which uses model_properties
+    hsm2 = fitsio.read(hsm2_file)
     color = hsm2['color']
     T_model = hsm2['T_model']
     T_data = hsm2['T_data']
 
     # Now the model should all have a size close to T(color=0.5)
+    print()
+    print('Using model_properties:')
     print('T_model = ',np.mean(T_model),' +- ',np.std(T_model))
     assert np.isclose(np.mean(T_model), 1 + 0.1 * 0.5, rtol=0.02)
     assert np.std(T_model) < 0.005
