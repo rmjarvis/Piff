@@ -648,7 +648,7 @@ def test_hsmcatalog():
     for col in ['ra', 'dec', 'x', 'y', 'u', 'v',
                 'T_data', 'g1_data', 'g2_data',
                 'T_model', 'g1_model', 'g2_model',
-                'flux', 'reserve', 'flag_truth', 'flag_model']:
+                'flux', 'reserve', 'flag_data', 'flag_model']:
         assert len(data[col]) == 10
     true_data = fitsio.read(cat_file)
 
@@ -664,7 +664,7 @@ def test_hsmcatalog():
     np.testing.assert_allclose(data['g2_model'], data['g2_data'], rtol=1.e-4)
 
     # On this file, no hsm errors
-    np.testing.assert_array_equal(data['flag_truth'], 0)
+    np.testing.assert_array_equal(data['flag_data'], 0)
     np.testing.assert_array_equal(data['flag_model'], 0)
 
     image = galsim.fits.read(image_file)
@@ -814,11 +814,11 @@ def test_bad_hsm():
     for col in ['ra', 'dec', 'x', 'y', 'u', 'v',
                 'T_data', 'g1_data', 'g2_data',
                 'T_model', 'g1_model', 'g2_model',
-                'flux', 'reserve', 'flag_truth', 'flag_model']:
+                'flux', 'reserve', 'flag_data', 'flag_model']:
         assert len(data[col]) == 1
-    print('flag_truth = ',data['flag_truth'])
+    print('flag_data = ',data['flag_data'])
     print('flag_model = ',data['flag_model'])
-    np.testing.assert_array_equal(data['flag_truth'], 7)
+    np.testing.assert_array_equal(data['flag_data'], 7)
     np.testing.assert_array_equal(data['flag_model'], 7)
 
 
