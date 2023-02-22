@@ -27,4 +27,4 @@ Bug fixes
 ---------
 
 - Fixed bug in output stats that what we called T was really sigma.  Now, it's correctly
-  T = Ixx + Iyy = 2*sigma^2. (#133)
+  T = Ixx + Iyy = 2*sigma^2. (#133, #142)

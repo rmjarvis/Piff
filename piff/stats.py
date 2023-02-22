@@ -155,7 +155,7 @@ class Stats(object):
         :param logger:      A logger object for logging debug info. [default: None]
 
         :returns:           positions of stars, shapes of stars, and shapes of
-                            models of stars (sigma, g1, g2)
+                            models of stars (T, g1, g2)
         """
         import piff
         logger = galsim.config.LoggerWrapper(logger)
@@ -170,7 +170,19 @@ class Stats(object):
         shapes_truth = shapes_truth.reshape((len(stars),7))
 
         # Convert from sigma to T
-        shapes_truth[:,3] = 2*shapes_truth[:,3]**2
+        # Note: the hsm sigma is det(M)^1/4, not sqrt(T/2), so need to account for the effect
+        #       of the ellipticity.
+        #       If M = [ sigma^2 (1+e1)   sigma^2 e2   ]
+        #              [   sigma^2 e2   sigma^2 (1-e1) ]
+        #       Then:
+        #         det(M) = sigma^4 (1-|e|^2) = sigma_hsm^4
+        #         T = tr(M) = 2 * sigma^2
+        #       So:
+        #         T = 2 * sigma_hsm^2 / sqrt(1-|e|^2)
+        # Using |e| = 2 |g| / (1+|g|^2), we obtain:
+        #         T = 2 * sigma_hsm^2 * (1+|g|^2)/(1-|g|^2)
+        gsq = shapes_truth[:,4]**2 + shapes_truth[:,5]**2
+        shapes_truth[:,3] = 2*shapes_truth[:,3]**2 * (1+gsq)/(1-gsq)
 
         # Pull out the positions to return
         positions = np.array([ (star.data.properties['u'], star.data.properties['v'])
@@ -186,7 +198,8 @@ class Stats(object):
                 stars = psf.interpolateStarList(stars)
             shapes_model = np.array([ star.hsm for star in psf.drawStarList(stars)])
             shapes_model = shapes_model.reshape((len(stars),7))
-            shapes_model[:,3] = 2*shapes_model[:,3]**2
+            gsq = shapes_model[:,4]**2 + shapes_model[:,5]**2
+            shapes_model[:,3] = 2*shapes_model[:,3]**2 * (1+gsq)/(1-gsq)
             for star, shape in zip(stars, shapes_model):
                 logger.debug("model shape for star at %s is %s",star.image_pos, shape)
 
@@ -206,7 +219,7 @@ class ShapeHistStats(Stats):
 
         :u:         The u positions in field coordinates.
         :v:         The v positions in field coordinates.
-        :T:         The size (T = Ixx + Iyy) of the observed stars.
+        :T:         The size (T = Iuu + Ivv) of the observed stars.
         :g1:        The g1 component of the shapes of the observed stars.
         :g2:        The g2 component of the shapes of the observed stars.
         :T_model:   The size of the PSF model at the same locations as the stars.
@@ -638,9 +651,9 @@ class HSMCatalogStats(Stats):
         :v:         The v position in field coordinates.
         :x:         The x position in chip coordinates.
         :y:         The y position in chip coordinates.
-        :T:         The size (T = Ixx + Iyy) of the observed star.
-        :g1:        The g1 component of the shapes of the observed star.
-        :g2:        The g2 component of the shapes of the observed star.
+        :T_data:    The size (T = Iuu + Ivv) of the observed star.
+        :g1_data:   The g1 component of the shapes of the observed star.
+        :g2_data:   The g2 component of the shapes of the observed star.
         :T_model:   The size of the PSF model at the same locations as the star.
         :g1_model:  The g1 component of the PSF model.
         :g2_model:  The g2 component of the PSF model.

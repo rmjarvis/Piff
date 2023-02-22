@@ -64,7 +64,8 @@ def test_twodstats():
     jcenter = 2000
     # the average value in the bin should match up with the model for the average coordinates
     sigma, g1, g2 = psf_model(icen, jcen, icenter, jcenter)
-    T = 2*sigma**2
+    gsq = g1**2 + g2**2
+    T = 2*sigma**2 * (1+gsq)/(1-gsq)
     T_average = stats.twodhists['T'][v_i, u_i]
     g1_average = stats.twodhists['g1'][v_i, u_i]
     g2_average = stats.twodhists['g2'][v_i, u_i]
@@ -476,9 +477,10 @@ def test_shapestats_config():
 
     # test their characteristics
     sigma = 1.3  # (copied from setup())
-    T = 2*sigma**2
     g1 = 0.23
     g2 = -0.17
+    gsq = g1**2 + g2**2
+    T = 2*sigma**2 * (1+gsq)/(1-gsq)
     np.testing.assert_array_almost_equal(T, shapeStats.T, decimal=4)
     np.testing.assert_array_almost_equal(T, shapeStats.T_model, decimal=3)
     np.testing.assert_array_almost_equal(g1, shapeStats.g1, decimal=4)
