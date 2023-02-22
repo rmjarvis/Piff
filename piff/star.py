@@ -70,7 +70,8 @@ class Star(object):
         star.flux       The flux of the object
         star.center     The nominal center of the object (not necessarily the centroid)
         star.is_reserve Whether the star is reserved from being used to fit the PSF
-        star.hsm        HSM measurements for this star as a tuple: (flux, cenu, cenv, sigma, g1, g2)
+        star.hsm        HSM measurements for this star as a tuple:
+                        (flux, cenu, cenv, sigma, g1, g2, flag)
 
     :param data: A StarData instance (invariant)
     :param fit:  A StarFit instance (invariant)
