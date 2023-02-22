@@ -8,8 +8,11 @@ Output file changes
   written to an output file (e.g HSMCatalog) (#141)
 
 
-Performance improvements
-------------------------
+Output file changes
+-------------------
+
+- Changed the HSM file output column name from flag_truth to flag_data to match the other
+  \*_data columns. (#142)
 
 - Changed default interpolant for PixelGrid to Lanczos(7) rather than Lanczos(3), since we found
   some significant inaccuracies in some cases when using Lanczos(3), so this seems like a safer
@@ -21,6 +24,7 @@ New features
 
 - Made chipnum optional whenever the input model only covers a single chip, regardless of whether
   the chipnum was specified in the config file. (#140)
+
 
 
 Bug fixes

@@ -161,13 +161,13 @@ class Stats(object):
         logger = galsim.config.LoggerWrapper(logger)
         # measure moments with Gaussian on image
         logger.debug("Measuring shapes of real stars")
-        shapes_truth = np.array([ star.hsm for star in stars ])
-        for star, shape in zip(stars, shapes_truth):
+        shapes_data = np.array([ star.hsm for star in stars ])
+        for star, shape in zip(stars, shapes_data):
             logger.debug("real shape for star at %s is %s",star.image_pos, shape)
 
-        # If no stars, then shapes_truth is the wrong shape.  This line is normally a no op
+        # If no stars, then shapes_data is the wrong shape.  This line is normally a no op
         # but makes things work right if len(stars)=0.
-        shapes_truth = shapes_truth.reshape((len(stars),7))
+        shapes_data = shapes_data.reshape((len(stars),7))
 
         # Convert from sigma to T
         # Note: the hsm sigma is det(M)^1/4, not sqrt(T/2), so need to account for the effect
@@ -181,8 +181,8 @@ class Stats(object):
         #         T = 2 * sigma_hsm^2 / sqrt(1-|e|^2)
         # Using |e| = 2 |g| / (1+|g|^2), we obtain:
         #         T = 2 * sigma_hsm^2 * (1+|g|^2)/(1-|g|^2)
-        gsq = shapes_truth[:,4]**2 + shapes_truth[:,5]**2
-        shapes_truth[:,3] = 2*shapes_truth[:,3]**2 * (1+gsq)/(1-gsq)
+        gsq = shapes_data[:,4]**2 + shapes_data[:,5]**2
+        shapes_data[:,3] = 2*shapes_data[:,3]**2 * (1+gsq)/(1-gsq)
 
         # Pull out the positions to return
         positions = np.array([ (star.data.properties['u'], star.data.properties['v'])
@@ -203,7 +203,7 @@ class Stats(object):
             for star, shape in zip(stars, shapes_model):
                 logger.debug("model shape for star at %s is %s",star.image_pos, shape)
 
-        return positions, shapes_truth, shapes_model
+        return positions, shapes_data, shapes_model
 
 
 class ShapeHistStats(Stats):
@@ -253,13 +253,13 @@ class ShapeHistStats(Stats):
         logger = galsim.config.LoggerWrapper(logger)
         # get the shapes
         logger.warning("Calculating shape histograms for %d stars",len(stars))
-        positions, shapes_truth, shapes_model = self.measureShapes(
+        positions, shapes_data, shapes_model = self.measureShapes(
                 psf, stars, model_properties=self.model_properties, logger=logger)
 
         # Only use stars for which hsm was successful
-        flag_truth = shapes_truth[:, 6]
+        flag_data = shapes_data[:, 6]
         flag_model = shapes_model[:, 6]
-        mask = (flag_truth == 0) & (flag_model == 0)
+        mask = (flag_data == 0) & (flag_model == 0)
         if np.sum(mask) == 0:
             logger.warning("All stars had hsm errors.  ShapeHist plot will be empty.")
             self.skip = True
@@ -267,9 +267,9 @@ class ShapeHistStats(Stats):
         # define terms for the catalogs
         self.u = positions[mask, 0]
         self.v = positions[mask, 1]
-        self.T = shapes_truth[mask, 3]
-        self.g1 = shapes_truth[mask, 4]
-        self.g2 = shapes_truth[mask, 5]
+        self.T = shapes_data[mask, 3]
+        self.g1 = shapes_data[mask, 4]
+        self.g2 = shapes_data[mask, 5]
         self.T_model = shapes_model[mask, 3]
         self.g1_model = shapes_model[mask, 4]
         self.g2_model = shapes_model[mask, 5]
@@ -449,13 +449,13 @@ class RhoStats(Stats):
         logger = galsim.config.LoggerWrapper(logger)
         # get the shapes
         logger.warning("Calculating rho statistics for %d stars",len(stars))
-        positions, shapes_truth, shapes_model = self.measureShapes(
+        positions, shapes_data, shapes_model = self.measureShapes(
                 psf, stars, model_properties=self.model_properties, logger=logger)
 
         # Only use stars for which hsm was successful
-        flag_truth = shapes_truth[:, 6]
+        flag_data = shapes_data[:, 6]
         flag_model = shapes_model[:, 6]
-        mask = (flag_truth == 0) & (flag_model == 0)
+        mask = (flag_data == 0) & (flag_model == 0)
         if np.sum(mask) == 0:
             logger.warning("All stars had hsm errors.  Rho plot will be empty.")
             self.skip = True
@@ -464,9 +464,9 @@ class RhoStats(Stats):
         # define terms for the catalogs
         u = positions[mask, 0]
         v = positions[mask, 1]
-        T = shapes_truth[mask, 3]
-        g1 = shapes_truth[mask, 4]
-        g2 = shapes_truth[mask, 5]
+        T = shapes_data[mask, 3]
+        g1 = shapes_data[mask, 4]
+        g2 = shapes_data[mask, 5]
         dT = T - shapes_model[mask, 3]
         dg1 = g1 - shapes_model[mask, 4]
         dg2 = g2 - shapes_model[mask, 5]
@@ -633,7 +633,7 @@ class HSMCatalogStats(Stats):
 
     The HSM adaptive momemnt measurements sometimes fail in various ways.  When it does,
     we still output the information that we have for a star, but mark the failure with
-    a flag: flag_truth for errors in the data measurement, flag_model for errors in the
+    a flag: flag_data for errors in the data measurement, flag_model for errors in the
     model measurement.  The meaning of these flags are (treated as a bit mask):
 
     Flags:
@@ -658,7 +658,7 @@ class HSMCatalogStats(Stats):
         :g1_model:  The g1 component of the PSF model.
         :g2_model:  The g2 component of the PSF model.
         :reserve:   Whether the star was a reserve star.
-        :flag_truth: 0 where HSM succeeded on the observed star, >0 where it failed (see above).
+        :flag_data: 0 where HSM succeeded on the observed star, >0 where it failed (see above).
         :flag_model: 0 where HSM succeeded on the PSF model, >0 where it failed (see above).
 
     :param file_name:        Name of the file to output to. [default: None]
@@ -680,21 +680,21 @@ class HSMCatalogStats(Stats):
         logger = galsim.config.LoggerWrapper(logger)
         # get the shapes
         logger.warning("Calculating shape histograms for %d stars",len(stars))
-        positions, shapes_truth, shapes_model = self.measureShapes(
+        positions, shapes_data, shapes_model = self.measureShapes(
                 psf, stars, model_properties=self.model_properties, logger=logger)
 
         # define terms for the catalogs
         self.u = positions[:, 0]
         self.v = positions[:, 1]
-        self.flux = shapes_truth[:, 0]
+        self.flux = shapes_data[:, 0]
         self.reserve = np.array([s.is_reserve for s in stars], dtype=bool)
-        self.T_data = shapes_truth[:, 3]
-        self.g1_data = shapes_truth[:, 4]
-        self.g2_data = shapes_truth[:, 5]
+        self.T_data = shapes_data[:, 3]
+        self.g1_data = shapes_data[:, 4]
+        self.g2_data = shapes_data[:, 5]
         self.T_model = shapes_model[:, 3]
         self.g1_model = shapes_model[:, 4]
         self.g2_model = shapes_model[:, 5]
-        self.flag_truth = shapes_truth[:, 6]
+        self.flag_data = shapes_data[:, 6]
         self.flag_model = shapes_model[:, 6]
         self.x = np.array([star.image_pos.x for star in stars])
         self.y = np.array([star.image_pos.y for star in stars])
@@ -733,14 +733,14 @@ class HSMCatalogStats(Stats):
         logger.warning("Writing HSM catalog to file %s",file_name)
 
         cols = [self.u, self.v, self.x, self.y, self.ra, self.dec,
-                self.flux, self.reserve, self.flag_truth, self.flag_model,
+                self.flux, self.reserve, self.flag_data, self.flag_model,
                 self.T_data, self.g1_data, self.g2_data,
                 self.T_model, self.g1_model, self.g2_model]
         dtypes = [('u', float), ('v', float),
                   ('x', float), ('y', float),
                   ('ra', float), ('dec', float),
                   ('flux', float), ('reserve', bool),
-                  ('flag_truth', int), ('flag_model', int),
+                  ('flag_data', int), ('flag_model', int),
                   ('T_data', float), ('g1_data', float), ('g2_data', float),
                   ('T_model', float), ('g1_model', float), ('g2_model', float)]
         for key, col in self.props.items():
