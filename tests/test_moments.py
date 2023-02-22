@@ -274,6 +274,29 @@ def test_moments_errors():
             # Note: 2x tol since var now rather than std.
             np.testing.assert_allclose(var, np.var(noisy_moments[k]), rtol=2*tol_dict[name])
 
+@timer
+def test_moments_hsm():
+    # Check that calculate_moments returns results consistent with star.hsm for the moments
+    # that are in common between the two.
+    stars, _ = makeStars(nstar=10, beta=3)
+
+    for star in stars:
+        moments = calculate_moments(star)
+        hsm = star.hsm
+
+        # Moments natively give distortion e1,e2.  But hsm[4,5] are g1,g2.
+        shape = galsim.Shear(e1 = moments['M20']/moments['M11'],
+                             e2 = moments['M02']/moments['M11'])
+        print('g1: ', shape.g1, hsm[4])
+        print('g2: ', shape.g2, hsm[5])
+        np.testing.assert_allclose(shape.g1, hsm[4], rtol=1.e-6)
+        np.testing.assert_allclose(shape.g2, hsm[5], rtol=1.e-6)
+
+        # T from moments is M11x2, because weighted second moment is just sigma^2, not T=2*sigma^2
+        # T from hsm is 2*sigma^2/sqrt(1-e^2) because that sigma is det(M)^1/4, not Tr(M)/2
+        print('T: ', moments['M11']*2, 2*hsm[3]**2 / (1-shape.e**2)**0.5)
+        np.testing.assert_allclose(moments['M11']*2, 2*hsm[3]**2 / (1-shape.e**2)**0.5, rtol=1.e-6)
+
 
 if __name__ == "__main__":
     test_moments_return()
@@ -281,3 +304,4 @@ if __name__ == "__main__":
     test_moments_options()
     test_moments_fail()
     test_moments_errors()
+    test_moments_hsm()
