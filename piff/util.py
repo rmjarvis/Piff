@@ -405,10 +405,10 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
 
     :returns: A dict of the calculated moments, with the following keys/values:
 
-        * M_00, M_10, M_01, M_11, M_20, M_02
-        * M_21, M_12, M_30, M_03                          if ``third_order`` = True
-        * M_22, M_31, M_13, M_40, M_04                    if ``fourth_order`` = True
-        * M_22n, M_33n, M_44n                             if ``radial`` = True
+        * M00, M10, M01, M11, M20, M02
+        * M21, M12, M30, M03                          if ``third_order`` = True
+        * M22, M31, M13, M40, M04                     if ``fourth_order`` = True
+        * M22n, M33n, M44n                            if ``radial`` = True
 
     If ``errors`` = True, then also a second dict (with the same keys) giving the variances.
     """
@@ -467,7 +467,7 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
     M20 = np.sum(WI * usqmvsq)
     M02 = 2 * np.sum(WIuv)
 
-    # Keep track of the tuple to return.  We may add more.
+    # Keep track of the dict to return.  We may add more.
     ret = dict(M00=M00, M10=M10, M01=M01, M11=M11, M20=M20, M02=M02)
 
     # 3rd moments
@@ -724,7 +724,7 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
         varM20 = 4 * np.sum(WV * (B*usqmvsq + A*M20 * (rsq/M11 - 1))**2)
         varM02 = 4 * np.sum(WV * (2*B*uv + A*M02 * (rsq/M11 - 1))**2)
 
-        # Add these to the return tuple
+        # The dict to return for variance values.
         ret_var = dict(M00=varM00, M10=varM10, M01=varM01, M11=varM11, M20=varM20, M02=varM02)
 
         #
