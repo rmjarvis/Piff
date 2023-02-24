@@ -143,31 +143,49 @@ class Stats(object):
             fig.set_tight_layout(True)
         canvas.print_figure(file_name, dpi=100)
 
-    def measureShapes(self, psf, stars, model_properties=None, logger=None):
+    def measureShapes(self, psf, stars, model_properties=None, fourth_order=False, logger=None):
         """Compare PSF and true star shapes with HSM algorithm
 
-        :param psf:         A PSF Object
-        :param stars:       A list of Star instances.
+        :param psf:              A PSF Object
+        :param stars:            A list of Star instances.
         :param model_properties: Optionally a dict of properties to use for the model rendering.
                                  The default behavior is to use the properties of the star itself
                                  for any properties that are not overridden by model_properties.
                                  [default: None]
-        :param logger:      A logger object for logging debug info. [default: None]
+        :param fourth_order:     Whether to include the fourth-order quantities as well in columns
+                                 7 through 11 of the output array.
+        :param logger:           A logger object for logging debug info. [default: None]
 
         :returns:           positions of stars, shapes of stars, and shapes of
                             models of stars (T, g1, g2)
         """
-        import piff
+        from .util import calculate_moments
         logger = galsim.config.LoggerWrapper(logger)
         # measure moments with Gaussian on image
         logger.debug("Measuring shapes of real stars")
-        shapes_data = np.array([ star.hsm for star in stars ])
+
+        if fourth_order:
+            shapes_data = np.empty((len(stars), 12))
+            for i, star in enumerate(stars):
+                shapes_data[i,:7] = star.hsm
+                m = calculate_moments(star, fourth_order=True)
+                shapes_data[i,7:] = (m['M22']/m['M11'],
+                                     m['M31']/m['M11']**2, m['M13']/m['M11']**2,
+                                     m['M40']/m['M11']**2, m['M04']/m['M11']**2)
+
+                # Subtract of 3e from the 4th order shapes to remove the leading order
+                # term from the overall ellipticity, which is already captured in the
+                # second order shape.  (For a Gaussian, this makes g4 very close to 0.)
+                shape = galsim.Shear(g1=star.hsm[4], g2=star.hsm[5])
+                shapes_data[i,8] -= 3*shape.e1
+                shapes_data[i,9] -= 3*shape.e2
+        else:
+            shapes_data = np.array([ star.hsm for star in stars ])
+            # If no stars, then shapes_data is the wrong shape.  This line is normally a no op
+            # but makes things work right if len(stars)=0.
+            shapes_data = shapes_data.reshape((len(stars),7))
         for star, shape in zip(stars, shapes_data):
             logger.debug("real shape for star at %s is %s",star.image_pos, shape)
-
-        # If no stars, then shapes_data is the wrong shape.  This line is normally a no op
-        # but makes things work right if len(stars)=0.
-        shapes_data = shapes_data.reshape((len(stars),7))
 
         # Convert from sigma to T
         # Note: the hsm sigma is det(M)^1/4, not sqrt(T/2), so need to account for the effect
@@ -196,11 +214,25 @@ class Stats(object):
             if model_properties is not None:
                 stars = [star.withProperties(**model_properties) for star in stars]
                 stars = psf.interpolateStarList(stars)
-            shapes_model = np.array([ star.hsm for star in psf.drawStarList(stars)])
-            shapes_model = shapes_model.reshape((len(stars),7))
+            model_stars = psf.drawStarList(stars)
+            if fourth_order:
+                shapes_model = np.empty((len(model_stars), 12))
+                for i, star in enumerate(model_stars):
+                    shapes_model[i,:7] = star.hsm
+                    m = calculate_moments(star, fourth_order=True)
+                    shapes_model[i,7:] = (m['M22']/m['M11'],
+                                          m['M31']/m['M11']**2, m['M13']/m['M11']**2,
+                                          m['M40']/m['M11']**2, m['M04']/m['M11']**2)
+                    shape = galsim.Shear(g1=star.hsm[4], g2=star.hsm[5])
+                    shapes_model[i,8] -= 3*shape.e1
+                    shapes_model[i,9] -= 3*shape.e2
+            else:
+                shapes_model = np.array([ star.hsm for star in model_stars])
+                shapes_model = shapes_model.reshape((len(model_stars),7))
+
             gsq = shapes_model[:,4]**2 + shapes_model[:,5]**2
             shapes_model[:,3] = 2*shapes_model[:,3]**2 * (1+gsq)/(1-gsq)
-            for star, shape in zip(stars, shapes_model):
+            for star, shape in zip(model_stars, shapes_model):
                 logger.debug("model shape for star at %s is %s",star.image_pos, shape)
 
         return positions, shapes_data, shapes_model
@@ -661,15 +693,49 @@ class HSMCatalogStats(Stats):
         :flag_data: 0 where HSM succeeded on the observed star, >0 where it failed (see above).
         :flag_model: 0 where HSM succeeded on the PSF model, >0 where it failed (see above).
 
+    If fourth_order=True, then there are additional quantities calculated as well.
+    We define the following notation:
+
+    .. math::
+
+        T = \int I(u,v) (u^2 + v^2) du dv
+        T^{(4)} = \int I(u,v) (u^2 + v^2)^2 du dv / T
+        g^{(4)} = \int I(u,v) (u^2 + v^2) (u + iv)^2 du dv / T^2 - 3e
+        h^{(4)} = \int I(u,v) (u + iv)^4 du dv / T^2
+
+    I.e. :math:`T^{(4)}` is a fourth-order spin-0 quantity, analogous to :math:`T` at second
+    order, :math:`g^{(4)}` is a fourth-order spin-2 quantity, analogous to :math:`g`, and
+    :math:`h^{(4)}` is a spin-4 quantity.  The denominators ensure that the units of
+    :math:`T^{(4)}` is :math:`arcsec^2`, just like :math:`T` and that :math:`g^{(4)}` and
+    :math:`h^{(4)}` are dimensionless.  And the :math:`-3e` term for :math:`g^{(4)}` subtracts
+    off the dominant contribution to the fourth order quantity from the second order shape.
+    For a pure elliptical Gaussian, this makes :math:`g^{(4)}` come out very close to zero.
+
+    The output file contains the following additional columns:
+
+        :T4_data:   The fourth-order "size", :math:`T^{(4)}`, of the observed star.
+        :g41_data:  The real component of :math:`g^{4}` of the obserbed star.
+        :g42_data:  The imaginary component of :math:`g^{4}` of the obserbed star.
+        :h41_data:  The real component of :math:`h^{4}` of the obserbed star.
+        :h42_data:  The imaginary component of :math:`h^{4}` of the obserbed star.
+        :T4_model:  The fourth-order "size", :math:`T^{(4)}`, of the PSF model.
+        :g41_model: The real component of :math:`g^{4}` of the PSF model.
+        :g42_model: The imaginary component of :math:`g^{4}` of the PSF model.
+        :h41_model: The real component of :math:`h^{4}` of the PSF model.
+        :h42_model: The imaginary component of :math:`h^{4}` of the PSF model.
+
     :param file_name:        Name of the file to output to. [default: None]
     :param model_properties: Optionally a dict of properties to use for the model rendering.
                              The default behavior is to use the properties of the star itself
                              for any properties that are not overridden by model_properties.
                              [default: None]
+    :param fourth_order:     Whether to include the fourth-order quantities as well as
+                             additional output columns.
     """
-    def __init__(self, file_name=None, model_properties=None, logger=None):
+    def __init__(self, file_name=None, model_properties=None, fourth_order=False, logger=None):
         self.file_name = file_name
         self.model_properties = model_properties
+        self.fourth_order = fourth_order
 
     def compute(self, psf, stars, logger=None):
         """
@@ -681,38 +747,75 @@ class HSMCatalogStats(Stats):
         # get the shapes
         logger.warning("Calculating shape histograms for %d stars",len(stars))
         positions, shapes_data, shapes_model = self.measureShapes(
-                psf, stars, model_properties=self.model_properties, logger=logger)
+                psf, stars, model_properties=self.model_properties,
+                fourth_order=self.fourth_order, logger=logger)
 
-        # define terms for the catalogs
-        self.u = positions[:, 0]
-        self.v = positions[:, 1]
-        self.flux = shapes_data[:, 0]
-        self.reserve = np.array([s.is_reserve for s in stars], dtype=bool)
-        self.T_data = shapes_data[:, 3]
-        self.g1_data = shapes_data[:, 4]
-        self.g2_data = shapes_data[:, 5]
-        self.T_model = shapes_model[:, 3]
-        self.g1_model = shapes_model[:, 4]
-        self.g2_model = shapes_model[:, 5]
-        self.flag_data = shapes_data[:, 6]
-        self.flag_model = shapes_model[:, 6]
-        self.x = np.array([star.image_pos.x for star in stars])
-        self.y = np.array([star.image_pos.y for star in stars])
+        # Build the columns for the output catalog
         if isinstance(stars[0].image.wcs, galsim.wcs.CelestialWCS):
-            self.ra = np.array([star.image.wcs.toWorld(star.image_pos).ra.deg for star in stars])
-            self.dec = np.array([star.image.wcs.toWorld(star.image_pos).dec.deg for star in stars])
+            ra = np.array([star.image.wcs.toWorld(star.image_pos).ra.deg for star in stars])
+            dec = np.array([star.image.wcs.toWorld(star.image_pos).dec.deg for star in stars])
         else:
-            self.ra = np.zeros_like(self.u)
-            self.dec = np.zeros_like(self.u)
+            ra = np.zeros(len(stars))
+            dec = np.zeros(len(stars))
+        self.cols = [
+            positions[:, 0],  # u
+            positions[:, 1],  # v
+            np.array([star.image_pos.x for star in stars]),
+            np.array([star.image_pos.y for star in stars]),
+            ra, dec,
+            shapes_data[:, 0],  # flux
+            np.array([s.is_reserve for s in stars], dtype=bool),  # reserve
+            shapes_data[:, 6],  # flag_data
+            shapes_model[:, 6],  # flag_model
+            shapes_data[:, 3],  # T_data
+            shapes_data[:, 4],  # g1_data
+            shapes_data[:, 5],  # g2_data
+            shapes_model[:, 3],  # T_model
+            shapes_model[:, 4],  # g1_model
+            shapes_model[:, 5],  # g2_model
+        ]
+        self.dtypes = [('u', float), ('v', float),
+                       ('x', float), ('y', float),
+                       ('ra', float), ('dec', float),
+                       ('flux', float), ('reserve', bool),
+                       ('flag_data', int), ('flag_model', int),
+                       ('T_data', float), ('g1_data', float), ('g2_data', float),
+                       ('T_model', float), ('g1_model', float), ('g2_model', float)]
+
+        if self.fourth_order:
+            self.cols.extend([
+                shapes_data[:, 7],  # T4_data
+                shapes_data[:, 8],  # g41_data
+                shapes_data[:, 9],  # g42_data
+                shapes_data[:, 10],  # h41_data
+                shapes_data[:, 11],  # h42_data
+                shapes_model[:, 7],  # T4_model
+                shapes_model[:, 8],  # g41_model
+                shapes_model[:, 9],  # g42_model
+                shapes_model[:, 10],  # h41_model
+                shapes_model[:, 11],  # h42_model
+            ])
+            self.dtypes.extend([
+                ('T4_data', float), ('g41_data', float), ('g42_data', float),
+                ('h41_data', float), ('h42_data', float),
+                ('T4_model', float), ('g41_model', float), ('g42_model', float),
+                ('h41_model', float), ('h42_model', float),
+            ])
+
         # Also write any other properties saved in the stars.
-        self.props = {}
         prop_keys = list(stars[0].data.properties)
-        # Remove all the position ones, which are handled separately.
+        # Remove all the position ones, which are handled above.
         prop_keys = [key for key in prop_keys if key not in ['x', 'y', 'u', 'v', 'ra', 'dec']]
         # Add any remaining properties
+        prop_types = stars[0].data.property_types
         for key in prop_keys:
-            self.props[key] = [ s.data.properties[key] for s in stars ]
-        self.prop_types = stars[0].data.property_types
+            if not np.isscalar(stars[0].data.properties[key]): # pragma: no cover
+                # TODO: This will apply to wavefront, but we don't have any tests that do this yet.
+                #       Once we have one, remove the no cover.
+                continue
+            self.cols.append(np.array([ s.data.properties[key] for s in stars ]))
+            # Use the saved type if available, otherwise use float.
+            self.dtypes.append((key, prop_types.get(key, float)))
 
     def write(self, file_name=None, logger=None):
         """Write catalog to file.
@@ -727,32 +830,11 @@ class HSMCatalogStats(Stats):
             file_name = self.file_name
         if file_name is None:
             raise ValueError("No file_name specified for %s"%self.__class__.__name__)
-        if not hasattr(self, 'u'):
+        if not hasattr(self, 'cols'):
             raise RuntimeError("Must call compute before calling write")
 
         logger.warning("Writing HSM catalog to file %s",file_name)
 
-        cols = [self.u, self.v, self.x, self.y, self.ra, self.dec,
-                self.flux, self.reserve, self.flag_data, self.flag_model,
-                self.T_data, self.g1_data, self.g2_data,
-                self.T_model, self.g1_model, self.g2_model]
-        dtypes = [('u', float), ('v', float),
-                  ('x', float), ('y', float),
-                  ('ra', float), ('dec', float),
-                  ('flux', float), ('reserve', bool),
-                  ('flag_data', int), ('flag_model', int),
-                  ('T_data', float), ('g1_data', float), ('g2_data', float),
-                  ('T_model', float), ('g1_model', float), ('g2_model', float)]
-        for key, col in self.props.items():
-            if not np.isscalar(col[0]): # pragma: no cover
-                # TODO: This will apply to wavefront, but we don't have any tests that do this yet.
-                #       Once we have one, remove the no cover.
-                continue
-            if key in self.prop_types:
-                dtypes.append((key, self.prop_types[key]))
-            else:
-                dtypes.append((key, float))
-            cols.append(col)
-        data = np.array(list(zip(*cols)), dtype=dtypes)
+        data = np.array(list(zip(*self.cols)), dtype=self.dtypes)
         with fitsio.FITS(file_name, 'rw', clobber=True) as f:
             f.write_table(data)
