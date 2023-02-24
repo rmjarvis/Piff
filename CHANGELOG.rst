@@ -28,6 +28,8 @@ New features
   use with the Optical model. (#134)
 - Made chipnum optional whenever the input model only covers a single chip, regardless of whether
   the chipnum was specified in the config file. (#140)
+- Added option to output fourth_order moments in HSM output file. (#142)
+- Added option to output all raw moments in HSM output file. (#142)
 - Added star.withProperties method. (#143)
 - Added model_properties option for stats to use e.g. a specific color rather than the stars'
   own colors for the model measurements. (#143)

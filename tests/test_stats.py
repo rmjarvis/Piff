@@ -1098,6 +1098,69 @@ def test_fourth_order():
         # The g^2 bit makes sense, but I can't figure out where the factor of ~10 comes from.
         print('h4: ', data['h41_data'][i], data['h42_data'][i])
 
+    # Repeat, adding in raw_moments
+    config['output']['stats'][0]['raw_moments'] = True
+    piff.piffify(config, logger)
+    data = fitsio.read(hsm_file)
+
+    # Check that the model and data measurements are close
+    for name in ('T', 'g1', 'g2', 'T4', 'h41', 'h42',
+                 'M00', 'M10', 'M01', 'M11', 'M20', 'M02',
+                 'M22', 'M31', 'M13', 'M40', 'M04',
+                 'M22n', 'M33n', 'M44n'):
+        np.testing.assert_allclose(data[name+'_model'], data[name+'_data'], rtol=1.e-4)
+    for name in ('g41', 'g42', 'M21', 'M12', 'M30', 'M03'):
+        # These are close to 0, so use atol, not rtol.
+        np.testing.assert_allclose(data[name+'_model'], data[name+'_data'], atol=1.e-4)
+
+    # Check that the moment values are what we intend them to be
+    for i, star in enumerate(stars):
+        moments = piff.util.calculate_moments(star, third_order=True, fourth_order=True,
+                                              radial=True)
+        # Repeat the tests from above to ensure that raw_moments=True doesn't mess up the
+        # fourth_order=True measurements.
+        T = moments['M11']*2
+        shape = galsim.Shear(e1=moments['M20']/moments['M11'],
+                             e2=moments['M02']/moments['M11'])
+        np.testing.assert_allclose(data['T_data'][i], T, rtol=1.e-5)
+        np.testing.assert_allclose(data['g1_data'][i], shape.g1, rtol=1.e-5)
+        np.testing.assert_allclose(data['g2_data'][i], shape.g2, rtol=1.e-5)
+        T4 = moments['M22'] / T
+        T4 = moments['M22'] / T
+        np.testing.assert_allclose(data['T4_data'][i], moments['M22']/moments['M11'], rtol=1.e-5)
+        np.testing.assert_allclose(data['g41_data'][i],
+                                   moments['M31']/moments['M11']**2 - 3*shape.e1, atol=1.e-5)
+        np.testing.assert_allclose(data['g42_data'][i],
+                                   moments['M13']/moments['M11']**2 - 3*shape.e2, atol=1.e-5)
+        np.testing.assert_allclose(data['h41_data'][i],
+                                   moments['M40']/moments['M11']**2, rtol=1.e-5)
+        np.testing.assert_allclose(data['h42_data'][i],
+                                   moments['M04']/moments['M11']**2, rtol=1.e-5)
+        np.testing.assert_allclose(data['T4_data'][i], T/(1-shape.e**2)**0.5, rtol=0.05)
+        np.testing.assert_allclose(moments['M31']/moments['M11'], 3*moments['M20'], rtol=1.e-3)
+        np.testing.assert_allclose(moments['M13']/moments['M11'], 3*moments['M02'], rtol=1.e-3)
+        np.testing.assert_allclose(data['g41_data'][i], 0, atol=1.e-3)
+        np.testing.assert_allclose(data['g42_data'][i], 0, atol=1.e-3)
+
+        for name in moments.keys():
+            # These should be exactly the same.
+            np.testing.assert_allclose(data[name+'_data'][i], moments[name])
+            # And the model ones should be close.
+            np.testing.assert_allclose(data[name+'_model'][i], moments[name], atol=1.e-4)
+
+    # Finally make sure raw_moments works without fourth_order=True
+    del config['output']['stats'][0]['fourth_order']
+    piff.piffify(config, logger)
+    data = fitsio.read(hsm_file)
+    for i, star in enumerate(stars):
+        moments = piff.util.calculate_moments(star, third_order=True, fourth_order=True,
+                                              radial=True)
+        for name in moments.keys():
+            # These should be exactly the same.
+            np.testing.assert_allclose(data[name+'_data'][i], moments[name])
+            # And the model ones should be close.
+            np.testing.assert_allclose(data[name+'_model'][i], moments[name], atol=1.e-4)
+
 
 @timer
 def test_property_cols():
