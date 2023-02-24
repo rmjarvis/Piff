@@ -143,7 +143,8 @@ class Stats(object):
             fig.set_tight_layout(True)
         canvas.print_figure(file_name, dpi=100)
 
-    def measureShapes(self, psf, stars, model_properties=None, fourth_order=False, logger=None):
+    def measureShapes(self, psf, stars, model_properties=None, fourth_order=False,
+                      raw_moments=False, logger=None):
         """Compare PSF and true star shapes with HSM algorithm
 
         :param psf:              A PSF Object
@@ -154,6 +155,8 @@ class Stats(object):
                                  [default: None]
         :param fourth_order:     Whether to include the fourth-order quantities as well in columns
                                  7 through 11 of the output array.
+        :param raw_moments:      Whether to include the complete set of raw moments as calculated
+                                 by `calculate_moments`. [default: False]
         :param logger:           A logger object for logging debug info. [default: None]
 
         :returns:           positions of stars, shapes of stars, and shapes of
@@ -167,21 +170,33 @@ class Stats(object):
         shapes_data = [ list(star.hsm) for star in stars ]
         nshapes = 7
 
-        if fourth_order:
-            nshapes += 5
+        if fourth_order or raw_moments:
+            if fourth_order:
+                kwargs = dict(fourth_order=True)
+                nshapes += 5
+            if raw_moments:
+                nshapes += 18
+                kwargs = dict(third_order=True, fourth_order=True, radial=True)
             for i, star in enumerate(stars):
                 d = shapes_data[i]
-                m = calculate_moments(star, fourth_order=True)
-                d.extend([m['M22']/m['M11'],
-                          m['M31']/m['M11']**2, m['M13']/m['M11']**2,
-                          m['M40']/m['M11']**2, m['M04']/m['M11']**2])
+                m = calculate_moments(star, **kwargs)
 
-                # Subtract of 3e from the 4th order shapes to remove the leading order
-                # term from the overall ellipticity, which is already captured in the
-                # second order shape.  (For a Gaussian, this makes g4 very close to 0.)
-                shape = galsim.Shear(g1=star.hsm[4], g2=star.hsm[5])
-                d[8] -= 3*shape.e1
-                d[9] -= 3*shape.e2
+                if fourth_order:
+                    d.extend([m['M22']/m['M11'],
+                            m['M31']/m['M11']**2, m['M13']/m['M11']**2,
+                            m['M40']/m['M11']**2, m['M04']/m['M11']**2])
+
+                    # Subtract of 3e from the 4th order shapes to remove the leading order
+                    # term from the overall ellipticity, which is already captured in the
+                    # second order shape.  (For a Gaussian, this makes g4 very close to 0.)
+                    shape = galsim.Shear(g1=star.hsm[4], g2=star.hsm[5])
+                    d[8] -= 3*shape.e1
+                    d[9] -= 3*shape.e2
+                if raw_moments:
+                    d.extend([m['M00'], m['M10'], m['M01'], m['M11'], m['M20'], m['M02'],
+                              m['M21'], m['M12'], m['M30'], m['M03'],
+                              m['M22'], m['M31'], m['M13'], m['M40'], m['M04'],
+                              m['M22n'], m['M33n'], m['M44n']])
 
         # Turn it into a proper numpy array.
         shapes_data = np.array(shapes_data)
@@ -221,16 +236,22 @@ class Stats(object):
             model_stars = psf.drawStarList(stars)
             shapes_model = [list(star.hsm) for star in model_stars]
 
-            if fourth_order:
+            if fourth_order or raw_moments:
                 for i, star in enumerate(model_stars):
                     d = shapes_model[i]
-                    m = calculate_moments(star, fourth_order=True)
-                    d.extend([m['M22']/m['M11'],
-                              m['M31']/m['M11']**2, m['M13']/m['M11']**2,
-                              m['M40']/m['M11']**2, m['M04']/m['M11']**2])
-                    shape = galsim.Shear(g1=star.hsm[4], g2=star.hsm[5])
-                    d[8] -= 3*shape.e1
-                    d[9] -= 3*shape.e2
+                    m = calculate_moments(star, **kwargs)
+                    if fourth_order:
+                        d.extend([m['M22']/m['M11'],
+                                  m['M31']/m['M11']**2, m['M13']/m['M11']**2,
+                                  m['M40']/m['M11']**2, m['M04']/m['M11']**2])
+                        shape = galsim.Shear(g1=star.hsm[4], g2=star.hsm[5])
+                        d[8] -= 3*shape.e1
+                        d[9] -= 3*shape.e2
+                    if raw_moments:
+                        d.extend([m['M00'], m['M10'], m['M01'], m['M11'], m['M20'], m['M02'],
+                                  m['M21'], m['M12'], m['M30'], m['M03'],
+                                  m['M22'], m['M31'], m['M13'], m['M40'], m['M04'],
+                                  m['M22n'], m['M33n'], m['M44n']])
 
             shapes_model = np.array(shapes_model)
             shapes_model = shapes_model.reshape((len(model_stars),nshapes))
@@ -663,7 +684,7 @@ class RhoStats(Stats):
         return fig, axs
 
 class HSMCatalogStats(Stats):
-    """Stats class for writing the shape information to an output file.
+    r"""Stats class for writing the shape information to an output file.
 
     This will compute the size and shapes of the observed stars and the PSF models
     and write these data to a file.
@@ -735,12 +756,16 @@ class HSMCatalogStats(Stats):
                              for any properties that are not overridden by model_properties.
                              [default: None]
     :param fourth_order:     Whether to include the fourth-order quantities as well as
-                             additional output columns.
+                             additional output columns. [default: False]
+    :param raw_moments:      Whether to include the complete set of raw moments as calculated
+                             by piff.util.calculate_moments. [default: False]
     """
-    def __init__(self, file_name=None, model_properties=None, fourth_order=False, logger=None):
+    def __init__(self, file_name=None, model_properties=None, fourth_order=False,
+                 raw_moments=False, logger=None):
         self.file_name = file_name
         self.model_properties = model_properties
         self.fourth_order = fourth_order
+        self.raw_moments = raw_moments
 
     def compute(self, psf, stars, logger=None):
         """
@@ -753,7 +778,8 @@ class HSMCatalogStats(Stats):
         logger.warning("Calculating shape histograms for %d stars",len(stars))
         positions, shapes_data, shapes_model = self.measureShapes(
                 psf, stars, model_properties=self.model_properties,
-                fourth_order=self.fourth_order, logger=logger)
+                fourth_order=self.fourth_order, raw_moments=self.raw_moments,
+                logger=logger)
 
         # Build the columns for the output catalog
         if isinstance(stars[0].image.wcs, galsim.wcs.CelestialWCS):
@@ -788,23 +814,35 @@ class HSMCatalogStats(Stats):
                        ('T_model', float), ('g1_model', float), ('g2_model', float)]
 
         if self.fourth_order:
-            self.cols.extend([
-                shapes_data[:, 7],  # T4_data
-                shapes_data[:, 8],  # g41_data
-                shapes_data[:, 9],  # g42_data
-                shapes_data[:, 10],  # h41_data
-                shapes_data[:, 11],  # h42_data
-                shapes_model[:, 7],  # T4_model
-                shapes_model[:, 8],  # g41_model
-                shapes_model[:, 9],  # g42_model
-                shapes_model[:, 10],  # h41_model
-                shapes_model[:, 11],  # h42_model
-            ])
+            self.cols.extend(list(shapes_data[:,7:12].T))
+            self.cols.extend(list(shapes_model[:,7:12].T))
             self.dtypes.extend([
                 ('T4_data', float), ('g41_data', float), ('g42_data', float),
                 ('h41_data', float), ('h42_data', float),
                 ('T4_model', float), ('g41_model', float), ('g42_model', float),
                 ('h41_model', float), ('h42_model', float),
+            ])
+            k = 12
+        else:
+            k = 7
+        if self.raw_moments:
+            self.cols.extend(list(shapes_data[:,k:].T))
+            self.cols.extend(list(shapes_model[:,k:].T))
+            self.dtypes.extend([
+                ('M00_data', float), ('M10_data', float), ('M01_data', float),
+                ('M11_data', float), ('M20_data', float), ('M02_data', float),
+                ('M21_data', float), ('M12_data', float),
+                ('M30_data', float), ('M03_data', float),
+                ('M22_data', float), ('M31_data', float), ('M13_data', float),
+                ('M40_data', float), ('M04_data', float),
+                ('M22n_data', float), ('M33n_data', float), ('M44n_data', float),
+                ('M00_model', float), ('M10_model', float), ('M01_model', float),
+                ('M11_model', float), ('M20_model', float), ('M02_model', float),
+                ('M21_model', float), ('M12_model', float),
+                ('M30_model', float), ('M03_model', float),
+                ('M22_model', float), ('M31_model', float), ('M13_model', float),
+                ('M40_model', float), ('M04_model', float),
+                ('M22n_model', float), ('M33n_model', float), ('M44n_model', float),
             ])
 
         # Also write any other properties saved in the stars.
