@@ -568,18 +568,17 @@ class InputFiles(Input):
                 signal = image - np.mean(extra_props['sky'])
             else:
                 signal = image
-            # For the gain, either all are None or all are values.
-            gain = extra_props['gain']
-            if gain[0] is None:
-                # If None, then we want to estimate the gain from the weight image.
-                weight, g = InputFiles._removeSignalFromWeight(signal, weight)
-                extra_props['gain'] = [g for _ in gain]
-                logger.warning("Empirically determined gain = %f",g)
-            else:
+            if 'gain' in extra_props:
                 # If given, use the mean gain when removing the signal.
                 # This isn't quite right, but hopefully the gain won't vary too much for
                 # different objects, so it should be close.
-                weight, _ = InputFiles._removeSignalFromWeight(signal, weight, gain=np.mean(gain))
+                gain = np.mean(extra_props['gain'])
+                weight, _ = InputFiles._removeSignalFromWeight(signal, weight, gain=gain)
+            else:
+                # If no gain provided, then we want to estimate the gain from the weight image.
+                weight, g = InputFiles._removeSignalFromWeight(signal, weight)
+                extra_props['gain'] = [g] * len(image_pos)
+                logger.warning("Empirically determined gain = %f",g)
             logger.info("Removed signal from weight image.")
 
         return image, weight, image_pos, extra_props
@@ -636,12 +635,13 @@ class InputFiles(Input):
                 props[key] = extra_props[key][k]
 
             # If any pixels are saturated, skip it.
-            max_val = np.max(stamp.array)
-            if max_val > props.get('satur', np.inf):
-                logger.warning("Star at position %f,%f has saturated pixels.", x, y)
-                logger.warning("Maximum value is %f.", max_val)
-                logger.warning("Skipping this object.")
-                continue
+            if 'satur' in props:
+                max_val = np.max(stamp.array)
+                if max_val > props['satur']:
+                    logger.warning("Star at position %f,%f has saturated pixels.", x, y)
+                    logger.warning("Maximum value is %f.", max_val)
+                    logger.warning("Skipping this object.")
+                    continue
 
             # Subtract the sky
             if 'sky' in props:
@@ -979,8 +979,6 @@ class InputFiles(Input):
                     raise KeyError("Key %s not found in FITS header"%gain)
                 gain = float(header[gain])
             extra_props['gain'] = np.array([gain]*len(cat), dtype=float)
-        else:
-            extra_props['gain'] = [None] * len(cat)
 
         # Get the saturation level
         if satur is not None:
@@ -996,8 +994,6 @@ class InputFiles(Input):
                 satur = float(header[satur])
                 logger.debug("Using saturation from header: %s",satur)
             extra_props['satur'] = np.array([satur]*len(cat), dtype=float)
-        else:
-            extra_props['satur'] = np.array([np.inf]*len(cat), dtype=float)
 
         return image_pos, extra_props
 
