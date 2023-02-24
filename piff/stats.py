@@ -164,26 +164,30 @@ class Stats(object):
         # measure moments with Gaussian on image
         logger.debug("Measuring shapes of real stars")
 
+        shapes_data = [ list(star.hsm) for star in stars ]
+        nshapes = 7
+
         if fourth_order:
-            shapes_data = np.empty((len(stars), 12))
+            nshapes += 5
             for i, star in enumerate(stars):
-                shapes_data[i,:7] = star.hsm
+                d = shapes_data[i]
                 m = calculate_moments(star, fourth_order=True)
-                shapes_data[i,7:] = (m['M22']/m['M11'],
-                                     m['M31']/m['M11']**2, m['M13']/m['M11']**2,
-                                     m['M40']/m['M11']**2, m['M04']/m['M11']**2)
+                d.extend([m['M22']/m['M11'],
+                          m['M31']/m['M11']**2, m['M13']/m['M11']**2,
+                          m['M40']/m['M11']**2, m['M04']/m['M11']**2])
 
                 # Subtract of 3e from the 4th order shapes to remove the leading order
                 # term from the overall ellipticity, which is already captured in the
                 # second order shape.  (For a Gaussian, this makes g4 very close to 0.)
                 shape = galsim.Shear(g1=star.hsm[4], g2=star.hsm[5])
-                shapes_data[i,8] -= 3*shape.e1
-                shapes_data[i,9] -= 3*shape.e2
-        else:
-            shapes_data = np.array([ star.hsm for star in stars ])
-            # If no stars, then shapes_data is the wrong shape.  This line is normally a no op
-            # but makes things work right if len(stars)=0.
-            shapes_data = shapes_data.reshape((len(stars),7))
+                d[8] -= 3*shape.e1
+                d[9] -= 3*shape.e2
+
+        # Turn it into a proper numpy array.
+        shapes_data = np.array(shapes_data)
+        # If no stars, then shapes_data is the wrong shape.  This line is normally a no op
+        # but makes things work right if len(stars)=0.
+        shapes_data = shapes_data.reshape((len(stars),nshapes))
         for star, shape in zip(stars, shapes_data):
             logger.debug("real shape for star at %s is %s",star.image_pos, shape)
 
@@ -215,20 +219,21 @@ class Stats(object):
                 stars = [star.withProperties(**model_properties) for star in stars]
                 stars = psf.interpolateStarList(stars)
             model_stars = psf.drawStarList(stars)
+            shapes_model = [list(star.hsm) for star in model_stars]
+
             if fourth_order:
-                shapes_model = np.empty((len(model_stars), 12))
                 for i, star in enumerate(model_stars):
-                    shapes_model[i,:7] = star.hsm
+                    d = shapes_model[i]
                     m = calculate_moments(star, fourth_order=True)
-                    shapes_model[i,7:] = (m['M22']/m['M11'],
-                                          m['M31']/m['M11']**2, m['M13']/m['M11']**2,
-                                          m['M40']/m['M11']**2, m['M04']/m['M11']**2)
+                    d.extend([m['M22']/m['M11'],
+                              m['M31']/m['M11']**2, m['M13']/m['M11']**2,
+                              m['M40']/m['M11']**2, m['M04']/m['M11']**2])
                     shape = galsim.Shear(g1=star.hsm[4], g2=star.hsm[5])
-                    shapes_model[i,8] -= 3*shape.e1
-                    shapes_model[i,9] -= 3*shape.e2
-            else:
-                shapes_model = np.array([ star.hsm for star in model_stars])
-                shapes_model = shapes_model.reshape((len(model_stars),7))
+                    d[8] -= 3*shape.e1
+                    d[9] -= 3*shape.e2
+
+            shapes_model = np.array(shapes_model)
+            shapes_model = shapes_model.reshape((len(model_stars),nshapes))
 
             gsq = shapes_model[:,4]**2 + shapes_model[:,5]**2
             shapes_model[:,3] = 2*shapes_model[:,3]**2 * (1+gsq)/(1-gsq)
