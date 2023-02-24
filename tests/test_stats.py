@@ -990,6 +990,114 @@ def test_model_properties():
     print('dT vs color: m, b = ',m,b)
     assert np.abs(m-0.1) < 2.e-3
 
+@timer
+def test_fourth_order():
+    """Test HSMCatalog with fourth_order=True
+    """
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(verbose=2)
+    else:
+        logger = piff.config.setup_logger(log_file='output/test_hsmcatalog.log')
+
+    image_file = os.path.join('output','test_stats_image.fits')
+    cat_file = os.path.join('output','test_stats_cat.fits')
+    psf_file = os.path.join('output','test_starstats.fits')
+    hsm_file = os.path.join('output', 'test_hsmcatalog.fits')
+    config = {
+        'input' : {
+            'image_file_name' : image_file,
+            'cat_file_name' : cat_file,
+            'stamp_size' : 48,
+        },
+        'psf' : {
+            'model' : { 'type' : 'Gaussian',
+                        'fastfit': True,
+                        'include_pixel': False },
+            'interp' : { 'type' : 'Mean' },
+        },
+        'output' : {
+            'file_name' : psf_file,
+            'stats' : [
+                {
+                    'type': 'HSMCatalog',
+                    'file_name': hsm_file,
+                    'fourth_order': True
+                }
+            ]
+        }
+    }
+    piff.piffify(config, logger)
+    assert os.path.isfile(hsm_file)
+
+    data = fitsio.read(hsm_file)
+    print('data = ',data)
+    # Check that the model and data measurements are close
+    np.testing.assert_allclose(data['T_model'], data['T_data'], rtol=1.e-4)
+    np.testing.assert_allclose(data['g1_model'], data['g1_data'], rtol=1.e-4)
+    np.testing.assert_allclose(data['g2_model'], data['g2_data'], rtol=1.e-4)
+    np.testing.assert_allclose(data['T4_model'], data['T4_data'], rtol=1.e-4)
+    np.testing.assert_allclose(data['g41_model'], data['g41_data'], atol=1.e-4)
+    np.testing.assert_allclose(data['g42_model'], data['g42_data'], atol=1.e-4)
+    np.testing.assert_allclose(data['h41_model'], data['h41_data'], rtol=1.e-4)
+    np.testing.assert_allclose(data['h42_model'], data['h42_data'], rtol=1.e-4)
+
+    # Check that the moment values are what we intend them to be
+    psf = piff.read(psf_file)
+    stars = piff.Star.load_images(psf.stars, image_file)
+    for i, star in enumerate(stars):
+        moments = piff.util.calculate_moments(star, fourth_order=True)
+        T = moments['M11']*2
+        shape = galsim.Shear(e1=moments['M20']/moments['M11'],
+                             e2=moments['M02']/moments['M11'])
+        print('moments = ',moments)
+        print('hsm = ',star.hsm)
+        print('data = ',data[i])
+        print(data['T_data'][i], T, 2*star.hsm[3]**2 / (1-shape.e**2)**0.5)
+        print(data['g1_data'][i], shape.g1, star.hsm[4])
+        print(data['g2_data'][i], shape.g2, star.hsm[5])
+        np.testing.assert_allclose(data['T_data'][i], T, rtol=1.e-5)
+        np.testing.assert_allclose(data['g1_data'][i], shape.g1, rtol=1.e-5)
+        np.testing.assert_allclose(data['g2_data'][i], shape.g2, rtol=1.e-5)
+        T4 = moments['M22'] / T
+        T4 = moments['M22'] / T
+        np.testing.assert_allclose(data['T4_data'][i], moments['M22']/moments['M11'], rtol=1.e-5)
+        np.testing.assert_allclose(data['g41_data'][i],
+                                   moments['M31']/moments['M11']**2 - 3*shape.e1, atol=1.e-5)
+        np.testing.assert_allclose(data['g42_data'][i],
+                                   moments['M13']/moments['M11']**2 - 3*shape.e2, atol=1.e-5)
+        np.testing.assert_allclose(data['h41_data'][i],
+                                   moments['M40']/moments['M11']**2, rtol=1.e-5)
+        np.testing.assert_allclose(data['h42_data'][i],
+                                   moments['M04']/moments['M11']**2, rtol=1.e-5)
+
+        # Our simulated data here are elliptical Gaussians, so check that the fourth order terms
+        # match what we expect for them.
+        #
+        # First, for a round Gaussian, M22 = T^2.
+        # When there is some ellipticity, there is a correction of (1-e^2).
+        # It doesn't come out exact, but it's reasonably close.  Not sure why it's not closer...
+        print('T4: ', data['T4_data'][i], T/(1-shape.e**2)**0.5)
+        np.testing.assert_allclose(data['T4_data'][i], T/(1-shape.e**2)**0.5, rtol=0.05)
+
+        # Next, the naive 4th order shape of an elliptical Gaussian is approximately 3e:
+        # M31/M11^2 ~= 3 M20/M11
+        # M13/M11^2 ~= 3 M02/M11
+        print('e4: ', moments['M31']/moments['M11']**2, 3*moments['M20']/moments['M11'])
+        print('e4: ', moments['M13']/moments['M11']**2, 3*moments['M02']/moments['M11'])
+        np.testing.assert_allclose(moments['M31']/moments['M11'], 3*moments['M20'], rtol=1.e-3)
+        np.testing.assert_allclose(moments['M13']/moments['M11'], 3*moments['M02'], rtol=1.e-3)
+        # Our g4 measurements subtract off this leading order effect, so for these Gaussian
+        # profiles, the 4th order terms are close to 0.
+        print('g4: ', data['g41_data'][i], data['g42_data'][i])
+        np.testing.assert_allclose(data['g41_data'][i], 0, atol=1.e-3)
+        np.testing.assert_allclose(data['g42_data'][i], 0, atol=1.e-3)
+
+        # I didn't try to figure out what the spin-4 values should be for a Gaussian.
+        # If someone wants to work that out, it would be nice to add a test that they are right.
+        # Empirically, it seems to come out pretty close to 10 x (g1+i g2)^2.
+        # The g^2 bit makes sense, but I can't figure out where the factor of ~10 comes from.
+        print('h4: ', data['h41_data'][i], data['h42_data'][i])
+
 
 @timer
 def test_property_cols():
@@ -1104,4 +1212,5 @@ if __name__ == '__main__':
     test_bad_hsm()
     test_base_stats()
     test_model_properties()
+    test_fourth_order()
     test_property_cols()
