@@ -535,6 +535,7 @@ class InputFiles(Input):
                             weight=weight,
                             pointing=star.data.pointing,
                             properties=star.data.properties,
+                            property_types=star.data.property_types,
                             _xyuv_set=True)
             loaded_stars.append(Star(data=data, fit=star.fit))
 
@@ -577,7 +578,7 @@ class InputFiles(Input):
             else:
                 # If no gain provided, then we want to estimate the gain from the weight image.
                 weight, g = InputFiles._removeSignalFromWeight(signal, weight)
-                extra_props['gain'] = [g] * len(image_pos)
+                extra_props['gain'] = np.array([g] * len(image_pos), dtype=float)
                 logger.warning("Empirically determined gain = %f",g)
             logger.info("Removed signal from weight image.")
 
@@ -595,6 +596,10 @@ class InputFiles(Input):
         logger.info("Processing catalog %s with %d objects",chipnum,len(image_pos))
 
         objects = []
+
+        # Make a dict of the types to use for the extra_props, so we can preserve the type
+        # if we need to output them (e.g. in HSMCatalog).
+        prop_types = {key: extra_props[key].dtype.type for key in extra_props}
 
         for k in range(len(image_pos)):
             x = image_pos[k].x
@@ -652,7 +657,7 @@ class InputFiles(Input):
 
             pos = galsim.PositionD(x,y)
             data = StarData(stamp, pos, weight=wt_stamp, pointing=pointing,
-                            properties=props)
+                            properties=props, property_types=prop_types)
             star = Star(data, None)
 
             objects.append(star)

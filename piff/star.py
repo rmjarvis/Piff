@@ -338,7 +338,7 @@ class Star(object):
             prop_keys.remove(key)
         # Add any remaining properties
         for key in prop_keys:
-            dtypes.append( (key, float) )
+            dtypes.append( (key, stars[0].data.property_types.get(key, float)) )
             cols.append( [ s.data.properties[key] for s in stars ] )
 
         # Add the local WCS values
@@ -534,6 +534,7 @@ class Star(object):
                                    orig_weight=s.data.orig_weight,
                                    pointing=s.data.pointing,
                                    properties=dict(s.data.properties, sky=sky),
+                                   property_types=s.data.property_types,
                                    _xyuv_set = True),
                           s.fit) for s in stars]
 
@@ -654,12 +655,15 @@ class StarData(object):
                         the wcs and a pointing. [default: None]
     :param properties:  A dict containing other properties about the star that might be of
                         interest. [default: None]
+    :param property_types: A dict containing the types to use for properties if we are eventually
+                           going to output them to a file.  (Only really necessary for any that
+                           aren't float.) [default: None]
     :param orig_weight: The original weight map prior to any additional Poisson variance being
                         added.  [default: None, which means use orig_weight=weight]
     :param logger:      A logger object for logging debug info. [default: None]
     """
     def __init__(self, image, image_pos, weight=None, pointing=None, field_pos=None,
-                 properties=None, orig_weight=None, logger=None,
+                 properties=None, property_types=None, orig_weight=None, logger=None,
                  _xyuv_set=False):
         # Save all of these as attributes.
         self.image = image
@@ -684,6 +688,10 @@ class StarData(object):
             self.properties = {}
         else:
             self.properties = properties
+        if property_types is None:
+            self.property_types = {}
+        else:
+            self.property_types = property_types
 
         self.pointing = pointing
         if field_pos is None:
@@ -836,6 +844,7 @@ class StarData(object):
                         orig_weight=self.orig_weight,
                         pointing=self.pointing,
                         properties=dict(self.properties, gain=gain),
+                        property_types=self.property_types,
                         _xyuv_set = True)
 
 

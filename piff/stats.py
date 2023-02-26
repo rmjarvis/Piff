@@ -699,6 +699,7 @@ class HSMCatalogStats(Stats):
         # Add any remaining properties
         for key in prop_keys:
             self.props[key] = [ s.data.properties[key] for s in stars ]
+        self.prop_types = stars[0].data.property_types
 
     def write(self, file_name=None, logger=None):
         """Write catalog to file.
@@ -725,12 +726,19 @@ class HSMCatalogStats(Stats):
         dtypes = [('u', float), ('v', float),
                   ('x', float), ('y', float),
                   ('ra', float), ('dec', float),
-                  ('flux', float), ('reserve', int),
+                  ('flux', float), ('reserve', bool),
                   ('flag_truth', int), ('flag_model', int),
                   ('T_data', float), ('g1_data', float), ('g2_data', float),
                   ('T_model', float), ('g1_model', float), ('g2_model', float)]
         for key, col in self.props.items():
-            dtypes.append((key, float))
+            if not np.isscalar(col[0]): # pragma: no cover
+                # TODO: This will apply to wavefront, but we don't have any tests that do this yet.
+                #       Once we have one, remove the no cover.
+                continue
+            if key in self.prop_types:
+                dtypes.append((key, self.prop_types[key]))
+            else:
+                dtypes.append((key, float))
             cols.append(col)
         data = np.array(list(zip(*cols)), dtype=dtypes)
         with fitsio.FITS(file_name, 'rw', clobber=True) as f:
