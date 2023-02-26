@@ -988,6 +988,92 @@ def test_model_properties():
     assert np.abs(m-0.1) < 2.e-3
 
 
+@timer
+def test_property_cols():
+    """Test that extra property_cols get output correctly in the hsm output file.
+    """
+    image_file = 'input/D00572501_z_c01_r3624p01_immasked.fits.fz'
+    cat_file = 'input/D00572501_z_c01_r5473p01_piff.fits'
+    psf_file = os.path.join('output','test_property_cols.piff')
+    hsm_file = os.path.join('output','test_property_cols_hsm.fits')
+
+    nstars = 25
+    scale = 0.26
+    size = 15
+    order = 1
+    stamp_size = 25
+
+    config = {
+        'input' : {
+            'nstars': nstars,
+            'image_file_name' : image_file,
+            'image_hdu' : 1,
+            'weight_hdu' : 3,
+            'badpix_hdu' : 2,
+            'cat_file_name' : cat_file,
+            'x_col' : 'XWIN_IMAGE',
+            'y_col' : 'YWIN_IMAGE',
+            'sky_col' : 'BACKGROUND',
+            'stamp_size' : stamp_size,
+            'ra' : 'TELRA',
+            'dec' : 'TELDEC',
+            'gain' : 'GAINA',
+            'satur' : 'SATURATA',
+            # Select ones with a variety of dtypes.
+            'property_cols' : ['SOURCE_ID', 'GI_COLOR', 'FLAGS', 'FLAG_COLOR', 'SPREAD_MODEL'],
+        },
+        'select' : {
+            'type': 'Properties',
+            'where': 'np.abs(SPREAD_MODEL) < 3.e-4',
+
+            'reserve_frac' : 0.2,
+            'seed' : 1234,
+        },
+        'psf' : {
+            'model' : {
+                'type' : 'PixelGrid',
+                'scale' : scale,
+                'size' : size,
+                'interp' : 'Lanczos(5)',
+            },
+            'interp' : {
+                'type' : 'BasisPolynomial',
+                'order' : order,
+            },
+        },
+        'output' : {
+            'file_name' : psf_file,
+            'stats': [
+                {
+                    'type': 'HSMCatalog',
+                    'file_name': hsm_file,
+                },
+            ],
+        },
+    }
+
+    piff.piffify(config)
+    hsm = fitsio.read(hsm_file)
+    cat = fitsio.read(cat_file)
+
+    print('hsm dtype = ',hsm.dtype)
+    print('cat dtype = ',cat.dtype)
+
+    for key in hsm.dtype.names:
+        print(key)
+        if key in cat.dtype.names:
+            assert hsm[key].dtype.type == cat[key].dtype.type
+        elif key == 'reserve':
+            assert hsm[key].dtype.type == np.dtype(bool).type
+        elif key.startswith('flag'):
+            assert hsm[key].dtype.type == np.dtype(int).type
+        elif key == 'sky':
+            # This one is read from the input catalog, but renamed
+            assert hsm[key].dtype.type == np.float32
+        else:
+            assert hsm[key].dtype.type == np.dtype(float).type
+
+
 if __name__ == '__main__':
     setup()
     test_twodstats()
@@ -1000,3 +1086,4 @@ if __name__ == '__main__':
     test_bad_hsm()
     test_base_stats()
     test_model_properties()
+    test_property_cols()

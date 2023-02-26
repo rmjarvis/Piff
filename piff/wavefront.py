@@ -244,7 +244,9 @@ class Wavefront(object):
                         field_pos=aStar.field_pos,
                         weight=aStar.weight,
                         pointing=aStar.data.pointing,
-                        properties=dict(aStar.data.properties, wavefront=wf_arr_final[istar,:]),_xyuv_set=True)
+                        properties=dict(aStar.data.properties, wavefront=wf_arr_final[istar,:]),
+                        property_types=aStar.data.property_types,
+                        _xyuv_set=True)
                 new_star = Star(data=new_data,fit=aStar.fit)
                 new_stars.append(new_star)
 

@@ -1,6 +1,12 @@
 Changes from version 1.2 to 1.3
 ===============================
 
+Output file changes
+--------------------
+
+- Preserve the dtype of property columns read from an input catalog when they are subsequently
+  written to an output file (e.g HSMCatalog) (#141)
+
 
 Performance improvements
 ------------------------
