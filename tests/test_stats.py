@@ -1020,6 +1020,7 @@ def test_property_cols():
             'dec' : 'TELDEC',
             'gain' : 'GAINA',
             'satur' : 'SATURATA',
+            'chipnum': 1,
             # Select ones with a variety of dtypes.
             'property_cols' : ['SOURCE_ID', 'GI_COLOR', 'FLAGS', 'FLAG_COLOR', 'SPREAD_MODEL'],
         },
@@ -1039,7 +1040,8 @@ def test_property_cols():
             },
             'interp' : {
                 'type' : 'BasisPolynomial',
-                'order' : order,
+                'order' : [1, 1, 1],
+                'keys': ['u', 'v', 'GI_COLOR'],
             },
         },
         'output' : {
@@ -1073,6 +1075,19 @@ def test_property_cols():
             assert hsm[key].dtype.type == np.float32
         else:
             assert hsm[key].dtype.type == np.dtype(float).type
+
+    # Check that drawing the image works without specifying chipnum.
+    # This is ok so long as the input is really only a single chip.
+    # cf. Issue #140
+    psf = piff.read(psf_file)
+    im1 = psf.draw(35, 40, center=True, GI_COLOR=1)
+
+    # If the input field didn't include chipnum, then it makes no difference for a single chip.
+    del config['input']['chipnum']
+    piff.piffify(config)
+    psf = piff.read(psf_file)
+    im2 = psf.draw(35, 40, center=True, GI_COLOR=1)
+    assert im1 == im2
 
 
 if __name__ == '__main__':

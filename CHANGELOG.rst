@@ -19,6 +19,9 @@ Performance improvements
 New features
 ------------
 
+- Made chipnum optional whenever the input model only covers a single chip, regardless of whether
+  the chipnum was specified in the config file. (#140)
+
 
 Bug fixes
 ---------
