@@ -312,9 +312,24 @@ class Model(object):
         if 'force_model_center' in kwargs: # pragma: no cover
             # old version of this parameter name.
             kwargs['centered'] = kwargs.pop('force_model_center')
+        model_cls._fix_kwargs(kwargs)
         model = model_cls(**kwargs)
         model._finish_read(fits, extname)
         return model
+
+    @classmethod
+    def _fix_kwargs(cls, kwargs):
+        """Fix the kwargs read in from an input file.
+
+        This is intended to make it easier to preserve backwards compatibility if a class
+        has changed something about the kwargs, this provides a way for old parameter names
+        or defaults to be updated for a newer version of Piff than the one that wrong them.
+
+        Usually, this is a no op.
+
+        :param kwargs:  The old kwargs read in from a previous version Piff output file.
+        """
+        pass
 
     def _finish_read(self, fits, extname):
         """Finish the reading process with any class-specific steps.
