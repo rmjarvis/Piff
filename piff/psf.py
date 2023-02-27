@@ -98,7 +98,7 @@ class PSF(object):
         """
         raise NotImplementedError("Derived classes must define the parseKwargs function")
 
-    def draw(self, x, y, chipnum=0, flux=1.0, center=None, offset=None, stamp_size=48,
+    def draw(self, x, y, chipnum=None, flux=1.0, center=None, offset=None, stamp_size=48,
              image=None, logger=None, **kwargs):
         r"""Draws an image of the PSF at a given location.
 
@@ -148,8 +148,8 @@ class PSF(object):
 
         :param x:           The x position of the desired PSF in the original image coordinates.
         :param y:           The y position of the desired PSF in the original image coordinates.
-        :param chipnum:     Which chip to use for WCS information. [default: 0, which is
-                            appropriate if only using a single chip]
+        :param chipnum:     Which chip to use for WCS information. [required if the psf model
+                            covers more than a single chip]
         :param flux:        Flux of PSF to be drawn [default: 1.0]
         :param center:      (xc,yc) tuple giving the location on the image where you want the
                             nominal center of the profile to be drawn.  Also allowed is the
@@ -166,6 +166,8 @@ class PSF(object):
         :returns:           A GalSim Image of the PSF
         """
         logger = galsim.config.LoggerWrapper(logger)
+
+        chipnum = self._check_chipnum(chipnum)
 
         prof, method = self.get_profile(x,y,chipnum=chipnum, flux=flux, logger=logger, **kwargs)
 
@@ -201,7 +203,7 @@ class PSF(object):
 
         return image
 
-    def get_profile(self, x, y, chipnum=0, flux=1.0, logger=None, **kwargs):
+    def get_profile(self, x, y, chipnum=None, flux=1.0, logger=None, **kwargs):
         r"""Get the PSF profile at the given position as a GalSim GSObject.
 
         The normal usage would be to specify (chipnum, x, y), in which case Piff will use the
@@ -227,8 +229,8 @@ class PSF(object):
 
         :param x:           The x position of the desired PSF in the original image coordinates.
         :param y:           The y position of the desired PSF in the original image coordinates.
-        :param chipnum:     Which chip to use for WCS information. [default: 0, which is
-                            appropriate if only using a single chip]
+        :param chipnum:     Which chip to use for WCS information. [required if the psf model
+                            covers more than a single chip]
         :param flux:        Flux of PSF model [default: 1.0]
         :param \**kwargs:   Any additional properties required for the interpolation.
 
@@ -238,6 +240,8 @@ class PSF(object):
                             when drawing the profile on an image.
         """
         logger = galsim.config.LoggerWrapper(logger)
+
+        chipnum = self._check_chipnum(chipnum)
 
         properties = {'chipnum' : chipnum}
         for key in self.interp_property_names:
@@ -249,11 +253,9 @@ class PSF(object):
             raise TypeError("Unexpected keyword argument(s) %r"%list(kwargs.keys())[0])
 
         image_pos = galsim.PositionD(x,y)
-        field_pos = StarData.calculateFieldPos(image_pos, self.wcs[chipnum], self.pointing,
-                                               properties)
-        u,v = field_pos.x, field_pos.y
-
         wcs = self.wcs[chipnum]
+        field_pos = StarData.calculateFieldPos(image_pos, wcs, self.pointing, properties)
+        u,v = field_pos.x, field_pos.y
 
         star = Star.makeTarget(x=x, y=y, u=u, v=v, wcs=wcs, properties=properties,
                                pointing=self.pointing)
@@ -265,6 +267,17 @@ class PSF(object):
         # The last step is implementd in the derived classes.
         prof, method = self._getProfile(star)
         return prof, method
+
+    def _check_chipnum(self, chipnum):
+        chipnums = list(self.wcs.keys())
+        if chipnum is None:
+            if len(chipnums) == 1:
+                chipnum = chipnums[0]
+            else:
+                raise ValueError("chipnum is required.  Must be one of %s", str(chipnums))
+        elif chipnum not in chipnums:
+            raise ValueError("Invalid chipnum.  Must be one of %s", str(chipnums))
+        return chipnum
 
     def interpolateStarList(self, stars):
         """Update the stars to have the current interpolated fit parameters according to the

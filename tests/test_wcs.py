@@ -364,6 +364,14 @@ def test_single():
             #print('  fitted s,e1,e2 = ',star.fit.params)
             np.testing.assert_almost_equal(star.fit.params, [s,e1,e2], decimal=6)
 
+            # This is the more user-friendly way to do this.
+            # Equivalent to ~machine precision.
+            im = psf.draw(x, y, chipnum=chipnum)
+            print('im = ',im)
+            print('star im = ',star.data.image)
+            print('max diff = ',np.max(np.abs(im.array - star.data.image.array)))
+            np.testing.assert_almost_equal(im.array, star.data.image.array)
+
     # Chipnum is required as a property to use SingleCCDPSF
     star1 = piff.Star.makeTarget(x=x, y=y, wcs=wcs, stamp_size=48, pointing=field_center)
     with np.testing.assert_raises(ValueError):
@@ -371,6 +379,18 @@ def test_single():
     star2 = piff.Star(star1.data, star.fit)  # If has a fit, it hits a different error
     with np.testing.assert_raises(ValueError):
         psf.drawStar(star2)
+
+    # Check the more typical functions: psf.draw and psf.get_profile
+    with np.testing.assert_raises(ValueError):
+        psf.draw(x, y)
+    with np.testing.assert_raises(ValueError):
+        psf.get_profile(x, y)
+
+    # Also gives an error if the chipnum is wrong.
+    with np.testing.assert_raises(ValueError):
+        psf.draw(x, y, chipnum=22)
+    with np.testing.assert_raises(ValueError):
+        psf.get_profile(x, y, chipnum=22)
 
 
 @timer
