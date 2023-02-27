@@ -774,6 +774,7 @@ def test_bad_hsm():
                 'type' : 'PixelGrid',
                 'scale' : 0.3,
                 'size' : 10,
+                'interp': 'Lanczos(3)'
             },
             'interp' : { 'type' : 'Mean' },
             'outliers' : {

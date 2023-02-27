@@ -35,11 +35,11 @@ class PixelGrid(Model):
 
     PixelGrid also needs to specify an interpolant to define how to values between grid points
     are determined from the pixelated model.  Any galsim.Interpolant type is allowed.
-    The default interpolant is galsim.Lanczos(3)
+    The default interpolant is galsim.Lanczos(7)
 
     :param scale:       Pixel scale of the PSF model (in arcsec)
     :param size:        Number of pixels on each side of square grid.
-    :param interp:      An Interpolant to be used [default: Lanczos(3)]
+    :param interp:      An Interpolant to be used [default: Lanczos(7)]
     :param centered:    If True, PSF model centroid is forced to be (0,0), and the
                         PSF fitting will marginalize over stellar position.  If False, stellar
                         position is fixed at input value and the fitted PSF may be off-center.
@@ -52,11 +52,7 @@ class PixelGrid(Model):
                                  # current centroid of the model.  This way on later iterations,
                                  # the model will be close to centered.
 
-    def __init__(self, scale, size, interp=None, centered=True, logger=None,
-                 degenerate=None, start_sigma=None):
-        # Note: Parameters degenerate and start_sigma are not used.
-        #       They are present only for backwards compatibility when reading old Piff
-        #       output files that specify these parameters.
+    def __init__(self, scale, size, interp=None, centered=True, logger=None):
 
         logger = galsim.config.LoggerWrapper(logger)
         logger.debug("Building Pixel model with the following parameters:")
@@ -68,7 +64,7 @@ class PixelGrid(Model):
         self.scale = scale
         self.size = size
         self.pixel_area = self.scale*self.scale
-        if interp is None: interp = Lanczos(3)
+        if interp is None: interp = Lanczos(7)
         elif isinstance(interp, str): interp = eval(interp)
         self.interp = interp
         self._centered = centered
@@ -509,3 +505,15 @@ class PixelGrid(Model):
 
         # Normally this is all that is required.
         star.fit.params /= np.sum(star.fit.params)
+
+    @classmethod
+    def _fix_kwargs(cls, kwargs):
+        # Old (v1.0 and earlier) versions included two parameters that are now obsoloete.
+        # Remove them if they are present.
+        kwargs.pop('degenerate', None)
+        kwargs.pop('start_sigma', None)
+
+        # Some (even older -- v0.2.x) files don't include the interp.  The default back then
+        # was Lanczos(3), so if it's not present, set it to that.
+        if 'interp' not in kwargs:
+            kwargs['interp'] = galsim.Lanczos(3)

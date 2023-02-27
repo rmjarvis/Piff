@@ -11,6 +11,10 @@ Output file changes
 Performance improvements
 ------------------------
 
+- Changed default interpolant for PixelGrid to Lanczos(7) rather than Lanczos(3), since we found
+  some significant inaccuracies in some cases when using Lanczos(3), so this seems like a safer
+  default. (#145)
+
 
 New features
 ------------
