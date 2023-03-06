@@ -161,6 +161,10 @@ def piffify(config, logger=None):
         if key not in config:
             raise ValueError("%s field is required in config dict"%key)
 
+    if logger is None:
+        verbose = config.get('verbose', 1)
+        logger = setup_logger(verbose=verbose)
+
     psf = process(config, logger)
 
     # write it out to a file
