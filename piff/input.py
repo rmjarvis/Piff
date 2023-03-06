@@ -59,7 +59,7 @@ class Input(object):
         stars = input_handler.makeStars(logger)
 
         if len(stars) == 0:
-            raise RuntimeError("No stars read in from input catalog(s).")
+            raise RuntimeError("No objects read in from input catalog(s).")
 
         # Get the wcs for all the input chips
         wcs = input_handler.getWCS(logger)
@@ -104,7 +104,7 @@ class Input(object):
         # Concatenate the star lists into a single list
         stars = [s for slist in all_stars if slist is not None for s in slist if slist]
 
-        logger.warning("Read a total of %d stars from %d image%s",len(stars),self.nimages,
+        logger.warning("Read a total of %d objects from %d image%s",len(stars),self.nimages,
                        "s" if self.nimages > 1 else "")
 
         return stars
@@ -612,14 +612,14 @@ class InputFiles(Input):
             if not image.bounds.includes(bounds):
                 bounds = bounds & image.bounds
                 if not bounds.isDefined():
-                    logger.warning("Star at position %f,%f is off the edge of the image.", x, y)
+                    logger.warning("Object at position %f,%f is off the edge of the image.", x, y)
                     logger.warning("Skipping this object.")
                     continue
                 if use_partial:
-                    logger.info("Star at position %f,%f overlaps the edge of the image.  "
+                    logger.info("Object at position %f,%f overlaps the edge of the image.  "
                                 "Using smaller than the full stamp size: %s", x, y, bounds)
                 else:
-                    logger.warning("Star at position %f,%f overlaps the edge of the image.", x, y)
+                    logger.warning("Object at position %f,%f overlaps the edge of the image.", x, y)
                     logger.warning("Skipping this object.")
                     continue
             stamp = image[bounds].copy()
@@ -629,7 +629,7 @@ class InputFiles(Input):
 
             # if an object is totally masked, then don't add it!
             if np.all(wt_stamp.array == 0):
-                logger.warning("Star at position %f,%f is completely masked.", x, y)
+                logger.warning("Object at position %f,%f is completely masked.", x, y)
                 logger.warning("Skipping this object.")
                 continue
 
@@ -643,7 +643,7 @@ class InputFiles(Input):
             if 'satur' in props:
                 max_val = np.max(stamp.array)
                 if max_val > props['satur']:
-                    logger.warning("Star at position %f,%f has saturated pixels.", x, y)
+                    logger.warning("Object at position %f,%f has saturated pixels.", x, y)
                     logger.warning("Maximum value is %f.", max_val)
                     logger.warning("Skipping this object.")
                     continue
@@ -834,11 +834,11 @@ class InputFiles(Input):
 
         if cat_file_name is None:
             # This is possible e.g. when loading images into an existing list of star instances.
-            logger.warning("Not reading star catalog.")
+            logger.warning("Not reading input catalog.")
             return None, None
 
         # Read in the star catalog
-        logger.warning("Reading star catalog %s.",cat_file_name)
+        logger.warning("Reading input catalog %s.",cat_file_name)
         cat = fitsio.read(cat_file_name, cat_hdu)
 
         if flag_col is not None:
@@ -866,7 +866,7 @@ class InputFiles(Input):
 
         # Limit to nstars objects
         if nstars is not None and nstars < len(cat):
-            logger.info("Limiting to %d stars for %s",nstars,cat_file_name)
+            logger.info("Limiting to %d objects for %s",nstars,cat_file_name)
             cat = cat[:nstars]
 
         # Make the list of positions:
