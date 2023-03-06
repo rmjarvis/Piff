@@ -86,11 +86,27 @@ After installing Piff, you can run the unit tests by doing::
     nosetests
 
 
+Using Piff
+----------
+
+A tutorial notebook giving an overview of how to use Piff is available in the
+examples directory, called::
+
+    Tutorial.ipynb
+
+This is not a comprehensive tour of Piff's capabilities of course, but it should
+provide a rough guide to the basic structure.
+
+Full documentation is available at:
+
+http://rmjarvis.github.io/Piff/
+
+
 Reporting bugs
 --------------
 
-If you have any trouble installing or using the code, or if you find a bug,
-please report it at:
+If you have any trouble installing or using the code, or if you find a bug, an
+error in the documentation, or have any other problem, please report it at:
 
 https://github.com/rmjarvis/Piff/issues
 
