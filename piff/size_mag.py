@@ -525,8 +525,8 @@ class SizeMagSelect(Select):
             logT_star = logT_obj[select]
             u_star = u_obj[select]
             v_star = v_obj[select]
-            logger.warning("SizeMag iteration %d => N stars = %d", i_iter, len(logf_star))
-            logger.warning("Mean logT of stars = %s, std = %s", np.mean(logT_star), np.std(logT_star))
+            logger.info("SizeMag iteration %d => N stars = %d", i_iter, len(logf_star))
+            logger.info("Mean logT of stars = %.3f, std = %.3f", np.mean(logT_star), np.std(logT_star))
 
         select_index = orig_index[select]
         logger.debug("select_index = %s",select_index)
