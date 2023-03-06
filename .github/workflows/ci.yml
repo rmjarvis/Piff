@@ -87,7 +87,7 @@ jobs:
                 pip install -U -r requirements.txt
 
                 # Extra packages needed for testing
-                pip install -U nose codecov coverage pytest
+                pip install -U nose codecov coverage pytest nbval ipykernel
 
             - name: Install Pixmappy (not on pip)
               run: |
@@ -113,6 +113,14 @@ jobs:
                 coverage run -m pytest -v
                 cd ..  # N.B. This seems to happen automatically if omitted.
                        # Less confusing to include it explicitly.
+
+            - name: Test Tutorial notebook
+              if: matrix.py == 3.9
+              run: |
+                cd examples
+                pytest --nbval Tutorial.ipynb --sanitize-with sanitize.cfg --current-env
+                cd ..
+
 
             - name: Upload coverage to codecov
               run: |
