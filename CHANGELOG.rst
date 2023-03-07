@@ -6,15 +6,23 @@ Output file changes
 
 - Preserve the dtype of property columns read from an input catalog when they are subsequently
   written to an output file (e.g HSMCatalog) (#141)
-
-
-Output file changes
--------------------
-
 - Changed the HSM file output column name from flag_truth to flag_data to match the other
   \*_data columns. (#142)
 - Fixed type of reserve output column to be int rather than float. (#143)
 - Automatically write any extra_properties from the input file into the output file. (#143)
+
+
+API Changes
+-----------
+
+- Changed the name of the purity parameter of the SizeMag selector to impurity.  This value
+  really describes the maximum allowed impurity of the sample, so calling it purity was
+  confusing.  "Impurity" is closer to what this parameter is intended to mean.  (The old name
+  is still allowed for now, but gives a deprecation warning.) (#146)
+
+
+Performance improvements
+------------------------
 
 - Changed default interpolant for PixelGrid to Lanczos(7) rather than Lanczos(3), since we found
   some significant inaccuracies in some cases when using Lanczos(3), so this seems like a safer

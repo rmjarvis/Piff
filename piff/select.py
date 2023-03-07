@@ -130,7 +130,7 @@ class Select(object):
         select_handler_class = getattr(piff, config_select.get('type','Flag') + 'Select')
 
         # Build handler object
-        select_handler = select_handler_class(config_select)
+        select_handler = select_handler_class(config_select, logger=logger)
 
         # Creat a list of Star objects
         stars = select_handler.selectStars(objects, logger)

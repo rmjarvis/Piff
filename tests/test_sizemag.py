@@ -265,7 +265,7 @@ def test_sizemag():
             'type': 'Properties',
             'where': '(CLASS_STAR > 0.9) & (MAG_AUTO < 16)',
         },
-        'purity' : 0,
+        'impurity' : 0,
         'num_iter' : 2,
         'fit_order': 0,
     }
@@ -391,11 +391,23 @@ def test_sizemag():
     # But ok to have parameters that the base class will handle.
     config['select'] = {
         'type': 'SizeMag',
-        'purity': 0,
+        'impurity': 0,
         'hsm_size_reject': 4,
         'min_snr': 50,
     }
     piff.Select.process(config['select'], objects, logger=logger)
+
+    # impurity used to be purity.  It's allowed but emits a warning.
+    config['select'] = {
+        'type': 'SizeMag',
+        'purity': 0.,
+        'hsm_size_reject': 4,
+        'min_snr': 50,
+    }
+    with CaptureLog(1) as cl:
+        piff.Select.process(config['select'], objects, logger=cl.logger)
+    assert "WARNING: The parameter name 'purity' should now be called 'impurity'." in cl.output
+
 
 if __name__ == '__main__':
     test_sizemag_plot()

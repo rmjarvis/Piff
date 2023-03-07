@@ -325,8 +325,12 @@ class SizeMagSelect(Select):
                         field of view.  This is used to subtract off the gross size variation
                         across the focal plane, which tends to tighten up the stellar locus.
                         [default: 2]
-        :purity:        The maximum ratio of objects at the minimum between the stellar locus
-                        and the galaxy locus to the number of stars found. [default: 0.01]
+        :impurity:      The maximum ratio of objects at the minimum between the stellar locus
+                        and the galaxy locus to the number of stars found.  This shouldn't be
+                        taken to be a quantitative estimate of the actual impurity in the sample,
+                        but larger values of impurity will correspond to larger samples with more
+                        impurities.  Smaller impurity will likely result in a purer selection of
+                        stars, but also one with fewer total stars. [default: 0.01]
         :num_iter:      How many iterations to repeat the processing of building a histogram
                         looking for when it merges with the galaxy locus. [default: 3]
 
@@ -365,14 +369,21 @@ class SizeMagSelect(Select):
 
         opt = {
             'fit_order': int,
-            'purity': float,
+            'impurity': float,
             'num_iter': int,
         }
         ignore = Select.base_keys + ['initial_select']
 
+        # This used to be (badly) named purity.
+        # For backwards compatibility, switch it if someone is using the old name.
+        logger = galsim.config.LoggerWrapper(logger)
+        if 'purity' in config:
+            logger.error("WARNING: The parameter name 'purity' should now be called 'impurity'.")
+            config['impurity'] = config.pop('purity')
+
         params = galsim.config.GetAllParams(config, config, opt=opt, ignore=ignore)[0]
         self.fit_order = params.get('fit_order', 2)
-        self.purity = params.get('purity', 0.01)
+        self.impurity = params.get('impurity', 0.01)
         self.num_iter = params.get('num_iter', 3)
 
         if 'initial_select' in config:
@@ -496,9 +507,9 @@ class SizeMagSelect(Select):
                 if len(valleys) > 0 and valleys[0] > 1:
                     valley = valleys[0]
                     logger.debug("hist = %s, valley = %s",hist, valley)
-                    if hist[valley] > self.purity * hist[0]:
+                    if hist[valley] > self.impurity * hist[0]:
                         logger.debug("Value is %s, which is too high (cf. %s)",
-                                     hist[valley], self.purity * hist[0])
+                                     hist[valley], self.impurity * hist[0])
                         break
             else:
                 # If never find a valley (e.g. if all stars or all galaxies are much brighter
