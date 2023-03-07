@@ -1059,7 +1059,6 @@ def test_fourth_order():
         np.testing.assert_allclose(data['g1_data'][i], shape.g1, rtol=1.e-5)
         np.testing.assert_allclose(data['g2_data'][i], shape.g2, rtol=1.e-5)
         T4 = moments['M22'] / T
-        T4 = moments['M22'] / T
         np.testing.assert_allclose(data['T4_data'][i], moments['M22']/moments['M11'], rtol=1.e-5)
         np.testing.assert_allclose(data['g41_data'][i],
                                    moments['M31']/moments['M11']**2 - 3*shape.e1, atol=1.e-5)
@@ -1125,7 +1124,6 @@ def test_fourth_order():
         np.testing.assert_allclose(data['T_data'][i], T, rtol=1.e-5)
         np.testing.assert_allclose(data['g1_data'][i], shape.g1, rtol=1.e-5)
         np.testing.assert_allclose(data['g2_data'][i], shape.g2, rtol=1.e-5)
-        T4 = moments['M22'] / T
         T4 = moments['M22'] / T
         np.testing.assert_allclose(data['T4_data'][i], moments['M22']/moments['M11'], rtol=1.e-5)
         np.testing.assert_allclose(data['g41_data'][i],

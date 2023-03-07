@@ -154,9 +154,12 @@ class Stats(object):
                                  for any properties that are not overridden by model_properties.
                                  [default: None]
         :param fourth_order:     Whether to include the fourth-order quantities as well in columns
-                                 7 through 11 of the output array.
+                                 7 through 11 of the output array. [default: False]
         :param raw_moments:      Whether to include the complete set of raw moments as calculated
-                                 by `calculate_moments`. [default: False]
+                                 by `calculate_moments`.  If requested, these come after the
+                                 fourth-order quantities if those are being returned or after the
+                                 regular quantities otherwise.  Either way they are the last 18
+                                 columns in the output array. [default: False]
         :param logger:           A logger object for logging debug info. [default: None]
 
         :returns:           positions of stars, shapes of stars, and shapes of
@@ -186,7 +189,7 @@ class Stats(object):
                             m['M31']/m['M11']**2, m['M13']/m['M11']**2,
                             m['M40']/m['M11']**2, m['M04']/m['M11']**2])
 
-                    # Subtract of 3e from the 4th order shapes to remove the leading order
+                    # Subtract off 3e from the 4th order shapes to remove the leading order
                     # term from the overall ellipticity, which is already captured in the
                     # second order shape.  (For a Gaussian, this makes g4 very close to 0.)
                     shape = galsim.Shear(g1=star.hsm[4], g2=star.hsm[5])
@@ -755,8 +758,8 @@ class HSMCatalogStats(Stats):
                              The default behavior is to use the properties of the star itself
                              for any properties that are not overridden by model_properties.
                              [default: None]
-    :param fourth_order:     Whether to include the fourth-order quantities as well as
-                             additional output columns. [default: False]
+    :param fourth_order:     Whether to include the additional fourth-order quantities described
+                             above. [default: False]
     :param raw_moments:      Whether to include the complete set of raw moments as calculated
                              by piff.util.calculate_moments. [default: False]
     """
