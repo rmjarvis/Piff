@@ -352,12 +352,12 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
 
     .. math::
 
-        M_00 &= \sum W(u,v) I(u,v) \\
-        M_10 &= \sum W(u,v) I(u,v) du \\
-        M_01 &= \sum W(u,v) I(u,v) dv \\
-        M_11 &= \sum W(u,v) I(u,v) (du^2 + dv^2) \\
-        M_20 &= \sum W(u,v) I(u,v) (du^2 - dv^2) \\
-        M_02 &= \sum W(u,v) I(u,v) (2 du dv)
+        M_{00} &= \sum W(u,v) I(u,v) \\
+        M_{10} &= \sum W(u,v) I(u,v) du \\
+        M_{01} &= \sum W(u,v) I(u,v) dv \\
+        M_{11} &= \sum W(u,v) I(u,v) (du^2 + dv^2) \\
+        M_{20} &= \sum W(u,v) I(u,v) (du^2 - dv^2) \\
+        M_{02} &= \sum W(u,v) I(u,v) (2 du dv)
 
     where W(u,v) is the weight from the HSM fit and du,dv are the positions relative to the
     HSM measured centroid.
@@ -366,20 +366,20 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
 
     .. math::
 
-        M_21 &= \sum W(u,v) I(u,v) du (du^2 + dv^2) \\
-        M_12 &= \sum W(u,v) I(u,v) dv (du^2 + dv^2) \\
-        M_30 &= \sum W(u,v) I(u,v) du (du^2 - 3 dv^2) \\
-        M_03 &= \sum W(u,v) I(u,v) dv (3 du^2 - dv^2)
+        M_{21} &= \sum W(u,v) I(u,v) du (du^2 + dv^2) \\
+        M_{12} &= \sum W(u,v) I(u,v) dv (du^2 + dv^2) \\
+        M_{30} &= \sum W(u,v) I(u,v) du (du^2 - 3 dv^2) \\
+        M_{03} &= \sum W(u,v) I(u,v) dv (3 du^2 - dv^2)
 
     If ``fourth_order`` is set to True, then 4th order moments are also calculated and returned:
 
     .. math::
 
-        M_22 &= \sum W(u,v) I(u,v) (du^2 + dv^2)^2 \\
-        M_31 &= \sum W(u,v) I(u,v) (du^2 + dv^2) (du^2 - dv^2) \\
-        M_13 &= \sum W(u,v) I(u,v) (du^2 + dv^2) (2 du dv) \\
-        M_40 &= \sum W(u,v) I(u,v) (du^4 - 6 du^2 dv^2 + dv^4) \\
-        M_04 &= \sum W(u,v) I(u,v) (du^2 - dv^2) (4 du dv)
+        M_{22} &= \sum W(u,v) I(u,v) (du^2 + dv^2)^2 \\
+        M_{31} &= \sum W(u,v) I(u,v) (du^2 + dv^2) (du^2 - dv^2) \\
+        M_{13} &= \sum W(u,v) I(u,v) (du^2 + dv^2) (2 du dv) \\
+        M_{40} &= \sum W(u,v) I(u,v) (du^4 - 6 du^2 dv^2 + dv^4) \\
+        M_{04} &= \sum W(u,v) I(u,v) (du^2 - dv^2) (4 du dv)
 
     Higher order normalized radial moments (4th through 8th, even) are calculated if ``radial``
     is set to True:
@@ -387,12 +387,12 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
     .. math::
 
         r^2 &\equiv du^2 + dv^2 \\
-        M_22 &= \sum W(u,v) I(u,v) r^4 \\
-        M_33 &= \sum W(u,v) I(u,v) r^6 \\
-        M_44 &= \sum W(u,v) I(u,v) r^8  \\
-        M_22n &= M_22/M_11^2 \\
-        M_33n &= M_33/M_11^3 \\
-        M_44n &= M_44/M_11^4
+        M_{22} &= \sum W(u,v) I(u,v) r^4 \\
+        M_{33} &= \sum W(u,v) I(u,v) r^6 \\
+        M_{44} &= \sum W(u,v) I(u,v) r^8  \\
+        M_{22n} &= M_{22}/M_{11}^2 \\
+        M_{33n} &= M_{33}/M_{11}^3 \\
+        M_{44n} &= M_{44}/M_{11}^4
 
     For all of these, one can also have error estimates returned if ``errors`` is set to True.
 
