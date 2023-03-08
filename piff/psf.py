@@ -385,8 +385,9 @@ class PSF(object):
         :param extname:     The name of the extension with the psf information.
         :param logger:      A logger object for logging debug info.
         """
+        from . import __version__ as piff_version
         psf_type = self.__class__.__name__
-        write_kwargs(fits, extname, dict(self.kwargs, type=psf_type))
+        write_kwargs(fits, extname, dict(self.kwargs, type=psf_type, piff_version=piff_version))
         logger.info("Wrote the basic PSF information to extname %s", extname)
         Star.write(self.stars, fits, extname=extname + '_stars')
         logger.info("Wrote the PSF stars to extname %s", extname + '_stars')
@@ -421,16 +422,15 @@ class PSF(object):
         """
         import piff
 
-        # First get the PSF class from the 'psf' extension
+        # Read the type and kwargs from the base extension
         assert extname in fits
         assert 'type' in fits[extname].get_colnames()
-        psf_type = fits[extname].read()['type']
-        assert len(psf_type) == 1
-        try:
-            psf_type = str(psf_type[0].decode())
-        except AttributeError:
-            # fitsio 1.0 returns strings
-            psf_type = psf_type[0]
+        kwargs = read_kwargs(fits, extname)
+        psf_type = kwargs.pop('type')
+
+        # If piff_version is not in the file, then it was written prior to version 1.3.
+        # Since we don't know what version it was, we just use None.
+        piff_version = kwargs.pop('piff_version',None)
 
         # Check that this is a valid PSF type
         psf_classes = piff.util.get_all_subclasses(piff.PSF)
@@ -445,10 +445,6 @@ class PSF(object):
         wcs, pointing = cls.readWCS(fits, extname + '_wcs', logger=logger)
         logger.debug("wcs = %s, pointing = %s",wcs,pointing)
 
-        # Get any other kwargs we need for this PSF type
-        kwargs = read_kwargs(fits, extname)
-        kwargs.pop('type',None)
-
         # Make the PSF instance
         psf = psf_cls(**kwargs)
         psf.stars = stars
@@ -457,6 +453,9 @@ class PSF(object):
 
         # Just in case the class needs to do something else at the end.
         psf._finish_read(fits, extname, logger)
+
+        # Save the piff version as an attibute.
+        psf.piff_version = piff_version
 
         return psf
 
