@@ -323,6 +323,7 @@ def test_single_image():
     # Round trip to a file
     psf.write(psf_file, logger)
     psf2 = piff.read(psf_file, logger)
+    assert psf2.piff_version == piff.__version__
     assert type(psf2.model) is piff.Gaussian
     assert type(psf2.interp) is piff.Mean
     assert psf2.chisq == psf.chisq
@@ -698,6 +699,9 @@ def test_draw():
     # Use an existing Piff solution to match as closely as possible how users would actually
     # use this function.
     psf = piff.read('input/test_single_py27.piff', logger=logger)
+
+    # This file was made prior to us adding the piff_version attribute.
+    assert psf.piff_version is None
 
     # Data that was used to make that file.
     wcs = galsim.TanWCS(
