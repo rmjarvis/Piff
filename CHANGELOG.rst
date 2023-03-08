@@ -41,6 +41,9 @@ New features
 - Added star.withProperties method. (#143)
 - Added model_properties option for stats to use e.g. a specific color rather than the stars'
   own colors for the model measurements. (#143)
+- PSF instances that are read from a file via `piff.read` will have an attribute ``piff_version``
+  giving the version of Piff that created the file.  (Files created prior to version 1.3 will
+  have ``piff_version = None``. (#146)
 
 
 Bug fixes
