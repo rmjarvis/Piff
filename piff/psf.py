@@ -98,6 +98,136 @@ class PSF(object):
         """
         raise NotImplementedError("Derived classes must define the parseKwargs function")
 
+    def initialize(self, stars, logger):  # pragma: no cover
+        """Initialize the psf solver to begin an iterative solution.
+
+        :param stars:           The initial list of Star instances that will be used to constrain
+                                the PSF.
+        :param logger:          A logger object for logging progress.
+
+        :returns: the initialized stars, nremoved
+        """
+        # Probably most derived classes need to do something here, but if not the default
+        # behavior is just to return the input stars list.
+        return stars, 0
+
+    def single_iteration(self, use_stars, all_stars, logger, convert_func):
+        """Perform a single iteration of the solver.
+
+        Note that some object might fail at some point in the fitting, so some object can be
+        removed from this step, prior to the outlier rejection step.  This information is
+        reported in the return tuple as nremoved.
+
+        :param use_stars:       The list of stars to use for constraining the PSF.
+        :param all_stars:       The complete list of stars, including reserve stars.
+        :param logger:          A logger object for logging progress.
+        :param convert_func:    An optional function to apply to the profile being fit before
+                                drawing it onto the image.
+
+        :returns: an updated list of all_stars, nremoved
+        """
+        raise NotImplementedError("Derived classes must define the single_iteration function")
+
+    def select_use_stars(self, stars, logger):
+        """Select the stars to use for constraining the PSF
+
+        :param stars:           The complete list of stars to consider
+        :param logger:          A logger object for logging progress.
+
+        :returns: use_stars
+        """
+        # Select the non-reserve stars for performing the fit
+        use_stars = [star for star in stars if not star.is_reserve]
+
+        if len(use_stars) != len(stars):
+            logger.warning("             (%d stars are reserved)",
+                            len(stars)-len(use_stars))
+
+        return use_stars
+
+    def remove_outliers(self, stars, iteration, logger):
+        """Look for and possibly remove outliers from the list of stars
+
+        :param stars:           The complete list of stars to consider
+        :param iteration:       The number of the iteration that was just completed.
+        :param logger:          A logger object for logging progress.
+
+        :returns: new_stars, nremoved
+        """
+        # Perform outlier rejection, but not on first iteration for degenerate solvers.
+        if self.outliers and (iteration > 0 or not self.degenerate_points):
+            logger.debug("             Looking for outliers")
+            stars, nremoved = self.outliers.removeOutliers(stars, logger=logger)
+            if nremoved == 0:
+                logger.debug("             No outliers found")
+            else:
+                logger.info("             Removed %d outliers", nremoved)
+        else:
+            nremoved = 0
+        return stars, nremoved
+
+    def fit(self, stars, wcs, pointing, logger=None, convert_func=None):
+        """Fit interpolated PSF model to star data using standard sequence of operations.
+
+        :param stars:           A list of Star instances.
+        :param wcs:             A dict of WCS solutions indexed by chipnum.
+        :param pointing:        A galsim.CelestialCoord object giving the telescope pointing.
+                                [Note: pointing should be None if the WCS is not a CelestialWCS]
+        :param logger:          A logger object for logging debug info. [default: None]
+        :param convert_func:    An optional function to apply to the profile being fit before
+                                drawing it onto the image.  This is used by composite PSFs to
+                                isolate the effect of just this model component. [default: None]
+        """
+        logger = galsim.config.LoggerWrapper(logger)
+
+        self.wcs = wcs
+        self.pointing = pointing
+
+        # Initialize stars as needed by the PSF modeling class.
+        stars, self.nremoved = self.initialize(stars, logger=logger)
+
+        oldchisq = 0.
+        for iteration in range(self.max_iter):
+
+            # Pick out the non-reserve stars to use for fitting.
+            use_stars = self.select_use_stars(stars, logger)
+
+            if len(use_stars) == 0:
+                raise RuntimeError("No stars.  Cannot find PSF model.")
+            logger.warning("Iteration %d: Fitting %d stars", iteration+1, len(use_stars))
+
+            # Run a single iteration of the fitter.
+            # Different PSF types do different things here.
+            stars, iter_nremoved = self.single_iteration(use_stars, stars, logger, convert_func)
+
+            # Find and remove outliers.
+            stars, outlier_nremoved = self.remove_outliers(stars, iteration, logger)
+            iter_nremoved += outlier_nremoved
+
+            chisq = np.sum([s.fit.chisq for s in stars if not s.is_reserve])
+            dof   = np.sum([s.fit.dof for s in stars if not s.is_reserve])
+            logger.warning("             Total chisq = %.2f / %d dof", chisq, dof)
+
+            # Save these so we can write them to the output file.
+            self.chisq = chisq
+            self.last_delta_chisq = oldchisq-chisq
+            self.dof = dof
+
+            # Keep track of the total number removed in all iterations.
+            self.nremoved += iter_nremoved
+
+            # Also store the stars that weren't removed for the output file.
+            self.stars = stars
+
+            # Very simple convergence test here:
+            # Note, the lack of abs here means if chisq increases, we also stop.
+            # Also, don't quit if we removed any outliers.
+            if (iter_nremoved == 0) and (oldchisq > 0) and (oldchisq-chisq < self.chisq_thresh*dof):
+                return
+            oldchisq = chisq
+
+        logger.warning("PSF fit did not converge.  Max iterations = %d reached.",self.max_iter)
+
     def draw(self, x, y, chipnum=None, flux=1.0, center=None, offset=None, stamp_size=48,
              image=None, logger=None, **kwargs):
         r"""Draws an image of the PSF at a given location.

@@ -100,146 +100,88 @@ class SimplePSF(PSF):
 
         return kwargs
 
-    def fit(self, stars, wcs, pointing, logger=None, convert_func=None):
-        """Fit interpolated PSF model to star data using standard sequence of operations.
-
-        :param stars:           A list of Star instances.
-        :param wcs:             A dict of WCS solutions indexed by chipnum.
-        :param pointing:        A galsim.CelestialCoord object giving the telescope pointing.
-                                [Note: pointing should be None if the WCS is not a CelestialWCS]
-        :param logger:          A logger object for logging debug info. [default: None]
-        :param convert_func:    An optional function to apply to the profile being fit before
-                                drawing it onto the image.  This is used by composite PSFs to
-                                isolate the effect of just this model component. [default: None]
-        """
-        logger = galsim.config.LoggerWrapper(logger)
-        self.stars = stars
-        self.wcs = wcs
-        self.pointing = pointing
-
-        if len(stars) == 0:
-            raise RuntimeError("No stars.  Cannot find PSF model.")
+    def initialize(self, stars, logger):
+        nremoved = 0
 
         logger.debug("Initializing models")
         # model.initialize may fail
-        self.nremoved = 0
         new_stars = []
-        for s in self.stars:
+        for s in stars:
             try:
                 new_star = self.model.initialize(s, logger=logger)
             except Exception as e:  # pragma: no cover
                 logger.warning("Failed initializing star at %s. Excluding it.", s.image_pos)
                 logger.warning("  -- Caught exception: %s",e)
-                self.nremoved += 1
+                nremoved += 1
             else:
                 new_stars.append(new_star)
-        if self.nremoved == 0:
+        if nremoved == 0:
             logger.debug("No stars removed in initialize step")
         else:
-            logger.info("Removed %d stars in initialize", self.nremoved)
-        self.stars = new_stars
+            logger.info("Removed %d stars in initialize", nremoved)
 
         logger.debug("Initializing interpolator")
-        self.stars = self.interp.initialize(self.stars, logger=logger)
+        stars = self.interp.initialize(new_stars, logger=logger)
 
         # For basis models, we can compute a quadratic form for chisq, and if we are using
         # a basis interpolator, then we can use it.  It's kind of ugly to query this, but
         # the double dispatch makes it tricky to implement this with class heirarchy, so for
         # now we just check if we have all the required parts to use the quadratic form
         if hasattr(self.interp, 'degenerate_points'):
-            quadratic_chisq = hasattr(self.model, 'chisq') and self.interp.degenerate_points
-            degenerate_points = self.interp.degenerate_points
+            self.quadratic_chisq = hasattr(self.model, 'chisq') and self.interp.degenerate_points
+            self.degenerate_points = self.interp.degenerate_points
         else:
-            quadratic_chisq = False
-            degenerate_points = False
+            self.quadratic_chisq = False
+            self.degenerate_points = False
 
-        # Begin iterations.  Very simple convergence criterion right now.
-        oldchisq = 0.
-        for iteration in range(self.max_iter):
-            # Select the non-reserve stars for performing the fit
-            use_stars = [star for star in self.stars if not star.is_reserve]
+        return stars, nremoved
 
-            if len(use_stars) == 0:
-                raise RuntimeError("No stars.  Cannot find PSF model.")
+    def single_iteration(self, use_stars, all_stars, logger, convert_func):
 
-            logger.warning("Iteration %d: Fitting %d stars", iteration+1, len(use_stars))
-            if len(use_stars) != len(self.stars):
-                logger.warning("             (%d stars are reserved)",
-                               len(self.stars)-len(use_stars))
+        # Perform the fit or compute design matrix as appropriate using just non-reserve stars
+        fit_fn = self.model.chisq if self.quadratic_chisq else self.model.fit
 
-            # Perform the fit or compute design matrix as appropriate using just non-reserve stars
-            fit_fn = self.model.chisq if quadratic_chisq else self.model.fit
+        nremoved = 0  # For this iteration
+        new_use_stars = []
+        for star in use_stars:
+            try:
+                star = fit_fn(star, logger=logger, convert_func=convert_func)
+            except Exception as e:  # pragma: no cover
+                logger.warning("Failed fitting star at %s.", star.image_pos)
+                logger.warning("Excluding it from this iteration.")
+                logger.warning("  -- Caught exception: %s", e)
+                nremoved += 1
+            else:
+                new_use_stars.append(star)
+        use_stars = new_use_stars
 
-            nremoved = 0  # For this iteration
-            new_use_stars = []
-            for star in use_stars:
-                try:
-                    star = fit_fn(star, logger=logger, convert_func=convert_func)
-                except Exception as e:  # pragma: no cover
-                    logger.warning("Failed fitting star at %s.", star.image_pos)
-                    logger.warning("Excluding it from this iteration.")
-                    logger.warning("  -- Caught exception: %s", e)
-                    nremoved += 1
-                else:
-                    new_use_stars.append(star)
-            use_stars = new_use_stars
+        # Perform the interpolation, again using just non-reserve stars
+        logger.debug("             Calculating the interpolation")
+        self.interp.solve(use_stars, logger=logger)
 
-            # Perform the interpolation, again using just non-reserve stars
-            logger.debug("             Calculating the interpolation")
-            self.interp.solve(use_stars, logger=logger)
+        # Note: From here forward, we are back to using all_stars, rather than use_stars.
+        # We want to run the interpolation on everything and refit/recenter everything,
+        # so reserve stars may get outlier rejected as well as non-reserve stars.
+        all_stars = self.interp.interpolateList(all_stars)
 
-            # Note: From here forward, we are back to using self.stars, rather than use_stars.
-            # We want to run the interpolation on everything and refit/recenter everything,
-            # so reserve stars may get outlier rejected as well as non-reserve stars.
-            self.stars = self.interp.interpolateList(self.stars)
+        # Update estimated poisson noise
+        signals = self.drawStarList(all_stars)
+        all_stars = [s.addPoisson(signal) for s, signal in zip(all_stars, signals)]
 
-            # Update estimated poisson noise
-            signals = self.drawStarList(self.stars)
-            self.stars = [s.addPoisson(signal) for s, signal in zip(self.stars, signals)]
-
-            # Refit and recenter all stars, collect stats
-            logger.debug("             Re-fluxing stars")
-            new_stars = []
-            for s in self.stars:
-                try:
-                    new_star = self.model.reflux(s, logger=logger)
-                except Exception as e:  # pragma: no cover
-                    logger.warning("Failed trying to reflux star at %s.  Excluding it.",
-                                    s.image_pos)
-                    logger.warning("  -- Caught exception: %s", e)
-                    nremoved += 1
-                else:
-                    new_stars.append(new_star)
-            self.stars = new_stars
-
-            # Perform outlier rejection, but not on first iteration for degenerate solvers.
-            if self.outliers and (iteration > 0 or not degenerate_points):
-                logger.debug("             Looking for outliers")
-                self.stars, nremoved1 = self.outliers.removeOutliers(self.stars, logger=logger)
-                if nremoved1 == 0:
-                    logger.debug("             No outliers found")
-                else:
-                    logger.info("             Removed %d outliers", nremoved1)
-                nremoved += nremoved1
-
-            chisq = np.sum([s.fit.chisq for s in self.stars if not s.is_reserve])
-            dof   = np.sum([s.fit.dof for s in self.stars if not s.is_reserve])
-            logger.warning("             Total chisq = %.2f / %d dof", chisq, dof)
-
-            # Save these so we can write them to the output file.
-            self.chisq = chisq
-            self.last_delta_chisq = oldchisq-chisq
-            self.dof = dof
-            self.nremoved += nremoved  # Keep track of the total number removed in all iterations.
-
-            # Very simple convergence test here:
-            # Note, the lack of abs here means if chisq increases, we also stop.
-            # Also, don't quit if we removed any outliers.
-            if (nremoved == 0) and (oldchisq > 0) and (oldchisq-chisq < self.chisq_thresh*dof):
-                return
-            oldchisq = chisq
-
-        logger.warning("PSF fit did not converge.  Max iterations = %d reached.",self.max_iter)
+        # Refit and recenter all stars, collect stats
+        logger.debug("             Re-fluxing stars")
+        new_stars = []
+        for s in all_stars:
+            try:
+                new_star = self.model.reflux(s, logger=logger)
+            except Exception as e:  # pragma: no cover
+                logger.warning("Failed trying to reflux star at %s.  Excluding it.",
+                                s.image_pos)
+                logger.warning("  -- Caught exception: %s", e)
+                nremoved += 1
+            else:
+                new_stars.append(new_star)
+        return new_stars, nremoved
 
     def interpolateStarList(self, stars):
         """Update the stars to have the current interpolated fit parameters according to the
