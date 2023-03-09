@@ -851,7 +851,8 @@ class HSMCatalogStats(Stats):
         # Also write any other properties saved in the stars.
         prop_keys = list(stars[0].data.properties)
         # Remove all the position ones, which are handled above.
-        prop_keys = [key for key in prop_keys if key not in ['x', 'y', 'u', 'v', 'ra', 'dec']]
+        exclude_keys = ['x', 'y', 'u', 'v', 'ra', 'dec', 'is_reserve']
+        prop_keys = [key for key in prop_keys if key not in exclude_keys]
         # Add any remaining properties
         prop_types = stars[0].data.property_types
         for key in prop_keys:
