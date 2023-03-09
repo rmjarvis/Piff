@@ -584,6 +584,12 @@ class PSF(object):
 def read(file_name, logger=None):
     """Read a Piff PSF object from a file.
 
+    .. note::
+
+        The returned PSF instance will have an attribute piff_version, which
+        indicates the version of Piff that was used to create the file.  (If it was written with
+        Piff version >= 1.3.0.)
+
     :param file_name:   The name of the file to read.
     :param logger:      A logger object for logging debug info. [default: None]
 
