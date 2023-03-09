@@ -4,11 +4,11 @@ Changes from version 1.2 to 1.3
 Output file changes
 --------------------
 
-- Preserve the dtype of property columns read from an input catalog when they are subsequently
-  written to an output file (e.g HSMCatalog) (#141)
+- Made the dtype of property columns that were read from an input catalog match the original dtype
+  when they are subsequently written to an output file (e.g HSMCatalog) (#141)
 - Changed the HSM file output column name from flag_truth to flag_data to match the other
   \*_data columns. (#142)
-- Fixed type of reserve output column to be int rather than float. (#143)
+- Fixed type of reserve output column to be bool rather than float. (#143)
 - Automatically write any extra_properties from the input file into the output file. (#143)
 
 
@@ -41,13 +41,13 @@ New features
 - Added star.withProperties method. (#143)
 - Added model_properties option for stats to use e.g. a specific color rather than the stars'
   own colors for the model measurements. (#143)
-- PSF instances that are read from a file via `piff.read` will have an attribute ``piff_version``
-  giving the version of Piff that created the file.  (Files created prior to version 1.3 will
+- Added a ``piff_version`` attibute to PSF instances that are read from a file via `piff.read`
+  indicating the version of Piff that created the file.  (Files created prior to version 1.3 will
   have ``piff_version = None``. (#146)
 
 
 Bug fixes
 ---------
 
-- Fixed bug in output stats that what we called T was really sigma.  Now, it's correctly
+- Fixed bug in output stats that what we called T had actually been sigma.  Now, it's correctly
   T = Ixx + Iyy = 2*sigma^2. (#133, #142)
