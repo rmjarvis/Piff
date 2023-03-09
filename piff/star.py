@@ -70,8 +70,7 @@ class Star(object):
         star.flux       The flux of the object
         star.center     The nominal center of the object (not necessarily the centroid)
         star.is_reserve Whether the star is reserved from being used to fit the PSF
-        star.hsm        HSM measurements for this star as a tuple:
-                        (flux, cenu, cenv, sigma, g1, g2, flag)
+        star.hsm        HSM measurements for this star as a tuple: (flux, cenu, cenv, sigma, g1, g2, flag)
 
     :param data: A StarData instance (invariant)
     :param fit:  A StarFit instance (invariant)
@@ -98,7 +97,7 @@ class Star(object):
     def withProperties(self, **kwargs):
         """Set or change any properties in the star.
 
-        :param **kwargs:    Each named kwarg is taken to be a property to set in the returned star.
+        :param \*\*kwargs:   Each named kwarg is taken to be a property to set in the returned star.
 
         :returns: a new Star with the given properties, but is otherwise the same as self.
         """
@@ -911,8 +910,8 @@ class StarFit(object):
         """Return new StarFit that has the array params installed as new parameters.
 
         :param params:  A 1d array holding new parameters; must match size of current ones
-        :param kwargs:  Any other additional properties for the star. Takes current flux and center
-                        if not provided, and otherwise puts in None
+        :param \*\*kwargs:  Any other additional properties for the star. Takes current flux and
+                        center if not provided, and otherwise puts in None
 
         :returns:  New StarFit object with altered parameters.  All chisq-related parameters
                    are set to None since they are no longer valid.
