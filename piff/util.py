@@ -122,6 +122,7 @@ def write_kwargs(fits, extname, kwargs):
     :param extname:     The extension to write to
     :param kwargs:      A kwargs dict to be written as a FITS binary table.
     """
+    from . import __version__ as piff_version
     cols = []
     dtypes = []
     for key, value in kwargs.items():
@@ -133,7 +134,8 @@ def write_kwargs(fits, extname, kwargs):
         cols.append([value])
         dtypes.append(dt)
     data = np.array(list(zip(*cols)), dtype=dtypes)
-    fits.write_table(data, extname=extname)
+    header = {'piff_version': piff_version}
+    fits.write_table(data, extname=extname, header=header)
 
 def read_kwargs(fits, extname):
     """A helper function for reading a single row table from a fits file returning the values

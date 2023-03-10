@@ -335,6 +335,18 @@ def test_single_image():
     test_star = psf2.interp.interpolate(target)
     np.testing.assert_almost_equal(test_star.fit.params, true_params, decimal=4)
 
+    # The piff version is stored in the header of the first extension
+    header = fitsio.read_header(psf_file)
+    assert header['PIFF_VERSION'] == piff.__version__
+
+    # Also in ext=1, which is the first one with any real data.
+    header = fitsio.read_header(psf_file, ext=1)
+    assert header['PIFF_VERSION'] == piff.__version__
+
+    # Also called ext='psf'
+    header = fitsio.read_header(psf_file, ext='psf')
+    assert header['PIFF_VERSION'] == piff.__version__
+
     # Do the whole thing with the config parser
     os.remove(psf_file)
 
