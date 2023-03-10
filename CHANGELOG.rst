@@ -57,3 +57,8 @@ Changes from version 1.3.0 to 1.3.1
 
 - Removed is_reserve column from the HSM output file, which was accidentally added, and is
   equivalent to the existing reserve column.
+
+Changes from version 1.3.1 to 1.3.2
+===================================
+
+- Added piff_version to the FITS header in the HSM output file. (#148)
