@@ -51,3 +51,9 @@ Bug fixes
 
 - Fixed bug in output stats that what we called T had actually been sigma.  Now, it's correctly
   T = Ixx + Iyy = 2*sigma^2. (#133, #142)
+
+Changes from version 1.3.0 to 1.3.1
+===================================
+
+- Removed is_reserve column from the HSM output file, which was accidentally added, and is
+  equivalent to the existing reserve column.
