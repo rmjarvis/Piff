@@ -90,9 +90,8 @@ Using Piff
 ----------
 
 A tutorial notebook giving an overview of how to use Piff is available in the
-examples directory, called::
-
-    Tutorial.ipynb
+examples directory, called
+`Tutorial.ipynb <https://github.com/rmjarvis/Piff/blob/main/examples/Tutorial.ipynb>`_
 
 This is not a comprehensive tour of Piff's capabilities of course, but it should
 provide a rough guide to the basic structure.
