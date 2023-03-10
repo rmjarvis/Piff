@@ -871,6 +871,7 @@ class HSMCatalogStats(Stats):
                             which is typically read from the config field.]
         :param logger:      A logger object for logging debug info. [default: None]
         """
+        from . import __version__ as piff_version
         logger = galsim.config.LoggerWrapper(logger)
         import fitsio
         if file_name is None:
@@ -883,5 +884,6 @@ class HSMCatalogStats(Stats):
         logger.warning("Writing HSM catalog to file %s",file_name)
 
         data = np.array(list(zip(*self.cols)), dtype=self.dtypes)
+        header = {'piff_version': piff_version}
         with fitsio.FITS(file_name, 'rw', clobber=True) as f:
-            f.write_table(data)
+            f.write_table(data, header=header)

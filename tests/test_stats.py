@@ -644,13 +644,15 @@ def test_hsmcatalog():
     piff.piffify(config, logger)
     assert os.path.isfile(hsm_file)
 
-    data = fitsio.read(hsm_file)
+    data, header = fitsio.read(hsm_file, header=True)
     for col in ['ra', 'dec', 'x', 'y', 'u', 'v',
                 'T_data', 'g1_data', 'g2_data',
                 'T_model', 'g1_model', 'g2_model',
                 'flux', 'reserve', 'flag_data', 'flag_model']:
         assert len(data[col]) == 10
     true_data = fitsio.read(cat_file)
+
+    assert header['PIFF_VERSION'] == piff.__version__
 
     np.testing.assert_allclose(data['x'], true_data['x'])
     np.testing.assert_allclose(data['y'], true_data['y'])
