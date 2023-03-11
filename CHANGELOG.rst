@@ -14,6 +14,9 @@ API Changes
   * GPInterp -> GP or GaussianProcess
   * kNNInterp -> KNN or KNearestNeighbors
   * Star -> StarImages
+- Deprecated the include_reserve=True option for outlier rejection.  Now that all objects are
+  preserved in the output file, reserve stars that would have been rejected are marked as such,
+  so you can choose whether or not to use them for any diagnostic tests.
 
 
 Performance improvements

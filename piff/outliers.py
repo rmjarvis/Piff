@@ -186,6 +186,7 @@ class MADOutliers(Outliers):  # pragma: no cover  (This isn't functional yet.)
                         something is declared an outlier.
     :param nsigma:      The number of sigma equivalent if the underlying distribution is
                         Gaussian.
+    :param logger:      A logger object for logging debug info. [default: None]
     """
     _type_name = 'MAD'
 
@@ -229,11 +230,12 @@ class ChisqOutliers(Outliers):
 
     Exactly one of thresh, ndof, nsigma, prob must be provided.
 
-    There is an option to include reserve stars in the outlier rejection, which is enabled
-    by setting ``include_reserve=True``.  This is probably not a good idea normally.
-    Reserve stars are often preferentially targeted by the outlier removal, which somewhat
-    lessens their case as fair test points for diagnostics.  However, it is still an option
-    in case you want to use it.
+    .. note::
+
+        Reserve stars do not count toward max_remove when flagging outliers.  Any reserve star
+        that is flagged as an outlier still shows up in the output file, but has the flag
+        bit set to True.  You can decide whether or not you want to include it in any diagnostic
+        tests you perform using the reserve stars.
 
     :param thresh:          The threshold in chisq above which an object is declared an outlier.
     :param ndof:            The threshold as a multiple of the model's dof.
@@ -245,13 +247,12 @@ class ChisqOutliers(Outliers):
                             is a float < 1.0, then this is interpreted as a maximum fraction of
                             stars to remove.  e.g. 0.01 will remove at most 1% of the stars.
                             [default: None]
-    :param include_reserve: Whether to include reserve stars as potential stars to be
-                            removed as outliers. [default: False]
+    :param logger:          A logger object for logging debug info. [default: None]
     """
     _type_name = 'Chisq'
 
     def __init__(self, thresh=None, ndof=None, prob=None, nsigma=None, max_remove=None,
-                 include_reserve=False, logger=None):
+                 include_reserve=None, logger=None):
         if all( (thresh is None, ndof is None, prob is None, nsigma is None) ):
             raise TypeError("One of thresh, ndof, prob, or nsigma is required.")
         if thresh is not None and any( (ndof is not None, prob is not None, nsigma is not None) ):
@@ -260,6 +261,9 @@ class ChisqOutliers(Outliers):
             raise TypeError("Only one of thresh, ndof, prob, or nsigma may be given.")
         if prob is not None and nsigma is not None:
             raise TypeError("Only one of thresh, ndof, prob, or nsigma may be given.")
+        if include_reserve is not None:
+            logger = galsim.config.LoggerWrapper(logger)
+            logger.error("WARNING: include_reserve is no longer used.")
 
         # The only one of these we can convert now is nsigma, which we can convert into prob.
         # Going from either prob or ndof to thresh requires knowledge of dof.
@@ -270,14 +274,12 @@ class ChisqOutliers(Outliers):
         self.ndof = ndof
         self.prob = prob
         self.max_remove = max_remove
-        self.include_reserve = include_reserve
 
         self.kwargs = {
             'thresh' : thresh,
             'ndof' : ndof,
             'prob' : prob,
             'max_remove' : max_remove,
-            'include_reserve' : include_reserve,
         }
 
     def _get_thresh(self, dof):
@@ -299,10 +301,7 @@ class ChisqOutliers(Outliers):
         """
         logger = galsim.config.LoggerWrapper(logger)
 
-        if self.include_reserve:
-            use_stars = stars
-        else:
-            use_stars = [ s for s in stars if not s.is_reserve ]
+        use_stars = [ s for s in stars if not s.is_reserve ]
 
         nstars = len(use_stars)
         logger.debug("Checking %d stars for outliers", nstars)
@@ -359,9 +358,8 @@ class ChisqOutliers(Outliers):
             good = diff < new_thresh
             good_stars = [ s for g, s in zip(good, use_stars) if g ]
 
-        # Add back the reserve stars if we aren't including them in the cut.
-        if not self.include_reserve:
-            good_stars += [ s for s in stars if s.is_reserve ]
+        # Add back the reserve stars
+        good_stars += [ s for s in stars if s.is_reserve ]
 
         logger.debug("chisq = %s",chisq[~(chisq <= thresh)])
         logger.debug("thresh = %s",thresh[~(chisq <= thresh)])

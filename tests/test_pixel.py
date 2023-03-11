@@ -22,7 +22,7 @@ import time
 import os
 import fitsio
 
-from piff_test_helper import get_script_name, timer
+from piff_test_helper import get_script_name, timer, CaptureLog
 
 def make_gaussian_data(sigma, u0, v0, flux, noise=0., du=1., fpu=0., fpv=0., nside=32,
                        nom_u0=0., nom_v0=0., rng=None):
@@ -1085,7 +1085,6 @@ def test_des_image():
                 'type' : 'Chisq',
                 'nsigma' : nsigma,
                 'max_remove' : 3,
-                'include_reserve' : False,
             },
         },
     }
@@ -1215,23 +1214,23 @@ def test_des_image():
         orig_stamp = orig_image[stars[0].image.bounds] - stars[0]['sky']
         np.testing.assert_almost_equal(fit_stamp.array/flux, orig_stamp.array/flux, decimal=2)
 
-    # Repeat with include_reserve=True to see how that goes.
-    # It seems to remove more reserve stars than non-reserve, so I'm not sure it's a great idea.
-    # That's why the default is False.
-    print('Repeat with include_reserve=True')
-    config['psf']['outliers']['include_reserve'] = True
+    # Repeat with max_remove as a fraction of total.  Make it small, so effectively max_remove=1.
     config['psf']['outliers']['max_remove'] = 0.01
-    piff.piffify(config)
+    # We used to have an include_reserve=True option, which we got rid of.
+    config['psf']['outliers']['include_reserve'] = True
+    with CaptureLog(1) as cl:
+        piff.piffify(config, logger=cl.logger)
+    print(cl.output)
+    assert "WARNING: include_reserve is no longer used." in cl.output
+
     psf2 = piff.read(psf_file)
     nreserve = len([s for s in psf2.stars if s.is_reserve])
     ntot = len(psf2.stars)
     print('nremoved = ',psf2.nremoved)
     print('nreserve = ',nreserve)
     print('ntot = ',ntot)
-    assert nreserve < int(0.2 * nstars)  # I.e. some reserve stars are removed.
+    print('niter = ',psf2.niter)
     assert ntot == nstars - psf2.nremoved
-    assert nreserve < 0.2 * ntot  # This isn't a priori required, but evidence that reserve
-                                  # stars are preferentially targeted by the outlier rejection.
 
     # It also took more iterations to finish.
     assert psf2.niter > psf.niter
