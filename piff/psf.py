@@ -215,8 +215,9 @@ class PSF(object):
 
             # Keep track of the total number removed in all iterations.
             self.nremoved += iter_nremoved
+            self.niter = iteration+1
 
-            # Also store the stars that weren't removed for the output file.
+            # Also save the current state of stars for the output file.
             self.stars = stars
 
             # Very simple convergence test here:
