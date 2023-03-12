@@ -513,7 +513,7 @@ def test_parallel():
     with CaptureLog(level=2) as cl:
         psf = piff.process(config, cl.logger)
     assert "Removed 6 stars in initialize" in cl.output
-    assert "No stars.  Cannot find PSF model." in cl.output
+    assert "No stars left to fit.  Cannot find PSF model." in cl.output
     assert "Solutions failed for chipnums: [3]" in cl.output
 
     # Check that errors in the multiprocessing input get properly reported.
@@ -535,7 +535,7 @@ def test_parallel():
     config['verbose'] = 1
     with CaptureLog(level=1) as cl:
         psf = piff.process(config, logger=cl.logger)
-    assert "No stars.  Cannot find PSF model." in cl.output
+    assert "No stars left to fit.  Cannot find PSF model." in cl.output
     assert "Ignoring this failure and continuing on." in cl.output
 
 

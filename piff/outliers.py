@@ -296,40 +296,49 @@ class ChisqOutliers(Outliers):
         :param stars:       A list of Star instances
         :param logger:      A logger object for logging debug info. [default: None]
 
-        :returns: stars, nremoved   A new list of stars without outliers, and how many outliers
-                                    were removed.
+        :returns: stars, nremoved   A new list of stars with outliers flagged, and how many outliers
+                                    were flagged.
         """
         logger = galsim.config.LoggerWrapper(logger)
 
-        use_stars = [ s for s in stars if not s.is_reserve ]
+        # First figure out the threshold we actually want to use given max_remove.
 
+        # These are the only stars we want to use to figure out the threshold
+        # But note that we apply the threshold to everything eventually.
+        use_stars = [star for star in stars if not star.is_flagged and not star.is_reserve]
         nstars = len(use_stars)
-        logger.debug("Checking %d stars for outliers", nstars)
+        logger.info("Checking %d stars for outliers", nstars)
 
-        chisq = np.array([ s.fit.chisq for s in use_stars ])
-        dof = np.array([ s.fit.dof for s in use_stars ])
+        chisq = np.array([s.fit.chisq for s in use_stars])
+        dof = np.array([s.fit.dof for s in use_stars])
 
         # Scale up threshold by global chisq/dof.
         factor = np.sum(chisq) / np.sum(dof)
         if factor < 1: factor = 1
 
-        thresh = np.array([ self._get_thresh(d) for d in dof ]) * factor
+        thresh = np.array([self._get_thresh(d) for d in dof]) * factor
 
         if np.all(dof == dof[0]):
-            logger.debug("dof = %f, thresh = %f * %f = %f",
+            logger.info("dof = %f, thresh = %f * %f = %f",
                          dof[0], self._get_thresh(dof[0]), factor, thresh[0])
         else:
             min_dof = np.min(dof)
             max_dof = np.max(dof)
             min_thresh = self._get_thresh(min_dof)
             max_thresh = self._get_thresh(max_dof)
-            logger.debug("Minimum dof = %d with thresh = %f * %f = %f",
+            logger.info("Minimum dof = %d with thresh = %f * %f = %f",
                          min_dof, min_thresh, factor, min_thresh*factor)
-            logger.debug("Maximum dof = %d with thresh = %f * %f = %f",
+            logger.info("Maximum dof = %d with thresh = %f * %f = %f",
                          max_dof, max_thresh, factor, max_thresh*factor)
 
         nremoved = np.sum(~(chisq <= thresh))  # Write it as not chisq <= thresh in case of nans.
+
         if nremoved == 0:
+            # Flag any reserve stars that need it.
+            stars = [s.flag_if(s.is_reserve
+                               and not(s.fit.chisq <= self._get_thresh(s.fit.dof) * factor)
+                              )
+                     for s in stars]
             return stars, 0
 
         logger.info("Found %d stars with chisq > thresh", nremoved)
@@ -337,11 +346,16 @@ class ChisqOutliers(Outliers):
         # Update max_remove if necessary
         max_remove = self.max_remove
         if max_remove is not None and 0 < max_remove < 1:
-            max_remove = int(math.ceil(max_remove * len(stars)))
+            max_remove = int(math.ceil(max_remove * len(use_stars)))
+
+        # Remake the chisq, etc. with all the stars now.
+        all_chisq = np.array([s.fit.chisq for s in stars])
+        all_dof = np.array([s.fit.dof for s in stars])
+        all_thresh = np.array([self._get_thresh(d) for d in all_dof]) * factor
+        good = all_chisq <= all_thresh
 
         if max_remove is None or nremoved <= max_remove:
-            good = chisq <= thresh
-            good_stars = [ s for g, s in zip(good, use_stars) if g ]
+            stars = [s.flag_if(not g) for s,g in zip(stars, good)]
         else:
             # Since the thresholds are not necessarily all equal, this might be tricky to
             # figure out which ones should be removed.
@@ -355,16 +369,12 @@ class ChisqOutliers(Outliers):
             diff = chisq - thresh
             new_thresh_index = np.argpartition(diff, -nremoved)[-nremoved]
             new_thresh = diff[new_thresh_index]
-            good = diff < new_thresh
-            good_stars = [ s for g, s in zip(good, use_stars) if g ]
+            all_diff = all_chisq - all_thresh
+            good = all_diff < new_thresh
+            stars = [s.flag_if(not g) for s,g in zip(stars, good)]
 
-        # Add back the reserve stars
-        good_stars += [ s for s in stars if s.is_reserve ]
+        logger.debug("chisq = %s",all_chisq[~good])
+        logger.debug("thresh = %s",all_thresh[~good])
+        logger.debug("flux = %s",[s.flux for s,g in zip(stars,good) if not g])
 
-        logger.debug("chisq = %s",chisq[~(chisq <= thresh)])
-        logger.debug("thresh = %s",thresh[~(chisq <= thresh)])
-        logger.debug("flux = %s",[s.flux for g,s in zip(good,stars) if not g])
-
-        assert nremoved == len(stars) - len(good_stars)
-        return good_stars, nremoved
-
+        return stars, nremoved

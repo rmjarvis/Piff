@@ -818,8 +818,10 @@ def test_bad_hsm():
     # Confirm that all but one star was rejected, since that was part of the intent of this test.
     psf = piff.read(psf_file)
     print('stars = ',psf.stars)
+    print('flags = ',[s.is_flagged for s in psf.stars])
     print('nremoved = ',psf.nremoved)
-    assert len(psf.stars) == 1
+    assert len(psf.stars) == 8
+    assert np.sum([not s.is_flagged for s in psf.stars]) == 1
     assert psf.nremoved == 7    # There were 8 to start.
 
     for f in [twodhist_file, rho_file, shape_file, star_file, sizemag_file, hsm_file]:
@@ -832,11 +834,13 @@ def test_bad_hsm():
                 'T_data', 'g1_data', 'g2_data',
                 'T_model', 'g1_model', 'g2_model',
                 'flux', 'reserve', 'flag_data', 'flag_model']:
-        assert len(data[col]) == 1
+        assert len(data[col]) == 8
+    print('flag_psf = ',data['flag_psf'])
     print('flag_data = ',data['flag_data'])
     print('flag_model = ',data['flag_model'])
-    np.testing.assert_array_equal(data['flag_data'], 7)
-    np.testing.assert_array_equal(data['flag_model'], 7)
+    good_index = np.where(data['flag_psf'] == 0)[0]
+    np.testing.assert_array_equal(data['flag_data'][good_index], 7)
+    np.testing.assert_array_equal(data['flag_model'][good_index], 7)
 
 
 @timer

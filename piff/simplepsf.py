@@ -49,9 +49,7 @@ class SimplePSF(PSF):
         self.chisq_thresh = chisq_thresh
         self.max_iter = max_iter
         self.kwargs = {
-            # model and interp are junk entries that will be overwritten.
-            # TODO: Come up with a nicer mechanism for specifying items that can be overwritten
-            #       in the _finish_read function.
+            # Use 0 here for things that will get overwritten in _finish_read.
             'model': 0,
             'interp': 0,
             'outliers': 0,
@@ -111,15 +109,15 @@ class SimplePSF(PSF):
         logger.debug("Initializing models")
         # model.initialize may fail
         new_stars = []
-        for s in stars:
+        for star in stars:
             try:
-                new_star = self.model.initialize(s, logger=logger)
+                star = self.model.initialize(star, logger=logger)
             except Exception as e:  # pragma: no cover
-                logger.warning("Failed initializing star at %s. Excluding it.", s.image_pos)
+                logger.warning("Failed initializing star at %s. Excluding it.", star.image_pos)
                 logger.warning("  -- Caught exception: %s",e)
                 nremoved += 1
-            else:
-                new_stars.append(new_star)
+                star = star.flag_if(True)
+            new_stars.append(star)
         if nremoved == 0:
             logger.debug("No stars removed in initialize step")
         else:
@@ -141,24 +139,29 @@ class SimplePSF(PSF):
 
         return stars, nremoved
 
-    def single_iteration(self, use_stars, all_stars, logger, convert_func):
+    def single_iteration(self, stars, logger, convert_func):
 
         # Perform the fit or compute design matrix as appropriate using just non-reserve stars
         fit_fn = self.model.chisq if self.quadratic_chisq else self.model.fit
 
         nremoved = 0  # For this iteration
-        new_use_stars = []
-        for star in use_stars:
-            try:
-                star = fit_fn(star, logger=logger, convert_func=convert_func)
-            except Exception as e:  # pragma: no cover
-                logger.warning("Failed fitting star at %s.", star.image_pos)
-                logger.warning("Excluding it from this iteration.")
-                logger.warning("  -- Caught exception: %s", e)
-                nremoved += 1
-            else:
-                new_use_stars.append(star)
-        use_stars = new_use_stars
+        use_stars = []  # Just the stars we want to use fot fitting.
+        all_stars = []  # All the stars (with appropriate flags as necessary)
+        for star in stars:
+            if not star.is_flagged and not star.is_reserve:
+                try:
+                    star = fit_fn(star, logger=logger, convert_func=convert_func)
+                    use_stars.append(star)
+                except Exception as e:  # pragma: no cover
+                    logger.warning("Failed fitting star at %s.", star.image_pos)
+                    logger.warning("Excluding it from this iteration.")
+                    logger.warning("  -- Caught exception: %s", e)
+                    nremoved += 1
+                    star = star.flag_if(True)
+            all_stars.append(star)
+
+        if len(use_stars) == 0:
+            raise RuntimeError("No stars left to fit.  Cannot find PSF model.")
 
         # Perform the interpolation, again using just non-reserve stars
         logger.debug("             Calculating the interpolation")
@@ -176,16 +179,17 @@ class SimplePSF(PSF):
         # Refit and recenter all stars, collect stats
         logger.debug("             Re-fluxing stars")
         new_stars = []
-        for s in all_stars:
+        for star in all_stars:
             try:
-                new_star = self.model.reflux(s, logger=logger)
+                star = self.model.reflux(star, logger=logger)
             except Exception as e:  # pragma: no cover
                 logger.warning("Failed trying to reflux star at %s.  Excluding it.",
-                                s.image_pos)
+                                star.image_pos)
                 logger.warning("  -- Caught exception: %s", e)
                 nremoved += 1
-            else:
-                new_stars.append(new_star)
+                star = star.flag_if(True)
+            new_stars.append(star)
+
         return new_stars, nremoved
 
     def interpolateStarList(self, stars):
