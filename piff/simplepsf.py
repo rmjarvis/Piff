@@ -60,6 +60,7 @@ class SimplePSF(PSF):
         self.last_delta_chisq = 0.
         self.dof = 0
         self.nremoved = 0
+        self.niter = 0
 
     @property
     def interp_property_names(self):
@@ -228,6 +229,7 @@ class SimplePSF(PSF):
             'last_delta_chisq' : self.last_delta_chisq,
             'dof' : self.dof,
             'nremoved' : self.nremoved,
+            'niter' : self.niter,
         }
         write_kwargs(fits, extname + '_chisq', chisq_dict)
         logger.debug("Wrote the chisq info to extension %s",extname + '_chisq')

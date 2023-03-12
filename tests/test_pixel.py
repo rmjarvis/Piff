@@ -1222,16 +1222,19 @@ def test_des_image():
     config['psf']['outliers']['include_reserve'] = True
     config['psf']['outliers']['max_remove'] = 0.01
     piff.piffify(config)
-    psf = piff.read(psf_file)
-    nreserve = len([s for s in psf.stars if s.is_reserve])
-    ntot = len(psf.stars)
-    print('nremoved = ',psf.nremoved)
+    psf2 = piff.read(psf_file)
+    nreserve = len([s for s in psf2.stars if s.is_reserve])
+    ntot = len(psf2.stars)
+    print('nremoved = ',psf2.nremoved)
     print('nreserve = ',nreserve)
     print('ntot = ',ntot)
     assert nreserve < int(0.2 * nstars)  # I.e. some reserve stars are removed.
-    assert ntot == nstars - psf.nremoved
+    assert ntot == nstars - psf2.nremoved
     assert nreserve < 0.2 * ntot  # This isn't a priori required, but evidence that reserve
                                   # stars are preferentially targeted by the outlier rejection.
+
+    # It also took more iterations to finish.
+    assert psf2.niter > psf.niter
 
 
 @timer
