@@ -70,6 +70,7 @@ class Star(object):
         star.flux       The flux of the object
         star.center     The nominal center of the object (not necessarily the centroid)
         star.is_reserve Whether the star is reserved from being used to fit the PSF
+        star.is_flagged Whether the star was flagged as an outlier or had some error in fitting
         star.hsm        HSM measurements for this star as a tuple: (flux, cenu, cenv, sigma, g1, g2, flag)
 
     :param data: A StarData instance (invariant)
@@ -169,6 +170,16 @@ class Star(object):
     @property
     def is_reserve(self):
         return self.data.properties.get('is_reserve',False)
+
+    @property
+    def is_flagged(self):
+        return self.data.properties.get('is_flagged',False)
+
+    def flag_if(self, flag):
+        if flag and not self.is_flagged:
+            return self.withProperties(is_flagged=True)
+        else:
+            return self
 
     def run_hsm(self):
         """Use HSM to measure moments of star image.
@@ -336,6 +347,11 @@ class Star(object):
             dtypes.append( (key, float) )
             cols.append( [ s.data.properties[key] for s in stars ] )
             prop_keys.remove(key)
+        # Add reserve, flag_psf
+        dtypes.extend([('reserve', bool), ('flag_psf', int)])
+        cols.extend([ [s.is_reserve for s in stars],
+                      [s.is_flagged for s in stars] ])
+        prop_keys = [key for key in prop_keys if key not in ['is_reserved', 'is_flagged']]
         # Add any remaining properties
         for key in prop_keys:
             dtypes.append( (key, stars[0].data.property_types.get(key, float)) )
@@ -421,6 +437,8 @@ class Star(object):
                     'flux', 'center', 'chisq']:
             assert key in colnames
             colnames.remove(key)
+        # These two might not be there, but it they are, remove them.
+        colnames = [key for key in colnames if key not in ['reserve', 'flag_psf']]
 
         data = fits[extname].read()
         x_list = data['x']
@@ -465,6 +483,11 @@ class Star(object):
 
         # The rest of the columns are the data properties
         prop_list = [ { c : row[c] for c in colnames } for row in data ]
+        for i, row in enumerate(data):
+            if 'reserve' in data.dtype.names and row['reserve']:
+                prop_list[i]['is_reserve'] = True
+            if 'flag_psf' in data.dtype.names and row['flag_psf']:
+                prop_list[i]['is_flagged'] = True
 
         wcs_list = [ galsim.JacobianWCS(*jac) for jac in zip(dudx,dudy,dvdx,dvdy) ]
         pos_list = [ galsim.PositionD(*pos) for pos in zip(x_list,y_list) ]

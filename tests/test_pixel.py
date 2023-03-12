@@ -1176,12 +1176,18 @@ def test_des_image():
     print('read psf')
     psf = piff.read(psf_file)
     nreserve = len([s for s in psf.stars if s.is_reserve])
+    nflagged = len([s for s in psf.stars if s.is_flagged])
+    nflagged1 = len([s for s in psf.stars if s.is_flagged and not s.is_reserve])
     ntot = len(psf.stars)
     print('nremoved = ',psf.nremoved)
     print('nreserve = ',nreserve)
+    print('nflagged = ',nflagged, nflagged1)
     print('ntot = ',ntot)
+    print('niter = ',psf.niter)
     assert nreserve == int(0.2 * nstars)
-    assert ntot == nstars - psf.nremoved
+    assert nflagged1 == psf.nremoved
+    assert nflagged >= nflagged1
+    assert ntot == nstars
 
     stars = [psf.model.initialize(s) for s in stars]
     flux = stars[0].fit.flux
@@ -1225,14 +1231,23 @@ def test_des_image():
 
     psf2 = piff.read(psf_file)
     nreserve = len([s for s in psf2.stars if s.is_reserve])
+    nflagged2 = len([s for s in psf2.stars if s.is_flagged])
+    nflagged3 = len([s for s in psf2.stars if s.is_flagged and not s.is_reserve])
     ntot = len(psf2.stars)
     print('nremoved = ',psf2.nremoved)
     print('nreserve = ',nreserve)
+    print('nflagged = ',nflagged, nflagged1)
     print('ntot = ',ntot)
     print('niter = ',psf2.niter)
-    assert ntot == nstars - psf2.nremoved
+    assert nreserve == int(0.2 * nstars)
+    assert nflagged1 == psf2.nremoved
+    assert nflagged >= nflagged1
+    assert ntot == nstars
 
-    # It also took more iterations to finish.
+    # These end up with the same objects removed, although that's not technically required.
+    assert nflagged2 == nflagged
+    assert nflagged3 == nflagged1
+    # But it took more iterations to get there.
     assert psf2.niter > psf.niter
 
 

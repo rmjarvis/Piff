@@ -127,15 +127,14 @@ class PSF(object):
         # behavior is just to return the input stars list.
         return stars, 0
 
-    def single_iteration(self, use_stars, all_stars, logger, convert_func):
+    def single_iteration(self, stars, logger, convert_func):
         """Perform a single iteration of the solver.
 
-        Note that some object might fail at some point in the fitting, so some object can be
-        removed from this step, prior to the outlier rejection step.  This information is
-        reported in the return tuple as nremoved.
+        Note that some object might fail at some point in the fitting, so some objects can be
+        flagged as bad during this step, prior to the outlier rejection step.  This information
+        is reported in the return tuple as nremoved.
 
-        :param use_stars:       The list of stars to use for constraining the PSF.
-        :param all_stars:       The complete list of stars, including reserve stars.
+        :param stars:           The list of stars to use for constraining the PSF.
         :param logger:          A logger object for logging progress.
         :param convert_func:    An optional function to apply to the profile being fit before
                                 drawing it onto the image.
@@ -144,21 +143,8 @@ class PSF(object):
         """
         raise NotImplementedError("Derived classes must define the single_iteration function")
 
-    def select_use_stars(self, stars, logger):
-        """Select the stars to use for constraining the PSF
-
-        :param stars:           The complete list of stars to consider
-        :param logger:          A logger object for logging progress.
-
-        :returns: use_stars
-        """
-        # Select the non-reserve stars for performing the fit
-        use_stars = [star for star in stars if not star.is_reserve]
-
-        return use_stars
-
     def remove_outliers(self, stars, iteration, logger):
-        """Look for and possibly remove outliers from the list of stars
+        """Look for and flag outliers from the list of stars
 
         :param stars:           The complete list of stars to consider
         :param iteration:       The number of the iteration that was just completed.
@@ -197,30 +183,26 @@ class PSF(object):
 
         # Initialize stars as needed by the PSF modeling class.
         stars, self.nremoved = self.initialize(stars, logger=logger)
+        nreserve = np.sum([star.is_reserve for star in stars])
 
         oldchisq = 0.
         for iteration in range(self.max_iter):
 
-            # Pick out the non-reserve stars to use for fitting.
-            use_stars = self.select_use_stars(stars, logger)
-
-            if len(use_stars) == 0:
-                raise RuntimeError("No stars.  Cannot find PSF model.")
-            logger.warning("Iteration %d: Fitting %d stars", iteration+1, len(use_stars))
-            if len(use_stars) != len(stars):
-                logger.warning("             (%d stars are reserved)",
-                                len(stars)-len(use_stars))
+            nstars = np.sum([not star.is_reserve and not star.is_flagged for star in stars])
+            logger.warning("Iteration %d: Fitting %d stars", iteration+1, nstars)
+            if nreserve != 0:
+                logger.warning("             (%d stars are reserved)", nreserve)
 
             # Run a single iteration of the fitter.
             # Different PSF types do different things here.
-            stars, iter_nremoved = self.single_iteration(use_stars, stars, logger, convert_func)
+            stars, iter_nremoved = self.single_iteration(stars, logger, convert_func)
 
-            # Find and remove outliers.
+            # Find and flag outliers.
             stars, outlier_nremoved = self.remove_outliers(stars, iteration, logger)
             iter_nremoved += outlier_nremoved
 
-            chisq = np.sum([s.fit.chisq for s in stars if not s.is_reserve])
-            dof   = np.sum([s.fit.dof for s in stars if not s.is_reserve])
+            chisq = np.sum([s.fit.chisq for s in stars if not s.is_reserve and not s.is_flagged])
+            dof   = np.sum([s.fit.dof for s in stars if not s.is_reserve and not s.is_flagged])
             logger.warning("             Total chisq = %.2f / %d dof", chisq, dof)
 
             # Save these so we can write them to the output file.

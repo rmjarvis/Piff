@@ -844,6 +844,7 @@ class HSMCatalogStats(Stats):
             ra, dec,
             shapes_data[:, 0],  # flux
             np.array([s.is_reserve for s in stars], dtype=bool),  # reserve
+            np.array([s.is_flagged for s in stars], dtype=int),  # flag_psf
             shapes_data[:, 6],  # flag_data
             shapes_model[:, 6],  # flag_model
             shapes_data[:, 3],  # T_data
@@ -856,7 +857,7 @@ class HSMCatalogStats(Stats):
         self.dtypes = [('u', float), ('v', float),
                        ('x', float), ('y', float),
                        ('ra', float), ('dec', float),
-                       ('flux', float), ('reserve', bool),
+                       ('flux', float), ('reserve', bool), ('flag_psf', int),
                        ('flag_data', int), ('flag_model', int),
                        ('T_data', float), ('g1_data', float), ('g2_data', float),
                        ('T_model', float), ('g1_model', float), ('g2_model', float)]
@@ -896,7 +897,7 @@ class HSMCatalogStats(Stats):
         # Also write any other properties saved in the stars.
         prop_keys = list(stars[0].data.properties)
         # Remove all the position ones, which are handled above.
-        exclude_keys = ['x', 'y', 'u', 'v', 'ra', 'dec', 'is_reserve']
+        exclude_keys = ['x', 'y', 'u', 'v', 'ra', 'dec', 'is_reserve', 'is_flagged']
         prop_keys = [key for key in prop_keys if key not in exclude_keys]
         # Add any remaining properties
         prop_types = stars[0].data.property_types

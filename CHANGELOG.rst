@@ -4,6 +4,8 @@ Changes from version 1.3 to 1.4
 Output file changes
 --------------------
 
+- Stars that were rejected as outliers are now included in the output file, but flagged with
+  flag_psf=1.
 
 
 API Changes

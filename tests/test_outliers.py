@@ -95,14 +95,16 @@ def test_chisq():
     outliers1 = piff.ChisqOutliers(nsigma=5)
     stars1, nremoved1 = outliers1.removeOutliers(stars,logger=logger)
     print('nremoved1 = ',nremoved1)
-    assert len(stars1) == len(stars) - nremoved1
+    assert len(stars1) == len(stars)
+    assert nremoved1 == np.sum([s.is_flagged for s in stars1])
 
     # This is what nsigma=5 means in terms of probability
     outliers2 = piff.ChisqOutliers(prob=5.733e-7)
     stars2, nremoved2 = outliers2.removeOutliers(stars,logger=logger)
     print('nremoved2 = ',nremoved2)
-    assert len(stars2) == len(stars) - nremoved2
-    assert nremoved1 == nremoved2
+    assert len(stars2) == len(stars)
+    assert nremoved2 == np.sum([s.is_flagged for s in stars2])
+    assert nremoved2 == nremoved1
 
     # The following is nearly equivalent for this particular data set.
     # For dof=222 (what most of these have, this probability converts to
@@ -113,13 +115,15 @@ def test_chisq():
     outliers3 = piff.ChisqOutliers(thresh=455.401)
     stars3, nremoved3 = outliers3.removeOutliers(stars,logger=logger)
     print('nremoved3 = ',nremoved3)
-    assert len(stars3) == len(stars) - nremoved3
+    assert len(stars3) == len(stars)
+    assert nremoved3 == np.sum([s.is_flagged for s in stars3])
 
     outliers4 = piff.ChisqOutliers(ndof=2.05136)
     stars4, nremoved4 = outliers4.removeOutliers(stars,logger=logger)
     print('nremoved4 = ',nremoved4)
-    assert len(stars4) == len(stars) - nremoved4
-    assert nremoved3 == nremoved4
+    assert len(stars4) == len(stars)
+    assert nremoved4 == np.sum([s.is_flagged for s in stars4])
+    assert nremoved4 == nremoved3
 
     # Regression tests.  If these change, make sure we understand why.
     assert nremoved1 == nremoved2 == 58
