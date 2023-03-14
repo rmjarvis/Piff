@@ -95,7 +95,7 @@ class Star(object):
         return Star(self.data, fit)
 
     def withProperties(self, **kwargs):
-        """Set or change any properties in the star.
+        r"""Set or change any properties in the star.
 
         :param \*\*kwargs:   Each named kwarg is taken to be a property to set in the returned star.
 
@@ -919,7 +919,7 @@ class StarFit(object):
         return self.A.T.dot(self.b)
 
     def newParams(self, params, **kwargs):
-        """Return new StarFit that has the array params installed as new parameters.
+        r"""Return new StarFit that has the array params installed as new parameters.
 
         :param params:  A 1d array holding new parameters; must match size of current ones
         :param \*\*kwargs:  Any other additional properties for the star. Takes current flux and
