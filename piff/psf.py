@@ -352,10 +352,10 @@ class PSF(object):
         convolve the PSF by some other (e.g. galaxy) profile and then draw that.
 
         If the PSF interpolation used extra properties for the interpolation (cf.
-        psf.extra_interp_properties), you need to provide them as additional kwargs.
+        psf.interp_property_names), you need to provide them as additional kwargs.
 
-            >>> print(psf.extra_interp_properties)
-            ('ri_color',)
+            >>> print(psf.interp_property_names)
+            ('u','v','ri_color')
             >>> prof, method = psf.get_profile(chipnum=4, x=103.3, y=592.0, ri_color=0.23)
 
         :param x:           The x position of the desired PSF in the original image coordinates.
