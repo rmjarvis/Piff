@@ -62,3 +62,8 @@ Changes from version 1.3.1 to 1.3.2
 ===================================
 
 - Added piff_version to the FITS header in the HSM output file. (#148)
+
+Changes from version 1.3.2 to 1.3.3
+===================================
+
+- Added guards against HSM failures when doing fourth_order/raw_moments in HSM output file. (#149)
