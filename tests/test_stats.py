@@ -716,6 +716,7 @@ def test_bad_hsm():
     shape_file = os.path.join('output','bad_hsm_shape.pdf')
     star_file = os.path.join('output','bad_hsm_star.pdf')
     hsm_file = os.path.join('output','bad_hsm_hsm.fits')
+    hsm4_file = os.path.join('output','bad_hsm_hsm_fourth.fits')
     sizemag_file = os.path.join('output','bad_hsm_sizemag.png')
 
     stamp_size = 25
@@ -770,6 +771,11 @@ def test_bad_hsm():
                 {
                     'type': 'HSMCatalog',
                     'file_name': hsm_file,
+                },
+                {
+                    'type': 'HSMCatalog',
+                    'file_name': hsm4_file,
+                    'fourth_order': True,
                 },
             ],
         },
