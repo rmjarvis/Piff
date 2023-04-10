@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>piff.model &mdash; Piff 1.3.2 documentation</title><link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <title>piff.model &mdash; Piff 1.3.3 documentation</title><link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
     <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
   <!--[if lt IE 9]>
     <script src="../../_static/js/html5shiv.min.js"></script>
@@ -101,14 +101,14 @@
 
 
 <div class="viewcode-block" id="Model"><a class="viewcode-back" href="../../model.html#piff.Model">[docs]</a><span class="k">class</span> <span class="nc">Model</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;The base class for modeling a single PSF (i.e. no interpolation yet)</span>
+    <span class="sd">&quot;&quot;&quot;The base class for modeling a single PSF (i.e. no interpolation yet)</span>
 
 <span class="sd">    This is essentially an abstract base class intended to define the methods that should be</span>
 <span class="sd">    implemented by any derived class.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 <div class="viewcode-block" id="Model.process"><a class="viewcode-back" href="../../model.html#piff.Model.process">[docs]</a>    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">config_model</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Parse the model field of the config dict.</span>
+        <span class="sd">&quot;&quot;&quot;Parse the model field of the config dict.</span>
 
 <span class="sd">        :param config_model:    The configuration dict for the model field.</span>
 <span class="sd">        :param logger:          A logger object for logging debug info. [default: None]</span>
@@ -134,7 +134,7 @@
 
 <div class="viewcode-block" id="Model.parseKwargs"><a class="viewcode-back" href="../../model.html#piff.Model.parseKwargs">[docs]</a>    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">parseKwargs</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">config_model</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Parse the model field of a configuration dict and return the kwargs to use for</span>
+        <span class="sd">&quot;&quot;&quot;Parse the model field of a configuration dict and return the kwargs to use for</span>
 <span class="sd">        initializing an instance of the class.</span>
 
 <span class="sd">        The base class implementation just returns the kwargs as they are, but derived classes</span>
@@ -151,7 +151,7 @@
         <span class="k">return</span> <span class="n">kwargs</span></div>
 
 <div class="viewcode-block" id="Model.initialize"><a class="viewcode-back" href="../../model.html#piff.Model.initialize">[docs]</a>    <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize a star to work with the current model.</span>
+        <span class="sd">&quot;&quot;&quot;Initialize a star to work with the current model.</span>
 
 <span class="sd">        :param star:    A Star instance with the raw data.</span>
 <span class="sd">        :param logger:  A logger object for logging debug info. [default: None]</span>
@@ -161,7 +161,7 @@
         <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Derived classes must define the initialize function&quot;</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="Model.normalize"><a class="viewcode-back" href="../../model.html#piff.Model.normalize">[docs]</a>    <span class="k">def</span> <span class="nf">normalize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Make sure star.fit.params are normalized properly.</span>
+        <span class="sd">&quot;&quot;&quot;Make sure star.fit.params are normalized properly.</span>
 
 <span class="sd">        Note: This modifies the input star in place.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -170,7 +170,7 @@
         <span class="k">pass</span></div>
 
 <div class="viewcode-block" id="Model.fit"><a class="viewcode-back" href="../../model.html#piff.Model.fit">[docs]</a>    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">convert_func</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Fit the Model to the star&#39;s data to yield iterative improvement on</span>
+        <span class="sd">&quot;&quot;&quot;Fit the Model to the star&#39;s data to yield iterative improvement on</span>
 <span class="sd">        its PSF parameters, their uncertainties, and flux (and center, if free).</span>
 <span class="sd">        The returned star.fit.alpha will be inverse covariance of solution if</span>
 <span class="sd">        it is estimated, else is None.</span>
@@ -185,7 +185,7 @@
         <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Derived classes must define the fit function&quot;</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="Model.reflux"><a class="viewcode-back" href="../../model.html#piff.Model.reflux">[docs]</a>    <span class="k">def</span> <span class="nf">reflux</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">fit_center</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Fit the Model to the star&#39;s data, varying only the flux (and</span>
+        <span class="sd">&quot;&quot;&quot;Fit the Model to the star&#39;s data, varying only the flux (and</span>
 <span class="sd">        center, if it is free).  Flux and center are updated in the Star&#39;s</span>
 <span class="sd">        attributes.  This is a single-step solution if only solving for flux,</span>
 <span class="sd">        otherwise an iterative operation.  DOF in the result assume</span>
@@ -298,7 +298,7 @@
                                        <span class="n">params_var</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">params_var</span><span class="p">))</span></div>
 
 <div class="viewcode-block" id="Model.draw"><a class="viewcode-back" href="../../model.html#piff.Model.draw">[docs]</a>    <span class="k">def</span> <span class="nf">draw</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">copy_image</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">center</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Draw the model on the given image.</span>
+        <span class="sd">&quot;&quot;&quot;Draw the model on the given image.</span>
 
 <span class="sd">        :param star:        A Star instance with the fitted parameters to use for drawing and a</span>
 <span class="sd">                            data field that acts as a template image for the drawn model.</span>
@@ -324,7 +324,7 @@
         <span class="k">return</span> <span class="n">Star</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="Model.write"><a class="viewcode-back" href="../../model.html#piff.Model.write">[docs]</a>    <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Write a Model to a FITS file.</span>
+        <span class="sd">&quot;&quot;&quot;Write a Model to a FITS file.</span>
 
 <span class="sd">        Note: this only writes the initialization kwargs to the fits extension, not the parameters.</span>
 
@@ -342,7 +342,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_finish_write</span><span class="p">(</span><span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">)</span></div>
 
     <span class="k">def</span> <span class="nf">_finish_write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Finish the writing process with any class-specific steps.</span>
+        <span class="sd">&quot;&quot;&quot;Finish the writing process with any class-specific steps.</span>
 
 <span class="sd">        The base class implementation doesn&#39;t do anything, which is often appropriate, but</span>
 <span class="sd">        this hook exists in case any Model classes need to write extra information to the</span>
@@ -355,7 +355,7 @@
 
 <div class="viewcode-block" id="Model.read"><a class="viewcode-back" href="../../model.html#piff.Model.read">[docs]</a>    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">read</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Read a Model from a FITS file.</span>
+        <span class="sd">&quot;&quot;&quot;Read a Model from a FITS file.</span>
 
 <span class="sd">        Note: the returned Model will not have its parameters set.  This just initializes a fresh</span>
 <span class="sd">        model that can be used to interpret interpolated vectors.</span>
@@ -396,7 +396,7 @@
 
     <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">_fix_kwargs</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Fix the kwargs read in from an input file.</span>
+        <span class="sd">&quot;&quot;&quot;Fix the kwargs read in from an input file.</span>
 
 <span class="sd">        This is intended to make it easier to preserve backwards compatibility if a class</span>
 <span class="sd">        has changed something about the kwargs, this provides a way for old parameter names</span>
@@ -409,7 +409,7 @@
         <span class="k">pass</span>
 
     <span class="k">def</span> <span class="nf">_finish_read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Finish the reading process with any class-specific steps.</span>
+        <span class="sd">&quot;&quot;&quot;Finish the reading process with any class-specific steps.</span>
 
 <span class="sd">        The base class implementation doesn&#39;t do anything, which is often appropriate, but</span>
 <span class="sd">        this hook exists in case any Model classes need to read extra information from the</span>

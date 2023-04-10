@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>piff.twod_stats &mdash; Piff 1.3.2 documentation</title><link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <title>piff.twod_stats &mdash; Piff 1.3.3 documentation</title><link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
     <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
   <!--[if lt IE 9]>
     <script src="../../_static/js/html5shiv.min.js"></script>
@@ -101,7 +101,7 @@
 <span class="kn">from</span> <span class="nn">.stats</span> <span class="kn">import</span> <span class="n">Stats</span>
 
 <div class="viewcode-block" id="TwoDHistStats"><a class="viewcode-back" href="../../stats.html#piff.TwoDHistStats">[docs]</a><span class="k">class</span> <span class="nc">TwoDHistStats</span><span class="p">(</span><span class="n">Stats</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Statistics class that can make pretty colormaps where each bin has some</span>
+    <span class="sd">&quot;&quot;&quot;Statistics class that can make pretty colormaps where each bin has some</span>
 <span class="sd">    arbitrary function applied to it.</span>
 
 <span class="sd">    By default this will make a color map based on u and v coordinates of the</span>
@@ -137,7 +137,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">skip</span> <span class="o">=</span> <span class="kc">False</span>
 
 <div class="viewcode-block" id="TwoDHistStats.compute"><a class="viewcode-back" href="../../stats.html#piff.TwoDHistStats.compute">[docs]</a>    <span class="k">def</span> <span class="nf">compute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">psf</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+        <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        :param psf:         A PSF Object</span>
 <span class="sd">        :param stars:       A list of Star instances.</span>
 <span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
@@ -224,7 +224,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">twodhists</span><span class="p">[</span><span class="s1">&#39;dg2&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_array_to_2dhist</span><span class="p">(</span><span class="n">dg2</span><span class="p">,</span> <span class="n">indx_u</span><span class="p">,</span> <span class="n">indx_v</span><span class="p">,</span> <span class="n">unique_indx</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="TwoDHistStats.plot"><a class="viewcode-back" href="../../stats.html#piff.TwoDHistStats.plot">[docs]</a>    <span class="k">def</span> <span class="nf">plot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Make the plots.</span>
+        <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Make the plots.</span>
 
 <span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
 <span class="sd">        :params \**kwargs:   Any additional kwargs go into the matplotlib plot() function.</span>
@@ -398,7 +398,7 @@
     <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">_shiftedColorMap</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cmap</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">midpoint</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">stop</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
                          <span class="n">name</span><span class="o">=</span><span class="s1">&#39;shiftedcmap&#39;</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+        <span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">        Taken from</span>
 
 <span class="sd">        https://github.com/olgabot/prettyplotlib/blob/master/prettyplotlib/colors.py</span>
@@ -462,7 +462,7 @@
         <span class="k">return</span> <span class="n">newcmap</span></div>
 
 <div class="viewcode-block" id="WhiskerStats"><a class="viewcode-back" href="../../stats.html#piff.WhiskerStats">[docs]</a><span class="k">class</span> <span class="nc">WhiskerStats</span><span class="p">(</span><span class="n">Stats</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Statistics class that can make whiskerplots.</span>
+    <span class="sd">&quot;&quot;&quot;Statistics class that can make whiskerplots.</span>
 
 <span class="sd">    By default this will make a whisker plot based on u and v coordinates of</span>
 <span class="sd">    the input stars. The whisker scale is based on (by default) the median</span>
@@ -513,7 +513,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">skip</span> <span class="o">=</span> <span class="kc">False</span>
 
 <div class="viewcode-block" id="WhiskerStats.compute"><a class="viewcode-back" href="../../stats.html#piff.WhiskerStats.compute">[docs]</a>    <span class="k">def</span> <span class="nf">compute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">psf</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+        <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        :param psf:         A PSF Object</span>
 <span class="sd">        :param stars:       A list of Star instances.</span>
 <span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
@@ -604,7 +604,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">twodhists</span><span class="p">[</span><span class="s1">&#39;dw2&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_array_to_2dhist</span><span class="p">(</span><span class="n">dw2</span><span class="p">,</span> <span class="n">indx_u</span><span class="p">,</span> <span class="n">indx_v</span><span class="p">,</span> <span class="n">unique_indx</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="WhiskerStats.plot"><a class="viewcode-back" href="../../stats.html#piff.WhiskerStats.plot">[docs]</a>    <span class="k">def</span> <span class="nf">plot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Make the plots.</span>
+        <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Make the plots.</span>
 
 <span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
 <span class="sd">        :params \**kwargs:   Any additional kwargs go into the matplotlib plot() function.</span>
