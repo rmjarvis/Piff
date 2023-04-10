@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>piff.pixelgrid &mdash; Piff 1.3.2 documentation</title><link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <title>piff.pixelgrid &mdash; Piff 1.3.3 documentation</title><link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
     <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
   <!--[if lt IE 9]>
     <script src="../../_static/js/html5shiv.min.js"></script>
@@ -103,7 +103,7 @@
 <span class="kn">from</span> <span class="nn">.star</span> <span class="kn">import</span> <span class="n">Star</span><span class="p">,</span> <span class="n">StarData</span><span class="p">,</span> <span class="n">StarFit</span>
 
 <div class="viewcode-block" id="PixelGrid"><a class="viewcode-back" href="../../model.html#piff.PixelGrid">[docs]</a><span class="k">class</span> <span class="nc">PixelGrid</span><span class="p">(</span><span class="n">Model</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;A PSF modeled as interpolation between a grid of points.</span>
+    <span class="sd">&quot;&quot;&quot;A PSF modeled as interpolation between a grid of points.</span>
 
 <span class="sd">    The parameters of the model are the values at the grid points, although the sum of the</span>
 <span class="sd">    values is constrained to be 1/scale**2, to give it unit total flux. The grid is in uv</span>
@@ -168,7 +168,7 @@
         <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;nparams = </span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">_nparams</span><span class="p">)</span>
 
 <div class="viewcode-block" id="PixelGrid.initialize"><a class="viewcode-back" href="../../model.html#piff.PixelGrid.initialize">[docs]</a>    <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize a star to work with the current model.</span>
+        <span class="sd">&quot;&quot;&quot;Initialize a star to work with the current model.</span>
 
 <span class="sd">        :param star:    A Star instance with the raw data.</span>
 <span class="sd">        :param logger:  A logger object for logging debug info. [default: None]</span>
@@ -208,7 +208,7 @@
         <span class="k">return</span> <span class="n">Star</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">starfit</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="PixelGrid.fit"><a class="viewcode-back" href="../../model.html#piff.PixelGrid.fit">[docs]</a>    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">convert_func</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Fit the Model to the star&#39;s data to yield iterative improvement on its PSF parameters</span>
+        <span class="sd">&quot;&quot;&quot;Fit the Model to the star&#39;s data to yield iterative improvement on its PSF parameters</span>
 <span class="sd">        and uncertainties.</span>
 
 <span class="sd">        :param star:            A Star instance</span>
@@ -270,7 +270,7 @@
         <span class="k">return</span> <span class="n">star</span></div>
 
 <div class="viewcode-block" id="PixelGrid.chisq"><a class="viewcode-back" href="../../model.html#piff.PixelGrid.chisq">[docs]</a>    <span class="k">def</span> <span class="nf">chisq</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">convert_func</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Calculate dependence of chi^2 = -2 log L(D|p) on PSF parameters for single star.</span>
+        <span class="sd">&quot;&quot;&quot;Calculate dependence of chi^2 = -2 log L(D|p) on PSF parameters for single star.</span>
 <span class="sd">        as a quadratic form chi^2 = dp^T AT A dp - 2 bT A dp + chisq,</span>
 <span class="sd">        where dp is the *shift* from current parameter values.  Returned Star</span>
 <span class="sd">        instance has the resultant (A, b, chisq) attributes, but params vector has not have</span>
@@ -515,7 +515,7 @@
         <span class="k">return</span> <span class="n">Star</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">outfit</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="PixelGrid.getProfile"><a class="viewcode-back" href="../../model.html#piff.PixelGrid.getProfile">[docs]</a>    <span class="k">def</span> <span class="nf">getProfile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get a version of the model as a GalSim GSObject</span>
+        <span class="sd">&quot;&quot;&quot;Get a version of the model as a GalSim GSObject</span>
 
 <span class="sd">        :param params:      The fit parameters for a given star.</span>
 
@@ -540,7 +540,7 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_basis_profile</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_basis_shifts</span>
 
 <div class="viewcode-block" id="PixelGrid.normalize"><a class="viewcode-back" href="../../model.html#piff.PixelGrid.normalize">[docs]</a>    <span class="k">def</span> <span class="nf">normalize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Make sure star.fit.params are normalized properly.</span>
+        <span class="sd">&quot;&quot;&quot;Make sure star.fit.params are normalized properly.</span>
 
 <span class="sd">        Note: This modifies the input star in place.</span>
 <span class="sd">        &quot;&quot;&quot;</span>

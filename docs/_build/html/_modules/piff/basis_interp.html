@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>piff.basis_interp &mdash; Piff 1.3.2 documentation</title><link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <title>piff.basis_interp &mdash; Piff 1.3.3 documentation</title><link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
     <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
   <!--[if lt IE 9]>
     <script src="../../_static/js/html5shiv.min.js"></script>
@@ -102,7 +102,7 @@
 <span class="kn">from</span> <span class="nn">.star</span> <span class="kn">import</span> <span class="n">Star</span><span class="p">,</span> <span class="n">StarFit</span>
 
 <div class="viewcode-block" id="BasisInterp"><a class="viewcode-back" href="../../interp.html#piff.BasisInterp">[docs]</a><span class="k">class</span> <span class="nc">BasisInterp</span><span class="p">(</span><span class="n">Interp</span><span class="p">):</span>
-<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;An Interp class that works whenever the interpolating functions are</span>
+    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;An Interp class that works whenever the interpolating functions are</span>
 <span class="sd">    linear sums of basis functions.  Does things the &quot;slow way&quot; to be stable to</span>
 <span class="sd">    degenerate fits to individual stars, instead of fitting to parameter sets</span>
 <span class="sd">    produced by single stars.</span>
@@ -131,7 +131,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">q</span> <span class="o">=</span> <span class="kc">None</span>
 
 <div class="viewcode-block" id="BasisInterp.initialize"><a class="viewcode-back" href="../../interp.html#piff.BasisInterp.initialize">[docs]</a>    <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize both the interpolator to some state prefatory to any solve iterations and</span>
+        <span class="sd">&quot;&quot;&quot;Initialize both the interpolator to some state prefatory to any solve iterations and</span>
 <span class="sd">        initialize the stars for use with this interpolator.</span>
 
 <span class="sd">        This class will initialize everything to have constant PSF parameter vector taken</span>
@@ -148,7 +148,7 @@
         <span class="k">return</span> <span class="n">stars</span></div>
 
 <div class="viewcode-block" id="BasisInterp.basis"><a class="viewcode-back" href="../../interp.html#piff.BasisInterp.basis">[docs]</a>    <span class="k">def</span> <span class="nf">basis</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return 1d array of polynomial basis values for this star</span>
+        <span class="sd">&quot;&quot;&quot;Return 1d array of polynomial basis values for this star</span>
 
 <span class="sd">        :param star:   A Star instance</span>
 
@@ -158,7 +158,7 @@
                                   <span class="s2">&quot;You probably want to use BasisPolynomial.&quot;</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="BasisInterp.constant"><a class="viewcode-back" href="../../interp.html#piff.BasisInterp.constant">[docs]</a>    <span class="k">def</span> <span class="nf">constant</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="mf">1.</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return 1d array of coefficients that represent a polynomial with constant value.</span>
+        <span class="sd">&quot;&quot;&quot;Return 1d array of coefficients that represent a polynomial with constant value.</span>
 
 <span class="sd">        :param value:  The value to use as the constant term.  [default: 1.]</span>
 
@@ -168,7 +168,7 @@
                                   <span class="s2">&quot;You probably want to use BasisPolynomial.&quot;</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="BasisInterp.solve"><a class="viewcode-back" href="../../interp.html#piff.BasisInterp.solve">[docs]</a>    <span class="k">def</span> <span class="nf">solve</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Solve for the interpolation coefficients given some data.</span>
+        <span class="sd">&quot;&quot;&quot;Solve for the interpolation coefficients given some data.</span>
 <span class="sd">        The StarFit element of each Star in the list is assumed to hold valid</span>
 <span class="sd">        alpha and beta members specifying depending of chisq on differential</span>
 <span class="sd">        changes to its parameter vector.</span>
@@ -240,7 +240,7 @@
 
 
     <span class="k">def</span> <span class="nf">_solve_qr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;The implementation of solve() when use_qr = True.</span>
+        <span class="sd">&quot;&quot;&quot;The implementation of solve() when use_qr = True.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="c1"># First, build up one chunk for each star.  We&#39;ll stack them later.</span>
@@ -318,7 +318,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">q</span> <span class="o">+=</span> <span class="n">dq</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">q</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_solve_direct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;The implementation of solve() when use_qr = False.</span>
+        <span class="sd">&quot;&quot;&quot;The implementation of solve() when use_qr = False.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="c1"># Build ATA and ATb by accumulating the chunks for each star as we go.</span>
@@ -386,7 +386,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">q</span> <span class="o">+=</span> <span class="n">dq</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">q</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
 
 <div class="viewcode-block" id="BasisInterp.interpolate"><a class="viewcode-back" href="../../interp.html#piff.BasisInterp.interpolate">[docs]</a>    <span class="k">def</span> <span class="nf">interpolate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Perform the interpolation to find the interpolated parameter vector at some position.</span>
+        <span class="sd">&quot;&quot;&quot;Perform the interpolation to find the interpolated parameter vector at some position.</span>
 
 <span class="sd">        :param star:        A Star instance to which one wants to interpolate</span>
 <span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
@@ -403,7 +403,7 @@
 
 
 <div class="viewcode-block" id="BasisPolynomial"><a class="viewcode-back" href="../../interp.html#piff.BasisPolynomial">[docs]</a><span class="k">class</span> <span class="nc">BasisPolynomial</span><span class="p">(</span><span class="n">BasisInterp</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;A version of the Polynomial interpolator that works with BasisModels and can use the</span>
+    <span class="sd">&quot;&quot;&quot;A version of the Polynomial interpolator that works with BasisModels and can use the</span>
 <span class="sd">    quadratic form of the chisq information it calculates.  It works better than the regular</span>
 <span class="sd">    Polynomial interpolator when there is missing or degenerate information.</span>
 
@@ -468,12 +468,12 @@
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">property_names</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;List of properties used by this interpolant.</span>
+        <span class="sd">&quot;&quot;&quot;List of properties used by this interpolant.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_keys</span>
 
 <div class="viewcode-block" id="BasisPolynomial.basis"><a class="viewcode-back" href="../../interp.html#piff.BasisPolynomial.basis">[docs]</a>    <span class="k">def</span> <span class="nf">basis</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return 1d array of polynomial basis values for this star</span>
+        <span class="sd">&quot;&quot;&quot;Return 1d array of polynomial basis values for this star</span>
 
 <span class="sd">        :param star:   A Star instance</span>
 
@@ -494,7 +494,7 @@
         <span class="k">return</span> <span class="n">pows2d</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_mask</span><span class="p">]</span></div>
 
 <div class="viewcode-block" id="BasisPolynomial.constant"><a class="viewcode-back" href="../../interp.html#piff.BasisPolynomial.constant">[docs]</a>    <span class="k">def</span> <span class="nf">constant</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="mf">1.</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return 1d array of coefficients that represent a polynomial with constant value.</span>
+        <span class="sd">&quot;&quot;&quot;Return 1d array of coefficients that represent a polynomial with constant value.</span>
 
 <span class="sd">        :param value:  The value to use as the constant term.  [default: 1.]</span>
 
@@ -505,7 +505,7 @@
         <span class="k">return</span> <span class="n">out</span></div>
 
     <span class="k">def</span> <span class="nf">_finish_write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Write the solution to a FITS binary table.</span>
+        <span class="sd">&quot;&quot;&quot;Write the solution to a FITS binary table.</span>
 
 <span class="sd">        :param fits:        An open fitsio.FITS object.</span>
 <span class="sd">        :param extname:     The base name of the extension.</span>
@@ -519,7 +519,7 @@
         <span class="n">fits</span><span class="o">.</span><span class="n">write_table</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">extname</span><span class="o">=</span><span class="n">extname</span> <span class="o">+</span> <span class="s1">&#39;_solution&#39;</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_finish_read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Read the solution from a FITS binary table.</span>
+        <span class="sd">&quot;&quot;&quot;Read the solution from a FITS binary table.</span>
 
 <span class="sd">        :param fits:        An open fitsio.FITS object.</span>
 <span class="sd">        :param extname:     The name of the extension with the interpolator information.</span>

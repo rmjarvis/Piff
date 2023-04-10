@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>piff.star &mdash; Piff 1.3.2 documentation</title><link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <title>piff.star &mdash; Piff 1.3.3 documentation</title><link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
     <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
   <!--[if lt IE 9]>
     <script src="../../_static/js/html5shiv.min.js"></script>
@@ -98,7 +98,7 @@
 <span class="kn">import</span> <span class="nn">galsim</span>
 
 <div class="viewcode-block" id="Star"><a class="viewcode-back" href="../../star.html#piff.Star">[docs]</a><span class="k">class</span> <span class="nc">Star</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Information about a &quot;star&quot;, which may be either a real star or an interpolated star</span>
+    <span class="sd">&quot;&quot;&quot;Information about a &quot;star&quot;, which may be either a real star or an interpolated star</span>
 <span class="sd">    at some target location.</span>
 
 <span class="sd">    The Star object is the fundamental way that Piff keeps track of information connected to</span>
@@ -159,7 +159,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">fit</span> <span class="o">=</span> <span class="n">fit</span>
 
 <div class="viewcode-block" id="Star.withFlux"><a class="viewcode-back" href="../../star.html#piff.Star.withFlux">[docs]</a>    <span class="k">def</span> <span class="nf">withFlux</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">flux</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">center</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Update the flux and/or center values</span>
+        <span class="sd">&quot;&quot;&quot;Update the flux and/or center values</span>
 
 <span class="sd">        :param flux:    The new flux.  [default: None, which means keep the existing value.]</span>
 <span class="sd">        :param center:  The new center.  [default: None, which means keep the existing value.]</span>
@@ -172,7 +172,7 @@
         <span class="k">return</span> <span class="n">Star</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">fit</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="Star.withProperties"><a class="viewcode-back" href="../../star.html#piff.Star.withProperties">[docs]</a>    <span class="k">def</span> <span class="nf">withProperties</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set or change any properties in the star.</span>
+        <span class="sd">&quot;&quot;&quot;Set or change any properties in the star.</span>
 
 <span class="sd">        :param \*\*kwargs:   Each named kwarg is taken to be a property to set in the returned star.</span>
 
@@ -185,7 +185,7 @@
         <span class="k">return</span> <span class="n">Star</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">fit</span><span class="p">)</span></div>
 
     <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get a property of the star.</span>
+        <span class="sd">&quot;&quot;&quot;Get a property of the star.</span>
 
 <span class="sd">        This may be one of the values in the properties dict that was given when the data object</span>
 <span class="sd">        was initialized, or one of &#39;x&#39;, &#39;y&#39;, &#39;u&#39;, &#39;v&#39;, where x,y are the position in image</span>
@@ -248,7 +248,7 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">properties</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;is_reserve&#39;</span><span class="p">,</span><span class="kc">False</span><span class="p">)</span>
 
 <div class="viewcode-block" id="Star.run_hsm"><a class="viewcode-back" href="../../star.html#piff.Star.run_hsm">[docs]</a>    <span class="k">def</span> <span class="nf">run_hsm</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Use HSM to measure moments of star image.</span>
+        <span class="sd">&quot;&quot;&quot;Use HSM to measure moments of star image.</span>
 
 <span class="sd">        This usually isn&#39;t called directly.  The results are accessible as star.hsm,</span>
 <span class="sd">        which caches the results, so repeated access is efficient.</span>
@@ -302,7 +302,7 @@
 <div class="viewcode-block" id="Star.makeTarget"><a class="viewcode-back" href="../../star.html#piff.Star.makeTarget">[docs]</a>    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">makeTarget</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">u</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">v</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">properties</span><span class="o">=</span><span class="p">{},</span> <span class="n">wcs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                    <span class="n">stamp_size</span><span class="o">=</span><span class="mi">48</span><span class="p">,</span> <span class="n">image</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">weight</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pointing</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">flux</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+        <span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Make a target Star object with the requested properties.</span>
 
 <span class="sd">        The image will be blank (all zeros), and the properties field will match the given</span>
@@ -395,7 +395,7 @@
 
 <div class="viewcode-block" id="Star.write"><a class="viewcode-back" href="../../star.html#piff.Star.write">[docs]</a>    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Write a list of stars to a FITS file.</span>
+        <span class="sd">&quot;&quot;&quot;Write a list of stars to a FITS file.</span>
 
 <span class="sd">        :param stars:       A list of stars to write</span>
 <span class="sd">        :param fits:        An open fitsio.FITS object</span>
@@ -459,7 +459,7 @@
 
 <div class="viewcode-block" id="Star.read_coords_params"><a class="viewcode-back" href="../../star.html#piff.Star.read_coords_params">[docs]</a>    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">read_coords_params</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Read only star fit parameters and coordinates from a FITS file.</span>
+        <span class="sd">&quot;&quot;&quot;Read only star fit parameters and coordinates from a FITS file.</span>
 
 <span class="sd">        :param fits:        An open fitsio.FITS object</span>
 <span class="sd">        :param extname:     The name of the extension to read from</span>
@@ -482,7 +482,7 @@
 
 <div class="viewcode-block" id="Star.read"><a class="viewcode-back" href="../../star.html#piff.Star.read">[docs]</a>    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">read</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Read stars from a FITS file.</span>
+        <span class="sd">&quot;&quot;&quot;Read stars from a FITS file.</span>
 
 <span class="sd">        :param fits:        An open fitsio.FITS object</span>
 <span class="sd">        :param extname:     The name of the extension to read from</span>
@@ -562,7 +562,7 @@
     <span class="k">def</span> <span class="nf">load_images</span><span class="p">(</span><span class="n">stars</span><span class="p">,</span> <span class="n">file_name</span><span class="p">,</span> <span class="n">pointing</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                     <span class="n">image_hdu</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">weight_hdu</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">badpix_hdu</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">noise</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">sky</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                     <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Load the image data into a list of Stars.</span>
+        <span class="sd">&quot;&quot;&quot;Load the image data into a list of Stars.</span>
 
 <span class="sd">        We don&#39;t store the image data for Stars when we write them to a file, since that</span>
 <span class="sd">        would take up a lot of space and is usually not desired.  However, we do store the</span>
@@ -619,7 +619,7 @@
         <span class="k">return</span> <span class="n">input_files</span><span class="o">.</span><span class="n">load_images</span><span class="p">(</span><span class="n">stars</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="Star.offset_to_center"><a class="viewcode-back" href="../../star.html#piff.Star.offset_to_center">[docs]</a>    <span class="k">def</span> <span class="nf">offset_to_center</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">offset</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;A utility routine to convert from an offset in image coordinates to the corresponding</span>
+        <span class="sd">&quot;&quot;&quot;A utility routine to convert from an offset in image coordinates to the corresponding</span>
 <span class="sd">        center position in focal plane coordinates on the postage stamp image.</span>
 
 <span class="sd">        :param offset:      A tuple (dx,dy) in image coordinates</span>
@@ -634,7 +634,7 @@
         <span class="k">return</span> <span class="p">(</span><span class="n">du</span><span class="p">,</span><span class="n">dv</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="Star.center_to_offset"><a class="viewcode-back" href="../../star.html#piff.Star.center_to_offset">[docs]</a>    <span class="k">def</span> <span class="nf">center_to_offset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">center</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;A utility routine to convert from a center position in focal plane coordinates to the</span>
+        <span class="sd">&quot;&quot;&quot;A utility routine to convert from a center position in focal plane coordinates to the</span>
 <span class="sd">        corresponding offset in image coordinates on the postage stamp image.</span>
 
 <span class="sd">        :param center:      A tuple (u,v) in focal plane coordinates</span>
@@ -650,7 +650,7 @@
         <span class="k">return</span> <span class="p">(</span><span class="n">dx</span><span class="p">,</span><span class="n">dy</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="Star.addPoisson"><a class="viewcode-back" href="../../star.html#piff.Star.addPoisson">[docs]</a>    <span class="k">def</span> <span class="nf">addPoisson</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">signal</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">gain</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return new Star with the weight values altered to reflect</span>
+        <span class="sd">&quot;&quot;&quot;Return new Star with the weight values altered to reflect</span>
 <span class="sd">        Poisson shot noise from a signal source, e.g. when the weight</span>
 <span class="sd">        only contains variance from background and read noise.</span>
 
@@ -669,7 +669,7 @@
 
 
 <div class="viewcode-block" id="StarData"><a class="viewcode-back" href="../../star.html#piff.StarData">[docs]</a><span class="k">class</span> <span class="nc">StarData</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;A class that encapsulates all the relevant information about an observed star.</span>
+    <span class="sd">&quot;&quot;&quot;A class that encapsulates all the relevant information about an observed star.</span>
 
 <span class="sd">    **Class intended to be immutable once returned from the method that creates it.**</span>
 
@@ -792,7 +792,7 @@
 
 <div class="viewcode-block" id="StarData.calculateFieldPos"><a class="viewcode-back" href="../../star.html#piff.StarData.calculateFieldPos">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">calculateFieldPos</span><span class="p">(</span><span class="n">image_pos</span><span class="p">,</span> <span class="n">wcs</span><span class="p">,</span> <span class="n">pointing</span><span class="p">,</span> <span class="n">properties</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+        <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Convert from image coordinates to field coordinates.</span>
 
 <span class="sd">        :param image_pos:   The position in image coordinates, as a galsim.PositionD instance.</span>
@@ -822,7 +822,7 @@
             <span class="k">return</span> <span class="n">wcs</span><span class="o">.</span><span class="n">toWorld</span><span class="p">(</span><span class="n">image_pos</span><span class="p">)</span></div>
 
     <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get a property of the star.</span>
+        <span class="sd">&quot;&quot;&quot;Get a property of the star.</span>
 
 <span class="sd">        This may be one of the values in the properties dict that was given when the object</span>
 <span class="sd">        was initialized, or one of &#39;x&#39;, &#39;y&#39;, &#39;u&#39;, &#39;v&#39;, where x,y are the position in image</span>
@@ -835,7 +835,7 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
 
 <div class="viewcode-block" id="StarData.getImage"><a class="viewcode-back" href="../../star.html#piff.StarData.getImage">[docs]</a>    <span class="k">def</span> <span class="nf">getImage</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get the pixel data as a galsim.Image.</span>
+        <span class="sd">&quot;&quot;&quot;Get the pixel data as a galsim.Image.</span>
 
 <span class="sd">        Also returns the weight image and the origin position (the position in x,y coordinates</span>
 <span class="sd">        to use as the origin of the PSF model).</span>
@@ -845,7 +845,7 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">image</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">weight</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">image_pos</span></div>
 
 <div class="viewcode-block" id="StarData.getDataVector"><a class="viewcode-back" href="../../star.html#piff.StarData.getDataVector">[docs]</a>    <span class="k">def</span> <span class="nf">getDataVector</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get the pixel data as a numpy array.</span>
+        <span class="sd">&quot;&quot;&quot;Get the pixel data as a numpy array.</span>
 
 <span class="sd">        Also returns the weight values and the local u,v coordinates of the pixels.</span>
 <span class="sd">        Any pixels with zero weight (e.g. from masking in the original image) will not be</span>
@@ -875,7 +875,7 @@
         <span class="k">return</span> <span class="n">pix</span><span class="p">,</span> <span class="n">wt</span><span class="p">,</span> <span class="n">u</span><span class="p">,</span> <span class="n">v</span></div>
 
 <div class="viewcode-block" id="StarData.addPoisson"><a class="viewcode-back" href="../../star.html#piff.StarData.addPoisson">[docs]</a>    <span class="k">def</span> <span class="nf">addPoisson</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">signal</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">gain</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return new StarData with the weight values altered to reflect</span>
+        <span class="sd">&quot;&quot;&quot;Return new StarData with the weight values altered to reflect</span>
 <span class="sd">        Poisson shot noise from a signal source, e.g. when the weight</span>
 <span class="sd">        only contains variance from background and read noise.</span>
 
@@ -926,7 +926,7 @@
 
 
 <div class="viewcode-block" id="StarFit"><a class="viewcode-back" href="../../star.html#piff.StarFit">[docs]</a><span class="k">class</span> <span class="nc">StarFit</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Class to hold the results of fitting a Model to some StarData, or specify</span>
+    <span class="sd">&quot;&quot;&quot;Class to hold the results of fitting a Model to some StarData, or specify</span>
 <span class="sd">    the PSF interpolated to an unmeasured location.</span>
 
 <span class="sd">    **Class is intended to be invariant once created.**</span>
@@ -984,7 +984,7 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">A</span><span class="o">.</span><span class="n">T</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">b</span><span class="p">)</span>
 
 <div class="viewcode-block" id="StarFit.newParams"><a class="viewcode-back" href="../../star.html#piff.StarFit.newParams">[docs]</a>    <span class="k">def</span> <span class="nf">newParams</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return new StarFit that has the array params installed as new parameters.</span>
+        <span class="sd">&quot;&quot;&quot;Return new StarFit that has the array params installed as new parameters.</span>
 
 <span class="sd">        :param params:  A 1d array holding new parameters; must match size of current ones</span>
 <span class="sd">        :param \*\*kwargs:  Any other additional properties for the star. Takes current flux and</span>
