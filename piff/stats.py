@@ -182,24 +182,34 @@ class Stats(object):
                 kwargs = dict(third_order=True, fourth_order=True, radial=True)
             for i, star in enumerate(stars):
                 d = shapes_data[i]
-                m = calculate_moments(star, **kwargs)
 
-                if fourth_order:
-                    d.extend([m['M22']/m['M11'],
-                            m['M31']/m['M11']**2, m['M13']/m['M11']**2,
-                            m['M40']/m['M11']**2, m['M04']/m['M11']**2])
+                try:
+                    m = calculate_moments(star, **kwargs)
+                except RuntimeError as e:
+                    # Make sure the flag is set.
+                    if 'HSM failed' in e.args[0]:
+                        d[6] = int(e.args[0].split()[-1])
+                    else: # pragma: no cover
+                        # The HSM failed error is the only one we expect, but just in case...
+                        d[6] = 1
+                    d.extend([0] * (nshapes - 7))
+                else:
+                    if fourth_order:
+                        d.extend([m['M22']/m['M11'],
+                                m['M31']/m['M11']**2, m['M13']/m['M11']**2,
+                                m['M40']/m['M11']**2, m['M04']/m['M11']**2])
 
-                    # Subtract off 3e from the 4th order shapes to remove the leading order
-                    # term from the overall ellipticity, which is already captured in the
-                    # second order shape.  (For a Gaussian, this makes g4 very close to 0.)
-                    shape = galsim.Shear(g1=star.hsm[4], g2=star.hsm[5])
-                    d[8] -= 3*shape.e1
-                    d[9] -= 3*shape.e2
-                if raw_moments:
-                    d.extend([m['M00'], m['M10'], m['M01'], m['M11'], m['M20'], m['M02'],
-                              m['M21'], m['M12'], m['M30'], m['M03'],
-                              m['M22'], m['M31'], m['M13'], m['M40'], m['M04'],
-                              m['M22n'], m['M33n'], m['M44n']])
+                        # Subtract off 3e from the 4th order shapes to remove the leading order
+                        # term from the overall ellipticity, which is already captured in the
+                        # second order shape.  (For a Gaussian, this makes g4 very close to 0.)
+                        shape = galsim.Shear(g1=star.hsm[4], g2=star.hsm[5])
+                        d[8] -= 3*shape.e1
+                        d[9] -= 3*shape.e2
+                    if raw_moments:
+                        d.extend([m['M00'], m['M10'], m['M01'], m['M11'], m['M20'], m['M02'],
+                                m['M21'], m['M12'], m['M30'], m['M03'],
+                                m['M22'], m['M31'], m['M13'], m['M40'], m['M04'],
+                                m['M22n'], m['M33n'], m['M44n']])
 
         # Turn it into a proper numpy array.
         shapes_data = np.array(shapes_data)
@@ -242,19 +252,27 @@ class Stats(object):
             if fourth_order or raw_moments:
                 for i, star in enumerate(model_stars):
                     d = shapes_model[i]
-                    m = calculate_moments(star, **kwargs)
-                    if fourth_order:
-                        d.extend([m['M22']/m['M11'],
-                                  m['M31']/m['M11']**2, m['M13']/m['M11']**2,
-                                  m['M40']/m['M11']**2, m['M04']/m['M11']**2])
-                        shape = galsim.Shear(g1=star.hsm[4], g2=star.hsm[5])
-                        d[8] -= 3*shape.e1
-                        d[9] -= 3*shape.e2
-                    if raw_moments:
-                        d.extend([m['M00'], m['M10'], m['M01'], m['M11'], m['M20'], m['M02'],
-                                  m['M21'], m['M12'], m['M30'], m['M03'],
-                                  m['M22'], m['M31'], m['M13'], m['M40'], m['M04'],
-                                  m['M22n'], m['M33n'], m['M44n']])
+                    try:
+                        m = calculate_moments(star, **kwargs)
+                    except RuntimeError as e:
+                        if 'HSM failed' in e.args[0]:
+                            d[6] = int(e.args[0].split()[-1])
+                        else: # pragma: no cover
+                            d[6] = 1
+                        d.extend([0] * (nshapes - 7))
+                    else:
+                        if fourth_order:
+                            d.extend([m['M22']/m['M11'],
+                                    m['M31']/m['M11']**2, m['M13']/m['M11']**2,
+                                    m['M40']/m['M11']**2, m['M04']/m['M11']**2])
+                            shape = galsim.Shear(g1=star.hsm[4], g2=star.hsm[5])
+                            d[8] -= 3*shape.e1
+                            d[9] -= 3*shape.e2
+                        if raw_moments:
+                            d.extend([m['M00'], m['M10'], m['M01'], m['M11'], m['M20'], m['M02'],
+                                    m['M21'], m['M12'], m['M30'], m['M03'],
+                                    m['M22'], m['M31'], m['M13'], m['M40'], m['M04'],
+                                    m['M22n'], m['M33n'], m['M44n']])
 
             shapes_model = np.array(shapes_model)
             shapes_model = shapes_model.reshape((len(model_stars),nshapes))
