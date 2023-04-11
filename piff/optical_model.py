@@ -45,6 +45,18 @@ optical_templates = {
              'mirror_figure_halfsize': 2.22246,
              'pupil_plane_im': 'input/DECam_pupil_512uv.fits'
            },
+    'desparam': { 'diam': 4.010,  # meters
+                  'lam': 700, # nm
+                  'pad_factor': 1 ,
+                  'oversampling': 1,
+                  'sigma': 8.0 * (0.263/15.0), # 8micron sigma CCD diffusion
+                  'mirror_figure_im': 'input/DECam_236392_finegrid512_nm_uv.fits',
+                  'mirror_figure_halfsize': 2.22246,
+                  'obscuration': 0.301 / 0.7174, # from Zemax DECam model
+                  'nstruts': 4,
+                  'strut_thick': 0.0166,  # 66.5mm thick / 4010mm pupil - tuned to match DECam big donut images
+                  'strut_angle': 45 * galsim.degrees
+               },
     'desdonut': {'diam': 4.010,  # meters
              'lam': 700, # nm
              'pad_factor': 8,
@@ -141,7 +153,7 @@ class Optical(Model):
         self.kwargs = {}
         if template is not None:
             if template not in optical_templates:
-                raise ValueError("Unknown aperture template specified: %s"%template)
+                raise ValueError("Unknown optical template specified: %s"%template)
             self.kwargs.update(optical_templates[template])
 
         if gsparams is not None:
@@ -195,8 +207,8 @@ class Optical(Model):
                 mirror_figure_table = galsim.LookupTable2D(mirror_figure_u, mirror_figure_v, mirror_figure_uv.array)
                 self.mirror_figure_screen = galsim.UserScreen(mirror_figure_table)
 
-            # put back into opt_kwargs
-            self.opt_kwargs['mirror_figure_im'] = mirror_figure_im
+            # dont put back into opt_kwargs
+            # self.opt_kwargs['mirror_figure_im'] = mirror_figure_im
 
         # Store the Atmospheric Kernel type
         self.atmo_type = atmo_type
@@ -263,7 +275,7 @@ class Optical(Model):
                       center=star.fit.center, chisq=chisq, dof=dof)
         return Star(star.data, fit)
 
-    @lru_cache(maxsize=512)
+    @lru_cache(maxsize=8)
     def getOptics(self, zernike_coeff):
         """ Get the strictly Optics PSF component.  Use two phase screens, one from mirror_figure_im, and the other from
         zernike aberrations
@@ -288,7 +300,7 @@ class Optical(Model):
 
         return optics_psf
 
-    @lru_cache(maxsize=512)
+    @lru_cache(maxsize=8)
     def getAtmosphere(self, r0, L0=None, g1=0.0, g2=0.0):
         """ Get the Atmospheric PSF component.
 
