@@ -217,11 +217,13 @@ def test_disk():
     assert model.atmo_type == model2.atmo_type,'atmo_type mismatch'
 
 @timer
-def test_makestars(nstars=100):
+def test_makestars(nstars=100,constant_atmoparams=True,template='des'):
 
-    model = piff.Optical(template='des',atmo_type='VonKarman',gsparams='starby2')
-    params = random_params(nstars,model,constant_atmoparams=True)
+    print("test_makestars, n=%d, constant_atmoparams=%d" % (nstars,constant_atmoparams))
+    model = piff.Optical(template=template,atmo_type='VonKarman',gsparams='starby2')
+    params = random_params(nstars,model,constant_atmoparams=constant_atmoparams)
     stars = make_stars(nstars,model,params)
+
 
 #####
 # convenience functions
@@ -327,4 +329,9 @@ if __name__ == '__main__':
     test_shearing()
     test_gaussian()
     test_disk()
-    test_makestars(nstars=250)
+    print("des")
+    test_makestars(nstars=100)
+    test_makestars(nstars=100,constant_atmoparams=False)
+    print("desparam")
+    test_makestars(nstars=100,template='desparam')
+    test_makestars(nstars=100,constant_atmoparams=False,template='desparam')
