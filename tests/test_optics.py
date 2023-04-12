@@ -60,6 +60,7 @@ def test_optical(model=None):
     logger = piff.config.setup_logger(verbose=2)
     star_wrong = star.withFlux(2, (0.1,0.2))
     star_reflux = model.reflux(star_wrong, logger=logger)
+
     # There is no noise, but this is still not completely perfect.
     assert star_reflux.fit.chisq < 1.e-2
     np.testing.assert_allclose(star_reflux.fit.flux, 1.0, rtol=0.15)
@@ -72,6 +73,7 @@ def test_optical(model=None):
     assert star_copy.image.array[0,0] != star.image.array[0,0]
     assert star_copy.image.array[1,1] == star.image.array[1,1]
 
+    # test that errors are raised
     with np.testing.assert_raises(TypeError):
         piff.Optical(template='des', invalid=True)
     with np.testing.assert_raises(TypeError):
@@ -80,6 +82,13 @@ def test_optical(model=None):
         piff.Optical(diam=4)  # missing lam
     with np.testing.assert_raises(ValueError):
         piff.Optical(template='invalid')
+    with np.testing.assert_raises(ValueError):
+        piff.Optical(gsparams='invalid')
+
+    # test Zernike kwargs
+    zernike_coeff_short = [0.,0.,0.,0.,1.,1.,1.,1.,1.,1.,1.,1.]
+    param_test = model.kwargs_toparams(zernike_coeff=zernike_coeff_short,r0=0.12,g1=-0.05,g2=0.03,L0=20.)
+    
 
 @timer
 def test_pupil_im(pupil_plane_file='input/DECam_pupil_512uv.fits'):
