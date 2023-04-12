@@ -87,7 +87,7 @@ jobs:
                 pip install -U -r requirements.txt
 
                 # Extra packages needed for testing
-                pip install -U nose codecov coverage pytest nbval ipykernel
+                pip install -U nose coverage pytest nbval ipykernel
 
             - name: Install Pixmappy (not on pip)
               run: |
@@ -131,7 +131,6 @@ jobs:
                 coverage combine || true
                 coverage report
                 ls -la
-                #codecov  # This didn't work.
                 # cf. https://community.codecov.io/t/github-not-getting-codecov-report-after-switching-from-travis-to-github-actions-for-ci/
                 # The solution was to switch to the bash uploader line instead.
                 bash <(curl -s https://codecov.io/bash)
