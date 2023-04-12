@@ -371,7 +371,7 @@ class Optical(Model):
         if zlen<=self.nZ+1:
             params[self.idx_z0:self.idx_z0+zlen] = zernike_coeff
         elif zlen>self.nZ+1:
-            params[self.idx_z0:self.idx_z0+self.nZ+1] = zernike_coeff[0:selfnZ+1]
+            params[self.idx_z0:self.idx_z0+self.nZ+1] = zernike_coeff[0:self.nZ+1]
 
         params[self.idx_r0] = r0
         params[self.idx_L0] = L0
@@ -398,7 +398,7 @@ class Optical(Model):
         if len(params)==1 :
             zernike_coeff,r0,L0,g1,g2 = self.unpack_params(params[0])
         elif len(params)!=0 :
-            logger.error("getProfile cannot decode arguments:",params)
+            raise ValueError("getProfile cannot decode arguments",params)
 
         # list of PSF components
         prof = []

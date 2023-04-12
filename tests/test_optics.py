@@ -87,7 +87,49 @@ def test_optical(model=None):
 
     # test Zernike kwargs
     zernike_coeff_short = [0.,0.,0.,0.,1.,1.,1.,1.,1.,1.,1.,1.]
+    nz = len(zernike_coeff_short)
     param_test = model.kwargs_toparams(zernike_coeff=zernike_coeff_short,r0=0.12,g1=-0.05,g2=0.03,L0=20.)
+    for i in range(nz):
+        assert zernike_coeff_short[i]==param_test[model.idx_z0+i]
+    for i in range(nz+1,37+1):
+        assert param_test[model.idx_z0+i]==0.0
+
+    zernike_coeff_long = [0.,0.,0.,0.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,10.]
+    nz = len(zernike_coeff_long)
+    param_test = model.kwargs_toparams(zernike_coeff=zernike_coeff_long,r0=0.12,g1=-0.05,g2=0.03,L0=20.)
+    for i in range(37+1):
+        assert zernike_coeff_long[i]==param_test[model.idx_z0+i]
+    assert param_test[model.idx_r0]==0.12
+
+@timer
+def test_draw_profile():
+
+    # setup model
+    model = piff.Optical(template='des',atmo_type='Kolmogorov')
+    zernike_coeff = [0.,0.,0.,0.,0.25,1.,1.,1.,1.,1.,1.,1.]
+    param_test = model.kwargs_toparams(zernike_coeff=zernike_coeff,r0=0.12,g1=-0.05,g2=0.03,L0=20.)
+    model_kwargs = model.params_tokwargs(param_test)
+    aprof = model.getProfile(param_test)
+
+    # get a star to use for model star
+    config = {
+                'dir' : 'input',
+                'image_file_name' : 'DECam_00241238_01.fits.fz',
+                'cat_file_name' : 'DECam_00241238_01_cat.fits',
+                'cat_hdu' : 2,
+                'x_col' : 'XWIN_IMAGE',
+                'y_col' : 'YWIN_IMAGE',
+        }
+    logger = piff.config.setup_logger(verbose=0)
+    input = piff.InputFiles(config, logger=logger)
+    stars = input.makeStars(logger=logger)
+    astar = stars[10]
+
+    # test drawProfile
+    outparam = [model_kwargs['r0'],model_kwargs['L0'],model_kwargs['g1'],model_kwargs['g2']]
+    aprofile = model.drawProfile(astar,aprof,outparam)
+    aprofile1 = model.drawProfile(astar,aprof,outparam,copy_image=False)
+    aprofile2 = model.drawProfile(astar,aprof,outparam,use_fit=False)
     
 
 @timer
@@ -332,6 +374,7 @@ def make_stars(nstars,model,params,npixels=19):
 if __name__ == '__main__':
     test_init()
     test_optical()
+    test_draw_profile()
     test_pupil_im(pupil_plane_file='input/DECam_pupil_512uv.fits')
     test_kolmogorov()
     test_vonkarman()
