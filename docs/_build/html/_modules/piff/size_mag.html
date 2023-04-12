@@ -99,7 +99,7 @@
 <span class="kn">from</span> <span class="nn">.select</span> <span class="kn">import</span> <span class="n">Select</span>
 
 <span class="k">class</span> <span class="nc">SizeMagStats</span><span class="p">(</span><span class="n">Stats</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Statistics class that plots a size magnitude diagram to check the quality of</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Statistics class that plots a size magnitude diagram to check the quality of</span>
 <span class="sd">    the star selection.</span>
 
 <span class="sd">    :param file_name:       Name of the file to output to. [default: None]</span>
@@ -111,7 +111,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">zeropoint</span> <span class="o">=</span> <span class="n">zeropoint</span>
 
     <span class="k">def</span> <span class="nf">compute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">psf</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        :param psf:         A PSF Object</span>
 <span class="sd">        :param stars:       A list of Star instances.</span>
 <span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
@@ -161,7 +161,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">m_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">zeropoint</span> <span class="o">-</span> <span class="mf">2.5</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">f_obj</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">plot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Make the plots.</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Make the plots.</span>
 
 <span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
 <span class="sd">        :params \**kwargs:  Any additional kwargs go into the matplotlib scatter() function.</span>
@@ -225,7 +225,7 @@
 
 
 <div class="viewcode-block" id="SmallBrightSelect"><a class="viewcode-back" href="../../select.html#piff.SmallBrightSelect">[docs]</a><span class="k">class</span> <span class="nc">SmallBrightSelect</span><span class="p">(</span><span class="n">Select</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;A Select handler that picks stars by looking for a locus of small, bright objects that</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A Select handler that picks stars by looking for a locus of small, bright objects that</span>
 <span class="sd">    are all about the same size.</span>
 
 <span class="sd">    This is a very crude selection.  It is typically used to provide an initial selection to</span>
@@ -269,7 +269,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">max_spread</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;max_spread&#39;</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">)</span>
 
 <div class="viewcode-block" id="SmallBrightSelect.selectStars"><a class="viewcode-back" href="../../select.html#piff.SmallBrightSelect.selectStars">[docs]</a>    <span class="k">def</span> <span class="nf">selectStars</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">objects</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Select which of the input objects should be considered stars.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Select which of the input objects should be considered stars.</span>
 
 <span class="sd">        :param objects:     A list of input objects to be considered as potential stars.</span>
 <span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
@@ -389,7 +389,7 @@
         <span class="k">return</span> <span class="n">stars</span></div></div>
 
 <div class="viewcode-block" id="SizeMagSelect"><a class="viewcode-back" href="../../select.html#piff.SizeMagSelect">[docs]</a><span class="k">class</span> <span class="nc">SizeMagSelect</span><span class="p">(</span><span class="n">Select</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;A Select handler that picks stars by finding where the stellar locus in the size-magnitude</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A Select handler that picks stars by finding where the stellar locus in the size-magnitude</span>
 <span class="sd">    diagram starts to blend into the galaxy locus.</span>
 
 <span class="sd">    By default, the initial selection uses the SmallBright selector, but you can provide</span>
@@ -469,7 +469,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">initial_select</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;SmallBright&#39;</span><span class="p">}</span>
 
 <div class="viewcode-block" id="SizeMagSelect.selectStars"><a class="viewcode-back" href="../../select.html#piff.SizeMagSelect.selectStars">[docs]</a>    <span class="k">def</span> <span class="nf">selectStars</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">objects</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Select which of the input objects should be considered stars.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Select which of the input objects should be considered stars.</span>
 
 <span class="sd">        :param objects:     A list of input objects to be considered as potential stars.</span>
 <span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
@@ -627,7 +627,7 @@
 
 <div class="viewcode-block" id="SizeMagSelect.fit_2d_polynomial"><a class="viewcode-back" href="../../select.html#piff.SizeMagSelect.fit_2d_polynomial">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">fit_2d_polynomial</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">order</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Fit z = f(x,y) as a 2d polynomial function</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Fit z = f(x,y) as a 2d polynomial function</span>
 
 <span class="sd">        Returns a function object f.</span>
 <span class="sd">        &quot;&quot;&quot;</span>

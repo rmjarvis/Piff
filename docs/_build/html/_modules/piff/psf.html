@@ -102,7 +102,7 @@
 <span class="kn">from</span> <span class="nn">.util</span> <span class="kn">import</span> <span class="n">write_kwargs</span><span class="p">,</span> <span class="n">read_kwargs</span>
 
 <div class="viewcode-block" id="PSF"><a class="viewcode-back" href="../../psf.html#piff.PSF">[docs]</a><span class="k">class</span> <span class="nc">PSF</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;The base class for describing a PSF model across a field of view.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The base class for describing a PSF model across a field of view.</span>
 
 <span class="sd">    The usual way to create a PSF is through one of the two factory functions::</span>
 
@@ -114,7 +114,7 @@
 <span class="sd">    &quot;&quot;&quot;</span>
 <div class="viewcode-block" id="PSF.process"><a class="viewcode-back" href="../../psf.html#piff.PSF.process">[docs]</a>    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">config_psf</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Process the config dict and return a PSF instance.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Process the config dict and return a PSF instance.</span>
 
 <span class="sd">        As the PSF class is an abstract base class, the returned type will in fact be some</span>
 <span class="sd">        subclass of PSF according to the contents of the config dict.</span>
@@ -162,7 +162,7 @@
 
 <div class="viewcode-block" id="PSF.parseKwargs"><a class="viewcode-back" href="../../psf.html#piff.PSF.parseKwargs">[docs]</a>    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">parseKwargs</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">config_psf</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Parse the psf field of a configuration dict and return the kwargs to use for</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Parse the psf field of a configuration dict and return the kwargs to use for</span>
 <span class="sd">        initializing an instance of the class.</span>
 
 <span class="sd">        The base class implementation just returns the kwargs as they are, but derived classes</span>
@@ -177,7 +177,7 @@
 
 <div class="viewcode-block" id="PSF.draw"><a class="viewcode-back" href="../../psf.html#piff.PSF.draw">[docs]</a>    <span class="k">def</span> <span class="nf">draw</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">chipnum</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">flux</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">center</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">stamp_size</span><span class="o">=</span><span class="mi">48</span><span class="p">,</span>
              <span class="n">image</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Draws an image of the PSF at a given location.</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Draws an image of the PSF at a given location.</span>
 
 <span class="sd">        The normal usage would be to specify (chipnum, x, y), in which case Piff will use the</span>
 <span class="sd">        stored wcs information for that chip to interpolate to the given position and draw</span>
@@ -281,7 +281,7 @@
         <span class="k">return</span> <span class="n">image</span></div>
 
 <div class="viewcode-block" id="PSF.get_profile"><a class="viewcode-back" href="../../psf.html#piff.PSF.get_profile">[docs]</a>    <span class="k">def</span> <span class="nf">get_profile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">chipnum</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">flux</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Get the PSF profile at the given position as a GalSim GSObject.</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Get the PSF profile at the given position as a GalSim GSObject.</span>
 
 <span class="sd">        The normal usage would be to specify (chipnum, x, y), in which case Piff will use the</span>
 <span class="sd">        stored wcs information for that chip to interpolate to the given position and draw</span>
@@ -357,7 +357,7 @@
         <span class="k">return</span> <span class="n">chipnum</span>
 
 <div class="viewcode-block" id="PSF.interpolateStarList"><a class="viewcode-back" href="../../psf.html#piff.PSF.interpolateStarList">[docs]</a>    <span class="k">def</span> <span class="nf">interpolateStarList</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Update the stars to have the current interpolated fit parameters according to the</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Update the stars to have the current interpolated fit parameters according to the</span>
 <span class="sd">        current PSF model.</span>
 
 <span class="sd">        :param stars:       List of Star instances to update.</span>
@@ -367,7 +367,7 @@
         <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">interpolateStar</span><span class="p">(</span><span class="n">star</span><span class="p">)</span> <span class="k">for</span> <span class="n">star</span> <span class="ow">in</span> <span class="n">stars</span><span class="p">]</span></div>
 
 <div class="viewcode-block" id="PSF.interpolateStar"><a class="viewcode-back" href="../../psf.html#piff.PSF.interpolateStar">[docs]</a>    <span class="k">def</span> <span class="nf">interpolateStar</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Update the star to have the current interpolated fit parameters according to the</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Update the star to have the current interpolated fit parameters according to the</span>
 <span class="sd">        current PSF model.</span>
 
 <span class="sd">        :param star:        Star instance to update.</span>
@@ -377,7 +377,7 @@
         <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Derived classes must define the interpolateStar function&quot;</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="PSF.drawStarList"><a class="viewcode-back" href="../../psf.html#piff.PSF.drawStarList">[docs]</a>    <span class="k">def</span> <span class="nf">drawStarList</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">copy_image</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Generate PSF images for given stars. Takes advantage of</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate PSF images for given stars. Takes advantage of</span>
 <span class="sd">        interpolateList for significant speedup with some interpolators.</span>
 
 <span class="sd">        .. note::</span>
@@ -405,7 +405,7 @@
         <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_drawStar</span><span class="p">(</span><span class="n">star</span><span class="p">,</span> <span class="n">copy_image</span><span class="o">=</span><span class="n">copy_image</span><span class="p">)</span> <span class="k">for</span> <span class="n">star</span> <span class="ow">in</span> <span class="n">stars</span><span class="p">]</span></div>
 
 <div class="viewcode-block" id="PSF.drawStar"><a class="viewcode-back" href="../../psf.html#piff.PSF.drawStar">[docs]</a>    <span class="k">def</span> <span class="nf">drawStar</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">copy_image</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">center</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Generate PSF image for a given star.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate PSF image for a given star.</span>
 
 <span class="sd">        .. note::</span>
 
@@ -443,7 +443,7 @@
         <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Derived classes must define the _getProfile function&quot;</span><span class="p">)</span>
 
 <div class="viewcode-block" id="PSF.write"><a class="viewcode-back" href="../../psf.html#piff.PSF.write">[docs]</a>    <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_name</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Write a PSF object to a file.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Write a PSF object to a file.</span>
 
 <span class="sd">        :param file_name:   The name of the file to write to.</span>
 <span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
@@ -455,7 +455,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">_write</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="s1">&#39;psf&#39;</span><span class="p">,</span> <span class="n">logger</span><span class="p">)</span></div>
 
     <span class="k">def</span> <span class="nf">_write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;This is the function that actually does the work for the write function.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;This is the function that actually does the work for the write function.</span>
 <span class="sd">        Composite PSF classes that need to iterate can call this multiple times as needed.</span>
 
 <span class="sd">        :param fits:        An open fitsio.FITS object</span>
@@ -477,7 +477,7 @@
 
 <div class="viewcode-block" id="PSF.read"><a class="viewcode-back" href="../../psf.html#piff.PSF.read">[docs]</a>    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">read</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">file_name</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Read a PSF object from a file.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Read a PSF object from a file.</span>
 
 <span class="sd">        :param file_name:   The name of the file to read.</span>
 <span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
@@ -493,7 +493,7 @@
 
     <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">_read</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">,</span> <span class="n">logger</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;This is the function that actually does the work for the read function.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;This is the function that actually does the work for the read function.</span>
 <span class="sd">        Composite PSF classes that need to iterate can call this multiple times as needed.</span>
 
 <span class="sd">        :param fits:        An open fitsio.FITS object</span>
@@ -540,7 +540,7 @@
         <span class="k">return</span> <span class="n">psf</span>
 
 <div class="viewcode-block" id="PSF.writeWCS"><a class="viewcode-back" href="../../psf.html#piff.PSF.writeWCS">[docs]</a>    <span class="k">def</span> <span class="nf">writeWCS</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">,</span> <span class="n">logger</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Write the WCS information to a FITS file.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Write the WCS information to a FITS file.</span>
 
 <span class="sd">        :param fits:        An open fitsio.FITS object</span>
 <span class="sd">        :param extname:     The name of the extension to write to</span>
@@ -589,7 +589,7 @@
 
 <div class="viewcode-block" id="PSF.readWCS"><a class="viewcode-back" href="../../psf.html#piff.PSF.readWCS">[docs]</a>    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">readWCS</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">,</span> <span class="n">logger</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Read the WCS information from a FITS file.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Read the WCS information from a FITS file.</span>
 
 <span class="sd">        :param fits:        An open fitsio.FITS object</span>
 <span class="sd">        :param extname:     The name of the extension to read from</span>
@@ -662,7 +662,7 @@
 <span class="c1"># Make a global function, piff.read, as an alias for piff.PSF.read, since that&#39;s the main thing</span>
 <span class="c1"># users will want to do as their starting point for using a piff file.</span>
 <span class="k">def</span> <span class="nf">read</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Read a Piff PSF object from a file.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Read a Piff PSF object from a file.</span>
 
 <span class="sd">    .. note::</span>
 

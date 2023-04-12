@@ -99,7 +99,7 @@
 <span class="kn">from</span> <span class="nn">.star</span> <span class="kn">import</span> <span class="n">Star</span><span class="p">,</span> <span class="n">StarFit</span>
 
 <div class="viewcode-block" id="Mean"><a class="viewcode-back" href="../../interp.html#piff.Mean">[docs]</a><span class="k">class</span> <span class="nc">Mean</span><span class="p">(</span><span class="n">Interp</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;The simplest possible interpolation scheme.  It just finds the mean of the parameter</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The simplest possible interpolation scheme.  It just finds the mean of the parameter</span>
 <span class="sd">    vectors and uses that at every position.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
@@ -108,7 +108,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">mean</span> <span class="o">=</span> <span class="kc">None</span>
 
 <div class="viewcode-block" id="Mean.solve"><a class="viewcode-back" href="../../interp.html#piff.Mean.solve">[docs]</a>    <span class="k">def</span> <span class="nf">solve</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Solve for the interpolation coefficients given some data.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Solve for the interpolation coefficients given some data.</span>
 
 <span class="sd">        Here the &quot;solution&quot; is just the mean.</span>
 
@@ -118,7 +118,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">mean</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">([</span><span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">params</span> <span class="k">for</span> <span class="n">star</span> <span class="ow">in</span> <span class="n">stars</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="Mean.interpolate"><a class="viewcode-back" href="../../interp.html#piff.Mean.interpolate">[docs]</a>    <span class="k">def</span> <span class="nf">interpolate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Perform the interpolation to find the interpolated parameter vector at some position.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Perform the interpolation to find the interpolated parameter vector at some position.</span>
 
 <span class="sd">        :param star:        A Star instance to which one wants to interpolate</span>
 <span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
@@ -132,7 +132,7 @@
         <span class="k">return</span> <span class="n">Star</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">fit</span><span class="p">)</span></div>
 
     <span class="k">def</span> <span class="nf">_finish_write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Write the solution to a FITS binary table.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Write the solution to a FITS binary table.</span>
 
 <span class="sd">        :param fits:        An open fitsio.FITS object.</span>
 <span class="sd">        :param extname:     The base name of the extension</span>
@@ -143,7 +143,7 @@
         <span class="n">fits</span><span class="o">.</span><span class="n">write_table</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">extname</span><span class="o">=</span><span class="n">extname</span> <span class="o">+</span> <span class="s1">&#39;_solution&#39;</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_finish_read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Read the solution from a FITS binary table.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Read the solution from a FITS binary table.</span>
 
 <span class="sd">        :param fits:        An open fitsio.FITS object.</span>
 <span class="sd">        :param extname:     The base name of the extension</span>

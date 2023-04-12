@@ -102,7 +102,7 @@
 <span class="c1"># Courtesy of</span>
 <span class="c1"># http://stackoverflow.com/questions/3862310/how-can-i-find-all-subclasses-of-a-given-class-in-python</span>
 <div class="viewcode-block" id="get_all_subclasses"><a class="viewcode-back" href="../../util.html#piff.util.get_all_subclasses">[docs]</a><span class="k">def</span> <span class="nf">get_all_subclasses</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Get all subclasses of an existing class.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Get all subclasses of an existing class.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">all_subclasses</span> <span class="o">=</span> <span class="p">[]</span>
 
@@ -113,7 +113,7 @@
     <span class="k">return</span> <span class="n">all_subclasses</span></div>
 
 <div class="viewcode-block" id="ensure_dir"><a class="viewcode-back" href="../../util.html#piff.util.ensure_dir">[docs]</a><span class="k">def</span> <span class="nf">ensure_dir</span><span class="p">(</span><span class="n">target</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Ensure that the directory for a target output file exists.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Ensure that the directory for a target output file exists.</span>
 
 <span class="sd">    :param target:      The file that you want to write to.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -122,7 +122,7 @@
         <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">d</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="make_dtype"><a class="viewcode-back" href="../../util.html#piff.util.make_dtype">[docs]</a><span class="k">def</span> <span class="nf">make_dtype</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;A helper function that makes a dtype appropriate for a given value</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A helper function that makes a dtype appropriate for a given value</span>
 
 <span class="sd">    :param key:     The key to use for the column name in the dtype.</span>
 <span class="sd">    :param value:   The input value (just one item if using a column of multiple values)</span>
@@ -167,7 +167,7 @@
     <span class="k">return</span> <span class="n">dt</span></div>
 
 <div class="viewcode-block" id="adjust_value"><a class="viewcode-back" href="../../util.html#piff.util.adjust_value">[docs]</a><span class="k">def</span> <span class="nf">adjust_value</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">dtype</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Possibly adjust a value to match the type expected for the given dtype.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Possibly adjust a value to match the type expected for the given dtype.</span>
 
 <span class="sd">    e.g. change np.int16 -&gt; int if dtype expects int.  Or vice versa.</span>
 
@@ -192,7 +192,7 @@
             <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">t</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="write_kwargs"><a class="viewcode-back" href="../../util.html#piff.util.write_kwargs">[docs]</a><span class="k">def</span> <span class="nf">write_kwargs</span><span class="p">(</span><span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;A helper function for writing a single row table into a fits file with the values</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A helper function for writing a single row table into a fits file with the values</span>
 <span class="sd">    and column names given by a kwargs dict.</span>
 
 <span class="sd">    :param fits:        An open fitsio.FITS instance</span>
@@ -215,7 +215,7 @@
     <span class="n">fits</span><span class="o">.</span><span class="n">write_table</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">extname</span><span class="o">=</span><span class="n">extname</span><span class="p">,</span> <span class="n">header</span><span class="o">=</span><span class="n">header</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="read_kwargs"><a class="viewcode-back" href="../../util.html#piff.util.read_kwargs">[docs]</a><span class="k">def</span> <span class="nf">read_kwargs</span><span class="p">(</span><span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;A helper function for reading a single row table from a fits file returning the values</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A helper function for reading a single row table from a fits file returning the values</span>
 <span class="sd">    and column names as a kwargs dict.</span>
 
 <span class="sd">    :param fits:        An open fitsio.FITS instance</span>
@@ -230,7 +230,7 @@
     <span class="k">return</span> <span class="n">kwargs</span></div>
 
 <div class="viewcode-block" id="estimate_cov_from_jac"><a class="viewcode-back" href="../../util.html#piff.util.estimate_cov_from_jac">[docs]</a><span class="k">def</span> <span class="nf">estimate_cov_from_jac</span><span class="p">(</span><span class="n">jac</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Estimate a covariance matrix from a jacobian as returned by scipy.optimize.least_squares</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Estimate a covariance matrix from a jacobian as returned by scipy.optimize.least_squares</span>
 <span class="sd">    .. math::</span>
 
 <span class="sd">        C = (J^T J)^{-1}</span>
@@ -292,7 +292,7 @@
 
 
 <div class="viewcode-block" id="run_multi"><a class="viewcode-back" href="../../util.html#piff.util.run_multi">[docs]</a><span class="k">def</span> <span class="nf">run_multi</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">nproc</span><span class="p">,</span> <span class="n">raise_except</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">logger</span><span class="p">,</span> <span class="n">kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Run a function possibly in multiprocessing mode.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Run a function possibly in multiprocessing mode.</span>
 
 <span class="sd">    This is basically just doing a Pool.map, but it handles the logger properly (which cannot</span>
 <span class="sd">    be pickled, so it cannot be passed to the function being run by the workers).</span>
@@ -382,7 +382,7 @@
 
 
 <div class="viewcode-block" id="calculateSNR"><a class="viewcode-back" href="../../util.html#piff.util.calculateSNR">[docs]</a><span class="k">def</span> <span class="nf">calculateSNR</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">weight</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Calculate the signal-to-noise of a given image.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate the signal-to-noise of a given image.</span>
 
 <span class="sd">    :param image:       The stamp image for a star</span>
 <span class="sd">    :param weight:      The weight image for a star</span>
@@ -425,7 +425,7 @@
 
 
 <div class="viewcode-block" id="calculate_moments"><a class="viewcode-back" href="../../util.html#piff.util.calculate_moments">[docs]</a><span class="k">def</span> <span class="nf">calculate_moments</span><span class="p">(</span><span class="n">star</span><span class="p">,</span> <span class="n">third_order</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">fourth_order</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">radial</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">errors</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Calculate a bunch of moments using HSM for the weight function.</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Calculate a bunch of moments using HSM for the weight function.</span>
 
 <span class="sd">    The flux, 1st, and 2nd order moments are always calculated:</span>
 
