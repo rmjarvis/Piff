@@ -313,15 +313,13 @@ class Optical(Model):
         """
         if self.atmo_type == 'VonKarman':
             if L0 is None or L0==0.:
-                raise ValueError("No value specified for L0 ")
-            try:
+                raise ValueError("No value specified for VonKarman L0 ")
+            else:
                 atm = galsim.VonKarman(lam=self.lam, r0=r0, L0=L0, flux=1.0, gsparams=self.gsparams)
-            except:
-                self.logger.error("Problem making a VonKarman r0,L0 = %f,%f" % (r0,L0))
         elif self.atmo_type == 'Kolmogorov':
             atm = galsim.Kolmogorov(lam=self.lam, r0=r0, flux=1.0, gsparams=self.gsparams)
         elif self.atmo_type == 'None' or self.atmo_type == None:
-            atm = None
+            atm = galsim.DeltaFunction()
         else:
             raise ValueError("Invalid atmo_type ",self.atmo_type)
 
@@ -370,9 +368,7 @@ class Optical(Model):
 
         # adapt to a zernike_coeff array shorter or longer than 0:37+1
         zlen = len(zernike_coeff)
-        if zlen==self.nZ+1:
-            params[self.idx_z0:self.idx_z0+self.nZ+1] = zernike_coeff
-        elif zlen<self.nZ+1:
+        if zlen<=self.nZ+1:
             params[self.idx_z0:self.idx_z0+zlen] = zernike_coeff
         elif zlen>self.nZ+1:
             params[self.idx_z0:self.idx_z0+self.nZ+1] = zernike_coeff[0:selfnZ+1]
