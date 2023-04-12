@@ -103,7 +103,7 @@
 
 
 <div class="viewcode-block" id="GSObjectModel"><a class="viewcode-back" href="../../model.html#piff.GSObjectModel">[docs]</a><span class="k">class</span> <span class="nc">GSObjectModel</span><span class="p">(</span><span class="n">Model</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot; Model that takes a fiducial GalSim.GSObject and dilates, shifts, and shears it to get a</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; Model that takes a fiducial GalSim.GSObject and dilates, shifts, and shears it to get a</span>
 <span class="sd">    good match to stars.</span>
 
 <span class="sd">    :param gsobj:       GSObject to use as fiducial profile.</span>
@@ -143,7 +143,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">_nparams</span> <span class="o">=</span> <span class="mi">5</span>
 
 <div class="viewcode-block" id="GSObjectModel.moment_fit"><a class="viewcode-back" href="../../model.html#piff.GSObjectModel.moment_fit">[docs]</a>    <span class="k">def</span> <span class="nf">moment_fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Estimate transformations needed to bring self.gsobj towards given star.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Estimate transformations needed to bring self.gsobj towards given star.&quot;&quot;&quot;</span>
         <span class="n">flux</span><span class="p">,</span> <span class="n">cenu</span><span class="p">,</span> <span class="n">cenv</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">g1</span><span class="p">,</span> <span class="n">g2</span><span class="p">,</span> <span class="n">flag</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">hsm</span>
         <span class="k">if</span> <span class="n">flag</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Error initializing star fit values using hsm.&quot;</span><span class="p">)</span>
@@ -201,7 +201,7 @@
         <span class="k">return</span> <span class="n">param_flux</span><span class="p">,</span> <span class="n">param_du</span><span class="p">,</span> <span class="n">param_dv</span><span class="p">,</span> <span class="n">param_scale</span><span class="p">,</span> <span class="n">param_g1</span><span class="p">,</span> <span class="n">param_g2</span><span class="p">,</span> <span class="n">var</span></div>
 
 <div class="viewcode-block" id="GSObjectModel.getProfile"><a class="viewcode-back" href="../../model.html#piff.GSObjectModel.getProfile">[docs]</a>    <span class="k">def</span> <span class="nf">getProfile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Get a version of the model as a GalSim GSObject</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get a version of the model as a GalSim GSObject</span>
 
 <span class="sd">        :param params:      A numpy array with either  [ size, g1, g2 ]</span>
 <span class="sd">                            or  [ cenu, cenv, size, g1, g2 ]</span>
@@ -220,7 +220,7 @@
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">gsobj</span><span class="o">.</span><span class="n">dilate</span><span class="p">(</span><span class="n">scale</span><span class="p">)</span><span class="o">.</span><span class="n">shear</span><span class="p">(</span><span class="n">g1</span><span class="o">=</span><span class="n">g1</span><span class="p">,</span> <span class="n">g2</span><span class="o">=</span><span class="n">g2</span><span class="p">)</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span><span class="n">du</span><span class="p">,</span> <span class="n">dv</span><span class="p">)</span></div>
 
     <span class="k">def</span> <span class="nf">_resid</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">convert_func</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Residual function to use with least_squares.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Residual function to use with least_squares.</span>
 
 <span class="sd">        Essentially `chi` from `chisq`, but not summed over pixels yet.</span>
 
@@ -265,7 +265,7 @@
         <span class="k">return</span> <span class="n">model_image</span><span class="o">.</span><span class="n">array</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span>
 
     <span class="k">def</span> <span class="nf">_get_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Generate an array of model parameters.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate an array of model parameters.</span>
 
 <span class="sd">        :param star:         A Star from which to initialize parameter values.</span>
 
@@ -286,7 +286,7 @@
         <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">flux</span><span class="p">,</span> <span class="n">du</span><span class="p">,</span> <span class="n">dv</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="n">g1</span><span class="p">,</span> <span class="n">g2</span><span class="p">])</span>
 
 <div class="viewcode-block" id="GSObjectModel.least_squares_fit"><a class="viewcode-back" href="../../model.html#piff.GSObjectModel.least_squares_fit">[docs]</a>    <span class="k">def</span> <span class="nf">least_squares_fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">convert_func</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Fit parameters of the given star using least-squares minimization.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Fit parameters of the given star using least-squares minimization.</span>
 
 <span class="sd">        :param star:            A Star to fit.</span>
 <span class="sd">        :param logger:          A logger object for logging debug info. [default: None]</span>
@@ -313,7 +313,7 @@
         <span class="k">return</span> <span class="n">flux</span><span class="p">,</span> <span class="n">du</span><span class="p">,</span> <span class="n">dv</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="n">g1</span><span class="p">,</span> <span class="n">g2</span><span class="p">,</span> <span class="n">var</span></div>
 
 <div class="viewcode-block" id="GSObjectModel.fit"><a class="viewcode-back" href="../../model.html#piff.GSObjectModel.fit">[docs]</a>    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">fastfit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">convert_func</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Fit the image either using HSM or least-squares minimization.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Fit the image either using HSM or least-squares minimization.</span>
 
 <span class="sd">        If ``fastfit`` is True, then the galsim.hsm module will be used to estimate the</span>
 <span class="sd">        transformation parameters that take the fiducial moments into the data moments.</span>
@@ -373,7 +373,7 @@
         <span class="k">return</span> <span class="n">Star</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">fit</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="GSObjectModel.initialize"><a class="viewcode-back" href="../../model.html#piff.GSObjectModel.initialize">[docs]</a>    <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Initialize the given star&#39;s fit parameters.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize the given star&#39;s fit parameters.</span>
 
 <span class="sd">        :param star:  The Star to initialize.</span>
 <span class="sd">        :param logger:  A logger object for logging debug info. [default: None]</span>
@@ -395,7 +395,7 @@
 
 
 <div class="viewcode-block" id="Gaussian"><a class="viewcode-back" href="../../model.html#piff.Gaussian">[docs]</a><span class="k">class</span> <span class="nc">Gaussian</span><span class="p">(</span><span class="n">GSObjectModel</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot; Model PSFs as elliptical Gaussians.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; Model PSFs as elliptical Gaussians.</span>
 
 <span class="sd">    :param fastfit:     Use HSM moments for fitting.  Approximate, but fast.  [default: False]</span>
 <span class="sd">    :param centered:    If True, PSF model centroid is forced to be (0,0), and the</span>
@@ -417,7 +417,7 @@
 
 
 <div class="viewcode-block" id="Kolmogorov"><a class="viewcode-back" href="../../model.html#piff.Kolmogorov">[docs]</a><span class="k">class</span> <span class="nc">Kolmogorov</span><span class="p">(</span><span class="n">GSObjectModel</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot; Model PSFs as elliptical Kolmogorovs.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; Model PSFs as elliptical Kolmogorovs.</span>
 
 <span class="sd">    :param fastfit:     Use HSM moments for fitting.  Approximate, but fast.  [default: False]</span>
 <span class="sd">    :param centered:    If True, PSF model centroid is forced to be (0,0), and the</span>
@@ -439,7 +439,7 @@
 
 
 <div class="viewcode-block" id="Moffat"><a class="viewcode-back" href="../../model.html#piff.Moffat">[docs]</a><span class="k">class</span> <span class="nc">Moffat</span><span class="p">(</span><span class="n">GSObjectModel</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot; Model PSFs as elliptical Moffats.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; Model PSFs as elliptical Moffats.</span>
 
 <span class="sd">    :param beta:        Moffat shape parameter.</span>
 <span class="sd">    :param trunc:       Optional truncation radius at which profile drops to zero.  Measured in half</span>

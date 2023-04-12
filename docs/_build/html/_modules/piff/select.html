@@ -104,7 +104,7 @@
 <span class="kn">from</span> <span class="nn">.input</span> <span class="kn">import</span> <span class="n">InputFiles</span>
 
 <div class="viewcode-block" id="Select"><a class="viewcode-back" href="../../select.html#piff.Select">[docs]</a><span class="k">class</span> <span class="nc">Select</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;The base class for selecting which stars to use for characterizing the PSF.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The base class for selecting which stars to use for characterizing the PSF.</span>
 
 <span class="sd">    This is essentially an abstract base class intended to define the methods that should be</span>
 <span class="sd">    implemented by any derived class.</span>
@@ -135,7 +135,7 @@
 
 <div class="viewcode-block" id="Select.process"><a class="viewcode-back" href="../../select.html#piff.Select.process">[docs]</a>    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">config_select</span><span class="p">,</span> <span class="n">objects</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">select_only</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Parse the select field of the config dict.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Parse the select field of the config dict.</span>
 
 <span class="sd">        This stage handles three somewhat separate actions:</span>
 
@@ -230,7 +230,7 @@
         <span class="k">return</span> <span class="n">stars</span></div>
 
 <div class="viewcode-block" id="Select.selectStars"><a class="viewcode-back" href="../../select.html#piff.Select.selectStars">[docs]</a>    <span class="k">def</span> <span class="nf">selectStars</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">objects</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Select which of the input objects should be considered stars.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Select which of the input objects should be considered stars.</span>
 
 <span class="sd">        :param objects:     A list of input objects to be considered as potential stars.</span>
 <span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
@@ -240,7 +240,7 @@
         <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Derived classes must define the selectStars function&quot;</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="Select.reserveStars"><a class="viewcode-back" href="../../select.html#piff.Select.reserveStars">[docs]</a>    <span class="k">def</span> <span class="nf">reserveStars</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Mark some of the stars as reserve stars.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Mark some of the stars as reserve stars.</span>
 
 <span class="sd">        This operates on the star list in place, adding the property ``is_reserve``</span>
 <span class="sd">        to each star (only if some stars are being reserved).</span>
@@ -271,7 +271,7 @@
         <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Reserved </span><span class="si">%s</span><span class="s2"> of </span><span class="si">%s</span><span class="s2"> total stars&quot;</span><span class="p">,</span> <span class="n">nreserve_all</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">stars</span><span class="p">))</span></div>
 
 <div class="viewcode-block" id="Select.rejectStars"><a class="viewcode-back" href="../../select.html#piff.Select.rejectStars">[docs]</a>    <span class="k">def</span> <span class="nf">rejectStars</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Reject some nominal stars that may not be good exemplars of the PSF.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Reject some nominal stars that may not be good exemplars of the PSF.</span>
 
 <span class="sd">        :param stars:       A list of Star instances.</span>
 <span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
@@ -401,7 +401,7 @@
 
 
 <div class="viewcode-block" id="FlagSelect"><a class="viewcode-back" href="../../select.html#piff.FlagSelect">[docs]</a><span class="k">class</span> <span class="nc">FlagSelect</span><span class="p">(</span><span class="n">Select</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;An Select handler that picks stars according to a flag column in the input catalog.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;An Select handler that picks stars according to a flag column in the input catalog.</span>
 
 <span class="sd">    The Flag type uses the following parameters, all optional.</span>
 
@@ -434,7 +434,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">use_flag</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;use_flag&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
 
 <div class="viewcode-block" id="FlagSelect.selectStars"><a class="viewcode-back" href="../../select.html#piff.FlagSelect.selectStars">[docs]</a>    <span class="k">def</span> <span class="nf">selectStars</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">objects</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Select which of the input objects should be considered stars.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Select which of the input objects should be considered stars.</span>
 
 <span class="sd">        :param objects:     A list of input objects to be considered as potential stars.</span>
 <span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
@@ -466,7 +466,7 @@
         <span class="k">return</span> <span class="n">stars</span></div></div>
 
 <div class="viewcode-block" id="PropertiesSelect"><a class="viewcode-back" href="../../select.html#piff.PropertiesSelect">[docs]</a><span class="k">class</span> <span class="nc">PropertiesSelect</span><span class="p">(</span><span class="n">Select</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;A Select handler that picks stars according to any property or combination of properties</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A Select handler that picks stars according to any property or combination of properties</span>
 <span class="sd">    in the input catalog.</span>
 
 <span class="sd">    Parse the config dict (Normally the &#39;where&#39; field in the overall configuration dict).</span>
@@ -490,7 +490,7 @@
 
 <div class="viewcode-block" id="PropertiesSelect.eval_where"><a class="viewcode-back" href="../../select.html#piff.PropertiesSelect.eval_where">[docs]</a>    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">eval_where</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">objects</span><span class="p">,</span> <span class="n">where</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Perform the evaluation of a &quot;where&quot; string using the properties of objects.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Perform the evaluation of a &quot;where&quot; string using the properties of objects.</span>
 
 <span class="sd">        Used by both PropertiesSelect and the reject_where option.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -521,7 +521,7 @@
         <span class="k">return</span> <span class="n">select</span></div>
 
 <div class="viewcode-block" id="PropertiesSelect.selectStars"><a class="viewcode-back" href="../../select.html#piff.PropertiesSelect.selectStars">[docs]</a>    <span class="k">def</span> <span class="nf">selectStars</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">objects</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Select which of the input objects should be considered stars.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Select which of the input objects should be considered stars.</span>
 
 <span class="sd">        :param objects:     A list of input objects to be considered as potential stars.</span>
 <span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>

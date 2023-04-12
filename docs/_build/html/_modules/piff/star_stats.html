@@ -101,7 +101,7 @@
 <span class="kn">from</span> <span class="nn">.star</span> <span class="kn">import</span> <span class="n">Star</span><span class="p">,</span> <span class="n">StarFit</span>
 
 <div class="viewcode-block" id="StarStats"><a class="viewcode-back" href="../../stats.html#piff.StarStats">[docs]</a><span class="k">class</span> <span class="nc">StarStats</span><span class="p">(</span><span class="n">Stats</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;This Stats class can take stars and make a set of plots of them as</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;This Stats class can take stars and make a set of plots of them as</span>
 <span class="sd">    well as their models and residuals.</span>
 
 <span class="sd">    By default this will draw 5 random stars, make psf stars, and plot the</span>
@@ -127,7 +127,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">adjust_stars</span> <span class="o">=</span> <span class="n">adjust_stars</span>
 
 <div class="viewcode-block" id="StarStats.compute"><a class="viewcode-back" href="../../stats.html#piff.StarStats.compute">[docs]</a>    <span class="k">def</span> <span class="nf">compute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">psf</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        :param psf:         A PSF Object</span>
 <span class="sd">        :param stars:       A list of Star instances.</span>
 <span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
@@ -150,7 +150,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">models</span> <span class="o">=</span> <span class="n">psf</span><span class="o">.</span><span class="n">drawStarList</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">stars</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="StarStats.fit_star"><a class="viewcode-back" href="../../stats.html#piff.StarStats.fit_star">[docs]</a>    <span class="k">def</span> <span class="nf">fit_star</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">psf</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Adjust star.fit.flux and star.fit.center</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Adjust star.fit.flux and star.fit.center</span>
 
 <span class="sd">        :param star:        Star we want to adjust</span>
 <span class="sd">        :param psf:         PSF with which we adjust</span>
@@ -205,7 +205,7 @@
         <span class="k">return</span> <span class="n">chi</span>
 
 <div class="viewcode-block" id="StarStats.plot"><a class="viewcode-back" href="../../stats.html#piff.StarStats.plot">[docs]</a>    <span class="k">def</span> <span class="nf">plot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Make the plots.</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Make the plots.</span>
 
 <span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
 <span class="sd">        :params \*\*kwargs: Any additional kwargs go into the matplotlib pcolor() function.</span>

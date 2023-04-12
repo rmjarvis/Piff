@@ -103,7 +103,7 @@
 <span class="kn">from</span> <span class="nn">.util</span> <span class="kn">import</span> <span class="n">write_kwargs</span><span class="p">,</span> <span class="n">read_kwargs</span>
 
 <div class="viewcode-block" id="SimplePSF"><a class="viewcode-back" href="../../psf.html#piff.SimplePSF">[docs]</a><span class="k">class</span> <span class="nc">SimplePSF</span><span class="p">(</span><span class="n">PSF</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;A PSF class that uses a single model and interpolator.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A PSF class that uses a single model and interpolator.</span>
 
 <span class="sd">    A SimplePSF is built from a Model and an Interp object.</span>
 <span class="sd">    The model defines the functional form of the surface brightness profile, and the</span>
@@ -144,7 +144,7 @@
 
 <div class="viewcode-block" id="SimplePSF.parseKwargs"><a class="viewcode-back" href="../../psf.html#piff.SimplePSF.parseKwargs">[docs]</a>    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">parseKwargs</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">config_psf</span><span class="p">,</span> <span class="n">logger</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Parse the psf field of a configuration dict and return the kwargs to use for</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Parse the psf field of a configuration dict and return the kwargs to use for</span>
 <span class="sd">        initializing an instance of the class.</span>
 
 <span class="sd">        :param config_psf:      The psf field of the configuration dict, config[&#39;psf&#39;]</span>
@@ -178,7 +178,7 @@
         <span class="k">return</span> <span class="n">kwargs</span></div>
 
 <div class="viewcode-block" id="SimplePSF.fit"><a class="viewcode-back" href="../../psf.html#piff.SimplePSF.fit">[docs]</a>    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">wcs</span><span class="p">,</span> <span class="n">pointing</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">convert_func</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Fit interpolated PSF model to star data using standard sequence of operations.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Fit interpolated PSF model to star data using standard sequence of operations.</span>
 
 <span class="sd">        :param stars:           A list of Star instances.</span>
 <span class="sd">        :param wcs:             A dict of WCS solutions indexed by chipnum.</span>
@@ -319,7 +319,7 @@
         <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;PSF fit did not converge.  Max iterations = </span><span class="si">%d</span><span class="s2"> reached.&quot;</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">max_iter</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="SimplePSF.interpolateStarList"><a class="viewcode-back" href="../../psf.html#piff.SimplePSF.interpolateStarList">[docs]</a>    <span class="k">def</span> <span class="nf">interpolateStarList</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Update the stars to have the current interpolated fit parameters according to the</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Update the stars to have the current interpolated fit parameters according to the</span>
 <span class="sd">        current PSF model.</span>
 
 <span class="sd">        :param stars:       List of Star instances to update.</span>
@@ -332,7 +332,7 @@
         <span class="k">return</span> <span class="n">stars</span></div>
 
 <div class="viewcode-block" id="SimplePSF.interpolateStar"><a class="viewcode-back" href="../../psf.html#piff.SimplePSF.interpolateStar">[docs]</a>    <span class="k">def</span> <span class="nf">interpolateStar</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Update the star to have the current interpolated fit parameters according to the</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Update the star to have the current interpolated fit parameters according to the</span>
 <span class="sd">        current PSF model.</span>
 
 <span class="sd">        :param star:        Star instance to update.</span>
@@ -351,7 +351,7 @@
         <span class="k">return</span> <span class="n">prof</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_method</span>
 
     <span class="k">def</span> <span class="nf">_finish_write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">,</span> <span class="n">logger</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Finish the writing process with any class-specific steps.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Finish the writing process with any class-specific steps.</span>
 
 <span class="sd">        :param fits:        An open fitsio.FITS object</span>
 <span class="sd">        :param extname:     The base name of the extension to write to.</span>
@@ -375,7 +375,7 @@
             <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Wrote the PSF outliers to extension </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">extname</span> <span class="o">+</span> <span class="s1">&#39;_outliers&#39;</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_finish_read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">,</span> <span class="n">logger</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Finish the reading process with any class-specific steps.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Finish the reading process with any class-specific steps.</span>
 
 <span class="sd">        :param fits:        An open fitsio.FITS object</span>
 <span class="sd">        :param extname:     The base name of the extension to write to.</span>

@@ -115,7 +115,7 @@
 
 
 <div class="viewcode-block" id="Polynomial"><a class="viewcode-back" href="../../interp.html#piff.Polynomial">[docs]</a><span class="k">class</span> <span class="nc">Polynomial</span><span class="p">(</span><span class="n">Interp</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    An interpolator that uses  scipy curve_fit command to fit a polynomial</span>
 <span class="sd">    surface to each parameter passed in independently.</span>
 
@@ -151,7 +151,7 @@
         <span class="p">}</span>
 
     <span class="k">def</span> <span class="nf">_setup_indices</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nparam</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;An internal function that sets up the indices, given the number of parameters</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;An internal function that sets up the indices, given the number of parameters</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">orders</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">nparam</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">orders</span><span class="p">):</span>
@@ -164,7 +164,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">nparam</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_orders</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_set_function</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">poly_type</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;An internal function that sets the type of the polynomial</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;An internal function that sets the type of the polynomial</span>
 <span class="sd">        interpolation used. The options are the keys in polynomial_types.</span>
 
 <span class="sd">        :param poly_type:   A string value, one of the keys from polynomial_types</span>
@@ -184,7 +184,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">current_parameter</span><span class="o">=</span><span class="kc">None</span>
 
     <span class="k">def</span> <span class="nf">_generate_indices</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">order</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Generate, for internal use, the exponents i,j used in the polynomial model</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate, for internal use, the exponents i,j used in the polynomial model</span>
 <span class="sd">        p(u,v) = sum c_{ij} u^i v^j</span>
 
 <span class="sd">        This needs to be called whenever the order of the polynomial fit is</span>
@@ -202,7 +202,7 @@
         <span class="k">return</span> <span class="n">indices</span>
 
     <span class="k">def</span> <span class="nf">_pack_coefficients</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameter_index</span><span class="p">,</span> <span class="n">C</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Pack the 2D matrix of coefficients used as the model fit parameters</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Pack the 2D matrix of coefficients used as the model fit parameters</span>
 <span class="sd">        into a vector of coefficients, either so this can be passed as a starting</span>
 <span class="sd">        point into the curve_fit routine or for serialization to file.</span>
 
@@ -227,7 +227,7 @@
         <span class="k">return</span> <span class="n">coeffs</span>
 
     <span class="k">def</span> <span class="nf">_unpack_coefficients</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameter_index</span><span class="p">,</span> <span class="n">coeffs</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Unpack a sequence of parameters into the 2D matrix for the</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Unpack a sequence of parameters into the 2D matrix for the</span>
 <span class="sd">        given parameter_index (which determines the order of the matrix)</span>
 
 <span class="sd">        This function is the inverse of _pack_coefficients</span>
@@ -248,7 +248,7 @@
         <span class="k">return</span> <span class="n">C</span>
 
     <span class="k">def</span> <span class="nf">_interpolationModel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pos</span><span class="p">,</span> <span class="n">C</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Generate the polynomial variation of some quantity at x and y</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate the polynomial variation of some quantity at x and y</span>
 <span class="sd">        coordinates for a given coefficient matrix.</span>
 
 <span class="sd">        TODO: At the moment this function is expecting a numpy array of</span>
@@ -279,7 +279,7 @@
         <span class="k">return</span> <span class="n">f</span>
 
     <span class="k">def</span> <span class="nf">_initialGuess</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">positions</span><span class="p">,</span> <span class="n">parameter</span><span class="p">,</span> <span class="n">parameter_index</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Make an initial guess for a set of parameters</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Make an initial guess for a set of parameters</span>
 <span class="sd">        to use in the fit for your model. This is passed</span>
 <span class="sd">        to curve_fit as a starting point.</span>
 
@@ -302,7 +302,7 @@
         <span class="k">return</span> <span class="n">C</span>
 
 <div class="viewcode-block" id="Polynomial.initialize"><a class="viewcode-back" href="../../interp.html#piff.Polynomial.initialize">[docs]</a>    <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Initialization is just solving the interpolator with current stars.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialization is just solving the interpolator with current stars.</span>
 <span class="sd">        This then calls interpolateList, which will set the stars to have the</span>
 <span class="sd">        right type of object in its star.fit.params attribute.</span>
 
@@ -322,7 +322,7 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">interpolateList</span><span class="p">(</span><span class="n">stars</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="Polynomial.solve"><a class="viewcode-back" href="../../interp.html#piff.Polynomial.solve">[docs]</a>    <span class="k">def</span> <span class="nf">solve</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Solve for the interpolation coefficients given some data,</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Solve for the interpolation coefficients given some data,</span>
 <span class="sd">        using the scipy.optimize.curve_fit routine, which uses Levenberg-Marquardt</span>
 <span class="sd">        to find the least-squares solution.</span>
 
@@ -392,7 +392,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">coeffs</span> <span class="o">=</span> <span class="n">coeffs</span></div>
 
     <span class="k">def</span> <span class="nf">_finish_write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Write the solution to a FITS binary table.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Write the solution to a FITS binary table.</span>
 
 <span class="sd">        :param fits:        An open fitsio.FITS object.</span>
 <span class="sd">        :param extname:     The base name of the extension</span>
@@ -443,7 +443,7 @@
 
 
     <span class="k">def</span> <span class="nf">_finish_read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Read the solution from a fits file.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Read the solution from a fits file.</span>
 
 <span class="sd">        :param fits:        An open fitsio.FITS object.</span>
 <span class="sd">        :param extname:     The base name of the extension</span>
@@ -469,7 +469,7 @@
 
 
 <div class="viewcode-block" id="Polynomial.interpolate"><a class="viewcode-back" href="../../interp.html#piff.Polynomial.interpolate">[docs]</a>    <span class="k">def</span> <span class="nf">interpolate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Perform the interpolation to find the interpolated parameter vector at some position.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Perform the interpolation to find the interpolated parameter vector at some position.</span>
 
 <span class="sd">        :param star:        A Star instance to which one wants to interpolate</span>
 <span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>

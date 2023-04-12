@@ -637,12 +637,12 @@ we still output the information that we have for a star, but mark the failure wi
 a flag: flag_data for errors in the data measurement, flag_model for errors in the
 model measurement.  The meaning of these flags are (treated as a bit mask):</p>
 <p>Flags:</p>
-<blockquote>
-<div><p>0 = Success
-1 = HSM returned a non-zero moments_status.
-2 = HSM returned a negative flux.
-4 = HSM’s centroid moved by more than 1 pixel from the input position.</p>
-</div></blockquote>
+<ul class="simple">
+<li><p>0 = Success</p></li>
+<li><p>1 = HSM returned a non-zero moments_status.</p></li>
+<li><p>2 = HSM returned a negative flux.</p></li>
+<li><p>4 = HSM’s centroid moved by more than 1 pixel from the input position.</p></li>
+</ul>
 <p>The output file will include the following columns:</p>
 <blockquote>
 <div><dl class="field-list simple">
@@ -696,15 +696,16 @@ model measurement.  The meaning of these flags are (treated as a bit mask):</p>
 <p>If fourth_order=True, then there are additional quantities calculated as well.
 We define the following notation:</p>
 <div class="math notranslate nohighlight">
-\[T = \int I(u,v) (u^2 + v^2) du dv
-T^{(4)} = \int I(u,v) (u^2 + v^2)^2 du dv / T
-g^{(4)} = \int I(u,v) (u^2 + v^2) (u + iv)^2 du dv / T^2 - 3e
-h^{(4)} = \int I(u,v) (u + iv)^4 du dv / T^2\]</div>
+\[\begin{split}T &amp;= \int I(u,v) (u^2 + v^2) du dv \\
+g &amp;= \frac{\int I(u,v) (u + iv)^2 du dv}{T} \\
+T^{(4)} &amp;= \frac{\int I(u,v) (u^2 + v^2)^2 du dv}{T} \\
+g^{(4)} &amp;= \frac{\int I(u,v) (u^2 + v^2) (u + iv)^2 du dv}{T^2} - 3g \\
+h^{(4)} &amp;= \frac{\int I(u,v) (u + iv)^4 du dv}{T^2}\end{split}\]</div>
 <p>I.e. <span class="math notranslate nohighlight">\(T^{(4)}\)</span> is a fourth-order spin-0 quantity, analogous to <span class="math notranslate nohighlight">\(T\)</span> at second
 order, <span class="math notranslate nohighlight">\(g^{(4)}\)</span> is a fourth-order spin-2 quantity, analogous to <span class="math notranslate nohighlight">\(g\)</span>, and
 <span class="math notranslate nohighlight">\(h^{(4)}\)</span> is a spin-4 quantity.  The denominators ensure that the units of
-<span class="math notranslate nohighlight">\(T^{(4)}\)</span> is <span class="math notranslate nohighlight">\(arcsec^2\)</span>, just like <span class="math notranslate nohighlight">\(T\)</span> and that <span class="math notranslate nohighlight">\(g^{(4)}\)</span> and
-<span class="math notranslate nohighlight">\(h^{(4)}\)</span> are dimensionless.  And the <span class="math notranslate nohighlight">\(-3e\)</span> term for <span class="math notranslate nohighlight">\(g^{(4)}\)</span> subtracts
+<span class="math notranslate nohighlight">\(T^{(4)}\)</span> is <span class="math notranslate nohighlight">\(\mathrm{arcsec}^2\)</span>, just like <span class="math notranslate nohighlight">\(T\)</span> and that <span class="math notranslate nohighlight">\(g^{(4)}\)</span> and
+<span class="math notranslate nohighlight">\(h^{(4)}\)</span> are dimensionless.  And the <span class="math notranslate nohighlight">\(-3g\)</span> term for <span class="math notranslate nohighlight">\(g^{(4)}\)</span> subtracts
 off the dominant contribution to the fourth order quantity from the second order shape.
 For a pure elliptical Gaussian, this makes <span class="math notranslate nohighlight">\(g^{(4)}\)</span> come out very close to zero.</p>
 <p>The output file contains the following additional columns:</p>
@@ -714,31 +715,31 @@ For a pure elliptical Gaussian, this makes <span class="math notranslate nohighl
 <dd class="field-odd"><p>The fourth-order “size”, <span class="math notranslate nohighlight">\(T^{(4)}\)</span>, of the observed star.</p>
 </dd>
 <dt class="field-even">g41_data</dt>
-<dd class="field-even"><p>The real component of <span class="math notranslate nohighlight">\(g^{4}\)</span> of the obserbed star.</p>
+<dd class="field-even"><p>The real component of <span class="math notranslate nohighlight">\(g^{(4)}\)</span> of the obserbed star.</p>
 </dd>
 <dt class="field-odd">g42_data</dt>
-<dd class="field-odd"><p>The imaginary component of <span class="math notranslate nohighlight">\(g^{4}\)</span> of the obserbed star.</p>
+<dd class="field-odd"><p>The imaginary component of <span class="math notranslate nohighlight">\(g^{(4)}\)</span> of the obserbed star.</p>
 </dd>
 <dt class="field-even">h41_data</dt>
-<dd class="field-even"><p>The real component of <span class="math notranslate nohighlight">\(h^{4}\)</span> of the obserbed star.</p>
+<dd class="field-even"><p>The real component of <span class="math notranslate nohighlight">\(h^{(4)}\)</span> of the obserbed star.</p>
 </dd>
 <dt class="field-odd">h42_data</dt>
-<dd class="field-odd"><p>The imaginary component of <span class="math notranslate nohighlight">\(h^{4}\)</span> of the obserbed star.</p>
+<dd class="field-odd"><p>The imaginary component of <span class="math notranslate nohighlight">\(h^{(4)}\)</span> of the obserbed star.</p>
 </dd>
 <dt class="field-even">T4_model</dt>
 <dd class="field-even"><p>The fourth-order “size”, <span class="math notranslate nohighlight">\(T^{(4)}\)</span>, of the PSF model.</p>
 </dd>
 <dt class="field-odd">g41_model</dt>
-<dd class="field-odd"><p>The real component of <span class="math notranslate nohighlight">\(g^{4}\)</span> of the PSF model.</p>
+<dd class="field-odd"><p>The real component of <span class="math notranslate nohighlight">\(g^{(4)}\)</span> of the PSF model.</p>
 </dd>
 <dt class="field-even">g42_model</dt>
-<dd class="field-even"><p>The imaginary component of <span class="math notranslate nohighlight">\(g^{4}\)</span> of the PSF model.</p>
+<dd class="field-even"><p>The imaginary component of <span class="math notranslate nohighlight">\(g^{(4)}\)</span> of the PSF model.</p>
 </dd>
 <dt class="field-odd">h41_model</dt>
-<dd class="field-odd"><p>The real component of <span class="math notranslate nohighlight">\(h^{4}\)</span> of the PSF model.</p>
+<dd class="field-odd"><p>The real component of <span class="math notranslate nohighlight">\(h^{(4)}\)</span> of the PSF model.</p>
 </dd>
 <dt class="field-even">h42_model</dt>
-<dd class="field-even"><p>The imaginary component of <span class="math notranslate nohighlight">\(h^{4}\)</span> of the PSF model.</p>
+<dd class="field-even"><p>The imaginary component of <span class="math notranslate nohighlight">\(h^{(4)}\)</span> of the PSF model.</p>
 </dd>
 </dl>
 </div></blockquote>

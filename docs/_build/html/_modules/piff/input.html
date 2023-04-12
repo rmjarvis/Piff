@@ -103,7 +103,7 @@
 <span class="kn">from</span> <span class="nn">.star</span> <span class="kn">import</span> <span class="n">Star</span><span class="p">,</span> <span class="n">StarData</span>
 
 <div class="viewcode-block" id="Input"><a class="viewcode-back" href="../../input.html#piff.Input">[docs]</a><span class="k">class</span> <span class="nc">Input</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;The base class for handling inputs for building a Piff model.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The base class for handling inputs for building a Piff model.</span>
 
 <span class="sd">    This is essentially an abstract base class intended to define the methods that should be</span>
 <span class="sd">    implemented by any derived class.</span>
@@ -112,7 +112,7 @@
 
 <div class="viewcode-block" id="Input.process"><a class="viewcode-back" href="../../input.html#piff.Input.process">[docs]</a>    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">config_input</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Parse the input field of the config dict.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Parse the input field of the config dict.</span>
 
 <span class="sd">        :param config_input:    The configuration dict.</span>
 <span class="sd">        :param logger:          A logger object for logging debug info. [default: None]</span>
@@ -147,7 +147,7 @@
         <span class="k">return</span> <span class="n">stars</span><span class="p">,</span> <span class="n">wcs</span><span class="p">,</span> <span class="n">pointing</span></div>
 
 <div class="viewcode-block" id="Input.makeStars"><a class="viewcode-back" href="../../input.html#piff.Input.makeStars">[docs]</a>    <span class="k">def</span> <span class="nf">makeStars</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Process the input images and star data, cutting out stamps for each star along with</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Process the input images and star data, cutting out stamps for each star along with</span>
 <span class="sd">        other relevant information.</span>
 
 <span class="sd">        The base class implementation expects the derived class to have appropriately set the</span>
@@ -187,7 +187,7 @@
         <span class="k">return</span> <span class="n">stars</span></div>
 
 <div class="viewcode-block" id="Input.getWCS"><a class="viewcode-back" href="../../input.html#piff.Input.getWCS">[docs]</a>    <span class="k">def</span> <span class="nf">getWCS</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Get the WCS solutions for all the chips in the field of view.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get the WCS solutions for all the chips in the field of view.</span>
 
 <span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
 
@@ -196,7 +196,7 @@
         <span class="k">return</span> <span class="p">{</span> <span class="n">chipnum</span> <span class="p">:</span> <span class="n">w</span> <span class="k">for</span> <span class="n">w</span><span class="p">,</span> <span class="n">chipnum</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">wcs_list</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">chipnums</span><span class="p">)</span> <span class="p">}</span></div>
 
 <div class="viewcode-block" id="Input.getPointing"><a class="viewcode-back" href="../../input.html#piff.Input.getPointing">[docs]</a>    <span class="k">def</span> <span class="nf">getPointing</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Get the pointing coordinate of the (noinal) center of the field of view.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get the pointing coordinate of the (noinal) center of the field of view.</span>
 
 <span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
 
@@ -206,7 +206,7 @@
 
 
 <div class="viewcode-block" id="InputFiles"><a class="viewcode-back" href="../../input.html#piff.InputFiles">[docs]</a><span class="k">class</span> <span class="nc">InputFiles</span><span class="p">(</span><span class="n">Input</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;An Input handler that just takes a list of image files and catalog files.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;An Input handler that just takes a list of image files and catalog files.</span>
 
 <span class="sd">    Parse the input config dict (Normally the &#39;input&#39; field in the overall configuration dict).</span>
 
@@ -579,7 +579,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">setPointing</span><span class="p">(</span><span class="n">ra</span><span class="p">,</span> <span class="n">dec</span><span class="p">,</span> <span class="n">logger</span><span class="p">)</span>
 
 <div class="viewcode-block" id="InputFiles.load_images"><a class="viewcode-back" href="../../input.html#piff.InputFiles.load_images">[docs]</a>    <span class="k">def</span> <span class="nf">load_images</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Load the image data into a list of Stars.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Load the image data into a list of Stars.</span>
 
 <span class="sd">        We don&#39;t store the image data for Stars when we write them to a file, since that</span>
 <span class="sd">        would take up a lot of space and is usually not desired.  However, we do store the</span>
@@ -666,7 +666,7 @@
                             <span class="n">stamp_size</span><span class="p">,</span> <span class="n">pointing</span><span class="p">,</span> <span class="n">use_partial</span><span class="p">,</span>
                             <span class="n">invert_weight</span><span class="p">,</span> <span class="n">remove_signal_from_weight</span><span class="p">,</span>
                             <span class="n">logger</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Make &quot;stars&quot; from a single input image</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Make &quot;stars&quot; from a single input image</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">image</span><span class="p">,</span> <span class="n">wt</span><span class="p">,</span> <span class="n">image_pos</span><span class="p">,</span> <span class="n">extra_props</span> <span class="o">=</span> <span class="n">InputFiles</span><span class="o">.</span><span class="n">_getRawImageData</span><span class="p">(</span>
                 <span class="n">image_kwargs</span><span class="p">,</span> <span class="n">cat_kwargs</span><span class="p">,</span> <span class="n">wcs</span><span class="p">,</span> <span class="n">invert_weight</span><span class="p">,</span> <span class="n">remove_signal_from_weight</span><span class="p">,</span> <span class="n">logger</span><span class="p">)</span>
@@ -761,7 +761,7 @@
 
     <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">_removeSignalFromWeight</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">weight</span><span class="p">,</span> <span class="n">gain</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Remove the image signal from the weight map.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Remove the image signal from the weight map.</span>
 
 <span class="sd">        :param image:   The image to use as the signal</span>
 <span class="sd">        :param weight:  The weight image.</span>
@@ -789,7 +789,7 @@
 <div class="viewcode-block" id="InputFiles.readImage"><a class="viewcode-back" href="../../input.html#piff.InputFiles.readImage">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">readImage</span><span class="p">(</span><span class="n">image_file_name</span><span class="p">,</span> <span class="n">image_hdu</span><span class="p">,</span> <span class="n">weight_hdu</span><span class="p">,</span> <span class="n">badpix_hdu</span><span class="p">,</span>
                   <span class="n">sky_file_name</span><span class="p">,</span> <span class="n">sky_hdu</span><span class="p">,</span> <span class="n">noise</span><span class="p">,</span> <span class="n">logger</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Read in the image and weight map (or make one if no weight information is given</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Read in the image and weight map (or make one if no weight information is given</span>
 
 <span class="sd">        :param image_file_name: The name of the file to read.</span>
 <span class="sd">        :param image_hdu:       The hdu of the main image.</span>
@@ -875,7 +875,7 @@
                         <span class="n">ra_col</span><span class="p">,</span> <span class="n">dec_col</span><span class="p">,</span> <span class="n">ra_units</span><span class="p">,</span> <span class="n">dec_units</span><span class="p">,</span> <span class="n">image</span><span class="p">,</span>
                         <span class="n">flag_col</span><span class="p">,</span> <span class="n">skip_flag</span><span class="p">,</span> <span class="n">use_flag</span><span class="p">,</span> <span class="n">property_cols</span><span class="p">,</span> <span class="n">sky_col</span><span class="p">,</span> <span class="n">gain_col</span><span class="p">,</span>
                         <span class="n">sky</span><span class="p">,</span> <span class="n">gain</span><span class="p">,</span> <span class="n">satur</span><span class="p">,</span> <span class="n">nstars</span><span class="p">,</span> <span class="n">image_file_name</span><span class="p">,</span> <span class="n">stamp_size</span><span class="p">,</span> <span class="n">logger</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Read in the star catalogs and return lists of positions for each star in each image.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Read in the star catalogs and return lists of positions for each star in each image.</span>
 
 <span class="sd">        :param cat_file_name:   The name of the catalog file to read in.</span>
 <span class="sd">        :param cat_hdu:         The hdu to use.</span>
@@ -1080,7 +1080,7 @@
         <span class="k">return</span> <span class="n">image_pos</span><span class="p">,</span> <span class="n">extra_props</span></div>
 
 <div class="viewcode-block" id="InputFiles.setPointing"><a class="viewcode-back" href="../../input.html#piff.InputFiles.setPointing">[docs]</a>    <span class="k">def</span> <span class="nf">setPointing</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ra</span><span class="p">,</span> <span class="n">dec</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Set the pointing attribute based on the input ra, dec (given in the initializer)</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set the pointing attribute based on the input ra, dec (given in the initializer)</span>
 
 <span class="sd">        There are a number of ways the pointing can be specified.</span>
 <span class="sd">        Even this is probably not sufficiently generic for all applications, but it&#39;s a start.</span>

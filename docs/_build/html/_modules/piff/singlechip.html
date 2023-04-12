@@ -116,7 +116,7 @@
     <span class="k">return</span> <span class="n">psf_chip</span>
 
 <div class="viewcode-block" id="SingleChipPSF"><a class="viewcode-back" href="../../psf.html#piff.SingleChipPSF">[docs]</a><span class="k">class</span> <span class="nc">SingleChipPSF</span><span class="p">(</span><span class="n">PSF</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;A PSF class that uses a separate PSF solution for each chip</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A PSF class that uses a separate PSF solution for each chip</span>
 
 <span class="sd">    :param single_psf:  A PSF instance to use for the PSF solution on each chip.</span>
 <span class="sd">                        (This will be turned into nchips copies of the provided object.)</span>
@@ -138,7 +138,7 @@
 
 <div class="viewcode-block" id="SingleChipPSF.parseKwargs"><a class="viewcode-back" href="../../psf.html#piff.SingleChipPSF.parseKwargs">[docs]</a>    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">parseKwargs</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">config_psf</span><span class="p">,</span> <span class="n">logger</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Parse the psf field of a configuration dict and return the kwargs to use for</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Parse the psf field of a configuration dict and return the kwargs to use for</span>
 <span class="sd">        initializing an instance of the class.</span>
 
 <span class="sd">        :param config_psf:      The psf field of the configuration dict, config[&#39;psf&#39;]</span>
@@ -161,7 +161,7 @@
         <span class="k">return</span> <span class="p">{</span> <span class="s1">&#39;single_psf&#39;</span> <span class="p">:</span> <span class="n">single_psf</span><span class="p">,</span> <span class="s1">&#39;nproc&#39;</span> <span class="p">:</span> <span class="n">nproc</span> <span class="p">}</span></div>
 
 <div class="viewcode-block" id="SingleChipPSF.fit"><a class="viewcode-back" href="../../psf.html#piff.SingleChipPSF.fit">[docs]</a>    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">wcs</span><span class="p">,</span> <span class="n">pointing</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">convert_func</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Fit interpolated PSF model to star data using standard sequence of operations.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Fit interpolated PSF model to star data using standard sequence of operations.</span>
 
 <span class="sd">        :param stars:           A list of Star instances.</span>
 <span class="sd">        :param wcs:             A dict of WCS solutions indexed by chipnum.</span>
@@ -199,7 +199,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">stars</span> <span class="o">=</span> <span class="p">[</span> <span class="n">star</span> <span class="k">for</span> <span class="n">chipnum</span> <span class="ow">in</span> <span class="n">chipnums</span> <span class="k">for</span> <span class="n">star</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">psf_by_chip</span><span class="p">[</span><span class="n">chipnum</span><span class="p">]</span><span class="o">.</span><span class="n">stars</span> <span class="p">]</span></div>
 
 <div class="viewcode-block" id="SingleChipPSF.interpolateStar"><a class="viewcode-back" href="../../psf.html#piff.SingleChipPSF.interpolateStar">[docs]</a>    <span class="k">def</span> <span class="nf">interpolateStar</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Update the star to have the current interpolated fit parameters according to the</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Update the star to have the current interpolated fit parameters according to the</span>
 <span class="sd">        current PSF model.</span>
 
 <span class="sd">        :param star:        Star instance to update.</span>
@@ -222,7 +222,7 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">psf_by_chip</span><span class="p">[</span><span class="n">chipnum</span><span class="p">]</span><span class="o">.</span><span class="n">_getProfile</span><span class="p">(</span><span class="n">star</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_finish_write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">,</span> <span class="n">logger</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Finish the writing process with any class-specific steps.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Finish the writing process with any class-specific steps.</span>
 
 <span class="sd">        :param fits:        An open fitsio.FITS object</span>
 <span class="sd">        :param extname:     The base name of the extension to write to.</span>
@@ -243,7 +243,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">psf_by_chip</span><span class="p">[</span><span class="n">chipnum</span><span class="p">]</span><span class="o">.</span><span class="n">_write</span><span class="p">(</span><span class="n">fits</span><span class="p">,</span> <span class="n">extname</span> <span class="o">+</span> <span class="s1">&#39;_</span><span class="si">%s</span><span class="s1">&#39;</span><span class="o">%</span><span class="n">chipnum</span><span class="p">,</span> <span class="n">logger</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_finish_read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">,</span> <span class="n">logger</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Finish the reading process with any class-specific steps.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Finish the reading process with any class-specific steps.</span>
 
 <span class="sd">        :param fits:        An open fitsio.FITS object</span>
 <span class="sd">        :param extname:     The base name of the extension to write to.</span>
