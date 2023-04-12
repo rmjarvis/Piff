@@ -717,10 +717,10 @@ class HSMCatalogStats(Stats):
 
     Flags:
 
-        0 = Success
-        1 = HSM returned a non-zero moments_status.
-        2 = HSM returned a negative flux.
-        4 = HSM's centroid moved by more than 1 pixel from the input position.
+    * 0 = Success
+    * 1 = HSM returned a non-zero moments_status.
+    * 2 = HSM returned a negative flux.
+    * 4 = HSM's centroid moved by more than 1 pixel from the input position.
 
     The output file will include the following columns:
 
@@ -745,31 +745,32 @@ class HSMCatalogStats(Stats):
 
     .. math::
 
-        T = \int I(u,v) (u^2 + v^2) du dv
-        T^{(4)} = \int I(u,v) (u^2 + v^2)^2 du dv / T
-        g^{(4)} = \int I(u,v) (u^2 + v^2) (u + iv)^2 du dv / T^2 - 3e
-        h^{(4)} = \int I(u,v) (u + iv)^4 du dv / T^2
+        T &= \int I(u,v) (u^2 + v^2) du dv \\
+        g &= \frac{\int I(u,v) (u + iv)^2 du dv}{T} \\
+        T^{(4)} &= \frac{\int I(u,v) (u^2 + v^2)^2 du dv}{T} \\
+        g^{(4)} &= \frac{\int I(u,v) (u^2 + v^2) (u + iv)^2 du dv}{T^2} - 3g \\
+        h^{(4)} &= \frac{\int I(u,v) (u + iv)^4 du dv}{T^2}
 
     I.e. :math:`T^{(4)}` is a fourth-order spin-0 quantity, analogous to :math:`T` at second
     order, :math:`g^{(4)}` is a fourth-order spin-2 quantity, analogous to :math:`g`, and
     :math:`h^{(4)}` is a spin-4 quantity.  The denominators ensure that the units of
-    :math:`T^{(4)}` is :math:`arcsec^2`, just like :math:`T` and that :math:`g^{(4)}` and
-    :math:`h^{(4)}` are dimensionless.  And the :math:`-3e` term for :math:`g^{(4)}` subtracts
+    :math:`T^{(4)}` is :math:`\mathrm{arcsec}^2`, just like :math:`T` and that :math:`g^{(4)}` and
+    :math:`h^{(4)}` are dimensionless.  And the :math:`-3g` term for :math:`g^{(4)}` subtracts
     off the dominant contribution to the fourth order quantity from the second order shape.
     For a pure elliptical Gaussian, this makes :math:`g^{(4)}` come out very close to zero.
 
     The output file contains the following additional columns:
 
         :T4_data:   The fourth-order "size", :math:`T^{(4)}`, of the observed star.
-        :g41_data:  The real component of :math:`g^{4}` of the obserbed star.
-        :g42_data:  The imaginary component of :math:`g^{4}` of the obserbed star.
-        :h41_data:  The real component of :math:`h^{4}` of the obserbed star.
-        :h42_data:  The imaginary component of :math:`h^{4}` of the obserbed star.
+        :g41_data:  The real component of :math:`g^{(4)}` of the obserbed star.
+        :g42_data:  The imaginary component of :math:`g^{(4)}` of the obserbed star.
+        :h41_data:  The real component of :math:`h^{(4)}` of the obserbed star.
+        :h42_data:  The imaginary component of :math:`h^{(4)}` of the obserbed star.
         :T4_model:  The fourth-order "size", :math:`T^{(4)}`, of the PSF model.
-        :g41_model: The real component of :math:`g^{4}` of the PSF model.
-        :g42_model: The imaginary component of :math:`g^{4}` of the PSF model.
-        :h41_model: The real component of :math:`h^{4}` of the PSF model.
-        :h42_model: The imaginary component of :math:`h^{4}` of the PSF model.
+        :g41_model: The real component of :math:`g^{(4)}` of the PSF model.
+        :g42_model: The imaginary component of :math:`g^{(4)}` of the PSF model.
+        :h41_model: The real component of :math:`h^{(4)}` of the PSF model.
+        :h42_model: The imaginary component of :math:`h^{(4)}` of the PSF model.
 
     :param file_name:        Name of the file to output to. [default: None]
     :param model_properties: Optionally a dict of properties to use for the model rendering.
