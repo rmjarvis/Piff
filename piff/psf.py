@@ -139,10 +139,6 @@ class PSF(object):
         # Select the non-reserve stars for performing the fit
         use_stars = [star for star in stars if not star.is_reserve]
 
-        if len(use_stars) != len(stars):
-            logger.warning("             (%d stars are reserved)",
-                            len(stars)-len(use_stars))
-
         return use_stars
 
     def remove_outliers(self, stars, iteration, logger):
@@ -195,6 +191,9 @@ class PSF(object):
             if len(use_stars) == 0:
                 raise RuntimeError("No stars.  Cannot find PSF model.")
             logger.warning("Iteration %d: Fitting %d stars", iteration+1, len(use_stars))
+            if len(use_stars) != len(stars):
+                logger.warning("             (%d stars are reserved)",
+                                len(stars)-len(use_stars))
 
             # Run a single iteration of the fitter.
             # Different PSF types do different things here.
