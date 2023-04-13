@@ -137,9 +137,6 @@ def process(config, logger=None):
     objects, wcs, pointing = Input.process(config['input'], logger=logger)
     stars = Select.process(config.get('select',{}), objects, logger=logger)
 
-    if len(stars) == 0:
-        raise RuntimeError("No stars.  Cannot find PSF model.")
-
     psf = PSF.process(config['psf'], logger=logger)
     psf.fit(stars, wcs, pointing, logger=logger)
 
