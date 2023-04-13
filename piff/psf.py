@@ -98,7 +98,7 @@ class PSF(object):
         """
         raise NotImplementedError("Derived classes must define the parseKwargs function")
 
-    def initialize(self, stars, logger):  # pragma: no cover
+    def initialize(self, stars, logger):
         """Initialize the psf solver to begin an iterative solution.
 
         :param stars:           The initial list of Star instances that will be used to constrain

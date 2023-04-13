@@ -617,6 +617,12 @@ def test_psf():
     np.testing.assert_raises(NotImplementedError, psf.drawStarList, [star])
     np.testing.assert_raises(NotImplementedError, psf._drawStar, star)
     np.testing.assert_raises(NotImplementedError, psf._getProfile, star)
+    np.testing.assert_raises(NotImplementedError, psf.single_iteration, [star], [star], None, None)
+
+    # Initialize doesn't do anything, but works
+    stars, nremove = psf.initialize([star], None)
+    assert stars == [star]
+    assert nremove == 0
 
     # Invalid to read a type that isn't a piff.PSF type.
     # Mock this by pretending that SingleChip is the only subclass of PSF.
