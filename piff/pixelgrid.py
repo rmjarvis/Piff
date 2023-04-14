@@ -37,6 +37,14 @@ class PixelGrid(Model):
     are determined from the pixelated model.  Any galsim.Interpolant type is allowed.
     The default interpolant is galsim.Lanczos(7)
 
+    The following initialization methods are available for the ``init`` parameter.
+
+    * hsm           Start with flux and size values that match the hsm moments of the star.
+    * zero          Start with flux = 1.e-6 x the hsm flux.
+    * delta         Start with size = 1.e-6 x the hsm size.
+
+    All initialization methods start with zero shear and zero centroid offset.
+
     :param scale:       Pixel scale of the PSF model (in arcsec)
     :param size:        Number of pixels on each side of square grid.
     :param interp:      An Interpolant to be used [default: Lanczos(7)]
@@ -44,8 +52,8 @@ class PixelGrid(Model):
                         PSF fitting will marginalize over stellar position.  If False, stellar
                         position is fixed at input value and the fitted PSF may be off-center.
                         [default: True]
-    :param init:        Initialization method.  [default: None, which means to start with a
-                        Gaussian profile roughly the size of the data.]
+    :param init:        Initialization method.  [default: None, which uses hsm unless a PSF
+                        class specifies a different default.]
     :param logger:      A logger object for logging debug info. [default: None]
     """
 
@@ -100,28 +108,46 @@ class PixelGrid(Model):
     def initialize(self, star, logger=None, default_init=None):
         """Initialize a star to work with the current model.
 
-        :param star:            A Star instance with the raw data.
+        :param star:            The Star to initialize.
         :param logger:          A logger object for logging debug info. [default: None]
         :param default_init:    The default initilization method if the user doesn't specify one.
                                 [default: None]
 
         :returns: a star instance with the appropriate initial fit values
         """
-        data, weight, u, v = star.data.getDataVector()
+        logger = galsim.config.LoggerWrapper(logger)
+        init = self._init if self._init is not None else default_init
+        if init is None: init = 'hsm'
+        logger.debug("initializing PixelGrid with method %s",init)
 
-        # Calculate the second moment to initialize an initial Gaussian profile.
-        # hsm returns: flux, x, y, sigma, g1, g2, flag
-        sigma = star.hsm[3]
+        if init == 'hsm' or init == 'zero':
+            # Calculate the second moment to initialize an initial Gaussian profile.
+            # hsm returns: flux, x, y, sigma, g1, g2, flag
+            sigma = star.hsm[3]
 
-        # Create an initial parameter array using a Gaussian profile.
-        u = np.arange( -self._origin, self.size-self._origin) * self.scale
-        v = np.arange( -self._origin, self.size-self._origin) * self.scale
-        rsq = (u*u)[:,np.newaxis] + (v*v)[np.newaxis,:]
-        gauss = np.exp(-rsq / (2.* sigma**2))
-        params = gauss.ravel()
+            # Create an initial parameter array using a Gaussian profile.
+            u = np.arange( -self._origin, self.size-self._origin) * self.scale
+            v = np.arange( -self._origin, self.size-self._origin) * self.scale
+            rsq = (u*u)[:,np.newaxis] + (v*v)[np.newaxis,:]
+            gauss = np.exp(-rsq / (2.* sigma**2))
+            params = gauss.ravel()
 
-        # Normalize to get unity flux
-        params /= np.sum(params)
+            # Normalize to get unity flux
+            params /= np.sum(params)
+
+            if init == 'zero':
+                # Setting to exactly 0 doesn't work, since InterpolatedImages need to have a
+                # valid flux.  But 1.e-10 x smaller than the image should be a good starting
+                # point for most uses of the zero initialization.
+                params *= 1.e-10
+
+        elif init == 'delta':
+            params = np.zeros(self.size**2)
+            icenter = self._origin * self.size + self._origin
+            params[icenter] = 1.0
+
+        else:
+            raise ValueError("init = %s is invalid for PixelGrid"%init)
 
         fit = star.fit.newParams(params=params, num=self._num)
         return Star(star.data, fit)
