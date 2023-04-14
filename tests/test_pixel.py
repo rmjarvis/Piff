@@ -103,6 +103,24 @@ def test_simplest():
     np.testing.assert_raises(ValueError, piff.PixelGrid, du, 0)
     np.testing.assert_raises(ValueError, piff.PixelGrid, du, -32)
 
+    # Check with init=zero
+    mod = piff.PixelGrid(du, 32, interp, centered=False, init='zero')
+    star = mod.initialize(s)
+    # This one needs a few iterations, since zero is a pretty bad initial guess.
+    for iter in range(3):
+        star = mod.fit(star)
+    star = psf.reflux(star)
+    print('Flux when init=zero:',star.fit.flux)
+    np.testing.assert_almost_equal(star.fit.flux/influx, 1.0, decimal=3)
+
+    # Check with init=delta
+    mod = piff.PixelGrid(du, 32, interp, centered=False, init='delta')
+    star = mod.initialize(s)
+    star = mod.fit(star)
+    star = psf.reflux(star)
+    print('Flux when init=delta:',star.fit.flux)
+    np.testing.assert_almost_equal(star.fit.flux/influx, 1.0, decimal=3)
+
 
 @timer
 def test_oversample():
