@@ -31,6 +31,8 @@ class Input(object):
     This is essentially an abstract base class intended to define the methods that should be
     implemented by any derived class.
     """
+    valid_input_types = {}
+
     nproc = 1  # Sub-classes can overwrite this as an instance attribute.
 
     @classmethod
@@ -46,14 +48,18 @@ class Input(object):
         wcs is a dict of WCS solutions indexed by chipnum.
         pointing is either a galsim.CelestialCoord or None.
         """
-        import piff
-
         # Get the class to use for handling the input data
         # Default type is 'Files'
-        input_handler_class = getattr(piff, 'Input' + config_input.get('type','Files'))
+        input_type = config_input.get('type','Files')
+
+        if input_type not in Input.valid_input_types:
+            raise ValueError("type %s is not a valid model type. "%input_type +
+                             "Expecting one of %s"%list(Input.valid_input_types.keys()))
+
+        input_class = Input.valid_input_types[input_type]
 
         # Build handler object
-        input_handler = input_handler_class(config_input, logger)
+        input_handler = input_class(config_input, logger)
 
         # Creat a lit of StarData objects
         stars = input_handler.makeStars(logger)
@@ -68,6 +74,14 @@ class Input(object):
         pointing = input_handler.getPointing(logger)
 
         return stars, wcs, pointing
+
+    @classmethod
+    def __init_subclass__(cls):
+        if hasattr(cls, '_type_name') and cls._type_name is not None:
+            if cls._type_name in Input.valid_input_types:
+                raise ValueError('Input type %s already registered'%cls._type_name +
+                                 'Maybe you subclassed and forgot to set _type_name?')
+            Input.valid_input_types[cls._type_name] = cls
 
     def makeStars(self, logger=None):
         """Process the input images and star data, cutting out stamps for each star along with
@@ -243,6 +257,8 @@ class InputFiles(Input):
     :param config:      The configuration dict used to define the above parameters.
     :param logger:      A logger object for logging debug info. [default: None]
     """
+    _type_name = 'Files'
+
     def __init__(self, config, logger=None):
         import copy
         logger = galsim.config.LoggerWrapper(logger)
