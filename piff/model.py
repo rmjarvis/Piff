@@ -29,6 +29,12 @@ class Model(object):
     This is essentially an abstract base class intended to define the methods that should be
     implemented by any derived class.
     """
+    # This class-level dict will store all the valid model types.
+    # Each subclass should set a cls._type_name, which is the name that should
+    # appear in a config dict.  These will be the keys of valid_model_types.
+    # The values in this dict will be the Model sub-classes.
+    valid_model_types = {}
+
     @classmethod
     def process(cls, config_model, logger=None):
         """Parse the model field of the config dict.
@@ -38,14 +44,16 @@ class Model(object):
 
         :returns: a Model instance
         """
-        import piff
-
+        # Get the class to use for the model
         if 'type' not in config_model:
             raise ValueError("config['model'] has no type field")
 
-        # Get the class to use for the model
-        # Not sure if this is what we'll always want, but it would be simple if we can make it work.
-        model_class = getattr(piff, config_model['type'])
+        model_type = config_model['type']
+        if model_type not in Model.valid_model_types:
+            raise ValueError("type %s is not a valid model type. "%model_type +
+                             "Expecting one of %s"%list(Model.valid_model_types.keys()))
+
+        model_class = Model.valid_model_types[model_type]
 
         # Read any other kwargs in the model field
         kwargs = model_class.parseKwargs(config_model, logger)
@@ -54,6 +62,16 @@ class Model(object):
         model = model_class(**kwargs)
 
         return model
+
+    @classmethod
+    def __init_subclass__(cls):
+        # Classes that don't want to register a type name can either not define _type_name
+        # or set it to None.
+        if hasattr(cls, '_type_name') and cls._type_name is not None:
+            if cls._type_name in Model.valid_model_types:
+                raise ValueError('Model type %s already registered'%cls._type_name +
+                                 'Maybe you subclassed and forgot to set _type_name?')
+            Model.valid_model_types[cls._type_name] = cls
 
     @classmethod
     def parseKwargs(cls, config_model, logger=None):
@@ -71,6 +89,7 @@ class Model(object):
         kwargs = {}
         kwargs.update(config_model)
         kwargs.pop('type', None)
+        kwargs['logger'] = logger
         return kwargs
 
     def initialize(self, star, logger=None):
@@ -255,7 +274,7 @@ class Model(object):
         :param extname:     The name of the extension to write the model information.
         """
         # First write the basic kwargs that works for all Model classes
-        model_type = self.__class__.__name__
+        model_type = self._type_name
         write_kwargs(fits, extname, dict(self.kwargs, type=model_type))
 
         # Now do any class-specific steps.
@@ -298,11 +317,9 @@ class Model(object):
             model_type = model_type[0]
 
         # Check that model_type is a valid Model type.
-        model_classes = piff.util.get_all_subclasses(piff.Model)
-        valid_model_types = dict([ (c.__name__, c) for c in model_classes ])
-        if model_type not in valid_model_types:
+        if model_type not in Model.valid_model_types:
             raise ValueError("model type %s is not a valid Piff Model"%model_type)
-        model_cls = valid_model_types[model_type]
+        model_cls = Model.valid_model_types[model_type]
 
         kwargs = read_kwargs(fits, extname)
         kwargs.pop('type',None)

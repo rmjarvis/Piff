@@ -423,7 +423,7 @@ def test_yaml():
             'stamp_size' : 21,
             },
         'psf' : {
-            'model' : { 'type' : 'GSObjectModel',
+            'model' : { 'type' : 'GSObject',
                         'fastfit' : True,
                         'gsobj' : 'galsim.Gaussian(sigma=1.0)' },
             'interp' : { 'type' : 'GPInterp',

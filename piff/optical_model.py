@@ -146,9 +146,10 @@ class Optical(Model):
     Note that the Zernike coeffients (zernike_coeff), Atmospheric parameters (ie. r0,L0) and Shear (g1,g2) are
     fitted parameters, passed via the arguments to getProfile.
     """
+    _type_name = 'Optical'
     _method = 'auto'
-    _model_can_be_offset = True
     _centered = True
+    _model_can_be_offset = False 
 
     def __init__(self, template=None, gsparams=None, atmo_type='VonKarman', logger=None, **kwargs):
         self.logger = galsim.config.LoggerWrapper(logger)

@@ -39,6 +39,7 @@ class GSObjectModel(Model):
     :param scipy_kwargs: Optional kwargs to pass to scipy.optimize.least_squares [default: None]
     :param logger:      A logger object for logging debug info. [default: None]
     """
+    _type_name = 'GSObject'
     _model_can_be_offset = False
 
     def __init__(self, gsobj, fastfit=False, centered=True, include_pixel=True,
@@ -225,8 +226,7 @@ class GSObjectModel(Model):
 
         results = scipy.optimize.least_squares(self._resid, params, args=(star,convert_func),
                                                **self._scipy_kwargs)
-        if logger:
-            logger.debug(results)
+        logger.debug(results)
         if not results.success:
             raise RuntimeError("Error finding the full nonlinear solution")
 
@@ -329,6 +329,8 @@ class Gaussian(GSObjectModel):
     :param scipy_kwargs: Optional kwargs to pass to scipy.optimize.least_squares [default: None]
     :param logger:      A logger object for logging debug info. [default: None]
     """
+    _type_name = 'Gaussian'
+
     def __init__(self, fastfit=False, centered=True, include_pixel=True,
                  scipy_kwargs=None, logger=None):
         gsobj = galsim.Gaussian(sigma=1.0)
@@ -351,6 +353,8 @@ class Kolmogorov(GSObjectModel):
     :param scipy_kwargs: Optional kwargs to pass to scipy.optimize.least_squares [default: None]
     :param logger:      A logger object for logging debug info. [default: None]
     """
+    _type_name = 'Kolmogorov'
+
     def __init__(self, fastfit=False, centered=True, include_pixel=True,
                  scipy_kwargs=None, logger=None):
         gsobj = galsim.Kolmogorov(half_light_radius=1.0)
@@ -376,6 +380,8 @@ class Moffat(GSObjectModel):
     :param scipy_kwargs: Optional kwargs to pass to scipy.optimize.least_squares [default: None]
     :param logger:      A logger object for logging debug info. [default: None]
     """
+    _type_name = 'Moffat'
+
     def __init__(self, beta, trunc=0., fastfit=False, centered=True, include_pixel=True,
                  scipy_kwargs=None, logger=None):
         gsobj = galsim.Moffat(half_light_radius=1.0, beta=beta, trunc=trunc)
@@ -386,3 +392,11 @@ class Moffat(GSObjectModel):
         del self.kwargs['gsobj']
         # Need to add `beta` and `trunc` though.
         self.kwargs.update(dict(beta=beta, trunc=trunc))
+
+class GSObjectModelDepr(GSObjectModel):
+    _type_name = 'GSObjectModel'
+
+    def __init__(self, *args, logger=None, **kwargs):
+        logger = galsim.config.LoggerWrapper(logger)
+        logger.error("WARNING: The name GSObjectModel is deprecated. Use GSObject instead.")
+        super().__init__(*args, logger=logger, **kwargs)
