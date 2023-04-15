@@ -19,7 +19,7 @@ import numpy as np
 import os
 import fitsio
 
-from piff_test_helper import timer
+from piff_test_helper import timer, CaptureLog
 
 fiducial_kolmogorov = galsim.Kolmogorov(half_light_radius=1.0)
 fiducial_gaussian = galsim.Gaussian(half_light_radius=1.0)
@@ -128,7 +128,7 @@ def test_simple():
         # Now test running it via the config parser
         config = {
             'model' : {
-                'type' : 'GSObjectModel',
+                'type' : 'GSObject',
                 'gsobj': repr(fiducial),
                 'include_pixel': False
             }
@@ -154,6 +154,21 @@ def test_simple():
         with fitsio.FITS(outfile, 'r') as f:
             roundtrip_model = piff.GSObjectModel.read(f, 'psf_model')
         assert model.__dict__ == roundtrip_model.__dict__
+
+        # Check the deprecated name in config
+        config = {
+            'model' : {
+                'type' : 'GSObjectModel',
+                'gsobj': repr(fiducial),
+                'include_pixel': False
+            }
+        }
+        with CaptureLog() as cl:
+            model = piff.Model.process(config['model'], cl.logger)
+        print(cl.output)
+        assert "The name GSObjectModel is deprecated" in cl.output
+        fit1 = model.fit(model.initialize(fiducial_star)).fit
+        np.testing.assert_array_equal(fit1.params, fit.params)
 
         # Finally, we should also test with pixel convolution included.  This really only makes
         # sense for fastfit=False, since HSM FindAdaptiveMom doesn't account for the pixel shape

@@ -97,7 +97,7 @@ class Star(object):
     def withProperties(self, **kwargs):
         r"""Set or change any properties in the star.
 
-        :param \*\*kwargs:   Each named kwarg is taken to be a property to set in the returned star.
+        :param \*\*kwargs:  Each named kwarg is taken to be a property to set in the returned star.
 
         :returns: a new Star with the given properties, but is otherwise the same as self.
         """
@@ -714,7 +714,7 @@ class StarData(object):
         return copy.deepcopy(self)
 
     def withNew(self, **kwargs):
-        """Return new StarData that has new values of some attributes.
+        r"""Return new StarData that has new values of some attributes.
 
         :param \*\*kwargs:  Any properties for the star.data you want to change.
 
@@ -925,8 +925,8 @@ class StarFit(object):
         :param \*\*kwargs:  Any other additional properties for the star. Takes current flux and
                         center if not provided, and otherwise puts in None
 
-        :returns:  New StarFit object with altered parameters.  All chisq-related parameters
-                   are set to None since they are no longer valid.
+        :returns: New StarFit object with altered parameters.  All chisq-related parameters
+                  are set to None since they are no longer valid.
         """
         npp = np.array(params)
         if self.params is not None and npp.shape != self.params.shape:
@@ -939,7 +939,7 @@ class StarFit(object):
         return copy.deepcopy(self)
 
     def withNew(self, **kwargs):
-        """Return new StarFit that has new values of some attributes.
+        r"""Return new StarFit that has new values of some attributes.
 
         :param \*\*kwargs:  Any properties for the star.fit you want to change.
 

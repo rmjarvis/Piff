@@ -9,6 +9,8 @@ Output file changes
 API Changes
 -----------
 
+- Deprecated some redundant type names.  GSObjectModel -> GSObject,
+
 
 
 Performance improvements

@@ -227,8 +227,8 @@ def run_multi(func, nproc, raise_except, args, logger, kwargs=None):
     :param raise_except: Whether to raise any exceptions that happen in individual jobs.
     :param args:        a list of args for func for each job to run.
     :param logger:      The logger you would pass to func in single-processor mode.
-    :param kwargs:      a list of kwargs for func for each job to run.  May also be a single dict
-                        to use for all jobs. [default: None]
+    :param kwargs:      A list of kwargs dicts for func for each job to run.  May also be a single
+                        dict to use for all jobs. [default: None]
 
     :returns: The output of func(\*args[i], \*\*kwargs[i]) for each item in the args, kwargs lists.
     """

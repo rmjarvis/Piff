@@ -47,6 +47,7 @@ class PixelGrid(Model):
     :param logger:      A logger object for logging debug info. [default: None]
     """
 
+    _type_name = 'PixelGrid'
     _method = 'no_pixel'
     _model_can_be_offset = True  # Indicate that in reflux, the centroid should also move by the
                                  # current centroid of the model.  This way on later iterations,

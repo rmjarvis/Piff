@@ -552,6 +552,10 @@ def test_model():
     config = { 'include_pixel': False }
     with np.testing.assert_raises(ValueError):
         model = piff.Model.process(config)
+    # and it must be a valid name
+    config['type'] = 'invalid'
+    with np.testing.assert_raises(ValueError):
+        model = piff.Model.process(config)
 
     # Can't do much with a base Model class
     model = piff.Model()
@@ -563,9 +567,28 @@ def test_model():
     if sys.version_info < (3,): return  # mock only available on python 3
     from unittest import mock
     filename = os.path.join('input','D00240560_r_c01_r2362p01_piff.fits')
-    with mock.patch('piff.util.get_all_subclasses', return_value=[piff.Gaussian]):
+    with mock.patch('piff.Model.valid_model_types', {'Gaussian': piff.Gaussian}):
         with fitsio.FITS(filename,'r') as f:
             np.testing.assert_raises(ValueError, piff.Model.read, f, extname='psf_model')
+
+    # We don't have any abstract model base classes (as we do for interp for instance),
+    # But check that it works correctly in cases someone does this.
+    class NoModel1(piff.Model):
+        pass
+    assert NoModel1 not in piff.Model.valid_model_types.values()
+    class NoModel2(piff.Model):
+        _type_name = None
+    assert NoModel2 not in piff.Model.valid_model_types.values()
+    class ValidModel1(piff.Model):
+        _type_name = 'valid'
+    assert ValidModel1 in piff.Model.valid_model_types.values()
+    assert ValidModel1 == piff.Model.valid_model_types['valid']
+    with np.testing.assert_raises(ValueError):
+        class ValidModel2(piff.Model):
+            _type_name = 'valid'
+    with np.testing.assert_raises(ValueError):
+        class ValidModel3(ValidModel1):
+            pass
 
 
 @timer
