@@ -707,6 +707,29 @@ def test_flag_select():
     with np.testing.assert_raises(ValueError):
         select.selectStars(stars1, logger=logger)
 
+    # Invalid input type
+    config = { 'type': 'invalid' }
+    with np.testing.assert_raises(ValueError):
+        piff.Select.process(config, stars1)
+
+    # Also check errors when registering other type names
+    class NoSelect1(piff.Select):
+        pass
+    assert NoSelect1 not in piff.Select.valid_select_types.values()
+    class NoSelect2(piff.Select):
+        _type_name = None
+    assert NoSelect2 not in piff.Select.valid_select_types.values()
+    class ValidSelect1(piff.Select):
+        _type_name = 'valid'
+    assert ValidSelect1 in piff.Select.valid_select_types.values()
+    assert ValidSelect1 == piff.Select.valid_select_types['valid']
+    with np.testing.assert_raises(ValueError):
+        class ValidSelect2(piff.Select):
+            _type_name = 'valid'
+    with np.testing.assert_raises(ValueError):
+        class ValidSelect3(ValidSelect1):
+            pass
+
 @timer
 def test_properties_select():
     """Test the Properties selection type

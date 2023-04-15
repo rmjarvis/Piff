@@ -32,6 +32,8 @@ class Select(object):
     This is essentially an abstract base class intended to define the methods that should be
     implemented by any derived class.
     """
+    valid_select_types = {}
+
     # Parameters that derived classes should ignore if they appear in the config dict
     # (since they are handled by the base class).
     base_keys= ['min_snr', 'max_snr', 'hsm_size_reject', 'max_pixel_cut', 'reject_where',
@@ -55,6 +57,16 @@ class Select(object):
             # Enable True to be equivalent to 10.  True comes in as 1.0, which would be a
             # silly value to use, so it shouldn't be a problem to turn 1.0 -> 10.0.
             self.hsm_size_reject = 10.
+
+    @classmethod
+    def __init_subclass__(cls):
+        # Classes that don't want to register a type name can either not define _type_name
+        # or set it to None.
+        if hasattr(cls, '_type_name') and cls._type_name is not None:
+            if cls._type_name in Select.valid_select_types:
+                raise ValueError('Select type %s already registered'%cls._type_name +
+                                 'Maybe you subclassed and forgot to set _type_name?')
+            Select.valid_select_types[cls._type_name] = cls
 
     @classmethod
     def process(cls, config_select, objects, logger=None, select_only=False):
@@ -123,14 +135,17 @@ class Select(object):
 
         :returns: stars, the subset of objects which are to be considered stars
         """
-        import piff
-
         # Get the class to use for handling the selection
-        # Default type is 'Files'
-        select_handler_class = getattr(piff, config_select.get('type','Flag') + 'Select')
+        # Default type is 'Flag'
+        select_type = config_select.get('type', 'Flag')
+        if select_type not in Select.valid_select_types:
+            raise ValueError("type %s is not a valid select type. "%select_type +
+                             "Expecting one of %s"%list(Select.valid_select_types.keys()))
+
+        select_class = Select.valid_select_types[select_type]
 
         # Build handler object
-        select_handler = select_handler_class(config_select, logger=logger)
+        select_handler = select_class(config_select, logger=logger)
 
         # Creat a list of Star objects
         stars = select_handler.selectStars(objects, logger)
@@ -343,6 +358,8 @@ class FlagSelect(Select):
                         (Normally the 'select' field in the overall configuration dict).
     :param logger:      A logger object for logging debug info. [default: None]
     """
+    _type_name = 'Flag'
+
     def __init__(self, config, logger=None):
         super(FlagSelect, self).__init__(config, logger)
 
@@ -404,6 +421,8 @@ class PropertiesSelect(Select):
     :param config:      The configuration dict used to define the above parameters.
     :param logger:      A logger object for logging debug info. [default: None]
     """
+    _type_name = 'Properties'
+
     def __init__(self, config, logger=None):
         super(PropertiesSelect, self).__init__(config, logger)
 
