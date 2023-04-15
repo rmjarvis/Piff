@@ -535,7 +535,7 @@ class PSF(object):
         if len(fits) == 1:
             header = {'piff_version': piff_version}
             fits.write(data=None, header=header)
-        psf_type = self.__class__.__name__
+        psf_type = self._type_name
         write_kwargs(fits, extname, dict(self.kwargs, type=psf_type, piff_version=piff_version))
         logger.info("Wrote the basic PSF information to extname %s", extname)
         Star.write(self.stars, fits, extname=extname + '_stars')
