@@ -70,7 +70,32 @@ def test_base_output():
     np.testing.assert_raises(NotImplementedError, out.write, None)
     np.testing.assert_raises(NotImplementedError, out.read)
 
+@timer
+def test_invalid():
+    # Invalid output type
+    config = { 'type': 'invalid' }
+    with np.testing.assert_raises(ValueError):
+        piff.Output.process(config)
+
+    # Also check errors when registering other type names
+    class NoOutput1(piff.Output):
+        pass
+    assert NoOutput1 not in piff.Output.valid_output_types.values()
+    class NoOutput2(piff.Output):
+        _type_name = None
+    assert NoOutput2 not in piff.Output.valid_output_types.values()
+    class ValidOutput1(piff.Output):
+        _type_name = 'valid'
+    assert ValidOutput1 in piff.Output.valid_output_types.values()
+    assert ValidOutput1 == piff.Output.valid_output_types['valid']
+    with np.testing.assert_raises(ValueError):
+        class ValidOutput2(piff.Output):
+            _type_name = 'valid'
+    with np.testing.assert_raises(ValueError):
+        class ValidOutput3(ValidOutput1):
+            pass
 
 if __name__ == '__main__':
     test_ensure_dir()
     test_base_output()
+    test_invalid()
