@@ -847,6 +847,10 @@ def test_base_stats():
     config = { 'file_name' : 'dummy_file' }
     with np.testing.assert_raises(ValueError):
         stats = piff.Stats.process(config)
+    # and it must be a valid name
+    config['type'] = 'invalid'
+    with np.testing.assert_raises(ValueError):
+        out = piff.Stats.process(config)
 
     # ... for all stats in list.
     config = [ { 'type': 'TwoDHist', 'file_name': 'f1' },
@@ -861,6 +865,24 @@ def test_base_stats():
     stats = piff.Stats()
     np.testing.assert_raises(NotImplementedError, stats.compute, None, None)
     np.testing.assert_raises(NotImplementedError, stats.plot)
+
+    # Check that registering new types works correctly
+    class NoStats1(piff.Stats):
+        pass
+    assert NoStats1 not in piff.Stats.valid_stats_types.values()
+    class NoStats2(piff.Stats):
+        _type_name = None
+    assert NoStats2 not in piff.Stats.valid_stats_types.values()
+    class ValidStats1(piff.Stats):
+        _type_name = 'valid'
+    assert ValidStats1 in piff.Stats.valid_stats_types.values()
+    assert ValidStats1 == piff.Stats.valid_stats_types['valid']
+    with np.testing.assert_raises(ValueError):
+        class ValidStats2(piff.Stats):
+            _type_name = 'valid'
+    with np.testing.assert_raises(ValueError):
+        class ValidStats3(ValidStats1):
+            pass
 
 @timer
 def test_model_properties():
