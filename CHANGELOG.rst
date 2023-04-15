@@ -13,6 +13,7 @@ API Changes
   * GSObjectModel -> GSObject
   * GPInterp -> GP or GaussianProcess
   * kNNInterp -> KNN or KNearestNeighbors
+  * Star -> StarImages
 
 
 Performance improvements

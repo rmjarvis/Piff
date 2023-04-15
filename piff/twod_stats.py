@@ -49,6 +49,8 @@ class TwoDHistStats(Stats):
                                 [default: None]
     :param logger:              A logger object for logging debug info. [default: None]
     """
+    _type_name = 'TwoDHist'
+
     def __init__(self, nbins_u=20, nbins_v=20, reducing_function='np.median',
                  file_name=None, model_properties=None, logger=None):
         self.nbins_u = nbins_u
@@ -424,6 +426,8 @@ class WhiskerStats(Stats):
                                 [default: None]
     :param logger:              A logger object for logging debug info. [default: None]
     """
+    _type_name = 'Whisker'
+
     def __init__(self, file_name=None, nbins_u=20, nbins_v=20, reducing_function='np.median',
                  scale=1, resid_scale=2, model_properties=None, logger=None):
         self.file_name = file_name
