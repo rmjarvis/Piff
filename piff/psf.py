@@ -29,12 +29,18 @@ class PSF(object):
 
     The usual way to create a PSF is through one of the two factory functions::
 
-        >>> psf = piff.PSF.process(config, logger)
-        >>> psf = piff.PSF.read(file_name, logger)
+        >>> psf = piff.process(config, logger)
+        >>> psf = piff.read(file_name, logger)
 
     The first is used to build a PSF model from the data according to a config dict.
     The second is used to read in a PSF model from disk.
     """
+    # This class-level dict will store all the valid PSF types.
+    # Each subclass should set a cls._type_name, which is the name that should
+    # appear in a config dict.  These will be the keys of valid_psf_types.
+    # The values in this dict will be the PSF sub-classes.
+    valid_psf_types = {}
+
     @classmethod
     def process(cls, config_psf, logger=None):
         """Process the config dict and return a PSF instance.
@@ -61,27 +67,37 @@ class PSF(object):
 
         :returns: a PSF instance of the appropriate type.
         """
-        import piff
-        import yaml
-
         logger = galsim.config.LoggerWrapper(logger)
         logger.debug("Parsing PSF based on config dict:")
-        logger.debug(yaml.dump(config_psf, default_flow_style=False))
 
         # Get the class to use for the PSF
-        psf_type = config_psf.get('type', 'Simple') + 'PSF'
+        psf_type = config_psf.get('type', 'Simple')
+        if psf_type not in PSF.valid_psf_types:
+            raise ValueError("type %s is not a valid psf type. "%psf_type +
+                             "Expecting one of %s"%list(PSF.valid_psf_types.keys()))
         logger.debug("PSF type is %s",psf_type)
-        cls = getattr(piff, psf_type)
+
+        psf_cls = PSF.valid_psf_types[psf_type]
 
         # Read any other kwargs in the psf field
-        kwargs = cls.parseKwargs(config_psf, logger)
+        kwargs = psf_cls.parseKwargs(config_psf, logger)
 
         # Build PSF object
         logger.info("Building %s",psf_type)
-        psf = cls(**kwargs)
+        psf = psf_cls(**kwargs)
         logger.debug("Done building PSF")
 
         return psf
+
+    @classmethod
+    def __init_subclass__(cls):
+        # Classes that don't want to register a type name can either not define _type_name
+        # or set it to None.
+        if hasattr(cls, '_type_name') and cls._type_name is not None:
+            if cls._type_name in PSF.valid_psf_types:
+                raise ValueError('PSF type %s already registered'%cls._type_name +
+                                 'Maybe you subclassed and forgot to set _type_name?')
+            PSF.valid_psf_types[cls._type_name] = cls
 
     @classmethod
     def parseKwargs(cls, config_psf, logger=None):
@@ -553,24 +569,24 @@ class PSF(object):
         :param extname:     The name of the extension with the psf information.
         :param logger:      A logger object for logging debug info.
         """
-        import piff
-
         # Read the type and kwargs from the base extension
         assert extname in fits
         assert 'type' in fits[extname].get_colnames()
         kwargs = read_kwargs(fits, extname)
         psf_type = kwargs.pop('type')
 
+        # Old output files had the full class name.  Fix it if necessary.
+        if psf_type.endswith('PSF') and psf_type not in PSF.valid_psf_types:
+            psf_type = psf_type[:-len('PSF')]
+
         # If piff_version is not in the file, then it was written prior to version 1.3.
         # Since we don't know what version it was, we just use None.
         piff_version = kwargs.pop('piff_version',None)
 
         # Check that this is a valid PSF type
-        psf_classes = piff.util.get_all_subclasses(piff.PSF)
-        valid_psf_types = dict([ (c.__name__, c) for c in psf_classes ])
-        if psf_type not in valid_psf_types:
+        if psf_type not in PSF.valid_psf_types:
             raise ValueError("psf type %s is not a valid Piff PSF"%psf_type)
-        psf_cls = valid_psf_types[psf_type]
+        psf_cls = PSF.valid_psf_types[psf_type]
 
         # Read the stars, wcs, pointing values
         stars = Star.read(fits, extname + '_stars')

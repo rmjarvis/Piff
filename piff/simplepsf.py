@@ -40,6 +40,8 @@ class SimplePSF(PSF):
                         [default: 0.1]
     :param max_iter:    Maximum number of iterations to try. [default: 30]
     """
+    _type_name = 'Simple'
+
     def __init__(self, model, interp, outliers=None, chisq_thresh=0.1, max_iter=30):
         self.model = model
         self.interp = interp
@@ -76,7 +78,9 @@ class SimplePSF(PSF):
 
         :returns: a kwargs dict to pass to the initializer
         """
-        import piff
+        from .model import Model
+        from .interp import Interp
+        from .outliers import Outliers
 
         kwargs = {}
         kwargs.update(config_psf)
@@ -88,15 +92,15 @@ class SimplePSF(PSF):
                 raise ValueError("%s field is required in psf field for type=Simple"%key)
 
         # make a Model object to use for the individual stellar fitting
-        model = piff.Model.process(kwargs.pop('model'), logger=logger)
+        model = Model.process(kwargs.pop('model'), logger=logger)
         kwargs['model'] = model
 
         # make an Interp object to use for the interpolation
-        interp = piff.Interp.process(kwargs.pop('interp'), logger=logger)
+        interp = Interp.process(kwargs.pop('interp'), logger=logger)
         kwargs['interp'] = interp
 
         if 'outliers' in kwargs:
-            outliers = piff.Outliers.process(kwargs.pop('outliers'), logger=logger)
+            outliers = Outliers.process(kwargs.pop('outliers'), logger=logger)
             kwargs['outliers'] = outliers
 
         return kwargs
