@@ -23,7 +23,7 @@ import fitsio
 from scipy.linalg import cholesky, cho_solve
 from sklearn.model_selection import train_test_split
 
-from piff_test_helper import get_script_name, timer
+from piff_test_helper import get_script_name, timer, CaptureLog
 
 kolmogorov = galsim.Kolmogorov(half_light_radius=1., flux=1.)
 
@@ -421,18 +421,18 @@ def test_yaml():
 
             # How large should the postage stamp cutouts of the stars be?
             'stamp_size' : 21,
-            },
+        },
         'psf' : {
             'model' : { 'type' : 'GSObject',
                         'fastfit' : True,
                         'gsobj' : 'galsim.Gaussian(sigma=1.0)' },
-            'interp' : { 'type' : 'GPInterp',
+            'interp' : { 'type' : 'GP',
                          'keys' : ['u', 'v'],
                          'optimizer' : 'none',
                          'kernel' : 'RBF(200.0)'}
-            },
+        },
         'output' : { 'file_name' : psf_file },
-        }
+    }
 
     piff.piffify(config, logger)
     psf = piff.read(psf_file)
@@ -446,6 +446,18 @@ def test_yaml():
     print('interpolate ',piff.Star(target.data,None))
     test_star = psf.interp.interpolate(piff.Star(target.data,None))
     np.testing.assert_almost_equal(test_star.fit.params, target.fit.params, decimal=3)
+
+    # Check alternate config name
+    config['psf']['interp']['type'] = 'GaussianProcess'
+    psf1 = piff.process(config)
+    assert psf1.interp.gps[0].kernel == psf.interp.gps[0].kernel
+
+    # And deprecated name
+    config['psf']['interp']['type'] = 'GPInterp'
+    with CaptureLog() as cl:
+        psf2 = piff.process(config, cl.logger)
+    assert 'GPInterp is deprecated' in cl.output
+    assert psf2.interp.gps[0].kernel == psf.interp.gps[0].kernel
 
 
 if __name__ == "__main__":

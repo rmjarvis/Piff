@@ -56,6 +56,8 @@ class Polynomial(Interp):
                         polynomial_types with the value of a function with
                         the signature of numpy.polynomial.polynomial.polyval2d
     """
+    _type_name = 'Polynomial'
+
     def __init__(self, order=None, orders=None, poly_type="poly", logger=None):
         if order is None and orders is None:
             raise TypeError("Either order or orders is required")

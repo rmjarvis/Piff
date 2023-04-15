@@ -9,8 +9,10 @@ Output file changes
 API Changes
 -----------
 
-- Deprecated some redundant type names.  GSObjectModel -> GSObject,
-
+- Deprecated some redundant or potentially unclear type names.
+  * GSObjectModel -> GSObject
+  * GPInterp -> GP or GaussianProcess
+  * kNNInterp -> KNN or KNearestNeighbors
 
 
 Performance improvements

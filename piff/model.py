@@ -304,8 +304,6 @@ class Model(object):
 
         :returns: a model built with a information in the FITS file.
         """
-        import piff
-
         assert extname in fits
         assert 'type' in fits[extname].get_colnames()
         model_type = fits[extname].read()['type']

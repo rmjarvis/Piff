@@ -599,6 +599,10 @@ def test_interp():
     config = { 'order' : 0, }
     with np.testing.assert_raises(ValueError):
         interp = piff.Interp.process(config)
+    # and it must be a valid name
+    config['type'] = 'invalid'
+    with np.testing.assert_raises(ValueError):
+        interp = piff.Interp.process(config)
 
     # Can't do much with a base Interp class
     interp = piff.Interp()
@@ -617,9 +621,30 @@ def test_interp():
     # Mock this by pretending that Mean is the only subclass of Interp.
     if sys.version_info < (3,): return  # mock only available on python 3
     from unittest import mock
-    with mock.patch('piff.util.get_all_subclasses', return_value=[piff.Mean]):
+    with mock.patch('piff.Interp.valid_interp_types', {'Mean': piff.Mean}):
         with fitsio.FITS(filename2,'r') as f:
             np.testing.assert_raises(ValueError, piff.Interp.read, f, extname='psf_interp')
+
+    # BasisInterp is an abstract base class, so it shouldn't be in the list of valid types
+    assert piff.BasisInterp not in piff.Interp.valid_interp_types.values()
+
+    # Check that registering new types works correctly
+    class NoInterp1(piff.Interp):
+        pass
+    assert NoInterp1 not in piff.Interp.valid_interp_types.values()
+    class NoInterp2(piff.Interp):
+        _type_name = None
+    assert NoInterp2 not in piff.Interp.valid_interp_types.values()
+    class ValidInterp1(piff.Interp):
+        _type_name = 'valid'
+    assert ValidInterp1 in piff.Interp.valid_interp_types.values()
+    assert ValidInterp1 == piff.Interp.valid_interp_types['valid']
+    with np.testing.assert_raises(ValueError):
+        class ValidInterp2(piff.Interp):
+            _type_name = 'valid'
+    with np.testing.assert_raises(ValueError):
+        class ValidInterp3(ValidInterp1):
+            pass
 
 
 @timer

@@ -25,6 +25,8 @@ class Mean(Interp):
     """The simplest possible interpolation scheme.  It just finds the mean of the parameter
     vectors and uses that at every position.
     """
+    _type_name = 'Mean'
+
     def __init__(self, logger=None):
         self.degenerate_points = False
         self.kwargs = {}

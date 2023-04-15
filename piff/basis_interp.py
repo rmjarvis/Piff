@@ -48,6 +48,8 @@ class BasisInterp(Interp):
     Note: This is an abstract base class.  The concrete class you probably want to use
     is BasisPolynomial.
     """
+    _type_name = None
+
     def __init__(self):
         self.degenerate_points = True  # This Interpolator uses chisq quadratic forms
         self.use_qr = False  # The default.  May be overridden by subclasses.
@@ -351,6 +353,8 @@ class BasisPolynomial(BasisInterp):
                         Therefore, it may be preferred for some use cases. [default: False]
     :param logger:      A logger object for logging debug info. [default: None]
     """
+    _type_name = 'BasisPolynomial'
+
     def __init__(self, order, keys=('u','v'), max_order=None, use_qr=False, logger=None):
         super(BasisPolynomial, self).__init__()
 

@@ -16,18 +16,19 @@
 .. module:: decam_wavefront
 """
 
-from ..knn_interp import kNNInterp
+from ..knn_interp import KNNInterp
 
 import numpy as np
 import fitsio
 import galsim
 
-class DECamWavefront(kNNInterp):
+class DECamWavefront(KNNInterp):
     """
     An interpolator of the DECam Wavefront as measured by out-of-focus stars.
     If you specify the location of the fits file and the extension, this will
     take care of the rest for you.
     """
+    _type_name = 'DECamWavefront'
 
     def __init__(self, file_name, extname, n_neighbors=15, weights='uniform', algorithm='auto',
                  p=2, logger=None):
