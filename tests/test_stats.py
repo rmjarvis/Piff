@@ -21,7 +21,7 @@ import fitsio
 import yaml
 import subprocess
 
-from piff_test_helper import get_script_name, timer
+from piff_test_helper import get_script_name, timer, CaptureLog
 
 
 @timer
@@ -519,7 +519,7 @@ def test_starstats_config():
             'file_name' : psf_file,
             'stats' : [
                 {
-                    'type': 'Star',
+                    'type': 'StarImages',
                     'file_name': star_file,
                     'nplot': 5,
                     'adjust_stars': True,
@@ -534,6 +534,15 @@ def test_starstats_config():
     os.remove(star_file)
     piff.plotify(config, logger)
     assert os.path.isfile(star_file)
+
+    # repeat with deprecated name
+    os.remove(star_file)
+    config['output']['stats'][0]['type'] = 'Star'
+    with CaptureLog() as cl:
+        piff.plotify(config, cl.logger)
+    assert os.path.isfile(star_file)
+    assert 'Star is deprecated' in cl.output
+    config['output']['stats'][0]['type'] = 'StarImages'
 
     # check default nplot
     psf = piff.read(psf_file)
@@ -761,7 +770,7 @@ def test_bad_hsm():
                     'file_name': shape_file,
                 },
                 {
-                    'type': 'Star',
+                    'type': 'StarImages',
                     'file_name': star_file,
                 },
                 {

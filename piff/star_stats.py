@@ -44,6 +44,8 @@ class StarStats(Stats):
     :param file_name:       Name of the file to output to. [default: None]
     :param logger:          A logger object for logging debug info. [default: None]
     """
+    _type_name = 'StarImages'
+
     def __init__(self, nplot=10, adjust_stars=False, file_name=None, logger=None):
         self.nplot = nplot
         self.file_name = file_name
@@ -177,3 +179,11 @@ class StarStats(Stats):
             fig.colorbar(im, ax=axs[ii][jj+2])
 
         return fig, axs
+
+class StarStatsDepr(StarStats):
+    _type_name = 'Star'
+
+    def __init__(self, *args, logger=None, **kwargs):
+        logger = galsim.config.LoggerWrapper(logger)
+        logger.error("WARNING: The name Star is deprecated. Use StarImages instead.")
+        super().__init__(*args, logger=logger, **kwargs)

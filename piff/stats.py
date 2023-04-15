@@ -38,6 +38,8 @@ class Stats(object):
     There is also a ``plot`` method if you want to make the matplot lib fig, ax and do something
     else with it besides just write it to a file.
     """
+    valid_stats_types = {}
+
     @classmethod
     def process(cls, config_stats, logger=None):
         """Parse the stats field of the config dict.
@@ -47,8 +49,6 @@ class Stats(object):
 
         :returns: a Stats instance
         """
-        import piff
-
         # If it's not a list, make it one.
         try:
             config_stats[0]
@@ -58,11 +58,16 @@ class Stats(object):
         stats = []
         for cfg in config_stats:
 
+            # Get the class to use for the stats
             if 'type' not in cfg:
                 raise ValueError("config['stats'] has no type field")
 
-            # Get the class to use for the stats
-            stats_class = getattr(piff, cfg['type'] + 'Stats')
+            stats_type = cfg['type']
+            if stats_type not in Stats.valid_stats_types:
+                raise ValueError("type %s is not a valid stats type. "%stats_type +
+                             "Expecting one of %s"%list(Stats.valid_stats_types.keys()))
+
+            stats_class = Stats.valid_stats_types[stats_type]
 
             # Read any other kwargs in the stats field
             kwargs = stats_class.parseKwargs(cfg, logger)
@@ -70,6 +75,16 @@ class Stats(object):
             stats.append(stats_class(**kwargs))
 
         return stats
+
+    @classmethod
+    def __init_subclass__(cls):
+        # Classes that don't want to register a type name can either not define _type_name
+        # or set it to None.
+        if hasattr(cls, '_type_name') and cls._type_name is not None:
+            if cls._type_name in Stats.valid_stats_types:
+                raise ValueError('Stats type %s already registered'%cls._type_name +
+                                 'Maybe you subclassed and forgot to set _type_name?')
+            Stats.valid_stats_types[cls._type_name] = cls
 
     @classmethod
     def parseKwargs(cls, config_stats, logger=None):
@@ -87,6 +102,7 @@ class Stats(object):
         kwargs = {}
         kwargs.update(config_stats)
         kwargs.pop('type',None)
+        kwargs['logger'] = logger
         return kwargs
 
     def compute(self, psf, stars, logger=None):
@@ -315,6 +331,8 @@ class ShapeHistStats(Stats):
     :param model_properties: Optionally a dict of properties to use for the model rendering.
                              [default: None]
     """
+    _type_name = 'ShapeHist'
+
     def __init__(self, file_name=None, nbins=None, cut_frac=0.01, model_properties=None,
                  logger=None):
         self.file_name = file_name
@@ -504,6 +522,8 @@ class RhoStats(Stats):
     :param logger:      A logger object for logging debug info. [default: None]
     :param \**kwargs:    Any additional kwargs are passed on to TreeCorr.
     """
+    _type_name = 'Rho'
+
     def __init__(self, min_sep=0.5, max_sep=300, bin_size=0.1, file_name=None,
                  model_properties=None, logger=None, **kwargs):
         self.tckwargs = kwargs
@@ -782,6 +802,8 @@ class HSMCatalogStats(Stats):
     :param raw_moments:      Whether to include the complete set of raw moments as calculated
                              by piff.util.calculate_moments. [default: False]
     """
+    _type_name = 'HSMCatalog'
+
     def __init__(self, file_name=None, model_properties=None, fourth_order=False,
                  raw_moments=False, logger=None):
         self.file_name = file_name
