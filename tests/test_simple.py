@@ -571,6 +571,11 @@ def test_model():
         with fitsio.FITS(filename,'r') as f:
             np.testing.assert_raises(ValueError, piff.Model.read, f, extname='psf_model')
 
+    # But normally this file can be read...
+    with fitsio.FITS(filename,'r') as f:
+        model = piff.Model.read(f, extname='psf_model')
+        print(model)
+
     # We don't have any abstract model base classes (as we do for interp for instance),
     # But check that it works correctly in cases someone does this.
     class NoModel1(piff.Model):
@@ -624,6 +629,11 @@ def test_interp():
     with mock.patch('piff.Interp.valid_interp_types', {'Mean': piff.Mean}):
         with fitsio.FITS(filename2,'r') as f:
             np.testing.assert_raises(ValueError, piff.Interp.read, f, extname='psf_interp')
+
+    # But normally this file can be read...
+    with fitsio.FITS(filename2,'r') as f:
+        interp = piff.Interp.read(f, extname='psf_interp')
+        print(interp)
 
     # BasisInterp is an abstract base class, so it shouldn't be in the list of valid types
     assert piff.BasisInterp not in piff.Interp.valid_interp_types.values()

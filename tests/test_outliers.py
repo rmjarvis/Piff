@@ -145,15 +145,23 @@ def test_base():
     config = { 'nsigma' : 4, }
     with np.testing.assert_raises(ValueError):
         out = piff.Outliers.process(config)
+    # and it must be a valid name
+    config['type'] = 'invalid'
+    with np.testing.assert_raises(ValueError):
+        out = piff.Outliers.process(config)
 
     # Invalid to read a type that isn't a piff.Outliers type.
     # Mock this by pretending that MADOutliers is the only subclass of Outliers.
     if sys.version_info < (3,): return  # mock only available on python 3
     from unittest import mock
     filename = os.path.join('input','D00240560_r_c01_r2362p01_piff.fits')
-    with mock.patch('piff.util.get_all_subclasses', return_value=[piff.outliers.MADOutliers]):
+    with mock.patch('piff.Outliers.valid_outliers_types', {'MAD': piff.outliers.MADOutliers}):
         with fitsio.FITS(filename,'r') as f:
             np.testing.assert_raises(ValueError, piff.Outliers.read, f, extname='psf_outliers')
+
+    with fitsio.FITS(filename,'r') as f:
+        out = piff.Outliers.read(f, extname='psf_outliers')
+        print(out)
 
 
 if __name__ == '__main__':
