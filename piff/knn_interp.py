@@ -22,7 +22,7 @@ import galsim
 from .interp import Interp
 from .star import Star, StarFit
 
-class kNNInterp(Interp):
+class KNNInterp(Interp):
     """
     An interpolator that uses sklearn KNeighborsRegressor to interpolate a
     single surface
@@ -40,6 +40,8 @@ class kNNInterp(Interp):
                         p=1 is manhattan. [default: 2]
     :param logger:      A logger object for logging debug info. [default: None]
     """
+    _type_name = 'KNN'
+
     def __init__(self, keys=('u','v'), n_neighbors=15, weights='uniform', algorithm='auto',
                  p=2,logger=None):
         self.kwargs = {
@@ -184,3 +186,16 @@ class kNNInterp(Interp):
 
         # self.locations and self.targets assigned in _fit
         self._fit(data['LOCATIONS'][0], data['TARGETS'][0])
+
+class KNearestNeighbors(KNNInterp):
+    # An alternate name for KNNInterp for people who like clearer, more verbose names
+    _type_name = 'KNearestNeighbors'
+
+class kNNInterp(KNNInterp):
+    _type_name = 'kNNInterp'
+
+    def __init__(self, *args, logger=None, **kwargs):
+        logger = galsim.config.LoggerWrapper(logger)
+        logger.error("WARNING: The name kNNInterp is deprecated. "
+                     "Use KNN or KNearestNeighbors instead.")
+        super().__init__(*args, logger=logger, **kwargs)
