@@ -45,7 +45,7 @@ def test_optical(model=None):
         model = piff.Optical(template='des',atmo_type='Kolmogorov')
 
     # fill model's parameters for star's Fit with defocus and r0
-    params = model.kwargs_toparams(zernike_coeff=[0,0,0,0,0.5],r0=0.15)
+    params = model.kwargs_to_params(zernike_coeff=[0,0,0,0,0.5],r0=0.15)
     star = make_empty_star(params=params)
 
     # given zernikes, make sure we can:
@@ -88,7 +88,7 @@ def test_optical(model=None):
     # test Zernike kwargs
     zernike_coeff_short = [0.,0.,0.,0.,1.,1.,1.,1.,1.,1.,1.,1.]
     nz = len(zernike_coeff_short)
-    param_test = model.kwargs_toparams(zernike_coeff=zernike_coeff_short,r0=0.12,g1=-0.05,g2=0.03,L0=20.)
+    param_test = model.kwargs_to_params(zernike_coeff=zernike_coeff_short,r0=0.12,g1=-0.05,g2=0.03,L0=20.)
     for i in range(nz):
         assert zernike_coeff_short[i]==param_test[model.idx_z0+i]
     for i in range(nz+1,37+1):
@@ -96,20 +96,16 @@ def test_optical(model=None):
 
     zernike_coeff_long = [0.,0.,0.,0.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,10.]
     nz = len(zernike_coeff_long)
-    param_test = model.kwargs_toparams(zernike_coeff=zernike_coeff_long,r0=0.12,g1=-0.05,g2=0.03,L0=20.)
+    param_test = model.kwargs_to_params(zernike_coeff=zernike_coeff_long,r0=0.12,g1=-0.05,g2=0.03,L0=20.)
     for i in range(37+1):
         assert zernike_coeff_long[i]==param_test[model.idx_z0+i]
     assert param_test[model.idx_r0]==0.12
 
 @timer
-def test_draw_profile():
+def test_draw():
 
     # setup model
     model = piff.Optical(template='des',atmo_type='Kolmogorov')
-    zernike_coeff = [0.,0.,0.,0.,0.25,1.,1.,1.,1.,1.,1.,1.]
-    param_test = model.kwargs_toparams(zernike_coeff=zernike_coeff,r0=0.12,g1=-0.05,g2=0.03,L0=20.)
-    model_kwargs = model.params_tokwargs(param_test)
-    aprof = model.getProfile(param_test)
 
     # get a star to use for model star
     config = {
@@ -125,12 +121,9 @@ def test_draw_profile():
     stars = input.makeStars(logger=logger)
     astar = stars[10]
 
-    # test drawProfile
-    outparam = [model_kwargs['r0'],model_kwargs['L0'],model_kwargs['g1'],model_kwargs['g2']]
-    aprofile = model.drawProfile(astar,aprof,outparam)
-    aprofile1 = model.drawProfile(astar,aprof,outparam,copy_image=False)
-    aprofile2 = model.drawProfile(astar,aprof,outparam,use_fit=False)
-    
+    # test draw 
+    astar.fit.params = model.kwargs_to_params(zernike_coeff=[0.,0.,0.,0.,0.2],r0=0.12,L0=10.,g1=0.01,g2=-0.02)
+    astar1 = model.draw(astar)
 
 @timer
 def test_pupil_im(pupil_plane_file='input/DECam_pupil_512uv.fits'):
@@ -166,11 +159,11 @@ def test_kolmogorov():
 
     # make sure if we put in different kolmogorov things that things change
     model = piff.Optical(template='des',atmo_type='Kolmogorov')
-    params = model.kwargs_toparams(r0=0.1)
+    params = model.kwargs_to_params(r0=0.1)
     star = make_empty_star(params=params)
     star1 = model.draw(star)
 
-    params = model.kwargs_toparams(r0=0.2)
+    params = model.kwargs_to_params(r0=0.2)
     star = make_empty_star(params=params)
     star2 = model.draw(star)
 
@@ -184,11 +177,11 @@ def test_vonkarman():
 
     # Like above, but using L0.
     model = piff.Optical(template='des',atmo_type='VonKarman')
-    params = model.kwargs_toparams(r0=0.1,L0=10.)
+    params = model.kwargs_to_params(r0=0.1,L0=10.)
     star = make_empty_star(params=params)
     star1 = model.draw(star)
 
-    params = model.kwargs_toparams(r0=0.1,L0=20.)
+    params = model.kwargs_to_params(r0=0.1,L0=20.)
     star = make_empty_star(params=params)
     star2 = model.draw(star)
 
@@ -203,7 +196,7 @@ def test_shearing():
     g1 = -0.075
     g2 = 0.05
     model = piff.Optical(template='des',atmo_type='Kolmogorov',sigma=0.0)
-    params = model.kwargs_toparams(r0=0.1,g1=g1,g2=g2)
+    params = model.kwargs_to_params(r0=0.1,g1=g1,g2=g2)
     star = make_empty_star(params=params)
     star = model.draw(star)
 
@@ -229,7 +222,7 @@ def test_gaussian():
 
     # gaussian and shear
     model = piff.Optical(template='des',atmo_type='Kolmogorov')
-    params = model.kwargs_toparams(r0=r0,g1=g1,g2=g2)
+    params = model.kwargs_to_params(r0=r0,g1=g1,g2=g2)
     star = make_empty_star(params=params)
     star = model.draw(star)
 
@@ -314,76 +307,15 @@ def make_empty_star(icen=500, jcen=700, ccdnum=28, params=None, stamp_size=40,
 
     return star
 
-def random_params(nstars,model,seed=12345,constant_atmoparams=False):
-    # make up some random star parameters
-    rng = default_rng(seed)
-    z4s = rng.uniform(-0.2,0.2,nstars)
-    z5s = rng.uniform(-0.2,0.2,nstars)
-    z6s = rng.uniform(-0.2,0.2,nstars)
-    z7s = rng.uniform(-0.2,0.2,nstars)
-    z8s = rng.uniform(-0.2,0.2,nstars)
-    z9s = rng.uniform(-0.2,0.2,nstars)
-    z10s = rng.uniform(-0.2,0.2,nstars)
-    z11s = rng.uniform(-0.2,0.2,nstars)
-
-    r0s = rng.uniform(0.13,0.18,nstars)
-    g1s = rng.uniform(-0.05,0.05,nstars)
-    g2s = rng.uniform(-0.05,0.05,nstars)
-    L0s = rng.uniform(5.0,15.0,nstars)
-
-    if constant_atmoparams:
-        r0s = 0.15 * np.ones(nstars)
-        L0s = 7.5 * np.ones(nstars)
-
-    params = []
-    for i in range(nstars):
-        param = model.kwargs_toparams(zernike_coeff=[0.,0.,0.,0.,z4s[i],z5s[i],z6s[i],z7s[i],z8s[i],z9s[i],z10s[i],z11s[i]],
-                                  r0=r0s[i],g1=g1s[i],g2=g2s[i],L0=L0s[i])
-        params.append(param)
-    return params
-
-def make_stars(nstars,model,params,npixels=19):
-    # make a list of stars
-    rng = np.random.default_rng(123459)
-    chiplist =  [1] + list(range(3,62+1))  # omit chipnum=2
-    chipnum = rng.choice(chiplist,nstars)
-    pixedge = 20
-    icen = rng.uniform(1+pixedge,2048-pixedge,nstars)   # random pixel position inside CCD
-    jcen = rng.uniform(1+pixedge,4096-pixedge,nstars)
-
-    # fill stars
-    stars = []
-
-    for i in range(nstars):
-        # make the shell of a Star object
-        star = make_empty_star(icen[i],jcen[i],chipnum[i],params[i],stamp_size=npixels)
-
-        # draw the star
-        #star = model.draw(star)
-
-        # draw using drawProfile instead of just draw
-        prof = model.getProfile(star.fit.params).shift(star.fit.center) * star.fit.flux
-        star = model.drawProfile(star, prof, params[i], use_fit=True, copy_image=True)
-
-        stars.append(star)
-
-    return stars
-
-
 
 if __name__ == '__main__':
     test_init()
     test_optical()
-    test_draw_profile()
+    test_draw()
     test_pupil_im(pupil_plane_file='input/DECam_pupil_512uv.fits')
+    test_pupil_im(pupil_plane_file='input/DECam_pupil_128uv.fits')
     test_kolmogorov()
     test_vonkarman()
     test_shearing()
     test_gaussian()
     test_disk()
-    print("des")
-    test_makestars(nstars=100)
-    test_makestars(nstars=100,constant_atmoparams=False)
-    print("desparam")
-    test_makestars(nstars=100,template='desparam')
-    test_makestars(nstars=100,constant_atmoparams=False,template='desparam')

@@ -45,6 +45,15 @@ optical_templates = {
              'mirror_figure_halfsize': 2.22246,
              'pupil_plane_im': 'input/DECam_pupil_512uv.fits'
            },
+    'des128': { 'diam': 4.010,  # meters
+             'lam': 700, # nm
+             'pad_factor': 1 ,
+             'oversampling': 1,
+             'sigma': 8.0 * (0.263/15.0), # 8micron sigma CCD diffusion
+             'mirror_figure_im': 'input/DECam_236392_finegrid512_nm_uv.fits',
+             'mirror_figure_halfsize': 2.22246,
+             'pupil_plane_im': 'input/DECam_pupil_128uv.fits'
+           },
     'desparam': { 'diam': 4.010,  # meters
                   'lam': 700, # nm
                   'pad_factor': 1 ,
@@ -76,72 +85,72 @@ gsparams_templates = {
 }
 
 class Optical(Model):
+    """
+    Initialize the Optical+Atmosphere Model
 
+    There are four components to this model that are convolved together.
+
+    First, there is an optical component, which uses a galsim.OpticalPSF to model the
+    profile. These parameters are passed to GalSim, so
+    they have the same definitions as used there.
+
+    :param diam:            Diameter of telescope aperture in meters. [required (but cf.
+                            template option)]
+    :param lam:             Wavelength of observations in nanometers. [required (but cf.
+                            template option)]
+    :param obscuration:     Linear dimension of central obscuration as fraction of pupil
+                            linear dimension, [0., 1.). [default: 0]
+    :param nstruts:         Number of radial support struts to add to the central obscuration.
+                            [default: 0]
+    :param strut_thick:     Thickness of support struts as a fraction of pupil diameter.
+                            [default: 0.05]
+    :param strut_angle:     Angle made between the vertical and the strut starting closest to
+                            it, defined to be positive in the counter-clockwise direction.
+                            [default: 0. * galsim.degrees]
+    :param pad_factor       Numerical factor by which to pad the pupil plane FFT [default: 1]
+    :param oversampling     Numerical factor by which to oversample the FFT [default: 1]
+    :param pupil_plane_im:  The name of a file containing the pupil plane image to use instead
+                            of creating one from obscuration, struts, etc. [default: None]
+
+    The next two parameters are specific to our treatment of the Optical PSF. If given,
+    they are used to create an additional galsim.PhaseScreen describing the mirror's own contribution to the wavefront.
+
+    :param mirror_figure_im: The name of a file containing an additional phase contribution, for example
+                             from the figure of the primary mirror. [default: None]
+    :param mirror_figure_halfsize:   The radius of the image containting the mirror_figure_im. [default: None]
+
+
+    Second, there is an atmospheric component, which uses either a galsim.Kolmogorov or
+    galsim.VonKarman to model the profile.
+
+    :param atmo_type        The name of the Atmospheric kernel. [default 'VonKarman']
+
+    Finally, there is both an additional Gaussian component to describe CCD diffusion and separately an applied shear.
+    :param sigma            Gaussian CCD diffusion in arcsec [default:0.]
+
+    Since there are a lot of parameters here, we provide the option of setting many of them
+    from a template value.  e.g. template = 'des' will use the values stored in the dict
+    piff.optical_model.aperture_templates['des'].
+
+    :param template :       A key word in the dict piff.optical_model.aperture_template to use
+                            for setting values of these aperture parameters.  [default: None]
+    :param gsparams:        A key word in the dict piff.optical_model.gsparams_template to use
+                            for setting values of these Galsim parameters.  [default: None]
+
+    If you use a template as well as other specific parameters, the specific parameters will
+    override the values from the template.  e.g.  to simulate what DES would be like at
+    lambda=1000 nm (the default is 700), you could do:
+
+            >>> model = piff.Optical(template='des', lam=1000)
+
+    Note that the Zernike coeffients (zernike_coeff), Atmospheric parameters (ie. r0,L0) and Shear (g1,g2) are
+    fitted parameters, passed via the arguments to getProfile.
+    """
     _method = 'auto'
     _model_can_be_offset = True
     _centered = True
 
     def __init__(self, template=None, gsparams=None, atmo_type='VonKarman', logger=None, **kwargs):
-        """Initialize the Optical+Atmosphere Model
-
-        There are four components to this model that are convolved together.
-
-        First, there is an optical component, which uses a galsim.OpticalPSF to model the
-        profile. These parameters are passed to GalSim, so
-        they have the same definitions as used there.
-
-        :param diam:            Diameter of telescope aperture in meters. [required (but cf.
-                                template option)]
-        :param lam:             Wavelength of observations in nanometers. [required (but cf.
-                                template option)]
-        :param obscuration:     Linear dimension of central obscuration as fraction of pupil
-                                linear dimension, [0., 1.). [default: 0]
-        :param nstruts:         Number of radial support struts to add to the central obscuration.
-                                [default: 0]
-        :param strut_thick:     Thickness of support struts as a fraction of pupil diameter.
-                                [default: 0.05]
-        :param strut_angle:     Angle made between the vertical and the strut starting closest to
-                                it, defined to be positive in the counter-clockwise direction.
-                                [default: 0. * galsim.degrees]
-        :param pad_factor       Numerical factor by which to pad the pupil plane FFT [default: 1]
-        :param oversampling     Numerical factor by which to oversample the FFT [default: 1]
-        :param pupil_plane_im:  The name of a file containing the pupil plane image to use instead
-                                of creating one from obscuration, struts, etc. [default: None]
-
-        The next two parameters are specific to our treatment of the Optical PSF. If given,
-        they are used to create an additional galsim.PhaseScreen describing the mirror's own contribution to the wavefront.
-
-        :param mirror_figure_im: The name of a file containing an additional phase contribution, for example
-                                 from the figure of the primary mirror. [default: None]
-        :param mirror_figure_halfsize:   The radius of the image containting the mirror_figure_im. [default: None]
-
-
-        Second, there is an atmospheric component, which uses either a galsim.Kolmogorov or
-        galsim.VonKarman to model the profile.
-
-        :param atmo_type        The name of the Atmospheric kernel. [default 'VonKarman']
-
-        Finally, there is both an additional Gaussian component to describe CCD diffusion and separately an applied shear.
-        :param sigma            Gaussian CCD diffusion in arcsec [default:0.]
-
-        Since there are a lot of parameters here, we provide the option of setting many of them
-        from a template value.  e.g. template = 'des' will use the values stored in the dict
-        piff.optatmo_model.aperture_templates['des'].
-
-        :param template :       A key word in the dict piff.optatmo_model.aperture_template to use
-                                for setting values of these aperture parameters.  [default: None]
-        :param gsparams:        A key word in the dict piff.optatmo_model.gsparams_template to use
-                                for setting values of these Galsim parameters.  [default: None]
-
-        If you use a template as well as other specific parameters, the specific parameters will
-        override the values from the template.  e.g.  to simulate what DES would be like at
-        lambda=1000 nm (the default is 700), you could do:
-
-                >>> model = piff.Optical(template='des', lam=1000)
-
-        Note that the Zernike coeffients (zernike_coeff), Atmospheric parameters (ie. r0,L0) and Shear (g1,g2) are
-        fitted parameters, passed via the arguments to getProfile.
-        """
         self.logger = galsim.config.LoggerWrapper(logger)
 
         # If pupil_angle and strut angle are provided as strings, eval them.
@@ -207,9 +216,6 @@ class Optical(Model):
                 mirror_figure_table = galsim.LookupTable2D(mirror_figure_u, mirror_figure_v, mirror_figure_uv.array)
                 self.mirror_figure_screen = galsim.UserScreen(mirror_figure_table)
 
-            # dont put back into opt_kwargs
-            # self.opt_kwargs['mirror_figure_im'] = mirror_figure_im
-
         # Store the Atmospheric Kernel type
         self.atmo_type = atmo_type
 
@@ -237,12 +243,6 @@ class Optical(Model):
                                             gsparams=self.gsparams)
         else:
             self.aperture = galsim.Aperture(**self.opt_kwargs)
-            #self.aperture = galsim.Aperture(diam=self.opt_kwargs['diam'], obscuration=self.opt_kwargs['obscuration'],
-            #                                nstruts=self.opt_kwargs['nstruts'], strut_thick=self.opt_kwargs['strut_thick'],
-            #                                strut_angle=self.opt_kwargs['strut_angle'],
-            #                                pupil_plane_scale=None, pupil_plane_size=None,
-            #                                oversampling=self.opt_kwargs['oversampling'], pad_factor=self.opt_kwargs['pad_factor'],
-            #                                gsparams=self.gsparams)
 
         # define the param array elements for this model
         self.nZ = 37
@@ -268,7 +268,7 @@ class Optical(Model):
 
         # compute chisq
         chisq = np.std(image.array - model_image.array)
-        dof = np.count_nonzero(weight.array) - 6
+        dof = np.count_nonzero(weight.array) - 3   #3 DOF in flux,centroid
 
         var = np.zeros(len(star.fit.params))
         fit = StarFit(star.fit.params, params_var=var, flux=star.fit.flux,
@@ -280,9 +280,9 @@ class Optical(Model):
         """ Get the strictly Optics PSF component.  Use two phase screens, one from mirror_figure_im, and the other from
         zernike aberrations
 
-        : param zernike_coeff:          A ndarray or list with Zernike Coefficients, in units of waves. Array indexed as [0, 0, z2, z3, z4,...z11...]
+        :param zernike_coeff:          A ndarray or list with Zernike Coefficients, in units of waves. Array indexed as [0, 0, z2, z3, z4,...z11...]
 
-        : returns: a galsim.GSObject instance
+        :returns: a galsim.GSObject instance
         """
 
         if self.mirror_figure_screen:
@@ -335,10 +335,10 @@ class Optical(Model):
 
         :returns: zernike_coeff,r0,L0,g1,g2
         """
-        kwargs = self.params_tokwargs(params)
+        kwargs = self.params_to_kwargs(params)
         return kwargs['zernike_coeff'],kwargs['r0'],kwargs['L0'],kwargs['g1'],kwargs['g2']
 
-    def params_tokwargs(self,params):
+    def params_to_kwargs(self,params):
         """Fill kwarg from params ndarray or list
 
         :param params               An ndarray or list with parameters in order
@@ -353,7 +353,7 @@ class Optical(Model):
         kwargs['g2'] = params[self.idx_g2]
         return kwargs
 
-    def kwargs_toparams(self,zernike_coeff=[0,0,0,0,0],r0=0.15,L0=0.,g1=0.,g2=0.):
+    def kwargs_to_params(self,zernike_coeff=[0,0,0,0,0],r0=0.15,L0=0.,g1=0.,g2=0.):
         """Fill params ndarray from kwargs
 
         :param zernike_coeff:      A ndarray or list with [0, 0, z2, z3, z4, z5, z6...z11..z37] [default=[0,0,0,0,0]]
@@ -380,7 +380,7 @@ class Optical(Model):
         return params
 
 
-    def getProfile(self,*params,zernike_coeff=None,r0=None,L0=None,g1=None,g2=None):
+    def getProfile(self,params=None,zernike_coeff=None,r0=None,L0=None,g1=None,g2=None):
         """Get a version of the model as a GalSim GSObject
 
         :param params          An ndarray with the parameters ordered via idx_PARAM data members
@@ -395,10 +395,8 @@ class Optical(Model):
 
         # decode input, if params array or list is present use it alone,
         # otherwise parameters are in getProfile argument list
-        if len(params)==1 :
-            zernike_coeff,r0,L0,g1,g2 = self.unpack_params(params[0])
-        elif len(params)!=0 :
-            raise ValueError("getProfile cannot decode arguments",params)
+        if params is not None :
+            zernike_coeff,r0,L0,g1,g2 = self.unpack_params(params)
 
         # list of PSF components
         prof = []
@@ -413,8 +411,7 @@ class Optical(Model):
 
         # atmospheric kernel
         atmopsf = self.getAtmosphere(r0, L0, g1, g2)
-        if atmopsf != None:
-            prof.append(atmopsf)
+        prof.append(atmopsf)
 
         # optics
         prof.append(self.getOptics(tuple(zernike_coeff)))
@@ -424,55 +421,4 @@ class Optical(Model):
 
         return prof
 
-    def drawProfile(self, star, prof, params, use_fit=True, copy_image=True):
-        """Generate PSF image for a given star and profile
 
-        :param star:        Star instance holding information needed for
-                            interpolation including the weight array,  image or field position,  and WCS into which
-                            PSF will be rendered.
-        :param prof:        A galsim profile
-        :param params:      Params associated with profile to put in the Star's StarFit object.
-        :param use_fit:     Bool [default: True] shift the profile by a star's
-                            fitted center and multiply by its fitted flux
-
-        :returns:   Star instance with its image filled with rendered PSF
-        """
-
-        # use flux and center properties
-        if use_fit:
-            prof = prof.shift(star.fit.center) * star.fit.flux
-
-        # get image,weight and image_pos from the input star
-        image, weight, image_pos = star.data.getImage()
-        if copy_image:
-            image_model = image.copy()
-        else:
-            image_model = image
-
-        # draw the profile into this image, using its wcs
-        prof.drawImage(image_model, method='auto', center=star.image_pos)
-
-        # get properties from the input star
-        properties = star.data.properties.copy()
-
-        # Get rid of keys that constructor doesn't want to see:
-        for key in ['x', 'y', 'u', 'v']:
-            properties.pop(key, None)
-
-        # build the output date, with the new image but all other quantities from the input star
-        # make sure that hsm is reset here... add star.local_wcs here?
-        data = StarData(image=image_model,
-                        image_pos=star.data.image_pos,
-                        weight=star.data.weight,
-                        pointing=star.data.pointing,
-                        field_pos=star.data.field_pos,
-                        orig_weight=star.data.orig_weight,
-                        properties=properties)
-        fit = StarFit(params,
-                      flux=star.fit.flux,
-                      center=star.fit.center)
-
-        # build new star
-        newstar = Star(data,fit)
-
-        return newstar
