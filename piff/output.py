@@ -27,6 +27,7 @@ class Output(object):
     This is essentially an abstract base class intended to define the methods that should be
     implemented by any derived class.
     """
+    valid_output_types = {}
 
     @classmethod
     def process(cls, config_output, logger=None):
@@ -37,20 +38,31 @@ class Output(object):
 
         :returns: an Output handler
         """
-        import piff
-
         # Get the class to use for handling the output data
         # Default type is 'File'
-        # Not sure if this is what we'll always want, but it would be simple if we can make it work.
-        output_handler_class = getattr(piff, 'Output' + config_output.pop('type','File'))
+        output_type = config_output.get('type', 'Files')
+
+        if output_type not in Output.valid_output_types:
+            raise ValueError("type %s is not a valid model type. "%output_type +
+                             "Expecting one of %s"%list(Output.valid_output_types.keys()))
+
+        output_class = Output.valid_output_types[output_type]
 
         # Read any other kwargs in the output field
-        kwargs = output_handler_class.parseKwargs(config_output,logger=logger)
+        kwargs = output_class.parseKwargs(config_output,logger=logger)
 
         # Build handler object
-        output_handler = output_handler_class(**kwargs)
+        output_handler = output_class(**kwargs)
 
         return output_handler
+
+    @classmethod
+    def __init_subclass__(cls):
+        if hasattr(cls, '_type_name') and cls._type_name is not None:
+            if cls._type_name in Output.valid_output_types:
+                raise ValueError('Output type %s already registered'%cls._type_name +
+                                 'Maybe you subclassed and forgot to set _type_name?')
+            Output.valid_output_types[cls._type_name] = cls
 
     @classmethod
     def parseKwargs(cls, config_output, logger=None):
@@ -71,7 +83,7 @@ class Output(object):
     def write(self, psf, logger=None):
         """Write a PSF object to the output file.
 
-        :param psf:         A piff.PSF instance
+        :param psf:         A PSF instance
         :param logger:      A logger object for logging debug info. [default: None]
         """
         raise NotImplementedError("Derived classes must define the write function")
@@ -81,7 +93,7 @@ class Output(object):
 
         :param logger:      A logger object for logging debug info. [default: None]
 
-        :returns: a piff.PSF instance
+        :returns: a PSF instance
         """
         raise NotImplementedError("Derived classes must define the read function")
 
@@ -104,6 +116,8 @@ class OutputFile(Output):
     :param stats_list:  Optionally a list of Stats instances to also output. [default: None]
     :param logger:      A logger object for logging debug info. [default: None]
     """
+    _type_name = 'Files'
+
     def __init__(self, file_name, dir=None, stats_list=None, logger=None):
         self.file_name = file_name
         if stats_list is not None:
@@ -128,17 +142,18 @@ class OutputFile(Output):
 
         :returns: a kwargs dict to pass to the initializer
         """
-        import piff
+        from .stats import Stats
+
         kwargs = config_output.copy()
         if 'stats' in config_output:
-            stats = piff.Stats.process(kwargs.pop('stats'), logger=logger)
+            stats = Stats.process(kwargs.pop('stats'), logger=logger)
             kwargs['stats_list'] = stats
         return kwargs
 
     def write(self, psf, logger=None):
         """Write a PSF object to the output file.
 
-        :param psf:         A piff.PSF instance
+        :param psf:         A PSF instance
         :param logger:      A logger object for logging debug info. [default: None]
         """
         logger = galsim.config.LoggerWrapper(logger)
