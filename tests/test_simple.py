@@ -661,6 +661,11 @@ def test_interp():
 def test_psf():
     """Test PSF base class
     """
+    # type must be a valid name
+    config = {'type': 'invalid'}
+    with np.testing.assert_raises(ValueError):
+        psf = piff.PSF.process(config)
+
     # Need a dummy star for the below calls
     image = galsim.Image(1,1,scale=1)
     stardata = piff.StarData(image, image.true_center)
@@ -687,8 +692,30 @@ def test_psf():
     if sys.version_info < (3,): return  # mock only available on python 3
     from unittest import mock
     filename = os.path.join('input','D00240560_r_c01_r2362p01_piff.fits')
-    with mock.patch('piff.util.get_all_subclasses', return_value=[piff.SingleChipPSF]):
+    with mock.patch('piff.PSF.valid_psf_types', {'SingleChip': piff.SingleChipPSF}):
         np.testing.assert_raises(ValueError, piff.PSF.read, filename)
+
+    # But normally this file can be read...
+    psf = piff.PSF.read(filename)
+    print(psf)
+
+    # Check that registering new types works correctly
+    class NoPSF1(piff.PSF):
+        pass
+    assert NoPSF1 not in piff.PSF.valid_psf_types.values()
+    class NoPSF2(piff.PSF):
+        _type_name = None
+    assert NoPSF2 not in piff.PSF.valid_psf_types.values()
+    class ValidPSF1(piff.PSF):
+        _type_name = 'valid'
+    assert ValidPSF1 in piff.PSF.valid_psf_types.values()
+    assert ValidPSF1 == piff.PSF.valid_psf_types['valid']
+    with np.testing.assert_raises(ValueError):
+        class ValidPSF2(piff.PSF):
+            _type_name = 'valid'
+    with np.testing.assert_raises(ValueError):
+        class ValidPSF3(ValidPSF1):
+            pass
 
 @timer
 def test_load_images():
