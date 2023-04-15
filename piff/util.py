@@ -22,19 +22,6 @@ import sys
 import traceback
 import galsim
 
-# Courtesy of
-# http://stackoverflow.com/questions/3862310/how-can-i-find-all-subclasses-of-a-given-class-in-python
-def get_all_subclasses(cls):
-    """Get all subclasses of an existing class.
-    """
-    all_subclasses = []
-
-    for subclass in cls.__subclasses__():
-        all_subclasses.append(subclass)
-        all_subclasses.extend(get_all_subclasses(subclass))
-
-    return all_subclasses
-
 def ensure_dir(target):
     """Ensure that the directory for a target output file exists.
 
