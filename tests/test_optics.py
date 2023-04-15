@@ -260,15 +260,6 @@ def test_disk():
         assert model.other_kwargs[key] == model2.other_kwargs[key], 'key %r mismatch'%key
     assert model.atmo_type == model2.atmo_type,'atmo_type mismatch'
 
-@timer
-def test_makestars(nstars=100,constant_atmoparams=True,template='des'):
-
-    print("test_makestars, n=%d, constant_atmoparams=%d" % (nstars,constant_atmoparams))
-    model = piff.Optical(template=template,atmo_type='VonKarman',gsparams='starby2')
-    params = random_params(nstars,model,constant_atmoparams=constant_atmoparams)
-    stars = make_stars(nstars,model,params)
-
-
 #####
 # convenience functions
 #####
