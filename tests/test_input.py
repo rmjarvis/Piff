@@ -277,6 +277,28 @@ def test_invalid():
     config = { 'image_file_name' : image_files_1, 'cat_file_name': cat_files }
     np.testing.assert_raises(TypeError, piff.InputFiles, config)
 
+    # Invalid input type
+    config = { 'type': 'invalid' }
+    with np.testing.assert_raises(ValueError):
+        piff.Input.process(config)
+
+    # Also check errors when registering other type names
+    class NoInput1(piff.Input):
+        pass
+    assert NoInput1 not in piff.Input.valid_input_types.values()
+    class NoInput2(piff.Input):
+        _type_name = None
+    assert NoInput2 not in piff.Input.valid_input_types.values()
+    class ValidInput1(piff.Input):
+        _type_name = 'valid'
+    assert ValidInput1 in piff.Input.valid_input_types.values()
+    assert ValidInput1 == piff.Input.valid_input_types['valid']
+    with np.testing.assert_raises(ValueError):
+        class ValidInput2(piff.Input):
+            _type_name = 'valid'
+    with np.testing.assert_raises(ValueError):
+        class ValidInput3(ValidInput1):
+            pass
 
 @timer
 def test_cols():
