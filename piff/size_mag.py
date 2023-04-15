@@ -178,6 +178,8 @@ class SmallBrightSelect(Select):
                         (Normally the 'select' field in the overall configuration dict).
     :param logger:      A logger object for logging debug info. [default: None]
     """
+    _type_name = 'SmallBright'
+
     def __init__(self, config, logger=None):
         super(SmallBrightSelect, self).__init__(config, logger)
 
@@ -366,6 +368,8 @@ class SizeMagSelect(Select):
                         (Normally the 'select' field in the overall configuration dict)
     :param logger:      A logger object for logging debug info. [default: None]
     """
+    _type_name = 'SizeMag'
+
     def __init__(self, config, logger=None):
         super(SizeMagSelect, self).__init__(config, logger)
 
