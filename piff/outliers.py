@@ -30,6 +30,8 @@ class Outliers(object):
     This is essentially an abstract base class intended to define the methods that should be
     implemented by any derived class.
     """
+    valid_outliers_types = {}
+
     @classmethod
     def process(cls, config_outliers, logger=None):
         """Parse the outliers field of the config dict.
@@ -39,14 +41,16 @@ class Outliers(object):
 
         :returns: an Outliers instance
         """
-        import piff
-
+        # Get the class to use for the outliers
         if 'type' not in config_outliers:
             raise ValueError("config['outliers'] has no type field")
 
-        # Get the class to use for the outliers
-        # Not sure if this is what we'll always want, but it would be simple if we can make it work.
-        outliers_class = getattr(piff, config_outliers['type'] + 'Outliers')
+        outliers_type = config_outliers['type']
+        if outliers_type not in Outliers.valid_outliers_types:
+            raise ValueError("type %s is not a valid model type. "%outliers_type +
+                             "Expecting one of %s"%list(Outliers.valid_outliers_types.keys()))
+
+        outliers_class = Outliers.valid_outliers_types[outliers_type]
 
         # Read any other kwargs in the outliers field
         kwargs = outliers_class.parseKwargs(config_outliers, logger)
@@ -55,6 +59,14 @@ class Outliers(object):
         outliers = outliers_class(**kwargs)
 
         return outliers
+
+    @classmethod
+    def __init_subclass__(cls):
+        if hasattr(cls, '_type_name') and cls._type_name is not None:
+            if cls._type_name in Outliers.valid_outliers_types:
+                raise ValueError('Outliers type %s already registered'%cls._type_name +
+                                 'Maybe you subclassed and forgot to set _type_name?')
+            Outliers.valid_outliers_types[cls._type_name] = cls
 
     @classmethod
     def parseKwargs(cls, config_outliers, logger=None):
@@ -72,6 +84,7 @@ class Outliers(object):
         kwargs = {}
         kwargs.update(config_outliers)
         kwargs.pop('type',None)
+        kwargs['logger'] = logger
         return kwargs
 
     def write(self, fits, extname):
@@ -81,7 +94,7 @@ class Outliers(object):
         :param extname:     The name of the extension to write the outliers information.
         """
         # First write the basic kwargs that works for all Outliers classes
-        outliers_type = self.__class__.__name__
+        outliers_type = self._type_name
         write_kwargs(fits, extname, dict(self.kwargs, type=outliers_type))
 
         # Now do any class-specific steps.
@@ -108,8 +121,6 @@ class Outliers(object):
 
         :returns: an Outliers handler
         """
-        import piff
-
         assert extname in fits
         assert 'type' in fits[extname].get_colnames()
         outliers_type = fits[extname].read()['type']
@@ -120,12 +131,15 @@ class Outliers(object):
             # fitsio 1.0 returns strings
             outliers_type = outliers_type[0]
 
+        # Old output files had the full name.  Fix it if necessary.
+        if (outliers_type.endswith('Outliers')
+                and outliers_type not in Outliers.valid_outliers_types):
+            outliers_type = outliers_type[:-len('Outliers')]
+
         # Check that outliers_type is a valid Outliers type.
-        outliers_classes = piff.util.get_all_subclasses(piff.Outliers)
-        valid_outliers_types = dict([ (c.__name__, c) for c in outliers_classes ])
-        if outliers_type not in valid_outliers_types:
+        if outliers_type not in Outliers.valid_outliers_types:
             raise ValueError("outliers type %s is not a valid Piff Outliers"%outliers_type)
-        outliers_cls = valid_outliers_types[outliers_type]
+        outliers_cls = Outliers.valid_outliers_types[outliers_type]
 
         kwargs = read_kwargs(fits, extname)
         kwargs.pop('type',None)
@@ -156,7 +170,7 @@ class MADOutliers(Outliers):  # pragma: no cover  (This isn't functional yet.)
 
     where nmad is a parameter specified by the user.
 
-    The user can specify this parameter in one of two ways.  
+    The user can specify this parameter in one of two ways.
 
         1. The user can specify nmad directly.
         2. The user can specify nsigma, in which case nmad = sqrt(pi/2) nsigma, the equivalent
@@ -169,7 +183,9 @@ class MADOutliers(Outliers):  # pragma: no cover  (This isn't functional yet.)
     :param nsigma:      The number of sigma equivalent if the underlying distribution is
                         Gaussian.
     """
-    def __init__(self, nmad=None, nsigma=None):
+    _type_name = 'MAD'
+
+    def __init__(self, nmad=None, nsigma=None, logger=None):
         if nmad is None and nsigma is None:
             raise TypeError("Either nmad or nsigma is required")
         if nsigma is not None:
@@ -228,8 +244,10 @@ class ChisqOutliers(Outliers):
     :param include_reserve: Whether to include reserve stars as potential stars to be
                             removed as outliers. [default: False]
     """
+    _type_name = 'Chisq'
+
     def __init__(self, thresh=None, ndof=None, prob=None, nsigma=None, max_remove=None,
-                 include_reserve=False):
+                 include_reserve=False, logger=None):
         if all( (thresh is None, ndof is None, prob is None, nsigma is None) ):
             raise TypeError("One of thresh, ndof, prob, or nsigma is required.")
         if thresh is not None and any( (ndof is not None, prob is not None, nsigma is not None) ):
@@ -265,7 +283,7 @@ class ChisqOutliers(Outliers):
             return self.ndof * dof
         else:
             return chi2.isf(self.prob, dof)
-        
+
     def removeOutliers(self, stars, logger=None):
         """Remove outliers from a list of stars based on their chisq values.
 
@@ -324,7 +342,7 @@ class ChisqOutliers(Outliers):
         else:
             # Since the thresholds are not necessarily all equal, this might be tricky to
             # figure out which ones should be removed.
-            # e.g. if max_remove == 1 and we have items with 
+            # e.g. if max_remove == 1 and we have items with
             #    chisq = 20, thresh = 15
             #    chisq = 40, thresh = 32
             # which one should we remove?
