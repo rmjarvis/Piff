@@ -163,6 +163,24 @@ def test_base():
         out = piff.Outliers.read(f, extname='psf_outliers')
         print(out)
 
+    # Check that registering new types works correctly
+    class NoOutliers1(piff.Outliers):
+        pass
+    assert NoOutliers1 not in piff.Outliers.valid_outliers_types.values()
+    class NoOutliers2(piff.Outliers):
+        _type_name = None
+    assert NoOutliers2 not in piff.Outliers.valid_outliers_types.values()
+    class ValidOutliers1(piff.Outliers):
+        _type_name = 'valid'
+    assert ValidOutliers1 in piff.Outliers.valid_outliers_types.values()
+    assert ValidOutliers1 == piff.Outliers.valid_outliers_types['valid']
+    with np.testing.assert_raises(ValueError):
+        class ValidOutliers2(piff.Outliers):
+            _type_name = 'valid'
+    with np.testing.assert_raises(ValueError):
+        class ValidOutliers3(ValidOutliers1):
+            pass
+
 
 if __name__ == '__main__':
     test_chisq()
