@@ -141,15 +141,15 @@ class Stats(object):
         from matplotlib.backends.backend_agg import FigureCanvasAgg
 
         logger = galsim.config.LoggerWrapper(logger)
-        logger.info("Creating plot for %s", self.__class__.__name__)
+        logger.info("Creating plot for %s", self._type_name)
         fig, ax = self.plot(logger=logger, **kwargs)
 
         if file_name is None:
             file_name = self.file_name
         if file_name is None:
-            raise ValueError("No file_name specified for %s"%self.__class__.__name__)
+            raise ValueError("No file_name specified for %s"%self._type_name)
 
-        logger.warning("Writing %s plot to file %s",self.__class__.__name__,file_name)
+        logger.warning("Writing %s plot to file %s",self._type_name, file_name)
 
         canvas = FigureCanvasAgg(fig)
         # Do this after we've set the canvas to use Agg to avoid warning.
@@ -918,7 +918,7 @@ class HSMCatalogStats(Stats):
         if file_name is None:
             file_name = self.file_name
         if file_name is None:
-            raise ValueError("No file_name specified for %s"%self.__class__.__name__)
+            raise ValueError("No file_name specified for %s"%self._type_name)
         if not hasattr(self, 'cols'):
             raise RuntimeError("Must call compute before calling write")
 
