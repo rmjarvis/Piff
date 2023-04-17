@@ -130,9 +130,9 @@ class Optical(Model):
 
     Since there are a lot of parameters here, we provide the option of setting many of them
     from a template value.  e.g. template = 'des' will use the values stored in the dict
-    piff.optical_model.aperture_templates['des'].
+    piff.optical_model.optical_templates['des'].
 
-    :param template :       A key word in the dict piff.optical_model.aperture_template to use
+    :param template :       A key word in the dict piff.optical_model.optical_template to use
                             for setting values of these aperture parameters.  [default: None]
     :param gsparams:        A key word in the dict piff.optical_model.gsparams_template to use
                             for setting values of these Galsim parameters.  [default: None]
@@ -328,16 +328,6 @@ class Optical(Model):
             atm = atm.shear(g1=g1, g2=g2)
         return atm
 
-    def unpack_params(self,params):
-        """Unpack parameter values
-
-        :param params               An ndarray or list with parameters in order
-
-        :returns: zernike_coeff,r0,L0,g1,g2
-        """
-        kwargs = self.params_to_kwargs(params)
-        return kwargs['zernike_coeff'],kwargs['r0'],kwargs['L0'],kwargs['g1'],kwargs['g2']
-
     def params_to_kwargs(self,params):
         """Fill kwarg from params ndarray or list
 
@@ -353,12 +343,12 @@ class Optical(Model):
         kwargs['g2'] = params[self.idx_g2]
         return kwargs
 
-    def kwargs_to_params(self,zernike_coeff=[0,0,0,0,0],r0=0.15,L0=0.,g1=0.,g2=0.):
+    def kwargs_to_params(self,zernike_coeff=[0,0,0,0,0],r0=0.15,L0=10.,g1=0.,g2=0.):
         """Fill params ndarray from kwargs
 
         :param zernike_coeff:      A ndarray or list with [0, 0, z2, z3, z4, z5, z6...z11..z37] [default=[0,0,0,0,0]]
         :param r0:                 Value of r0 for Atmospheric Kernel. [default=0.15]
-        :param L0:                 Value of L0 for Atmospheric Kernel. [default=0.0]
+        :param L0:                 Value of L0 for Atmospheric Kernel. [default=10.0]
         :param g1:                 Value of g1 to Shear PSF [default=0.]
         :param g2:                 Value of g2 to Shear PSF [default=0.]
 
@@ -396,7 +386,7 @@ class Optical(Model):
         # decode input, if params array or list is present use it alone,
         # otherwise parameters are in getProfile argument list
         if params is not None :
-            zernike_coeff,r0,L0,g1,g2 = self.unpack_params(params)
+            *zernike_coeff,r0,L0,g1,g2 = params
 
         # list of PSF components
         prof = []
