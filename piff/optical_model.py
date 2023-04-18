@@ -132,9 +132,9 @@ class Optical(Model):
     from a template value.  e.g. template = 'des' will use the values stored in the dict
     piff.optical_model.optical_templates['des'].
 
-    :param template :       A key word in the dict piff.optical_model.optical_template to use
+    :param template :       A key word in the dict piff.optical_model.optical_templates to use
                             for setting values of these aperture parameters.  [default: None]
-    :param gsparams:        A key word in the dict piff.optical_model.gsparams_template to use
+    :param gsparams:        A key word in the dict piff.optical_model.gsparams_templates to use
                             for setting values of these Galsim parameters.  [default: None]
 
     If you use a template as well as other specific parameters, the specific parameters will
@@ -165,10 +165,16 @@ class Optical(Model):
                 raise ValueError("Unknown optical template specified: %s"%template)
             self.kwargs.update(optical_templates[template])
 
-        if gsparams is not None:
-            if gsparams not in gsparams_templates:
+        if gsparams is None:
+            self.gsparams = None
+        else:
+            if isinstance(gsparams, galsim.GSParams):
+                pass
+            elif gsparams in gsparams_templates:
+                gsparams = galsim.GSParams(**gsparams_templates[gsparams])
+            else:
                 raise ValueError("Unknown gsparams template specified: %s"%gsparams)
-            self.kwargs.update(gsparams_templates[gsparams])
+            self.gsparams = gsparams
 
         # Do this last, so specified kwargs override anything from the templates
         self.kwargs.update(kwargs)
@@ -183,8 +189,12 @@ class Optical(Model):
         self.opt_kwargs = { key : self.kwargs[key] for key in self.kwargs if key in opt_keys }
 
         gsparams_keys = ('minimum_fft_size','folding_threshold')
-        self.gsparams_kwargs = { key : self.kwargs[key] for key in self.kwargs if key in gsparams_keys }
-        self.gsparams = galsim.GSParams(**self.gsparams_kwargs)
+        gsparams_kwargs = { key : self.kwargs[key] for key in self.kwargs if key in gsparams_keys }
+        if gsparams_kwargs:
+            if self.gsparams is not None:
+                raise ValueError("Cannot provide both gsparams and %s",list(gsparams_kwargs))
+            else:
+                self.gsparams = galsim.GSParams(**gsparams_kwargs)
 
         other_keys = ('sigma')
         self.other_kwargs = { key : self.kwargs[key] for key in self.kwargs if key in other_keys }
