@@ -48,6 +48,15 @@ def test_optical(model=None):
     params = model.kwargs_to_params(zernike_coeff=[0,0,0,0,0.5],r0=0.15)
     star = make_empty_star(params=params)
 
+    # Check params_to_kwargs
+    kwargs = model.params_to_kwargs(params)
+    np.testing.assert_array_equal(kwargs['zernike_coeff'][:5], [0,0,0,0,0.5])
+    np.testing.assert_array_equal(kwargs['zernike_coeff'][5:], 0.)
+    assert kwargs['r0'] == 0.15
+    assert kwargs['L0'] == 10
+    assert kwargs['g1'] == 0.
+    assert kwargs['g2'] == 0.
+
     # given zernikes, make sure we can:
     star = model.draw(star)
     star_fitted = model.fit(star)
@@ -201,6 +210,25 @@ def test_vonkarman():
 
     chi2 = np.std((star1.image - star2.image).array)
     assert chi2 != 0,'chi2 is zero!?'
+
+    model = piff.Optical(diam=4, lam=700, atmo_type='VonKarman')
+    with np.testing.assert_raises(ValueError):
+        # VonKarman requires L0
+        model.getProfile(r0=0.15)
+    with np.testing.assert_raises(ValueError):
+        # VonKarman requires L0 != 0
+        model.getProfile(r0=0.15, L0=0)
+
+    atm = model.getAtmosphere(r0=0.15, L0=10)
+    assert isinstance(atm, galsim.VonKarman)
+
+    # Check other atmo_types here too.
+    atm = piff.Optical(template='des', atmo_type=None).getAtmosphere(r0=0.15)
+    assert isinstance(atm, galsim.DeltaFunction)
+    atm = piff.Optical(template='des', atmo_type='None').getAtmosphere(r0=0.15)
+    assert isinstance(atm, galsim.DeltaFunction)
+    with np.testing.assert_raises(ValueError):
+        piff.Optical(template='des', atmo_type='invalid').getAtmosphere(r0=0.15)
 
 
 @timer
