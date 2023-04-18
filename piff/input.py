@@ -530,13 +530,7 @@ class InputFiles(Input):
             if 'sky' in star.data.properties:
                 image -= star['sky']
             weight = weight_images[chipnum][star.data.weight.bounds].copy()
-            data = StarData(image=image,
-                            image_pos=star.data.image_pos,
-                            weight=weight,
-                            pointing=star.data.pointing,
-                            properties=star.data.properties,
-                            property_types=star.data.property_types,
-                            _xyuv_set=True)
+            data = star.data.withNew(image=image, weight=weight)
             loaded_stars.append(Star(data=data, fit=star.fit))
 
         return loaded_stars

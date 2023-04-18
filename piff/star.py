@@ -713,6 +713,18 @@ class StarData(object):
     def copy(self):
         return copy.deepcopy(self)
 
+    def withNew(self, **kwargs):
+        """Return new StarData that has new values of some attributes.
+
+        :param \*\*kwargs:  Any properties for the star.data you want to change.
+
+        :returns:  New StarData object with altered parameters.
+        """
+        ret = self.copy()
+        for key, value in kwargs.items():
+            setattr(ret, key, value)
+        return ret
+
     @staticmethod
     def calculateFieldPos(image_pos, wcs, pointing, properties=None):
         """
@@ -924,5 +936,16 @@ class StarFit(object):
         return StarFit(npp, flux=flux, center=center, **kwargs)
 
     def copy(self):
-        return StarFit(self.params, self.flux, self.center, self.A, self.b,
-                       self.chisq, self.dof)
+        return copy.deepcopy(self)
+
+    def withNew(self, **kwargs):
+        """Return new StarFit that has new values of some attributes.
+
+        :param \*\*kwargs:  Any properties for the star.fit you want to change.
+
+        :returns:  New StarFit object with altered parameters.
+        """
+        ret = self.copy()
+        for key, value in kwargs.items():
+            setattr(ret, key, value)
+        return ret

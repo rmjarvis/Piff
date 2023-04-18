@@ -23,7 +23,7 @@ import os
 import galsim
 
 from .util import run_multi, calculateSNR
-from .star import Star, StarData
+from .star import Star
 from .input import InputFiles
 
 class Select(object):

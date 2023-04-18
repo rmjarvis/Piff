@@ -26,7 +26,7 @@ from numpy.polynomial.laguerre import lagval2d
 from numpy.polynomial.hermite import hermval2d
 
 from .interp import Interp
-from .star import Star, StarFit
+from .star import Star
 
 polynomial_types = {
     "poly":polyval2d,

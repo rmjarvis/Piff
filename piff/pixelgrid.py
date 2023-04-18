@@ -23,7 +23,7 @@ import warnings
 
 from galsim import Lanczos
 from .model import Model
-from .star import Star, StarData, StarFit
+from .star import Star, StarFit
 
 class PixelGrid(Model):
     """A PSF modeled as interpolation between a grid of points.
@@ -181,14 +181,9 @@ class PixelGrid(Model):
             logger.info("Caught error %s making params_var.  Setting all to 1.e100",e)
             params_var = np.ones_like(dparam) * 1.e100
 
-        starfit2 = StarFit(star1.fit.params + dparam,
-                           flux = star1.fit.flux,
-                           center = star1.fit.center,
-                           params_var = params_var,
-                           A = star1.fit.A,
-                           chisq = new_chisq)
-
-        star = Star(star1.data, starfit2)
+        star = Star(star1.data, star1.fit.withNew(params=star1.fit.params + dparam,
+                                                  params_var=params_var,
+                                                  chisq=new_chisq))
         self.normalize(star)
         return star
 
@@ -426,16 +421,7 @@ class PixelGrid(Model):
         dof = np.count_nonzero(weight)
         logger.debug('chisq,dof = %s,%s',chisq,dof)
 
-        outfit = StarFit(star.fit.params,
-                         flux = star.fit.flux,
-                         center = star.fit.center,
-                         params_var = star.fit.params_var,
-                         chisq = chisq,
-                         dof = dof,
-                         A = A,
-                         b = b)
-
-        return Star(star.data, outfit)
+        return Star(star.data, star.fit.withNew(chisq=chisq, dof=dof, A=A, b=b))
 
     def getProfile(self, params):
         """Get a version of the model as a GalSim GSObject

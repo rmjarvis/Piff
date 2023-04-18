@@ -20,7 +20,7 @@ import numpy as np
 import galsim
 
 from .util import write_kwargs, read_kwargs
-from .star import Star, StarData, StarFit
+from .star import Star
 
 
 class Model(object):
@@ -213,12 +213,10 @@ class Model(object):
         logger.debug("    new_chisq = %s",new_chisq)
         logger.debug("    new_dof = %s",new_dof)
 
-        return Star(star.data, StarFit(star.fit.params,
-                                       flux = new_flux,
-                                       center = new_center,
-                                       chisq = new_chisq,
-                                       dof = new_dof,
-                                       params_var = star.fit.params_var))
+        return Star(star.data, star.fit.withNew(flux=new_flux,
+                                                center=new_center,
+                                                chisq=new_chisq,
+                                                dof=new_dof))
 
     def draw(self, star, copy_image=True, center=None):
         """Draw the model on the given image.
@@ -243,8 +241,7 @@ class Model(object):
         else:
             center = galsim.PositionD(*center)
         prof.drawImage(image, method=self._method, center=center)
-        data = StarData(image, star.image_pos, star.weight, star.data.pointing)
-        return Star(data, star.fit)
+        return Star(star.data.withNew(image=image), star.fit)
 
     def write(self, fits, extname):
         """Write a Model to a FITS file.
