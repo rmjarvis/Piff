@@ -21,7 +21,7 @@ import numpy as np
 import galsim
 
 from .stats import Stats
-from .star import Star, StarFit
+from .star import Star
 
 class StarStats(Stats):
     """This Stats class can take stars and make a set of plots of them as
@@ -105,10 +105,7 @@ class StarStats(Stats):
         center = (du, dv)
         # also update the chisq, but keep the rest of the parameters from model fit
         chisq = results.cost*2  # Their cost is basically chisq / 2
-        fit = StarFit(star.fit.params, params_var=star.fit.params_var,
-                flux=flux, center=center, chisq=chisq, dof=star.fit.dof,
-                A=star.fit.A, b=star.fit.b)
-        star_fit = Star(star.data, fit)
+        star_fit = Star(star.data, star.fit.withNew(flux=flux, center=center, chisq=chisq))
 
         return star_fit
 

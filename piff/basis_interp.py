@@ -22,7 +22,7 @@ import galsim
 import warnings
 
 from .interp import Interp
-from .star import Star, StarFit
+from .star import Star
 
 class BasisInterp(Interp):
     r"""An Interp class that works whenever the interpolating functions are

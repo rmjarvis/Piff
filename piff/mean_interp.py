@@ -19,7 +19,7 @@
 import numpy as np
 
 from .interp import Interp
-from .star import Star, StarFit
+from .star import Star
 
 class Mean(Interp):
     """The simplest possible interpolation scheme.  It just finds the mean of the parameter

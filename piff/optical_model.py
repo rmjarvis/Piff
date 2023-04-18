@@ -23,7 +23,7 @@ import numpy as np
 from functools import lru_cache
 
 from .model import Model
-from .star import Star, StarFit, StarData
+from .star import Star
 
 optical_templates = {
     'des_simple': {'obscuration': 0.301 / 0.7174, # from Zemax DECam model
@@ -283,9 +283,7 @@ class Optical(Model):
         dof = np.count_nonzero(weight.array) - 3   #3 DOF in flux,centroid
 
         var = np.zeros(len(star.fit.params))
-        fit = StarFit(star.fit.params, params_var=var, flux=star.fit.flux,
-                      center=star.fit.center, chisq=chisq, dof=dof)
-        return Star(star.data, fit)
+        return Star(star.data, star.fit.withNew(params_var=var, chisq=chisq, dof=dof))
 
     @lru_cache(maxsize=8)
     def getOptics(self, zernike_coeff):

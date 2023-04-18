@@ -1,6 +1,6 @@
 import numpy as np
 import galsim
-from .star import Star, StarData
+from .star import Star
 from galsim import LookupTable2D
 
 def convert_zernikes_des(a_fp):
@@ -239,15 +239,8 @@ class Wavefront(object):
             # insert wavefront data into new Star's data.properties
             new_stars = []
             for istar,aStar in enumerate(star_list):
-                new_data = StarData(image=aStar.image,
-                        image_pos=aStar.image_pos,
-                        field_pos=aStar.field_pos,
-                        weight=aStar.weight,
-                        pointing=aStar.data.pointing,
-                        properties=dict(aStar.data.properties, wavefront=wf_arr_final[istar,:]),
-                        property_types=aStar.data.property_types,
-                        _xyuv_set=True)
-                new_star = Star(data=new_data,fit=aStar.fit)
+                props = dict(aStar.data.properties, wavefront=wf_arr_final[istar,:])
+                new_star = Star(data=aStar.data.withNew(properties=props), fit=aStar.fit)
                 new_stars.append(new_star)
 
             return new_stars
