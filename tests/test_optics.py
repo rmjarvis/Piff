@@ -82,8 +82,6 @@ def test_optical(model=None):
         piff.Optical(diam=4)  # missing lam
     with np.testing.assert_raises(ValueError):
         piff.Optical(template='invalid')
-    with np.testing.assert_raises(ValueError):
-        piff.Optical(gsparams='invalid')
 
     # test Zernike kwargs
     zernike_coeff_short = [0.,0.,0.,0.,1.,1.,1.,1.,1.,1.,1.,1.]
@@ -100,6 +98,22 @@ def test_optical(model=None):
     for i in range(37+1):
         assert zernike_coeff_long[i]==param_test[model.idx_z0+i]
     assert param_test[model.idx_r0]==0.12
+
+    # Test gsparams
+    gsp_star = galsim.GSParams(minimum_fft_size=32, folding_threshold=0.02)
+    gsp_donut = galsim.GSParams(minimum_fft_size=128, folding_threshold=0.005)
+    model = piff.Optical(template='des', gsparams=gsp_star)
+    assert model.gsparams == gsp_star
+    model = piff.Optical(template='des', atmo_type='Kolmogorov', gsparams='star')
+    assert model.gsparams == gsp_star
+    model = piff.Optical(template='des_donut', gsparams='donut')
+    assert model.gsparams == gsp_donut
+    model = piff.Optical(template='des_donut', minimum_fft_size=128, folding_threshold=0.005)
+    assert model.gsparams == gsp_donut
+    with np.testing.assert_raises(ValueError):
+        piff.Optical(gsparams='invalid')
+    with np.testing.assert_raises(ValueError):
+        piff.Optical(gsparams='donut', minimum_fft_size=128)
 
 @timer
 def test_draw():
@@ -252,9 +266,7 @@ def test_disk():
             np.testing.assert_almost_equal(model.opt_kwargs[key],model2.opt_kwargs[key],err_msg='key %r mismatch' % key)
         else:
             assert model.opt_kwargs[key] == model2.opt_kwargs[key], 'key %r mismatch'%key
-    for key in model.gsparams_kwargs:
-        assert key in model2.gsparams_kwargs, 'key %r missing from model2 gsparams_kwargs'%key
-        assert model.gsparams_kwargs[key] == model2.gsparams_kwargs[key], 'key %r mismatch'%key
+    assert model.gsparams == model2.gsparams
     for key in model.other_kwargs:
         assert key in model2.other_kwargs, 'key %r missing from model2 other_kwargs'%key
         assert model.other_kwargs[key] == model2.other_kwargs[key], 'key %r mismatch'%key
