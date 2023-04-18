@@ -37,6 +37,15 @@ def test_init():
     print('prof = ',prof)
     assert isinstance(prof, galsim.Convolution)
 
+    # strut_angle and pupil_angle can be either str or Angle
+    model1 = piff.Optical(diam=4, lam=700, atmo_type='Kolmogorov',
+                          pupil_angle=35*galsim.degrees, strut_angle=12*galsim.degrees)
+    model2 = piff.Optical(diam=4, lam=700, atmo_type='Kolmogorov',
+                          pupil_angle="35 degrees", strut_angle="12 degrees")
+    prof1 = model1.getProfile(zernike_coeff=[0,0,0,0,0], r0=0.15)
+    prof2 = model2.getProfile(zernike_coeff=[0,0,0,0,0], r0=0.15)
+    assert prof1 == prof2
+
 
 @timer
 def test_optical(model=None):
@@ -144,7 +153,7 @@ def test_draw():
     stars = input.makeStars(logger=logger)
     astar = stars[10]
 
-    # test draw 
+    # test draw
     astar.fit.params = model.kwargs_to_params(zernike_coeff=[0.,0.,0.,0.,0.2],r0=0.12,L0=10.,g1=0.01,g2=-0.02)
     astar1 = model.draw(astar)
 
@@ -192,6 +201,14 @@ def test_kolmogorov():
 
     chi2 = np.std((star1.image - star2.image).array)
     assert chi2 != 0,'chi2 is zero!?'
+
+    # Usually mirror_figure_im is a file name, but you can also pass in an already read image.
+    mirror_figure_image = galsim.fits.read('input/DECam_236392_finegrid512_nm_uv.fits')
+    model2 = piff.Optical(template='des', atmo_type='Kolmogorov',
+                          mirror_figure_im=mirror_figure_image)
+    prof1 = model.getProfile(zernike_coeff=[0,0,0,0,0], r0=0.15)
+    prof2 = model2.getProfile(zernike_coeff=[0,0,0,0,0], r0=0.15)
+    assert prof1 == prof2
 
 
 @timer

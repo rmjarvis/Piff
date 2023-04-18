@@ -154,9 +154,9 @@ class Optical(Model):
         self.logger = galsim.config.LoggerWrapper(logger)
 
         # If pupil_angle and strut angle are provided as strings, eval them.
-        for key in ['pupil_angle', 'strut_angle']:
-            if key in kwargs and isinstance(kwargs[key],str):
-                kwargs[key] = eval(kwargs[key])
+        for key in kwargs:
+            if key.endswith('angle'):
+                kwargs[key] = galsim.config.ParseValue(kwargs, key, {}, galsim.Angle)[0]
 
         # Copy over anything from the aperture and gsparams template dict, but let the direct kwargs override anything
         self.kwargs = {}
@@ -217,14 +217,16 @@ class Optical(Model):
             if isinstance(mirror_figure_im, str):
                 self.logger.debug('Loading mirror_figure_im from {0}'.format(mirror_figure_im))
                 mirror_figure_uv = galsim.fits.read(mirror_figure_im)
+            else:
+                mirror_figure_uv = mirror_figure_im
 
-                # build u,v grid points
-                mirror_figure_u = np.linspace(-mirror_figure_halfsize, mirror_figure_halfsize, num=512)
-                mirror_figure_v = np.linspace(-mirror_figure_halfsize, mirror_figure_halfsize, num=512)
+            # build u,v grid points
+            mirror_figure_u = np.linspace(-mirror_figure_halfsize, mirror_figure_halfsize, num=512)
+            mirror_figure_v = np.linspace(-mirror_figure_halfsize, mirror_figure_halfsize, num=512)
 
-                # build the LUT for the mirror figure, and save it
-                mirror_figure_table = galsim.LookupTable2D(mirror_figure_u, mirror_figure_v, mirror_figure_uv.array)
-                self.mirror_figure_screen = galsim.UserScreen(mirror_figure_table)
+            # build the LUT for the mirror figure, and save it
+            mirror_figure_table = galsim.LookupTable2D(mirror_figure_u, mirror_figure_v, mirror_figure_uv.array)
+            self.mirror_figure_screen = galsim.UserScreen(mirror_figure_table)
 
         # Store the Atmospheric Kernel type
         self.atmo_type = atmo_type
@@ -370,7 +372,7 @@ class Optical(Model):
         zlen = len(zernike_coeff)
         if zlen<=self.nZ+1:
             params[self.idx_z0:self.idx_z0+zlen] = zernike_coeff
-        elif zlen>self.nZ+1:
+        else:
             params[self.idx_z0:self.idx_z0+self.nZ+1] = zernike_coeff[0:self.nZ+1]
 
         params[self.idx_r0] = r0
@@ -380,7 +382,7 @@ class Optical(Model):
         return params
 
 
-    def getProfile(self,params=None,zernike_coeff=None,r0=None,L0=None,g1=None,g2=None):
+    def getProfile(self,params=None,zernike_coeff=None,r0=None,L0=None,g1=0.,g2=0.):
         """Get a version of the model as a GalSim GSObject
 
         :param params          An ndarray with the parameters ordered via idx_PARAM data members
