@@ -45,7 +45,7 @@ optical_templates = {
              'mirror_figure_halfsize': 2.22246,
              'pupil_plane_im': 'input/DECam_pupil_512uv.fits'
            },
-    'des128': { 'diam': 4.010,  # meters
+    'des_128': { 'diam': 4.010,  # meters
              'lam': 700, # nm
              'pad_factor': 1 ,
              'oversampling': 1,
@@ -54,7 +54,7 @@ optical_templates = {
              'mirror_figure_halfsize': 2.22246,
              'pupil_plane_im': 'input/DECam_pupil_128uv.fits'
            },
-    'desparam': { 'diam': 4.010,  # meters
+    'des_param': { 'diam': 4.010,  # meters
                   'lam': 700, # nm
                   'pad_factor': 1 ,
                   'oversampling': 1,
@@ -66,7 +66,7 @@ optical_templates = {
                   'strut_thick': 0.0166,  # 66.5mm thick / 4010mm pupil - tuned to match DECam big donut images
                   'strut_angle': 45 * galsim.degrees
                },
-    'desdonut': {'diam': 4.010,  # meters
+    'des_donut': {'diam': 4.010,  # meters
              'lam': 700, # nm
              'pad_factor': 8,
              'oversampling': 1,
