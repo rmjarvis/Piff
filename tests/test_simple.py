@@ -288,25 +288,31 @@ def test_single_image():
     np.testing.assert_equal(test_star.fit.params, test_star_list.fit.params)
     np.testing.assert_equal(test_star.image.array, test_star_list.image.array)
 
-    # test copy_image property of drawStar and draw
-    for draw in [psf.drawStar, psf.model.draw]:
-        target_star_copy = psf.interp.interpolate(piff.Star(target.data.copy(), target.fit.copy()))
-        # interp is so that when we do psf.model.draw we have fit.params to work with
+    # test deprecated copy_image=False option for drawStar
+    with np.testing.assert_warns(DeprecationWarning):
+        test_star2 = psf.drawStar(target, copy_image=False)
+    assert test_star.image == test_star2.image
+    with np.testing.assert_warns(DeprecationWarning):
+        test_star3 = psf.drawStarList([target], copy_image=False)[0]
+    assert test_star.image == test_star3.image
 
-        test_star_copy = draw(target_star_copy, copy_image=True)
-        test_star_nocopy = draw(target_star_copy, copy_image=False)
-        # if we modify target_star_copy, then test_star_nocopy should be modified,
-        # but not test_star_copy
-        target_star_copy.image.array[0,0] = 23456
-        assert test_star_nocopy.image.array[0,0] == target_star_copy.image.array[0,0]
-        assert test_star_copy.image.array[0,0] != target_star_copy.image.array[0,0]
-        # however the other pixels SHOULD still be all the same value
-        assert test_star_nocopy.image.array[1,1] == target_star_copy.image.array[1,1]
-        assert test_star_copy.image.array[1,1] == target_star_copy.image.array[1,1]
+    # test copy_image property of psf.model.draw
+    target_star_copy = psf.interp.interpolate(piff.Star(target.data.copy(), target.fit))
 
-        test_star_center = draw(test_star_copy, copy_image=True, center=(x+1,y+1))
-        np.testing.assert_almost_equal(test_star_center.image.array[1:,1:],
-                                       test_star_copy.image.array[:-1,:-1])
+    test_star_copy = psf.model.draw(target_star_copy, copy_image=True)
+    test_star_nocopy = psf.model.draw(target_star_copy, copy_image=False)
+    # if we modify target_star_copy, then test_star_nocopy should be modified,
+    # but not test_star_copy
+    target_star_copy.image.array[0,0] = 23456
+    assert test_star_nocopy.image.array[0,0] == target_star_copy.image.array[0,0]
+    assert test_star_copy.image.array[0,0] != target_star_copy.image.array[0,0]
+    # however the other pixels SHOULD still be all the same value
+    assert test_star_nocopy.image.array[1,1] == target_star_copy.image.array[1,1]
+    assert test_star_copy.image.array[1,1] == target_star_copy.image.array[1,1]
+
+    test_star_center = psf.model.draw(test_star_copy, copy_image=True, center=(x+1,y+1))
+    np.testing.assert_almost_equal(test_star_center.image.array[1:,1:],
+                                   test_star_copy.image.array[:-1,:-1])
 
     # test that draw works
     test_image = psf.draw(x=target['x'], y=target['y'], stamp_size=config['input']['stamp_size'],
