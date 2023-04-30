@@ -628,16 +628,17 @@ class PSF(object):
         :param stars:       List of Star instances holding information needed
                             for interpolation as well as an image/WCS into
                             which PSF will be rendered.
-        :param copy_image:  If False, will use the same image object.
-                            If True, will copy the image and then overwrite it.
-                            [default: True]
 
         :returns:           List of Star instances with its image filled with
                             rendered PSF
         """
+        if copy_image is False:
+            import warnings
+            warnings.warn("The copy_image=False option has been removed from drawStarList",
+                          DeprecationWarning)
         if any(star.fit is None or star.fit.params is None for star in stars):
             stars = self.interpolateStarList(stars)
-        return [self._drawStar(star, copy_image=copy_image) for star in stars]
+        return [self._drawStar(star) for star in stars]
 
     def drawStar(self, star, copy_image=True, center=None):
         """Generate PSF image for a given star.
@@ -662,13 +663,17 @@ class PSF(object):
 
         :returns:           Star instance with its image filled with rendered PSF
         """
+        if copy_image is False:
+            import warnings
+            warnings.warn("The copy_image=False option has been removed from drawStar",
+                          DeprecationWarning)
         # Interpolate parameters to this position/properties (if not already done):
         if star.fit is None or star.fit.params is None:
             star = self.interpolateStar(star)
         # Render the image
-        return self._drawStar(star, copy_image=copy_image, center=center)
+        return self._drawStar(star, center=center)
 
-    def _drawStar(self, star, copy_image=True, center=None):
+    def _drawStar(self, star, center=None):
         # Derived classes may choose to override any of the above functions
         # But they have to at least override this one and interpolateStar to implement
         # their actual PSF model.

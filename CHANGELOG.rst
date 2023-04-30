@@ -19,6 +19,7 @@ API Changes
 - Deprecated the include_reserve=True option for outlier rejection.  Now that all objects are
   preserved in the output file, reserve stars that would have been rejected are marked as such,
   so you can choose whether or not to use them for any diagnostic tests.
+- Deprecated copy_image=False option to psf.drawStar and psf.drawStarList.
 
 
 Performance improvements

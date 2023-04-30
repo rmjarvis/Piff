@@ -207,8 +207,8 @@ class SimplePSF(PSF):
         self.model.normalize(star)
         return star
 
-    def _drawStar(self, star, copy_image=True, center=None):
-        return self.model.draw(star, copy_image=copy_image, center=center)
+    def _drawStar(self, star, center=None):
+        return self.model.draw(star, center=center)
 
     def _getProfile(self, star):
         prof = self.model.getProfile(star.fit.params).shift(star.fit.center) * star.fit.flux
