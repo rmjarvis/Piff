@@ -497,6 +497,8 @@ def test_io():
             assert all(s1.fit.center == s2.fit.center)
             np.testing.assert_array_equal(s1.fit.params, s2.fit.params)
             np.testing.assert_array_equal(s1.fit.params_var, s2.fit.params_var)
+            np.testing.assert_array_equal(s1.fit.get_params(None), s1.fit.params)
+            np.testing.assert_array_equal(s1.fit.get_params_var(None), s1.fit.params_var)
             assert s1.data.image.bounds == s2.data.image.bounds
             assert s1.data.weight.bounds == s2.data.weight.bounds
             # The wcs doesn't have to match, but they should be locally equivalent.
@@ -529,6 +531,81 @@ def test_io():
             with fitsio.FITS(file_name, 'r') as fin:
                 s2coords, s2params = piff.Star.read_coords_params(fin, 'invalid')
 
+@timer
+def test_multifit_io():
+    np_rng = np.random.RandomState(1234)
+    nstars = 100
+    nstars = 2
+    x = np_rng.random_sample(nstars) * 2048.
+    y = np_rng.random_sample(nstars) * 2048.
+    flux = np_rng.random_sample(nstars) * 1000.
+    color_ri = np_rng.random_sample(nstars) * 1.4 - 0.8
+    color_iz = np_rng.random_sample(nstars) * 1.9 - 0.6
+
+    stars = [ piff.Star.makeTarget(x=x[i], y=y[i], scale=0.26, color_ri=color_ri[i],
+                                   color_iz=color_iz[i], flux=flux[i]) for i in range(nstars) ]
+    for star in stars:
+        star.data.image.array[:] = np_rng.random_sample(star.data.image.array.shape)
+        star.data.weight = star.data.image.copy()
+        star.data.weight.array[:] = np_rng.random_sample(star.data.image.array.shape)
+
+    params1 = np_rng.random_sample((nstars, 3))
+    params_var1 = np_rng.random_sample((nstars, 3))
+    params2 = np_rng.random_sample((nstars, 5))
+    params_var2 = np_rng.random_sample((nstars, 5))
+    for k, star in enumerate(stars):
+        params = np.array([params1[k], params2[k]], dtype=object)
+        params_var = np.array([params_var1[k], params_var2[k]], dtype=object)
+        star.fit = star.fit.withNew(params=params, params_var=params_var)
+
+    file_name = os.path.join('output','star_multifit_io.fits')
+    print('Writing stars to ',file_name)
+    with fitsio.FITS(file_name,'rw',clobber=True) as fout:
+        piff.Star.write(stars, fout, extname='stars')
+
+    print('Reading from ',file_name)
+    with fitsio.FITS(file_name,'r') as fin:
+        stars2 = piff.Star.read(fin, extname='stars')
+
+    for s1, s2 in zip(stars,stars2):
+        assert s1.data['x'] == s2.data['x']
+        assert s1.data['y'] == s2.data['y']
+        assert s1.data['u'] == s2.data['u']
+        assert s1.data['v'] == s2.data['v']
+        assert s1.data['color_ri'] == s2.data['color_ri']
+        assert s1.data['color_iz'] == s2.data['color_iz']
+        assert s1.data.properties == s2.data.properties
+        assert s1.fit.flux == s2.fit.flux
+        assert all(s1.fit.center == s2.fit.center)
+        assert len(s1.fit.params) == len(s2.fit.params)
+        assert len(s1.fit.params_var) == len(s2.fit.params_var)
+        for k in range(len(s1.fit.params)):
+            np.testing.assert_array_equal(s1.fit.params[k], s2.fit.params[k])
+            np.testing.assert_array_equal(s1.fit.params_var[k], s2.fit.params_var[k])
+            np.testing.assert_array_equal(s1.fit.get_params(k), s1.fit.params[k])
+            np.testing.assert_array_equal(s1.fit.get_params_var(k), s1.fit.params_var[k])
+
+    # Check setting individual param nums with newParams
+    params1 = np_rng.random_sample((nstars, 3))
+    params_var1 = np_rng.random_sample((nstars, 3))
+    params2 = np_rng.random_sample((nstars, 5))
+    params_var2 = np_rng.random_sample((nstars, 5))
+    for k, star in enumerate(stars):
+        star.fit = star.fit.newParams(params1[k], params_var=params_var1[k], num=0)
+        star.fit = star.fit.newParams(params2[k], params_var=params_var2[k], num=1)
+        np.testing.assert_array_equal(star.fit.flatten_params(star.fit.params),
+                                      np.concatenate([params1[k], params2[k]]))
+        np.testing.assert_array_equal(star.fit.flatten_params(star.fit.params_var),
+                                      np.concatenate([params_var1[k], params_var2[k]]))
+
+        # Also check without params_var (leaves params_var as it was)
+        star.fit = star.fit.newParams(params1[k//2], num=0)
+        star.fit = star.fit.newParams(params2[k//2], num=1)
+        np.testing.assert_array_equal(star.fit.flatten_params(star.fit.params),
+                                      np.concatenate([params1[k//2], params2[k//2]]))
+        np.testing.assert_array_equal(star.fit.flatten_params(star.fit.params_var),
+                                      np.concatenate([params_var1[k], params_var2[k]]))
+
 
 if __name__ == '__main__':
     test_init()
@@ -537,3 +614,4 @@ if __name__ == '__main__':
     test_add_poisson()
     test_star()
     test_io()
+    test_multifit_io()
