@@ -322,8 +322,8 @@ class Star(object):
             weight = galsim.Image(weight.array, wcs=image.wcs, copy=True, bounds=image.bounds)
 
         # Build the StarData instance
-        data = StarData(image, image_pos, field_pos=field_pos, properties=properties, 
-                        pointing=pointing, weight=weight)        
+        data = StarData(image, image_pos, field_pos=field_pos, properties=properties,
+                        pointing=pointing, weight=weight)
         fit = StarFit(None, flux=flux, center=(0.,0.))
         return cls(data, fit)
 
@@ -373,19 +373,30 @@ class Star(object):
 
         # Now the easy parts of fit:
         dtypes.extend( [ ('flux', float), ('center', float, 2), ('chisq', float) ] )
-        cols.append( [ s.fit.flux for s in stars ] )
-        cols.append( [ s.fit.center for s in stars ] )
-        cols.append( [ s.fit.chisq for s in stars ] )
+        cols.append( [s.fit.flux for s in stars] )
+        cols.append( [s.fit.center for s in stars] )
+        cols.append( [s.fit.chisq for s in stars] )
 
         # params might not be set, so check if it is None
+        header = None
         if stars[0].fit.params is not None:
-            dtypes.append( ('params', float, len(stars[0].fit.params)) )
-            cols.append( [ s.fit.params for s in stars ] )
+            params = [s.fit.params for s in stars]
+
+            # params might need to be flattened
+            if stars[0].fit.params_lens is not None:
+                header = {'PARAMS_LENS' : stars[0].fit.params_lens}
+                params = [ StarFit.flatten_params(p) for p in params ]
+
+            dtypes.append( ('params', float, len(params[0])) )
+            cols.append(params)
 
         # params_var might not be set, so check if it is None
         if stars[0].fit.params_var is not None:
-            dtypes.append( ('params_var', float, len(stars[0].fit.params_var)) )
-            cols.append( [ s.fit.params_var for s in stars ] )
+            params_var = [s.fit.params_var for s in stars]
+            if stars[0].fit.params_lens is not None:
+                params_var = [ StarFit.flatten_params(p) for p in params_var ]
+            dtypes.append( ('params_var', float, len(params_var[0])) )
+            cols.append(params_var)
 
         # If pointing is set, write that
         if stars[0].data.pointing is not None:
@@ -394,7 +405,7 @@ class Star(object):
             cols.append( [s.data.pointing.dec / galsim.degrees for s in stars ] )
 
         data = np.array(list(zip(*cols)), dtype=dtypes)
-        fits.write_table(data, extname=extname)
+        fits.write_table(data, extname=extname, header=header)
 
     @classmethod
     def read_coords_params(cls, fits, extname):
@@ -430,6 +441,11 @@ class Star(object):
         """
         assert extname in fits
         colnames = fits[extname].get_colnames()
+        header = fits[extname].read_header()
+        if 'PARAMS_LENS' in header:
+            params_lens = eval(header['PARAMS_LENS'])
+        else:
+            params_lens = None
 
         for key in ['x', 'y', 'u', 'v',
                     'dudx', 'dudy', 'dvdx', 'dvdy',
@@ -460,12 +476,16 @@ class Star(object):
         if 'params' in colnames:
             params = data['params']
             colnames.remove('params')
+            if params_lens is not None:
+                params = [ StarFit.reshape_params(p, params_lens) for p in params ]
         else:
             params = [ None ] * len(data)
 
         if 'params_var' in colnames:
             params_var = data['params_var']
             colnames.remove('params_var')
+            if params_lens is not None:
+                params_var = [ StarFit.reshape_params(p, params_lens) for p in params_var ]
         else:
             params_var = [ None ] * len(data)
 
@@ -941,22 +961,80 @@ class StarFit(object):
     def beta(self):
         return self.A.T.dot(self.b)
 
-    def newParams(self, params, **kwargs):
+    @classmethod
+    def reshape_params(cls, params, params_lens):
+        new_params = np.empty(len(params_lens), dtype=object)
+        i1 = 0
+        for k, plen in enumerate(params_lens):
+            i2 = i1 + plen
+            new_params[k] = params[i1:i2]
+            i1 = i2
+        return new_params
+
+    @classmethod
+    def flatten_params(cls, params):
+        return np.concatenate(params)
+
+    @property
+    def params_lens(self):
+        if self.params.dtype == np.dtype(object):
+            return [len(p) for p in self.params]
+        else:
+            return None
+
+    def newParams(self, params, params_var=None, num=None, **kwargs):
         r"""Return new StarFit that has the array params installed as new parameters.
 
-        :param params:  A 1d array holding new parameters; must match size of current ones
+        :param params:      A 1d array holding new parameters; must match size of current ones
+        :param params_var:  A 1d array holding new parameter variances; if given, must match size
+                            of current ones.  [default: None]
+        :param num:         If there are multiple sets of model params being stored, then
+                            this is the number to update. [default: None]
         :param \*\*kwargs:  Any other additional properties for the star. Takes current flux and
-                        center if not provided, and otherwise puts in None
+                            center if not provided, and otherwise puts in None
 
         :returns: New StarFit object with altered parameters.  All chisq-related parameters
                   are set to None since they are no longer valid.
         """
-        npp = np.array(params)
-        if self.params is not None and npp.shape != self.params.shape:
+        if num is not None:
+            old_params = self.params[num]
+            old_params_var = None if self.params_var is None else self.params_var[num]
+        else:
+            old_params = self.params
+            old_params_var = self.params_var
+        if old_params is not None and np.array(params).shape != old_params.shape:
             raise ValueError('new StarFit parameters do not match dimensions of old ones')
         flux = kwargs.pop('flux', self.flux)
         center = kwargs.pop('center', self.center)
-        return StarFit(npp, flux=flux, center=center, **kwargs)
+        new_params_var = None
+        if num is not None:
+            new_params = self.params.copy()
+            new_params[num] = np.array(params)
+            if params_var is not None:
+                new_params_var = self.params_var.copy()
+                new_params_var[num] = np.array(params_var)
+            else:
+                new_params_var = self.params_var
+        else:
+            new_params = np.array(params)
+            if params_var is not None:
+                new_params_var = np.array(params_var)
+            else:
+                new_params_var = self.params_var
+        return self.withNew(params=new_params, params_var=new_params_var,
+                            flux=flux, center=center, **kwargs)
+
+    def get_params(self, num):
+        if num is not None:
+            return self.params[num]
+        else:
+            return self.params
+
+    def get_params_var(self, num):
+        if num is not None:
+            return self.params_var[num]
+        else:
+            return self.params_var
 
     def copy(self):
         return copy.deepcopy(self)
