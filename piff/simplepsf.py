@@ -167,30 +167,10 @@ class SimplePSF(PSF):
         logger.debug("             Calculating the interpolation")
         self.interp.solve(use_stars, logger=logger)
 
-        # Note: From here forward, we are back to using all_stars, rather than use_stars.
-        # We want to run the interpolation on everything and refit/recenter everything,
-        # so reserve stars may get outlier rejected as well as non-reserve stars.
+        # Propagate that solution to all the stars' parameters, including reserve stars.
         all_stars = self.interp.interpolateList(all_stars)
 
-        # Update estimated poisson noise
-        signals = self.drawStarList(all_stars)
-        all_stars = [s.addPoisson(signal) for s, signal in zip(all_stars, signals)]
-
-        # Refit and recenter all stars, collect stats
-        logger.debug("             Re-fluxing stars")
-        new_stars = []
-        for star in all_stars:
-            try:
-                star = self.model.reflux(star, logger=logger)
-            except Exception as e:  # pragma: no cover
-                logger.warning("Failed trying to reflux star at %s.  Excluding it.",
-                                star.image_pos)
-                logger.warning("  -- Caught exception: %s", e)
-                nremoved += 1
-                star = star.flag_if(True)
-            new_stars.append(star)
-
-        return new_stars, nremoved
+        return all_stars, nremoved
 
     def interpolateStarList(self, stars):
         """Update the stars to have the current interpolated fit parameters according to the

@@ -197,6 +197,26 @@ class PSF(object):
             # Different PSF types do different things here.
             stars, iter_nremoved = self.single_iteration(stars, logger, convert_func)
 
+            # Update estimated poisson noise
+            signals = self.drawStarList(stars)
+            stars = [s.addPoisson(signal) for s, signal in zip(stars, signals)]
+
+            # Refit and recenter stars, collect stats
+            logger.debug("             Re-fluxing stars")
+            new_stars = []
+            for star in stars:
+                try:
+                    star = self.model.reflux(star, logger=logger)
+                except Exception as e:  # pragma: no cover
+                    # TODO: find a case that hits this block for our unit tests.
+                    logger.warning("Failed trying to reflux star at %s.  Excluding it.",
+                                    star.image_pos)
+                    logger.warning("  -- Caught exception: %s", e)
+                    nremoved += 1
+                    star = star.flag_if(True)
+                new_stars.append(star)
+            stars = new_stars
+
             # Find and flag outliers.
             stars, outlier_nremoved = self.remove_outliers(stars, iteration, logger)
             iter_nremoved += outlier_nremoved
