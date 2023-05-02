@@ -143,6 +143,123 @@ class PSF(object):
         """
         raise NotImplementedError("Derived classes must define the single_iteration function")
 
+    @property
+    def fit_center(self):
+        """Whether to fit the center of the star in reflux.
+
+        This is generally set in the model specifications.
+        If all component models includes a shift, then this is False.
+        Otherwise it is True.
+        """
+        raise NotImplementedError("Derived classes must define the single_iteration function")
+
+    def reflux(self, star, logger=None):
+        """Fit the PSF to the star's data, varying only the flux (and
+        center, if it is free).  Flux and center are updated in the Star's
+        attributes.  This is a single-step solution if only solving for flux,
+        otherwise an iterative operation.  DOF in the result assume
+        only flux (& center) are free parameters.
+
+        :param star:        A Star instance
+        :param logger:      A logger object for logging debug info. [default: None]
+
+        :returns:           New Star instance, with updated flux, center, chisq, dof
+        """
+        logger = galsim.config.LoggerWrapper(logger)
+        logger.debug("Reflux for star:")
+        logger.debug("    flux = %s",star.fit.flux)
+        logger.debug("    center = %s",star.fit.center)
+        logger.debug("    props = %s",star.data.properties)
+        logger.debug("    image = %s",star.data.image)
+        #logger.debug("    image = %s",star.data.image.array)
+        #logger.debug("    weight = %s",star.data.weight.array)
+        logger.debug("    image center = %s",star.data.image(star.data.image.center))
+        logger.debug("    weight center = %s",star.data.weight(star.data.weight.center))
+
+        data, weight, u, v = star.data.getDataVector()
+        star_prof, method = self._getProfile(star)
+        psf_prof = self._getRawProfile(star)  # This one doesn't have the shift/flux applied.
+
+        model_image = star.image.copy()
+        star_prof.drawImage(model_image, method=method, center=star.image_pos)
+        model = model_image.array.ravel()
+
+        # Weight by the current model to avoid being influenced by spurious pixels near the edge
+        # of the stamp.
+        # Also by the weight map to avoid bad pixels.
+        W = weight * model
+        WD = W * data
+        WM = W * model
+
+        f_data = np.sum(WD)
+        f_model = np.sum(WM) or 1  # Don't let f_model = 0
+        flux_ratio = f_data / f_model
+        new_flux = star.fit.flux * flux_ratio
+        logger.debug('    new flux = %s', new_flux)
+
+        model *= flux_ratio
+        resid = data - model
+
+        if self.fit_center:
+            # Use finite different to approximate d(model)/duc, d(model)/dvc
+            duv = 1.e-5
+            temp = star.image.copy()
+            center = star.fit.center
+            du_prof = psf_prof.shift(center[0] + duv, center[1]) * new_flux
+            du_prof.drawImage(temp, method=method, center=star.image_pos)
+            dmduc = (temp.array.ravel() - model) / duv
+            dv_prof = psf_prof.shift(center[0], center[1] + duv) * new_flux
+            dv_prof.drawImage(temp, method=method, center=star.image_pos)
+            dmdvc = (temp.array.ravel() - model) / duv
+
+            # Now construct the design matrix for this minimization
+            #
+            #    A x = b
+            #
+            # where x = [ duc, dvc ]^T and b = resid.
+            #
+            # A[0] = dmduc
+            # A[1] = dmdvc
+            #
+            # Solve: AT A x = AT b
+
+            At = np.vstack((dmduc, dmdvc))
+            Atw = At * np.abs(W)  # weighted least squares
+            AtA = Atw.dot(At.T)
+            Atb = Atw.dot(resid)
+            x = np.linalg.solve(AtA, Atb)
+            logger.debug('    centroid shift = %s,%s', x[0], x[1])
+            duc = x[0]
+            dvc = x[1]
+
+            if psf_prof.centroid != galsim.PositionD(0,0):
+                # In addition to shifting to the best fit center location, also shift
+                # by the centroid of the model itself, so the next next pass through the
+                # fit will be closer to centered.  In practice, this converges pretty quickly.
+                model_cenu = np.sum(WM * u) / f_model - star.fit.center[0]
+                model_cenv = np.sum(WM * v) / f_model - star.fit.center[1]
+                logger.debug('    model centroid = %s,%s', model_cenu, model_cenv)
+                duc += model_cenu
+                dvc += model_cenv
+
+            new_center = (star.fit.center[0] + duc, star.fit.center[1] + dvc)
+            logger.debug('    new center = %s', new_center)
+
+            new_chisq = np.sum((resid-At.T.dot(x))**2 * weight)
+            new_dof = np.count_nonzero(weight) - 3
+        else:
+            new_center = star.fit.center
+            new_chisq = np.sum(resid**2 * weight)
+            new_dof = np.count_nonzero(weight) - 1
+
+        logger.debug("    new_chisq = %s",new_chisq)
+        logger.debug("    new_dof = %s",new_dof)
+
+        return Star(star.data, star.fit.withNew(flux=new_flux,
+                                                center=new_center,
+                                                chisq=new_chisq,
+                                                dof=new_dof))
+
     def remove_outliers(self, stars, iteration, logger):
         """Look for and flag outliers from the list of stars
 
@@ -206,9 +323,8 @@ class PSF(object):
             new_stars = []
             for star in stars:
                 try:
-                    star = self.model.reflux(star, logger=logger)
+                    star = self.reflux(star, logger=logger)
                 except Exception as e:  # pragma: no cover
-                    # TODO: find a case that hits this block for our unit tests.
                     logger.warning("Failed trying to reflux star at %s.  Excluding it.",
                                     star.image_pos)
                     logger.warning("  -- Caught exception: %s", e)

@@ -313,7 +313,6 @@ class GSObjectModel(Model):
             fit = StarFit(params, flux=1.0, center=(0.0, 0.0), params_var=params_var)
             star = Star(star.data, fit)
             star = self.fit(star, fastfit=True)
-        star = self.reflux(star, fit_center=False)
         return star
 
 

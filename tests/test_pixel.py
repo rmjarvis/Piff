@@ -72,13 +72,14 @@ def test_simplest():
     interp = piff.Lanczos(3)
     mod = piff.PixelGrid(du, 32, interp, centered=False)
     star = mod.initialize(s).withFlux(flux=np.sum(s.image.array))
+    psf = piff.SimplePSF(mod, None)
 
     # Check that fitting the star can recover the right flux.
     # Note: this shouldn't match perfectly, since SimpleData draws this as a surface
     # brightness image, not integrated over pixels.  With GalSim drawImage, we can do better
     # by drawing the real flux image.  But even with this, we get 3 dp of accuracy.
     star = mod.fit(star)
-    star = mod.reflux(star)
+    star = psf.reflux(star)
     print('Flux after fit 1:',star.fit.flux)
     np.testing.assert_almost_equal(star.fit.flux/influx, 1.0, decimal=3)
     flux1 = star.fit.flux
@@ -87,7 +88,7 @@ def test_simplest():
     # Also check a trivial convert_func that it does the same thing.
     convert_func = lambda prof: prof
     star = mod.fit(star, convert_func=convert_func)
-    star = mod.reflux(star)
+    star = psf.reflux(star)
     print('Flux after fit 2:',star.fit.flux)
     np.testing.assert_almost_equal(star.fit.flux/influx, 1.0, decimal=3)
     np.testing.assert_almost_equal(star.fit.flux/flux1, 1.0, decimal=7)
@@ -116,10 +117,11 @@ def test_oversample():
     interp = 'Lanczos(3)'  # eval the string
     mod = piff.PixelGrid(2*du, nside//2, interp, centered=False)
     star = mod.initialize(s).withFlux(flux=np.sum(s.image.array))
+    psf = piff.SimplePSF(mod, None)
 
     for i in range(2):
         star = mod.fit(star)
-        star = mod.reflux(star)
+        star = psf.reflux(star)
         print('Flux after fit {:d}:'.format(i),star.fit.flux)
         np.testing.assert_almost_equal(star.fit.flux/influx, 1.0, decimal=3)
 
@@ -155,12 +157,13 @@ def test_center():
     # Want an odd-sized model when center=True
     mod = piff.PixelGrid(0.5, 21, centered=True, logger=logger)
     star = mod.initialize(s, logger=logger)
+    psf = piff.SimplePSF(mod, None)
     print('Flux, ctr after init:',star.fit.flux,star.fit.center)
     for i in range(4):
         star = mod.fit(star, logger=logger)
         print('Flux, ctr, chisq after fit {:d}:'.format(i),
               star.fit.flux, star.fit.center, star.fit.chisq)
-        star = mod.reflux(star, logger=logger)
+        star = psf.reflux(star, logger=logger)
         print('Flux, ctr, chisq after reflux {:d}:'.format(i),
               star.fit.flux, star.fit.center, star.fit.chisq)
 
@@ -187,12 +190,13 @@ def test_center():
 
     mod = piff.PixelGrid(0.8, 29, centered=True)
     star = mod.initialize(s)
+    psf = piff.SimplePSF(mod, None)
     print('Flux, ctr after reflux:',star.fit.flux,star.fit.center)
     for i in range(3):
         star = mod.fit(star)
         print('Flux, ctr, chisq after fit {:d}:'.format(i),
               star.fit.flux, star.fit.center, star.fit.chisq)
-        star = mod.reflux(star)
+        star = psf.reflux(star)
         print('Flux, ctr, chisq after reflux {:d}:'.format(i),
               star.fit.flux, star.fit.center, star.fit.chisq)
 
@@ -250,6 +254,8 @@ def test_interp():
     # Polynomial doesn't need this, but it should work nonetheless.
     interp.initialize(stars)
 
+    psf = piff.SimplePSF(mod, interp)
+
     # Iterate solution using interpolator
     for iteration in range(3):
         # Refit PSFs star by star:
@@ -263,7 +269,7 @@ def test_interp():
         dof = 0
         for i,s in enumerate(stars):
             s = interp.interpolate(s)
-            s = mod.reflux(s)
+            s = psf.reflux(s)
             chisq += s.fit.chisq
             dof += s.fit.dof
             stars[i] = s
@@ -271,7 +277,7 @@ def test_interp():
 
     # Now use the interpolator to produce a noiseless rendering
     s1 = interp.interpolate(s0)
-    s1 = mod.reflux(s1)
+    s1 = psf.reflux(s1)
     print('Flux, ctr after interpolation: ',s1.fit.flux, s1.fit.center, s1.fit.chisq)
     np.testing.assert_almost_equal(s1.fit.flux/influx, 1.0, decimal=2)
 
@@ -356,6 +362,7 @@ def test_missing():
     # than the data
     pixinterp = piff.Lanczos(3)
     mod = piff.PixelGrid(0.5, size, pixinterp, centered=False)
+    psf = piff.SimplePSF(mod, None)
 
     # Draw stars on a 2d grid of "focal plane" with 0<=u,v<=1
     positions = np.linspace(0.,1.,4)
@@ -372,7 +379,7 @@ def test_missing():
             bad = np_rng.rand(*s.image.array.shape) < bad_frac
             s.weight.array[bad] = 0.
             s.image.array[bad] = -999.
-            s = mod.reflux(s, fit_center=False) # Start with a sensible flux
+            s = psf.reflux(s) # Start with a sensible flux
             stars.append(s)
 
     # Also store away a noiseless copy of the PSF, origin of focal plane
@@ -383,6 +390,7 @@ def test_missing():
         # Interpolator will be simple mean
         interp = piff.Polynomial(order=0)
         interp.initialize(stars)
+        psf = piff.SimplePSF(mod, interp)
 
         oldchisq = 0.
         # Iterate solution using interpolator
@@ -398,7 +406,7 @@ def test_missing():
             dof = 0
             for i,s in enumerate(stars):
                 s = interp.interpolate(s)
-                s = mod.reflux(s)
+                s = psf.reflux(s)
                 chisq += s.fit.chisq
                 dof += s.fit.dof
                 stars[i] = s
@@ -411,7 +419,7 @@ def test_missing():
 
         # Now use the interpolator to produce a noiseless rendering
         s1 = interp.interpolate(s0)
-        s1 = mod.reflux(s1)
+        s1 = psf.reflux(s1)
         print('Flux, ctr after interpolation: ',s1.fit.flux, s1.fit.center, s1.fit.chisq)
         # Less than 2 dp of accuracy here!
         np.testing.assert_almost_equal(s1.fit.flux/influx, 1.0, decimal=1)
@@ -461,6 +469,8 @@ def test_gradient():
     # Polynomial doesn't need this, but it should work nonetheless.
     interp.initialize(stars)
 
+    psf = piff.SimplePSF(mod, interp)
+
     oldchisq = 0.
     # Iterate solution using interpolator
     for iteration in range(40):
@@ -475,7 +485,7 @@ def test_gradient():
         dof = 0
         for i,s in enumerate(stars):
             s = interp.interpolate(s)
-            s = mod.reflux(s)
+            s = psf.reflux(s)
             chisq += s.fit.chisq
             dof += s.fit.dof
             stars[i] = s
@@ -488,7 +498,7 @@ def test_gradient():
 
     # Now use the interpolator to produce a noiseless rendering
     s1 = interp.interpolate(s0)
-    s1 = mod.reflux(s1)
+    s1 = psf.reflux(s1)
     print('Flux, ctr after interpolation: ',s1.fit.flux, s1.fit.center, s1.fit.chisq)
     # Less than 2 dp of accuracy here!
     np.testing.assert_almost_equal(s1.fit.flux/influx, 1.0, decimal=1)
@@ -544,6 +554,8 @@ def test_undersamp():
     # Polynomial doesn't need this, but it should work nonetheless.
     interp.initialize(stars)
 
+    psf = piff.SimplePSF(mod, interp)
+
     # Work on one star alone first
     b = galsim.BoundsI(16-size//3,16+size//3,16-size//3,16+size//3)
     s1 = mod.draw(s0)
@@ -562,7 +574,7 @@ def test_undersamp():
     # The nominal thinks it got it right though.
     assert s2.fit.chisq < 1.e-6
 
-    s3 = mod.reflux(s2)
+    s3 = psf.reflux(s2)
     image = mod.draw(s3).image
     chisq3 = np.sum((s0.image[b].array - image[b].array)**2*s0.weight[b].array)
     print('chisq after reflux = ',chisq3)
@@ -581,7 +593,7 @@ def test_undersamp():
     # Fitting again doesn't mess it up, but it's not any better.
     assert chisq < 1.0
 
-    s5 = mod.reflux(s4)
+    s5 = psf.reflux(s4)
     image = mod.draw(s5).image
     chisq = np.sum((s0.image[b].array - image[b].array)**2*s0.weight[b].array)
     print('chisq after reflux = ',chisq)
@@ -601,7 +613,7 @@ def test_undersamp():
         dof = 0
         for i,s in enumerate(stars):
             s = interp.interpolate(s)
-            s = mod.reflux(s)
+            s = psf.reflux(s)
             chisq += s.fit.chisq
             dof += s.fit.dof
             stars[i] = s
@@ -614,7 +626,7 @@ def test_undersamp():
 
     # Now use the interpolator to produce a noiseless rendering
     s1 = interp.interpolate(s0)
-    s1 = mod.reflux(s1)
+    s1 = psf.reflux(s1)
     print('Flux, ctr after interpolation: ',s1.fit.flux, s1.fit.center, s1.fit.chisq)
     # Less than 2 dp of accuracy here!
     np.testing.assert_almost_equal(s1.fit.flux/influx, 1.0, decimal=1)
@@ -672,6 +684,8 @@ def test_undersamp_shift():
     # BasisInterp needs to be initialized before solving.
     interp.initialize(stars)
 
+    psf = piff.SimplePSF(mod, interp)
+
     oldchisq = 0.
     # Iterate solution using mean of chisq
     for iteration in range(10):
@@ -680,7 +694,7 @@ def test_undersamp_shift():
         # Solve for interpolated PSF function
         interp.solve(stars)
         # Refit and recenter all stars
-        stars = [mod.reflux(interp.interpolate(s)) for s in stars]
+        stars = [psf.reflux(interp.interpolate(s)) for s in stars]
         chisq = np.sum([s.fit.chisq for s in stars])
         dof   = np.sum([s.fit.dof for s in stars])
         print('iteration',iteration,'chisq=',chisq, 'dof=',dof)
@@ -691,7 +705,7 @@ def test_undersamp_shift():
 
     # Now use the interpolator to produce a noiseless rendering
     s1 = interp.interpolate(s0)
-    s1 = mod.reflux(s1)
+    s1 = psf.reflux(s1)
     print('Flux, ctr after interpolation: ',s1.fit.flux, s1.fit.center, s1.fit.chisq)
     # Less than 2 dp of accuracy here!
     np.testing.assert_almost_equal(s1.fit.flux/influx, 1.0, decimal=1)
@@ -753,6 +767,8 @@ def do_undersamp_drift(fit_centers=False):
     # BasisInterp needs to be initialized before solving.
     interp.initialize(stars)
 
+    psf = piff.SimplePSF(mod, interp)
+
     oldchisq = 0.
     # Iterate solution using mean of chisq
     for iteration in range(20):
@@ -761,7 +777,7 @@ def do_undersamp_drift(fit_centers=False):
         # Solve for interpolated PSF function
         interp.solve(stars)
         # Refit and recenter all stars
-        stars = [mod.reflux(interp.interpolate(s)) for s in stars]
+        stars = [psf.reflux(interp.interpolate(s)) for s in stars]
         chisq = np.sum([s.fit.chisq for s in stars])
         dof   = np.sum([s.fit.dof for s in stars])
         print('iteration',iteration,'chisq=',chisq, 'dof=',dof)
@@ -772,7 +788,7 @@ def do_undersamp_drift(fit_centers=False):
 
     # Now use the interpolator to produce a noiseless rendering
     s1 = interp.interpolate(s0)
-    s1 = mod.reflux(s1)
+    s1 = psf.reflux(s1)
     print('Flux, ctr after interpolation: ',s1.fit.flux, s1.fit.center, s1.fit.chisq)
     # Less than 2 dp of accuracy here!
     np.testing.assert_almost_equal(s1.fit.flux/influx, 1.0, decimal=1)
@@ -1421,8 +1437,10 @@ def test_var():
     mod = piff.PixelGrid(0.5, 20, centered=False)
     star = mod.initialize(star)
 
+    psf = piff.SimplePSF(mod, None)
+
     star = mod.fit(star)
-    star = mod.reflux(star)
+    star = psf.reflux(star)
     print('Flux after fit 1:',star.fit.flux)
 
     # Make an empirical estimate of the real variance from many runs.

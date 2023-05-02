@@ -48,7 +48,7 @@ class Star(object):
     parameters return a new object and  don't change the original.  e.g.
 
         star = psf.drawStar(star)
-        star = star.reflux()
+        star = star.withFlux(14)
         star = star.addPoisson(gain=gain)
 
     Stars have the following attributes:

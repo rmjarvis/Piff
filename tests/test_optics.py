@@ -53,6 +53,8 @@ def test_optical(model=None):
     if not model:
         model = piff.Optical(template='des',atmo_type='Kolmogorov')
 
+    psf = piff.SimplePSF(model, None)
+
     # fill model's parameters for star's Fit with defocus and r0
     params = model.kwargs_to_params(zernike_coeff=[0,0,0,0,0.5],r0=0.15)
     star = make_empty_star(params=params)
@@ -77,7 +79,7 @@ def test_optical(model=None):
     # Reflux actually updates these to something reasonable.
     logger = piff.config.setup_logger(verbose=2)
     star_wrong = star.withFlux(2, (0.1,0.2))
-    star_reflux = model.reflux(star_wrong, logger=logger)
+    star_reflux = psf.reflux(star_wrong, logger=logger)
 
     # There is no noise, but this is still not completely perfect.
     assert star_reflux.fit.chisq < 1.e-2

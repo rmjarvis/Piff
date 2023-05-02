@@ -121,6 +121,16 @@ class SingleChipPSF(PSF):
         # update stars from psf outlier rejection
         self.stars = [ star for chipnum in chipnums for star in self.psf_by_chip[chipnum].stars ]
 
+    @property
+    def fit_center(self):
+        """Whether to fit the center of the star in reflux.
+
+        This is generally set in the model specifications.
+        If all component models includes a shift, then this is False.
+        Otherwise it is True.
+        """
+        return self.single_psf.fit_center
+
     def interpolateStar(self, star):
         """Update the star to have the current interpolated fit parameters according to the
         current PSF model.
@@ -143,6 +153,10 @@ class SingleChipPSF(PSF):
     def _getProfile(self, star):
         chipnum = star['chipnum']
         return self.psf_by_chip[chipnum]._getProfile(star)
+
+    def _getRawProfile(self, star):
+        chipnum = star['chipnum']
+        return self.psf_by_chip[chipnum]._getRawProfile(star)
 
     def _finish_write(self, fits, extname, logger):
         """Finish the writing process with any class-specific steps.
