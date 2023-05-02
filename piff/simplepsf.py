@@ -172,6 +172,16 @@ class SimplePSF(PSF):
 
         return all_stars, nremoved
 
+    @property
+    def fit_center(self):
+        """Whether to fit the center of the star in reflux.
+
+        This is generally set in the model specifications.
+        If all component models includes a shift, then this is False.
+        Otherwise it is True.
+        """
+        return self.model._centered
+
     def interpolateStarList(self, stars):
         """Update the stars to have the current interpolated fit parameters according to the
         current PSF model.
@@ -200,9 +210,12 @@ class SimplePSF(PSF):
     def _drawStar(self, star, copy_image=True, center=None):
         return self.model.draw(star, copy_image=copy_image, center=center)
 
-    def _getProfile(self, star, copy_image=True, center=None):
+    def _getProfile(self, star):
         prof = self.model.getProfile(star.fit.params).shift(star.fit.center) * star.fit.flux
         return prof, self.model._method
+
+    def _getRawProfile(self, star):
+        return self.model.getProfile(star.fit.params)
 
     def _finish_write(self, fits, extname, logger):
         """Finish the writing process with any class-specific steps.

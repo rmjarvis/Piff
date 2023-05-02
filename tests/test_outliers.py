@@ -90,7 +90,7 @@ def test_chisq():
     interp.mean = np.array([0.4, 0.023, 0.012])
     psf = piff.SimplePSF(model, interp)
     stars = psf.interpolateStarList(stars)
-    stars = [ psf.model.reflux(s,logger=logger) for s in stars ]
+    stars = [ psf.reflux(s,logger=logger) for s in stars ]
 
     outliers1 = piff.ChisqOutliers(nsigma=5)
     stars1, nremoved1 = outliers1.removeOutliers(stars,logger=logger)
