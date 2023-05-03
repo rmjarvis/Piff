@@ -65,6 +65,7 @@ class GSObjectModel(Model):
             self._nparams = 3
         else:
             self._nparams = 5
+        self.set_num(None)
 
     def moment_fit(self, star, logger=None):
         """Estimate transformations needed to bring self.gsobj towards given star."""
@@ -80,10 +81,10 @@ class GSObjectModel(Model):
 
         param_flux = star.fit.flux
         if self._centered:
-            param_scale, param_g1, param_g2 = star.fit.params
+            param_scale, param_g1, param_g2 = star.fit.get_params(self._num)
             param_du, param_dv = star.fit.center
         else:
-            param_du, param_dv, param_scale, param_g1, param_g2 = star.fit.params
+            param_du, param_dv, param_scale, param_g1, param_g2 = star.fit.get_params(self._num)
         param_shear = galsim.Shear(g1=param_g1, g2=param_g2)
 
         param_flux *= flux / ref_flux
@@ -200,9 +201,9 @@ class GSObjectModel(Model):
         flux = star.fit.flux
         if self._centered:
             du, dv = star.fit.center
-            scale, g1, g2 = star.fit.params
+            scale, g1, g2 = star.fit.get_params(self._num)
         else:
-            du, dv, scale, g1, g2 = star.fit.params
+            du, dv, scale, g1, g2 = star.fit.get_params(self._num)
 
         return np.array([flux, du, dv, scale, g1, g2])
 
@@ -289,8 +290,8 @@ class GSObjectModel(Model):
         # these parameters don't really apply to each star separately.
         # After refluxing, we may drop this by 1 or 3 if adjusting flux and/or centroid.
         dof = np.count_nonzero(star.weight.array)
-        fit = star.fit.withNew(params=params, params_var=params_var,
-                               chisq=chisq, dof=dof)
+        fit = star.fit.newParams(params, params_var=params_var, num=self._num,
+                                 chisq=chisq, dof=dof)
         return Star(star.data, fit)
 
     def initialize(self, star, logger=None):
@@ -307,7 +308,7 @@ class GSObjectModel(Model):
         else:
             params = np.array([ 0.0, 0.0, 1.0, 0.0, 0.0])
             params_var = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
-        fit = star.fit.withNew(params=params, params_var=params_var)
+        fit = star.fit.newParams(params=params, params_var=params_var, num=self._num)
         star = Star(star.data, fit)
         star = self.fit(star, fastfit=True)
         return star

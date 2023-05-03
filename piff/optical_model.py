@@ -166,6 +166,7 @@ class Optical(Model):
 
     def __init__(self, template=None, gsparams=None, atmo_type='VonKarman', logger=None, **kwargs):
         self.logger = galsim.config.LoggerWrapper(logger)
+        self.set_num(None)
 
         # If pupil_angle and strut angle are provided as strings, eval them.
         for key in kwargs:
@@ -288,8 +289,10 @@ class Optical(Model):
         chisq = np.std(image.array - model_image.array)
         dof = np.count_nonzero(weight.array) - 3   #3 DOF in flux,centroid
 
-        var = np.zeros(len(star.fit.params))
-        return Star(star.data, star.fit.withNew(params_var=var, chisq=chisq, dof=dof))
+        params = star.fit.get_params(self._num)
+        var = np.zeros_like(params)
+        return Star(star.data,
+                    star.fit.newParams(params, params_var=var, num=self._num, chisq=chisq, dof=dof))
 
     @lru_cache(maxsize=8)
     def getOptics(self, zernike_coeff):

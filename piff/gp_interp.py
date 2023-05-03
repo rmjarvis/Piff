@@ -135,6 +135,7 @@ class GPInterp(Interp):
             'optimizer': optimizer,
             'kernel': kernel
         }
+        self.set_num(None)
 
         if isinstance(kernel,str):
             self.kernel_template = [kernel]
@@ -202,7 +203,7 @@ class GPInterp(Interp):
         :param logger:  A logger object for logging debug info. [default: None]
         """
         if self.rows is None:
-            self.nparams = len(stars[0].fit.params)
+            self.nparams = len(stars[0].fit.get_params(self._num))
             self.rows = np.arange(0, self.nparams, 1).astype(int)
         else:
             self.nparams = len(self.rows)
@@ -241,8 +242,8 @@ class GPInterp(Interp):
         :param logger:   A logger object for logging debug info. [default: None]
         """
         X = np.array([self.getProperties(star) for star in stars])
-        y = np.array([star.fit.params for star in stars])
-        y_err = np.sqrt(np.array([star.fit.params_var for star in stars]))
+        y = np.array([star.fit.get_params(self._num) for star in stars])
+        y_err = np.sqrt(np.array([star.fit.get_params_var(self._num) for star in stars]))
 
         y = np.array([y[:,i] for i in self.rows]).T
         y_err = np.array([y_err[:,i] for i in self.rows]).T
@@ -279,13 +280,13 @@ class GPInterp(Interp):
         gp_y = self._predict(Xstar)
         fitted_stars = []
         for y0, star in zip(gp_y, stars):
-            if star.fit.params is None:
+            if star.fit.get_params(self._num) is None:
                 y0_updated = np.zeros(self.nparams)
             else:
-                y0_updated = star.fit.params
+                y0_updated = star.fit.get_params(self._num)
             for j in range(self.nparams):
                 y0_updated[self.rows[j]] = y0[j]
-            fit = star.fit.newParams(y0_updated)
+            fit = star.fit.newParams(y0_updated, num=self._num)
             fitted_stars.append(Star(star.data, fit))
         return fitted_stars
 

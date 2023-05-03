@@ -84,6 +84,7 @@ class PixelGrid(Model):
             'centered' : centered,
             'interp' : repr(self.interp),
         }
+        self.set_num(None)
 
         if size <= 0:
             raise ValueError("Non-positive PixelGrid size {:d}".format(size))
@@ -115,7 +116,7 @@ class PixelGrid(Model):
         # Normalize to get unity flux
         params /= np.sum(params)
 
-        fit = star.fit.withNew(params=params)
+        fit = star.fit.newParams(params=params, num=self._num)
         return Star(star.data, fit)
 
     def fit(self, star, logger=None, convert_func=None):
@@ -169,9 +170,10 @@ class PixelGrid(Model):
             logger.info("Caught error %s making params_var.  Setting all to 1.e100",e)
             params_var = np.ones_like(dparam) * 1.e100
 
-        star = Star(star1.data, star1.fit.withNew(params=star1.fit.params + dparam,
-                                                  params_var=params_var,
-                                                  chisq=new_chisq))
+        params = star.fit.get_params(self._num)
+        params += dparam
+        star = Star(star1.data, star1.fit.newParams(params=params, params_var=params_var,
+                                                    num=self._num, chisq=new_chisq))
         self.normalize(star)
         return star
 
@@ -192,10 +194,10 @@ class PixelGrid(Model):
         """
         logger = galsim.config.LoggerWrapper(logger)
         logger.debug('Start chisq function')
-        logger.debug('initial params = %s',star.fit.params)
+        logger.debug('initial params = %s',star.fit.get_params(self._num))
 
         data, weight, u, v = star.data.getDataVector()
-        prof = self.getProfile(star.fit.params)._shift(*star.fit.center)
+        prof = self.getProfile(star.fit.get_params(self._num))._shift(*star.fit.center)
         logger.debug('prof.flux = %s',prof.flux)
 
         # My idea for doing composite functions is that at this point in the calculation, we
@@ -444,7 +446,8 @@ class PixelGrid(Model):
         # Backwards compatibility check.
         # We used to only keep nparams - 1 or nparams - 3 values in fit.params.
         # If this is the case, fix it up to match up with our new convention.
-        nparams1 = len(star.fit.params)
+        params = star.fit.get_params(self._num)
+        nparams1 = len(params)
         nparams2 = self.size**2
         if nparams1 < nparams2:
             # Difference is either 1 or 3.  If not, something very weird happened.
@@ -460,7 +463,7 @@ class PixelGrid(Model):
                 #       this branch.
                 mask[origin[0]+1,origin[1]] = False
                 mask[origin[0],origin[1]+1] = False
-            temp[mask] = star.fit.params
+            temp[mask] = params
 
             # Now populate the masked pixels
             delta_u = np.arange(-origin[0], self.size-origin[0])
@@ -475,10 +478,13 @@ class PixelGrid(Model):
             # Note: This uses the old scheme of sb normalization, not flux normalization.
             temp[origin] = 1./self.pixel_area - np.sum(temp)
 
-            star.fit.params = temp.flatten()
+            params = temp.flatten()
+            star.fit.params = None  # Remove the old one with the wrong size, so newParams
+                                    # doesn't complain about the size changing.
 
         # Normally this is all that is required.
-        star.fit.params /= np.sum(star.fit.params)
+        params /= np.sum(params)
+        star.fit = star.fit.newParams(params, num=self._num)
 
     @classmethod
     def _fix_kwargs(cls, kwargs):

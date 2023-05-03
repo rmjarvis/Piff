@@ -772,6 +772,7 @@ def test_psf():
 
     # Can't do much with a base PSF class
     psf = piff.PSF()
+    psf.set_num(None)
     np.testing.assert_raises(NotImplementedError, psf.parseKwargs, None)
     np.testing.assert_raises(NotImplementedError, psf.interpolateStar, star)
     np.testing.assert_raises(NotImplementedError, psf.interpolateStarList, [star])

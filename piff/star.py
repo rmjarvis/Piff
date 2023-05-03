@@ -996,12 +996,8 @@ class StarFit(object):
         :returns: New StarFit object with altered parameters.  All chisq-related parameters
                   are set to None since they are no longer valid.
         """
-        if num is not None:
-            old_params = self.params[num]
-            old_params_var = None if self.params_var is None else self.params_var[num]
-        else:
-            old_params = self.params
-            old_params_var = self.params_var
+        old_params = self.get_params(num)
+        old_params_var = self.get_params_var(num)
         if old_params is not None and np.array(params).shape != old_params.shape:
             raise ValueError('new StarFit parameters do not match dimensions of old ones')
         flux = kwargs.pop('flux', self.flux)
@@ -1025,13 +1021,13 @@ class StarFit(object):
                             flux=flux, center=center, **kwargs)
 
     def get_params(self, num):
-        if num is not None:
+        if num is not None and self.params is not None:
             return self.params[num]
         else:
             return self.params
 
     def get_params_var(self, num):
-        if num is not None:
+        if num is not None and self.params_var is not None:
             return self.params_var[num]
         else:
             return self.params_var

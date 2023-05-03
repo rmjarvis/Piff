@@ -63,6 +63,12 @@ class Model(object):
 
         return model
 
+    def set_num(self, num):
+        """If there are multiple components involved in the fit, set the number to use
+        for this model.
+        """
+        self._num = num
+
     @classmethod
     def __init_subclass__(cls):
         # Classes that don't want to register a type name can either not define _type_name
@@ -139,7 +145,8 @@ class Model(object):
 
         :returns: a new Star instance with the data field having an image of the drawn model.
         """
-        prof = self.getProfile(star.fit.params).shift(star.fit.center) * star.fit.flux
+        params = star.fit.get_params(self._num)
+        prof = self.getProfile(params).shift(star.fit.center) * star.fit.flux
         if copy_image:
             image = star.image.copy()
         else:

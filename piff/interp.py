@@ -73,6 +73,12 @@ class Interp(object):
 
         return interp
 
+    def set_num(self, num):
+        """If there are multiple components involved in the fit, set the number to use
+        for this model.
+        """
+        self._num = num
+
     @classmethod
     def __init_subclass__(cls):
         # Classes that don't want to register a type name can either not define _type_name
