@@ -23,7 +23,7 @@ import galsim
 import treegp
 
 from .interp import Interp
-from .star import Star, StarFit
+from .star import Star
 
 class GPInterp(Interp):
     """
@@ -279,16 +279,13 @@ class GPInterp(Interp):
         gp_y = self._predict(Xstar)
         fitted_stars = []
         for y0, star in zip(gp_y, stars):
-            if star.fit is None:
-                fit = StarFit(y0)
+            if star.fit.params is None:
+                y0_updated = np.zeros(self.nparams)
             else:
-                if star.fit.params is None:
-                    y0_updated = np.zeros(self.nparams)
-                else:
-                    y0_updated = star.fit.params
-                for j in range(self.nparams):
-                    y0_updated[self.rows[j]] = y0[j]
-                fit = star.fit.newParams(y0_updated)
+                y0_updated = star.fit.params
+            for j in range(self.nparams):
+                y0_updated[self.rows[j]] = y0[j]
+            fit = star.fit.newParams(y0_updated)
             fitted_stars.append(Star(star.data, fit))
         return fitted_stars
 

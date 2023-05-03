@@ -191,7 +191,7 @@ def check_gp(stars_training, stars_validation, kernel, optimizer,
     else:
         stars_v = copy.deepcopy(stars_validation)
         for s in stars_v:
-            s.fit = None
+            s.fit = piff.StarFit(None)
         stars_test = interp.interpolateList(stars_v)
 
     xtest = np.array([interp.getProperties(star) for star in stars_validation])
