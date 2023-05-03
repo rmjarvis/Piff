@@ -228,11 +228,6 @@ class SimplePSF(PSF):
     def _drawStar(self, star, center=None):
         return self.model.draw(star, center=center)
 
-    def _getProfile(self, star):
-        prof, method = self._getRawProfile(star)
-        prof = prof.shift(star.fit.center) * star.fit.flux
-        return prof, method
-
     def _getRawProfile(self, star):
         return self.model.getProfile(star.fit.get_params(self._num)), self.model._method
 
