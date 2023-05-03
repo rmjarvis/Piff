@@ -111,6 +111,9 @@ from .size_mag import SizeMagStats, SmallBrightSelect, SizeMagSelect
 # Optics
 from .optical_model import Optical, optical_templates
 
+# Composite PSFs
+from .sumpsf import SumPSF
+
 # Leave these in their own namespaces
 from . import util
 from . import des
