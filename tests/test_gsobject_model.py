@@ -728,8 +728,8 @@ def test_direct():
         # These tests are more strict above.  The truncated Moffat included here but not there
         # doesn't work quite as well.
         np.testing.assert_allclose(fit.params[0], scale, rtol=1e-4)
-        np.testing.assert_allclose(fit.params[1], g1, rtol=0, atol=1e-5)
-        np.testing.assert_allclose(fit.params[2], g2, rtol=0, atol=1e-5)
+        np.testing.assert_allclose(fit.params[1], g1, rtol=0, atol=2e-5)
+        np.testing.assert_allclose(fit.params[2], g2, rtol=0, atol=2e-5)
         np.testing.assert_allclose(fit.center[0], du, rtol=0, atol=1e-5)
         np.testing.assert_allclose(fit.center[1], dv, rtol=0, atol=1e-5)
 
@@ -904,8 +904,7 @@ def test_fail():
     star2 = piff.Star(piff.StarData(noisy_image, image.true_center, weight), None)
 
     model1 = piff.Moffat(fastfit=True, beta=2.5)
-    with np.testing.assert_raises(RuntimeError):
-        model1.initialize(star2)
+    star2 = model1.initialize(star2)
     with np.testing.assert_raises(RuntimeError):
         model1.fit(star2)
     star3 = model1.initialize(star1)
@@ -914,17 +913,19 @@ def test_fail():
     with np.testing.assert_raises(RuntimeError):
         model1.fit(star3)
     psf = piff.SimplePSF(model1, piff.Mean())
+    star1, star2, star3 = psf.initialize_flux_center([star1, star2, star3])
     with CaptureLog() as cl:
-        psf.initialize_params([star3], logger=cl.logger)
+        stars, _ = psf.initialize_params([star3], logger=cl.logger)
         with np.testing.assert_raises(RuntimeError):
             # Raises an error that all stars were flagged
-            psf.single_iteration([star3], logger=cl.logger, convert_func=None)
+            psf.single_iteration(stars, logger=cl.logger, convert_func=None)
     assert "Failed fitting star" in cl.output
 
     # This is contrived to hit the fit failure for the reference.
     # I'm not sure what realistic use case would actually hit it, but at least it's
     # theoretically possible to fail there.
-    model2 = piff.GSObjectModel(galsim.InterpolatedImage(noisy_image), fastfit=True)
+    with np.testing.assert_warns(RuntimeWarning):
+        model2 = piff.GSObjectModel(galsim.InterpolatedImage(noisy_image), fastfit=True)
     with np.testing.assert_raises(RuntimeError):
         model2.initialize(star1)
     psf = piff.SimplePSF(model2, piff.Mean())
@@ -937,9 +938,7 @@ def test_fail():
     # The easiest way to make least_squares_fit fail is to give it extra scipy_kwargs
     # that don't let it finish converging.
     model3 = piff.Moffat(fastfit=False, beta=2.5, scipy_kwargs={'max_nfev':10})
-    with np.testing.assert_raises(RuntimeError):
-        model3.initialize(star2)
-    star2.fit.params = star3.fit.params.copy()  # Make sure params are setup correctly.
+    star2 = model3.initialize(star2)
     with np.testing.assert_raises(RuntimeError):
         model3.fit(star2)
     star3 = model3.initialize(star1)

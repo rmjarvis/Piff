@@ -277,15 +277,13 @@ class Polynomial(Interp):
                     "polynomial type %s with %d positions",
                     nparam,self.poly_type,npos)
 
-        coeffs = []
-
         # This model function adapts our _interpolationModel method
         # into the form that the scipy curve_fit function is expecting.
         # It just needs to unpack a linear exploded list of coefficients
         # into the matrix form that _interpolationModel wants.
 
-
         # Loop through the parameters
+        coeffs = []
         for i, parameter in enumerate(parameters):
 
             def model(uv,*coeffs):
@@ -296,9 +294,11 @@ class Polynomial(Interp):
             # a single parameter vector for scipy to fit.
             p0 = self._pack_coefficients(i, self._initialGuess(positions, parameter, i))
 
+            if len(parameter) < len(p0):
+                raise RuntimeError("Too few constraints for solution. (Probably too few stars)")
+
             logger.debug("Fitting parameter %d from initial guess %s "
                          "with polynomial order %d", i, p0, self._orders[i])
-
 
             # Black box curve fitter from scipy!
             # We may want to look into the tolerance and other parameters
@@ -307,7 +307,7 @@ class Polynomial(Interp):
             with warnings.catch_warnings():
                 # scipy.optimize has a tendency to emit warnings.  Let's ignore them.
                 warnings.simplefilter("ignore", scipy.optimize.OptimizeWarning)
-                p,covmat=scipy.optimize.curve_fit(model, positions, parameter, p0)
+                p, covmat = scipy.optimize.curve_fit(model, positions, parameter, p0)
 
             # Build up the list of outputs, one for each parameter
             coeffs.append(self._unpack_coefficients(i,p))

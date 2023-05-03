@@ -519,7 +519,6 @@ def test_parallel():
     config['input']['nimages'] = 3
     with CaptureLog(level=2) as cl:
         psf = piff.process(config, cl.logger)
-    assert "Removed 6 stars in initialize" in cl.output
     assert "No stars left to fit.  Cannot find PSF model." in cl.output
     assert "Solutions failed for chipnums: [3]" in cl.output
 
