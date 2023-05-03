@@ -74,6 +74,7 @@ class Polynomial(Interp):
             'orders' : orders,
             'poly_type' : poly_type
         }
+        self.set_num(None)
 
     def _setup_indices(self, nparam):
         """An internal function that sets up the indices, given the number of parameters
@@ -237,7 +238,7 @@ class Polynomial(Interp):
 
         :returns: a new list of Star instances
         """
-        parameters = np.array([s.fit.params for s in stars]).T
+        parameters = np.array([s.fit.get_params(self._num) for s in stars]).T
         positions = np.array([self.getProperties(s) for s in stars]).T
         nparam = len(parameters)
         self._setup_indices(nparam)
@@ -263,7 +264,7 @@ class Polynomial(Interp):
         # We will want to index things later, so useful
         # to convert these to numpy arrays and transpose
         # them to the order we need.
-        parameters = np.array([s.fit.params for s in stars]).T
+        parameters = np.array([s.fit.get_params(self._num) for s in stars]).T
         positions = np.array([self.getProperties(s) for s in stars]).T
 
         # We should have the same number of parameters as number of polynomial
@@ -404,5 +405,5 @@ class Polynomial(Interp):
         """
         pos = self.getProperties(star)
         p = [self._interpolationModel(pos, coeff) for coeff in self.coeffs]
-        fit = star.fit.newParams(p)
+        fit = star.fit.newParams(p, num=self._num)
         return Star(star.data, fit)

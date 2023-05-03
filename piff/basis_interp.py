@@ -54,6 +54,7 @@ class BasisInterp(Interp):
         self.degenerate_points = True  # This Interpolator uses chisq quadratic forms
         self.use_qr = False  # The default.  May be overridden by subclasses.
         self.q = None
+        self.set_num(None)
 
     def initialize(self, stars, logger=None):
         """Initialize both the interpolator to some state prefatory to any solve iterations and
@@ -67,7 +68,7 @@ class BasisInterp(Interp):
 
         :returns:           A new list of Stars which have their parameters initialized.
         """
-        c = np.mean([s.fit.params for s in stars], axis=0)
+        c = np.mean([s.fit.get_params(self._num) for s in stars], axis=0)
         self.q = c[:,np.newaxis] * self.constant(1.)[np.newaxis,:]
         stars = self.interpolateList(stars)
         return stars
@@ -323,7 +324,7 @@ class BasisInterp(Interp):
 
         K = self.basis(star)
         p = np.dot(self.q,K)
-        fit = star.fit.newParams(p)
+        fit = star.fit.newParams(p, num=self._num)
         return Star(star.data, fit)
 
 

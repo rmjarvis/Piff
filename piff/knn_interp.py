@@ -59,6 +59,7 @@ class KNNInterp(Interp):
 
         from sklearn.neighbors import KNeighborsRegressor
         self.knn = KNeighborsRegressor(**self.knr_kwargs)
+        self.set_num(None)
 
     @property
     def property_names(self):
@@ -115,43 +116,43 @@ class KNNInterp(Interp):
         """
         return stars
 
-    def solve(self, star_list, logger=None):
+    def solve(self, stars, logger=None):
         """Solve for the interpolation coefficients given stars and attributes
 
-        :param star_list:   A list of Star instances to interpolate between
+        :param stars:       A list of Star instances to interpolate between
         :param logger:      A logger object for logging debug info. [default: None]
         """
-        locations = np.array([self.getProperties(star) for star in star_list])
-        targets = np.array([star.fit.params for star in star_list])
+        locations = np.array([self.getProperties(star) for star in stars])
+        targets = np.array([star.fit.get_params(self._num) for star in stars])
         self._fit(locations, targets)
 
     def interpolate(self, star, logger=None):
-        """Perform the interpolation to find the interpolated parameter vector at some position. Calls interpolateList because sklearn prefers list input anyways
+        """Perform the interpolation to find the interpolated parameter vector at some position.
 
         :param star:        A Star instance to which one wants to interpolate
         :param logger:      A logger object for logging debug info. [default: None]
 
         :returns: a new Star instance with its StarFit member holding the interpolated parameters
         """
-        # because of sklearn formatting, call interpolateList and take 0th entry
+        # Just call interpolateList because sklearn prefers list input anyways
         return self.interpolateList([star], logger=logger)[0]
 
-    def interpolateList(self, star_list, logger=None):
+    def interpolateList(self, stars, logger=None):
         """Perform the interpolation for a list of stars.
 
-        :param star_list:   A list of Star instances to which to interpolate.
+        :param stars:       A list of Star instances to which to interpolate.
         :param logger:      A logger object for logging debug info. [default: None]
 
         :returns: a list of new Star instances with interpolated parameters
         """
         logger = galsim.config.LoggerWrapper(logger)
-        locations = np.array([self.getProperties(star) for star in star_list])
+        locations = np.array([self.getProperties(star) for star in stars])
         targets = self._predict(locations)
-        star_list_fitted = []
-        for yi, star in zip(targets, star_list):
-            fit = star.fit.newParams(yi)
-            star_list_fitted.append(Star(star.data, fit))
-        return star_list_fitted
+        stars_fitted = []
+        for yi, star in zip(targets, stars):
+            fit = star.fit.newParams(yi, num=self._num)
+            stars_fitted.append(Star(star.data, fit))
+        return stars_fitted
 
     def _finish_write(self, fits, extname):
         """Write the solution to a FITS binary table.

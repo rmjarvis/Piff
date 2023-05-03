@@ -87,7 +87,19 @@ class PSF(object):
         psf = psf_cls(**kwargs)
         logger.debug("Done building PSF")
 
+        # At top level, the num is always None.
+        # Composite PSF types will turn this into a series of integer values for each component.
+        psf.set_num(None)
+
         return psf
+
+    def set_num(self, num):
+        """If there are multiple components involved in the fit, set the number to use
+        for this model.
+        """
+        # Normally subclasses will need to propagate this further.
+        # But this is the minimum action that all subclasses need to do.
+        self._num = num
 
     @classmethod
     def __init_subclass__(cls):
@@ -636,7 +648,7 @@ class PSF(object):
             import warnings
             warnings.warn("The copy_image=False option has been removed from drawStarList",
                           DeprecationWarning)
-        if any(star.fit is None or star.fit.params is None for star in stars):
+        if any(star.fit is None or star.fit.get_params(self._num) is None for star in stars):
             stars = self.interpolateStarList(stars)
         return [self._drawStar(star) for star in stars]
 
@@ -668,7 +680,7 @@ class PSF(object):
             warnings.warn("The copy_image=False option has been removed from drawStar",
                           DeprecationWarning)
         # Interpolate parameters to this position/properties (if not already done):
-        if star.fit is None or star.fit.params is None:
+        if star.fit is None or star.fit.get_params(self._num) is None:
             star = self.interpolateStar(star)
         # Render the image
         return self._drawStar(star, center=center)

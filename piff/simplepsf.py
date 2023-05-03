@@ -62,6 +62,24 @@ class SimplePSF(PSF):
         self.nremoved = 0
         self.niter = 0
 
+        # Run this by default on construction.
+        # If this is a component, it will be overwritten by a higher level composite class.
+        self.set_num(None)
+
+    def set_num(self, num):
+        """If there are multiple components involved in the fit, set the number to use
+        for this model.
+        """
+        from .model import Model
+        from .interp import Interp
+        self._num = num
+        # Note: they might be 0 if this is part of a read process, and they haven't been
+        # overwritten yet.
+        if isinstance(self.model, Model):
+            self.model.set_num(num)
+        if isinstance(self.interp, Interp):
+            self.interp.set_num(num)
+
     @property
     def interp_property_names(self):
         return self.interp.property_names
@@ -211,11 +229,12 @@ class SimplePSF(PSF):
         return self.model.draw(star, center=center)
 
     def _getProfile(self, star):
-        prof = self.model.getProfile(star.fit.params).shift(star.fit.center) * star.fit.flux
-        return prof, self.model._method
+        prof, method = self._getRawProfile(star)
+        prof = prof.shift(star.fit.center) * star.fit.flux
+        return prof, method
 
     def _getRawProfile(self, star):
-        return self.model.getProfile(star.fit.params), self.model._method
+        return self.model.getProfile(star.fit.get_params(self._num)), self.model._method
 
     def _finish_write(self, fits, extname, logger):
         """Finish the writing process with any class-specific steps.

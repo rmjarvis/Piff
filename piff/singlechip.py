@@ -56,6 +56,15 @@ class SingleChipPSF(PSF):
             'single_psf': 0,
             'nproc' : nproc,
         }
+        self.set_num(None)
+
+    def set_num(self, num):
+        """If there are multiple components involved in the fit, set the number to use
+        for this model.
+        """
+        self._num = num
+        if isinstance(self.single_psf, PSF):
+            self.single_psf.set_num(num)
 
     @property
     def interp_property_names(self):

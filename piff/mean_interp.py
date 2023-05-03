@@ -31,6 +31,7 @@ class Mean(Interp):
         self.degenerate_points = False
         self.kwargs = {}
         self.mean = None
+        self.set_num(None)
 
     def solve(self, stars, logger=None):
         """Solve for the interpolation coefficients given some data.
@@ -40,7 +41,7 @@ class Mean(Interp):
         :param stars:       A list of stars with fitted parameters to interpolate.
         :param logger:      A logger object for logging debug info. [default: None]
         """
-        self.mean = np.mean([star.fit.params for star in stars], axis=0)
+        self.mean = np.mean([star.fit.get_params(self._num) for star in stars], axis=0)
 
     def interpolate(self, star, logger=None):
         """Perform the interpolation to find the interpolated parameter vector at some position.
@@ -53,7 +54,7 @@ class Mean(Interp):
         if self.mean is None:
             return star
         else:
-            fit = star.fit.newParams(self.mean)
+            fit = star.fit.newParams(self.mean, num=self._num)
         return Star(star.data, fit)
 
     def _finish_write(self, fits, extname):

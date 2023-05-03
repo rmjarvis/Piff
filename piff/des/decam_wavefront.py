@@ -69,6 +69,7 @@ class DECamWavefront(KNNInterp):
             'p': p,
             }
         self.kwargs.update(self.knr_kwargs)
+        self.set_num(None)
 
         from sklearn.neighbors import KNeighborsRegressor
         self.knn = KNeighborsRegressor(**self.knr_kwargs)

@@ -102,6 +102,7 @@ class Wavefront(object):
         self.zlists = []
         self.chiplists = []
         self.wavelengths = []
+        self.set_num(None)
 
         # loop over input sources
         for isource,kwargs in enumerate(wf_dicts):
@@ -167,6 +168,8 @@ class Wavefront(object):
                     tab = LookupTable2D(xarray, yarray, Z, interpolant='spline')
                     self.interp_objects[(isource,None,iZ)] = tab
 
+    def set_num(self, num):
+        self._num = num
 
     def fillWavefront(self,star_list,wavelength=-1.0,logger=None,addtostars=True):
         """Interpolate wavefront to each star's location, fill wavefront key of star.data.properties
