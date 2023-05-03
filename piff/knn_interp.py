@@ -20,7 +20,7 @@ import numpy as np
 import galsim
 
 from .interp import Interp
-from .star import Star, StarFit
+from .star import Star
 
 class KNNInterp(Interp):
     """
@@ -149,10 +149,7 @@ class KNNInterp(Interp):
         targets = self._predict(locations)
         star_list_fitted = []
         for yi, star in zip(targets, star_list):
-            if star.fit is None:
-                fit = StarFit(yi)
-            else:
-                fit = star.fit.newParams(yi)
+            fit = star.fit.newParams(yi)
             star_list_fitted.append(Star(star.data, fit))
         return star_list_fitted
 

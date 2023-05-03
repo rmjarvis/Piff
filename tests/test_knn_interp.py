@@ -78,7 +78,7 @@ def test_interp():
 
     # repeat for a star with its starfit removed
     star_predict = star_list_predict[0]
-    star_predict.fit = None
+    star_predict.fit = piff.StarFit(None)
     star_predicted = knn.interpolate(star_predict)
 
     # predicted stars should find their exact partner here, so they have the same data
