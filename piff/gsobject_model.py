@@ -58,13 +58,8 @@ class GSObjectModel(Model):
         self._centered = centered
         self._method = 'auto' if include_pixel else 'no_pixel'
         self._scipy_kwargs = scipy_kwargs if scipy_kwargs is not None else {}
+        self._raw_size = self.gsobj.drawImage(method=self._method).calculateMomentRadius()
 
-        # Params are [du, dv], scale, g1, g2, i.e., transformation parameters that bring the
-        # fiducial gsobject towards the data.
-        if self._centered:
-            self._nparams = 3
-        else:
-            self._nparams = 5
         self.set_num(None)
 
     def moment_fit(self, star, logger=None):
@@ -80,18 +75,20 @@ class GSObjectModel(Model):
             raise RuntimeError("Error calculating model moments for this star.")
 
         param_flux = star.fit.flux
+
+        params = self._get_params(star)
         if self._centered:
-            param_scale, param_g1, param_g2 = star.fit.get_params(self._num)
             param_du, param_dv = star.fit.center
         else:
-            param_du, param_dv, param_scale, param_g1, param_g2 = star.fit.get_params(self._num)
+            param_du, param_dv = params[1:3]
+        param_scale, param_g1, param_g2 = params[3:6]
         param_shear = galsim.Shear(g1=param_g1, g2=param_g2)
 
         param_flux *= flux / ref_flux
         param_du += cenu - ref_cenu
         param_dv += cenv - ref_cenv
         param_scale *= size / ref_size
-        param_shear += (shape - ref_shape)
+        param_shear += shape - ref_shape
         param_g1 = param_shear.g1
         param_g2 = param_shear.g2
 
@@ -132,14 +129,16 @@ class GSObjectModel(Model):
 
         :returns: a galsim.GSObject instance
         """
-        if params is None:
-            return self.gsobj
-        elif self._centered:
-            scale, g1, g2 = params
-            return self.gsobj.dilate(scale).shear(g1=g1, g2=g2)
-        else:
-            du, dv, scale, g1, g2 = params
-            return self.gsobj.dilate(scale).shear(g1=g1, g2=g2).shift(du, dv)
+        if not self._centered:
+            du, dv, *params = params
+        scale, g1, g2 = params
+
+        prof = self.gsobj.dilate(scale).shear(g1=g1, g2=g2)
+
+        if not self._centered:
+            prof = prof.shift(du, dv)
+
+        return prof
 
     def _resid(self, params, star, convert_func):
         """Residual function to use with least_squares.
@@ -198,12 +197,18 @@ class GSObjectModel(Model):
 
         :returns: a numpy array
         """
+        # Params are flux_scaling, du, dv, scale, g1, g2.
+        # These are transformation parameters that bring the fiducial gsobject towards the data.
+        # Note that we always store all 6, although typically the flux_scaling is ignored
+        # when interpolating, and sometimes du,dv are ignored (when _centered = True)
+
         flux = star.fit.flux
+        params = star.fit.get_params(self._num)
         if self._centered:
             du, dv = star.fit.center
-            scale, g1, g2 = star.fit.get_params(self._num)
         else:
-            du, dv, scale, g1, g2 = star.fit.get_params(self._num)
+            du, dv, *params = params
+        scale, g1, g2 = params
 
         return np.array([flux, du, dv, scale, g1, g2])
 
@@ -267,14 +272,15 @@ class GSObjectModel(Model):
                                                                       convert_func=convert_func)
 
         # Make a StarFit object with these parameters
+        params = [scale, g1, g2]
+        params_var = var[3:6]
         if self._centered:
-            params = np.array([ scale, g1, g2 ])
             center = (du, dv)
-            params_var = var[3:]
         else:
-            params = np.array([ du, dv, scale, g1, g2 ])
             center = (0.0, 0.0)
-            params_var = var[1:]
+            params = [du, dv] + params
+            params_var = np.concatenate([var[1:3], params_var])
+        params = np.array(params)
 
         # Also need to compute chisq
         prof = self.getProfile(params) * flux
@@ -302,15 +308,21 @@ class GSObjectModel(Model):
 
         :returns: a new initialized Star.
         """
-        if self._centered:
-            params = np.array([ 1.0, 0.0, 0.0])
-            params_var = np.array([ 0.0, 0.0, 0.0])
-        else:
-            params = np.array([ 0.0, 0.0, 1.0, 0.0, 0.0])
-            params_var = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
-        fit = star.fit.newParams(params=params, params_var=params_var, num=self._num)
+        flux, cenu, cenv, size, g1, g2, flag = star.hsm
+        if not self._raw_size > 0:
+            raise RuntimeError("Error computing the size of the reference object")
+        size /= self._raw_size
+
+        params = [size, g1, g2]
+        params_var = [0.0, 0.0, 0.0]
+
+        if not self._centered:
+            params = [cenu, cenv] + params
+            params_var = [0., 0.] + params
+        params = np.array(params)
+
+        fit = star.fit.newParams(params, params_var=params_var, num=self._num)
         star = Star(star.data, fit)
-        star = self.fit(star, fastfit=True)
         return star
 
 
