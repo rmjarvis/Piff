@@ -882,6 +882,13 @@ def test_fail():
     star3 = piff.Star(star2.data, star3.fit)
     with np.testing.assert_raises(RuntimeError):
         model1.fit(star3)
+    psf = piff.SimplePSF(model1, piff.Mean())
+    with CaptureLog() as cl:
+        stars, _ = psf.initialize([star3], logger=cl.logger)
+        with np.testing.assert_raises(RuntimeError):
+            # Raises an error that all stars were flagged
+            psf.single_iteration(stars, logger=cl.logger, convert_func=None)
+    assert "Failed fitting star" in cl.output
 
     # This is contrived to hit the fit failure for the reference.
     # I'm not sure what realistic use case would actually hit it, but at least it's
@@ -889,6 +896,12 @@ def test_fail():
     model2 = piff.GSObjectModel(galsim.InterpolatedImage(noisy_image), fastfit=True)
     with np.testing.assert_raises(RuntimeError):
         model2.initialize(star1)
+    psf = piff.SimplePSF(model2, piff.Mean())
+    with CaptureLog() as cl:
+        stars, nremoved = psf.initialize([star1], logger=cl.logger)
+    assert "Failed initializing star" in cl.output
+    assert stars[0].is_flagged
+    assert nremoved == 1
 
     model3 = piff.Moffat(fastfit=False, beta=2.5, scipy_kwargs={'max_nfev':10})
     with np.testing.assert_raises(RuntimeError):
@@ -900,6 +913,16 @@ def test_fail():
     star3 = piff.Star(star2.data, star3.fit)
     with np.testing.assert_raises(RuntimeError):
         model3.fit(star3)
+
+    # reflux is harder to make fail.  Rather than try something even more contrived,
+    # just mock np.linalg.solve to simulate the case that AtA ends up singular.
+    from unittest import mock
+    with mock.patch('numpy.linalg.solve', side_effect=np.linalg.LinAlgError) as raising_solve:
+        with CaptureLog(3) as cl:
+            stars, nremoved = psf.reflux_stars([star1], logger=cl.logger)
+    assert "Failed trying to reflux star" in cl.output
+    assert nremoved == 1
+    assert stars[0].is_flagged
 
 
 if __name__ == '__main__':

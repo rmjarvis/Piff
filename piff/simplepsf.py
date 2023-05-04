@@ -112,7 +112,7 @@ class SimplePSF(PSF):
         for star in stars:
             try:
                 star = self.model.initialize(star, logger=logger)
-            except Exception as e:  # pragma: no cover
+            except Exception as e:
                 logger.warning("Failed initializing star at %s. Excluding it.", star.image_pos)
                 logger.warning("  -- Caught exception: %s",e)
                 nremoved += 1
@@ -152,7 +152,7 @@ class SimplePSF(PSF):
                 try:
                     star = fit_fn(star, logger=logger, convert_func=convert_func)
                     use_stars.append(star)
-                except Exception as e:  # pragma: no cover
+                except Exception as e:
                     logger.warning("Failed fitting star at %s.", star.image_pos)
                     logger.warning("Excluding it from this iteration.")
                     logger.warning("  -- Caught exception: %s", e)

@@ -260,6 +260,23 @@ class PSF(object):
                                                 chisq=new_chisq,
                                                 dof=new_dof))
 
+    def reflux_stars(self, stars, logger):
+        """Calculate new flux and possibly center for a list of stars
+        """
+        new_stars = []
+        nremoved = 0
+        for star in stars:
+            try:
+                star = self.reflux(star, logger=logger)
+            except Exception as e:
+                logger.warning("Failed trying to reflux star at %s.  Excluding it.",
+                                star.image_pos)
+                logger.warning("  -- Caught exception: %s", e)
+                nremoved += 1
+                star = star.flag_if(True)
+            new_stars.append(star)
+        return new_stars, nremoved
+
     def remove_outliers(self, stars, iteration, logger):
         """Look for and flag outliers from the list of stars
 
@@ -320,18 +337,8 @@ class PSF(object):
 
             # Refit and recenter stars, collect stats
             logger.debug("             Re-fluxing stars")
-            new_stars = []
-            for star in stars:
-                try:
-                    star = self.reflux(star, logger=logger)
-                except Exception as e:  # pragma: no cover
-                    logger.warning("Failed trying to reflux star at %s.  Excluding it.",
-                                    star.image_pos)
-                    logger.warning("  -- Caught exception: %s", e)
-                    nremoved += 1
-                    star = star.flag_if(True)
-                new_stars.append(star)
-            stars = new_stars
+            stars, reflux_nremoved = self.reflux_stars(stars, logger)
+            iter_nremoved += reflux_nremoved
 
             # Find and flag outliers.
             stars, outlier_nremoved = self.remove_outliers(stars, iteration, logger)
