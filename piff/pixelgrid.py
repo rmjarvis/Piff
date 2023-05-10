@@ -23,7 +23,7 @@ import warnings
 
 from galsim import Lanczos
 from .model import Model
-from .star import Star, StarFit
+from .star import Star
 
 class PixelGrid(Model):
     """A PSF modeled as interpolation between a grid of points.
@@ -101,19 +101,6 @@ class PixelGrid(Model):
         """
         data, weight, u, v = star.data.getDataVector()
 
-        # Start with the sum of pixels as initial estimate of flux.
-        # (Skip w=0 pixels here.)
-        mask = weight!=0
-        flux = np.sum(data[mask])
-        if self._centered:
-            # Initial center is the centroid of the data.
-            Ix = np.sum(data[mask] * u[mask]) / flux
-            Iy = np.sum(data[mask] * v[mask]) / flux
-            center = (Ix,Iy)
-        else:
-            # In this case, center is fixed.
-            center = star.fit.center
-
         # Calculate the second moment to initialize an initial Gaussian profile.
         # hsm returns: flux, x, y, sigma, g1, g2, flag
         sigma = star.hsm[3]
@@ -128,8 +115,8 @@ class PixelGrid(Model):
         # Normalize to get unity flux
         params /= np.sum(params)
 
-        starfit = StarFit(params, flux, center)
-        return Star(star.data, starfit)
+        fit = star.fit.withNew(params=params)
+        return Star(star.data, fit)
 
     def fit(self, star, logger=None, convert_func=None):
         """Fit the Model to the star's data to yield iterative improvement on its PSF parameters

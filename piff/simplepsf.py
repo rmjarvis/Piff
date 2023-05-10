@@ -103,7 +103,7 @@ class SimplePSF(PSF):
 
         return kwargs
 
-    def initialize(self, stars, logger):
+    def initialize_params(self, stars, logger):
         nremoved = 0
 
         logger.debug("Initializing models")

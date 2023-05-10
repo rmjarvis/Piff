@@ -682,8 +682,8 @@ def test_psf():
     np.testing.assert_raises(NotImplementedError, psf._getProfile, star)
     np.testing.assert_raises(NotImplementedError, psf.single_iteration, [star], None, None)
 
-    # Initialize doesn't do anything, but works
-    stars, nremove = psf.initialize([star], None)
+    # initialize_params doesn't do anything, but works
+    stars, nremove = psf.initialize_params([star], None)
     assert stars == [star]
     assert nremove == 0
 
