@@ -134,7 +134,7 @@ class PSF(object):
             # (Skip w=0 pixels here.)
             mask = weight!=0
             flux = np.sum(data[mask])
-            if self.fit_center:
+            if self.fit_center and not star.data.properties.get('trust_pos',False):
                 flux = flux if flux != 0 else 1  # Don't divide by 0.
                 # Initial center is the centroid of the data.
                 Ix = np.sum(data[mask] * u[mask]) / flux
@@ -231,7 +231,7 @@ class PSF(object):
         model *= flux_ratio
         resid = data - model
 
-        if self.fit_center:
+        if self.fit_center and not star.data.properties.get('trust_pos',False):
             # Use finite different to approximate d(model)/duc, d(model)/dvc
             duv = 1.e-5
             temp = star.image.copy()
