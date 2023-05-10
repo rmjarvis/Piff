@@ -208,12 +208,8 @@ class PSF(object):
         logger.debug("    weight center = %s",star.data.weight(star.data.weight.center))
 
         data, weight, u, v = star.data.getDataVector()
-        star_prof, method = self._getProfile(star)
-        psf_prof = self._getRawProfile(star)  # This one doesn't have the shift/flux applied.
-
-        model_image = star.image.copy()
-        star_prof.drawImage(model_image, method=method, center=star.image_pos)
-        model = model_image.array.ravel()
+        model_star = self.drawStar(star)
+        model = model_star.image.array.ravel()
 
         # Weight by the current model to avoid being influenced by spurious pixels near the edge
         # of the stamp.
@@ -225,6 +221,7 @@ class PSF(object):
         f_data = np.sum(WD)
         f_model = np.sum(WM) or 1  # Don't let f_model = 0
         flux_ratio = f_data / f_model
+
         new_flux = star.fit.flux * flux_ratio
         logger.debug('    new flux = %s', new_flux)
 
@@ -232,6 +229,8 @@ class PSF(object):
         resid = data - model
 
         if self.fit_center and not star.data.properties.get('trust_pos',False):
+            psf_prof, method = self._getRawProfile(model_star)
+
             # Use finite different to approximate d(model)/duc, d(model)/dvc
             duv = 1.e-5
             temp = star.image.copy()
