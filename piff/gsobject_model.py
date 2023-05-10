@@ -21,7 +21,7 @@ import galsim
 import scipy
 
 from .model import Model
-from .star import Star, StarFit
+from .star import Star
 from .util import estimate_cov_from_jac
 
 
@@ -292,7 +292,8 @@ class GSObjectModel(Model):
         # these parameters don't really apply to each star separately.
         # After refluxing, we may drop this by 1 or 3 if adjusting flux and/or centroid.
         dof = np.count_nonzero(star.weight.array)
-        fit = StarFit(params, params_var=params_var, flux=flux, center=center, chisq=chisq, dof=dof)
+        fit = star.fit.withNew(params=params, params_var=params_var,
+                               chisq=chisq, dof=dof)
         return Star(star.data, fit)
 
     def initialize(self, star, logger=None):
@@ -310,7 +311,7 @@ class GSObjectModel(Model):
             else:
                 params = np.array([ 0.0, 0.0, 1.0, 0.0, 0.0])
                 params_var = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
-            fit = StarFit(params, flux=1.0, center=(0.0, 0.0), params_var=params_var)
+            fit = star.fit.withNew(params=params, params_var=params_var)
             star = Star(star.data, fit)
             star = self.fit(star, fastfit=True)
         return star

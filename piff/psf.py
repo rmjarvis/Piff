@@ -114,7 +114,38 @@ class PSF(object):
         """
         raise NotImplementedError("Derived classes must define the parseKwargs function")
 
-    def initialize(self, stars, logger):
+    def initialize_flux_center(self, stars, logger=None):
+        """Initialize the flux and center of the stars.
+
+        The flux is just a simple sum of unmasked pixels.
+        The center is a simple centroid relative to the nominal position.  It is only updated
+        if the PSF model is centered. (I.e. if self.fit_center is True.)
+
+        :param stars:           The initial list of Star instances that will be used to constrain
+                                the PSF.
+        :param logger:          A logger object for logging progress.
+
+        :returns: the initialized stars
+        """
+        new_stars = []
+        for star in stars:
+            data, weight, u, v = star.data.getDataVector()
+            # Start with the sum of pixels as initial estimate of flux.
+            # (Skip w=0 pixels here.)
+            mask = weight!=0
+            flux = np.sum(data[mask])
+            if self.fit_center:
+                flux = flux if flux != 0 else 1  # Don't divide by 0.
+                # Initial center is the centroid of the data.
+                Ix = np.sum(data[mask] * u[mask]) / flux
+                Iy = np.sum(data[mask] * v[mask]) / flux
+                center = (Ix,Iy)
+            else:
+                center = star.fit.center
+            new_stars.append(Star(star.data, star.fit.withNew(flux=flux, center=center)))
+        return new_stars
+
+    def initialize_params(self, stars, logger):
         """Initialize the psf solver to begin an iterative solution.
 
         :param stars:           The initial list of Star instances that will be used to constrain
@@ -316,7 +347,8 @@ class PSF(object):
         self.pointing = pointing
 
         # Initialize stars as needed by the PSF modeling class.
-        stars, self.nremoved = self.initialize(stars, logger=logger)
+        stars = self.initialize_flux_center(stars, logger=logger)
+        stars, self.nremoved = self.initialize_params(stars, logger=logger)
         nreserve = np.sum([star.is_reserve for star in stars])
 
         oldchisq = 0.

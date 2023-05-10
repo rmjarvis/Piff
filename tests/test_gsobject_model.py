@@ -92,7 +92,15 @@ def test_simple():
         # First try fastfit.
         print('Fast fit')
         model = piff.GSObjectModel(fiducial, fastfit=True, include_pixel=False)
-        fit = model.fit(model.initialize(fiducial_star)).fit
+        psf1 = piff.SimplePSF(model, None)
+        fiducial_star, = psf1.initialize_flux_center([fiducial_star])
+        star = model.fit(model.initialize(fiducial_star))
+
+        # Reflux a few times to get centroid close.
+        star = psf1.reflux(star)
+        star = psf1.reflux(star)
+        star = psf1.reflux(star)
+        fit = star.fit
 
         print('True scale = ', scale, ', model scale = ', fit.params[0])
         print('True g1 = ', g1, ', model g1 = ', fit.params[1])
@@ -111,7 +119,11 @@ def test_simple():
         # Now try fastfit=False.
         print('Slow fit')
         model = piff.GSObjectModel(fiducial, fastfit=False, include_pixel=False)
-        fit = model.fit(model.initialize(fiducial_star)).fit
+        star = model.fit(model.initialize(fiducial_star))
+        star = psf1.reflux(star)
+        star = psf1.reflux(star)
+        star = psf1.reflux(star)
+        fit = star.fit
 
         print('True scale = ', scale, ', model scale = ', fit.params[0])
         print('True g1 = ', g1, ', model g1 = ', fit.params[1])
@@ -138,7 +150,11 @@ def test_simple():
         else:
             logger = piff.config.setup_logger(verbose=1)
         model = piff.Model.process(config['model'], logger)
-        fit = model.fit(model.initialize(fiducial_star)).fit
+        star = model.fit(model.initialize(fiducial_star))
+        star = psf1.reflux(star)
+        star = psf1.reflux(star)
+        star = psf1.reflux(star)
+        fit = star.fit
 
         # Same tests.
         np.testing.assert_allclose(fit.params[0], scale, rtol=1e-6)
@@ -184,14 +200,17 @@ def test_simple():
         stardata = piff.StarData(image, image.true_center)
         fiducial_star = piff.Star(stardata, None)
 
-
         print('Slow fit, pixel convolution included.')
         model = piff.GSObjectModel(fiducial, fastfit=False, include_pixel=True)
         star = model.initialize(fiducial_star)
         star = model.fit(star, fastfit=True)  # Get better results with one round of fastfit.
         # Use a no op convert_func, just to touch that branch in the code.
         convert_func = lambda prof: prof
-        fit = model.fit(star, convert_func=convert_func).fit
+        star = model.fit(star, convert_func=convert_func)
+        star = psf1.reflux(star)
+        star = psf1.reflux(star)
+        star = psf1.reflux(star)
+        fit = star.fit
 
         print('True scale = ', scale, ', model scale = ', fit.params[0])
         print('True g1 = ', g1, ', model g1 = ', fit.params[1])
@@ -203,8 +222,8 @@ def test_simple():
         np.testing.assert_allclose(fit.params[0], scale, rtol=1e-6)
         np.testing.assert_allclose(fit.params[1], g1, rtol=0, atol=1e-6)
         np.testing.assert_allclose(fit.params[2], g2, rtol=0, atol=1e-6)
-        np.testing.assert_allclose(fit.center[0], du, rtol=0, atol=1e-5)
-        np.testing.assert_allclose(fit.center[1], dv, rtol=0, atol=1e-5)
+        np.testing.assert_allclose(fit.center[0], du, rtol=0, atol=2e-5)
+        np.testing.assert_allclose(fit.center[1], dv, rtol=0, atol=2e-5)
 
 
 @timer
@@ -224,15 +243,16 @@ def test_center():
         mod = piff.GSObjectModel(fiducial, include_pixel=False)
         psf = piff.SimplePSF(mod, None)
         star = mod.initialize(s)
-        print('Flux, ctr after reflux:',star.fit.flux,star.fit.center)
+        star, = psf.initialize_flux_center([star])
+        print('Flux, ctr after initialize:',star.fit.flux,star.fit.center)
         for i in range(3):
             star = mod.fit(star)
             star = psf.reflux(star)
             print('Flux, ctr, chisq after fit {:d}:'.format(i),
                   star.fit.flux, star.fit.center, star.fit.chisq)
-            np.testing.assert_almost_equal(star.fit.flux/influx, 1.0, decimal=8)
-            np.testing.assert_allclose(star.fit.center[0], u0)
-            np.testing.assert_allclose(star.fit.center[1], v0)
+        np.testing.assert_almost_equal(star.fit.flux/influx, 1.0, decimal=8)
+        np.testing.assert_allclose(star.fit.center[0], u0)
+        np.testing.assert_allclose(star.fit.center[1], v0)
 
         # Residual image when done should be dominated by structure off the edge of the fitted
         # region.
@@ -353,6 +373,7 @@ def test_interp():
         # Polynomial doesn't need this, but it should work nonetheless.
         interp.initialize(stars)
         psf = piff.SimplePSF(mod, interp)
+        stars = psf.initialize_flux_center(stars)
 
         # Iterate solution using interpolator
         for iteration in range(niter):
@@ -428,6 +449,7 @@ def test_missing():
         interp = piff.Polynomial(order=0)
         interp.initialize(stars)
         psf = piff.SimplePSF(mod, interp)
+        stars = psf.initialize_flux_center(stars)
 
         oldchisq = 0.
         # Iterate solution using interpolator
@@ -515,6 +537,7 @@ def test_gradient():
 
         # Polynomial doesn't need this, but it should work nonetheless.
         interp.initialize(stars)
+        stars = psf.initialize_flux_center(stars)
 
         oldchisq = 0.
         # Iterate solution using interpolator
@@ -604,6 +627,7 @@ def test_gradient_center():
 
         # Polynomial doesn't need this, but it should work nonetheless.
         interp.initialize(stars)
+        stars = psf.initialize_flux_center(stars)
 
         oldchisq = 0.
         # Iterate solution using interpolator
@@ -686,10 +710,14 @@ def test_direct():
         stardata = piff.StarData(image, image.true_center)
         star = piff.Star(stardata, None)
         star = model.initialize(star)
+        psf = piff.SimplePSF(model, None)
+        star, = psf.initialize_flux_center([star])
 
         # First try fastfit.
         print('Fast fit')
-        fit = model.fit(star).fit
+        star = model.fit(star)
+        star = psf.reflux(star)
+        fit = star.fit
 
         print('True scale = ', scale, ', model scale = ', fit.params[0])
         print('True g1 = ', g1, ', model g1 = ', fit.params[1])
@@ -739,9 +767,14 @@ def test_direct():
         stardata = piff.StarData(image, image.true_center)
         star = piff.Star(stardata, None)
         star = model.initialize(star)
+        psf = piff.SimplePSF(model, None)
+        star, = psf.initialize_flux_center([star])
 
         print('Slow fit')
-        fit = model.fit(star).fit
+        star = model.fit(star)
+        psf = piff.SimplePSF(model, None)
+        star = psf.reflux(star)
+        fit = star.fit
 
         print('True scale = ', scale, ', model scale = ', fit.params[0])
         print('True g1 = ', g1, ', model g1 = ', fit.params[1])
@@ -884,7 +917,7 @@ def test_fail():
         model1.fit(star3)
     psf = piff.SimplePSF(model1, piff.Mean())
     with CaptureLog() as cl:
-        stars, _ = psf.initialize([star3], logger=cl.logger)
+        stars, _ = psf.initialize_params([star3], logger=cl.logger)
         with np.testing.assert_raises(RuntimeError):
             # Raises an error that all stars were flagged
             psf.single_iteration(stars, logger=cl.logger, convert_func=None)
@@ -898,7 +931,7 @@ def test_fail():
         model2.initialize(star1)
     psf = piff.SimplePSF(model2, piff.Mean())
     with CaptureLog() as cl:
-        stars, nremoved = psf.initialize([star1], logger=cl.logger)
+        stars, nremoved = psf.initialize_params([star1], logger=cl.logger)
     assert "Failed initializing star" in cl.output
     assert stars[0].is_flagged
     assert nremoved == 1

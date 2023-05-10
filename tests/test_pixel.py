@@ -255,6 +255,7 @@ def test_interp():
     interp.initialize(stars)
 
     psf = piff.SimplePSF(mod, interp)
+    stars = psf.initialize_flux_center(stars)
 
     # Iterate solution using interpolator
     for iteration in range(3):
@@ -386,6 +387,8 @@ def test_missing():
     s0 = make_gaussian_data(1.0, 0., 0., influx, du=0.5)
     s0 = mod.initialize(s0)
 
+    stars = psf.initialize_flux_center(stars)
+
     for interp in interps:
         # Interpolator will be simple mean
         interp = piff.Polynomial(order=0)
@@ -470,6 +473,7 @@ def test_gradient():
     interp.initialize(stars)
 
     psf = piff.SimplePSF(mod, interp)
+    stars = psf.initialize_flux_center(stars)
 
     oldchisq = 0.
     # Iterate solution using interpolator
@@ -555,6 +559,8 @@ def test_undersamp():
     interp.initialize(stars)
 
     psf = piff.SimplePSF(mod, interp)
+    stars = psf.initialize_flux_center(stars)
+    s0, = psf.initialize_flux_center([s0])
 
     # Work on one star alone first
     b = galsim.BoundsI(16-size//3,16+size//3,16-size//3,16+size//3)
@@ -685,6 +691,7 @@ def test_undersamp_shift():
     interp.initialize(stars)
 
     psf = piff.SimplePSF(mod, interp)
+    stars = psf.initialize_flux_center(stars)
 
     oldchisq = 0.
     # Iterate solution using mean of chisq
@@ -768,6 +775,7 @@ def do_undersamp_drift(fit_centers=False):
     interp.initialize(stars)
 
     psf = piff.SimplePSF(mod, interp)
+    stars = psf.initialize_flux_center(stars)
 
     oldchisq = 0.
     # Iterate solution using mean of chisq
@@ -1205,7 +1213,7 @@ def test_des_image():
     assert nflagged >= nflagged1
     assert ntot == nstars
 
-    stars = [psf.model.initialize(s) for s in stars]
+    stars = psf.initialize_flux_center(stars)
     flux = stars[0].fit.flux
     offset = stars[0].center_to_offset(stars[0].fit.center)
     fit_stamp = psf.draw(x=stars[0]['x'], y=stars[0]['y'], stamp_size=stamp_size,
@@ -1350,7 +1358,7 @@ def test_des2():
     print('Time for direct ATA solution = ',t1-t0)
     stars, wcs, pointing = piff.Input.process(config['input'])
     psf = piff.read(psf_file)
-    stars = [psf.model.initialize(s) for s in stars]
+    stars = psf.initialize_flux_center(stars)
 
     # Check the first star is basically identical
     flux = stars[0].fit.flux
@@ -1438,6 +1446,7 @@ def test_var():
     star = mod.initialize(star)
 
     psf = piff.SimplePSF(mod, None)
+    star, = psf.initialize_flux_center([star])
 
     star = mod.fit(star)
     star = psf.reflux(star)
