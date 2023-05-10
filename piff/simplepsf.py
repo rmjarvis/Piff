@@ -215,7 +215,7 @@ class SimplePSF(PSF):
         return prof, self.model._method
 
     def _getRawProfile(self, star):
-        return self.model.getProfile(star.fit.params)
+        return self.model.getProfile(star.fit.params), self.model._method
 
     def _finish_write(self, fits, extname, logger):
         """Finish the writing process with any class-specific steps.
