@@ -110,7 +110,7 @@ def test_simple():
 
         # This test is fairly accurate, since we didn't add any noise and didn't convolve by
         # the pixel, so the image is very accurately a sheared GSObject.
-        np.testing.assert_allclose(fit.params[0], scale, rtol=1e-4)
+        np.testing.assert_allclose(fit.params[0], scale, rtol=1e-6)
         np.testing.assert_allclose(fit.params[1], g1, rtol=0, atol=1e-7)
         np.testing.assert_allclose(fit.params[2], g2, rtol=0, atol=1e-7)
         np.testing.assert_allclose(fit.center[0], du, rtol=0, atol=1e-7)
@@ -184,6 +184,45 @@ def test_simple():
         fit1 = model.fit(model.initialize(fiducial_star)).fit
         np.testing.assert_array_equal(fit1.params, fit.params)
 
+        # With fit_flux=True, not much changes here (this is more relevant to components of
+        # a Sum PSF).
+        config['model']['type'] = 'GSObject'
+        config['model']['fit_flux'] = True
+        model = piff.Model.process(config['model'])
+        psf2 = piff.SimplePSF(model, None)
+
+        # First check when the star has the right flux in star.fit.flux.
+        star = fiducial_star.withFlux(1)
+        star = model.initialize(star)
+        star = model.fit(star)
+        star = psf2.reflux(star)
+        star = psf2.reflux(star)
+        fit = star.fit
+
+        print('flux = ',fit.params[0],'*',fit.flux)
+        np.testing.assert_allclose(fit.params[0], 1, rtol=1.e-5)
+        np.testing.assert_allclose(fit.params[1], scale, rtol=1e-6)
+        np.testing.assert_allclose(fit.params[2], g1, rtol=0, atol=1e-6)
+        np.testing.assert_allclose(fit.params[3], g2, rtol=0, atol=1e-6)
+        np.testing.assert_allclose(fit.center[0], du, rtol=0, atol=1e-6)
+        np.testing.assert_allclose(fit.center[1], dv, rtol=0, atol=1e-6)
+
+        # If the star flux is not right, then the correction shows up in flux_scaling (params[0]).
+        star = fiducial_star.withFlux(100)
+        star = model.initialize(star)
+        star = model.fit(star)
+        star = psf2.reflux(star)
+        star = psf2.reflux(star)
+        fit = star.fit
+
+        print('flux = ',fit.params[0],'*',fit.flux)
+        np.testing.assert_allclose(fit.params[0], 0.01, rtol=1e-5)
+        np.testing.assert_allclose(fit.params[1], scale, rtol=1e-6)
+        np.testing.assert_allclose(fit.params[2], g1, rtol=0, atol=1e-6)
+        np.testing.assert_allclose(fit.params[3], g2, rtol=0, atol=1e-6)
+        np.testing.assert_allclose(fit.center[0], du, rtol=0, atol=1e-6)
+        np.testing.assert_allclose(fit.center[1], dv, rtol=0, atol=1e-6)
+
         # Finally, we should also test with pixel convolution included.  This really only makes
         # sense for fastfit=False, since HSM FindAdaptiveMom doesn't account for the pixel shape
         # in its measurements.
@@ -197,6 +236,7 @@ def test_simple():
         # Make a StarData instance for this image
         stardata = piff.StarData(image, image.true_center)
         fiducial_star = piff.Star(stardata, None)
+        fiducial_star, = psf1.initialize_flux_center([fiducial_star])
 
         print('Slow fit, pixel convolution included.')
         model = piff.GSObjectModel(fiducial, fastfit=False, include_pixel=True)
@@ -205,7 +245,6 @@ def test_simple():
         # Use a no op convert_func, just to touch that branch in the code.
         convert_func = lambda prof: prof
         star = model.fit(star, convert_func=convert_func)
-        star = psf1.reflux(star)
         star = psf1.reflux(star)
         star = psf1.reflux(star)
         fit = star.fit
@@ -220,8 +259,8 @@ def test_simple():
         np.testing.assert_allclose(fit.params[0], scale, rtol=1e-6)
         np.testing.assert_allclose(fit.params[1], g1, rtol=0, atol=1e-6)
         np.testing.assert_allclose(fit.params[2], g2, rtol=0, atol=1e-6)
-        np.testing.assert_allclose(fit.center[0], du, rtol=0, atol=2e-5)
-        np.testing.assert_allclose(fit.center[1], dv, rtol=0, atol=2e-5)
+        np.testing.assert_allclose(fit.center[0], du, rtol=0, atol=1e-5)
+        np.testing.assert_allclose(fit.center[1], dv, rtol=0, atol=1e-5)
 
 
 @timer
