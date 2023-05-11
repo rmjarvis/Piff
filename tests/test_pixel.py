@@ -110,17 +110,33 @@ def test_simplest():
     for iter in range(3):
         star = mod.fit(star)
     star = psf.reflux(star)
-    print('Flux when init=zero:',star.fit.flux)
-    np.testing.assert_almost_equal(star.fit.flux/influx, 1.0, decimal=3)
+    print('Flux when init=zero:', star.fit.flux)
+    np.testing.assert_allclose(star.fit.flux, influx, rtol=1.e-3)
 
     # Check with init=delta
     mod = piff.PixelGrid(du, 32, interp, centered=False, init='delta')
     star = mod.initialize(s)
     star = mod.fit(star)
     star = psf.reflux(star)
-    print('Flux when init=delta:',star.fit.flux)
-    np.testing.assert_almost_equal(star.fit.flux/influx, 1.0, decimal=3)
+    print('Flux when init=delta:', star.fit.flux)
+    np.testing.assert_allclose(star.fit.flux, influx, rtol=1.e-3)
 
+    # Check with fit_flux=True
+    mod = piff.PixelGrid(du, 32, interp, centered=False, fit_flux=True)
+    star = mod.initialize(star)
+    star = mod.fit(star)
+    print('Flux when fit_flux=True:', star.fit.flux, np.sum(star.fit.params))
+    np.testing.assert_allclose(star.fit.flux, influx, rtol=1.e-3)
+    np.testing.assert_allclose(np.sum(star.fit.params), 1, rtol=1.e-3)
+    np.testing.assert_allclose(mod.getProfile(star.fit.params).flux, 1, rtol=1.e-3)
+
+    star = star.withFlux(100 * influx)
+    star = mod.initialize(star)
+    star = mod.fit(star)
+    print('Flux when fit_flux=True, star flux = 100X:', star.fit.flux, np.sum(star.fit.params))
+    np.testing.assert_allclose(star.fit.flux, 100*influx, rtol=1.e-3)
+    np.testing.assert_allclose(np.sum(star.fit.params), 0.01, rtol=1.e-3)
+    np.testing.assert_allclose(mod.getProfile(star.fit.params).flux, 0.01, rtol=1.e-3)
 
 @timer
 def test_oversample():
