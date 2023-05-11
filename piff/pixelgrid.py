@@ -54,6 +54,8 @@ class PixelGrid(Model):
                         [default: True]
     :param init:        Initialization method.  [default: None, which uses hsm unless a PSF
                         class specifies a different default.]
+    :param fit_flux:    If True, the PSF model will include the flux value.  This is useful when
+                        this model is an element of a Sum composite PSF. [default: False]
     :param logger:      A logger object for logging debug info. [default: None]
     """
 
@@ -63,7 +65,8 @@ class PixelGrid(Model):
                                  # current centroid of the model.  This way on later iterations,
                                  # the model will be close to centered.
 
-    def __init__(self, scale, size, interp=None, centered=True, init=None, logger=None):
+    def __init__(self, scale, size, interp=None, centered=True, init=None, fit_flux=False,
+                 logger=None):
 
         logger = galsim.config.LoggerWrapper(logger)
         logger.debug("Building Pixel model with the following parameters:")
@@ -72,6 +75,7 @@ class PixelGrid(Model):
         logger.debug("interp = %s",interp)
         logger.debug("centered = %s",centered)
         logger.debug("init = %s",init)
+        logger.debug("fit_flux = %s",fit_flux)
 
         self.scale = scale
         self.size = size
@@ -81,6 +85,7 @@ class PixelGrid(Model):
         self.interp = interp
         self._centered = centered
         self._init = init
+        self._fit_flux = fit_flux
 
         # We will limit the calculations to |u|, |v| <= maxuv
         self.maxuv = (self.size+1)/2. * self.scale
@@ -96,6 +101,7 @@ class PixelGrid(Model):
             'centered' : centered,
             'interp' : repr(self.interp),
             'init': init,
+            'fit_flux': fit_flux,
         }
         self.set_num(None)
 
@@ -454,8 +460,9 @@ class PixelGrid(Model):
         :returns: a galsim.GSObject instance
         """
         im = galsim.Image(params.reshape(self.size,self.size), scale=self.scale)
+        flux = None if self._fit_flux else 1.
         return galsim.InterpolatedImage(im, x_interpolant=self.interp,
-                                        use_true_center=False, flux=1.)
+                                        use_true_center=False, flux=flux)
 
     def _getBasisProfile(self):
         if not hasattr(self, '_basis_profile'):
@@ -516,8 +523,9 @@ class PixelGrid(Model):
                                     # doesn't complain about the size changing.
 
         # Normally this is all that is required.
-        params /= np.sum(params)
-        star.fit = star.fit.newParams(params, num=self._num)
+        if not self._fit_flux:
+            params /= np.sum(params)
+            star.fit = star.fit.newParams(params, num=self._num)
 
     @classmethod
     def _fix_kwargs(cls, kwargs):
