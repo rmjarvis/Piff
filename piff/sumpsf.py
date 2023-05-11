@@ -178,6 +178,7 @@ class SumPSF(PSF):
 
         # Fit each component in order
         for k, comp in enumerate(self.components):
+            logger.info("Starting work on component %d (%s)", k, comp._type_name)
             # Update stars to subtract current fit from other components.
             modified_stars = []
             for i, star in enumerate(stars):
