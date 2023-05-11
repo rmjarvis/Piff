@@ -98,11 +98,13 @@ class Model(object):
         kwargs['logger'] = logger
         return kwargs
 
-    def initialize(self, star, logger=None):
+    def initialize(self, star, logger=None, default_init=None):
         """Initialize a star to work with the current model.
 
-        :param star:    A Star instance with the raw data.
-        :param logger:  A logger object for logging debug info. [default: None]
+        :param star:            A Star instance with the raw data.
+        :param logger:          A logger object for logging debug info. [default: None]
+        :param default_init:    The default initilization method if the user doesn't specify one.
+                                [default: None]
 
         :returns:       Star instance with the appropriate initial fit values
         """

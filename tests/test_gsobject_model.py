@@ -262,6 +262,104 @@ def test_simple():
         np.testing.assert_allclose(fit.center[0], du, rtol=0, atol=1e-5)
         np.testing.assert_allclose(fit.center[1], dv, rtol=0, atol=1e-5)
 
+        # Check various init options.
+        print('Initializing with zero')
+        config['model']['init'] = 'zero'
+        config['model']['fit_flux'] = True
+        model = piff.Model.process(config['model'], logger)
+        psf1 = piff.SimplePSF(model, None)
+        fit = model.fit(model.initialize(fiducial_star)).fit
+
+        print('True flux = ', 1, ', model flux = ', fit.params[0])
+        print('True scale = ', scale, ', model scale = ', fit.params[1])
+        print('True g1 = ', g1, ', model g1 = ', fit.params[2])
+        print('True g2 = ', g2, ', model g2 = ', fit.params[3])
+        print('True du = ', du, ', model du = ', fit.center[0])
+        print('True dv = ', dv, ', model dv = ', fit.center[1])
+
+        np.testing.assert_allclose(fit.params[0], 1, rtol=0.02)
+        np.testing.assert_allclose(fit.params[1], scale, rtol=1e-2)
+        np.testing.assert_allclose(fit.params[2], g1, rtol=0, atol=1e-2)
+        np.testing.assert_allclose(fit.params[3], g2, rtol=0, atol=1e-2)
+        np.testing.assert_allclose(fit.center[0], du, rtol=0, atol=1e-2)
+        np.testing.assert_allclose(fit.center[1], dv, rtol=0, atol=1e-2)
+
+        # init=zero required fit_flux
+        config['model']['fit_flux'] = False
+        model = piff.Model.process(config['model'], logger)
+        psf1 = piff.SimplePSF(model, None)
+        with np.testing.assert_raises(ValueError):
+            model.initialize(fiducial_star)
+
+        print('Initializing with delta')
+        config['model']['init'] = 'delta'
+        config['model']['fit_flux'] = False
+        model = piff.Model.process(config['model'], logger)
+        psf1 = piff.SimplePSF(model, None)
+        fit = model.fit(model.initialize(fiducial_star)).fit
+
+        print('True scale = ', scale, ', model scale = ', fit.params[0])
+        print('True g1 = ', g1, ', model g1 = ', fit.params[1])
+        print('True g2 = ', g2, ', model g2 = ', fit.params[2])
+        print('True du = ', du, ', model du = ', fit.center[0])
+        print('True dv = ', dv, ', model dv = ', fit.center[1])
+
+        np.testing.assert_allclose(fit.params[0], scale, rtol=1e-2)
+        np.testing.assert_allclose(fit.params[1], g1, rtol=0, atol=1e-2)
+        np.testing.assert_allclose(fit.params[2], g2, rtol=0, atol=1e-2)
+        np.testing.assert_allclose(fit.center[0], du, rtol=0, atol=1e-2)
+        np.testing.assert_allclose(fit.center[1], dv, rtol=0, atol=1e-2)
+
+        # GSObject also allows a (flux, size) init
+        print('Initializing with (0.2,0.4)')
+        config['model']['init'] = '(0.2, 0.4)'
+        config['model']['fit_flux'] = True
+        model = piff.Model.process(config['model'], logger)
+        psf1 = piff.SimplePSF(model, None)
+        fit = model.fit(model.initialize(fiducial_star)).fit
+
+        print('True flux = ', 1, ', model flux = ', fit.params[0])
+        print('True scale = ', scale, ', model scale = ', fit.params[1])
+        print('True g1 = ', g1, ', model g1 = ', fit.params[2])
+        print('True g2 = ', g2, ', model g2 = ', fit.params[3])
+        print('True du = ', du, ', model du = ', fit.center[0])
+        print('True dv = ', dv, ', model dv = ', fit.center[1])
+
+        np.testing.assert_allclose(fit.params[0], 1, rtol=0.02)
+        np.testing.assert_allclose(fit.params[1], scale, rtol=1e-2)
+        np.testing.assert_allclose(fit.params[2], g1, rtol=0, atol=1e-2)
+        np.testing.assert_allclose(fit.params[3], g2, rtol=0, atol=1e-2)
+        np.testing.assert_allclose(fit.center[0], du, rtol=0, atol=1e-2)
+        np.testing.assert_allclose(fit.center[1], dv, rtol=0, atol=1e-2)
+
+        # Can also do this with fastfit, but takes a couple iterations to get decent accuracy.
+        config['model']['fastfit'] = True
+        model = piff.Model.process(config['model'], logger)
+        psf1 = piff.SimplePSF(model, None)
+        star = model.initialize(fiducial_star)
+        for iter in range(2):
+            star = model.fit(star)
+        fit = star.fit
+
+        print('True flux = ', 1, ', model flux = ', fit.params[0])
+        print('True scale = ', scale, ', model scale = ', fit.params[1])
+        print('True g1 = ', g1, ', model g1 = ', fit.params[2])
+        print('True g2 = ', g2, ', model g2 = ', fit.params[3])
+        print('True du = ', du, ', model du = ', fit.center[0])
+        print('True dv = ', dv, ', model dv = ', fit.center[1])
+
+        np.testing.assert_allclose(fit.params[0], 1, rtol=1e-2)
+        np.testing.assert_allclose(fit.params[1], scale, rtol=1e-2)
+        np.testing.assert_allclose(fit.params[2], g1, rtol=0, atol=1e-2)
+        np.testing.assert_allclose(fit.params[3], g2, rtol=0, atol=1e-2)
+        np.testing.assert_allclose(fit.center[0], du, rtol=0, atol=1e-2)
+        np.testing.assert_allclose(fit.center[1], dv, rtol=0, atol=1e-2)
+
+        config['model']['fit_flux'] = False
+        model = piff.Model.process(config['model'], logger)
+        psf1 = piff.SimplePSF(model, None)
+        with np.testing.assert_raises(ValueError):
+            model.initialize(fiducial_star)
 
 @timer
 def test_center():

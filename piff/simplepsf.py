@@ -121,7 +121,7 @@ class SimplePSF(PSF):
 
         return kwargs
 
-    def initialize_params(self, stars, logger):
+    def initialize_params(self, stars, logger=None, default_init=None):
         nremoved = 0
 
         logger.debug("Initializing models")
@@ -129,7 +129,7 @@ class SimplePSF(PSF):
         new_stars = []
         for star in stars:
             try:
-                star = self.model.initialize(star, logger=logger)
+                star = self.model.initialize(star, logger=logger, default_init=default_init)
             except Exception as e:
                 logger.warning("Failed initializing star at %s. Excluding it.", star.image_pos)
                 logger.warning("  -- Caught exception: %s",e)
