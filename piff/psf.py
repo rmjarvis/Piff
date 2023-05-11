@@ -135,7 +135,7 @@ class PSF(object):
 
         :param stars:           The initial list of Star instances that will be used to constrain
                                 the PSF.
-        :param logger:          A logger object for logging progress.
+        :param logger:          A logger object for logging progress. [default: None]
 
         :returns: the initialized stars
         """
@@ -157,12 +157,14 @@ class PSF(object):
             new_stars.append(Star(star.data, star.fit.withNew(flux=flux, center=center)))
         return new_stars
 
-    def initialize_params(self, stars, logger):
+    def initialize_params(self, stars, logger=None, default_init=None):
         """Initialize the psf solver to begin an iterative solution.
 
         :param stars:           The initial list of Star instances that will be used to constrain
                                 the PSF.
-        :param logger:          A logger object for logging progress.
+        :param logger:          A logger object for logging progress. [default: None]
+        :param default_init:    The default initilization method if the user doesn't specify one.
+                                [default: None]
 
         :returns: the initialized stars, nremoved
         """

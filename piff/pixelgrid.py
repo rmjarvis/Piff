@@ -44,6 +44,8 @@ class PixelGrid(Model):
                         PSF fitting will marginalize over stellar position.  If False, stellar
                         position is fixed at input value and the fitted PSF may be off-center.
                         [default: True]
+    :param init:        Initialization method.  [default: None, which means to start with a
+                        Gaussian profile roughly the size of the data.]
     :param logger:      A logger object for logging debug info. [default: None]
     """
 
@@ -53,7 +55,7 @@ class PixelGrid(Model):
                                  # current centroid of the model.  This way on later iterations,
                                  # the model will be close to centered.
 
-    def __init__(self, scale, size, interp=None, centered=True, logger=None):
+    def __init__(self, scale, size, interp=None, centered=True, init=None, logger=None):
 
         logger = galsim.config.LoggerWrapper(logger)
         logger.debug("Building Pixel model with the following parameters:")
@@ -61,6 +63,7 @@ class PixelGrid(Model):
         logger.debug("size = %s",size)
         logger.debug("interp = %s",interp)
         logger.debug("centered = %s",centered)
+        logger.debug("init = %s",init)
 
         self.scale = scale
         self.size = size
@@ -69,6 +72,7 @@ class PixelGrid(Model):
         elif isinstance(interp, str): interp = eval(interp)
         self.interp = interp
         self._centered = centered
+        self._init = init
 
         # We will limit the calculations to |u|, |v| <= maxuv
         self.maxuv = (self.size+1)/2. * self.scale
@@ -83,6 +87,7 @@ class PixelGrid(Model):
             'size' : size,
             'centered' : centered,
             'interp' : repr(self.interp),
+            'init': init,
         }
         self.set_num(None)
 
@@ -92,11 +97,13 @@ class PixelGrid(Model):
         self._nparams = size*size
         logger.debug("nparams = %d",self._nparams)
 
-    def initialize(self, star, logger=None):
+    def initialize(self, star, logger=None, default_init=None):
         """Initialize a star to work with the current model.
 
-        :param star:    A Star instance with the raw data.
-        :param logger:  A logger object for logging debug info. [default: None]
+        :param star:            A Star instance with the raw data.
+        :param logger:          A logger object for logging debug info. [default: None]
+        :param default_init:    The default initilization method if the user doesn't specify one.
+                                [default: None]
 
         :returns: a star instance with the appropriate initial fit values
         """

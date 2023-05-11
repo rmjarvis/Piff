@@ -105,7 +105,6 @@ class SingleChipPSF(PSF):
                                 isolate the effect of just this model component. [default: None]
         """
         logger = galsim.config.LoggerWrapper(logger)
-        self.stars = stars
         self.wcs = wcs
         self.pointing = pointing
         self.psf_by_chip = {}

@@ -29,6 +29,16 @@ class GSObjectModel(Model):
     """ Model that takes a fiducial GalSim.GSObject and dilates, shifts, and shears it to get a
     good match to stars.
 
+    The following initialization methods are available for the ``init`` parameter.
+
+    * hsm           Start with flux and size values that match the hsm moments of the star.
+    * zero          Start with flux = 1.e-6 x the hsm flux.
+    * delta         Start with size = 1.e-6 x the hsm size.
+    * (flux,size)   (Note: flux and size here are numeric values.) Start with flux and size
+                    scaled by the given values relative to hsm.
+
+    All initialization methods start with zero shear and zero centroid offset.
+
     :param gsobj:       GSObject to use as fiducial profile.
     :param fastfit:     Use HSM moments for fitting.  Approximate, but fast.  [default: False]
     :param centered:    If True, PSF model centroid is forced to be (0,0), and the
@@ -36,6 +46,8 @@ class GSObjectModel(Model):
                         position is fixed at input value and the fitted PSF may be off-center.
                         [default: True]
     :param include_pixel: Include integration over pixel when drawing?  [default: True]
+    :param init:        Initialization method.  [default: None, which uses hsm unless a PSF
+                        class specifies a different default.]
     :param fit_flux:    If True, the PSF model will include the flux value.  This is useful when
                         this model is an element of a Sum composite PSF. [default: False]
     :param scipy_kwargs: Optional kwargs to pass to scipy.optimize.least_squares [default: None]
@@ -44,7 +56,7 @@ class GSObjectModel(Model):
     _type_name = 'GSObject'
     _model_can_be_offset = False
 
-    def __init__(self, gsobj, fastfit=False, centered=True, include_pixel=True,
+    def __init__(self, gsobj, fastfit=False, centered=True, include_pixel=True, init=None,
                  fit_flux=False, scipy_kwargs=None, logger=None):
         if isinstance(gsobj, str):
             gsobj = eval(gsobj)
@@ -53,6 +65,7 @@ class GSObjectModel(Model):
                        'fastfit': fastfit,
                        'centered': centered,
                        'include_pixel': include_pixel,
+                       'init': init,
                        'fit_flux': fit_flux,
                       }
 
@@ -60,6 +73,7 @@ class GSObjectModel(Model):
         self.gsobj = gsobj.withFlux(1.0).shift(-gsobj.centroid)
         self._fastfit = fastfit
         self._centered = centered
+        self._init = init
         self._fit_flux = fit_flux
         self._method = 'auto' if include_pixel else 'no_pixel'
         self._scipy_kwargs = scipy_kwargs if scipy_kwargs is not None else {}
@@ -242,6 +256,12 @@ class GSObjectModel(Model):
         logger.debug("Start least_squares")
         params = self._get_params(star)
 
+        # Starting with a delta function doesn't work, since all the flux is in a single
+        # pixel.  So if we start with too small a scale, set it up to something more
+        # reasonable for the initial guess here.
+        if params[3]**2 < star.data.local_wcs.pixelArea():
+            params[3] = star.data.local_wcs.pixelArea()**0.5
+
         results = scipy.optimize.least_squares(self._resid, params, args=(star,convert_func),
                                                **self._scipy_kwargs)
         #logger.debug(results)
@@ -273,10 +293,11 @@ class GSObjectModel(Model):
 
         :returns: a new Star with the fitted parameters in star.fit
         """
+        logger = galsim.config.LoggerWrapper(logger)
         if fastfit is None:
             fastfit = self._fastfit
         if convert_func is not None:
-            # Can't do the moments fit technique if fitting using moments.
+            # Can't do the moments fit technique if there is a convert_func to apply.
             # At least not as it is currently structured.  May be possible to convert if there
             # is a need, but it seems hard.
             fastfit = False
@@ -320,18 +341,36 @@ class GSObjectModel(Model):
                                  chisq=chisq, dof=dof)
         return Star(star.data, fit)
 
-    def initialize(self, star, logger=None):
+    def initialize(self, star, logger=None, default_init=None):
         """Initialize the given star's fit parameters.
 
-        :param star:  The Star to initialize.
-        :param logger:  A logger object for logging debug info. [default: None]
+        :param star:            The Star to initialize.
+        :param logger:          A logger object for logging debug info. [default: None]
+        :param default_init:    The default initilization method if the user doesn't specify one.
+                                [default: None]
 
         :returns: a new initialized Star.
         """
+        logger = galsim.config.LoggerWrapper(logger)
+        init = self._init if self._init is not None else default_init
+        if init is None: init = 'hsm'
+        logger.debug("initializing GSObject with method %s",init)
+
         flux, cenu, cenv, size, g1, g2, flag = star.hsm
         if not self._raw_size > 0:
             raise RuntimeError("Error computing the size of the reference object")
         size /= self._raw_size
+
+        flux_scaling = None
+        if init == 'zero':
+            flux_scaling = 1.e-6
+        elif init == 'delta':
+            size *= 1.e-6
+        elif init.startswith('(') and init.endswith(')'):
+            flux_scaling, size_scaling = eval(init)
+            size *= size_scaling
+        elif init != 'hsm':
+            raise ValueError("init = %s is invalid for GSObjectModel"%init)
 
         params = [size, g1, g2]
         params_var = [0.0, 0.0, 0.0]
@@ -340,9 +379,13 @@ class GSObjectModel(Model):
             params = [cenu, cenv] + params
             params_var = [0., 0.] + params_var
         if self._fit_flux:
-            flux_scaling = flux / star.fit.flux
+            if flux_scaling is None:
+                flux_scaling = 1.
             params = [flux_scaling] + params
             params_var = [0.] + params_var
+        else:
+            if flux_scaling is not None:
+                raise ValueError("%s initialization requires fit_flux=True"%(init))
         params = np.array(params)
         params_var = np.array(params_var)
 
@@ -360,6 +403,8 @@ class Gaussian(GSObjectModel):
                         position is fixed at input value and the fitted PSF may be off-center.
                         [default: True]
     :param include_pixel: Include integration over pixel when drawing?  [default: True]
+    :param init:        Initialization method.  [default: None, which means to start with size=1,
+                        flux=1, and not shift or shear]
     :param fit_flux:    If True, the PSF model will include the flux value.  This is useful when
                         this model is an element of a Sum composite PSF. [default: False]
     :param scipy_kwargs: Optional kwargs to pass to scipy.optimize.least_squares [default: None]
@@ -385,6 +430,8 @@ class Kolmogorov(GSObjectModel):
                         position is fixed at input value and the fitted PSF may be off-center.
                         [default: True]
     :param include_pixel: Include integration over pixel when drawing?  [default: True]
+    :param init:        Initialization method.  [default: None, which means to start with size=1,
+                        flux=1, and not shift or shear]
     :param fit_flux:    If True, the PSF model will include the flux value.  This is useful when
                         this model is an element of a Sum composite PSF. [default: False]
     :param scipy_kwargs: Optional kwargs to pass to scipy.optimize.least_squares [default: None]
@@ -413,6 +460,8 @@ class Moffat(GSObjectModel):
                         position is fixed at input value and the fitted PSF may be off-center.
                         [default: True]
     :param include_pixel: Include integration over pixel when drawing?  [default: True]
+    :param init:        Initialization method.  [default: None, which means to start with size=1,
+                        flux=1, and not shift or shear]
     :param fit_flux:    If True, the PSF model will include the flux value.  This is useful when
                         this model is an element of a Sum composite PSF. [default: False]
     :param scipy_kwargs: Optional kwargs to pass to scipy.optimize.least_squares [default: None]
