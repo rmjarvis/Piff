@@ -36,6 +36,8 @@ class GSObjectModel(Model):
                         position is fixed at input value and the fitted PSF may be off-center.
                         [default: True]
     :param include_pixel: Include integration over pixel when drawing?  [default: True]
+    :param fit_flux:    If True, the PSF model will include the flux value.  This is useful when
+                        this model is an element of a Sum composite PSF. [default: False]
     :param scipy_kwargs: Optional kwargs to pass to scipy.optimize.least_squares [default: None]
     :param logger:      A logger object for logging debug info. [default: None]
     """
@@ -43,23 +45,25 @@ class GSObjectModel(Model):
     _model_can_be_offset = False
 
     def __init__(self, gsobj, fastfit=False, centered=True, include_pixel=True,
-                 scipy_kwargs=None, logger=None):
+                 fit_flux=False, scipy_kwargs=None, logger=None):
         if isinstance(gsobj, str):
             gsobj = eval(gsobj)
 
-        self.kwargs = {'gsobj':repr(gsobj),
-                       'fastfit':fastfit,
-                       'centered':centered,
-                       'include_pixel':include_pixel}
+        self.kwargs = {'gsobj': repr(gsobj),
+                       'fastfit': fastfit,
+                       'centered': centered,
+                       'include_pixel': include_pixel,
+                       'fit_flux': fit_flux,
+                      }
 
         # Center and normalize the fiducial model.
         self.gsobj = gsobj.withFlux(1.0).shift(-gsobj.centroid)
         self._fastfit = fastfit
         self._centered = centered
+        self._fit_flux = fit_flux
         self._method = 'auto' if include_pixel else 'no_pixel'
         self._scipy_kwargs = scipy_kwargs if scipy_kwargs is not None else {}
         self._raw_size = self.gsobj.drawImage(method=self._method).calculateMomentRadius()
-
         self.set_num(None)
 
     def moment_fit(self, star, logger=None):
@@ -77,6 +81,8 @@ class GSObjectModel(Model):
         param_flux = star.fit.flux
 
         params = self._get_params(star)
+        if self._fit_flux:
+            param_flux *= params[0]
         if self._centered:
             param_du, param_dv = star.fit.center
         else:
@@ -129,6 +135,9 @@ class GSObjectModel(Model):
 
         :returns: a galsim.GSObject instance
         """
+
+        if self._fit_flux:
+            flux_scaling, *params = params
         if not self._centered:
             du, dv, *params = params
         scale, g1, g2 = params
@@ -137,6 +146,9 @@ class GSObjectModel(Model):
 
         if not self._centered:
             prof = prof.shift(du, dv)
+
+        if self._fit_flux:
+            prof = prof * flux_scaling
 
         return prof
 
@@ -204,6 +216,9 @@ class GSObjectModel(Model):
 
         flux = star.fit.flux
         params = star.fit.get_params(self._num)
+        if self._fit_flux:
+            flux_scaling, *params = params
+            flux *= flux_scaling
         if self._centered:
             du, dv = star.fit.center
         else:
@@ -229,7 +244,8 @@ class GSObjectModel(Model):
 
         results = scipy.optimize.least_squares(self._resid, params, args=(star,convert_func),
                                                **self._scipy_kwargs)
-        logger.debug(results)
+        #logger.debug(results)
+        logger.debug("results = %s",results.x)
         if not results.success:
             raise RuntimeError("Error finding the full nonlinear solution")
 
@@ -280,6 +296,10 @@ class GSObjectModel(Model):
             center = (0.0, 0.0)
             params = [du, dv] + params
             params_var = np.concatenate([var[1:3], params_var])
+        if self._fit_flux:
+            flux_scaling = flux / star.fit.flux
+            flux = star.fit.flux
+            params = [flux_scaling] + params
         params = np.array(params)
 
         # Also need to compute chisq
@@ -318,8 +338,13 @@ class GSObjectModel(Model):
 
         if not self._centered:
             params = [cenu, cenv] + params
-            params_var = [0., 0.] + params
+            params_var = [0., 0.] + params_var
+        if self._fit_flux:
+            flux_scaling = flux / star.fit.flux
+            params = [flux_scaling] + params
+            params_var = [0.] + params_var
         params = np.array(params)
+        params_var = np.array(params_var)
 
         fit = star.fit.newParams(params, params_var=params_var, num=self._num)
         star = Star(star.data, fit)
@@ -335,15 +360,16 @@ class Gaussian(GSObjectModel):
                         position is fixed at input value and the fitted PSF may be off-center.
                         [default: True]
     :param include_pixel: Include integration over pixel when drawing?  [default: True]
+    :param fit_flux:    If True, the PSF model will include the flux value.  This is useful when
+                        this model is an element of a Sum composite PSF. [default: False]
     :param scipy_kwargs: Optional kwargs to pass to scipy.optimize.least_squares [default: None]
     :param logger:      A logger object for logging debug info. [default: None]
     """
     _type_name = 'Gaussian'
 
-    def __init__(self, fastfit=False, centered=True, include_pixel=True,
-                 scipy_kwargs=None, logger=None):
+    def __init__(self, **kwargs):
         gsobj = galsim.Gaussian(sigma=1.0)
-        GSObjectModel.__init__(self, gsobj, fastfit, centered, include_pixel, scipy_kwargs, logger)
+        GSObjectModel.__init__(self, gsobj, **kwargs)
         # We'd need self.kwargs['gsobj'] if we were reconstituting via the GSObjectModel
         # constructor, but since config['type'] for this will be Gaussian, it gets reconstituted
         # here, where there is no `gsobj` argument.  So remove `gsobj` from kwargs.
@@ -359,15 +385,16 @@ class Kolmogorov(GSObjectModel):
                         position is fixed at input value and the fitted PSF may be off-center.
                         [default: True]
     :param include_pixel: Include integration over pixel when drawing?  [default: True]
+    :param fit_flux:    If True, the PSF model will include the flux value.  This is useful when
+                        this model is an element of a Sum composite PSF. [default: False]
     :param scipy_kwargs: Optional kwargs to pass to scipy.optimize.least_squares [default: None]
     :param logger:      A logger object for logging debug info. [default: None]
     """
     _type_name = 'Kolmogorov'
 
-    def __init__(self, fastfit=False, centered=True, include_pixel=True,
-                 scipy_kwargs=None, logger=None):
+    def __init__(self, **kwargs):
         gsobj = galsim.Kolmogorov(half_light_radius=1.0)
-        GSObjectModel.__init__(self, gsobj, fastfit, centered, include_pixel, scipy_kwargs, logger)
+        GSObjectModel.__init__(self, gsobj, **kwargs)
         # We'd need self.kwargs['gsobj'] if we were reconstituting via the GSObjectModel
         # constructor, but since config['type'] for this will be Kolmogorov, it gets reconstituted
         # here, where there is no `gsobj` argument.  So remove `gsobj` from kwargs.
@@ -386,15 +413,16 @@ class Moffat(GSObjectModel):
                         position is fixed at input value and the fitted PSF may be off-center.
                         [default: True]
     :param include_pixel: Include integration over pixel when drawing?  [default: True]
+    :param fit_flux:    If True, the PSF model will include the flux value.  This is useful when
+                        this model is an element of a Sum composite PSF. [default: False]
     :param scipy_kwargs: Optional kwargs to pass to scipy.optimize.least_squares [default: None]
     :param logger:      A logger object for logging debug info. [default: None]
     """
     _type_name = 'Moffat'
 
-    def __init__(self, beta, trunc=0., fastfit=False, centered=True, include_pixel=True,
-                 scipy_kwargs=None, logger=None):
+    def __init__(self, beta, trunc=0., **kwargs):
         gsobj = galsim.Moffat(half_light_radius=1.0, beta=beta, trunc=trunc)
-        GSObjectModel.__init__(self, gsobj, fastfit, centered, include_pixel, scipy_kwargs, logger)
+        GSObjectModel.__init__(self, gsobj, **kwargs)
         # We'd need self.kwargs['gsobj'] if we were reconstituting via the GSObjectModel
         # constructor, but since config['type'] for this will be Moffat, it gets reconstituted
         # here, where there is no `gsobj` argument.  So remove `gsobj` from kwargs.
