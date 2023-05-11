@@ -262,11 +262,24 @@ class SumPSF(PSF):
             prof, method = comp._getRawProfile(star)
             profiles.append(prof)
             methods.append(method)
-        # For sum, all methods must be the same.  TODO: enforce this a creation.
-        assert all([m == methods[0] for m in methods])
+        if any([m != methods[0] for m in methods]):
+            assert all([m == 'no_pixel' or m == 'auto' for m in methods])
+            # Then some of these are auto, and others are no_pixel.
+            # Call the whole thing no_pixel, and manually convolve the auto components.
+            pixel = star.data.local_wcs.toWorld(galsim.Pixel(1.0))
+            new_profiles = []
+            for p,m in zip(profiles, methods):
+                if m == 'auto':
+                    new_profiles.append(galsim.Convolve(p, pixel))
+                else:
+                    new_profiles.append(p)
+            profiles = new_profiles
+            method = 'no_pixel'
+        else:
+            method = methods[0]
 
         # Add them up.
-        return galsim.Sum(profiles), methods[0]
+        return galsim.Sum(profiles), method
 
     def _finish_write(self, fits, extname, logger):
         """Finish the writing process with any class-specific steps.
