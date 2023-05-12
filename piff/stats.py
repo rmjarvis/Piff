@@ -38,6 +38,10 @@ class Stats(object):
     There is also a ``plot`` method if you want to make the matplot lib fig, ax and do something
     else with it besides just write it to a file.
     """
+    # This class-level dict will store all the valid stats types.
+    # Each subclass should set a cls._type_name, which is the name that should
+    # appear in a config dict.  These will be the keys of valid_stats_types.
+    # The values in this dict will be the Stats sub-classes.
     valid_stats_types = {}
 
     @classmethod

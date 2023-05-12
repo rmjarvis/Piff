@@ -27,6 +27,10 @@ class Output(object):
     This is essentially an abstract base class intended to define the methods that should be
     implemented by any derived class.
     """
+    # This class-level dict will store all the valid output types.
+    # Each subclass should set a cls._type_name, which is the name that should
+    # appear in a config dict.  These will be the keys of valid_output_types.
+    # The values in this dict will be the Output sub-classes.
     valid_output_types = {}
 
     @classmethod
