@@ -30,6 +30,10 @@ class Outliers(object):
     This is essentially an abstract base class intended to define the methods that should be
     implemented by any derived class.
     """
+    # This class-level dict will store all the valid outlier types.
+    # Each subclass should set a cls._type_name, which is the name that should
+    # appear in a config dict.  These will be the keys of valid_outliers_types.
+    # The values in this dict will be the Outliers sub-classes.
     valid_outliers_types = {}
 
     @classmethod

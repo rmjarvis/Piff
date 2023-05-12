@@ -149,7 +149,7 @@ class Optical(Model):
     _type_name = 'Optical'
     _method = 'auto'
     _centered = True
-    _model_can_be_offset = False 
+    _model_can_be_offset = False
 
     def __init__(self, template=None, gsparams=None, atmo_type='VonKarman', logger=None, **kwargs):
         self.logger = galsim.config.LoggerWrapper(logger)

@@ -42,7 +42,7 @@ class Interp(object):
     # This class-level dict will store all the valid interp types.
     # Each subclass should set a cls._type_name, which is the name that should
     # appear in a config dict.  These will be the keys of valid_interp_types.
-    # The values in this dict will be the Model sub-classes.
+    # The values in this dict will be the Interp sub-classes.
     valid_interp_types = {}
 
     @classmethod

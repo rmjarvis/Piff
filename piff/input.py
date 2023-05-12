@@ -31,6 +31,10 @@ class Input(object):
     This is essentially an abstract base class intended to define the methods that should be
     implemented by any derived class.
     """
+    # This class-level dict will store all the valid input types.
+    # Each subclass should set a cls._type_name, which is the name that should
+    # appear in a config dict.  These will be the keys of valid_input_types.
+    # The values in this dict will be the Input sub-classes.
     valid_input_types = {}
 
     nproc = 1  # Sub-classes can overwrite this as an instance attribute.
