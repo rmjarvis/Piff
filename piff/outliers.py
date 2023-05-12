@@ -233,9 +233,9 @@ class ChisqOutliers(Outliers):
     .. note::
 
         Reserve stars do not count toward max_remove when flagging outliers.  Any reserve star
-        that is flagged as an outlier still shows up in the output file, but has the flag
-        bit set to True.  You can decide whether or not you want to include it in any diagnostic
-        tests you perform using the reserve stars.
+        that is flagged as an outlier still shows up in the output file, but has flag_psf=1.
+        You can decide whether or not you want to include it in any diagnostic tests you perform
+        using the reserve stars.
 
     :param thresh:          The threshold in chisq above which an object is declared an outlier.
     :param ndof:            The threshold as a multiple of the model's dof.
