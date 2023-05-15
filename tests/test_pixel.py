@@ -1240,8 +1240,8 @@ def test_des_image():
     print('ntot = ',ntot)
     print('niter = ',psf2.niter)
     assert nreserve == int(0.2 * nstars)
-    assert nflagged1 == psf2.nremoved
-    assert nflagged >= nflagged1
+    assert nflagged3 == psf2.nremoved
+    assert nflagged2 >= nflagged3
     assert ntot == nstars
 
     # These end up with the same objects removed, although that's not technically required.

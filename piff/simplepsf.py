@@ -145,7 +145,7 @@ class SimplePSF(PSF):
         fit_fn = self.model.chisq if self.quadratic_chisq else self.model.fit
 
         nremoved = 0  # For this iteration
-        use_stars = []  # Just the stars we want to use fot fitting.
+        use_stars = []  # Just the stars we want to use for fitting.
         all_stars = []  # All the stars (with appropriate flags as necessary)
         for star in stars:
             if not star.is_flagged and not star.is_reserve:
