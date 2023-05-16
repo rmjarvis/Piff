@@ -223,7 +223,7 @@ class Polynomial(Interp):
         # a reasonable guess.
         n = self._orders[parameter_index]+1
         C = np.zeros((n,n))
-        # If initilaization failed, we might get here with parameter=None.  Deal with it.
+        # If initialization failed, we might get here with parameter=None.  Deal with it.
         C[0,0] = parameter.mean() if parameter is not None else 1.0
         return C
 
