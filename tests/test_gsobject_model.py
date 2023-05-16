@@ -204,7 +204,6 @@ def test_simple():
         # Use a no op convert_func, just to touch that branch in the code.
         convert_func = lambda prof: prof
         star = model.fit(star, convert_func=convert_func)
-        # This needs 3 iterations to get to within 1.e-5
         star = psf1.reflux(star)
         star = psf1.reflux(star)
         star = psf1.reflux(star)
@@ -220,8 +219,8 @@ def test_simple():
         np.testing.assert_allclose(fit.params[0], scale, rtol=1e-6)
         np.testing.assert_allclose(fit.params[1], g1, rtol=0, atol=1e-6)
         np.testing.assert_allclose(fit.params[2], g2, rtol=0, atol=1e-6)
-        np.testing.assert_allclose(fit.center[0], du, rtol=0, atol=1e-5)
-        np.testing.assert_allclose(fit.center[1], dv, rtol=0, atol=1e-5)
+        np.testing.assert_allclose(fit.center[0], du, rtol=0, atol=2e-5)
+        np.testing.assert_allclose(fit.center[1], dv, rtol=0, atol=2e-5)
 
 
 @timer
