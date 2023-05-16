@@ -601,9 +601,9 @@ def test_starstats_config():
     dv = -0.07
     flux = 123.45
     # compare fluxes
-    np.testing.assert_allclose(fluxs_adjust, flux, rtol=3e-3)
-    np.testing.assert_allclose(ds_adjust[:,0], du, rtol=3e-3)
-    np.testing.assert_allclose(ds_adjust[:,1], dv, rtol=3e-3)
+    np.testing.assert_allclose(fluxs_adjust, flux, rtol=1e-4)
+    np.testing.assert_allclose(ds_adjust[:,0], du, rtol=1e-4)
+    np.testing.assert_allclose(ds_adjust[:,1], dv, rtol=1e-4)
 
     # do once with adjust_stars = False to graphically demonstrate
     config['output']['stats'][0]['file_name'] = star_noadjust_file
