@@ -242,25 +242,33 @@ class PSF(object):
             dv_prof.drawImage(temp, method=method, center=star.image_pos)
             dmdvc = (temp.array.ravel() - model) / duv
 
+            # Also dmdflux
+            dflux = 1.e-5 * new_flux
+            df_prof = psf_prof.shift(center[0], center[1]) * (new_flux + dflux)
+            df_prof.drawImage(temp, method=method, center=star.image_pos)
+            dmdf = (temp.array.ravel() - model) / dflux
+
             # Now construct the design matrix for this minimization
             #
             #    A x = b
             #
             # where x = [ duc, dvc ]^T and b = resid.
             #
-            # A[0] = dmduc
-            # A[1] = dmdvc
+            # A[0] = dmdf
+            # A[1] = dmduc
+            # A[2] = dmdvc
             #
             # Solve: AT A x = AT b
 
-            At = np.vstack((dmduc, dmdvc))
+            At = np.vstack((dmdf, dmduc, dmdvc))
             Atw = At * np.abs(W)  # weighted least squares
             AtA = Atw.dot(At.T)
             Atb = Atw.dot(resid)
             x = np.linalg.solve(AtA, Atb)
             logger.debug('    centroid shift = %s,%s', x[0], x[1])
-            duc = x[0]
-            dvc = x[1]
+            df = x[0]
+            duc = x[1]
+            dvc = x[2]
 
             if psf_prof.centroid != galsim.PositionD(0,0):
                 # In addition to shifting to the best fit center location, also shift
@@ -273,7 +281,9 @@ class PSF(object):
                 dvc += model_cenv
 
             new_center = (star.fit.center[0] + duc, star.fit.center[1] + dvc)
+            new_flux += df
             logger.debug('    new center = %s', new_center)
+            logger.debug('    new flux = %s', new_flux)
 
             new_chisq = np.sum((resid-At.T.dot(x))**2 * weight)
             new_dof = np.count_nonzero(weight) - 3
