@@ -29,6 +29,9 @@ Performance improvements
 New features
 ------------
 
+- Added `trust_pos` option in the input field.  This tells Piff not to adjust the star positions
+  when fitting the PSF.
+
 
 
 Bug fixes
