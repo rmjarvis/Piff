@@ -260,9 +260,6 @@ def test_easy_sum2():
         # The drawn image should be reasonably close to the target.
         target = target[star.image.bounds]
         print('target max diff = ',np.max(np.abs(test_star.image.array - target.array)))
-        target.write('junk1.fits')
-        test_star.image.write('junk2.fits')
-        (target-test_star.image).write('junk3.fits')
         np.testing.assert_allclose(test_star.image.array, target.array, atol=1.e-5)
 
         # Draw should produce something almost identical (modulo bounds).
@@ -271,6 +268,65 @@ def test_easy_sum2():
         b = test_star.image.bounds & test_image.bounds
         print('image max diff = ',np.max(np.abs(test_image[b].array - test_star.image[b].array)))
         np.testing.assert_allclose(test_image[b].array, test_star.image[b].array, atol=1.e-8)
+
+    # Repeat with both components being PixelGrid mdoels.
+    # Both pretty chunky, so this test doesn't take forever.
+    config['psf']['components'][0]['model'] = {
+        'type': 'PixelGrid',
+        'scale': 1.04,  # 4x4 native pixels per grid pixel.
+        'size': 10,     # Covers 40x40 original pixels.
+    }
+    if __name__ == '__main__':
+        # The small Gaussian moves around the central ~8 pixels.
+        # Make the grid big enough to capture the whole moving Gaussian.
+        grid_size = 14
+        tol = 3.e-4
+    else:
+        # For faster running on CI, use a bit smaller central piece with higher tolerance.
+        grid_size = 10
+        tol = 5.e-4
+    config['psf']['components'][1]['model'] = {
+        'type': 'PixelGrid',
+        'scale': 0.26,  # native pixel scale.
+        'size': grid_size,
+        'init': 'zero',
+        'centered': False,
+        'fit_flux': True,
+    }
+    psf = piff.process(config, logger)
+    assert type(psf) is piff.SumPSF
+    assert len(psf.components) == 2
+    assert type(psf.components[0]) is piff.SimplePSF
+    assert type(psf.components[0].model) is piff.PixelGrid
+    assert type(psf.components[0].interp) is piff.Mean
+    assert type(psf.components[1]) is piff.SimplePSF
+    assert type(psf.components[1].model) is piff.PixelGrid
+    assert type(psf.components[1].interp) is piff.Polynomial
+
+    for i, star in enumerate(psf.stars):
+        print('star',i)
+        target = targets[i]
+        test_star = psf.drawStar(star)
+        # Note: There is no useful test to make of the component parameters.
+        #print('comp0: ',test_star.fit.params[0])
+        #print('comp1: ',test_star.fit.params[1])
+
+        # The drawn image should be reasonably close to the target.
+        # Although not nearly as close as above.
+        # Also, shrink the bounds a bit, since the PixelGrid edge treatment isn't great.
+        b = star.image.bounds.withBorder(-8)
+        target = target[b]
+        print('target max diff = ',np.max(np.abs(test_star.image[b].array - target[b].array)))
+        print('target max value = ',np.max(np.abs(target[b].array)))
+        np.testing.assert_allclose(test_star.image[b].array, target[b].array, atol=tol)
+
+        # Draw should produce something almost identical (modulo bounds).
+        test_image = psf.draw(x=star['x'], y=star['y'], stamp_size=config['input']['stamp_size'],
+                              flux=star.fit.flux, offset=np.array(star.fit.center)/image.scale)
+        b = test_star.image.bounds & test_image.bounds
+        print('image max diff = ',np.max(np.abs(test_image[b].array - test_star.image[b].array)))
+        np.testing.assert_allclose(test_image[b].array, test_star.image[b].array, atol=1.e-7)
+
 
 
 @timer
@@ -390,14 +446,54 @@ def test_mixed_pixel_sum2():
         # The drawn image should be reasonably close to the target.
         target = target[star.image.bounds]
         print('target max diff = ',np.max(np.abs(test_star.image.array - target.array)))
-        target.write('junk1.fits')
-        test_star.image.write('junk2.fits')
-        (target-test_star.image).write('junk3.fits')
         np.testing.assert_allclose(test_star.image.array, target.array, atol=1.e-5)
 
         # Draw should produce something almost identical (modulo bounds).
         test_image = psf.draw(x=star['x'], y=star['y'], stamp_size=config['input']['stamp_size'],
                               flux=star.fit.flux, offset=star.fit.center/image.scale)
+        b = test_star.image.bounds & test_image.bounds
+        print('image max diff = ',np.max(np.abs(test_image[b].array - test_star.image[b].array)))
+        np.testing.assert_allclose(test_image[b].array, test_star.image[b].array, atol=1.e-7)
+
+
+    # Repeat with the first component being a PixelGrid.
+    config['psf']['components'][0]['model'] = {
+        'type': 'PixelGrid',
+        'scale': 1.04,  # 4x4 pixel grid
+        'size': 10,
+    }
+    psf = piff.process(config, logger)
+    assert type(psf) is piff.SumPSF
+    assert len(psf.components) == 2
+    assert type(psf.components[0]) is piff.SimplePSF
+    assert type(psf.components[0].model) is piff.PixelGrid
+    assert type(psf.components[0].interp) is piff.Mean
+    assert type(psf.components[1]) is piff.SimplePSF
+    assert type(psf.components[1].model) is piff.Gaussian
+    assert type(psf.components[1].interp) is piff.Polynomial
+
+    for i, star in enumerate(psf.stars):
+        print('star',i)
+        target = targets[i]
+        test_star = psf.drawStar(star)
+        #print('comp0: ',test_star.fit.params[0])
+        true_params2 = [ 0.13, 0, -0.3 + 0.5*y_list[i]/2048, 0.5 + 0.3*x_list[i]/2048, 0, 0 ]
+        print('comp1: ',test_star.fit.params[1],' =? ',true_params2)
+        # Note: don't test these for exact match anymore.  The only thing we really care about
+        # here is that the drawn image is reasonably close.
+
+        # The drawn image should be reasonably close to the target.
+        # Although not nearly as close as above.
+        # Also, shrink the bounds a bit, since the PixelGrid edge treatment isn't great.
+        b = star.image.bounds.withBorder(-8)
+        target = target[b]
+        print('target max diff = ',np.max(np.abs(test_star.image[b].array - target[b].array)))
+        print('target max value = ',np.max(np.abs(target[b].array)))
+        np.testing.assert_allclose(test_star.image[b].array, target[b].array, atol=3.e-4)
+
+        # Draw should produce something almost identical (modulo bounds).
+        test_image = psf.draw(x=star['x'], y=star['y'], stamp_size=config['input']['stamp_size'],
+                              flux=star.fit.flux, offset=np.array(star.fit.center)/image.scale)
         b = test_star.image.bounds & test_image.bounds
         print('image max diff = ',np.max(np.abs(test_image[b].array - test_star.image[b].array)))
         np.testing.assert_allclose(test_image[b].array, test_star.image[b].array, atol=1.e-7)
