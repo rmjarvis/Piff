@@ -437,7 +437,7 @@ class Star(object):
                     'flux', 'center', 'chisq']:
             assert key in colnames
             colnames.remove(key)
-        # These two might not be there, but it they are, remove them.
+        # These two might not be there, but if they are, remove them.
         colnames = [key for key in colnames if key not in ['reserve', 'flag_psf']]
 
         data = fits[extname].read()
