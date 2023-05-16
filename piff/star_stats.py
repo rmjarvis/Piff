@@ -70,6 +70,8 @@ class StarStats(Stats):
         for index in self.indices:
             star = stars[index]
             if self.adjust_stars:
+                # Do 2 passes, since we sometimes start pretty far from the right values.
+                star = psf.reflux(star, logger=logger)
                 star = psf.reflux(star, logger=logger)
             self.stars.append(star)
         self.models = psf.drawStarList(self.stars)
