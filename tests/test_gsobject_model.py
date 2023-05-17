@@ -933,11 +933,14 @@ def test_fail():
     assert stars[0].is_flagged
     assert nremoved == 1
 
+    # The easiest way to make least_squares_fit fail is to give it extra scipy_kwargs
+    # that don't let it finish converging.
     model3 = piff.Moffat(fastfit=False, beta=2.5, scipy_kwargs={'max_nfev':10})
     with np.testing.assert_raises(RuntimeError):
         model3.initialize(star2)
+    star2.fit.params = star3.fit.params.copy()  # Make sure params are setup correctly.
     with np.testing.assert_raises(RuntimeError):
-        model3.fit(star2).fit
+        model3.fit(star2)
     star3 = model3.initialize(star1)
     star3 = model3.fit(star3)
     star3 = piff.Star(star2.data, star3.fit)

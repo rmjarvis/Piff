@@ -372,6 +372,13 @@ def test_single():
             print('max diff = ',np.max(np.abs(im.array - star.data.image.array)))
             np.testing.assert_almost_equal(im.array, star.data.image.array)
 
+    # SingleChip doesn't use code paths that hit these functions, but they are officially
+    # required methods for PSF classes, so just check them directly.
+    assert psf.fit_center is True
+    raw1 = psf._getRawProfile(star)
+    raw2 = psf.psf_by_chip[star['chipnum']]._getRawProfile(star)
+    assert raw1 == raw2
+
     # Chipnum is required as a property to use SingleCCDPSF
     star1 = piff.Star.makeTarget(x=x, y=y, wcs=wcs, stamp_size=48, pointing=field_center)
     with np.testing.assert_raises(ValueError):
