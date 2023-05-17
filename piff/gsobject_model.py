@@ -79,10 +79,7 @@ class GSObjectModel(Model):
             raise RuntimeError("Error calculating model moments for this star.")
 
         param_flux = star.fit.flux
-        if star.fit.params is None:
-            param_scale = 1
-            param_g1 = param_g2 = param_du = param_dv = 0
-        elif self._centered:
+        if self._centered:
             param_scale, param_g1, param_g2 = star.fit.params
             param_du, param_dv = star.fit.center
         else:
@@ -181,7 +178,12 @@ class GSObjectModel(Model):
         if convert_func is not None:
             prof = convert_func(prof)
 
-        prof.drawImage(model_image, method=self._method, center=image_pos)
+        try:
+            prof.drawImage(model_image, method=self._method, center=image_pos)
+        except galsim.GalSimError:
+            # Declare this a *bad* residual if GalSim ran into some kind of error.
+            # (Most typically a GalSimFFTSizeError from getting to a place with bad stepk/maxk.)
+            return np.ones_like(model_image.array.ravel()) * 1.e100
 
         # Caculate sqrt(weight) * (model_image - image) in place for efficiency.
         model_image.array[:,:] -= image.array
