@@ -914,10 +914,10 @@ def test_fail():
         model1.fit(star3)
     psf = piff.SimplePSF(model1, piff.Mean())
     with CaptureLog() as cl:
-        stars, _ = psf.initialize_params([star3], logger=cl.logger)
+        psf.initialize_params([star3], logger=cl.logger)
         with np.testing.assert_raises(RuntimeError):
             # Raises an error that all stars were flagged
-            psf.single_iteration(stars, logger=cl.logger, convert_func=None)
+            psf.single_iteration([star3], logger=cl.logger, convert_func=None)
     assert "Failed fitting star" in cl.output
 
     # This is contrived to hit the fit failure for the reference.
