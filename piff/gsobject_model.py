@@ -197,17 +197,12 @@ class GSObjectModel(Model):
 
         :returns: a numpy array
         """
-        # Get initial parameter values.  Either use values currently in star.fit, or if those are
-        # absent, run HSM to get initial values.
-        if star.fit.params is None:
-            flux, du, dv, scale, g1, g2, var = self.moment_fit(star)
+        flux = star.fit.flux
+        if self._centered:
+            du, dv = star.fit.center
+            scale, g1, g2 = star.fit.params
         else:
-            flux = star.fit.flux
-            if self._centered:
-                du, dv = star.fit.center
-                scale, g1, g2 = star.fit.params
-            else:
-                du, dv, scale, g1, g2 = star.fit.params
+            du, dv, scale, g1, g2 = star.fit.params
 
         return np.array([flux, du, dv, scale, g1, g2])
 
@@ -306,16 +301,15 @@ class GSObjectModel(Model):
 
         :returns: a new initialized Star.
         """
-        if star.fit.params is None:
-            if self._centered:
-                params = np.array([ 1.0, 0.0, 0.0])
-                params_var = np.array([ 0.0, 0.0, 0.0])
-            else:
-                params = np.array([ 0.0, 0.0, 1.0, 0.0, 0.0])
-                params_var = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
-            fit = star.fit.withNew(params=params, params_var=params_var)
-            star = Star(star.data, fit)
-            star = self.fit(star, fastfit=True)
+        if self._centered:
+            params = np.array([ 1.0, 0.0, 0.0])
+            params_var = np.array([ 0.0, 0.0, 0.0])
+        else:
+            params = np.array([ 0.0, 0.0, 1.0, 0.0, 0.0])
+            params_var = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
+        fit = star.fit.withNew(params=params, params_var=params_var)
+        star = Star(star.data, fit)
+        star = self.fit(star, fastfit=True)
         return star
 
 
