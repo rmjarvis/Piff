@@ -36,10 +36,11 @@ def make_blank_star(x, y, chipnum, properties={}, stamp_size=19, **kwargs):
     wcs = decaminfo.get_nominal_wcs(chipnum)
     properties_in = {'chipnum': chipnum}
     properties_in.update(properties)
-    star = piff.Star.makeTarget(x=x, y=y, wcs=wcs, stamp_size=stamp_size, properties=properties_in, **kwargs)
+    star = piff.Star.makeTarget(x=x, y=y, wcs=wcs, stamp_size=stamp_size,
+                                properties=properties_in, **kwargs)
     return star
 
-def make_stars(nstars,rng,psf,init_params,atmo_type='None',logger=None):
+def make_stars(nstars, rng, psf, init_params, atmo_type='None', logger=None):
 
     # some constants
     foreground = 3000.0
@@ -52,18 +53,18 @@ def make_stars(nstars,rng,psf,init_params,atmo_type='None',logger=None):
 
     # Randomly cover the DES footprint and 61/62 CCDs
     chiplist =  [1] + list(range(3,62+1))  # omit chipnum=2
-    chipnum = np.random.choice(chiplist,nstars)
-    icen = np.random.uniform(1+pixedge,2048-pixedge,nstars)  
-    jcen = np.random.uniform(1+pixedge,4096-pixedge,nstars)
+    chipnum = np.random.choice(chiplist, nstars)
+    icen = np.random.uniform(1+pixedge, 2048-pixedge, nstars)
+    jcen = np.random.uniform(1+pixedge, 4096-pixedge, nstars)
 
     # Build blank stars at the desired locations
     blank_stars = []
     for i in range(nstars):
         # make the shell of a Star object
-        blank_stars.append(make_blank_star(icen[i],jcen[i],chipnum[i],stamp_size=pixels))
+        blank_stars.append(make_blank_star(icen[i], jcen[i], chipnum[i], stamp_size=pixels))
 
     # fill reference wavefront using optatmo_psf
-    stars = psf._get_refwavefront(blank_stars,logger)
+    stars = psf._get_refwavefront(blank_stars, logger)
 
     # apply a different atmospheric kernel for every star
     if atmo_type=='RBF':
@@ -78,7 +79,7 @@ def make_stars(nstars,rng,psf,init_params,atmo_type='None',logger=None):
         K = kernel.__call__(x)
 
         # typical values from DES Y1 image study
-        size_sigma = 0.021   
+        size_sigma = 0.021
         g1_sigma = 0.0025
         g2_sigma = 0.0025
 
@@ -89,12 +90,12 @@ def make_stars(nstars,rng,psf,init_params,atmo_type='None',logger=None):
 
         # add these to ofit_params
         for i in range(nstars):
-            init_params.register('atmo_size_%d' % (i),atmo_size[i])
-            init_params.register('atmo_g1_%d' % (i),atmo_g1[i])
-            init_params.register('atmo_g2_%d' % (i),atmo_g2[i])
+            init_params.register('atmo_size_%d' % (i), atmo_size[i])
+            init_params.register('atmo_g1_%d' % (i), atmo_g1[i])
+            init_params.register('atmo_g2_%d' % (i), atmo_g2[i])
 
     # have the OptAtmo PSF make the model stars
-    noiseless_stars = psf.make_modelstars(init_params,stars,psf.model,logger=logger)
+    noiseless_stars = psf.make_modelstars(init_params, stars, psf.model, logger=logger)
 
     # now add shot noise to the stars and scale to desired flux
     noisy_stars = []
@@ -102,13 +103,14 @@ def make_stars(nstars,rng,psf,init_params,atmo_type='None',logger=None):
 
         # calculate the flux from a randomly selected magnitude
         mag = np.random.uniform(maglo,maghi)  # uniform distribution
-        flux = 10.**((30.0-mag)/2.5)          # using a zero point of 30th mag
+        flux = 10.**((30.0-mag)/2.5)           # using a zero point of 30th mag
 
         # scale the image's pixel_sum, work with a copy
         im = star.image * flux
 
-        # Generate a Poisson noise model, with some foreground (assumes that this foreground was already subtracted)
-        poisson_noise = galsim.PoissonNoise(rng,sky_level=foreground)
+        # Generate a Poisson noise model, with some foreground (assumes that this foreground
+        # was already subtracted)
+        poisson_noise = galsim.PoissonNoise(rng, sky_level=foreground)
         im.addNoise(poisson_noise)  # adds in place
 
         # get new weight in photo-electrons (im is a Galsim image)
@@ -151,17 +153,18 @@ def make_stars(nstars,rng,psf,init_params,atmo_type='None',logger=None):
 
 
 @timer
-def make_image(config_file,variables='',seed=12345,nstars=8000,optics_type='Fast',atmo_type='None',verbose_level=1):
+def make_image(config_file, variables='', seed=12345, nstars=8000, optics_type='Fast',
+               atmo_type='None', verbose_level=1):
     """
     This test makes an image's worth of stars using optatmo_psf
 
-    :param config_file:                     Configuration file for optatmo_psf
-    :param variables:                       String with additional configuration variables [default: '']
-    :param seed:                            Random number seed [default: 12345]
-    :param nstars:                          Number of stars to make [default: 8000]
-    :param optics_type:                     Type of optical wavefront to generate, 'Fast' or 'Nominal' [default: Fast]
-    :param atmo_type:                       Type of atmosphere to generate, 'None', 'RBF', 'Galsim' [default: None]
-    :param verbose_level:                   Verbose level for logger [default: 1]
+    :param config_file:   Configuration file for optatmo_psf
+    :param variables:     String with additional configuration variables [default: '']
+    :param seed:          Random number seed [default: 12345]
+    :param nstars:        Number of stars to make [default: 8000]
+    :param optics_type:   Type of optical wavefront to generate, 'Fast' or 'Nominal' [default: Fast]
+    :param atmo_type:     Type of atmosphere to generate, 'None', 'RBF', 'Galsim' [default: None]
+    :param verbose_level: Verbose level for logger [default: 1]
     """
 
     # random number seeds
@@ -176,53 +179,61 @@ def make_image(config_file,variables='',seed=12345,nstars=8000,optics_type='Fast
     piff.config.parse_variables(config, variables, logger)
 
     # build the PSF
-    psf = piff.PSF.process(config['psf'],logger=logger)
+    psf = piff.PSF.process(config['psf'], logger=logger)
 
     # get params object from psf
-    init_params = psf._setup_ofit_params(psf.ofit_initvalues,psf.ofit_bounds,psf.ofit_initerrors,psf.ofit_double_zernike_terms,psf.ofit_fix)
+    init_params = psf._setup_ofit_params(psf.ofit_initvalues, psf.ofit_bounds,
+                                         psf.ofit_initerrors, psf.ofit_double_zernike_terms,
+                                         psf.ofit_fix)
 
     # fill with random values
-    init_params.setValue('opt_size',nprng.uniform(0.8,1.2,1)[0])
-    init_params.setValue('opt_L0',nprng.uniform(3.,10.,1)[0])
-    init_params.setValue('z4f1',nprng.uniform(-0.3,0.3,1)[0])
-    init_params.setValue('z5f1',nprng.uniform(-0.2,0.2,1)[0])
-    init_params.setValue('z6f1',nprng.uniform(-0.2,0.2,1)[0])
-    init_params.setValue('z11f1',nprng.uniform(-0.2,0.2,1)[0])
+    init_params.setValue('opt_size', nprng.uniform(0.8,1.2,1)[0])
+    init_params.setValue('opt_L0', nprng.uniform(3.,10.,1)[0])
+    init_params.setValue('z4f1', nprng.uniform(-0.3,0.3,1)[0])
+    init_params.setValue('z5f1', nprng.uniform(-0.2,0.2,1)[0])
+    init_params.setValue('z6f1', nprng.uniform(-0.2,0.2,1)[0])
+    init_params.setValue('z11f1', nprng.uniform(-0.2,0.2,1)[0])
 
     if optics_type=='Nominal':
-        init_params.setValue('opt_g1',nprng.uniform(-0.05,0.05,1)[0])
-        init_params.setValue('opt_g2',nprng.uniform(-0.05,0.05,1)[0])
+        init_params.setValue('opt_g1', nprng.uniform(-0.05,0.05,1)[0])
+        init_params.setValue('opt_g2', nprng.uniform(-0.05,0.05,1)[0])
         for iz in range(7,10+1):
-            init_params.setValue('z%df1' % (iz),nprng.uniform(-0.2,0.2,1)[0])
-        init_params.setValue('z5f2',nprng.uniform(-0.3,0.3,1)[0])
-        init_params.setValue('z5f3',nprng.uniform(-0.3,0.3,1)[0])
-        init_params.setValue('z6f2',nprng.uniform(-0.3,0.3,1)[0])
-        init_params.setValue('z6f3',nprng.uniform(-0.3,0.3,1)[0])
+            init_params.setValue('z%df1' % (iz), nprng.uniform(-0.2,0.2,1)[0])
+        init_params.setValue('z5f2', nprng.uniform(-0.3,0.3,1)[0])
+        init_params.setValue('z5f3', nprng.uniform(-0.3,0.3,1)[0])
+        init_params.setValue('z6f2', nprng.uniform(-0.3,0.3,1)[0])
+        init_params.setValue('z6f3', nprng.uniform(-0.3,0.3,1)[0])
 
     # make an image of fake stars
-    stars = make_stars(nstars,rng,psf,init_params,atmo_type,logger=logger)
+    stars = make_stars(nstars, rng, psf, init_params, atmo_type, logger=logger)
 
     # return
-    return stars,init_params
+    return stars, init_params
 
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('config_file',type=str,help="Configuration Filename")
-    parser.add_argument('variables',type=str,nargs='*',help="add options to configuration",default='')
-    parser.add_argument('-f', '--output_file', dest='output_file',type=str,help="Output Filename",default='mkimage.pkl')
-    parser.add_argument('-s', '--seed', dest='seed',type=int,help="seed",default=12345)
-    parser.add_argument('-n', '--nstars', dest='nstars',type=int,help="nstars",default=800)
-    parser.add_argument('-o', '--optics_type', dest='optics_type',type=str,help="optics_type Fast,Nomninal",default='Fast')
-    parser.add_argument('-a', '--atmo_type', dest='atmo_type',type=str,help="atmo_type None,RBF,Galsim",default='None')
+    parser.add_argument('config_file', type=str, help="Configuration Filename")
+    parser.add_argument('variables', type=str, nargs='*',
+                        help="add options to configuration",
+                        default='')
+    parser.add_argument('-f', '--output_file', dest='output_file', type=str,
+                        help="Output Filename", default='mkimage.pkl')
+    parser.add_argument('-s', '--seed', dest='seed', type=int, help="seed", default=12345)
+    parser.add_argument('-n', '--nstars', dest='nstars', type=int, help="nstars", default=800)
+    parser.add_argument('-o', '--optics_type', dest='optics_type', type=str,
+                        help="optics_type Fast,Nomninal", default='Fast')
+    parser.add_argument('-a', '--atmo_type', dest='atmo_type', type=str,
+                        help="atmo_type None,RBF,Galsim", default='None')
 
     options = parser.parse_args()
     kwargs = vars(options)
 
-    stars,init_params = make_image(options.config_file,options.variables,options.seed,options.nstars,options.optics_type,options.atmo_type)
+    stars, init_params = make_image(options.config_file, options.variables, options.seed,
+                                    options.nstars, options.optics_type, options.atmo_type)
     init_params.print()
-    outdict = {"init_params":init_params,"stars":stars}
+    outdict = {"init_params":init_params, "stars":stars}
 
-    pickle.dump(outdict,open(options.output_file,'wb'))
+    pickle.dump(outdict, open(options.output_file, 'wb'))
 
