@@ -252,7 +252,7 @@ class PSF(object):
             #
             #    A x = b
             #
-            # where x = [ duc, dvc ]^T and b = resid.
+            # where x = [ df, duc, dvc ]^T and b = resid.
             #
             # A[0] = dmdf
             # A[1] = dmduc
@@ -266,9 +266,9 @@ class PSF(object):
             Atb = Atw.dot(resid)
             x = np.linalg.solve(AtA, Atb)
             logger.debug('    centroid shift = %s,%s', x[0], x[1])
-            df = x[0]
-            duc = x[1]
-            dvc = x[2]
+
+            # Extract the values we want.
+            df, duc, dvc = x
 
             if psf_prof.centroid != galsim.PositionD(0,0):
                 # In addition to shifting to the best fit center location, also shift
