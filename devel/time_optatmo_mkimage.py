@@ -12,32 +12,24 @@
 #    this list of conditions and the disclaimer given in the documentation
 #    and/or other materials provided with the distribution.
 
-from __future__ import print_function
 import numpy as np
-from numpy.random import default_rng
 import pickle
-import fitsio
-import os
-import warnings
-import coord
 import galsim
-import pixmappy
-import galsim_extra
+import argparse
+import time
+
 import piff
 from piff import Star, StarData, StarFit
 from piff.util import calculateSNR
-import treegp
 from sklearn.gaussian_process.kernels import RBF
-from piff_test_helper import get_script_name, timer, CaptureLog
 
 decaminfo = piff.des.DECamInfo()
 
-def make_blank_star(x, y, chipnum, properties={}, stamp_size=19, **kwargs):
+def make_blank_star(x, y, chipnum, properties=(), stamp_size=19, **kwargs):
     wcs = decaminfo.get_nominal_wcs(chipnum)
-    properties_in = {'chipnum': chipnum}
-    properties_in.update(properties)
+    properties = dict(properties, chipnum=chipnum)
     star = piff.Star.makeTarget(x=x, y=y, wcs=wcs, stamp_size=stamp_size,
-                                properties=properties_in, **kwargs)
+                                properties=properties, **kwargs)
     return star
 
 def make_stars(nstars, rng, psf, init_params, atmo_type='None', logger=None):
@@ -47,15 +39,15 @@ def make_stars(nstars, rng, psf, init_params, atmo_type='None', logger=None):
     maglo = 15.0
     maghi = 20.0
     pixels = 19
-    max_snr = 1000000000. # effectively remove extra noise
+    max_snr = 0. # effectively remove extra noise
     min_snr = 50.
     pixedge = 20
 
     # Randomly cover the DES footprint and 61/62 CCDs
     chiplist =  [1] + list(range(3,62+1))  # omit chipnum=2
-    chipnum = np.random.choice(chiplist, nstars)
-    icen = np.random.uniform(1+pixedge, 2048-pixedge, nstars)
-    jcen = np.random.uniform(1+pixedge, 4096-pixedge, nstars)
+    chipnum = rng.np.choice(chiplist, nstars)
+    icen = rng.np.uniform(1+pixedge, 2048-pixedge, nstars)
+    jcen = rng.np.uniform(1+pixedge, 4096-pixedge, nstars)
 
     # Build blank stars at the desired locations
     blank_stars = []
@@ -84,9 +76,9 @@ def make_stars(nstars, rng, psf, init_params, atmo_type='None', logger=None):
         g2_sigma = 0.0025
 
         # generating gaussian random field
-        atmo_size = size_sigma * np.random.multivariate_normal(np.zeros(nstars), K)
-        atmo_g1 = g1_sigma * np.random.multivariate_normal(np.zeros(nstars), K)
-        atmo_g2 = g2_sigma * np.random.multivariate_normal(np.zeros(nstars), K)
+        atmo_size = size_sigma * rng.np.multivariate_normal(np.zeros(nstars), K)
+        atmo_g1 = g1_sigma * rng.np.multivariate_normal(np.zeros(nstars), K)
+        atmo_g2 = g2_sigma * rng.np.multivariate_normal(np.zeros(nstars), K)
 
         # add these to ofit_params
         for i in range(nstars):
@@ -102,7 +94,7 @@ def make_stars(nstars, rng, psf, init_params, atmo_type='None', logger=None):
     for star in noiseless_stars:
 
         # calculate the flux from a randomly selected magnitude
-        mag = np.random.uniform(maglo,maghi)  # uniform distribution
+        mag = rng.np.uniform(maglo,maghi)  # uniform distribution
         flux = 10.**((30.0-mag)/2.5)           # using a zero point of 30th mag
 
         # scale the image's pixel_sum, work with a copy
@@ -117,42 +109,27 @@ def make_stars(nstars, rng, psf, init_params, atmo_type='None', logger=None):
         inverse_weight = im + foreground
         weight = 1.0/inverse_weight
 
-        # set the maximum SNR for this star, by scaling up the weight
+        # check minimum snr
         snr = calculateSNR(im, weight)
-        if snr > max_snr:
+        if snr < min_snr:
+            continue
+
+        # set the maximum SNR for this star, by scaling up the weight
+        if max_snr > 0 and snr > max_snr:
             factor = (max_snr / snr)**2
             weight *= factor
 
-        # check minimum snr
-        if snr > min_snr:
-
-            # make new noisy star
-            properties = star.data.properties
-            properties['snr'] = snr        # store the original SNR here
-
-            for key in ['x', 'y', 'u', 'v']:
-                # Get rid of keys that constructor doesn't want to see:
-                properties.pop(key, None)
-
-            data = StarData(image=im,
-                        image_pos=star.data.image_pos,
-                        weight=weight,
-                        pointing=star.data.pointing,
-                        field_pos=star.data.field_pos,
-                        orig_weight=star.data.orig_weight,
-                        properties=properties)
-            fit = StarFit(None,
-                      flux=star.fit.flux,
-                      center=star.fit.center)
-            noisy_star = Star(data, fit)
-            noisy_stars.append(noisy_star)
+        # make new noisy star
+        star = star.withProperties(snr=snr)
+        data = star.data.withNew(image=im, weight=weight)
+        noisy_star = Star(data, star.fit)
+        noisy_stars.append(noisy_star)
 
     # return the list of Stars
     return noisy_stars
 
 
 
-@timer
 def make_image(config_file, variables='', seed=12345, nstars=8000, optics_type='Fast',
                atmo_type='None', verbose_level=1):
     """
@@ -167,8 +144,7 @@ def make_image(config_file, variables='', seed=12345, nstars=8000, optics_type='
     :param verbose_level: Verbose level for logger [default: 1]
     """
 
-    # random number seeds
-    nprng = default_rng(seed)
+    # random number generator
     rng = galsim.BaseDeviate(seed)
 
     # read the yaml
@@ -187,22 +163,22 @@ def make_image(config_file, variables='', seed=12345, nstars=8000, optics_type='
                                          psf.ofit_fix)
 
     # fill with random values
-    init_params.setValue('opt_size', nprng.uniform(0.8,1.2,1)[0])
-    init_params.setValue('opt_L0', nprng.uniform(3.,10.,1)[0])
-    init_params.setValue('z4f1', nprng.uniform(-0.3,0.3,1)[0])
-    init_params.setValue('z5f1', nprng.uniform(-0.2,0.2,1)[0])
-    init_params.setValue('z6f1', nprng.uniform(-0.2,0.2,1)[0])
-    init_params.setValue('z11f1', nprng.uniform(-0.2,0.2,1)[0])
+    init_params.setValue('opt_size', rng.np.uniform(0.8,1.2,1)[0])
+    init_params.setValue('opt_L0', rng.np.uniform(3.,10.,1)[0])
+    init_params.setValue('z4f1', rng.np.uniform(-0.3,0.3,1)[0])
+    init_params.setValue('z5f1', rng.np.uniform(-0.2,0.2,1)[0])
+    init_params.setValue('z6f1', rng.np.uniform(-0.2,0.2,1)[0])
+    init_params.setValue('z11f1', rng.np.uniform(-0.2,0.2,1)[0])
 
     if optics_type=='Nominal':
-        init_params.setValue('opt_g1', nprng.uniform(-0.05,0.05,1)[0])
-        init_params.setValue('opt_g2', nprng.uniform(-0.05,0.05,1)[0])
+        init_params.setValue('opt_g1', rng.np.uniform(-0.05,0.05,1)[0])
+        init_params.setValue('opt_g2', rng.np.uniform(-0.05,0.05,1)[0])
         for iz in range(7,10+1):
-            init_params.setValue('z%df1' % (iz), nprng.uniform(-0.2,0.2,1)[0])
-        init_params.setValue('z5f2', nprng.uniform(-0.3,0.3,1)[0])
-        init_params.setValue('z5f3', nprng.uniform(-0.3,0.3,1)[0])
-        init_params.setValue('z6f2', nprng.uniform(-0.3,0.3,1)[0])
-        init_params.setValue('z6f3', nprng.uniform(-0.3,0.3,1)[0])
+            init_params.setValue('z%df1' % (iz), rng.np.uniform(-0.2,0.2,1)[0])
+        init_params.setValue('z5f2', rng.np.uniform(-0.3,0.3,1)[0])
+        init_params.setValue('z5f3', rng.np.uniform(-0.3,0.3,1)[0])
+        init_params.setValue('z6f2', rng.np.uniform(-0.3,0.3,1)[0])
+        init_params.setValue('z6f3', rng.np.uniform(-0.3,0.3,1)[0])
 
     # make an image of fake stars
     stars = make_stars(nstars, rng, psf, init_params, atmo_type, logger=logger)
@@ -211,7 +187,6 @@ def make_image(config_file, variables='', seed=12345, nstars=8000, optics_type='
     return stars, init_params
 
 if __name__ == '__main__':
-    import argparse
     parser = argparse.ArgumentParser()
 
     parser.add_argument('config_file', type=str, help="Configuration Filename")
@@ -230,10 +205,12 @@ if __name__ == '__main__':
     options = parser.parse_args()
     kwargs = vars(options)
 
+    t0 = time.time()
     stars, init_params = make_image(options.config_file, options.variables, options.seed,
                                     options.nstars, options.optics_type, options.atmo_type)
+    t1 = time.time()
+    print('Time for make_image = ',t1-t0)
+
     init_params.print()
     outdict = {"init_params":init_params, "stars":stars}
-
     pickle.dump(outdict, open(options.output_file, 'wb'))
-
