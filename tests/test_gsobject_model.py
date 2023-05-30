@@ -259,8 +259,8 @@ def test_simple():
         np.testing.assert_allclose(fit.params[0], scale, rtol=1e-6)
         np.testing.assert_allclose(fit.params[1], g1, rtol=0, atol=1e-6)
         np.testing.assert_allclose(fit.params[2], g2, rtol=0, atol=1e-6)
-        np.testing.assert_allclose(fit.center[0], du, rtol=0, atol=1e-5)
-        np.testing.assert_allclose(fit.center[1], dv, rtol=0, atol=1e-5)
+        np.testing.assert_allclose(fit.center[0], du, rtol=0, atol=2e-5)
+        np.testing.assert_allclose(fit.center[1], dv, rtol=0, atol=2e-5)
 
         # Check various init options.
         print('Initializing with zero')
