@@ -443,7 +443,7 @@ class Star(object):
         colnames = fits[extname].get_colnames()
         header = fits[extname].read_header()
         if 'PARAMS_LENS' in header:
-            params_lens = eval(header['PARAMS_LENS'])
+            params_lens = np.atleast_1d(eval(header['PARAMS_LENS']))
         else:
             params_lens = None
 
