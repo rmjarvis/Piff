@@ -913,7 +913,7 @@ class StarFit(object):
     to carry information of use to a given Model instance (such as intermediate
     results), but interpolators will be looking for some subset of these properties:
 
-    :params:      numpy vector of parameters of the PSF that apply to this star
+    :params:      numpy array of parameters of the PSF that apply to this star
     :params_var:  numpy array of variance error parameters of the PSF
     :flux:        flux of the star
     :center:      (u,v) tuple giving position of stellar center (relative
