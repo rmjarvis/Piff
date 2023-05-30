@@ -257,7 +257,7 @@ class PSF(object):
             dmdvc = (temp.array.ravel() - model) / duv
 
             # Also dmdflux
-            dflux = 1.e-5 * new_flux
+            dflux = 1.e-5 * max(abs(new_flux), 1.e-5)  # Guard against division by 0
             df_prof = psf_prof.shift(center[0], center[1]) * (new_flux + dflux)
             df_prof.drawImage(temp, method=method, center=star.image_pos)
             dmdf = (temp.array.ravel() - model) / dflux
