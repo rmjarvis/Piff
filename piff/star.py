@@ -990,8 +990,8 @@ class StarFit(object):
                             of current ones.  [default: None]
         :param num:         If there are multiple sets of model params being stored, then
                             this is the number to update. [default: None]
-        :param \*\*kwargs:  Any other additional properties for the star. Takes current flux and
-                            center if not provided, and otherwise puts in None
+        :param \*\*kwargs:  Any other additional properties for the star.  Keeps current values
+                            of anything not given a new value.
 
         :returns: New StarFit object with altered parameters.  All chisq-related parameters
                   are set to None since they are no longer valid.
@@ -1000,25 +1000,21 @@ class StarFit(object):
         old_params_var = self.get_params_var(num)
         if old_params is not None and np.array(params).shape != old_params.shape:
             raise ValueError('new StarFit parameters do not match dimensions of old ones')
-        flux = kwargs.pop('flux', self.flux)
-        center = kwargs.pop('center', self.center)
-        new_params_var = None
+
         if num is not None:
             new_params = self.params.copy()
             new_params[num] = np.array(params)
+            kwargs['params'] = new_params
             if params_var is not None:
                 new_params_var = self.params_var.copy()
                 new_params_var[num] = np.array(params_var)
-            else:
-                new_params_var = self.params_var
+                kwargs['params_var'] = new_params_var
         else:
-            new_params = np.array(params)
+            kwargs['params'] = np.array(params)
             if params_var is not None:
-                new_params_var = np.array(params_var)
-            else:
-                new_params_var = self.params_var
-        return self.withNew(params=new_params, params_var=new_params_var,
-                            flux=flux, center=center, **kwargs)
+                kwargs['params_var'] = np.array(params_var)
+
+        return self.withNew(**kwargs)
 
     def get_params(self, num):
         if num is not None and self.params is not None:
