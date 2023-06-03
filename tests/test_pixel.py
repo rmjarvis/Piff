@@ -138,6 +138,12 @@ def test_simplest():
     np.testing.assert_allclose(np.sum(star.fit.params), 0.01, rtol=1.e-3)
     np.testing.assert_allclose(mod.getProfile(star.fit.params).flux, 0.01, rtol=1.e-3)
 
+    # Invalid init method raises an error
+    mod = piff.PixelGrid(du, 32, interp, init='invalid')
+    with np.testing.assert_raises(ValueError):
+        mod.initialize(star)
+
+
 @timer
 def test_oversample():
     """Fit to oversampled data, decentered PSF.
