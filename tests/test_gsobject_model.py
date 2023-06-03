@@ -361,6 +361,12 @@ def test_simple():
         with np.testing.assert_raises(ValueError):
             model.initialize(fiducial_star)
 
+        # Invalid init method raises an error
+        config['model']['init'] = 'invalid'
+        model = piff.Model.process(config['model'], logger)
+        with np.testing.assert_raises(ValueError):
+            model.initialize(fiducial_star)
+
 @timer
 def test_center():
     """Fit with centroid free and PSF center constrained to an initially mis-registered PSF.
