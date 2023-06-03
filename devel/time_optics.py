@@ -12,25 +12,19 @@
 #    this list of conditions and the disclaimer given in the documentation
 #    and/or other materials provided with the distribution.
 
-from __future__ import print_function
 import numpy as np
 from numpy.random import default_rng
 import piff
-import os
-import sys
-import fitsio
-import galsim
+import time
 
-sys.path.insert(0, '../tests')
-from piff_test_helper import timer
-
-@timer
 def test_makestars(nstars=100,constant_atmoparams=True,template='des'):
-
+    t0 = time.time()
     print("test_makestars, n=%d, constant_atmoparams=%d" % (nstars,constant_atmoparams))
     model = piff.Optical(template=template,atmo_type='VonKarman',gsparams='starby2')
     params = random_params(nstars,model,constant_atmoparams=constant_atmoparams)
     stars = make_stars(nstars,model,params)
+    t1 = time.time()
+    print('Time for test_makestars = ',t1-t0)
 
 
 #####
