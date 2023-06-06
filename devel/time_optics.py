@@ -88,8 +88,9 @@ def random_params(nstars,model,seed=12345,constant_atmoparams=False):
 
     params = []
     for i in range(nstars):
-        param = model.kwargs_to_params(zernike_coeff=[0.,0.,0.,0.,z4s[i],z5s[i],z6s[i],z7s[i],z8s[i],z9s[i],z10s[i],z11s[i]],
-                                  r0=r0s[i],g1=g1s[i],g2=g2s[i],L0=L0s[i])
+        param = model.kwargs_to_params(
+            zernike_coeff=[0.,0.,0.,0.,z4s[i],z5s[i],z6s[i],z7s[i],z8s[i],z9s[i],z10s[i],z11s[i]],
+            r0=r0s[i], g1=g1s[i], g2=g2s[i], L0=L0s[i])
         params.append(param)
     return params
 
@@ -107,10 +108,9 @@ def make_stars(nstars,model,inparams,npixels=19):
 
     for i in range(nstars):
         # make the shell of a Star object
-        star = make_empty_star(icen[i],jcen[i],chipnum[i],inparams[i],stamp_size=npixels)
+        star = make_empty_star(icen[i], jcen[i], chipnum[i], inparams[i], stamp_size=npixels)
 
         # draw the star
-        # shouldn't be needed, since make_empty_star should do this I think?  star.fit.params = inparams[i]
         star = model.draw(star)
         stars.append(star)
 

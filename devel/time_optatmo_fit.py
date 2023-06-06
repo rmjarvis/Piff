@@ -80,10 +80,13 @@ if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('config_file',type=str,help="Configuration Filename")
-    parser.add_argument('variables',type=str,nargs='*',help="add options to configuration",default='')
-    parser.add_argument('-i', '--input_file', dest='input_file',type=str,help="Input Filename",default='mkimage.pkl')
-    parser.add_argument('-o', '--output_file', dest='output_file',type=str,help="Output Filename",default='optatmo_fit.pkl')
+    parser.add_argument('config_file', type=str, help="Configuration Filename")
+    parser.add_argument('variables', type=str, nargs='*',
+                        help="add options to configuration", default='')
+    parser.add_argument('-i', '--input_file', dest='input_file', type=str,
+                        help="Input Filename",default='mkimage.pkl')
+    parser.add_argument('-o', '--output_file', dest='output_file', type=str,
+                        help="Output Filename", default='optatmo_fit.pkl')
     options = parser.parse_args()
     kwargs = vars(options)
 
