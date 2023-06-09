@@ -154,22 +154,30 @@ If this is a float value, it gives the number of inter-quartile-ranges
 to use for rejection relative to the median.  hsm_size_reject=True
 is equivalent to hsm_size_reject=10.</p>
 </dd>
-<dt class="field-odd">reject_where</dt>
-<dd class="field-odd"><p>Reject stars based on an arbitrary eval string using variables that
+<dt class="field-odd">max_pixel_cut</dt>
+<dd class="field-odd"><p>Reject stars with a maximum pixel value greater than this value.
+Note: this cut is actually made using a flux cut such that the average
+star with the threshold flux would have this peak pixel value.
+This is in order to avoid a selection bias where smaller stars get
+preferentially excluded, since smaller stars, at a given flux, have a
+higher maximum pixel value. [default: None]</p>
+</dd>
+<dt class="field-even">reject_where</dt>
+<dd class="field-even"><p>Reject stars based on an arbitrary eval string using variables that
 are properties of each star (usually input using property_cols).
 It should evaluate to a bool for a single star or an array of bool
 if the variables are arrays of property values for all the stars.
 [default: None]</p>
 </dd>
-<dt class="field-even">reserve_frac</dt>
-<dd class="field-even"><p>Reserve a fraction of the stars from the PSF calculations, so they
+<dt class="field-odd">reserve_frac</dt>
+<dd class="field-odd"><p>Reserve a fraction of the stars from the PSF calculations, so they
 can serve as fair points for diagnostic testing.  These stars will
 not be used to constrain the PSF model, but the output files will
 contain the reserve stars, flagged as such.  Generally 0.2 is a
 good choice if you are going to use this. [default: 0.]</p>
 </dd>
-<dt class="field-odd">seed</dt>
-<dd class="field-odd"><p>A seed to use for numpy.random.default_rng, if desired. [default: None]</p>
+<dt class="field-even">seed</dt>
+<dd class="field-even"><p>A seed to use for numpy.random.default_rng, if desired. [default: None]</p>
 </dd>
 </dl>
 </div></blockquote>
