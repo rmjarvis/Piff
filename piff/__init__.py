@@ -115,3 +115,4 @@ from .optical_model import Optical, optical_templates
 from . import util
 from . import des
 from . import wavefront
+from . import meta_data

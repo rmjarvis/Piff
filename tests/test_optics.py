@@ -160,14 +160,15 @@ def test_draw():
     astar1 = model.draw(astar)
 
 @timer
-def test_pupil_im(pupil_plane_file='input/DECam_pupil_512uv.fits'):
+def test_pupil_im(pupil_plane_file='DECam_pupil_512uv.fits'):
     print('test pupil im: ', pupil_plane_file)
     # make sure we can load up a pupil image
     model = piff.Optical(diam=4.010, lam=500., pupil_plane_im=pupil_plane_file,
                          atmo_type='Kolmogorov')
     test_optical(model)
     # make sure we really loaded it
-    pupil_plane_im = galsim.fits.read(pupil_plane_file)
+    # Note: piff automatically finds this file in the installed share directory.
+    pupil_plane_im = galsim.fits.read(os.path.join('../share',pupil_plane_file))
     # Check the scale (and fix if necessary)
     print('pupil_plane_im.scale = ',pupil_plane_im.scale)
     ref_aper = galsim.Aperture(diam=4.010, lam=500, pupil_plane_im=pupil_plane_im.array)
@@ -179,6 +180,13 @@ def test_pupil_im(pupil_plane_file='input/DECam_pupil_512uv.fits'):
         pupil_plane_im.write(pupil_plane_file)
 
     np.testing.assert_array_equal(pupil_plane_im.array, model.aperture._pupil_plane_im.array)
+
+    # Can also give a the full path, rather than automatically find it in the piff data_dir
+    model = piff.Optical(diam=4.010, lam=500.,
+                         pupil_plane_im=os.path.join('../share',pupil_plane_file),
+                         atmo_type='Kolmogorov')
+    model.aperture._load_pupil_plane()
+    assert pupil_plane_im == model.aperture._pupil_plane_im
 
     print('Try diam=2 model')
     model = piff.Optical(pupil_plane_im=pupil_plane_im, diam=2, lam=500)
@@ -360,8 +368,8 @@ if __name__ == '__main__':
     test_init()
     test_optical()
     test_draw()
-    test_pupil_im(pupil_plane_file='input/DECam_pupil_512uv.fits')
-    test_pupil_im(pupil_plane_file='input/DECam_pupil_128uv.fits')
+    test_pupil_im(pupil_plane_file='DECam_pupil_512uv.fits')
+    test_pupil_im(pupil_plane_file='DECam_pupil_128uv.fits')
     test_kolmogorov()
     test_vonkarman()
     test_shearing()

@@ -49,11 +49,7 @@ py_version = "%d.%d"%sys.version_info[0:2]  # we check things based on the major
 
 scripts = ['piffify', 'plotify', 'meanify']
 scripts = [ os.path.join('scripts',f) for f in scripts ]
-
-sources = glob.glob(os.path.join('src','*.c'))
-sources += glob.glob(os.path.join('src','*.cpp'))
-
-headers = glob.glob(os.path.join('include','*.h'))
+shared_data = glob.glob('share/*')
 
 undef_macros = []
 
@@ -278,11 +274,6 @@ class my_install_scripts( install_scripts ):  # For distutils
         install_scripts.run(self)
         self.distribution.script_install_dir = self.install_dir
 
-ext=Extension("piff._piff",
-              sources,
-              depends=headers,
-              undef_macros = undef_macros)
-
 dependencies = ['galsim>=2.3', 'numpy>=1.17', 'scipy>=1.2', 'pyyaml>=5.1', 'treecorr>=4.3.1', 'fitsio>=1.0', 'matplotlib>=3.3', 'LSSTDESC.Coord>=1.0', 'treegp>=0.6', 'threadpoolctl>=3.1']
 
 with open('README.rst') as file:
@@ -310,16 +301,12 @@ dist = setup(name="Piff",
       url="https://github.com/rmjarvis/Piff",
       download_url="https://github.com/rmjarvis/Piff/releases/tag/v%s.zip"%piff_version,
       packages=packages,
+      package_data={'piff' : shared_data},
       install_requires=dependencies,
-      # The rest of these are used by TreeCorr.  We might at some point want to do something
-      # like this here.  But for now, just comment them out.
-      #data_files=[('piff/include',headers)],
-      #ext_modules=[ext],
       cmdclass = {'build_ext': my_builder,
                   'install_scripts': my_install_scripts,
                   'easy_install': my_easy_install,
                   },
-      #headers=headers,
       scripts=scripts
       )
 
