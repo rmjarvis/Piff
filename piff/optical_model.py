@@ -185,8 +185,7 @@ class Optical(Model):
                     'circular_pupil', 'obscuration', 'interpolant',
                     'oversampling', 'pad_factor', 'suppress_warning',
                     'nstruts', 'strut_thick', 'strut_angle',
-                    'pupil_plane_im','mirror_figure_im','mirror_figure_halfsize',
-                    'pupil_angle', 'pupil_plane_scale', 'pupil_plane_size')
+                    'pupil_plane_im', 'pupil_angle', 'pupil_plane_scale', 'pupil_plane_size')
         self.opt_kwargs = { key : self.kwargs[key] for key in self.kwargs if key in opt_keys }
 
         gsparams_keys = ('minimum_fft_size','folding_threshold')
@@ -197,35 +196,14 @@ class Optical(Model):
             else:
                 self.gsparams = galsim.GSParams(**gsparams_kwargs)
 
-        other_keys = ('sigma')
-        self.other_kwargs = { key : self.kwargs[key] for key in self.kwargs if key in other_keys }
-
-        # Deal with the mirror figure image so it only needs to be loaded from disk once.
-        self.mirror_figure_screen = None
-        if 'mirror_figure_im' in self.opt_kwargs:
-            mirror_figure_im = self.opt_kwargs.pop('mirror_figure_im')
-            mirror_figure_halfsize = self.opt_kwargs.pop('mirror_figure_halfsize')
-            if isinstance(mirror_figure_im, str):
-                self.logger.debug('Loading mirror_figure_im from {0}'.format(mirror_figure_im))
-                mirror_figure_uv = galsim.fits.read(mirror_figure_im)
-            else:
-                mirror_figure_uv = mirror_figure_im
-
-            # build u,v grid points
-            mirror_figure_u = np.linspace(-mirror_figure_halfsize, mirror_figure_halfsize, num=512)
-            mirror_figure_v = np.linspace(-mirror_figure_halfsize, mirror_figure_halfsize, num=512)
-
-            # build the LUT for the mirror figure, and save it
-            mirror_figure_table = galsim.LookupTable2D(mirror_figure_u, mirror_figure_v, mirror_figure_uv.array)
-            self.mirror_figure_screen = galsim.UserScreen(mirror_figure_table)
-
-        # Store the Atmospheric Kernel type
-        self.atmo_type = atmo_type
-
         # Check that no unexpected parameters were passed in:
-        extra_kwargs = [k for k in kwargs if k not in opt_keys and k not in gsparams_keys and k not in other_keys]
+        other_keys = ('sigma', 'mirror_figure_im', 'mirror_figure_halfsize')
+        extra_kwargs = [k for k in kwargs if k not in opt_keys + gsparams_keys + other_keys]
         if len(extra_kwargs) > 0:
             raise TypeError('__init__() got an unexpected keyword argument %r'%extra_kwargs[0])
+
+        # Save sigma if present.
+        self.sigma = self.kwargs.get('sigma', 0.)
 
         # Check for some required parameters.
         if 'diam' not in self.opt_kwargs:
@@ -234,6 +212,27 @@ class Optical(Model):
             raise TypeError("Required keyword argument 'lam' not found")
         self.diam = self.opt_kwargs['diam']
         self.lam = self.opt_kwargs['lam']
+
+        # Load the mirror figure screen and save it as a PhaseScreen
+        self.mirror_figure_screen = None
+        if 'mirror_figure_im' in self.kwargs:
+            mirror_figure_im = self.kwargs['mirror_figure_im']
+            mirror_figure_halfsize = self.kwargs['mirror_figure_halfsize']
+            if isinstance(mirror_figure_im, str):
+                self.logger.debug('Loading mirror_figure_im from {0}'.format(mirror_figure_im))
+                mirror_figure_im = galsim.fits.read(mirror_figure_im)
+
+            # build u,v grid points
+            mirror_figure_u = np.linspace(-mirror_figure_halfsize, mirror_figure_halfsize, num=512)
+            mirror_figure_v = np.linspace(-mirror_figure_halfsize, mirror_figure_halfsize, num=512)
+
+            # build the LUT for the mirror figure, and save it
+            mirror_figure_table = galsim.LookupTable2D(mirror_figure_u, mirror_figure_v,
+                                                       mirror_figure_im.array)
+            self.mirror_figure_screen = galsim.UserScreen(mirror_figure_table)
+
+        # Store the Atmospheric Kernel type
+        self.atmo_type = atmo_type
 
         # pupil_angle and strut_angle won't serialize properly, so repr them now in self.kwargs.
         for key in ['pupil_angle', 'strut_angle']:
@@ -391,10 +390,9 @@ class Optical(Model):
         # gaussian for CCD Diffusion
         # note that the WCS may make it effectively Sheared on the Focal Plane
         # consider removing that shear by giving this Gaussian opposite shear to the WCS
-        if 'sigma' in self.other_kwargs:
-            if self.other_kwargs['sigma']>0.:
-                gaussian = galsim.Gaussian(sigma=self.other_kwargs['sigma'],gsparams=self.gsparams)
-                prof.append(gaussian)
+        if self.sigma > 0.:
+            gaussian = galsim.Gaussian(sigma=self.sigma, gsparams=self.gsparams)
+            prof.append(gaussian)
 
         # atmospheric kernel
         atmopsf = self.getAtmosphere(r0, L0, g1, g2)
