@@ -16,6 +16,7 @@
 """
 .. module:: optical_model
 """
+import os
 import galsim
 import coord
 import fitsio
@@ -24,6 +25,7 @@ from functools import lru_cache
 
 from .model import Model
 from .star import Star
+from .meta_data import data_dir
 
 optical_templates = {
     'des_simple': {'obscuration': 0.301 / 0.7174, # from Zemax DECam model
@@ -43,7 +45,7 @@ optical_templates = {
              'sigma': 8.0 * (0.263/15.0), # 8micron sigma CCD diffusion
              'mirror_figure_im': 'input/DECam_236392_finegrid512_nm_uv.fits',
              'mirror_figure_halfsize': 2.22246,
-             'pupil_plane_im': 'input/DECam_pupil_512uv.fits'
+             'pupil_plane_im': 'DECam_pupil_512uv.fits'
            },
     'des_128': { 'diam': 4.010,  # meters
              'lam': 700, # nm
@@ -52,7 +54,7 @@ optical_templates = {
              'sigma': 8.0 * (0.263/15.0), # 8micron sigma CCD diffusion
              'mirror_figure_im': 'input/DECam_236392_finegrid512_nm_uv.fits',
              'mirror_figure_halfsize': 2.22246,
-             'pupil_plane_im': 'input/DECam_pupil_128uv.fits'
+             'pupil_plane_im': 'DECam_pupil_128uv.fits'
            },
     'des_param': { 'diam': 4.010,  # meters
                   'lam': 700, # nm
@@ -73,7 +75,7 @@ optical_templates = {
              'sigma': 8.0 * (0.263/15.0), # 8micron sigma CCD diffusion
              'mirror_figure_im': 'input/DECam_236392_finegrid512_nm_uv.fits',
              'mirror_figure_halfsize': 2.22246,
-             'pupil_plane_im': 'input/DECam_pupil_512uv.fits'
+             'pupil_plane_im': 'DECam_pupil_512uv.fits'
            },
 }
 
@@ -83,6 +85,18 @@ gsparams_templates = {
     'starby4': {  'minimum_fft_size': 128, 'folding_threshold': 0.005 },
     'donut': { 'minimum_fft_size': 128, 'folding_threshold': 0.005 },
 }
+
+def update_file_name(kwargs, key):
+    if key not in kwargs:
+        return
+    file_name = kwargs[key]
+    if not isinstance(file_name, str) or os.path.isfile(file_name):
+        return
+    new_file_name = os.path.join(data_dir, file_name)
+
+    if not os.path.isfile(new_file_name):
+        raise ValueError("File %s not found for %s" % (file_name, key))
+    kwargs[key] = new_file_name
 
 class Optical(Model):
     """
@@ -179,6 +193,9 @@ class Optical(Model):
 
         # Do this last, so specified kwargs override anything from the templates
         self.kwargs.update(kwargs)
+
+        # Update file names if they are in the data_dir.
+        update_file_name(self.kwargs, 'pupil_plane_im')
 
         # Sift out optical and gsparams and other keys. Some of these aren't documented above, but allow them anyway.
         opt_keys = ('lam', 'diam', 'lam_over_diam', 'scale_unit',
