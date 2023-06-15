@@ -161,30 +161,30 @@ def test_draw():
 
 @timer
 def test_pupil_im(pupil_plane_file='input/DECam_pupil_512uv.fits'):
-    import galsim
     print('test pupil im: ', pupil_plane_file)
     # make sure we can load up a pupil image
-    model = piff.Optical(diam=4.010, lam=500., pupil_plane_im=pupil_plane_file,atmo_type='Kolmogorov')
+    model = piff.Optical(diam=4.010, lam=500., pupil_plane_im=pupil_plane_file,
+                         atmo_type='Kolmogorov')
     test_optical(model)
     # make sure we really loaded it
     pupil_plane_im = galsim.fits.read(pupil_plane_file)
     # Check the scale (and fix if necessary)
     print('pupil_plane_im.scale = ',pupil_plane_im.scale)
-    ref_psf = galsim.OpticalPSF(lam=500., diam=4.020)
-    print('scale should be ',ref_psf._psf.aper.pupil_plane_scale)
-    if pupil_plane_im.scale != ref_psf._psf.aper.pupil_plane_scale:
+    ref_aper = galsim.Aperture(diam=4.010, lam=500, pupil_plane_im=pupil_plane_im.array)
+    ref_aper._load_pupil_plane()
+    print('scale should be ',ref_aper.pupil_plane_scale)
+    if pupil_plane_im.scale != ref_aper.pupil_plane_scale:
         print('fixing scale')
-        pupil_plane_im.scale = ref_psf._psf.aper.pupil_plane_scale
+        pupil_plane_im.scale = ref_aper.pupil_plane_scale
         pupil_plane_im.write(pupil_plane_file)
 
     model_pupil_plane_im = model.opt_kwargs['pupil_plane_im']
-    np.testing.assert_array_equal(pupil_plane_im.array, model_pupil_plane_im)
+    np.testing.assert_array_equal(pupil_plane_im.array, model_pupil_plane_im.array)
 
-    # test passing a different optical template that includes diam
-    piff.optical_model.optical_templates['test'] = {'diam': 2, 'lam':500}
-    model = piff.Optical(pupil_plane_im=pupil_plane_im, template='test')
+    print('Try diam=2 model')
+    model = piff.Optical(pupil_plane_im=pupil_plane_im, diam=2, lam=500)
     model_pupil_plane_im = model.opt_kwargs['pupil_plane_im']
-    np.testing.assert_array_equal(pupil_plane_im.array, model_pupil_plane_im)
+    np.testing.assert_array_equal(pupil_plane_im.array, model_pupil_plane_im.array)
 
 
 @timer

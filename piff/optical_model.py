@@ -252,7 +252,8 @@ class Optical(Model):
 
         # build the Galsim optical aperture here to cache it
         if  'pupil_plane_im' in self.opt_kwargs:
-            self.aperture = galsim.Aperture(diam=self.opt_kwargs['diam'],pupil_plane_im=self.opt_kwargs['pupil_plane_im'],
+            self.aperture = galsim.Aperture(diam=self.opt_kwargs['diam'],
+                                            pupil_plane_im=self.opt_kwargs['pupil_plane_im'],
                                             gsparams=self.gsparams)
         else:
             self.aperture = galsim.Aperture(**self.opt_kwargs)
