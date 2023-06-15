@@ -178,8 +178,7 @@ def test_pupil_im(pupil_plane_file='input/DECam_pupil_512uv.fits'):
         pupil_plane_im.scale = ref_aper.pupil_plane_scale
         pupil_plane_im.write(pupil_plane_file)
 
-    model_pupil_plane_im = model.opt_kwargs['pupil_plane_im']
-    np.testing.assert_array_equal(pupil_plane_im.array, model_pupil_plane_im.array)
+    np.testing.assert_array_equal(pupil_plane_im.array, model.aperture._pupil_plane_im.array)
 
     print('Try diam=2 model')
     model = piff.Optical(pupil_plane_im=pupil_plane_im, diam=2, lam=500)

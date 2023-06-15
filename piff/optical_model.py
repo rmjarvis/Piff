@@ -200,16 +200,6 @@ class Optical(Model):
         other_keys = ('sigma')
         self.other_kwargs = { key : self.kwargs[key] for key in self.kwargs if key in other_keys }
 
-        # Deal with the pupil plane image now so it only needs to be loaded from disk once.
-        self.pupil_mask = None
-        if 'pupil_plane_im' in self.opt_kwargs:
-            pupil_plane_im = self.opt_kwargs.pop('pupil_plane_im')
-            if isinstance(pupil_plane_im, str):
-                self.logger.debug('Loading pupil_plane_im from {0}'.format(pupil_plane_im))
-                pupil_plane_im = galsim.fits.read(pupil_plane_im)
-
-            self.opt_kwargs['pupil_plane_im'] = pupil_plane_im.array
-
         # Deal with the mirror figure image so it only needs to be loaded from disk once.
         self.mirror_figure_screen = None
         if 'mirror_figure_im' in self.opt_kwargs:
@@ -251,12 +241,7 @@ class Optical(Model):
                 self.kwargs[key] = repr(self.kwargs[key])
 
         # build the Galsim optical aperture here to cache it
-        if  'pupil_plane_im' in self.opt_kwargs:
-            self.aperture = galsim.Aperture(diam=self.opt_kwargs['diam'],
-                                            pupil_plane_im=self.opt_kwargs['pupil_plane_im'],
-                                            gsparams=self.gsparams)
-        else:
-            self.aperture = galsim.Aperture(**self.opt_kwargs)
+        self.aperture = galsim.Aperture(**self.opt_kwargs)
 
         # define the param array elements for this model
         self.nZ = 37
