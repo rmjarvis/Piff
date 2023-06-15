@@ -313,10 +313,9 @@ def test_disk():
         else:
             assert model.opt_kwargs[key] == model2.opt_kwargs[key], 'key %r mismatch'%key
     assert model.gsparams == model2.gsparams
-    for key in model.other_kwargs:
-        assert key in model2.other_kwargs, 'key %r missing from model2 other_kwargs'%key
-        assert model.other_kwargs[key] == model2.other_kwargs[key], 'key %r mismatch'%key
-    assert model.atmo_type == model2.atmo_type,'atmo_type mismatch'
+    assert model.sigma == model2.sigma
+    assert model.mirror_figure_screen == model2.mirror_figure_screen
+    assert model.atmo_type == model2.atmo_type
 
 #####
 # convenience functions
