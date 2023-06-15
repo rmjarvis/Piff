@@ -73,8 +73,8 @@ jobs:
               if: matrix.os == 'macos-latest'
               run: |
                 echo ${{ matrix.os }}
-                brew update
-                brew install fftw eigen
+                brew update | true
+                brew install fftw eigen | true
 
             - name: Install dependencies with pip
               run: |
