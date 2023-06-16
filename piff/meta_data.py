@@ -16,7 +16,7 @@ import os
 
 piff_dir = os.path.split(os.path.realpath(__file__))[0]
 
-if 'PIFF_DATA_DIR' in os.environ: # pragma: no cover
+if 'PIFF_DATA_DIR' in os.environ:
     data_dir = os.environ['PIFF_DATA_DIR']
 else:
     data_dir = os.path.join(piff_dir, 'share')
