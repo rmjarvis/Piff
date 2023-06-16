@@ -75,10 +75,11 @@ optical_templates = {
 }
 
 gsparams_templates = {
-    'star': {  'minimum_fft_size': 32, 'folding_threshold': 0.02},
-    'starby2': {  'minimum_fft_size': 64, 'folding_threshold': 0.01 },
-    'starby4': {  'minimum_fft_size': 128, 'folding_threshold': 0.005 },
-    'donut': { 'minimum_fft_size': 128, 'folding_threshold': 0.005 },
+    # Two approximations to speed things up somewhat by
+    # 1. lowering the minimum size of the FFT image GalSim wants to make
+    # 2. increasing the "folding_threshold", which sets the scale size in k-space.
+    'fast': {  'minimum_fft_size': 64, 'folding_threshold': 0.01 },
+    'faster': {  'minimum_fft_size': 32, 'folding_threshold': 0.02},
 }
 
 def update_file_name(kwargs, key):
