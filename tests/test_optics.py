@@ -170,7 +170,8 @@ def test_pupil_im(pupil_plane_file='DECam_pupil_512uv.fits'):
     test_optical(model)
     # make sure we really loaded it
     # Note: piff automatically finds this file in the installed share directory.
-    pupil_plane_im = galsim.fits.read(os.path.join('../share',pupil_plane_file))
+    full_pupil_plane_file = os.path.join('../share', pupil_plane_file)
+    pupil_plane_im = galsim.fits.read(full_pupil_plane_file)
     # Check the scale (and fix if necessary)
     print('pupil_plane_im.scale = ',pupil_plane_im.scale)
     ref_aper = galsim.Aperture(diam=4.010, lam=500, pupil_plane_im=pupil_plane_im.array)
@@ -179,13 +180,13 @@ def test_pupil_im(pupil_plane_file='DECam_pupil_512uv.fits'):
     if pupil_plane_im.scale != ref_aper.pupil_plane_scale:
         print('fixing scale')
         pupil_plane_im.scale = ref_aper.pupil_plane_scale
-        pupil_plane_im.write(pupil_plane_file)
+        pupil_plane_im.write(full_pupil_plane_file)
 
     np.testing.assert_array_equal(pupil_plane_im.array, model.aperture._pupil_plane_im.array)
 
     # Can also give a the full path, rather than automatically find it in the piff data_dir
     model = piff.Optical(diam=4.010, lam=500.,
-                         pupil_plane_im=os.path.join('../share',pupil_plane_file),
+                         pupil_plane_im=full_pupil_plane_file,
                          atmo_type='Kolmogorov')
     model.aperture._load_pupil_plane()
     assert pupil_plane_im == model.aperture._pupil_plane_im
@@ -209,7 +210,18 @@ def test_pupil_im(pupil_plane_file='DECam_pupil_512uv.fits'):
 
 @timer
 def test_mirror_figure():
-    mirror_figure_im = galsim.fits.read('../share/DECam_236392_finegrid512_nm_uv.fits')
+    mirror_figure_file = 'DECam_236392_finegrid512_nm_uv.fits'
+    full_mirror_figure_file = os.path.join('../share', mirror_figure_file)
+    mirror_figure_im = galsim.fits.read(full_mirror_figure_file)
+
+    # Check scale and fix if necessary.
+    mirror_figure_halfsize = 2.22246
+    ref_scale = 2 * mirror_figure_halfsize / 511
+    print('mirror_figure_scale should be ',ref_scale)
+    if mirror_figure_im.scale != ref_scale:
+        print('fixing scale')
+        mirror_figure_im.scale = ref_scale
+        mirror_figure_im.write(full_mirror_figure_file)
 
     # The above file is the mirror_figure_image in the des template.
     model = piff.Optical(template='des',atmo_type='Kolmogorov')
@@ -224,6 +236,13 @@ def test_mirror_figure():
     prof1 = model.getProfile(zernike_coeff=[0,0,0,0,0], r0=0.15)
     prof2 = model2.getProfile(zernike_coeff=[0,0,0,0,0], r0=0.15)
     assert prof1 == prof2
+
+    # This is the old way that x and y were build for the UserScreen table.
+    # Make sure the new version is consistent.
+    mirror_figure_u = np.linspace(-mirror_figure_halfsize, mirror_figure_halfsize, num=512)
+    mirror_figure_v = np.linspace(-mirror_figure_halfsize, mirror_figure_halfsize, num=512)
+    np.testing.assert_allclose(model.mirror_figure_screen.table.x, mirror_figure_u, rtol=1.e-15)
+    np.testing.assert_allclose(model.mirror_figure_screen.table.y, mirror_figure_v, rtol=1.e-15)
 
     # Error if file not found.
     with np.testing.assert_raises(ValueError):
