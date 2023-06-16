@@ -19,6 +19,7 @@ import piff
 import os
 import sys
 import fitsio
+from unittest import mock
 
 from piff_test_helper import timer
 
@@ -156,8 +157,6 @@ def test_base():
 
     # Invalid to read a type that isn't a piff.Outliers type.
     # Mock this by pretending that MADOutliers is the only subclass of Outliers.
-    if sys.version_info < (3,): return  # mock only available on python 3
-    from unittest import mock
     filename = os.path.join('input','D00240560_r_c01_r2362p01_piff.fits')
     with mock.patch('piff.Outliers.valid_outliers_types', {'MAD': piff.outliers.MADOutliers}):
         with fitsio.FITS(filename,'r') as f:
