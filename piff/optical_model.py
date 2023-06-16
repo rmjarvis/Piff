@@ -43,7 +43,6 @@ optical_templates = {
              'oversampling': 1,
              'sigma': 8.0 * (0.263/15.0), # 8micron sigma CCD diffusion
              'mirror_figure_im': 'DECam_236392_finegrid512_nm_uv.fits',
-             'mirror_figure_halfsize': 2.22246,
              'pupil_plane_im': 'DECam_pupil_512uv.fits'
            },
     'des_128': { 'diam': 4.010,  # meters
@@ -52,7 +51,6 @@ optical_templates = {
              'oversampling': 1,
              'sigma': 8.0 * (0.263/15.0), # 8micron sigma CCD diffusion
              'mirror_figure_im': 'DECam_236392_finegrid512_nm_uv.fits',
-             'mirror_figure_halfsize': 2.22246,
              'pupil_plane_im': 'DECam_pupil_128uv.fits'
            },
     'des_param': { 'diam': 4.010,  # meters
@@ -61,7 +59,6 @@ optical_templates = {
                   'oversampling': 1,
                   'sigma': 8.0 * (0.263/15.0), # 8micron sigma CCD diffusion
                   'mirror_figure_im': 'DECam_236392_finegrid512_nm_uv.fits',
-                  'mirror_figure_halfsize': 2.22246,
                   'obscuration': 0.301 / 0.7174, # from Zemax DECam model
                   'nstruts': 4,
                   'strut_thick': 0.0166,  # 66.5mm thick / 4010mm pupil - tuned to match DECam big donut images
@@ -73,7 +70,6 @@ optical_templates = {
              'oversampling': 1,
              'sigma': 8.0 * (0.263/15.0), # 8micron sigma CCD diffusion
              'mirror_figure_im': 'DECam_236392_finegrid512_nm_uv.fits',
-             'mirror_figure_halfsize': 2.22246,
              'pupil_plane_im': 'DECam_pupil_512uv.fits'
            },
 }
@@ -131,8 +127,8 @@ class Optical(Model):
 
     :param mirror_figure_im: The name of a file containing an additional phase contribution, for example
                              from the figure of the primary mirror. [default: None]
-    :param mirror_figure_halfsize:   The radius of the image containting the mirror_figure_im. [default: None]
-
+    :param mirror_figure_scale: The pixel scale to use in mirror_figure_im.  If omittited,
+                                Piff will use the pixel scale in the image itself. [default: None]
 
     Second, there is an atmospheric component, which uses either a galsim.Kolmogorov or
     galsim.VonKarman to model the profile.
@@ -215,7 +211,7 @@ class Optical(Model):
                 self.gsparams = galsim.GSParams(**gsparams_kwargs)
 
         # Check that no unexpected parameters were passed in:
-        other_keys = ('sigma', 'mirror_figure_im', 'mirror_figure_halfsize')
+        other_keys = ('sigma', 'mirror_figure_im', 'mirror_figure_scale')
         extra_kwargs = [k for k in kwargs if k not in opt_keys + gsparams_keys + other_keys]
         if len(extra_kwargs) > 0:
             raise TypeError('__init__() got an unexpected keyword argument %r'%extra_kwargs[0])
@@ -235,14 +231,15 @@ class Optical(Model):
         self.mirror_figure_screen = None
         if 'mirror_figure_im' in self.kwargs:
             mirror_figure_im = self.kwargs['mirror_figure_im']
-            mirror_figure_halfsize = self.kwargs['mirror_figure_halfsize']
             if isinstance(mirror_figure_im, str):
                 self.logger.debug('Loading mirror_figure_im from {0}'.format(mirror_figure_im))
                 mirror_figure_im = galsim.fits.read(mirror_figure_im)
+            scale = self.kwargs.get('mirror_figure_scale', mirror_figure_im.scale)
+            npix_v, npix_u = mirror_figure_im.array.shape
 
             # build u,v grid points
-            mirror_figure_u = np.linspace(-mirror_figure_halfsize, mirror_figure_halfsize, num=512)
-            mirror_figure_v = np.linspace(-mirror_figure_halfsize, mirror_figure_halfsize, num=512)
+            mirror_figure_u = np.linspace(-(npix_u-1)/2 * scale, (npix_u-1)/2 * scale, num=npix_u)
+            mirror_figure_v = np.linspace(-(npix_v-1)/2 * scale, (npix_v-1)/2 * scale, num=npix_v)
 
             # build the LUT for the mirror figure, and save it
             mirror_figure_table = galsim.LookupTable2D(mirror_figure_u, mirror_figure_v,

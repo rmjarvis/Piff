@@ -244,6 +244,12 @@ def test_mirror_figure():
     np.testing.assert_allclose(model.mirror_figure_screen.table.x, mirror_figure_u, rtol=1.e-15)
     np.testing.assert_allclose(model.mirror_figure_screen.table.y, mirror_figure_v, rtol=1.e-15)
 
+    # Overriding mirror_figure_scale will adjust the u,v values in the screen.
+    model3 = piff.Optical(template='des', atmo_type='Kolmogorov',
+                          mirror_figure_scale=ref_scale/2)
+    np.testing.assert_allclose(model3.mirror_figure_screen.table.x, mirror_figure_u/2, rtol=1.e-15)
+    np.testing.assert_allclose(model3.mirror_figure_screen.table.y, mirror_figure_v/2, rtol=1.e-15)
+
     # Error if file not found.
     with np.testing.assert_raises(ValueError):
         model = piff.Optical(template='des', atmo_type='Kolmogorov',
