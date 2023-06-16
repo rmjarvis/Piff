@@ -108,7 +108,8 @@ def test_optical(model=None):
     # test Zernike kwargs
     zernike_coeff_short = [0.,0.,0.,0.,1.,1.,1.,1.,1.,1.,1.,1.]
     nz = len(zernike_coeff_short)
-    param_test = model.kwargs_to_params(zernike_coeff=zernike_coeff_short,r0=0.12,g1=-0.05,g2=0.03,L0=20.)
+    param_test = model.kwargs_to_params(zernike_coeff=zernike_coeff_short,
+                                        r0=0.12, g1=-0.05, g2=0.03, L0=20.)
     for i in range(nz):
         assert zernike_coeff_short[i]==param_test[model.idx_z0+i]
     for i in range(nz+1,37+1):
@@ -116,7 +117,8 @@ def test_optical(model=None):
 
     zernike_coeff_long = [0.,0.,0.,0.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,10.]
     nz = len(zernike_coeff_long)
-    param_test = model.kwargs_to_params(zernike_coeff=zernike_coeff_long,r0=0.12,g1=-0.05,g2=0.03,L0=20.)
+    param_test = model.kwargs_to_params(zernike_coeff=zernike_coeff_long,
+                                        r0=0.12, g1=-0.05, g2=0.03, L0=20.)
     for i in range(37+1):
         assert zernike_coeff_long[i]==param_test[model.idx_z0+i]
     assert param_test[model.idx_r0]==0.12
@@ -161,7 +163,8 @@ def test_draw():
     astar = stars[10]
 
     # test draw
-    astar.fit.params = model.kwargs_to_params(zernike_coeff=[0.,0.,0.,0.,0.2],r0=0.12,L0=10.,g1=0.01,g2=-0.02)
+    astar.fit.params = model.kwargs_to_params(zernike_coeff=[0.,0.,0.,0.,0.2],
+                                              r0=0.12, L0=10., g1=0.01, g2=-0.02)
     astar1 = model.draw(astar)
 
 @timer
@@ -373,7 +376,9 @@ def test_disk():
     for key in model.opt_kwargs:
         assert key in model2.opt_kwargs, 'key %r missing from model2 opt_kwargs'%key
         if type(model.opt_kwargs[key])==np.ndarray:
-            np.testing.assert_almost_equal(model.opt_kwargs[key],model2.opt_kwargs[key],err_msg='key %r mismatch' % key)
+            np.testing.assert_almost_equal(model.opt_kwargs[key],
+                                           model2.opt_kwargs[key],
+                                           err_msg='key %r mismatch' % key)
         else:
             assert model.opt_kwargs[key] == model2.opt_kwargs[key], 'key %r mismatch'%key
     assert model.gsparams == model2.gsparams

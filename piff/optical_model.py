@@ -123,10 +123,11 @@ class Optical(Model):
                             of creating one from obscuration, struts, etc. [default: None]
 
     The next two parameters are specific to our treatment of the Optical PSF. If given,
-    they are used to create an additional galsim.PhaseScreen describing the mirror's own contribution to the wavefront.
+    they are used to create an additional galsim.PhaseScreen describing the mirror's own
+    contribution to the wavefront.
 
-    :param mirror_figure_im: The name of a file containing an additional phase contribution, for example
-                             from the figure of the primary mirror. [default: None]
+    :param mirror_figure_im: The name of a file containing an additional phase contribution, for
+                             example from the figure of the primary mirror. [default: None]
     :param mirror_figure_scale: The pixel scale to use in mirror_figure_im.  If omittited,
                                 Piff will use the pixel scale in the image itself. [default: None]
 
@@ -135,7 +136,9 @@ class Optical(Model):
 
     :param atmo_type        The name of the Atmospheric kernel. [default 'VonKarman']
 
-    Finally, there is both an additional Gaussian component to describe CCD diffusion and separately an applied shear.
+    Finally, there is both an additional Gaussian component to describe CCD diffusion and
+    separately an applied shear.
+
     :param sigma            Gaussian CCD diffusion in arcsec [default:0.]
 
     Since there are a lot of parameters here, we provide the option of setting many of them
@@ -169,7 +172,8 @@ class Optical(Model):
             if key.endswith('angle'):
                 kwargs[key] = galsim.config.ParseValue(kwargs, key, {}, galsim.Angle)[0]
 
-        # Copy over anything from the aperture and gsparams template dict, but let the direct kwargs override anything
+        # Copy over anything from the aperture and gsparams template dict, but let the direct
+        # kwargs override anything
         self.kwargs = {}
         if template is not None:
             if template not in optical_templates:
@@ -194,7 +198,8 @@ class Optical(Model):
         for key in ('pupil_plane_im', 'mirror_figure_im'):
             update_file_name(self.kwargs, key)
 
-        # Sift out optical and gsparams and other keys. Some of these aren't documented above, but allow them anyway.
+        # Sift out optical and gsparams and other keys. Some of these aren't documented above, but
+        # allow them anyway.
         opt_keys = ('lam', 'diam', 'lam_over_diam', 'scale_unit',
                     'circular_pupil', 'obscuration', 'interpolant',
                     'oversampling', 'pad_factor', 'suppress_warning',
@@ -288,26 +293,26 @@ class Optical(Model):
 
     @lru_cache(maxsize=8)
     def getOptics(self, zernike_coeff):
-        """ Get the strictly Optics PSF component.  Use two phase screens, one from mirror_figure_im, and the other from
-        zernike aberrations
+        """Get the strictly Optics PSF component.  Use two phase screens, one from
+        mirror_figure_im, and the other from zernike aberrations
 
-        :param zernike_coeff:          A ndarray or list with Zernike Coefficients, in units of waves. Array indexed as [0, 0, z2, z3, z4,...z11...]
+        :param zernike_coeff:   An array or list with Zernike Coefficients, in units of waves.
+                                Array indexed as [0, 0, z2, z3, z4,...z11...]
 
         :returns: a galsim.GSObject instance
         """
 
         if self.mirror_figure_screen:
 
-            optical_screen = galsim.OpticalScreen(diam=self.diam, aberrations=zernike_coeff, lam_0=self.lam)
+            optical_screen = galsim.OpticalScreen(diam=self.diam, aberrations=zernike_coeff,
+                                                  lam_0=self.lam)
             screens = galsim.PhaseScreenList([optical_screen, self.mirror_figure_screen])
-            optics_psf = galsim.PhaseScreenPSF(screen_list=screens, aper=self.aperture, lam=self.lam, gsparams=self.gsparams
-            )
+            optics_psf = galsim.PhaseScreenPSF(screen_list=screens, aper=self.aperture,
+                                               lam=self.lam, gsparams=self.gsparams)
 
         else:
-            optics_psf = galsim.OpticalPSF(
-                lam=self.lam, diam=self.diam, aper=self.aperture,
-                aberrations=zernike_coeff, gsparams=self.gsparams
-            )
+            optics_psf = galsim.OpticalPSF(lam=self.lam, diam=self.diam, aper=self.aperture,
+                                           aberrations=zernike_coeff, gsparams=self.gsparams)
 
         return optics_psf
 
@@ -357,7 +362,8 @@ class Optical(Model):
     def kwargs_to_params(self,zernike_coeff=[0,0,0,0,0],r0=0.15,L0=10.,g1=0.,g2=0.):
         """Fill params ndarray from kwargs
 
-        :param zernike_coeff:      A ndarray or list with [0, 0, z2, z3, z4, z5, z6...z11..z37] [default=[0,0,0,0,0]]
+        :param zernike_coeff:      A ndarray or list with [0, 0, z2, z3, z4, z5, z6...z11..z37]
+                                   [default=[0,0,0,0,0]]
         :param r0:                 Value of r0 for Atmospheric Kernel. [default=0.15]
         :param L0:                 Value of L0 for Atmospheric Kernel. [default=10.0]
         :param g1:                 Value of g1 to Shear PSF [default=0.]
@@ -420,5 +426,3 @@ class Optical(Model):
         prof = galsim.Convolve(prof,gsparams=self.gsparams)
 
         return prof
-
-
