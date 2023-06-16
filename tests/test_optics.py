@@ -208,6 +208,29 @@ def test_pupil_im(pupil_plane_file='DECam_pupil_512uv.fits'):
 
 
 @timer
+def test_mirror_figure():
+    mirror_figure_im = galsim.fits.read('../share/DECam_236392_finegrid512_nm_uv.fits')
+
+    # The above file is the mirror_figure_image in the des template.
+    model = piff.Optical(template='des',atmo_type='Kolmogorov')
+    model_figure = model.mirror_figure_screen.table.f
+    np.testing.assert_array_equal(mirror_figure_im.array, model_figure)
+
+    # Usually mirror_figure_im is a file name, but you can also pass in an already read image.
+    model2 = piff.Optical(template='des', atmo_type='Kolmogorov',
+                          mirror_figure_im=mirror_figure_im)
+    model_figure = model2.mirror_figure_screen.table.f
+    np.testing.assert_array_equal(mirror_figure_im.array, model_figure)
+    prof1 = model.getProfile(zernike_coeff=[0,0,0,0,0], r0=0.15)
+    prof2 = model2.getProfile(zernike_coeff=[0,0,0,0,0], r0=0.15)
+    assert prof1 == prof2
+
+    # Error if file not found.
+    with np.testing.assert_raises(ValueError):
+        model = piff.Optical(template='des', atmo_type='Kolmogorov',
+                             mirror_figure_im='invalid.fits')
+
+@timer
 def test_kolmogorov():
     print('test kolmogorov')
 
@@ -223,14 +246,6 @@ def test_kolmogorov():
 
     chi2 = np.std((star1.image - star2.image).array)
     assert chi2 != 0,'chi2 is zero!?'
-
-    # Usually mirror_figure_im is a file name, but you can also pass in an already read image.
-    mirror_figure_image = galsim.fits.read('input/DECam_236392_finegrid512_nm_uv.fits')
-    model2 = piff.Optical(template='des', atmo_type='Kolmogorov',
-                          mirror_figure_im=mirror_figure_image)
-    prof1 = model.getProfile(zernike_coeff=[0,0,0,0,0], r0=0.15)
-    prof2 = model2.getProfile(zernike_coeff=[0,0,0,0,0], r0=0.15)
-    assert prof1 == prof2
 
 
 @timer
@@ -383,6 +398,7 @@ if __name__ == '__main__':
     test_draw()
     test_pupil_im(pupil_plane_file='DECam_pupil_512uv.fits')
     test_pupil_im(pupil_plane_file='DECam_pupil_128uv.fits')
+    test_mirror_figure()
     test_kolmogorov()
     test_vonkarman()
     test_shearing()

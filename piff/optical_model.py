@@ -42,7 +42,7 @@ optical_templates = {
              'pad_factor': 1 ,
              'oversampling': 1,
              'sigma': 8.0 * (0.263/15.0), # 8micron sigma CCD diffusion
-             'mirror_figure_im': 'input/DECam_236392_finegrid512_nm_uv.fits',
+             'mirror_figure_im': 'DECam_236392_finegrid512_nm_uv.fits',
              'mirror_figure_halfsize': 2.22246,
              'pupil_plane_im': 'DECam_pupil_512uv.fits'
            },
@@ -51,7 +51,7 @@ optical_templates = {
              'pad_factor': 1 ,
              'oversampling': 1,
              'sigma': 8.0 * (0.263/15.0), # 8micron sigma CCD diffusion
-             'mirror_figure_im': 'input/DECam_236392_finegrid512_nm_uv.fits',
+             'mirror_figure_im': 'DECam_236392_finegrid512_nm_uv.fits',
              'mirror_figure_halfsize': 2.22246,
              'pupil_plane_im': 'DECam_pupil_128uv.fits'
            },
@@ -60,7 +60,7 @@ optical_templates = {
                   'pad_factor': 1 ,
                   'oversampling': 1,
                   'sigma': 8.0 * (0.263/15.0), # 8micron sigma CCD diffusion
-                  'mirror_figure_im': 'input/DECam_236392_finegrid512_nm_uv.fits',
+                  'mirror_figure_im': 'DECam_236392_finegrid512_nm_uv.fits',
                   'mirror_figure_halfsize': 2.22246,
                   'obscuration': 0.301 / 0.7174, # from Zemax DECam model
                   'nstruts': 4,
@@ -72,7 +72,7 @@ optical_templates = {
              'pad_factor': 8,
              'oversampling': 1,
              'sigma': 8.0 * (0.263/15.0), # 8micron sigma CCD diffusion
-             'mirror_figure_im': 'input/DECam_236392_finegrid512_nm_uv.fits',
+             'mirror_figure_im': 'DECam_236392_finegrid512_nm_uv.fits',
              'mirror_figure_halfsize': 2.22246,
              'pupil_plane_im': 'DECam_pupil_512uv.fits'
            },
@@ -195,7 +195,8 @@ class Optical(Model):
         self.kwargs.update(kwargs)
 
         # Update file names if they are in the data_dir.
-        update_file_name(self.kwargs, 'pupil_plane_im')
+        for key in ('pupil_plane_im', 'mirror_figure_im'):
+            update_file_name(self.kwargs, key)
 
         # Sift out optical and gsparams and other keys. Some of these aren't documented above, but allow them anyway.
         opt_keys = ('lam', 'diam', 'lam_over_diam', 'scale_unit',
@@ -246,7 +247,7 @@ class Optical(Model):
             # build the LUT for the mirror figure, and save it
             mirror_figure_table = galsim.LookupTable2D(mirror_figure_u, mirror_figure_v,
                                                        mirror_figure_im.array)
-            self.mirror_figure_screen = galsim.UserScreen(mirror_figure_table)
+            self.mirror_figure_screen = galsim.UserScreen(mirror_figure_table, diam=self.diam)
 
         # Store the Atmospheric Kernel type
         self.atmo_type = atmo_type
