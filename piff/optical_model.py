@@ -25,7 +25,6 @@ from functools import lru_cache
 
 from .model import Model
 from .star import Star
-from .meta_data import data_dir
 
 optical_templates = {
     'des_simple': {'obscuration': 0.301 / 0.7174, # from Zemax DECam model
@@ -87,6 +86,7 @@ gsparams_templates = {
 }
 
 def update_file_name(kwargs, key):
+    from .meta_data import data_dir
     if key not in kwargs:
         return
     file_name = kwargs[key]

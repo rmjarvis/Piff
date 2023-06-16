@@ -19,6 +19,8 @@ import piff
 import os
 import fitsio
 import galsim
+import importlib
+from unittest import mock
 
 from piff_test_helper import timer
 
@@ -192,6 +194,17 @@ def test_pupil_im(pupil_plane_file='DECam_pupil_512uv.fits'):
     model = piff.Optical(pupil_plane_im=pupil_plane_im, diam=2, lam=500)
     model_pupil_plane_im = model.opt_kwargs['pupil_plane_im']
     np.testing.assert_array_equal(pupil_plane_im.array, model_pupil_plane_im.array)
+
+    # Error if file not found.
+    with np.testing.assert_raises(ValueError):
+        model = piff.Optical(diam=4.010, lam=500., pupil_plane_im='invalid.fits')
+
+    with mock.patch('os.environ', {'PIFF_DATA_DIR': 'invalid'}):
+        importlib.reload(piff.meta_data)
+        assert piff.meta_data.data_dir == 'invalid'
+        with np.testing.assert_raises(ValueError):
+            model = piff.Optical(diam=4.010, lam=500., pupil_plane_im=pupil_plane_file)
+    importlib.reload(piff.meta_data)
 
 
 @timer
