@@ -122,20 +122,23 @@ def test_optical(model=None):
     assert param_test[model.idx_r0]==0.12
 
     # Test gsparams
-    gsp_star = galsim.GSParams(minimum_fft_size=32, folding_threshold=0.02)
-    gsp_donut = galsim.GSParams(minimum_fft_size=128, folding_threshold=0.005)
-    model = piff.Optical(template='des', gsparams=gsp_star)
-    assert model.gsparams == gsp_star
-    model = piff.Optical(template='des', atmo_type='Kolmogorov', gsparams='star')
-    assert model.gsparams == gsp_star
-    model = piff.Optical(template='des_donut', gsparams='donut')
-    assert model.gsparams == gsp_donut
-    model = piff.Optical(template='des_donut', minimum_fft_size=128, folding_threshold=0.005)
-    assert model.gsparams == gsp_donut
+    gsp_default = galsim.GSParams(minimum_fft_size=128, folding_threshold=0.005)
+    gsp_fast = galsim.GSParams(minimum_fft_size=64, folding_threshold=0.01)
+    gsp_faster = galsim.GSParams(minimum_fft_size=32, folding_threshold=0.02)
+    model = piff.Optical(template='des', gsparams=gsp_fast)
+    assert model.gsparams == gsp_fast
+    model = piff.Optical(template='des', atmo_type='Kolmogorov', gsparams='faster')
+    assert model.gsparams == gsp_faster
+    model = piff.Optical(template='des_donut')
+    assert model.gsparams is None
+    model = piff.Optical(template='des_donut', gsparams=galsim.GSParams())
+    assert model.gsparams == gsp_default
+    model = piff.Optical(template='des_donut', minimum_fft_size=64, folding_threshold=0.01)
+    assert model.gsparams == gsp_fast
     with np.testing.assert_raises(ValueError):
         piff.Optical(gsparams='invalid')
     with np.testing.assert_raises(ValueError):
-        piff.Optical(gsparams='donut', minimum_fft_size=128)
+        piff.Optical(gsparams='fast', minimum_fft_size=128)
 
 @timer
 def test_draw():
