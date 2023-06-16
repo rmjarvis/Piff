@@ -27,51 +27,50 @@ from .model import Model
 from .star import Star
 
 optical_templates = {
-    'des_simple': {'obscuration': 0.301 / 0.7174, # from Zemax DECam model
-             'nstruts': 4,
-             'diam': 4.010,  # meters
-             'lam': 700, # nm
-             'strut_thick': 0.0166,  # 66.5mm thick / 4010mm pupil - tuned to match DECam big donut images
-             'strut_angle': 45 * galsim.degrees,
-             'pad_factor': 1 ,
-             'oversampling': 1,
-             'sigma': 8.0 * (0.263/15.0), # 8micron sigma CCD diffusion
-                  },
-    'des': { 'diam': 4.010,  # meters
-             'lam': 700, # nm
-             'pad_factor': 1 ,
-             'oversampling': 1,
-             'sigma': 8.0 * (0.263/15.0), # 8micron sigma CCD diffusion
-             'mirror_figure_im': 'DECam_236392_finegrid512_nm_uv.fits',
-             'pupil_plane_im': 'DECam_pupil_512uv.fits'
-           },
-    'des_128': { 'diam': 4.010,  # meters
-             'lam': 700, # nm
-             'pad_factor': 1 ,
-             'oversampling': 1,
-             'sigma': 8.0 * (0.263/15.0), # 8micron sigma CCD diffusion
-             'mirror_figure_im': 'DECam_236392_finegrid512_nm_uv.fits',
-             'pupil_plane_im': 'DECam_pupil_128uv.fits'
-           },
-    'des_param': { 'diam': 4.010,  # meters
-                  'lam': 700, # nm
-                  'pad_factor': 1 ,
-                  'oversampling': 1,
-                  'sigma': 8.0 * (0.263/15.0), # 8micron sigma CCD diffusion
-                  'mirror_figure_im': 'DECam_236392_finegrid512_nm_uv.fits',
-                  'obscuration': 0.301 / 0.7174, # from Zemax DECam model
-                  'nstruts': 4,
-                  'strut_thick': 0.0166,  # 66.5mm thick / 4010mm pupil - tuned to match DECam big donut images
-                  'strut_angle': 45 * galsim.degrees
-               },
-    'des_donut': {'diam': 4.010,  # meters
-             'lam': 700, # nm
-             'pad_factor': 8,
-             'oversampling': 1,
-             'sigma': 8.0 * (0.263/15.0), # 8micron sigma CCD diffusion
-             'mirror_figure_im': 'DECam_236392_finegrid512_nm_uv.fits',
-             'pupil_plane_im': 'DECam_pupil_512uv.fits'
-           },
+    'des': {
+        # This is normally what to use when working with DES (or other DECam) images.
+        'diam': 4.010,  # meters
+        'lam': 700, # nm
+        'pad_factor': 1 ,
+        'oversampling': 1,
+        'sigma': 8.0 * (0.263/15.0), # 8micron sigma CCD diffusion
+        'mirror_figure_im': 'DECam_236392_finegrid512_nm_uv.fits',
+        'pupil_plane_im': 'DECam_pupil_512uv.fits'
+    },
+    'des_simple': {
+        # An approximation of the DECam pupil plane using simple struts and obscuration.
+        'diam': 4.010,  # meters
+        'lam': 700, # nm
+        'obscuration': 0.301 / 0.7174, # from Zemax DECam model
+        'nstruts': 4,
+        'strut_thick': 0.0166,  # 66.5mm thick / 4010mm pupil
+                                # (tuned to match DECam big donut images)
+        'strut_angle': 45 * galsim.degrees,
+        'pad_factor': 1 ,
+        'oversampling': 1,
+        'sigma': 8.0 * (0.263/15.0), # 8micron sigma CCD diffusion
+    },
+    'des_128': {
+        # Same as 'des', but using a smaller (128x128) pupil plane image.
+        'diam': 4.010,  # meters
+        'lam': 700, # nm
+        'pad_factor': 1 ,
+        'oversampling': 1,
+        'sigma': 8.0 * (0.263/15.0), # 8micron sigma CCD diffusion
+        'mirror_figure_im': 'DECam_236392_finegrid512_nm_uv.fits',
+        'pupil_plane_im': 'DECam_pupil_128uv.fits'
+    },
+    'des_donut': {
+        # Same as 'des', but with a larger pad_factor, appropriate when rendering very
+        # out-of-focus images (aka "donuts").
+        'diam': 4.010,  # meters
+        'lam': 700, # nm
+        'pad_factor': 8,
+        'oversampling': 1,
+        'sigma': 8.0 * (0.263/15.0), # 8micron sigma CCD diffusion
+        'mirror_figure_im': 'DECam_236392_finegrid512_nm_uv.fits',
+        'pupil_plane_im': 'DECam_pupil_512uv.fits'
+    },
 }
 
 gsparams_templates = {
