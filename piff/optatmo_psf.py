@@ -60,6 +60,7 @@ class OptAtmoPSF(PSF):
                  ofit_optimizer='iminuit',
                  ofit_strategy=0,
                  ofit_tol=100.,
+                 ofit_ncall=None,
                  ofit_shape_kwargs={'moment_list':['M11','M20','M02'],'weights':None,'systerrors':None},
                  ofit_pixel_kwargs=None,
                  sfit_pixel_kwargs={'pixel_radius':2.0},
@@ -81,6 +82,7 @@ class OptAtmoPSF(PSF):
         :param ofit_optimizer:    Optimizer to use for Optical fit, iminuit or least_squares [default: 'iminuit']
         :param ofit_strategy:     Optimizer strategy, for iminuit 0,1,2 [default:0]
         :param ofit_tol:          Optimizer tolerance, for iminuit [default:100]
+        :param ofit_ncall:        Optimizer maximum number of calls [default:None]
         :param ofit_initvalues:   Dictionary of initial values for Optical fit parameters [default: {"opt_L0":7.,"opt_size":1.0}]
         :param ofit_bounds:       Dictionary of bounds for Optical fit parameters [default: {"opt_L0":[3.,100.0],"opt_size":[0.4,2.0],"opt_g1",[-0.7,0.7],"opt_g1",[-0.7,0.7]}]
         :param ofit_initerrors:   Dictionary of initial errors for Optical fit parameters [default: {"opt_L0":0.02,"opt_size":0.0025,"opt_g1":0.002,"opt_g2":0.002}]
@@ -125,6 +127,7 @@ class OptAtmoPSF(PSF):
         self.ofit_optimizer = ofit_optimizer
         self.ofit_strategy = ofit_strategy
         self.ofit_tol = ofit_tol
+        self.ofit_ncall = ofit_ncall
         self.ofit_initvalues = ofit_initvalues
         self.ofit_bounds = ofit_bounds
         self.ofit_initerrors = ofit_initerrors
@@ -302,7 +305,7 @@ class OptAtmoPSF(PSF):
             print(tab.tabulate(*gMinuit.params.to_table()))
 
             # do the fit
-            gMinuit.migrad()
+            gMinuit.migrad(ncall=self.ofit_ncall)
 
             # print results
             print(tab.tabulate(*gMinuit.params.to_table()))
@@ -1141,13 +1144,9 @@ class OptAtmoPSF(PSF):
         :param stars:           A list of input Stars
         :return flux_array:     An ndarray with Star flux in it
         """
-        # weighted flux is always stored as the first element of the moments
-        # property
+        # Use HSM flux, which is the first item returned from hsm
         ind_flux = 0
-
-        flux_array = np.zeros(len(stars))
-        for i, astar in enumerate(stars):
-            flux_array[i] = astar.data.properties['moments'][ind_flux]
+        flux_array = [astar.hsm[ind_flux] for astar in stars]
 
         return flux_array
 

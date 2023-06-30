@@ -28,10 +28,14 @@ import pdb
 from piff_test_helper import get_script_name, timer, CaptureLog
 
 @timer
-def get_stars(config_file,verbose_level=1):
+def get_stars(config_file,variables,verbose_level=1):
 
+    # read config file
     config = piff.read_config(config_file)
     logger = piff.setup_logger(verbose=verbose_level)
+
+    # modify the config from the command line..
+    piff.config.parse_variables(config, variables, logger)
 
     stars, wcs, pointing = piff.Input.process(config['input'], logger=logger)
     print("Nstars = ",len(stars))
@@ -94,13 +98,13 @@ if __name__ == '__main__':
 
     parser.add_argument('config_file',type=str,help="Configuration Filename")
     parser.add_argument('variables',type=str,nargs='*',help="add options to configuration",default='')
-    parser.add_argument('-i', '--input_file', dest='input_file',type=str,help="Input Filename",default='mkimage.pkl')
+    parser.add_argument('-i', '--input_file', dest='input_file',type=str,help="Input Filename",default='None')
     parser.add_argument('-o', '--output_file', dest='output_file',type=str,help="Output Filename",default='optatmo_fit.pkl')
     options = parser.parse_args()
     kwargs = vars(options)
 
-    if options.input_file=="None":
-        stars,wcs,pointing = get_stars(options.config_file)
+    if options.input_file=='None':
+        stars,wcs,pointing = get_stars(options.config_file,options.variables)
     else:
         stars,wcs,pointing = read_stars(options.input_file)
 

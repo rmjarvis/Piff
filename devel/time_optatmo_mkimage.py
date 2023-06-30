@@ -29,6 +29,7 @@ from piff.util import calculateSNR
 import treegp
 from sklearn.gaussian_process.kernels import RBF
 from piff_test_helper import get_script_name, timer, CaptureLog
+from atmosim import make_atmosphere
 
 decaminfo = piff.des.DECamInfo()
 
@@ -39,7 +40,7 @@ def make_blank_star(x, y, chipnum, properties={}, stamp_size=19, **kwargs):
     star = piff.Star.makeTarget(x=x, y=y, wcs=wcs, stamp_size=stamp_size, properties=properties_in, **kwargs)
     return star
 
-def make_stars(nstars,rng,psf,init_params,atmo_type='None',logger=None):
+def make_stars(nstars,rng,psf,init_params,atmo_type='Const',use_noise=True,logger=None):
 
     # some constants
     foreground = 3000.0
@@ -52,9 +53,9 @@ def make_stars(nstars,rng,psf,init_params,atmo_type='None',logger=None):
 
     # Randomly cover the DES footprint and 61/62 CCDs
     chiplist =  [1] + list(range(3,62+1))  # omit chipnum=2
-    chipnum = np.random.choice(chiplist,nstars)
-    icen = np.random.uniform(1+pixedge,2048-pixedge,nstars)  
-    jcen = np.random.uniform(1+pixedge,4096-pixedge,nstars)
+    chipnum = rng.choice(chiplist,nstars)
+    icen = rng.uniform(1+pixedge,2048-pixedge,nstars)  
+    jcen = rng.uniform(1+pixedge,4096-pixedge,nstars)
 
     # Build blank stars at the desired locations
     blank_stars = []
@@ -64,13 +65,21 @@ def make_stars(nstars,rng,psf,init_params,atmo_type='None',logger=None):
 
     # fill reference wavefront using optatmo_psf
     stars = psf._get_refwavefront(blank_stars,logger)
+    u_arr = np.array([star['u'] for star in stars])
+    v_arr = np.array([star['v'] for star in stars])
+
+    # save init_params
+    opt_params = init_params.getValues()
+
+    # also build a galsim random number generator
+    seed = rng.bit_generator.random_raw() % 2**63
+    print('galsim seed = ',seed)
+    gsrng = galsim.BaseDeviate(seed)
 
     # apply a different atmospheric kernel for every star
     if atmo_type=='RBF':
 
         # use a Gaussian Process to set a value of atmo_size, atmo_g1, atmo_g2 for each star
-        u_arr = np.array([star['u'] for star in stars])
-        v_arr = np.array([star['v'] for star in stars])
         x = np.array([u_arr, v_arr]).T
 
         # creating the correlation matrix / kernel
@@ -83,9 +92,9 @@ def make_stars(nstars,rng,psf,init_params,atmo_type='None',logger=None):
         g2_sigma = 0.0025
 
         # generating gaussian random field
-        atmo_size = size_sigma * np.random.multivariate_normal(np.zeros(nstars), K)
-        atmo_g1 = g1_sigma * np.random.multivariate_normal(np.zeros(nstars), K)
-        atmo_g2 = g2_sigma * np.random.multivariate_normal(np.zeros(nstars), K)
+        atmo_size = size_sigma * rng.multivariate_normal(np.zeros(nstars), K)
+        atmo_g1 = g1_sigma * rng.multivariate_normal(np.zeros(nstars), K)
+        atmo_g2 = g2_sigma * rng.multivariate_normal(np.zeros(nstars), K)
 
         # add these to ofit_params
         for i in range(nstars):
@@ -93,23 +102,75 @@ def make_stars(nstars,rng,psf,init_params,atmo_type='None',logger=None):
             init_params.register('atmo_g1_%d' % (i),atmo_g1[i])
             init_params.register('atmo_g2_%d' % (i),atmo_g2[i])
 
+    elif atmo_type=='Galsim':
+        
+        raw_seeing = 0.80*galsim.arcsec
+        airmass = 1.20
+        wavelength = 620  #782.
+        atm, target_FWHM, r0_500, L0 = make_atmosphere(airmass,raw_seeing,wavelength,rng)
+
+        decam_aper = galsim.Aperture(diam=4.010, lam=wavelength, obscuration=0.4196)  
+
+        moms = []
+        for i in range(nstars):            
+            thx = u_arr[i] * galsim.arcsec
+            thy = v_arr[i] * galsim.arcsec
+            staratmo =  atm.makePSF(lam=wavelength,t0=0.0,exptime=90.,
+                                    flux=25_000,theta=(thx,thy),aper=decam_aper)
+
+            img = staratmo.drawImage(method='phot', scale=0.263)  
+            mom = galsim.hsm.FindAdaptiveMom(img)
+            moms.append(mom)
+
+        e1 = np.array([mom.observed_shape.e1 for mom in moms])
+        e2 = np.array([mom.observed_shape.e2 for mom in moms])
+        atmo_g1 = np.array([mom.observed_shape.g1 for mom in moms])
+        atmo_g2 = np.array([mom.observed_shape.g2 for mom in moms])
+        sig_m = np.array([mom.moments_sigma*0.263 for mom in moms])  # convert to arcsec
+        atmo_size = sig_m * 2.355
+
+        # not used but for reference here is transformation from HSM to moments
+        #M11 = (sig_m/np.power(1.-e1**2-e2**2,0.25) )**2
+        #M02 = M11*e2
+        #M20 = M11*e1
+
+        # set constant atmosphere terms to be mean of atmo_
+        mean_atmo_size = np.mean(atmo_size)
+        mean_atmo_g1 = np.mean(atmo_g1)
+        mean_atmo_g2 = np.mean(atmo_g2)
+        init_params.setValue('opt_size',mean_atmo_size)
+        init_params.setValue('opt_g1',mean_atmo_g1)
+        init_params.setValue('opt_g2',mean_atmo_g2)
+        opt_params = init_params.getValues()  #overwrite opt_params since it has changed
+
+        # add spatially varying atmosphere terms to ofit_params
+        for i in range(nstars):
+            init_params.register('atmo_size_%d' % (i),atmo_size[i]-mean_atmo_size)
+            init_params.register('atmo_g1_%d' % (i),atmo_g1[i]-mean_atmo_g1)
+            init_params.register('atmo_g2_%d' % (i),atmo_g2[i]-mean_atmo_g2)
+        
     # have the OptAtmo PSF make the model stars
     noiseless_stars = psf.make_modelstars(init_params,stars,psf.model,logger=logger)
 
     # now add shot noise to the stars and scale to desired flux
     noisy_stars = []
-    for star in noiseless_stars:
+    for i,star in enumerate(noiseless_stars):
+
+        # use to adjust the star's properties
+        properties = star.data.properties
 
         # calculate the flux from a randomly selected magnitude
-        mag = np.random.uniform(maglo,maghi)  # uniform distribution
+        mag = rng.uniform(maglo,maghi)  # uniform distribution
         flux = 10.**((30.0-mag)/2.5)          # using a zero point of 30th mag
 
         # scale the image's pixel_sum, work with a copy
         im = star.image * flux
+        properties['flux'] = flux
 
-        # Generate a Poisson noise model, with some foreground (assumes that this foreground was already subtracted)
-        poisson_noise = galsim.PoissonNoise(rng,sky_level=foreground)
-        im.addNoise(poisson_noise)  # adds in place
+        if use_noise:
+            # Generate a Poisson noise model, with some foreground (assumes that this foreground was already subtracted)
+            poisson_noise = galsim.PoissonNoise(gsrng,sky_level=foreground)
+            im.addNoise(poisson_noise)  # adds in place
 
         # get new weight in photo-electrons (im is a Galsim image)
         inverse_weight = im + foreground
@@ -117,33 +178,35 @@ def make_stars(nstars,rng,psf,init_params,atmo_type='None',logger=None):
 
         # set the maximum SNR for this star, by scaling up the weight
         snr = calculateSNR(im, weight)
-        if snr > max_snr:
-            factor = (max_snr / snr)**2
-            weight *= factor
+        #if snr > max_snr:
+        #    factor = (max_snr / snr)**2
+        #    weight *= factor
+        properties['snr'] = snr        # store the original SNR here
 
-        # check minimum snr
-        if snr > min_snr:
+        for key in ['x', 'y', 'u', 'v']:
+            # Get rid of keys that constructor doesn't want to see:
+            properties.pop(key, None)
 
-            # make new noisy star
-            properties = star.data.properties
-            properties['snr'] = snr        # store the original SNR here
-
-            for key in ['x', 'y', 'u', 'v']:
-                # Get rid of keys that constructor doesn't want to see:
-                properties.pop(key, None)
-
-            data = StarData(image=im,
+        data = StarData(image=im,
                         image_pos=star.data.image_pos,
                         weight=weight,
                         pointing=star.data.pointing,
                         field_pos=star.data.field_pos,
                         orig_weight=star.data.orig_weight,
                         properties=properties)
-            fit = StarFit(None,
+
+        # get 'fit' parameters for this star
+        params = list(opt_params.copy())
+        if atmo_type!='Const':
+            params.append(init_params.get('atmo_size_%d' % (i)))
+            params.append(init_params.get('atmo_g1_%d' % (i)))
+            params.append(init_params.get('atmo_g2_%d' % (i)))
+
+        fit = StarFit(params,
                       flux=star.fit.flux,
                       center=star.fit.center)
-            noisy_star = Star(data, fit)
-            noisy_stars.append(noisy_star)
+        noisy_star = Star(data, fit)
+        noisy_stars.append(noisy_star)
 
     # return the list of Stars
     return noisy_stars
@@ -151,7 +214,7 @@ def make_stars(nstars,rng,psf,init_params,atmo_type='None',logger=None):
 
 
 @timer
-def make_image(config_file,variables='',seed=12345,nstars=8000,optics_type='Fast',atmo_type='None',verbose_level=1):
+def make_image(config_file,variables='',seed=12345,nstars=8000,use_noise=True,optics_type='Fast',atmo_type='Const',verbose_level=1):
     """
     This test makes an image's worth of stars using optatmo_psf
 
@@ -159,14 +222,14 @@ def make_image(config_file,variables='',seed=12345,nstars=8000,optics_type='Fast
     :param variables:                       String with additional configuration variables [default: '']
     :param seed:                            Random number seed [default: 12345]
     :param nstars:                          Number of stars to make [default: 8000]
+    :param use_noise:                       Apply shot noise [default: True]
     :param optics_type:                     Type of optical wavefront to generate, 'Fast' or 'Nominal' [default: Fast]
-    :param atmo_type:                       Type of atmosphere to generate, 'None', 'RBF', 'Galsim' [default: None]
+    :param atmo_type:                       Type of atmosphere to generate, 'Const', 'RBF', 'Galsim' [default: None]
     :param verbose_level:                   Verbose level for logger [default: 1]
     """
 
     # random number seeds
     nprng = default_rng(seed)
-    rng = galsim.BaseDeviate(seed)
 
     # read the yaml
     config = piff.read_config(config_file)
@@ -200,7 +263,8 @@ def make_image(config_file,variables='',seed=12345,nstars=8000,optics_type='Fast
         init_params.setValue('z6f3',nprng.uniform(-0.3,0.3,1)[0])
 
     # make an image of fake stars
-    stars = make_stars(nstars,rng,psf,init_params,atmo_type,logger=logger)
+    init_params.print()
+    stars = make_stars(nstars,nprng,psf,init_params,atmo_type,use_noise,logger=logger)
 
     # return
     return stars,init_params
@@ -214,15 +278,17 @@ if __name__ == '__main__':
     parser.add_argument('-f', '--output_file', dest='output_file',type=str,help="Output Filename",default='mkimage.pkl')
     parser.add_argument('-s', '--seed', dest='seed',type=int,help="seed",default=12345)
     parser.add_argument('-n', '--nstars', dest='nstars',type=int,help="nstars",default=800)
-    parser.add_argument('-o', '--optics_type', dest='optics_type',type=str,help="optics_type Fast,Nomninal",default='Fast')
-    parser.add_argument('-a', '--atmo_type', dest='atmo_type',type=str,help="atmo_type None,RBF,Galsim",default='None')
+    parser.add_argument('-no', '--no_noise', dest='no_noise',action='store_true',help="dont add shot noise",default=False)
+    parser.add_argument('-o', '--optics_type', dest='optics_type',type=str,help="optics_type Fast,Nominal",default='Nominal')
+    parser.add_argument('-a', '--atmo_type', dest='atmo_type',type=str,help="atmo_type Const,RBF,Galsim",default='None')
 
     options = parser.parse_args()
     kwargs = vars(options)
+    print(options)
 
-    stars,init_params = make_image(options.config_file,options.variables,options.seed,options.nstars,options.optics_type,options.atmo_type)
-    init_params.print()
+    use_noise = not options.no_noise
+    stars,init_params = make_image(options.config_file,options.variables,options.seed,options.nstars,use_noise,options.optics_type,options.atmo_type)
+    #init_params.print()
     outdict = {"init_params":init_params,"stars":stars}
 
     pickle.dump(outdict,open(options.output_file,'wb'))
-
