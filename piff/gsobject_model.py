@@ -21,7 +21,7 @@ import galsim
 import scipy
 
 from .model import Model
-from .star import Star, StarFit
+from .star import Star
 from .util import estimate_cov_from_jac
 
 
@@ -39,6 +39,7 @@ class GSObjectModel(Model):
     :param scipy_kwargs: Optional kwargs to pass to scipy.optimize.least_squares [default: None]
     :param logger:      A logger object for logging debug info. [default: None]
     """
+    _type_name = 'GSObject'
     _model_can_be_offset = False
 
     def __init__(self, gsobj, fastfit=False, centered=True, include_pixel=True,
@@ -78,10 +79,7 @@ class GSObjectModel(Model):
             raise RuntimeError("Error calculating model moments for this star.")
 
         param_flux = star.fit.flux
-        if star.fit.params is None:
-            param_scale = 1
-            param_g1 = param_g2 = param_du = param_dv = 0
-        elif self._centered:
+        if self._centered:
             param_scale, param_g1, param_g2 = star.fit.params
             param_du, param_dv = star.fit.center
         else:
@@ -180,7 +178,12 @@ class GSObjectModel(Model):
         if convert_func is not None:
             prof = convert_func(prof)
 
-        prof.drawImage(model_image, method=self._method, center=image_pos)
+        try:
+            prof.drawImage(model_image, method=self._method, center=image_pos)
+        except galsim.GalSimError:
+            # Declare this a *bad* residual if GalSim ran into some kind of error.
+            # (Most typically a GalSimFFTSizeError from getting to a place with bad stepk/maxk.)
+            return np.ones_like(model_image.array.ravel()) * 1.e100
 
         # Caculate sqrt(weight) * (model_image - image) in place for efficiency.
         model_image.array[:,:] -= image.array
@@ -194,17 +197,12 @@ class GSObjectModel(Model):
 
         :returns: a numpy array
         """
-        # Get initial parameter values.  Either use values currently in star.fit, or if those are
-        # absent, run HSM to get initial values.
-        if star.fit.params is None:
-            flux, du, dv, scale, g1, g2, var = self.moment_fit(star)
+        flux = star.fit.flux
+        if self._centered:
+            du, dv = star.fit.center
+            scale, g1, g2 = star.fit.params
         else:
-            flux = star.fit.flux
-            if self._centered:
-                du, dv = star.fit.center
-                scale, g1, g2 = star.fit.params
-            else:
-                du, dv, scale, g1, g2 = star.fit.params
+            du, dv, scale, g1, g2 = star.fit.params
 
         return np.array([flux, du, dv, scale, g1, g2])
 
@@ -225,8 +223,7 @@ class GSObjectModel(Model):
 
         results = scipy.optimize.least_squares(self._resid, params, args=(star,convert_func),
                                                **self._scipy_kwargs)
-        if logger:
-            logger.debug(results)
+        logger.debug(results)
         if not results.success:
             raise RuntimeError("Error finding the full nonlinear solution")
 
@@ -292,7 +289,8 @@ class GSObjectModel(Model):
         # these parameters don't really apply to each star separately.
         # After refluxing, we may drop this by 1 or 3 if adjusting flux and/or centroid.
         dof = np.count_nonzero(star.weight.array)
-        fit = StarFit(params, params_var=params_var, flux=flux, center=center, chisq=chisq, dof=dof)
+        fit = star.fit.withNew(params=params, params_var=params_var,
+                               chisq=chisq, dof=dof)
         return Star(star.data, fit)
 
     def initialize(self, star, logger=None):
@@ -303,17 +301,15 @@ class GSObjectModel(Model):
 
         :returns: a new initialized Star.
         """
-        if star.fit.params is None:
-            if self._centered:
-                params = np.array([ 1.0, 0.0, 0.0])
-                params_var = np.array([ 0.0, 0.0, 0.0])
-            else:
-                params = np.array([ 0.0, 0.0, 1.0, 0.0, 0.0])
-                params_var = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
-            fit = StarFit(params, flux=1.0, center=(0.0, 0.0), params_var=params_var)
-            star = Star(star.data, fit)
-            star = self.fit(star, fastfit=True)
-        star = self.reflux(star, fit_center=False)
+        if self._centered:
+            params = np.array([ 1.0, 0.0, 0.0])
+            params_var = np.array([ 0.0, 0.0, 0.0])
+        else:
+            params = np.array([ 0.0, 0.0, 1.0, 0.0, 0.0])
+            params_var = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
+        fit = star.fit.withNew(params=params, params_var=params_var)
+        star = Star(star.data, fit)
+        star = self.fit(star, fastfit=True)
         return star
 
 
@@ -329,6 +325,8 @@ class Gaussian(GSObjectModel):
     :param scipy_kwargs: Optional kwargs to pass to scipy.optimize.least_squares [default: None]
     :param logger:      A logger object for logging debug info. [default: None]
     """
+    _type_name = 'Gaussian'
+
     def __init__(self, fastfit=False, centered=True, include_pixel=True,
                  scipy_kwargs=None, logger=None):
         gsobj = galsim.Gaussian(sigma=1.0)
@@ -351,6 +349,8 @@ class Kolmogorov(GSObjectModel):
     :param scipy_kwargs: Optional kwargs to pass to scipy.optimize.least_squares [default: None]
     :param logger:      A logger object for logging debug info. [default: None]
     """
+    _type_name = 'Kolmogorov'
+
     def __init__(self, fastfit=False, centered=True, include_pixel=True,
                  scipy_kwargs=None, logger=None):
         gsobj = galsim.Kolmogorov(half_light_radius=1.0)
@@ -376,6 +376,8 @@ class Moffat(GSObjectModel):
     :param scipy_kwargs: Optional kwargs to pass to scipy.optimize.least_squares [default: None]
     :param logger:      A logger object for logging debug info. [default: None]
     """
+    _type_name = 'Moffat'
+
     def __init__(self, beta, trunc=0., fastfit=False, centered=True, include_pixel=True,
                  scipy_kwargs=None, logger=None):
         gsobj = galsim.Moffat(half_light_radius=1.0, beta=beta, trunc=trunc)
@@ -386,3 +388,11 @@ class Moffat(GSObjectModel):
         del self.kwargs['gsobj']
         # Need to add `beta` and `trunc` though.
         self.kwargs.update(dict(beta=beta, trunc=trunc))
+
+class GSObjectModelDepr(GSObjectModel):
+    _type_name = 'GSObjectModel'
+
+    def __init__(self, *args, logger=None, **kwargs):
+        logger = galsim.config.LoggerWrapper(logger)
+        logger.error("WARNING: The name GSObjectModel is deprecated. Use GSObject instead.")
+        super().__init__(*args, logger=logger, **kwargs)

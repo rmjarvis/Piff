@@ -48,7 +48,7 @@ class Star(object):
     parameters return a new object and  don't change the original.  e.g.
 
         star = psf.drawStar(star)
-        star = star.reflux()
+        star = star.withFlux(14)
         star = star.addPoisson(gain=gain)
 
     Stars have the following attributes:
@@ -70,6 +70,7 @@ class Star(object):
         star.flux       The flux of the object
         star.center     The nominal center of the object (not necessarily the centroid)
         star.is_reserve Whether the star is reserved from being used to fit the PSF
+        star.is_flagged Whether the star was flagged as an outlier or had some error in fitting
         star.hsm        HSM measurements for this star as a tuple: (flux, cenu, cenv, sigma, g1, g2, flag)
 
     :param data: A StarData instance (invariant)
@@ -95,9 +96,9 @@ class Star(object):
         return Star(self.data, fit)
 
     def withProperties(self, **kwargs):
-        """Set or change any properties in the star.
+        r"""Set or change any properties in the star.
 
-        :param \*\*kwargs:   Each named kwarg is taken to be a property to set in the returned star.
+        :param \*\*kwargs:  Each named kwarg is taken to be a property to set in the returned star.
 
         :returns: a new Star with the given properties, but is otherwise the same as self.
         """
@@ -169,6 +170,16 @@ class Star(object):
     @property
     def is_reserve(self):
         return self.data.properties.get('is_reserve',False)
+
+    @property
+    def is_flagged(self):
+        return self.data.properties.get('is_flagged',False)
+
+    def flag_if(self, flag):
+        if flag and not self.is_flagged:
+            return self.withProperties(is_flagged=True)
+        else:
+            return self
 
     def run_hsm(self):
         """Use HSM to measure moments of star image.
@@ -336,6 +347,11 @@ class Star(object):
             dtypes.append( (key, float) )
             cols.append( [ s.data.properties[key] for s in stars ] )
             prop_keys.remove(key)
+        # Add reserve, flag_psf
+        dtypes.extend([('reserve', bool), ('flag_psf', int)])
+        cols.extend([ [s.is_reserve for s in stars],
+                      [s.is_flagged for s in stars] ])
+        prop_keys = [key for key in prop_keys if key not in ['is_reserved', 'is_flagged']]
         # Add any remaining properties
         for key in prop_keys:
             dtypes.append( (key, stars[0].data.property_types.get(key, float)) )
@@ -421,6 +437,8 @@ class Star(object):
                     'flux', 'center', 'chisq']:
             assert key in colnames
             colnames.remove(key)
+        # These two might not be there, but if they are, remove them.
+        colnames = [key for key in colnames if key not in ['reserve', 'flag_psf']]
 
         data = fits[extname].read()
         x_list = data['x']
@@ -465,6 +483,11 @@ class Star(object):
 
         # The rest of the columns are the data properties
         prop_list = [ { c : row[c] for c in colnames } for row in data ]
+        for i, row in enumerate(data):
+            if 'reserve' in data.dtype.names and row['reserve']:
+                prop_list[i]['is_reserve'] = True
+            if 'flag_psf' in data.dtype.names and row['flag_psf']:
+                prop_list[i]['is_flagged'] = True
 
         wcs_list = [ galsim.JacobianWCS(*jac) for jac in zip(dudx,dudy,dvdx,dvdy) ]
         pos_list = [ galsim.PositionD(*pos) for pos in zip(x_list,y_list) ]
@@ -714,7 +737,7 @@ class StarData(object):
         return copy.deepcopy(self)
 
     def withNew(self, **kwargs):
-        """Return new StarData that has new values of some attributes.
+        r"""Return new StarData that has new values of some attributes.
 
         :param \*\*kwargs:  Any properties for the star.data you want to change.
 
@@ -919,14 +942,14 @@ class StarFit(object):
         return self.A.T.dot(self.b)
 
     def newParams(self, params, **kwargs):
-        """Return new StarFit that has the array params installed as new parameters.
+        r"""Return new StarFit that has the array params installed as new parameters.
 
         :param params:  A 1d array holding new parameters; must match size of current ones
         :param \*\*kwargs:  Any other additional properties for the star. Takes current flux and
                         center if not provided, and otherwise puts in None
 
-        :returns:  New StarFit object with altered parameters.  All chisq-related parameters
-                   are set to None since they are no longer valid.
+        :returns: New StarFit object with altered parameters.  All chisq-related parameters
+                  are set to None since they are no longer valid.
         """
         npp = np.array(params)
         if self.params is not None and npp.shape != self.params.shape:
@@ -939,7 +962,7 @@ class StarFit(object):
         return copy.deepcopy(self)
 
     def withNew(self, **kwargs):
-        """Return new StarFit that has new values of some attributes.
+        r"""Return new StarFit that has new values of some attributes.
 
         :param \*\*kwargs:  Any properties for the star.fit you want to change.
 

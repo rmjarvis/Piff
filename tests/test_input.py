@@ -277,6 +277,28 @@ def test_invalid():
     config = { 'image_file_name' : image_files_1, 'cat_file_name': cat_files }
     np.testing.assert_raises(TypeError, piff.InputFiles, config)
 
+    # Invalid input type
+    config = { 'type': 'invalid' }
+    with np.testing.assert_raises(ValueError):
+        piff.Input.process(config)
+
+    # Also check errors when registering other type names
+    class NoInput1(piff.Input):
+        pass
+    assert NoInput1 not in piff.Input.valid_input_types.values()
+    class NoInput2(piff.Input):
+        _type_name = None
+    assert NoInput2 not in piff.Input.valid_input_types.values()
+    class ValidInput1(piff.Input):
+        _type_name = 'valid'
+    assert ValidInput1 in piff.Input.valid_input_types.values()
+    assert ValidInput1 == piff.Input.valid_input_types['valid']
+    with np.testing.assert_raises(ValueError):
+        class ValidInput2(piff.Input):
+            _type_name = 'valid'
+    with np.testing.assert_raises(ValueError):
+        class ValidInput3(ValidInput1):
+            pass
 
 @timer
 def test_cols():
@@ -684,6 +706,29 @@ def test_flag_select():
     stars1 = input.makeStars()
     with np.testing.assert_raises(ValueError):
         select.selectStars(stars1, logger=logger)
+
+    # Invalid input type
+    config = { 'type': 'invalid' }
+    with np.testing.assert_raises(ValueError):
+        piff.Select.process(config, stars1)
+
+    # Also check errors when registering other type names
+    class NoSelect1(piff.Select):
+        pass
+    assert NoSelect1 not in piff.Select.valid_select_types.values()
+    class NoSelect2(piff.Select):
+        _type_name = None
+    assert NoSelect2 not in piff.Select.valid_select_types.values()
+    class ValidSelect1(piff.Select):
+        _type_name = 'valid'
+    assert ValidSelect1 in piff.Select.valid_select_types.values()
+    assert ValidSelect1 == piff.Select.valid_select_types['valid']
+    with np.testing.assert_raises(ValueError):
+        class ValidSelect2(piff.Select):
+            _type_name = 'valid'
+    with np.testing.assert_raises(ValueError):
+        class ValidSelect3(ValidSelect1):
+            pass
 
 @timer
 def test_properties_select():
@@ -1216,7 +1261,10 @@ def test_stars():
     input = piff.InputFiles(config['input'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.rejectStars(stars, logger=logger)
-    assert len(stars) == 86
+    # Note: GalSim 2.5 changed the implementation of Moffat, which affects this test.
+    # For this and some other tests below, we have different reference values depending on
+    # whether the GalSim version is before or after the 2.5.0.
+    assert len(stars) == 86 if galsim.__version_info__ < (2,5) else 88
     del config['input']['satur']
 
     # maxpixel_cut is almost the same thing, but figures out an equivalent flux cut and uses
@@ -1227,7 +1275,7 @@ def test_stars():
     select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.rejectStars(stars, logger=logger)
-    assert len(stars) == 79
+    assert len(stars) == 79 if galsim.__version_info__ < (2,5) else 80
 
     # Gratuitous coverage test.  If all objects have snr < 40, then max_pixel_cut doesn't
     # remove anything, since it only considers stars with snr > 40.
@@ -1258,7 +1306,7 @@ def test_stars():
     select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.rejectStars(stars, logger=logger)
-    assert len(stars) == 85
+    assert len(stars) == 85 if galsim.__version_info__ < (2,5) else 87
     config['select']['hsm_size_reject'] = 10.
     select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)

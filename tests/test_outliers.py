@@ -90,19 +90,21 @@ def test_chisq():
     interp.mean = np.array([0.4, 0.023, 0.012])
     psf = piff.SimplePSF(model, interp)
     stars = psf.interpolateStarList(stars)
-    stars = [ psf.model.reflux(s,logger=logger) for s in stars ]
+    stars = [ psf.reflux(s,logger=logger) for s in stars ]
 
     outliers1 = piff.ChisqOutliers(nsigma=5)
     stars1, nremoved1 = outliers1.removeOutliers(stars,logger=logger)
     print('nremoved1 = ',nremoved1)
-    assert len(stars1) == len(stars) - nremoved1
+    assert len(stars1) == len(stars)
+    assert nremoved1 == np.sum([s.is_flagged for s in stars1])
 
     # This is what nsigma=5 means in terms of probability
     outliers2 = piff.ChisqOutliers(prob=5.733e-7)
     stars2, nremoved2 = outliers2.removeOutliers(stars,logger=logger)
     print('nremoved2 = ',nremoved2)
-    assert len(stars2) == len(stars) - nremoved2
-    assert nremoved1 == nremoved2
+    assert len(stars2) == len(stars)
+    assert nremoved2 == np.sum([s.is_flagged for s in stars2])
+    assert nremoved2 == nremoved1
 
     # The following is nearly equivalent for this particular data set.
     # For dof=222 (what most of these have, this probability converts to
@@ -113,13 +115,15 @@ def test_chisq():
     outliers3 = piff.ChisqOutliers(thresh=455.401)
     stars3, nremoved3 = outliers3.removeOutliers(stars,logger=logger)
     print('nremoved3 = ',nremoved3)
-    assert len(stars3) == len(stars) - nremoved3
+    assert len(stars3) == len(stars)
+    assert nremoved3 == np.sum([s.is_flagged for s in stars3])
 
     outliers4 = piff.ChisqOutliers(ndof=2.05136)
     stars4, nremoved4 = outliers4.removeOutliers(stars,logger=logger)
     print('nremoved4 = ',nremoved4)
-    assert len(stars4) == len(stars) - nremoved4
-    assert nremoved3 == nremoved4
+    assert len(stars4) == len(stars)
+    assert nremoved4 == np.sum([s.is_flagged for s in stars4])
+    assert nremoved4 == nremoved3
 
     # Regression tests.  If these change, make sure we understand why.
     assert nremoved1 == nremoved2 == 58
@@ -145,15 +149,41 @@ def test_base():
     config = { 'nsigma' : 4, }
     with np.testing.assert_raises(ValueError):
         out = piff.Outliers.process(config)
+    # and it must be a valid name
+    config['type'] = 'invalid'
+    with np.testing.assert_raises(ValueError):
+        out = piff.Outliers.process(config)
 
     # Invalid to read a type that isn't a piff.Outliers type.
     # Mock this by pretending that MADOutliers is the only subclass of Outliers.
     if sys.version_info < (3,): return  # mock only available on python 3
     from unittest import mock
     filename = os.path.join('input','D00240560_r_c01_r2362p01_piff.fits')
-    with mock.patch('piff.util.get_all_subclasses', return_value=[piff.outliers.MADOutliers]):
+    with mock.patch('piff.Outliers.valid_outliers_types', {'MAD': piff.outliers.MADOutliers}):
         with fitsio.FITS(filename,'r') as f:
             np.testing.assert_raises(ValueError, piff.Outliers.read, f, extname='psf_outliers')
+
+    with fitsio.FITS(filename,'r') as f:
+        out = piff.Outliers.read(f, extname='psf_outliers')
+        print(out)
+
+    # Check that registering new types works correctly
+    class NoOutliers1(piff.Outliers):
+        pass
+    assert NoOutliers1 not in piff.Outliers.valid_outliers_types.values()
+    class NoOutliers2(piff.Outliers):
+        _type_name = None
+    assert NoOutliers2 not in piff.Outliers.valid_outliers_types.values()
+    class ValidOutliers1(piff.Outliers):
+        _type_name = 'valid'
+    assert ValidOutliers1 in piff.Outliers.valid_outliers_types.values()
+    assert ValidOutliers1 == piff.Outliers.valid_outliers_types['valid']
+    with np.testing.assert_raises(ValueError):
+        class ValidOutliers2(piff.Outliers):
+            _type_name = 'valid'
+    with np.testing.assert_raises(ValueError):
+        class ValidOutliers3(ValidOutliers1):
+            pass
 
 
 if __name__ == '__main__':

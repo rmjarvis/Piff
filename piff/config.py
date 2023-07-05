@@ -177,8 +177,8 @@ def plotify(config, logger=None):
     :param config:      The configuration file that defines how to build the model
     :param logger:      A logger object for logging progress. [default: None]
     """
-    import piff
     from .psf import PSF
+    from .input import Input
     from .output import Output
     from .star import Star
 
@@ -210,8 +210,9 @@ def plotify(config, logger=None):
     # removed as outliers, so we don't want to include them here.
     # However, the psf.stars do not have the images loaded (to save space in the output file
     # so it's not enormous).  So we need to load in the images for the stats.
-    input_handler_class = getattr(piff, 'Input' + config['input'].get('type','Files'))
-    input_handler = input_handler_class(config['input'], logger)
+    input_type = config['input'].get('type', 'Files')
+    input_class = Input.valid_input_types[input_type]
+    input_handler = input_class(config['input'], logger)
     stars = input_handler.load_images(psf.stars, logger=logger)
 
     # We don't want to rewrite the PSF to disk, so jump straight to the stats_list

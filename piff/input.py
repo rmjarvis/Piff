@@ -31,6 +31,12 @@ class Input(object):
     This is essentially an abstract base class intended to define the methods that should be
     implemented by any derived class.
     """
+    # This class-level dict will store all the valid input types.
+    # Each subclass should set a cls._type_name, which is the name that should
+    # appear in a config dict.  These will be the keys of valid_input_types.
+    # The values in this dict will be the Input sub-classes.
+    valid_input_types = {}
+
     nproc = 1  # Sub-classes can overwrite this as an instance attribute.
 
     @classmethod
@@ -46,14 +52,18 @@ class Input(object):
         wcs is a dict of WCS solutions indexed by chipnum.
         pointing is either a galsim.CelestialCoord or None.
         """
-        import piff
-
         # Get the class to use for handling the input data
         # Default type is 'Files'
-        input_handler_class = getattr(piff, 'Input' + config_input.get('type','Files'))
+        input_type = config_input.get('type','Files')
+
+        if input_type not in Input.valid_input_types:
+            raise ValueError("type %s is not a valid model type. "%input_type +
+                             "Expecting one of %s"%list(Input.valid_input_types.keys()))
+
+        input_class = Input.valid_input_types[input_type]
 
         # Build handler object
-        input_handler = input_handler_class(config_input, logger)
+        input_handler = input_class(config_input, logger)
 
         # Creat a lit of StarData objects
         stars = input_handler.makeStars(logger)
@@ -68,6 +78,14 @@ class Input(object):
         pointing = input_handler.getPointing(logger)
 
         return stars, wcs, pointing
+
+    @classmethod
+    def __init_subclass__(cls):
+        if hasattr(cls, '_type_name') and cls._type_name is not None:
+            if cls._type_name in Input.valid_input_types:
+                raise ValueError('Input type %s already registered'%cls._type_name +
+                                 'Maybe you subclassed and forgot to set _type_name?')
+            Input.valid_input_types[cls._type_name] = cls
 
     def makeStars(self, logger=None):
         """Process the input images and star data, cutting out stamps for each star along with
@@ -219,6 +237,9 @@ class InputFiles(Input):
                         for the Poisson noise from the galaxy flux.
         :satur:         The staturation level.  If any pixels for a star exceed this, then
                         the star is skipped. [default: None]
+        :trust_pos:     Whether to trust the input position as essentially exact (True), or to
+                        let the stars move slightly from their nominal positions (False).
+                        [default: False]
         :use_partial:   Whether to use stars whose postage stamps are only partially on the
                         full image.  [default: False]
         :nstars:        Stop reading the input file at this many stars.  (This is applied
@@ -243,6 +264,8 @@ class InputFiles(Input):
     :param config:      The configuration dict used to define the above parameters.
     :param logger:      A logger object for logging debug info. [default: None]
     """
+    _type_name = 'Files'
+
     def __init__(self, config, logger=None):
         import copy
         logger = galsim.config.LoggerWrapper(logger)
@@ -276,6 +299,7 @@ class InputFiles(Input):
                 'stamp_size' : int,
                 'gain' : str,
                 'satur' : str,
+                'trust_pos' : bool,
                 'use_partial' : bool,
                 'sky' : str,
                 'noise' : float,
@@ -460,6 +484,7 @@ class InputFiles(Input):
             sky = params.get('sky', None)
             gain = params.get('gain', None)
             satur = params.get('satur', None)
+            trust_pos = params.get('trust_pos', None)
             nstars = params.get('nstars', None)
 
             if sky_col is not None and sky is not None:
@@ -486,6 +511,7 @@ class InputFiles(Input):
                     'sky' : sky,
                     'gain' : gain,
                     'satur' : satur,
+                    'trust_pos' : trust_pos,
                     'nstars' : nstars,
                     'image_file_name' : image_file_name,
                     'stamp_size' : self.stamp_size})
@@ -791,7 +817,7 @@ class InputFiles(Input):
     def readStarCatalog(cat_file_name, cat_hdu, x_col, y_col,
                         ra_col, dec_col, ra_units, dec_units, image,
                         flag_col, skip_flag, use_flag, property_cols, sky_col, gain_col,
-                        sky, gain, satur, nstars, image_file_name, stamp_size, logger):
+                        sky, gain, satur, trust_pos, nstars, image_file_name, stamp_size, logger):
         """Read in the star catalogs and return lists of positions for each star in each image.
 
         :param cat_file_name:   The name of the catalog file to read in.
@@ -817,6 +843,7 @@ class InputFiles(Input):
                                 keyword to read a value from the FITS header.
         :param satur:           Either a float value for the saturation level to use or a str
                                 keyword to read a value from the FITS header.
+        :param trust_pos:       Optional bool value indicating whether to trust input positions.
         :param nstars:          Optionally a maximum number of stars to use.
         :param image_file_name: The image file name in case needed for header values.
         :param stamp_size:      The stamp size being used for the star stamps.
@@ -993,6 +1020,13 @@ class InputFiles(Input):
                 satur = float(header[satur])
                 logger.debug("Using saturation from header: %s",satur)
             extra_props['satur'] = np.array([satur]*len(cat), dtype=float)
+
+        # Check whether we should trust the positions
+        if trust_pos is not None:
+            from galsim.config.value import _GetBoolValue
+            # Converts things like 'Yes', 'True', 'TRUE', 1 to True
+            trust_pos = _GetBoolValue(trust_pos)
+            extra_props['trust_pos'] = np.array([trust_pos]*len(cat), dtype=bool)
 
         return image_pos, extra_props
 

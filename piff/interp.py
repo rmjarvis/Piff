@@ -39,6 +39,12 @@ class Interp(object):
     This is essentially an abstract base class intended to define the methods that should be
     implemented by any derived class.
     """
+    # This class-level dict will store all the valid interp types.
+    # Each subclass should set a cls._type_name, which is the name that should
+    # appear in a config dict.  These will be the keys of valid_interp_types.
+    # The values in this dict will be the Interp sub-classes.
+    valid_interp_types = {}
+
     @classmethod
     def process(cls, config_interp, logger=None):
         """Parse the interp field of the config dict.
@@ -48,14 +54,16 @@ class Interp(object):
 
         :returns: an Interp instance
         """
-        import piff
-
+        # Get the class to use for the interpolator
         if 'type' not in config_interp:
             raise ValueError("config['interp'] has no type field")
 
-        # Get the class to use for the interpolator
-        # Not sure if this is what we'll always want, but it would be simple if we can make it work.
-        interp_class = getattr(piff, config_interp['type'])
+        interp_type = config_interp['type']
+        if interp_type not in Interp.valid_interp_types:
+            raise ValueError("type %s is not a valid interp type. "%interp_type +
+                             "Expecting one of %s"%list(Interp.valid_interp_types.keys()))
+
+        interp_class = Interp.valid_interp_types[interp_type]
 
         # Read any other kwargs in the interp field
         kwargs = interp_class.parseKwargs(config_interp, logger)
@@ -64,6 +72,16 @@ class Interp(object):
         interp = interp_class(**kwargs)
 
         return interp
+
+    @classmethod
+    def __init_subclass__(cls):
+        # Classes that don't want to register a type name can either not define _type_name
+        # or set it to None.
+        if hasattr(cls, '_type_name') and cls._type_name is not None:
+            if cls._type_name in Interp.valid_interp_types:
+                raise ValueError('Interpolation type %s already registered'%cls._type_name +
+                                 'Maybe you subclassed and forgot to set _type_name?')
+            Interp.valid_interp_types[cls._type_name] = cls
 
     @classmethod
     def parseKwargs(cls, config_interp, logger=None):
@@ -81,6 +99,7 @@ class Interp(object):
         kwargs = {}
         kwargs.update(config_interp)
         kwargs.pop('type',None)
+        kwargs['logger'] = logger
         return kwargs
 
     def getProperties(self, star):
@@ -164,7 +183,7 @@ class Interp(object):
         :param extname:     The name of the extension to write the interpolator information.
         """
         # First write the basic kwargs that works for all Interp classes
-        interp_type = self.__class__.__name__
+        interp_type = self.__class__._type_name
         write_kwargs(fits, extname, dict(self.kwargs, type=interp_type))
 
         # Now do the class-specific steps.  Typically, this will write out the solution parameters.
@@ -190,8 +209,6 @@ class Interp(object):
 
         :returns: an interpolator built with a information in the FITS file.
         """
-        import piff
-
         assert extname in fits
         assert 'type' in fits[extname].get_colnames()
         assert 'type' in fits[extname].read().dtype.names
@@ -205,11 +222,9 @@ class Interp(object):
             interp_type = interp_type[0]
 
         # Check that interp_type is a valid Interp type.
-        interp_classes = piff.util.get_all_subclasses(piff.Interp)
-        valid_interp_types = dict([ (kls.__name__, kls) for kls in interp_classes ])
-        if interp_type not in valid_interp_types:
-            raise ValueError("interpolator type %s is not a valid Piff Interpolator"%interp_type)
-        interp_cls = valid_interp_types[interp_type]
+        if interp_type not in Interp.valid_interp_types:
+            raise ValueError("interp type %s is not a valid Piff Interpolation"%interp_type)
+        interp_cls = Interp.valid_interp_types[interp_type]
 
         kwargs = read_kwargs(fits, extname)
         kwargs.pop('type',None)

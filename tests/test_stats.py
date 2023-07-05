@@ -21,7 +21,7 @@ import fitsio
 import yaml
 import subprocess
 
-from piff_test_helper import get_script_name, timer
+from piff_test_helper import get_script_name, timer, CaptureLog
 
 
 @timer
@@ -519,7 +519,7 @@ def test_starstats_config():
             'file_name' : psf_file,
             'stats' : [
                 {
-                    'type': 'Star',
+                    'type': 'StarImages',
                     'file_name': star_file,
                     'nplot': 5,
                     'adjust_stars': True,
@@ -534,6 +534,15 @@ def test_starstats_config():
     os.remove(star_file)
     piff.plotify(config, logger)
     assert os.path.isfile(star_file)
+
+    # repeat with deprecated name
+    os.remove(star_file)
+    config['output']['stats'][0]['type'] = 'Star'
+    with CaptureLog() as cl:
+        piff.plotify(config, cl.logger)
+    assert os.path.isfile(star_file)
+    assert 'Star is deprecated' in cl.output
+    config['output']['stats'][0]['type'] = 'StarImages'
 
     # check default nplot
     psf = piff.read(psf_file)
@@ -761,7 +770,7 @@ def test_bad_hsm():
                     'file_name': shape_file,
                 },
                 {
-                    'type': 'Star',
+                    'type': 'StarImages',
                     'file_name': star_file,
                 },
                 {
@@ -809,8 +818,10 @@ def test_bad_hsm():
     # Confirm that all but one star was rejected, since that was part of the intent of this test.
     psf = piff.read(psf_file)
     print('stars = ',psf.stars)
+    print('flags = ',[s.is_flagged for s in psf.stars])
     print('nremoved = ',psf.nremoved)
-    assert len(psf.stars) == 1
+    assert len(psf.stars) == 8
+    assert np.sum([not s.is_flagged for s in psf.stars]) == 1
     assert psf.nremoved == 7    # There were 8 to start.
 
     for f in [twodhist_file, rho_file, shape_file, star_file, sizemag_file, hsm_file]:
@@ -823,11 +834,13 @@ def test_bad_hsm():
                 'T_data', 'g1_data', 'g2_data',
                 'T_model', 'g1_model', 'g2_model',
                 'flux', 'reserve', 'flag_data', 'flag_model']:
-        assert len(data[col]) == 1
+        assert len(data[col]) == 8
+    print('flag_psf = ',data['flag_psf'])
     print('flag_data = ',data['flag_data'])
     print('flag_model = ',data['flag_model'])
-    np.testing.assert_array_equal(data['flag_data'], 7)
-    np.testing.assert_array_equal(data['flag_model'], 7)
+    good_index = np.where(data['flag_psf'] == 0)[0]
+    np.testing.assert_array_equal(data['flag_data'][good_index], 7)
+    np.testing.assert_array_equal(data['flag_model'][good_index], 7)
 
 
 @timer
@@ -838,6 +851,10 @@ def test_base_stats():
     config = { 'file_name' : 'dummy_file' }
     with np.testing.assert_raises(ValueError):
         stats = piff.Stats.process(config)
+    # and it must be a valid name
+    config['type'] = 'invalid'
+    with np.testing.assert_raises(ValueError):
+        out = piff.Stats.process(config)
 
     # ... for all stats in list.
     config = [ { 'type': 'TwoDHist', 'file_name': 'f1' },
@@ -852,6 +869,24 @@ def test_base_stats():
     stats = piff.Stats()
     np.testing.assert_raises(NotImplementedError, stats.compute, None, None)
     np.testing.assert_raises(NotImplementedError, stats.plot)
+
+    # Check that registering new types works correctly
+    class NoStats1(piff.Stats):
+        pass
+    assert NoStats1 not in piff.Stats.valid_stats_types.values()
+    class NoStats2(piff.Stats):
+        _type_name = None
+    assert NoStats2 not in piff.Stats.valid_stats_types.values()
+    class ValidStats1(piff.Stats):
+        _type_name = 'valid'
+    assert ValidStats1 in piff.Stats.valid_stats_types.values()
+    assert ValidStats1 == piff.Stats.valid_stats_types['valid']
+    with np.testing.assert_raises(ValueError):
+        class ValidStats2(piff.Stats):
+            _type_name = 'valid'
+    with np.testing.assert_raises(ValueError):
+        class ValidStats3(ValidStats1):
+            pass
 
 @timer
 def test_model_properties():

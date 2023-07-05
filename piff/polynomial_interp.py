@@ -56,6 +56,8 @@ class Polynomial(Interp):
                         polynomial_types with the value of a function with
                         the signature of numpy.polynomial.polynomial.polyval2d
     """
+    _type_name = 'Polynomial'
+
     def __init__(self, order=None, orders=None, poly_type="poly", logger=None):
         if order is None and orders is None:
             raise TypeError("Either order or orders is required")
@@ -221,7 +223,8 @@ class Polynomial(Interp):
         # a reasonable guess.
         n = self._orders[parameter_index]+1
         C = np.zeros((n,n))
-        C[0,0] = parameter.mean()
+        # If initialization failed, we might get here with parameter=None.  Deal with it.
+        C[0,0] = parameter.mean() if parameter is not None else 1.0
         return C
 
     def initialize(self, stars, logger=None):

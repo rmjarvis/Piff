@@ -372,6 +372,13 @@ def test_single():
             print('max diff = ',np.max(np.abs(im.array - star.data.image.array)))
             np.testing.assert_almost_equal(im.array, star.data.image.array)
 
+    # SingleChip doesn't use code paths that hit these functions, but they are officially
+    # required methods for PSF classes, so just check them directly.
+    assert psf.fit_center is True
+    raw1 = psf._getRawProfile(star)
+    raw2 = psf.psf_by_chip[star['chipnum']]._getRawProfile(star)
+    assert raw1 == raw2
+
     # Chipnum is required as a property to use SingleCCDPSF
     star1 = piff.Star.makeTarget(x=x, y=y, wcs=wcs, stamp_size=48, pointing=field_center)
     with np.testing.assert_raises(ValueError):
@@ -513,7 +520,7 @@ def test_parallel():
     with CaptureLog(level=2) as cl:
         psf = piff.process(config, cl.logger)
     assert "Removed 6 stars in initialize" in cl.output
-    assert "No stars.  Cannot find PSF model." in cl.output
+    assert "No stars left to fit.  Cannot find PSF model." in cl.output
     assert "Solutions failed for chipnums: [3]" in cl.output
 
     # Check that errors in the multiprocessing input get properly reported.
@@ -535,7 +542,7 @@ def test_parallel():
     config['verbose'] = 1
     with CaptureLog(level=1) as cl:
         psf = piff.process(config, logger=cl.logger)
-    assert "No stars.  Cannot find PSF model." in cl.output
+    assert "No stars left to fit.  Cannot find PSF model." in cl.output
     assert "Ignoring this failure and continuing on." in cl.output
 
 

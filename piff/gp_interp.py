@@ -19,11 +19,11 @@
 import numpy as np
 import warnings
 import copy
-
+import galsim
 import treegp
 
 from .interp import Interp
-from .star import Star, StarFit
+from .star import Star
 
 class GPInterp(Interp):
     """
@@ -101,6 +101,7 @@ class GPInterp(Interp):
                          [defaulf: 4]
     :param logger:       A logger object for logging debug info. [default: None]
     """
+    _type_name = 'GP'
 
     # treegp currently uses slightly different names for these
     treegp_alias = {
@@ -278,16 +279,13 @@ class GPInterp(Interp):
         gp_y = self._predict(Xstar)
         fitted_stars = []
         for y0, star in zip(gp_y, stars):
-            if star.fit is None:
-                fit = StarFit(y0)
+            if star.fit.params is None:
+                y0_updated = np.zeros(self.nparams)
             else:
-                if star.fit.params is None:
-                    y0_updated = np.zeros(self.nparams)
-                else:
-                    y0_updated = star.fit.params
-                for j in range(self.nparams):
-                    y0_updated[self.rows[j]] = y0[j]
-                fit = star.fit.newParams(y0_updated)
+                y0_updated = star.fit.params
+            for j in range(self.nparams):
+                y0_updated[self.rows[j]] = y0[j]
+            fit = star.fit.newParams(y0_updated)
             fitted_stars.append(Star(star.data, fit))
         return fitted_stars
 
@@ -353,3 +351,14 @@ class GPInterp(Interp):
             gp.initialize(self._X, self._y[:,i], y_err=self._y_err[:,i])
             self.gps.append(gp)
 
+class GaussianProcess(GPInterp):
+    # An alternate name for GPInterp for people who like clearer, more verbose names
+    _type_name = 'GaussianProcess'
+
+class GPInterpDepr(GPInterp):
+    _type_name = 'GPInterp'
+
+    def __init__(self, *args, logger=None, **kwargs):
+        logger = galsim.config.LoggerWrapper(logger)
+        logger.error("WARNING: The name GPInterp is deprecated. Use GP or GaussianProcess instead.")
+        super().__init__(*args, logger=logger, **kwargs)

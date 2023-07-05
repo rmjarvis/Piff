@@ -122,9 +122,10 @@ class CaptureLog(object):
 
 # Context to make it easier to profile bits of the code
 class profile(object):
-    def __init__(self, sortby='tottime', nlines=30):
+    def __init__(self, sortby='tottime', nlines=30, file=None):
         self.sortby = sortby
         self.nlines = nlines
+        self.file = file
 
     def __enter__(self):
         import cProfile, pstats
@@ -135,5 +136,7 @@ class profile(object):
     def __exit__(self, type, value, traceback):
         import pstats
         self.pr.disable()
+        if self.file:
+            self.pr.dump_stats(self.file)
         ps = pstats.Stats(self.pr).sort_stats(self.sortby)
         ps.print_stats(self.nlines)

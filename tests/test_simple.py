@@ -395,6 +395,102 @@ def test_single_image():
     assert 'PSF fit did not converge' in cl.output
 
 @timer
+def test_trust_pos():
+    """Test the option to trust input positions
+    """
+
+    # Make the image
+    image = galsim.Image(2048, 2048, scale=0.26)
+
+    # Where to put the stars.  Include some flagged and not used locations.
+    rng = np.random.default_rng(1234)
+    nstars = 20
+    x_list = rng.uniform(100,1950, nstars)
+    y_list = rng.uniform(100,1950, nstars)
+    print('x = ',x_list)
+    print('y = ',y_list)
+
+    # Draw a Gaussian PSF at each location on the image.
+    sigma = 2.3
+    g1 = 0.23
+    g2 = -0.17
+    psf = galsim.Gaussian(sigma=sigma).shear(g1=g1, g2=g2)
+    for x,y in zip(x_list, y_list):
+        #bounds = galsim.BoundsI(int(x-31), int(x+32), int(y-31), int(y+32))
+        psf.drawImage(image=image, center=(x,y), add_to_image=True)
+
+    # This adds a lot more noise than the above test_simple test did.
+    # The effect of that is that the positions will tend to move around, which will bias the fit.
+    image.addNoise(galsim.GaussianNoise(rng=galsim.BaseDeviate(1234), sigma=1e-3))
+
+    # Write out the image to a file
+    image_file = os.path.join('output','trust_pos_image.fits')
+    image.write(image_file)
+
+    # Write out the catalog to a file
+    dtype = [ ('x','f8'), ('y','f8') ]
+    data = np.empty(len(x_list), dtype=dtype)
+    data['x'] = x_list
+    data['y'] = y_list
+    cat_file = os.path.join('output','trust_pos_cat.fits')
+    fitsio.write(cat_file, data, clobber=True)
+
+    stamp_size = 64
+    config = {
+        'input' : {
+            'image_file_name' : image_file,
+            'cat_file_name' : cat_file,
+            'stamp_size' : stamp_size
+        },
+        'psf' : {
+            'model' : { 'type' : 'Gaussian',
+                        'fastfit': True,
+                        'include_pixel': False},
+            'interp' : { 'type' : 'Mean' },
+        },
+    }
+    psf1 = piff.process(config)
+
+    true_params = (2.3, 0.23, -0.17)
+    for i, star in enumerate(psf1.stars):
+        #print(i, star.fit.params, star.fit.flux, star.fit.center)
+        pos = star.data.image_pos
+        center = star.fit.center
+        assert pos.x == x_list[i]
+        assert pos.y == y_list[i]
+        assert star.fit.center[0] != 0
+        assert star.fit.center[1] != 0
+        assert not star.is_flagged
+        np.testing.assert_allclose(star.fit.params, true_params, atol=0.02)
+        # With Mean interp, all the params are actually identical.
+        np.testing.assert_equal(star.fit.params, psf1.stars[0].fit.params)
+    error1 = np.abs(psf1.stars[0].fit.params - true_params)
+    print('error when letting positions be fit = ',error1)
+
+    # Repeat with trust_pos=True.
+    config['input']['trust_pos'] = 'true'
+    psf2 = piff.process(config)
+
+    for i, star in enumerate(psf2.stars):
+        #print(i, star.data.properties, star.fit.params, star.fit.flux, star.fit.center)
+        pos = star.data.image_pos
+        center = star.fit.center
+        assert pos.x == x_list[i]
+        assert pos.y == y_list[i]
+        assert star.fit.center[0] == 0
+        assert star.fit.center[1] == 0
+        assert not star.is_flagged
+        np.testing.assert_allclose(star.fit.params, true_params, atol=0.02)
+        # With Mean interp, all the params are actually identical.
+        np.testing.assert_equal(star.fit.params, psf2.stars[0].fit.params)
+    error2 = np.abs(psf2.stars[0].fit.params - true_params)
+    print('error when trusting input positions = ',error2)
+
+    # It's not a huge effect here, but the errors are less when you know the positions are right.
+    assert all(error2 < error1)
+
+
+@timer
 def test_invalid_config():
     # Test a few invalid uses of the config parsing.
     if __name__ == '__main__':
@@ -552,6 +648,10 @@ def test_model():
     config = { 'include_pixel': False }
     with np.testing.assert_raises(ValueError):
         model = piff.Model.process(config)
+    # and it must be a valid name
+    config['type'] = 'invalid'
+    with np.testing.assert_raises(ValueError):
+        model = piff.Model.process(config)
 
     # Can't do much with a base Model class
     model = piff.Model()
@@ -563,9 +663,33 @@ def test_model():
     if sys.version_info < (3,): return  # mock only available on python 3
     from unittest import mock
     filename = os.path.join('input','D00240560_r_c01_r2362p01_piff.fits')
-    with mock.patch('piff.util.get_all_subclasses', return_value=[piff.Gaussian]):
+    with mock.patch('piff.Model.valid_model_types', {'Gaussian': piff.Gaussian}):
         with fitsio.FITS(filename,'r') as f:
             np.testing.assert_raises(ValueError, piff.Model.read, f, extname='psf_model')
+
+    # But normally this file can be read...
+    with fitsio.FITS(filename,'r') as f:
+        model = piff.Model.read(f, extname='psf_model')
+        print(model)
+
+    # We don't have any abstract model base classes (as we do for interp for instance),
+    # But check that it works correctly in cases someone does this.
+    class NoModel1(piff.Model):
+        pass
+    assert NoModel1 not in piff.Model.valid_model_types.values()
+    class NoModel2(piff.Model):
+        _type_name = None
+    assert NoModel2 not in piff.Model.valid_model_types.values()
+    class ValidModel1(piff.Model):
+        _type_name = 'valid'
+    assert ValidModel1 in piff.Model.valid_model_types.values()
+    assert ValidModel1 == piff.Model.valid_model_types['valid']
+    with np.testing.assert_raises(ValueError):
+        class ValidModel2(piff.Model):
+            _type_name = 'valid'
+    with np.testing.assert_raises(ValueError):
+        class ValidModel3(ValidModel1):
+            pass
 
 
 @timer
@@ -574,6 +698,10 @@ def test_interp():
     """
     # type is required
     config = { 'order' : 0, }
+    with np.testing.assert_raises(ValueError):
+        interp = piff.Interp.process(config)
+    # and it must be a valid name
+    config['type'] = 'invalid'
     with np.testing.assert_raises(ValueError):
         interp = piff.Interp.process(config)
 
@@ -594,15 +722,46 @@ def test_interp():
     # Mock this by pretending that Mean is the only subclass of Interp.
     if sys.version_info < (3,): return  # mock only available on python 3
     from unittest import mock
-    with mock.patch('piff.util.get_all_subclasses', return_value=[piff.Mean]):
+    with mock.patch('piff.Interp.valid_interp_types', {'Mean': piff.Mean}):
         with fitsio.FITS(filename2,'r') as f:
             np.testing.assert_raises(ValueError, piff.Interp.read, f, extname='psf_interp')
+
+    # But normally this file can be read...
+    with fitsio.FITS(filename2,'r') as f:
+        interp = piff.Interp.read(f, extname='psf_interp')
+        print(interp)
+
+    # BasisInterp is an abstract base class, so it shouldn't be in the list of valid types
+    assert piff.BasisInterp not in piff.Interp.valid_interp_types.values()
+
+    # Check that registering new types works correctly
+    class NoInterp1(piff.Interp):
+        pass
+    assert NoInterp1 not in piff.Interp.valid_interp_types.values()
+    class NoInterp2(piff.Interp):
+        _type_name = None
+    assert NoInterp2 not in piff.Interp.valid_interp_types.values()
+    class ValidInterp1(piff.Interp):
+        _type_name = 'valid'
+    assert ValidInterp1 in piff.Interp.valid_interp_types.values()
+    assert ValidInterp1 == piff.Interp.valid_interp_types['valid']
+    with np.testing.assert_raises(ValueError):
+        class ValidInterp2(piff.Interp):
+            _type_name = 'valid'
+    with np.testing.assert_raises(ValueError):
+        class ValidInterp3(ValidInterp1):
+            pass
 
 
 @timer
 def test_psf():
     """Test PSF base class
     """
+    # type must be a valid name
+    config = {'type': 'invalid'}
+    with np.testing.assert_raises(ValueError):
+        psf = piff.PSF.process(config)
+
     # Need a dummy star for the below calls
     image = galsim.Image(1,1,scale=1)
     stardata = piff.StarData(image, image.true_center)
@@ -617,14 +776,44 @@ def test_psf():
     np.testing.assert_raises(NotImplementedError, psf.drawStarList, [star])
     np.testing.assert_raises(NotImplementedError, psf._drawStar, star)
     np.testing.assert_raises(NotImplementedError, psf._getProfile, star)
+    np.testing.assert_raises(NotImplementedError, psf.single_iteration, [star], None, None)
+    with np.testing.assert_raises(NotImplementedError):
+        psf.fit_center
+
+    # initialize_params doesn't do anything, but works
+    stars, nremove = psf.initialize_params([star], None)
+    assert stars == [star]
+    assert nremove == 0
 
     # Invalid to read a type that isn't a piff.PSF type.
     # Mock this by pretending that SingleChip is the only subclass of PSF.
     if sys.version_info < (3,): return  # mock only available on python 3
     from unittest import mock
     filename = os.path.join('input','D00240560_r_c01_r2362p01_piff.fits')
-    with mock.patch('piff.util.get_all_subclasses', return_value=[piff.SingleChipPSF]):
+    with mock.patch('piff.PSF.valid_psf_types', {'SingleChip': piff.SingleChipPSF}):
         np.testing.assert_raises(ValueError, piff.PSF.read, filename)
+
+    # But normally this file can be read...
+    psf = piff.PSF.read(filename)
+    print(psf)
+
+    # Check that registering new types works correctly
+    class NoPSF1(piff.PSF):
+        pass
+    assert NoPSF1 not in piff.PSF.valid_psf_types.values()
+    class NoPSF2(piff.PSF):
+        _type_name = None
+    assert NoPSF2 not in piff.PSF.valid_psf_types.values()
+    class ValidPSF1(piff.PSF):
+        _type_name = 'valid'
+    assert ValidPSF1 in piff.PSF.valid_psf_types.values()
+    assert ValidPSF1 == piff.PSF.valid_psf_types['valid']
+    with np.testing.assert_raises(ValueError):
+        class ValidPSF2(piff.PSF):
+            _type_name = 'valid'
+    with np.testing.assert_raises(ValueError):
+        class ValidPSF3(ValidPSF1):
+            pass
 
 @timer
 def test_load_images():

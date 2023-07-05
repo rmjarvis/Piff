@@ -20,7 +20,7 @@ import os
 import subprocess
 import fitsio
 
-from piff_test_helper import timer
+from piff_test_helper import timer, CaptureLog
 
 keys = ['focal_x', 'focal_y']
 ntarget = 5
@@ -51,7 +51,7 @@ def generate_data(n_samples=100):
 @timer
 def test_init():
     # make sure we can init the interpolator
-    knn = piff.kNNInterp(keys)
+    knn = piff.KNNInterp(keys)
     assert knn.property_names == keys
 
 @timer
@@ -60,7 +60,7 @@ def test_interp():
     logger = None
     # make sure we can put in the data
     star_list = generate_data()
-    knn = piff.kNNInterp(keys, n_neighbors=1)
+    knn = piff.KNNInterp(keys, n_neighbors=1)
     knn.initialize(star_list, logger=logger)
     knn.solve(star_list, logger=logger)
 
@@ -78,7 +78,7 @@ def test_interp():
 
     # repeat for a star with its starfit removed
     star_predict = star_list_predict[0]
-    star_predict.fit = None
+    star_predict.fit = piff.StarFit(None)
     star_predicted = knn.interpolate(star_predict)
 
     # predicted stars should find their exact partner here, so they have the same data
@@ -90,7 +90,7 @@ def test_interp():
 
 @timer
 def test_config():
-    # Take DES test image, and test doing a psf run with kNN interpolator
+    # Take DES test image, and test doing a psf run with KNN interpolator
     # Now test running it via the config parser
     psf_file = os.path.join('output','knn_psf.fits')
     config = {
@@ -118,7 +118,7 @@ def test_config():
             'model' : { 'type': 'GSObjectModel',
                         'fastfit': True,
                         'gsobj': 'galsim.Gaussian(sigma=1.0)' },
-            'interp' : { 'type': 'kNNInterp',
+            'interp' : { 'type': 'KNN',
                          'keys': ['u', 'v'],
                          'n_neighbors': 115,}
         },
@@ -143,17 +143,31 @@ def test_config():
             test_factor*np.mean([s.fit.params for s in psf.stars], axis=0),
             err_msg="Interpolated parameters show too much variation.")
 
+    # Check alternate config name
+    config['psf']['interp']['type'] = 'KNearestNeighbors'
+    psf1 = piff.process(config)
+    # XXX: Hopefully this "private" attribute will remain stable across sklearn versions...
+    np.testing.assert_array_equal(psf1.interp.knn._fit_X, psf.interp.knn._fit_X)
+
+    # And deprecated name
+    config['psf']['interp']['type'] = 'kNNInterp'
+    with CaptureLog() as cl:
+        psf2 = piff.process(config, cl.logger)
+    assert 'kNNInterp is deprecated' in cl.output
+    np.testing.assert_array_equal(psf2.interp.knn._fit_X, psf.interp.knn._fit_X)
+
+
 @timer
 def test_disk():
     # make sure reading and writing of data works
     star_list = generate_data()
-    knn = piff.kNNInterp(keys, n_neighbors=2)
+    knn = piff.KNNInterp(keys, n_neighbors=2)
     knn.initialize(star_list)
     knn.solve(star_list)
     knn_file = os.path.join('output','knn_interp.fits')
     with fitsio.FITS(knn_file,'rw',clobber=True) as f:
         knn.write(f, 'knn')
-        knn2 = piff.kNNInterp.read(f, 'knn')
+        knn2 = piff.KNNInterp.read(f, 'knn')
     np.testing.assert_array_equal(knn.locations, knn2.locations)
     np.testing.assert_array_equal(knn.targets, knn2.targets)
     np.testing.assert_array_equal(knn.kwargs['keys'], knn2.kwargs['keys'])

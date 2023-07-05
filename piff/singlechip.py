@@ -46,6 +46,8 @@ class SingleChipPSF(PSF):
     :param nproc:       How many multiprocessing processes to use for running multiple
                         chips at once. [default: 1]
     """
+    _type_name = 'SingleChip'
+
     def __init__(self, single_psf, nproc=1):
         self.single_psf = single_psf
         self.nproc = nproc
@@ -69,8 +71,6 @@ class SingleChipPSF(PSF):
 
         :returns: a kwargs dict to pass to the initializer
         """
-        import piff
-
         config_psf = config_psf.copy()  # Don't alter the original dict.
         config_psf.pop('type', None)
         nproc = config_psf.pop('nproc', 1)
@@ -79,7 +79,7 @@ class SingleChipPSF(PSF):
         config_psf['type'] = config_psf.pop('single_type', 'Simple')
 
         # Now the regular PSF process function can process the dict.
-        single_psf = piff.PSF.process(config_psf, logger)
+        single_psf = PSF.process(config_psf, logger)
 
         return { 'single_psf' : single_psf, 'nproc' : nproc }
 
@@ -121,6 +121,16 @@ class SingleChipPSF(PSF):
         # update stars from psf outlier rejection
         self.stars = [ star for chipnum in chipnums for star in self.psf_by_chip[chipnum].stars ]
 
+    @property
+    def fit_center(self):
+        """Whether to fit the center of the star in reflux.
+
+        This is generally set in the model specifications.
+        If all component models includes a shift, then this is False.
+        Otherwise it is True.
+        """
+        return self.single_psf.fit_center
+
     def interpolateStar(self, star):
         """Update the star to have the current interpolated fit parameters according to the
         current PSF model.
@@ -143,6 +153,10 @@ class SingleChipPSF(PSF):
     def _getProfile(self, star):
         chipnum = star['chipnum']
         return self.psf_by_chip[chipnum]._getProfile(star)
+
+    def _getRawProfile(self, star):
+        chipnum = star['chipnum']
+        return self.psf_by_chip[chipnum]._getRawProfile(star)
 
     def _finish_write(self, fits, extname, logger):
         """Finish the writing process with any class-specific steps.

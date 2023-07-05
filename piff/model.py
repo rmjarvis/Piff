@@ -29,6 +29,12 @@ class Model(object):
     This is essentially an abstract base class intended to define the methods that should be
     implemented by any derived class.
     """
+    # This class-level dict will store all the valid model types.
+    # Each subclass should set a cls._type_name, which is the name that should
+    # appear in a config dict.  These will be the keys of valid_model_types.
+    # The values in this dict will be the Model sub-classes.
+    valid_model_types = {}
+
     @classmethod
     def process(cls, config_model, logger=None):
         """Parse the model field of the config dict.
@@ -38,14 +44,16 @@ class Model(object):
 
         :returns: a Model instance
         """
-        import piff
-
+        # Get the class to use for the model
         if 'type' not in config_model:
             raise ValueError("config['model'] has no type field")
 
-        # Get the class to use for the model
-        # Not sure if this is what we'll always want, but it would be simple if we can make it work.
-        model_class = getattr(piff, config_model['type'])
+        model_type = config_model['type']
+        if model_type not in Model.valid_model_types:
+            raise ValueError("type %s is not a valid model type. "%model_type +
+                             "Expecting one of %s"%list(Model.valid_model_types.keys()))
+
+        model_class = Model.valid_model_types[model_type]
 
         # Read any other kwargs in the model field
         kwargs = model_class.parseKwargs(config_model, logger)
@@ -54,6 +62,16 @@ class Model(object):
         model = model_class(**kwargs)
 
         return model
+
+    @classmethod
+    def __init_subclass__(cls):
+        # Classes that don't want to register a type name can either not define _type_name
+        # or set it to None.
+        if hasattr(cls, '_type_name') and cls._type_name is not None:
+            if cls._type_name in Model.valid_model_types:
+                raise ValueError('Model type %s already registered'%cls._type_name +
+                                 'Maybe you subclassed and forgot to set _type_name?')
+            Model.valid_model_types[cls._type_name] = cls
 
     @classmethod
     def parseKwargs(cls, config_model, logger=None):
@@ -71,6 +89,7 @@ class Model(object):
         kwargs = {}
         kwargs.update(config_model)
         kwargs.pop('type', None)
+        kwargs['logger'] = logger
         return kwargs
 
     def initialize(self, star, logger=None):
@@ -106,117 +125,6 @@ class Model(object):
         :returns:      New Star instance with updated fit information
         """
         raise NotImplementedError("Derived classes must define the fit function")
-
-    def reflux(self, star, fit_center=True, logger=None):
-        """Fit the Model to the star's data, varying only the flux (and
-        center, if it is free).  Flux and center are updated in the Star's
-        attributes.  This is a single-step solution if only solving for flux,
-        otherwise an iterative operation.  DOF in the result assume
-        only flux (& center) are free parameters.
-
-        :param star:        A Star instance
-        :param fit_center:  If False, disable any motion of center
-        :param logger:      A logger object for logging debug info. [default: None]
-
-        :returns:           New Star instance, with updated flux, center, chisq, dof
-        """
-        logger = galsim.config.LoggerWrapper(logger)
-        logger.debug("Reflux for star:")
-        logger.debug("    flux = %s",star.fit.flux)
-        logger.debug("    center = %s",star.fit.center)
-        logger.debug("    props = %s",star.data.properties)
-        logger.debug("    image = %s",star.data.image)
-        #logger.debug("    image = %s",star.data.image.array)
-        #logger.debug("    weight = %s",star.data.weight.array)
-        logger.debug("    image center = %s",star.data.image(star.data.image.center))
-        logger.debug("    weight center = %s",star.data.weight(star.data.weight.center))
-
-        # Make sure input is properly normalized
-        self.normalize(star)
-
-        data, weight, u, v = star.data.getDataVector()
-        psf_prof = self.getProfile(star.fit.params)
-        star_prof = psf_prof.shift(star.fit.center) * star.fit.flux
-
-        model_image = star.image.copy()
-        star_prof.drawImage(model_image, method=self._method, center=star.image_pos)
-        model = model_image.array.ravel()
-
-        # Weight by the current model to avoid being influenced by spurious pixels near the edge
-        # of the stamp.
-        # Also by the weight map to avoid bad pixels.
-        W = weight * model
-        WD = W * data
-        WM = W * model
-
-        f_data = np.sum(WD)
-        f_model = np.sum(WM) or 1  # Don't let f_model = 0
-        flux_ratio = f_data / f_model
-        new_flux = star.fit.flux * flux_ratio
-        logger.debug('    new flux = %s', new_flux)
-
-        model *= flux_ratio
-        resid = data - model
-
-        if fit_center and self._centered:
-            # Use finite different to approximate d(model)/duc, d(model)/dvc
-            duv = 1.e-5
-            temp = star.image.copy()
-            center = star.fit.center
-            du_prof = psf_prof.shift(center[0] + duv, center[1]) * new_flux
-            du_prof.drawImage(temp, method=self._method, center=star.image_pos)
-            dmduc = (temp.array.ravel() - model) / duv
-            dv_prof = psf_prof.shift(center[0], center[1] + duv) * new_flux
-            dv_prof.drawImage(temp, method=self._method, center=star.image_pos)
-            dmdvc = (temp.array.ravel() - model) / duv
-
-            # Now construct the design matrix for this minimization
-            #
-            #    A x = b
-            #
-            # where x = [ duc, dvc ]^T and b = resid.
-            #
-            # A[0] = dmduc
-            # A[1] = dmdvc
-            #
-            # Solve: AT A x = AT b
-
-            At = np.vstack((dmduc, dmdvc))
-            Atw = At * np.abs(W)  # weighted least squares
-            AtA = Atw.dot(At.T)
-            Atb = Atw.dot(resid)
-            x = np.linalg.solve(AtA, Atb)
-            logger.debug('    centroid shift = %s,%s', x[0], x[1])
-            duc = x[0]
-            dvc = x[1]
-
-            if self._model_can_be_offset:
-                # In addition to shifting to the best fit center location, also shift
-                # by the centroid of the model itself, so the next next pass through the
-                # fit will be closer to centered.  In practice, this converges pretty quickly.
-                model_cenu = np.sum(WM * u) / f_model - star.fit.center[0]
-                model_cenv = np.sum(WM * v) / f_model - star.fit.center[1]
-                logger.debug('    model centroid = %s,%s', model_cenu, model_cenv)
-                duc += model_cenu
-                dvc += model_cenv
-
-            new_center = (star.fit.center[0] + duc, star.fit.center[1] + dvc)
-            logger.debug('    new center = %s', new_center)
-
-            new_chisq = np.sum((resid-At.T.dot(x))**2 * weight)
-            new_dof = np.count_nonzero(weight) - 3
-        else:
-            new_center = star.fit.center
-            new_chisq = np.sum(resid**2 * weight)
-            new_dof = np.count_nonzero(weight) - 1
-
-        logger.debug("    new_chisq = %s",new_chisq)
-        logger.debug("    new_dof = %s",new_dof)
-
-        return Star(star.data, star.fit.withNew(flux=new_flux,
-                                                center=new_center,
-                                                chisq=new_chisq,
-                                                dof=new_dof))
 
     def draw(self, star, copy_image=True, center=None):
         """Draw the model on the given image.
@@ -255,7 +163,7 @@ class Model(object):
         :param extname:     The name of the extension to write the model information.
         """
         # First write the basic kwargs that works for all Model classes
-        model_type = self.__class__.__name__
+        model_type = self._type_name
         write_kwargs(fits, extname, dict(self.kwargs, type=model_type))
 
         # Now do any class-specific steps.
@@ -285,8 +193,6 @@ class Model(object):
 
         :returns: a model built with a information in the FITS file.
         """
-        import piff
-
         assert extname in fits
         assert 'type' in fits[extname].get_colnames()
         model_type = fits[extname].read()['type']
@@ -298,11 +204,9 @@ class Model(object):
             model_type = model_type[0]
 
         # Check that model_type is a valid Model type.
-        model_classes = piff.util.get_all_subclasses(piff.Model)
-        valid_model_types = dict([ (c.__name__, c) for c in model_classes ])
-        if model_type not in valid_model_types:
+        if model_type not in Model.valid_model_types:
             raise ValueError("model type %s is not a valid Piff Model"%model_type)
-        model_cls = valid_model_types[model_type]
+        model_cls = Model.valid_model_types[model_type]
 
         kwargs = read_kwargs(fits, extname)
         kwargs.pop('type',None)

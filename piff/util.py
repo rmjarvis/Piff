@@ -22,19 +22,6 @@ import sys
 import traceback
 import galsim
 
-# Courtesy of
-# http://stackoverflow.com/questions/3862310/how-can-i-find-all-subclasses-of-a-given-class-in-python
-def get_all_subclasses(cls):
-    """Get all subclasses of an existing class.
-    """
-    all_subclasses = []
-
-    for subclass in cls.__subclasses__():
-        all_subclasses.append(subclass)
-        all_subclasses.extend(get_all_subclasses(subclass))
-
-    return all_subclasses
-
 def ensure_dir(target):
     """Ensure that the directory for a target output file exists.
 
@@ -215,7 +202,7 @@ def _run_multi_helper(func, i, args, kwargs, log_level): # pragma: no cover
 
 
 def run_multi(func, nproc, raise_except, args, logger, kwargs=None):
-    """Run a function possibly in multiprocessing mode.
+    r"""Run a function possibly in multiprocessing mode.
 
     This is basically just doing a Pool.map, but it handles the logger properly (which cannot
     be pickled, so it cannot be passed to the function being run by the workers).
@@ -227,10 +214,10 @@ def run_multi(func, nproc, raise_except, args, logger, kwargs=None):
     :param raise_except: Whether to raise any exceptions that happen in individual jobs.
     :param args:        a list of args for func for each job to run.
     :param logger:      The logger you would pass to func in single-processor mode.
-    :param kwargs:      a list of kwargs for func for each job to run.  May also be a single dict
-                        to use for all jobs. [default: None]
+    :param kwargs:      A list of kwargs dicts for func for each job to run.  May also be a single
+                        dict to use for all jobs. [default: None]
 
-    :returns:   The output of func(\*args[i], \*\*kwargs[i]) for each item in the args, kwargs lists.
+    :returns: The output of func(\*args[i], \*\*kwargs[i]) for each item in the args, kwargs lists.
     """
     from multiprocessing import Pool
     if galsim.__version_info__ >= (2,4):

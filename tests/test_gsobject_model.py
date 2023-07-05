@@ -19,7 +19,7 @@ import numpy as np
 import os
 import fitsio
 
-from piff_test_helper import timer
+from piff_test_helper import timer, CaptureLog
 
 fiducial_kolmogorov = galsim.Kolmogorov(half_light_radius=1.0)
 fiducial_gaussian = galsim.Gaussian(half_light_radius=1.0)
@@ -92,7 +92,14 @@ def test_simple():
         # First try fastfit.
         print('Fast fit')
         model = piff.GSObjectModel(fiducial, fastfit=True, include_pixel=False)
-        fit = model.fit(model.initialize(fiducial_star)).fit
+        psf1 = piff.SimplePSF(model, None)
+        fiducial_star, = psf1.initialize_flux_center([fiducial_star])
+        star = model.fit(model.initialize(fiducial_star))
+
+        # Reflux a couple times to get centroid close.
+        star = psf1.reflux(star)
+        star = psf1.reflux(star)
+        fit = star.fit
 
         print('True scale = ', scale, ', model scale = ', fit.params[0])
         print('True g1 = ', g1, ', model g1 = ', fit.params[1])
@@ -111,7 +118,10 @@ def test_simple():
         # Now try fastfit=False.
         print('Slow fit')
         model = piff.GSObjectModel(fiducial, fastfit=False, include_pixel=False)
-        fit = model.fit(model.initialize(fiducial_star)).fit
+        star = model.fit(model.initialize(fiducial_star))
+        star = psf1.reflux(star)
+        star = psf1.reflux(star)
+        fit = star.fit
 
         print('True scale = ', scale, ', model scale = ', fit.params[0])
         print('True g1 = ', g1, ', model g1 = ', fit.params[1])
@@ -128,7 +138,7 @@ def test_simple():
         # Now test running it via the config parser
         config = {
             'model' : {
-                'type' : 'GSObjectModel',
+                'type' : 'GSObject',
                 'gsobj': repr(fiducial),
                 'include_pixel': False
             }
@@ -138,7 +148,10 @@ def test_simple():
         else:
             logger = piff.config.setup_logger(verbose=1)
         model = piff.Model.process(config['model'], logger)
-        fit = model.fit(model.initialize(fiducial_star)).fit
+        star = model.fit(model.initialize(fiducial_star))
+        star = psf1.reflux(star)
+        star = psf1.reflux(star)
+        fit = star.fit
 
         # Same tests.
         np.testing.assert_allclose(fit.params[0], scale, rtol=1e-6)
@@ -155,6 +168,21 @@ def test_simple():
             roundtrip_model = piff.GSObjectModel.read(f, 'psf_model')
         assert model.__dict__ == roundtrip_model.__dict__
 
+        # Check the deprecated name in config
+        config = {
+            'model' : {
+                'type' : 'GSObjectModel',
+                'gsobj': repr(fiducial),
+                'include_pixel': False
+            }
+        }
+        with CaptureLog() as cl:
+            model = piff.Model.process(config['model'], cl.logger)
+        print(cl.output)
+        assert "The name GSObjectModel is deprecated" in cl.output
+        fit1 = model.fit(model.initialize(fiducial_star)).fit
+        np.testing.assert_array_equal(fit1.params, fit.params)
+
         # Finally, we should also test with pixel convolution included.  This really only makes
         # sense for fastfit=False, since HSM FindAdaptiveMom doesn't account for the pixel shape
         # in its measurements.
@@ -169,14 +197,17 @@ def test_simple():
         stardata = piff.StarData(image, image.true_center)
         fiducial_star = piff.Star(stardata, None)
 
-
         print('Slow fit, pixel convolution included.')
         model = piff.GSObjectModel(fiducial, fastfit=False, include_pixel=True)
         star = model.initialize(fiducial_star)
         star = model.fit(star, fastfit=True)  # Get better results with one round of fastfit.
         # Use a no op convert_func, just to touch that branch in the code.
         convert_func = lambda prof: prof
-        fit = model.fit(star, convert_func=convert_func).fit
+        star = model.fit(star, convert_func=convert_func)
+        star = psf1.reflux(star)
+        star = psf1.reflux(star)
+        star = psf1.reflux(star)
+        fit = star.fit
 
         print('True scale = ', scale, ', model scale = ', fit.params[0])
         print('True g1 = ', g1, ', model g1 = ', fit.params[1])
@@ -188,8 +219,8 @@ def test_simple():
         np.testing.assert_allclose(fit.params[0], scale, rtol=1e-6)
         np.testing.assert_allclose(fit.params[1], g1, rtol=0, atol=1e-6)
         np.testing.assert_allclose(fit.params[2], g2, rtol=0, atol=1e-6)
-        np.testing.assert_allclose(fit.center[0], du, rtol=0, atol=1e-5)
-        np.testing.assert_allclose(fit.center[1], dv, rtol=0, atol=1e-5)
+        np.testing.assert_allclose(fit.center[0], du, rtol=0, atol=2e-5)
+        np.testing.assert_allclose(fit.center[1], dv, rtol=0, atol=2e-5)
 
 
 @timer
@@ -207,16 +238,18 @@ def test_center():
         s = make_data(fiducial, scale, g1, g2, u0, v0, influx, pix_scale=0.5, include_pixel=False)
 
         mod = piff.GSObjectModel(fiducial, include_pixel=False)
+        psf = piff.SimplePSF(mod, None)
         star = mod.initialize(s)
-        print('Flux, ctr after reflux:',star.fit.flux,star.fit.center)
+        star, = psf.initialize_flux_center([star])
+        print('Flux, ctr after initialize:',star.fit.flux,star.fit.center)
         for i in range(3):
             star = mod.fit(star)
-            star = mod.reflux(star)
+            star = psf.reflux(star)
             print('Flux, ctr, chisq after fit {:d}:'.format(i),
                   star.fit.flux, star.fit.center, star.fit.chisq)
-            np.testing.assert_almost_equal(star.fit.flux/influx, 1.0, decimal=8)
-            np.testing.assert_allclose(star.fit.center[0], u0)
-            np.testing.assert_allclose(star.fit.center[1], v0)
+        np.testing.assert_almost_equal(star.fit.flux/influx, 1.0, decimal=8)
+        np.testing.assert_allclose(star.fit.center[0], u0)
+        np.testing.assert_allclose(star.fit.center[1], v0)
 
         # Residual image when done should be dominated by structure off the edge of the fitted
         # region.
@@ -261,11 +294,12 @@ def test_uncentered():
         s = make_data(fiducial, scale, g1, g2, u0, v0, influx, pix_scale=0.5, include_pixel=False)
 
         mod = piff.GSObjectModel(fiducial, include_pixel=False, centered=False)
+        psf = piff.SimplePSF(mod, None)
         star = mod.initialize(s)
         print('Flux, ctr after reflux:',star.fit.flux,star.fit.center)
         for i in range(3):
             star = mod.fit(star)
-            star = mod.reflux(star)
+            star = psf.reflux(star)
             print('Flux, ctr, chisq after fit {:d}:'.format(i),
                   star.fit.flux, star.fit.center, star.fit.chisq)
             np.testing.assert_allclose(star.fit.flux, influx)
@@ -335,6 +369,8 @@ def test_interp():
 
         # Polynomial doesn't need this, but it should work nonetheless.
         interp.initialize(stars)
+        psf = piff.SimplePSF(mod, interp)
+        stars = psf.initialize_flux_center(stars)
 
         # Iterate solution using interpolator
         for iteration in range(niter):
@@ -349,7 +385,7 @@ def test_interp():
             dof = 0
             for i,s in enumerate(stars):
                 s = interp.interpolate(s)
-                s = mod.reflux(s)
+                s = psf.reflux(s)
                 chisq += s.fit.chisq
                 dof += s.fit.dof
                 stars[i] = s
@@ -357,7 +393,7 @@ def test_interp():
 
         # Now use the interpolator to produce a noiseless rendering
         s1 = interp.interpolate(s0)
-        s1 = mod.reflux(s1)
+        s1 = psf.reflux(s1)
         print('Flux, ctr, chisq after interpolation: ',s1.fit.flux, s1.fit.center, s1.fit.chisq)
         np.testing.assert_almost_equal(s1.fit.flux/influx, 1.0, decimal=3)
 
@@ -381,6 +417,7 @@ def test_missing():
         print("fiducial = ", fiducial)
         print()
         mod = piff.GSObjectModel(fiducial, include_pixel=False)
+        psf = piff.SimplePSF(mod, None)
         g1 = g2 = u0 = v0 = 0.0
 
         # Draw stars on a 2d grid of "focal plane" with 0<=u,v<=1
@@ -399,7 +436,7 @@ def test_missing():
                 bad = np_rng.rand(*s.image.array.shape) < 0.1
                 s.weight.array[bad] = 0.
                 s.image.array[bad] = -999.
-                s = mod.reflux(s, fit_center=False) # Start with a sensible flux
+                s = psf.reflux(s) # Start with a sensible flux
                 stars.append(s)
 
         # Also store away a noiseless copy of the PSF, origin of focal plane
@@ -408,6 +445,8 @@ def test_missing():
 
         interp = piff.Polynomial(order=0)
         interp.initialize(stars)
+        psf = piff.SimplePSF(mod, interp)
+        stars = psf.initialize_flux_center(stars)
 
         oldchisq = 0.
         # Iterate solution using interpolator
@@ -423,7 +462,7 @@ def test_missing():
             dof = 0
             for i,s in enumerate(stars):
                 s = interp.interpolate(s)
-                s = mod.reflux(s)
+                s = psf.reflux(s)
                 chisq += s.fit.chisq
                 dof += s.fit.dof
                 stars[i] = s
@@ -436,7 +475,7 @@ def test_missing():
 
         # Now use the interpolator to produce a noiseless rendering
         s1 = interp.interpolate(s0)
-        s1 = mod.reflux(s1)
+        s1 = psf.reflux(s1)
         print('Flux, ctr after interpolation: ',s1.fit.flux, s1.fit.center, s1.fit.chisq)
         # Less than 2 dp of accuracy here!
         np.testing.assert_almost_equal(s1.fit.flux/influx, 1.0, decimal=3)
@@ -464,6 +503,8 @@ def test_gradient():
 
         # Interpolator will be linear
         interp = piff.Polynomial(order=1)
+
+        psf = piff.SimplePSF(mod, interp)
 
         # Draw stars on a 2d grid of "focal plane" with 0<=u,v<=1
         positions = np.linspace(0.,1.,4)
@@ -493,6 +534,7 @@ def test_gradient():
 
         # Polynomial doesn't need this, but it should work nonetheless.
         interp.initialize(stars)
+        stars = psf.initialize_flux_center(stars)
 
         oldchisq = 0.
         # Iterate solution using interpolator
@@ -508,7 +550,7 @@ def test_gradient():
             dof = 0
             for i,s in enumerate(stars):
                 s = interp.interpolate(s)
-                s = mod.reflux(s)
+                s = psf.reflux(s)
                 chisq += s.fit.chisq
                 dof += s.fit.dof
                 stars[i] = s
@@ -524,7 +566,7 @@ def test_gradient():
 
         # Now use the interpolator to produce a noiseless rendering
         s1 = interp.interpolate(s0)
-        s1 = mod.reflux(s1)
+        s1 = psf.reflux(s1)
         print('Flux, ctr, chisq after interpolation: ',s1.fit.flux, s1.fit.center, s1.fit.chisq)
         np.testing.assert_almost_equal(s1.fit.flux/influx, 1.0, decimal=2)
 
@@ -551,6 +593,8 @@ def test_gradient_center():
 
         # Interpolator will be linear
         interp = piff.Polynomial(order=1)
+
+        psf = piff.SimplePSF(mod, interp)
 
         # Draw stars on a 2d grid of "focal plane" with 0<=u,v<=1
         positions = np.linspace(0.,1.,4)
@@ -580,6 +624,7 @@ def test_gradient_center():
 
         # Polynomial doesn't need this, but it should work nonetheless.
         interp.initialize(stars)
+        stars = psf.initialize_flux_center(stars)
 
         oldchisq = 0.
         # Iterate solution using interpolator
@@ -595,7 +640,7 @@ def test_gradient_center():
             dof = 0
             for i,s in enumerate(stars):
                 s = interp.interpolate(s)
-                s = mod.reflux(s)
+                s = psf.reflux(s)
                 chisq += s.fit.chisq
                 dof += s.fit.dof
                 stars[i] = s
@@ -611,7 +656,7 @@ def test_gradient_center():
 
         # Now use the interpolator to produce a noiseless rendering
         s1 = interp.interpolate(s0)
-        s1 = mod.reflux(s1)
+        s1 = psf.reflux(s1)
         print('Flux, ctr, chisq after interpolation: ',s1.fit.flux, s1.fit.center, s1.fit.chisq)
         # Less than 2 dp of accuracy here!
         np.testing.assert_almost_equal(s1.fit.flux/influx, 1.0, decimal=2)
@@ -662,10 +707,14 @@ def test_direct():
         stardata = piff.StarData(image, image.true_center)
         star = piff.Star(stardata, None)
         star = model.initialize(star)
+        psf = piff.SimplePSF(model, None)
+        star, = psf.initialize_flux_center([star])
 
         # First try fastfit.
         print('Fast fit')
-        fit = model.fit(star).fit
+        star = model.fit(star)
+        star = psf.reflux(star)
+        fit = star.fit
 
         print('True scale = ', scale, ', model scale = ', fit.params[0])
         print('True g1 = ', g1, ', model g1 = ', fit.params[1])
@@ -715,9 +764,14 @@ def test_direct():
         stardata = piff.StarData(image, image.true_center)
         star = piff.Star(stardata, None)
         star = model.initialize(star)
+        psf = piff.SimplePSF(model, None)
+        star, = psf.initialize_flux_center([star])
 
         print('Slow fit')
-        fit = model.fit(star).fit
+        star = model.fit(star)
+        psf = piff.SimplePSF(model, None)
+        star = psf.reflux(star)
+        fit = star.fit
 
         print('True scale = ', scale, ', model scale = ', fit.params[0])
         print('True g1 = ', g1, ', model g1 = ', fit.params[1])
@@ -858,6 +912,13 @@ def test_fail():
     star3 = piff.Star(star2.data, star3.fit)
     with np.testing.assert_raises(RuntimeError):
         model1.fit(star3)
+    psf = piff.SimplePSF(model1, piff.Mean())
+    with CaptureLog() as cl:
+        psf.initialize_params([star3], logger=cl.logger)
+        with np.testing.assert_raises(RuntimeError):
+            # Raises an error that all stars were flagged
+            psf.single_iteration([star3], logger=cl.logger, convert_func=None)
+    assert "Failed fitting star" in cl.output
 
     # This is contrived to hit the fit failure for the reference.
     # I'm not sure what realistic use case would actually hit it, but at least it's
@@ -865,17 +926,36 @@ def test_fail():
     model2 = piff.GSObjectModel(galsim.InterpolatedImage(noisy_image), fastfit=True)
     with np.testing.assert_raises(RuntimeError):
         model2.initialize(star1)
+    psf = piff.SimplePSF(model2, piff.Mean())
+    with CaptureLog() as cl:
+        stars, nremoved = psf.initialize_params([star1], logger=cl.logger)
+    assert "Failed initializing star" in cl.output
+    assert stars[0].is_flagged
+    assert nremoved == 1
 
+    # The easiest way to make least_squares_fit fail is to give it extra scipy_kwargs
+    # that don't let it finish converging.
     model3 = piff.Moffat(fastfit=False, beta=2.5, scipy_kwargs={'max_nfev':10})
     with np.testing.assert_raises(RuntimeError):
         model3.initialize(star2)
+    star2.fit.params = star3.fit.params.copy()  # Make sure params are setup correctly.
     with np.testing.assert_raises(RuntimeError):
-        model3.fit(star2).fit
+        model3.fit(star2)
     star3 = model3.initialize(star1)
     star3 = model3.fit(star3)
     star3 = piff.Star(star2.data, star3.fit)
     with np.testing.assert_raises(RuntimeError):
         model3.fit(star3)
+
+    # reflux is harder to make fail.  Rather than try something even more contrived,
+    # just mock np.linalg.solve to simulate the case that AtA ends up singular.
+    from unittest import mock
+    with mock.patch('numpy.linalg.solve', side_effect=np.linalg.LinAlgError) as raising_solve:
+        with CaptureLog(3) as cl:
+            stars, nremoved = psf.reflux_stars([star1], logger=cl.logger)
+    assert "Failed trying to reflux star" in cl.output
+    assert nremoved == 1
+    assert stars[0].is_flagged
 
 
 if __name__ == '__main__':

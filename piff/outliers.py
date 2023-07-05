@@ -30,6 +30,12 @@ class Outliers(object):
     This is essentially an abstract base class intended to define the methods that should be
     implemented by any derived class.
     """
+    # This class-level dict will store all the valid outlier types.
+    # Each subclass should set a cls._type_name, which is the name that should
+    # appear in a config dict.  These will be the keys of valid_outliers_types.
+    # The values in this dict will be the Outliers sub-classes.
+    valid_outliers_types = {}
+
     @classmethod
     def process(cls, config_outliers, logger=None):
         """Parse the outliers field of the config dict.
@@ -39,14 +45,16 @@ class Outliers(object):
 
         :returns: an Outliers instance
         """
-        import piff
-
+        # Get the class to use for the outliers
         if 'type' not in config_outliers:
             raise ValueError("config['outliers'] has no type field")
 
-        # Get the class to use for the outliers
-        # Not sure if this is what we'll always want, but it would be simple if we can make it work.
-        outliers_class = getattr(piff, config_outliers['type'] + 'Outliers')
+        outliers_type = config_outliers['type']
+        if outliers_type not in Outliers.valid_outliers_types:
+            raise ValueError("type %s is not a valid model type. "%outliers_type +
+                             "Expecting one of %s"%list(Outliers.valid_outliers_types.keys()))
+
+        outliers_class = Outliers.valid_outliers_types[outliers_type]
 
         # Read any other kwargs in the outliers field
         kwargs = outliers_class.parseKwargs(config_outliers, logger)
@@ -55,6 +63,14 @@ class Outliers(object):
         outliers = outliers_class(**kwargs)
 
         return outliers
+
+    @classmethod
+    def __init_subclass__(cls):
+        if hasattr(cls, '_type_name') and cls._type_name is not None:
+            if cls._type_name in Outliers.valid_outliers_types:
+                raise ValueError('Outliers type %s already registered'%cls._type_name +
+                                 'Maybe you subclassed and forgot to set _type_name?')
+            Outliers.valid_outliers_types[cls._type_name] = cls
 
     @classmethod
     def parseKwargs(cls, config_outliers, logger=None):
@@ -72,6 +88,7 @@ class Outliers(object):
         kwargs = {}
         kwargs.update(config_outliers)
         kwargs.pop('type',None)
+        kwargs['logger'] = logger
         return kwargs
 
     def write(self, fits, extname):
@@ -81,7 +98,7 @@ class Outliers(object):
         :param extname:     The name of the extension to write the outliers information.
         """
         # First write the basic kwargs that works for all Outliers classes
-        outliers_type = self.__class__.__name__
+        outliers_type = self._type_name
         write_kwargs(fits, extname, dict(self.kwargs, type=outliers_type))
 
         # Now do any class-specific steps.
@@ -108,8 +125,6 @@ class Outliers(object):
 
         :returns: an Outliers handler
         """
-        import piff
-
         assert extname in fits
         assert 'type' in fits[extname].get_colnames()
         outliers_type = fits[extname].read()['type']
@@ -120,12 +135,15 @@ class Outliers(object):
             # fitsio 1.0 returns strings
             outliers_type = outliers_type[0]
 
+        # Old output files had the full name.  Fix it if necessary.
+        if (outliers_type.endswith('Outliers')
+                and outliers_type not in Outliers.valid_outliers_types):
+            outliers_type = outliers_type[:-len('Outliers')]
+
         # Check that outliers_type is a valid Outliers type.
-        outliers_classes = piff.util.get_all_subclasses(piff.Outliers)
-        valid_outliers_types = dict([ (c.__name__, c) for c in outliers_classes ])
-        if outliers_type not in valid_outliers_types:
+        if outliers_type not in Outliers.valid_outliers_types:
             raise ValueError("outliers type %s is not a valid Piff Outliers"%outliers_type)
-        outliers_cls = valid_outliers_types[outliers_type]
+        outliers_cls = Outliers.valid_outliers_types[outliers_type]
 
         kwargs = read_kwargs(fits, extname)
         kwargs.pop('type',None)
@@ -156,7 +174,7 @@ class MADOutliers(Outliers):  # pragma: no cover  (This isn't functional yet.)
 
     where nmad is a parameter specified by the user.
 
-    The user can specify this parameter in one of two ways.  
+    The user can specify this parameter in one of two ways.
 
         1. The user can specify nmad directly.
         2. The user can specify nsigma, in which case nmad = sqrt(pi/2) nsigma, the equivalent
@@ -168,8 +186,11 @@ class MADOutliers(Outliers):  # pragma: no cover  (This isn't functional yet.)
                         something is declared an outlier.
     :param nsigma:      The number of sigma equivalent if the underlying distribution is
                         Gaussian.
+    :param logger:      A logger object for logging debug info. [default: None]
     """
-    def __init__(self, nmad=None, nsigma=None):
+    _type_name = 'MAD'
+
+    def __init__(self, nmad=None, nsigma=None, logger=None):
         if nmad is None and nsigma is None:
             raise TypeError("Either nmad or nsigma is required")
         if nsigma is not None:
@@ -209,11 +230,12 @@ class ChisqOutliers(Outliers):
 
     Exactly one of thresh, ndof, nsigma, prob must be provided.
 
-    There is an option to include reserve stars in the outlier rejection, which is enabled
-    by setting ``include_reserve=True``.  This is probably not a good idea normally.
-    Reserve stars are often preferentially targeted by the outlier removal, which somewhat
-    lessens their case as fair test points for diagnostics.  However, it is still an option
-    in case you want to use it.
+    .. note::
+
+        Reserve stars do not count toward max_remove when flagging outliers.  Any reserve star
+        that is flagged as an outlier still shows up in the output file, but has flag_psf=1.
+        You can decide whether or not you want to include it in any diagnostic tests you perform
+        using the reserve stars.
 
     :param thresh:          The threshold in chisq above which an object is declared an outlier.
     :param ndof:            The threshold as a multiple of the model's dof.
@@ -225,11 +247,12 @@ class ChisqOutliers(Outliers):
                             is a float < 1.0, then this is interpreted as a maximum fraction of
                             stars to remove.  e.g. 0.01 will remove at most 1% of the stars.
                             [default: None]
-    :param include_reserve: Whether to include reserve stars as potential stars to be
-                            removed as outliers. [default: False]
+    :param logger:          A logger object for logging debug info. [default: None]
     """
+    _type_name = 'Chisq'
+
     def __init__(self, thresh=None, ndof=None, prob=None, nsigma=None, max_remove=None,
-                 include_reserve=False):
+                 include_reserve=None, logger=None):
         if all( (thresh is None, ndof is None, prob is None, nsigma is None) ):
             raise TypeError("One of thresh, ndof, prob, or nsigma is required.")
         if thresh is not None and any( (ndof is not None, prob is not None, nsigma is not None) ):
@@ -238,6 +261,9 @@ class ChisqOutliers(Outliers):
             raise TypeError("Only one of thresh, ndof, prob, or nsigma may be given.")
         if prob is not None and nsigma is not None:
             raise TypeError("Only one of thresh, ndof, prob, or nsigma may be given.")
+        if include_reserve is not None:
+            logger = galsim.config.LoggerWrapper(logger)
+            logger.error("WARNING: include_reserve is no longer used.")
 
         # The only one of these we can convert now is nsigma, which we can convert into prob.
         # Going from either prob or ndof to thresh requires knowledge of dof.
@@ -248,14 +274,12 @@ class ChisqOutliers(Outliers):
         self.ndof = ndof
         self.prob = prob
         self.max_remove = max_remove
-        self.include_reserve = include_reserve
 
         self.kwargs = {
             'thresh' : thresh,
             'ndof' : ndof,
             'prob' : prob,
             'max_remove' : max_remove,
-            'include_reserve' : include_reserve,
         }
 
     def _get_thresh(self, dof):
@@ -265,50 +289,56 @@ class ChisqOutliers(Outliers):
             return self.ndof * dof
         else:
             return chi2.isf(self.prob, dof)
-        
+
     def removeOutliers(self, stars, logger=None):
         """Remove outliers from a list of stars based on their chisq values.
 
         :param stars:       A list of Star instances
         :param logger:      A logger object for logging debug info. [default: None]
 
-        :returns: stars, nremoved   A new list of stars without outliers, and how many outliers
-                                    were removed.
+        :returns: stars, nremoved   A new list of stars with outliers flagged, and how many outliers
+                                    were flagged.
         """
         logger = galsim.config.LoggerWrapper(logger)
 
-        if self.include_reserve:
-            use_stars = stars
-        else:
-            use_stars = [ s for s in stars if not s.is_reserve ]
+        # First figure out the threshold we actually want to use given max_remove.
 
+        # These are the only stars we want to use to figure out the threshold
+        # But note that we apply the threshold to everything eventually.
+        use_stars = [star for star in stars if not star.is_flagged and not star.is_reserve]
         nstars = len(use_stars)
-        logger.debug("Checking %d stars for outliers", nstars)
+        logger.info("Checking %d stars for outliers", nstars)
 
-        chisq = np.array([ s.fit.chisq for s in use_stars ])
-        dof = np.array([ s.fit.dof for s in use_stars ])
+        chisq = np.array([s.fit.chisq for s in use_stars])
+        dof = np.array([s.fit.dof for s in use_stars])
 
         # Scale up threshold by global chisq/dof.
         factor = np.sum(chisq) / np.sum(dof)
         if factor < 1: factor = 1
 
-        thresh = np.array([ self._get_thresh(d) for d in dof ]) * factor
+        thresh = np.array([self._get_thresh(d) for d in dof]) * factor
 
         if np.all(dof == dof[0]):
-            logger.debug("dof = %f, thresh = %f * %f = %f",
+            logger.info("dof = %f, thresh = %f * %f = %f",
                          dof[0], self._get_thresh(dof[0]), factor, thresh[0])
         else:
             min_dof = np.min(dof)
             max_dof = np.max(dof)
             min_thresh = self._get_thresh(min_dof)
             max_thresh = self._get_thresh(max_dof)
-            logger.debug("Minimum dof = %d with thresh = %f * %f = %f",
+            logger.info("Minimum dof = %d with thresh = %f * %f = %f",
                          min_dof, min_thresh, factor, min_thresh*factor)
-            logger.debug("Maximum dof = %d with thresh = %f * %f = %f",
+            logger.info("Maximum dof = %d with thresh = %f * %f = %f",
                          max_dof, max_thresh, factor, max_thresh*factor)
 
         nremoved = np.sum(~(chisq <= thresh))  # Write it as not chisq <= thresh in case of nans.
+
         if nremoved == 0:
+            # Flag any reserve stars that need it.
+            stars = [s.flag_if(s.is_reserve
+                               and not(s.fit.chisq <= self._get_thresh(s.fit.dof) * factor)
+                              )
+                     for s in stars]
             return stars, 0
 
         logger.info("Found %d stars with chisq > thresh", nremoved)
@@ -316,15 +346,20 @@ class ChisqOutliers(Outliers):
         # Update max_remove if necessary
         max_remove = self.max_remove
         if max_remove is not None and 0 < max_remove < 1:
-            max_remove = int(math.ceil(max_remove * len(stars)))
+            max_remove = int(math.ceil(max_remove * len(use_stars)))
+
+        # Remake the chisq, etc. with all the stars now.
+        all_chisq = np.array([s.fit.chisq for s in stars])
+        all_dof = np.array([s.fit.dof for s in stars])
+        all_thresh = np.array([self._get_thresh(d) for d in all_dof]) * factor
+        good = all_chisq <= all_thresh
 
         if max_remove is None or nremoved <= max_remove:
-            good = chisq <= thresh
-            good_stars = [ s for g, s in zip(good, use_stars) if g ]
+            stars = [s.flag_if(not g) for s,g in zip(stars, good)]
         else:
             # Since the thresholds are not necessarily all equal, this might be tricky to
             # figure out which ones should be removed.
-            # e.g. if max_remove == 1 and we have items with 
+            # e.g. if max_remove == 1 and we have items with
             #    chisq = 20, thresh = 15
             #    chisq = 40, thresh = 32
             # which one should we remove?
@@ -334,17 +369,12 @@ class ChisqOutliers(Outliers):
             diff = chisq - thresh
             new_thresh_index = np.argpartition(diff, -nremoved)[-nremoved]
             new_thresh = diff[new_thresh_index]
-            good = diff < new_thresh
-            good_stars = [ s for g, s in zip(good, use_stars) if g ]
+            all_diff = all_chisq - all_thresh
+            good = all_diff < new_thresh
+            stars = [s.flag_if(not g) for s,g in zip(stars, good)]
 
-        # Add back the reserve stars if we aren't including them in the cut.
-        if not self.include_reserve:
-            good_stars += [ s for s in stars if s.is_reserve ]
+        logger.debug("chisq = %s",all_chisq[~good])
+        logger.debug("thresh = %s",all_thresh[~good])
+        logger.debug("flux = %s",[s.flux for s,g in zip(stars,good) if not g])
 
-        logger.debug("chisq = %s",chisq[~(chisq <= thresh)])
-        logger.debug("thresh = %s",thresh[~(chisq <= thresh)])
-        logger.debug("flux = %s",[s.flux for g,s in zip(good,stars) if not g])
-
-        assert nremoved == len(stars) - len(good_stars)
-        return good_stars, nremoved
-
+        return stars, nremoved

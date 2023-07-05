@@ -29,6 +29,8 @@ class SizeMagStats(Stats):
     :param zeropoint:       Zeropoint to use = the magnitude of flux=1. [default: 30]
     :param logger:          A logger object for logging debug info. [default: None]
     """
+    _type_name = 'SizeMag'
+
     def __init__(self, file_name=None, zeropoint=30, logger=None):
         self.file_name = file_name
         self.zeropoint = zeropoint
@@ -176,6 +178,8 @@ class SmallBrightSelect(Select):
                         (Normally the 'select' field in the overall configuration dict).
     :param logger:      A logger object for logging debug info. [default: None]
     """
+    _type_name = 'SmallBright'
+
     def __init__(self, config, logger=None):
         super(SmallBrightSelect, self).__init__(config, logger)
 
@@ -364,6 +368,8 @@ class SizeMagSelect(Select):
                         (Normally the 'select' field in the overall configuration dict)
     :param logger:      A logger object for logging debug info. [default: None]
     """
+    _type_name = 'SizeMag'
+
     def __init__(self, config, logger=None):
         super(SizeMagSelect, self).__init__(config, logger)
 

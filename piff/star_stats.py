@@ -44,6 +44,8 @@ class StarStats(Stats):
     :param file_name:       Name of the file to output to. [default: None]
     :param logger:          A logger object for logging debug info. [default: None]
     """
+    _type_name = 'StarImages'
+
     def __init__(self, nplot=10, adjust_stars=False, file_name=None, logger=None):
         self.nplot = nplot
         self.file_name = file_name
@@ -68,61 +70,11 @@ class StarStats(Stats):
         for index in self.indices:
             star = stars[index]
             if self.adjust_stars:
-                star = self.fit_star(star, psf=psf, logger=logger)
+                # Do 2 passes, since we sometimes start pretty far from the right values.
+                star = psf.reflux(star, logger=logger)
+                star = psf.reflux(star, logger=logger)
             self.stars.append(star)
         self.models = psf.drawStarList(self.stars)
-
-    def fit_star(self, star, psf, logger=None):
-        """Adjust star.fit.flux and star.fit.center
-
-        :param star:        Star we want to adjust
-        :param psf:         PSF with which we adjust
-        :param logger:      A logger object for logging debug info. [default: None]
-
-        :returns: Star with modified fit and center
-        """
-        import scipy
-        # put in initial guesses for flux, du, dv if they exist
-        flux = star.fit.flux
-        du, dv = star.fit.center
-        params = np.array([flux, du, dv])
-
-        results = scipy.optimize.least_squares(
-            fun = self._fit_residual,
-            x0 = params,
-            args=(star, psf, logger,),
-            method='lm', ftol=1e-8, diff_step=1.e-4,
-            max_nfev=500)
-
-        # report results
-        logger.debug('Adjusted Star Fit Results:')
-        logger.debug(results)
-
-        # create new star with new fit
-        flux = results.x[0]
-        du = results.x[1]
-        dv = results.x[2]
-        center = (du, dv)
-        # also update the chisq, but keep the rest of the parameters from model fit
-        chisq = results.cost*2  # Their cost is basically chisq / 2
-        star_fit = Star(star.data, star.fit.withNew(flux=flux, center=center, chisq=chisq))
-
-        return star_fit
-
-    def _fit_residual(self, params, star, psf, logger=None):
-        # modify star's fit values
-        flux, du, dv = params
-        star.fit.flux = flux
-        star.fit.center = (du, dv)
-
-        # draw star
-        image_model = psf.drawStar(star).image
-
-        # get chi
-        image, weight, image_pos = star.data.getImage()
-        chi = (np.sqrt(weight.array) * (image_model.array - image.array)).flatten()
-
-        return chi
 
     def plot(self, logger=None, **kwargs):
         r"""Make the plots.
@@ -177,3 +129,11 @@ class StarStats(Stats):
             fig.colorbar(im, ax=axs[ii][jj+2])
 
         return fig, axs
+
+class StarStatsDepr(StarStats):
+    _type_name = 'Star'
+
+    def __init__(self, *args, logger=None, **kwargs):
+        logger = galsim.config.LoggerWrapper(logger)
+        logger.error("WARNING: The name Star is deprecated. Use StarImages instead.")
+        super().__init__(*args, logger=logger, **kwargs)
