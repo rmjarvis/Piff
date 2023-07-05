@@ -12,22 +12,11 @@
 #    this list of conditions and the disclaimer given in the documentation
 #    and/or other materials provided with the distribution.
 
-from __future__ import print_function
-import galsim
 import numpy as np
 import pickle
 import piff
-import fitsio
-import os
-import warnings
-import coord
-import pixmappy
-import galsim_extra
-import pdb
+import time
 
-from piff_test_helper import get_script_name, timer, CaptureLog
-
-@timer
 def get_stars(config_file,variables,verbose_level=1):
 
     # read config file
@@ -65,7 +54,6 @@ def read_stars(star_file):
         pointing = None
     return stars,wcs,pointing
 
-@timer
 def fit_optatmo(config_file,variables,stars,wcs=None,pointing=None,verbose_level=1):
     """
     This test fits stars with optatmo_psf
@@ -96,17 +84,25 @@ if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('config_file',type=str,help="Configuration Filename")
-    parser.add_argument('variables',type=str,nargs='*',help="add options to configuration",default='')
-    parser.add_argument('-i', '--input_file', dest='input_file',type=str,help="Input Filename",default='None')
-    parser.add_argument('-o', '--output_file', dest='output_file',type=str,help="Output Filename",default='optatmo_fit.pkl')
+    parser.add_argument('config_file', type=str, help="Configuration Filename")
+    parser.add_argument('variables', type=str, nargs='*',
+                        help="add options to configuration", default='')
+    parser.add_argument('-i', '--input_file', dest='input_file', type=str,
+                        help="Input Filename",default='mkimage.pkl')
+    parser.add_argument('-o', '--output_file', dest='output_file', type=str,
+                        help="Output Filename", default='optatmo_fit.pkl')
     options = parser.parse_args()
     kwargs = vars(options)
 
-    if options.input_file=='None':
-        stars,wcs,pointing = get_stars(options.config_file,options.variables)
+    t0 = time.time()
+    if options.input_file=="None":
+        stars,wcs,pointing = get_stars(options.config_file)
     else:
         stars,wcs,pointing = read_stars(options.input_file)
+    t1 = time.time()
+    print('Time to get stars = ',t1-t0)
 
     outdict = fit_optatmo(options.config_file,options.variables,stars,wcs,pointing)
+    t2 = time.time()
+    print('Time to fit optatmo solution = ',t2-t1)
     pickle.dump(outdict,open(options.output_file,'wb'))

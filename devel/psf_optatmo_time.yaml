@@ -1,8 +1,5 @@
 # Config file for optatmo_psf testing
 
-modules:
-   - galsim_extra
-
 output:
   file_name: psf_optatmo.piff
 
