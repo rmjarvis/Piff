@@ -30,15 +30,13 @@ def _r0_500(wavelength, L0, target_seeing):
 
 def make_atmosphere(airmass,raw_seeing,wavelength,rng,L0_input=None,kcrit=0.2,screen_size=819.2,screen_scale=0.1,nproc=6,verbose=False):
     """
-    Parameters
+    Makes a Galsim Atmosphere class 
     ----------
-    airmass : float
-    raw_seeing : galsim.Angle
-        Seeing at 500nm at zenith
-    wavelength : float
-        In nanometers
-    rng : numpy.random.Generator
-    L0_input : input L0 value [meters]
+    :param airmass: Value of airmass
+    :param raw_seeing: Seeing at 500nm at zenith, with galsim.Angle units
+    :param wavelength: Value in nm
+    :param rng: Galsim random number generator
+    :param L0_input: input L0 value in meters [default: None]
     
     Returns
     -------
@@ -51,11 +49,8 @@ def make_atmosphere(airmass,raw_seeing,wavelength,rng,L0_input=None,kcrit=0.2,sc
         Outer scale in meters    
     """
 
-    seed = rng.bit_generator.random_raw() % 2**63
-    print(seed)
-    gsrng = galsim.BaseDeviate(seed)
-    ud = galsim.UniformDeviate(gsrng)
-    gd = galsim.GaussianDeviate(gsrng)
+    ud = galsim.UniformDeviate(rng)
+    gd = galsim.GaussianDeviate(rng)
 
     target_FWHM = (
         raw_seeing/galsim.arcsec *
@@ -99,9 +94,9 @@ def make_atmosphere(airmass,raw_seeing,wavelength,rng,L0_input=None,kcrit=0.2,sc
 
     # Uniformly draw layer speeds between 0 and max_speed.
     max_speed = 20.0
-    speeds = rng.uniform(0, max_speed, 6)
+    speeds = rng.np.uniform(0, max_speed, 6)
     # Isotropically draw directions.
-    directions = [rng.uniform(0, 360)*galsim.degrees for _ in range(6)]
+    directions = [rng.np.uniform(0, 360)*galsim.degrees for _ in range(6)]
     print("speeds, directions = ",speeds,directions)
 
     atm_kwargs = dict(
@@ -111,7 +106,7 @@ def make_atmosphere(airmass,raw_seeing,wavelength,rng,L0_input=None,kcrit=0.2,sc
         direction=directions,
         altitude=altitudes,
         r0_weights=weights,
-        rng=gsrng,
+        rng=rng,
         screen_size=screen_size,
         screen_scale=screen_scale
     )

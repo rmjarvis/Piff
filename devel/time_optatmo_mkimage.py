@@ -249,7 +249,7 @@ if __name__ == '__main__':
     parser.add_argument('-s', '--seed', dest='seed', type=int, help="seed", default=12345)
     parser.add_argument('-n', '--nstars', dest='nstars', type=int, help="nstars", default=800)
     parser.add_argument('-o', '--optics_type', dest='optics_type', type=str,
-                        help="optics_type Fast,Nomninal", default='Fast')
+                        help="optics_type Fast,Nominal", default='Fast')
     parser.add_argument('-a', '--atmo_type', dest='atmo_type', type=str,
                         help="atmo_type None,RBF,Galsim", default='None')
 
