@@ -331,8 +331,13 @@ class GSObjectModel(Model):
         if convert_func is not None:
             prof = convert_func(prof)
 
-        prof.drawImage(model_image, method=self._method, center=star.image_pos)
-        chisq = np.sum(star.weight.array * (star.image.array - model_image.array)**2)
+        try:
+            prof.drawImage(model_image, method=self._method, center=star.image_pos)
+        except galsim.GalSimError:
+            # If we get the exception here, then set a large chisq, so it gets outlier rejected.
+            chisq = 1.e300
+        else:
+            chisq = np.sum(star.weight.array * (star.image.array - model_image.array)**2)
         # Don't subtract number of parameters from dof, since we'll be interpolating, so
         # these parameters don't really apply to each star separately.
         # After refluxing, we may drop this by 1 or 3 if adjusting flux and/or centroid.

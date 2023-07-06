@@ -1121,6 +1121,21 @@ def test_fail():
     assert nremoved == 1
     assert stars[0].is_flagged
 
+    # There is a check for GalSim errors.  The easiest way to make that hit is to
+    # use a gsobj with very low maximum_fft_size.
+    gsp = galsim.GSParams(maximum_fft_size=2048)
+    model4 = piff.GSObjectModel(galsim.Moffat(beta=1.5, gsparams=gsp, half_light_radius=1))
+    star2 = model4.initialize(star2)
+    # This one doesn't fail.  But it does hit the except GalSimError line in the fit function.
+    star3 = model4.fit(star2)
+    assert star3.fit.chisq < 1.2 * star3.fit.dof
+    print(star3.fit.chisq, star3.fit.dof)
+    star3 = model4.initialize(star1)
+    # This one also hits the one when calculating chisq, so chisq is set to 1.e300.
+    star3 = model4.fit(star3)
+    print(star3.fit.chisq, star3.fit.dof)
+    assert star3.fit.chisq == 1.e300
+
 
 if __name__ == '__main__':
     test_simple()
