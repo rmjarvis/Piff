@@ -16,6 +16,7 @@
 """
 .. module:: optical_model
 """
+import os
 import galsim
 import coord
 import fitsio
@@ -26,63 +27,72 @@ from .model import Model
 from .star import Star
 
 optical_templates = {
-    'des_simple': {'obscuration': 0.301 / 0.7174, # from Zemax DECam model
-             'nstruts': 4,
-             'diam': 4.010,  # meters
-             'lam': 700, # nm
-             'strut_thick': 0.0166,  # 66.5mm thick / 4010mm pupil - tuned to match DECam big donut images
-             'strut_angle': 45 * galsim.degrees,
-             'pad_factor': 1 ,
-             'oversampling': 1,
-             'sigma': 8.0 * (0.263/15.0), # 8micron sigma CCD diffusion
-                  },
-    'des': { 'diam': 4.010,  # meters
-             'lam': 700, # nm
-             'pad_factor': 1 ,
-             'oversampling': 1,
-             'sigma': 8.0 * (0.263/15.0), # 8micron sigma CCD diffusion
-             'mirror_figure_im': 'input/DECam_236392_finegrid512_nm_uv.fits',
-             'mirror_figure_halfsize': 2.22246,
-             'pupil_plane_im': 'input/DECam_pupil_512uv.fits'
-           },
-    'des_128': { 'diam': 4.010,  # meters
-             'lam': 700, # nm
-             'pad_factor': 1 ,
-             'oversampling': 1,
-             'sigma': 8.0 * (0.263/15.0), # 8micron sigma CCD diffusion
-             'mirror_figure_im': 'input/DECam_236392_finegrid512_nm_uv.fits',
-             'mirror_figure_halfsize': 2.22246,
-             'pupil_plane_im': 'input/DECam_pupil_128uv.fits'
-           },
-    'des_param': { 'diam': 4.010,  # meters
-                  'lam': 700, # nm
-                  'pad_factor': 1 ,
-                  'oversampling': 1,
-                  'sigma': 8.0 * (0.263/15.0), # 8micron sigma CCD diffusion
-                  'mirror_figure_im': 'input/DECam_236392_finegrid512_nm_uv.fits',
-                  'mirror_figure_halfsize': 2.22246,
-                  'obscuration': 0.301 / 0.7174, # from Zemax DECam model
-                  'nstruts': 4,
-                  'strut_thick': 0.0166,  # 66.5mm thick / 4010mm pupil - tuned to match DECam big donut images
-                  'strut_angle': 45 * galsim.degrees
-               },
-    'des_donut': {'diam': 4.010,  # meters
-             'lam': 700, # nm
-             'pad_factor': 8,
-             'oversampling': 1,
-             'sigma': 8.0 * (0.263/15.0), # 8micron sigma CCD diffusion
-             'mirror_figure_im': 'input/DECam_236392_finegrid512_nm_uv.fits',
-             'mirror_figure_halfsize': 2.22246,
-             'pupil_plane_im': 'input/DECam_pupil_512uv.fits'
-           },
+    'des': {
+        # This is normally what to use when working with DES (or other DECam) images.
+        'diam': 4.010,  # meters
+        'lam': 700, # nm
+        'pad_factor': 1 ,
+        'oversampling': 1,
+        'sigma': 8.0 * (0.263/15.0), # 8micron sigma CCD diffusion
+        'mirror_figure_im': 'DECam_236392_finegrid512_nm_uv.fits',
+        'pupil_plane_im': 'DECam_pupil_512uv.fits'
+    },
+    'des_simple': {
+        # An approximation of the DECam pupil plane using simple struts and obscuration.
+        'diam': 4.010,  # meters
+        'lam': 700, # nm
+        'obscuration': 0.301 / 0.7174, # from Zemax DECam model
+        'nstruts': 4,
+        'strut_thick': 0.0166,  # 66.5mm thick / 4010mm pupil
+                                # (tuned to match DECam big donut images)
+        'strut_angle': 45 * galsim.degrees,
+        'pad_factor': 1 ,
+        'oversampling': 1,
+        'sigma': 8.0 * (0.263/15.0), # 8micron sigma CCD diffusion
+    },
+    'des_128': {
+        # Same as 'des', but using a smaller (128x128) pupil plane image.
+        'diam': 4.010,  # meters
+        'lam': 700, # nm
+        'pad_factor': 1 ,
+        'oversampling': 1,
+        'sigma': 8.0 * (0.263/15.0), # 8micron sigma CCD diffusion
+        'mirror_figure_im': 'DECam_236392_finegrid512_nm_uv.fits',
+        'pupil_plane_im': 'DECam_pupil_128uv.fits'
+    },
+    'des_donut': {
+        # Same as 'des', but with a larger pad_factor, appropriate when rendering very
+        # out-of-focus images (aka "donuts").
+        'diam': 4.010,  # meters
+        'lam': 700, # nm
+        'pad_factor': 8,
+        'oversampling': 1,
+        'sigma': 8.0 * (0.263/15.0), # 8micron sigma CCD diffusion
+        'mirror_figure_im': 'DECam_236392_finegrid512_nm_uv.fits',
+        'pupil_plane_im': 'DECam_pupil_512uv.fits'
+    },
 }
 
 gsparams_templates = {
-    'star': {  'minimum_fft_size': 32, 'folding_threshold': 0.02},
-    'starby2': {  'minimum_fft_size': 64, 'folding_threshold': 0.01 },
-    'starby4': {  'minimum_fft_size': 128, 'folding_threshold': 0.005 },
-    'donut': { 'minimum_fft_size': 128, 'folding_threshold': 0.005 },
+    # Two approximations to speed things up somewhat by
+    # 1. lowering the minimum size of the FFT image GalSim wants to make
+    # 2. increasing the "folding_threshold", which sets the scale size in k-space.
+    'fast': {  'minimum_fft_size': 64, 'folding_threshold': 0.01 },
+    'faster': {  'minimum_fft_size': 32, 'folding_threshold': 0.02},
 }
+
+def update_file_name(kwargs, key):
+    from .meta_data import data_dir
+    if key not in kwargs:
+        return
+    file_name = kwargs[key]
+    if not isinstance(file_name, str) or os.path.isfile(file_name):
+        return
+    new_file_name = os.path.join(data_dir, file_name)
+
+    if not os.path.isfile(new_file_name):
+        raise ValueError("File %s not found for %s" % (file_name, key))
+    kwargs[key] = new_file_name
 
 class Optical(Model):
     """
@@ -113,19 +123,22 @@ class Optical(Model):
                             of creating one from obscuration, struts, etc. [default: None]
 
     The next two parameters are specific to our treatment of the Optical PSF. If given,
-    they are used to create an additional galsim.PhaseScreen describing the mirror's own contribution to the wavefront.
+    they are used to create an additional galsim.PhaseScreen describing the mirror's own
+    contribution to the wavefront.
 
-    :param mirror_figure_im: The name of a file containing an additional phase contribution, for example
-                             from the figure of the primary mirror. [default: None]
-    :param mirror_figure_halfsize:   The radius of the image containting the mirror_figure_im. [default: None]
-
+    :param mirror_figure_im: The name of a file containing an additional phase contribution, for
+                             example from the figure of the primary mirror. [default: None]
+    :param mirror_figure_scale: The pixel scale to use in mirror_figure_im.  If omittited,
+                                Piff will use the pixel scale in the image itself. [default: None]
 
     Second, there is an atmospheric component, which uses either a galsim.Kolmogorov or
     galsim.VonKarman to model the profile.
 
     :param atmo_type        The name of the Atmospheric kernel. [default 'VonKarman']
 
-    Finally, there is both an additional Gaussian component to describe CCD diffusion and separately an applied shear.
+    Finally, there is both an additional Gaussian component to describe CCD diffusion and
+    separately an applied shear.
+
     :param sigma            Gaussian CCD diffusion in arcsec [default:0.]
 
     Since there are a lot of parameters here, we provide the option of setting many of them
@@ -159,7 +172,8 @@ class Optical(Model):
             if key.endswith('angle'):
                 kwargs[key] = galsim.config.ParseValue(kwargs, key, {}, galsim.Angle)[0]
 
-        # Copy over anything from the aperture and gsparams template dict, but let the direct kwargs override anything
+        # Copy over anything from the aperture and gsparams template dict, but let the direct
+        # kwargs override anything
         self.kwargs = {}
         if template is not None:
             if template not in optical_templates:
@@ -180,13 +194,17 @@ class Optical(Model):
         # Do this last, so specified kwargs override anything from the templates
         self.kwargs.update(kwargs)
 
-        # Sift out optical and gsparams and other keys. Some of these aren't documented above, but allow them anyway.
+        # Update file names if they are in the data_dir.
+        for key in ('pupil_plane_im', 'mirror_figure_im'):
+            update_file_name(self.kwargs, key)
+
+        # Sift out optical and gsparams and other keys. Some of these aren't documented above, but
+        # allow them anyway.
         opt_keys = ('lam', 'diam', 'lam_over_diam', 'scale_unit',
                     'circular_pupil', 'obscuration', 'interpolant',
                     'oversampling', 'pad_factor', 'suppress_warning',
                     'nstruts', 'strut_thick', 'strut_angle',
-                    'pupil_plane_im','mirror_figure_im','mirror_figure_halfsize',
-                    'pupil_angle', 'pupil_plane_scale', 'pupil_plane_size')
+                    'pupil_plane_im', 'pupil_angle', 'pupil_plane_scale', 'pupil_plane_size')
         self.opt_kwargs = { key : self.kwargs[key] for key in self.kwargs if key in opt_keys }
 
         gsparams_keys = ('minimum_fft_size','folding_threshold')
@@ -197,45 +215,14 @@ class Optical(Model):
             else:
                 self.gsparams = galsim.GSParams(**gsparams_kwargs)
 
-        other_keys = ('sigma')
-        self.other_kwargs = { key : self.kwargs[key] for key in self.kwargs if key in other_keys }
-
-        # Deal with the pupil plane image now so it only needs to be loaded from disk once.
-        self.pupil_mask = None
-        if 'pupil_plane_im' in self.opt_kwargs:
-            pupil_plane_im = self.opt_kwargs.pop('pupil_plane_im')
-            if isinstance(pupil_plane_im, str):
-                self.logger.debug('Loading pupil_plane_im from {0}'.format(pupil_plane_im))
-                pupil_plane_im = galsim.fits.read(pupil_plane_im)
-
-            self.opt_kwargs['pupil_plane_im'] = pupil_plane_im.array
-
-        # Deal with the mirror figure image so it only needs to be loaded from disk once.
-        self.mirror_figure_screen = None
-        if 'mirror_figure_im' in self.opt_kwargs:
-            mirror_figure_im = self.opt_kwargs.pop('mirror_figure_im')
-            mirror_figure_halfsize = self.opt_kwargs.pop('mirror_figure_halfsize')
-            if isinstance(mirror_figure_im, str):
-                self.logger.debug('Loading mirror_figure_im from {0}'.format(mirror_figure_im))
-                mirror_figure_uv = galsim.fits.read(mirror_figure_im)
-            else:
-                mirror_figure_uv = mirror_figure_im
-
-            # build u,v grid points
-            mirror_figure_u = np.linspace(-mirror_figure_halfsize, mirror_figure_halfsize, num=512)
-            mirror_figure_v = np.linspace(-mirror_figure_halfsize, mirror_figure_halfsize, num=512)
-
-            # build the LUT for the mirror figure, and save it
-            mirror_figure_table = galsim.LookupTable2D(mirror_figure_u, mirror_figure_v, mirror_figure_uv.array)
-            self.mirror_figure_screen = galsim.UserScreen(mirror_figure_table)
-
-        # Store the Atmospheric Kernel type
-        self.atmo_type = atmo_type
-
         # Check that no unexpected parameters were passed in:
-        extra_kwargs = [k for k in kwargs if k not in opt_keys and k not in gsparams_keys and k not in other_keys]
+        other_keys = ('sigma', 'mirror_figure_im', 'mirror_figure_scale')
+        extra_kwargs = [k for k in kwargs if k not in opt_keys + gsparams_keys + other_keys]
         if len(extra_kwargs) > 0:
             raise TypeError('__init__() got an unexpected keyword argument %r'%extra_kwargs[0])
+
+        # Save sigma if present.
+        self.sigma = self.kwargs.get('sigma', 0.)
 
         # Check for some required parameters.
         if 'diam' not in self.opt_kwargs:
@@ -245,17 +232,35 @@ class Optical(Model):
         self.diam = self.opt_kwargs['diam']
         self.lam = self.opt_kwargs['lam']
 
+        # Load the mirror figure screen and save it as a PhaseScreen
+        self.mirror_figure_screen = None
+        if 'mirror_figure_im' in self.kwargs:
+            mirror_figure_im = self.kwargs['mirror_figure_im']
+            if isinstance(mirror_figure_im, str):
+                self.logger.debug('Loading mirror_figure_im from {0}'.format(mirror_figure_im))
+                mirror_figure_im = galsim.fits.read(mirror_figure_im)
+            scale = self.kwargs.get('mirror_figure_scale', mirror_figure_im.scale)
+            npix_v, npix_u = mirror_figure_im.array.shape
+
+            # build u,v grid points
+            mirror_figure_u = np.linspace(-(npix_u-1)/2 * scale, (npix_u-1)/2 * scale, num=npix_u)
+            mirror_figure_v = np.linspace(-(npix_v-1)/2 * scale, (npix_v-1)/2 * scale, num=npix_v)
+
+            # build the LUT for the mirror figure, and save it
+            mirror_figure_table = galsim.LookupTable2D(mirror_figure_u, mirror_figure_v,
+                                                       mirror_figure_im.array)
+            self.mirror_figure_screen = galsim.UserScreen(mirror_figure_table, diam=self.diam)
+
+        # Store the Atmospheric Kernel type
+        self.atmo_type = atmo_type
+
         # pupil_angle and strut_angle won't serialize properly, so repr them now in self.kwargs.
         for key in ['pupil_angle', 'strut_angle']:
             if key in self.kwargs:
                 self.kwargs[key] = repr(self.kwargs[key])
 
         # build the Galsim optical aperture here to cache it
-        if  'pupil_plane_im' in self.opt_kwargs:
-            self.aperture = galsim.Aperture(diam=self.opt_kwargs['diam'],pupil_plane_im=self.opt_kwargs['pupil_plane_im'],
-                                            gsparams=self.gsparams)
-        else:
-            self.aperture = galsim.Aperture(**self.opt_kwargs)
+        self.aperture = galsim.Aperture(**self.opt_kwargs)
 
         # define the param array elements for this model
         self.nZ = 37
@@ -288,26 +293,26 @@ class Optical(Model):
 
     @lru_cache(maxsize=8)
     def getOptics(self, zernike_coeff):
-        """ Get the strictly Optics PSF component.  Use two phase screens, one from mirror_figure_im, and the other from
-        zernike aberrations
+        """Get the strictly Optics PSF component.  Use two phase screens, one from
+        mirror_figure_im, and the other from zernike aberrations
 
-        :param zernike_coeff:          A ndarray or list with Zernike Coefficients, in units of waves. Array indexed as [0, 0, z2, z3, z4,...z11...]
+        :param zernike_coeff:   An array or list with Zernike Coefficients, in units of waves.
+                                Array indexed as [0, 0, z2, z3, z4,...z11...]
 
         :returns: a galsim.GSObject instance
         """
 
         if self.mirror_figure_screen:
 
-            optical_screen = galsim.OpticalScreen(diam=self.diam, aberrations=zernike_coeff, lam_0=self.lam)
+            optical_screen = galsim.OpticalScreen(diam=self.diam, aberrations=zernike_coeff,
+                                                  lam_0=self.lam)
             screens = galsim.PhaseScreenList([optical_screen, self.mirror_figure_screen])
-            optics_psf = galsim.PhaseScreenPSF(screen_list=screens, aper=self.aperture, lam=self.lam, gsparams=self.gsparams
-            )
+            optics_psf = galsim.PhaseScreenPSF(screen_list=screens, aper=self.aperture,
+                                               lam=self.lam, gsparams=self.gsparams)
 
         else:
-            optics_psf = galsim.OpticalPSF(
-                lam=self.lam, diam=self.diam, aper=self.aperture,
-                aberrations=zernike_coeff, gsparams=self.gsparams
-            )
+            optics_psf = galsim.OpticalPSF(lam=self.lam, diam=self.diam, aper=self.aperture,
+                                           aberrations=zernike_coeff, gsparams=self.gsparams)
 
         return optics_psf
 
@@ -357,7 +362,8 @@ class Optical(Model):
     def kwargs_to_params(self,zernike_coeff=[0,0,0,0,0],r0=0.15,L0=10.,g1=0.,g2=0.):
         """Fill params ndarray from kwargs
 
-        :param zernike_coeff:      A ndarray or list with [0, 0, z2, z3, z4, z5, z6...z11..z37] [default=[0,0,0,0,0]]
+        :param zernike_coeff:      A ndarray or list with [0, 0, z2, z3, z4, z5, z6...z11..z37]
+                                   [default=[0,0,0,0,0]]
         :param r0:                 Value of r0 for Atmospheric Kernel. [default=0.15]
         :param L0:                 Value of L0 for Atmospheric Kernel. [default=10.0]
         :param g1:                 Value of g1 to Shear PSF [default=0.]
@@ -405,10 +411,9 @@ class Optical(Model):
         # gaussian for CCD Diffusion
         # note that the WCS may make it effectively Sheared on the Focal Plane
         # consider removing that shear by giving this Gaussian opposite shear to the WCS
-        if 'sigma' in self.other_kwargs:
-            if self.other_kwargs['sigma']>0.:
-                gaussian = galsim.Gaussian(sigma=self.other_kwargs['sigma'],gsparams=self.gsparams)
-                prof.append(gaussian)
+        if self.sigma > 0.:
+            gaussian = galsim.Gaussian(sigma=self.sigma, gsparams=self.gsparams)
+            prof.append(gaussian)
 
         # atmospheric kernel
         atmopsf = self.getAtmosphere(r0, L0, g1, g2)
@@ -421,5 +426,3 @@ class Optical(Model):
         prof = galsim.Convolve(prof,gsparams=self.gsparams)
 
         return prof
-
-

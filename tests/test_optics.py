@@ -19,6 +19,8 @@ import piff
 import os
 import fitsio
 import galsim
+import importlib
+from unittest import mock
 
 from piff_test_helper import timer
 
@@ -106,7 +108,8 @@ def test_optical(model=None):
     # test Zernike kwargs
     zernike_coeff_short = [0.,0.,0.,0.,1.,1.,1.,1.,1.,1.,1.,1.]
     nz = len(zernike_coeff_short)
-    param_test = model.kwargs_to_params(zernike_coeff=zernike_coeff_short,r0=0.12,g1=-0.05,g2=0.03,L0=20.)
+    param_test = model.kwargs_to_params(zernike_coeff=zernike_coeff_short,
+                                        r0=0.12, g1=-0.05, g2=0.03, L0=20.)
     for i in range(nz):
         assert zernike_coeff_short[i]==param_test[model.idx_z0+i]
     for i in range(nz+1,37+1):
@@ -114,26 +117,30 @@ def test_optical(model=None):
 
     zernike_coeff_long = [0.,0.,0.,0.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,1.,10.]
     nz = len(zernike_coeff_long)
-    param_test = model.kwargs_to_params(zernike_coeff=zernike_coeff_long,r0=0.12,g1=-0.05,g2=0.03,L0=20.)
+    param_test = model.kwargs_to_params(zernike_coeff=zernike_coeff_long,
+                                        r0=0.12, g1=-0.05, g2=0.03, L0=20.)
     for i in range(37+1):
         assert zernike_coeff_long[i]==param_test[model.idx_z0+i]
     assert param_test[model.idx_r0]==0.12
 
     # Test gsparams
-    gsp_star = galsim.GSParams(minimum_fft_size=32, folding_threshold=0.02)
-    gsp_donut = galsim.GSParams(minimum_fft_size=128, folding_threshold=0.005)
-    model = piff.Optical(template='des', gsparams=gsp_star)
-    assert model.gsparams == gsp_star
-    model = piff.Optical(template='des', atmo_type='Kolmogorov', gsparams='star')
-    assert model.gsparams == gsp_star
-    model = piff.Optical(template='des_donut', gsparams='donut')
-    assert model.gsparams == gsp_donut
-    model = piff.Optical(template='des_donut', minimum_fft_size=128, folding_threshold=0.005)
-    assert model.gsparams == gsp_donut
+    gsp_default = galsim.GSParams(minimum_fft_size=128, folding_threshold=0.005)
+    gsp_fast = galsim.GSParams(minimum_fft_size=64, folding_threshold=0.01)
+    gsp_faster = galsim.GSParams(minimum_fft_size=32, folding_threshold=0.02)
+    model = piff.Optical(template='des', gsparams=gsp_fast)
+    assert model.gsparams == gsp_fast
+    model = piff.Optical(template='des', atmo_type='Kolmogorov', gsparams='faster')
+    assert model.gsparams == gsp_faster
+    model = piff.Optical(template='des_donut')
+    assert model.gsparams is None
+    model = piff.Optical(template='des_donut', gsparams=galsim.GSParams())
+    assert model.gsparams == gsp_default
+    model = piff.Optical(template='des_donut', minimum_fft_size=64, folding_threshold=0.01)
+    assert model.gsparams == gsp_fast
     with np.testing.assert_raises(ValueError):
         piff.Optical(gsparams='invalid')
     with np.testing.assert_raises(ValueError):
-        piff.Optical(gsparams='donut', minimum_fft_size=128)
+        piff.Optical(gsparams='fast', minimum_fft_size=128)
 
 @timer
 def test_draw():
@@ -156,36 +163,103 @@ def test_draw():
     astar = stars[10]
 
     # test draw
-    astar.fit.params = model.kwargs_to_params(zernike_coeff=[0.,0.,0.,0.,0.2],r0=0.12,L0=10.,g1=0.01,g2=-0.02)
+    astar.fit.params = model.kwargs_to_params(zernike_coeff=[0.,0.,0.,0.,0.2],
+                                              r0=0.12, L0=10., g1=0.01, g2=-0.02)
     astar1 = model.draw(astar)
 
 @timer
-def test_pupil_im(pupil_plane_file='input/DECam_pupil_512uv.fits'):
-    import galsim
+def test_pupil_im(pupil_plane_file='DECam_pupil_512uv.fits'):
     print('test pupil im: ', pupil_plane_file)
     # make sure we can load up a pupil image
-    model = piff.Optical(diam=4.010, lam=500., pupil_plane_im=pupil_plane_file,atmo_type='Kolmogorov')
+    model = piff.Optical(diam=4.010, lam=500., pupil_plane_im=pupil_plane_file,
+                         atmo_type='Kolmogorov')
     test_optical(model)
     # make sure we really loaded it
-    pupil_plane_im = galsim.fits.read(pupil_plane_file)
+    # Note: piff automatically finds this file in the installed share directory.
+    full_pupil_plane_file = os.path.join('../share', pupil_plane_file)
+    pupil_plane_im = galsim.fits.read(full_pupil_plane_file)
     # Check the scale (and fix if necessary)
     print('pupil_plane_im.scale = ',pupil_plane_im.scale)
-    ref_psf = galsim.OpticalPSF(lam=500., diam=4.020)
-    print('scale should be ',ref_psf._psf.aper.pupil_plane_scale)
-    if pupil_plane_im.scale != ref_psf._psf.aper.pupil_plane_scale:
+    ref_aper = galsim.Aperture(diam=4.010, lam=500, pupil_plane_im=pupil_plane_im.array)
+    ref_aper._load_pupil_plane()
+    print('scale should be ',ref_aper.pupil_plane_scale)
+    if pupil_plane_im.scale != ref_aper.pupil_plane_scale:
         print('fixing scale')
-        pupil_plane_im.scale = ref_psf._psf.aper.pupil_plane_scale
-        pupil_plane_im.write(pupil_plane_file)
+        pupil_plane_im.scale = ref_aper.pupil_plane_scale
+        pupil_plane_im.write(full_pupil_plane_file)
 
+    np.testing.assert_array_equal(pupil_plane_im.array, model.aperture._pupil_plane_im.array)
+
+    # Can also give a the full path, rather than automatically find it in the piff data_dir
+    model = piff.Optical(diam=4.010, lam=500.,
+                         pupil_plane_im=full_pupil_plane_file,
+                         atmo_type='Kolmogorov')
+    model.aperture._load_pupil_plane()
+    assert pupil_plane_im == model.aperture._pupil_plane_im
+
+    print('Try diam=2 model')
+    model = piff.Optical(pupil_plane_im=pupil_plane_im, diam=2, lam=500)
     model_pupil_plane_im = model.opt_kwargs['pupil_plane_im']
-    np.testing.assert_array_equal(pupil_plane_im.array, model_pupil_plane_im)
+    np.testing.assert_array_equal(pupil_plane_im.array, model_pupil_plane_im.array)
 
-    # test passing a different optical template that includes diam
-    piff.optical_model.optical_templates['test'] = {'diam': 2, 'lam':500}
-    model = piff.Optical(pupil_plane_im=pupil_plane_im, template='test')
-    model_pupil_plane_im = model.opt_kwargs['pupil_plane_im']
-    np.testing.assert_array_equal(pupil_plane_im.array, model_pupil_plane_im)
+    # Error if file not found.
+    with np.testing.assert_raises(ValueError):
+        model = piff.Optical(diam=4.010, lam=500., pupil_plane_im='invalid.fits')
 
+    with mock.patch('os.environ', {'PIFF_DATA_DIR': 'invalid'}):
+        importlib.reload(piff.meta_data)
+        assert piff.meta_data.data_dir == 'invalid'
+        with np.testing.assert_raises(ValueError):
+            model = piff.Optical(diam=4.010, lam=500., pupil_plane_im=pupil_plane_file)
+    importlib.reload(piff.meta_data)
+
+
+@timer
+def test_mirror_figure():
+    mirror_figure_file = 'DECam_236392_finegrid512_nm_uv.fits'
+    full_mirror_figure_file = os.path.join('../share', mirror_figure_file)
+    mirror_figure_im = galsim.fits.read(full_mirror_figure_file)
+
+    # Check scale and fix if necessary.
+    mirror_figure_halfsize = 2.22246
+    ref_scale = 2 * mirror_figure_halfsize / 511
+    print('mirror_figure_scale should be ',ref_scale)
+    if mirror_figure_im.scale != ref_scale:
+        print('fixing scale')
+        mirror_figure_im.scale = ref_scale
+        mirror_figure_im.write(full_mirror_figure_file)
+
+    # The above file is the mirror_figure_image in the des template.
+    model = piff.Optical(template='des',atmo_type='Kolmogorov')
+    model_figure = model.mirror_figure_screen.table.f
+    np.testing.assert_array_equal(mirror_figure_im.array, model_figure)
+
+    # Usually mirror_figure_im is a file name, but you can also pass in an already read image.
+    model2 = piff.Optical(template='des', atmo_type='Kolmogorov',
+                          mirror_figure_im=mirror_figure_im)
+    model_figure = model2.mirror_figure_screen.table.f
+    np.testing.assert_array_equal(mirror_figure_im.array, model_figure)
+    prof1 = model.getProfile(zernike_coeff=[0,0,0,0,0], r0=0.15)
+    prof2 = model2.getProfile(zernike_coeff=[0,0,0,0,0], r0=0.15)
+    assert prof1 == prof2
+
+    # This is the old way that x and y were build for the UserScreen table.
+    # Make sure the new version is consistent.
+    mirror_figure_u = np.linspace(-mirror_figure_halfsize, mirror_figure_halfsize, num=512)
+    mirror_figure_v = np.linspace(-mirror_figure_halfsize, mirror_figure_halfsize, num=512)
+    np.testing.assert_allclose(model.mirror_figure_screen.table.x, mirror_figure_u, rtol=1.e-15)
+    np.testing.assert_allclose(model.mirror_figure_screen.table.y, mirror_figure_v, rtol=1.e-15)
+
+    # Overriding mirror_figure_scale will adjust the u,v values in the screen.
+    model3 = piff.Optical(template='des', atmo_type='Kolmogorov',
+                          mirror_figure_scale=ref_scale/2)
+    np.testing.assert_allclose(model3.mirror_figure_screen.table.x, mirror_figure_u/2, rtol=1.e-15)
+    np.testing.assert_allclose(model3.mirror_figure_screen.table.y, mirror_figure_v/2, rtol=1.e-15)
+
+    # Error if file not found.
+    with np.testing.assert_raises(ValueError):
+        model = piff.Optical(template='des', atmo_type='Kolmogorov',
+                             mirror_figure_im='invalid.fits')
 
 @timer
 def test_kolmogorov():
@@ -203,14 +277,6 @@ def test_kolmogorov():
 
     chi2 = np.std((star1.image - star2.image).array)
     assert chi2 != 0,'chi2 is zero!?'
-
-    # Usually mirror_figure_im is a file name, but you can also pass in an already read image.
-    mirror_figure_image = galsim.fits.read('input/DECam_236392_finegrid512_nm_uv.fits')
-    model2 = piff.Optical(template='des', atmo_type='Kolmogorov',
-                          mirror_figure_im=mirror_figure_image)
-    prof1 = model.getProfile(zernike_coeff=[0,0,0,0,0], r0=0.15)
-    prof2 = model2.getProfile(zernike_coeff=[0,0,0,0,0], r0=0.15)
-    assert prof1 == prof2
 
 
 @timer
@@ -310,14 +376,15 @@ def test_disk():
     for key in model.opt_kwargs:
         assert key in model2.opt_kwargs, 'key %r missing from model2 opt_kwargs'%key
         if type(model.opt_kwargs[key])==np.ndarray:
-            np.testing.assert_almost_equal(model.opt_kwargs[key],model2.opt_kwargs[key],err_msg='key %r mismatch' % key)
+            np.testing.assert_almost_equal(model.opt_kwargs[key],
+                                           model2.opt_kwargs[key],
+                                           err_msg='key %r mismatch' % key)
         else:
             assert model.opt_kwargs[key] == model2.opt_kwargs[key], 'key %r mismatch'%key
     assert model.gsparams == model2.gsparams
-    for key in model.other_kwargs:
-        assert key in model2.other_kwargs, 'key %r missing from model2 other_kwargs'%key
-        assert model.other_kwargs[key] == model2.other_kwargs[key], 'key %r mismatch'%key
-    assert model.atmo_type == model2.atmo_type,'atmo_type mismatch'
+    assert model.sigma == model2.sigma
+    assert model.mirror_figure_screen == model2.mirror_figure_screen
+    assert model.atmo_type == model2.atmo_type
 
 #####
 # convenience functions
@@ -362,8 +429,9 @@ if __name__ == '__main__':
     test_init()
     test_optical()
     test_draw()
-    test_pupil_im(pupil_plane_file='input/DECam_pupil_512uv.fits')
-    test_pupil_im(pupil_plane_file='input/DECam_pupil_128uv.fits')
+    test_pupil_im(pupil_plane_file='DECam_pupil_512uv.fits')
+    test_pupil_im(pupil_plane_file='DECam_pupil_128uv.fits')
+    test_mirror_figure()
     test_kolmogorov()
     test_vonkarman()
     test_shearing()

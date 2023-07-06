@@ -22,6 +22,7 @@ import subprocess
 import yaml
 import fitsio
 import copy
+from unittest import mock
 
 from piff_test_helper import get_script_name, timer, CaptureLog
 
@@ -660,8 +661,6 @@ def test_model():
 
     # Invalid to read a type that isn't a piff.Model type.
     # Mock this by pretending that Gaussian is the only subclass of Model.
-    if sys.version_info < (3,): return  # mock only available on python 3
-    from unittest import mock
     filename = os.path.join('input','D00240560_r_c01_r2362p01_piff.fits')
     with mock.patch('piff.Model.valid_model_types', {'Gaussian': piff.Gaussian}):
         with fitsio.FITS(filename,'r') as f:
@@ -720,8 +719,6 @@ def test_interp():
 
     # Invalid to read a type that isn't a piff.Interp type.
     # Mock this by pretending that Mean is the only subclass of Interp.
-    if sys.version_info < (3,): return  # mock only available on python 3
-    from unittest import mock
     with mock.patch('piff.Interp.valid_interp_types', {'Mean': piff.Mean}):
         with fitsio.FITS(filename2,'r') as f:
             np.testing.assert_raises(ValueError, piff.Interp.read, f, extname='psf_interp')
@@ -787,8 +784,6 @@ def test_psf():
 
     # Invalid to read a type that isn't a piff.PSF type.
     # Mock this by pretending that SingleChip is the only subclass of PSF.
-    if sys.version_info < (3,): return  # mock only available on python 3
-    from unittest import mock
     filename = os.path.join('input','D00240560_r_c01_r2362p01_piff.fits')
     with mock.patch('piff.PSF.valid_psf_types', {'SingleChip': piff.SingleChipPSF}):
         np.testing.assert_raises(ValueError, piff.PSF.read, filename)

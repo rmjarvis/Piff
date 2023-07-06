@@ -18,6 +18,7 @@ import piff
 import numpy as np
 import os
 import fitsio
+from unittest import mock
 
 from piff_test_helper import timer, CaptureLog
 
@@ -949,7 +950,6 @@ def test_fail():
 
     # reflux is harder to make fail.  Rather than try something even more contrived,
     # just mock np.linalg.solve to simulate the case that AtA ends up singular.
-    from unittest import mock
     with mock.patch('numpy.linalg.solve', side_effect=np.linalg.LinAlgError) as raising_solve:
         with CaptureLog(3) as cl:
             stars, nremoved = psf.reflux_stars([star1], logger=cl.logger)

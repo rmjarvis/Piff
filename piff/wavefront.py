@@ -5,8 +5,9 @@ from galsim import LookupTable2D
 
 def convert_zernikes_des(a_fp):
     """ This method converts an array of Noll Zernike coefficients from
-    Focal Plane coordinates to a set suitable for u,v Sky coordinates. Assumes
-    that the WCS is of form [[0,-1],[-1,0]].  See AR's notebook calculate-Donut-to-GalsimPiff-Zernike-Coordinate-conversion
+    Focal Plane coordinates to a set suitable for u,v Sky coordinates.
+    Assumes that the WCS is of form [[0,-1],[-1,0]].
+    See AR's notebook calculate-Donut-to-GalsimPiff-Zernike-Coordinate-conversion
     for the calculation of this conversion.
 
     param: a_fp       An ndarray or list with Zernike's in Focal Plane coordinates
@@ -71,9 +72,10 @@ class Wavefront(object):
         """ Parse the input options
 
         param: wavefront_kwargs    A dictionary holding the options for each
-                                   source of Zernike Coefficients.  Multiple input files are allowed,
-                                   with Dictionaries keyed by 'source1','source2'...
-                                   Each 'sourceN' dictionary has keys: 'file','zlist','keys','chip','wavelength'
+                                   source of Zernike Coefficients.  Multiple input files are
+                                   allowed, with Dictionaries keyed by 'source1','source2'...
+                                   Each 'sourceN' dictionary has keys:
+                                        'file','zlist','keys','chip','wavelength'
                                    The key 'survey' applies custom code for the desired survey.
         param: logger              A logger object for logging debug info. [default: None]
         """
@@ -148,8 +150,9 @@ class Wavefront(object):
                         Z = zarray[achip,:,:,iZ]
 
                         # make interpolation object for each desired Zernike coefficient
-                        self.interp_objects[(isource,achip,iZ)] = LookupTable2D(xarray[achip,:],yarray[achip,:],Z,interpolant='spline')
-
+                        tab = LookupTable2D(xarray[achip,:], yarray[achip,:], Z,
+                                            interpolant='spline')
+                        self.interp_objects[(isource,achip,iZ)] = tab
             else:
 
                 # store None in chipkeys
@@ -161,17 +164,19 @@ class Wavefront(object):
                     Z = zarray[:,:,iZ]
 
                     # make interpolation object for each desired Zernike coefficient
-                    self.interp_objects[(isource,None,iZ)] = LookupTable2D(xarray,yarray,Z,interpolant='spline')
+                    tab = LookupTable2D(xarray, yarray, Z, interpolant='spline')
+                    self.interp_objects[(isource,None,iZ)] = tab
 
-        return
 
     def fillWavefront(self,star_list,wavelength=-1.0,logger=None,addtostars=True):
-        """ Interpolate wavefront to each star's location, fill wavefront key of star.data.properties
+        """Interpolate wavefront to each star's location, fill wavefront key of star.data.properties
 
-        :param star_list:         A list of Star instances
-        :param wavelength:        A float with the wavelength in [nm] to rescale the wavefront. [default: -1.0]
-        :param logger:            A logger object for logging debug info. [default: None]
-        :param addtostars:        A boolean flag to return stars with wavefront added to star.data or return array of wavefronts. [default: True]
+        :param star_list:       A list of Star instances
+        :param wavelength:      A float with the wavelength in [nm] to rescale the wavefront.
+                                [default: -1.0]
+        :param logger:          A logger object for logging debug info. [default: None]
+        :param addtostars:      A boolean flag to return stars with wavefront added to star.data or
+                                return array of wavefronts. [default: True]
         """
 
         logger = galsim.config.LoggerWrapper(logger)
