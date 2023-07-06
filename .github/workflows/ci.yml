@@ -87,7 +87,9 @@ jobs:
                 pip install -U -r requirements.txt
 
                 # Extra packages needed for testing
-                pip install -U nose coverage pytest nbval ipykernel
+                # Note: Pin pillow <10 until this bug is fixed:
+                #       https://github.com/python-pillow/Pillow/issues/7259
+                pip install -U nose coverage pytest nbval ipykernel "pillow<10"
 
             - name: Install Pixmappy (not on pip)
               run: |
