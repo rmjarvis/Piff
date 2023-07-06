@@ -554,8 +554,8 @@ def test_multifit_io():
     params2 = np_rng.random_sample((nstars, 5))
     params_var2 = np_rng.random_sample((nstars, 5))
     for k, star in enumerate(stars):
-        params = np.array([params1[k], params2[k]], dtype=object)
-        params_var = np.array([params_var1[k], params_var2[k]], dtype=object)
+        params = [params1[k], params2[k]]
+        params_var = [params_var1[k], params_var2[k]]
         star.fit = star.fit.withNew(params=params, params_var=params_var)
 
     file_name = os.path.join('output','star_multifit_io.fits')

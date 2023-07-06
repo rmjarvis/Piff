@@ -963,11 +963,11 @@ class StarFit(object):
 
     @classmethod
     def reshape_params(cls, params, params_lens):
-        new_params = np.empty(len(params_lens), dtype=object)
+        new_params = []
         i1 = 0
-        for k, plen in enumerate(params_lens):
+        for plen in params_lens:
             i2 = i1 + plen
-            new_params[k] = params[i1:i2]
+            new_params.append(params[i1:i2])
             i1 = i2
         return new_params
 
@@ -977,7 +977,7 @@ class StarFit(object):
 
     @property
     def params_lens(self):
-        if self.params.dtype == np.dtype(object):
+        if isinstance(self.params, list):
             return [len(p) for p in self.params]
         else:
             return None
