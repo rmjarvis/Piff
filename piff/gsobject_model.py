@@ -366,6 +366,9 @@ class GSObjectModel(Model):
             flux_scaling = 1.e-6
         elif init == 'delta':
             size *= 1.e-6
+        elif isinstance(init, tuple):
+            flux_scaling, size_scaling = init
+            size *= size_scaling
         elif init.startswith('(') and init.endswith(')'):
             flux_scaling, size_scaling = eval(init)
             size *= size_scaling
@@ -385,7 +388,7 @@ class GSObjectModel(Model):
             params_var = [0.] + params_var
         else:
             if flux_scaling is not None:
-                raise ValueError("%s initialization requires fit_flux=True"%(init))
+                raise ValueError("{} initialization requires fit_flux=True".format(init))
         params = np.array(params)
         params_var = np.array(params_var)
 
