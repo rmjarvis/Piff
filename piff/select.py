@@ -251,11 +251,11 @@ class Select(object):
                     continue
 
             # Check that HSM returns without error, otherwise skip this star  
-            f, u0, v0, sigma, g1, g2, flag = star.hsm
-            if flag:
-                logger.info("Skipping star at position %f,%f with HSM flag",
-                            star.image_pos.x, star.image_pos.y)
-                continue
+            #f, u0, v0, sigma, g1, g2, flag = star.hsm
+            #if flag:
+            #    logger.info("Skipping star at position %f,%f with HSM flag",
+            #                star.image_pos.x, star.image_pos.y)
+            #    continue
 
             # Check the snr and limit it if appropriate
             snr = calculateSNR(star.image, star.weight)

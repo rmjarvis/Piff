@@ -11,7 +11,7 @@ psf:
      type: Optical
      lam: 782.1
      template: des_128
-     gsparams: starby2
+     gsparams: faster
      atmo_type: 'VonKarman'
 
   interp:
@@ -46,13 +46,13 @@ psf:
            wavelength: 700.0
   ofit_double_zernike_terms:  [[4, 1], [5, 3], [6, 3], [7, 1], [8, 1], [9, 1], [10, 1], [11, 1]]  # drop for speed [14, 1], [15, 1]]
   ofit_type: shape  # shape or pixel or shapegrad
-  ofit_nstars: 500
+  ofit_nstars: 100  # normally 500, make it 100 for speed
   ofit_optimizer: 'iminuit' # 'least_squares' or 'iminuit'
   ofit_strategy: 1    # 0,1,2 for iminuit
   ofit_tol: 1000       # tolerance multiplier for iminuit
   ofit_initvalues: {"opt_L0":10.0,"opt_size":1.0}
   ofit_bounds: {"opt_L0":[1.0,100.0],"opt_g1":[-0.7,0.7],"opt_g2":[-0.7,0.7]}
-  ofit_fix: ['opt_g1','opt_g2','z5f2','z5f3','z6f2','z6f3','z7f1','z8f1','z9f1','z10f1']
+  ofit_fix: ['opt_g1','opt_g2','z5f2','z5f3','z6f2','z6f3','z7f1','z8f1','z9f1','z10f1']  # fix these parameters for speed 
   ofit_shape_kwargs:
       moment_list: ["M11","M20","M02","M21","M12","M30","M03","M22n"]
       weights: [1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0]  #  change weight for e0 to sqrt(2)

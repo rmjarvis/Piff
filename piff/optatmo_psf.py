@@ -45,6 +45,7 @@ class OptAtmoPSF(PSF):
     floating parameters of the kernel.  Finally, the parameters of the atmospheric kernel are interpolated
     across the entire field of view with a Gaussian Process.
     """
+    _type_name = 'OptAtmo'
 
     def __init__(self, model, interp, outliers=None,
                  do_ofit=True, do_sfit=True, do_afit=True,
