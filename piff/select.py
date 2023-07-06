@@ -250,6 +250,13 @@ class Select(object):
                     logger.info("Skipping this star.")
                     continue
 
+            # Check that HSM returns without error, otherwise skip this star  
+            #f, u0, v0, sigma, g1, g2, flag = star.hsm
+            #if flag:
+            #    logger.info("Skipping star at position %f,%f with HSM flag",
+            #                star.image_pos.x, star.image_pos.y)
+            #    continue
+
             # Check the snr and limit it if appropriate
             snr = calculateSNR(star.image, star.weight)
             logger.debug("SNR = %f",snr)
@@ -338,7 +345,7 @@ class Select(object):
                 ratio = np.median(max_pixel[bright] / flux[bright])
                 flux_cut = self.max_pixel_cut / ratio
                 logger.debug("max_pixel/flux ratio = %.4f, flux_cut is %.1f", ratio, flux_cut)
-                logger.info("Rejected %d stars for having a flux > %.1f, "
+                logger.warning("Rejected %d stars for having a flux > %.1f, "
                             "which implies max_pixel > ~%s",
                             np.sum(flux>=flux_cut), flux_cut, self.max_pixel_cut)
                 good_stars = [s for f,s in zip(flux,good_stars) if f < flux_cut]
