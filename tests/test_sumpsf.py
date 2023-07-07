@@ -333,7 +333,7 @@ def test_easy_sum2():
 def test_mixed_pixel_sum2():
     """Test case one component including pixel, but not other one.
     """
-    # This is identical to test_trivial_sum2, except that component 2 is drawn and fit with
+    # This is identical to test_easy_sum2, except that component 2 is drawn and fit with
     # no pixel convolution.
 
     if __name__ == '__main__':
