@@ -59,7 +59,7 @@ def get_config():
                          'type': 'Optical',
                          'lam': 782.1,
                          'template': 'des_128',
-                         'gsparams': 'starby2',
+                         'gsparams': 'fast',
                          'atmo_type': 'VonKarman'},
                     'do_ofit': True,
                     'do_sfit': True,
