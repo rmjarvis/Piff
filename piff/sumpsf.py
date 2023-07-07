@@ -222,7 +222,7 @@ class SumPSF(PSF):
 
         :returns:           List of Star instances with their fit parameters updated.
         """
-        stars = setup_params(stars)
+        stars = self.setup_params(stars)
         for k, comp in enumerate(self.components):
             stars = comp.interpolateStarList(stars)
         return stars
