@@ -246,10 +246,11 @@ def test_easy_sum2():
     assert psf.chisq_thresh == 0.1
     assert psf.max_iter == 30
 
-    for i, star in enumerate(psf.stars):
+    test_stars = psf.interpolateStarList(psf.stars)
+    test_stars = psf.drawStarList(test_stars)
+    for i, test_star in enumerate(test_stars):
         print('star',i)
         target = targets[i]
-        test_star = psf.drawStar(star)
         true_params1 = [ sigma1, g1, g2 ]
         print('comp0: ',test_star.fit.params[0],' =? ',true_params1)
         np.testing.assert_almost_equal(test_star.fit.params[0], true_params1, decimal=2)
@@ -258,13 +259,14 @@ def test_easy_sum2():
         np.testing.assert_almost_equal(test_star.fit.params[1], true_params2, decimal=2)
 
         # The drawn image should be reasonably close to the target.
-        target = target[star.image.bounds]
+        target = target[test_star.image.bounds]
         print('target max diff = ',np.max(np.abs(test_star.image.array - target.array)))
         np.testing.assert_allclose(test_star.image.array, target.array, atol=1.e-5)
 
         # Draw should produce something almost identical (modulo bounds).
-        test_image = psf.draw(x=star['x'], y=star['y'], stamp_size=config['input']['stamp_size'],
-                              flux=star.fit.flux, offset=star.fit.center/image.scale)
+        test_image = psf.draw(x=test_star['x'], y=test_star['y'],
+                              stamp_size=config['input']['stamp_size'],
+                              flux=test_star.fit.flux, offset=test_star.fit.center/image.scale)
         b = test_star.image.bounds & test_image.bounds
         print('image max diff = ',np.max(np.abs(test_image[b].array - test_star.image[b].array)))
         np.testing.assert_allclose(test_image[b].array, test_star.image[b].array, atol=1.e-8)
