@@ -271,7 +271,7 @@ def test_easy_sum2():
         print('image max diff = ',np.max(np.abs(test_image[b].array - test_star.image[b].array)))
         np.testing.assert_allclose(test_image[b].array, test_star.image[b].array, atol=1.e-8)
 
-    # Repeat with both components being PixelGrid mdoels.
+    # Repeat with both components being PixelGrid models.
     # Both pretty chunky, so this test doesn't take forever.
     config['psf']['components'][0]['model'] = {
         'type': 'PixelGrid',

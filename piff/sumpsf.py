@@ -54,7 +54,7 @@ class SumPSF(PSF):
         self.chisq_thresh = chisq_thresh
         self.max_iter = max_iter
         self.kwargs = {
-            # If components is a list, mark the number of components here for I/O purposed.
+            # If components is a list, mark the number of components here for I/O purposes.
             # But if it's just a number, leave it alone.
             'components': len(components) if isinstance(components, list) else components,
             'outliers': 0,
@@ -88,9 +88,8 @@ class SumPSF(PSF):
                 self._num_components += comp.num_components
             self._num = self._nums[0]
         else:
+            # else components are not yet built. This will be called again when that's done.
             self._num = None
-
-        # else components are not yet built. This will be called again when that's done.
 
     @property
     def num_components(self):
@@ -172,9 +171,7 @@ class SumPSF(PSF):
         nremoved = 0  # For this iteration
 
         # Draw the current models for each component
-        current_models = []
-        for k, comp in enumerate(self.components):
-            current_models.append(comp.drawStarList(stars))
+        current_models = [comp.drawStarList(stars) for comp in self.components]
 
         # Fit each component in order
         for k, comp in enumerate(self.components):
@@ -192,9 +189,10 @@ class SumPSF(PSF):
             # Fit this component
             new_stars, nremoved1 = comp.single_iteration(modified_stars, logger, convert_func)
 
-            # The fit components in new_stars are what we want, but the data parts are
-            # corrupted by subtracting the other components, which we don't want.
-            # Just copy over the fits.
+            # new_stars now has the updated fit components, but the data parts are corrupted by
+            # subtracting the other components during fitting.
+            # Update the stars by copying the undisturbed data from the original stars and the
+            # updated fits from new_stars.
             stars = [Star(s1.data, s2.fit) for s1,s2 in zip(stars, new_stars)]
             nremoved += nremoved1
 
