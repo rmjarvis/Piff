@@ -540,8 +540,8 @@ def test_cols():
     np.testing.assert_raises(ValueError, input.getRawImageData, 0)
     input = piff.InputFiles(dict(flag_col='xx', **base_config))
     np.testing.assert_raises(ValueError, input.getRawImageData, 0)
-    input = piff.InputFiles(dict(property_cols='invalid_string', **base_config))
-    np.testing.assert_raises(ValueError, input.getRawImageData, 0)
+    with np.testing.assert_raises(ValueError):
+        input = piff.InputFiles(dict(property_cols='invalid_string', **base_config))
     input = piff.InputFiles(dict(property_cols=['gr_color','invalid_col'], **base_config))
     np.testing.assert_raises(ValueError, input.getRawImageData, 0)
 
