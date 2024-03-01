@@ -120,7 +120,7 @@ class PSF(object):
         raise NotImplementedError("Derived classes must define the parseKwargs function")
 
     def draw(self, x, y, chipnum=None, flux=1.0, center=None, offset=None, stamp_size=48,
-             image=None, logger=None, apodize=True, **kwargs):
+             image=None, logger=None, apodize=(1.0, 4.25), **kwargs):
         r"""Draws an image of the PSF at a given location.
 
         The normal usage would be to specify (chipnum, x, y), in which case Piff will use the
@@ -182,10 +182,11 @@ class PSF(object):
                             [default: 48]
         :param image:       An existing image on which to draw, if desired. [default: None]
         :param logger:      A logger object for logging debug info. [default: None]
-        :param apodize:     Optional float giving the number of half light radii after
-                            which the profile is smoothy apodized to zero at the image edge.
-                            [default: True which uses a default transition width of 1 pixel and
-                            a default apodization radius of 4.25 pixels]
+        :param apodize:     Optional parameter to set apodizatoon. If a float/int, gives the
+                            number of half light radii after which the profile is smoothy apodized
+                            to zero a width of ~2.55 half light radii. If a tuple/list, gives
+                            the apodization width and the apodization radius in pixels.
+                            [default: None, which means no apodization.]
         :param \**kwargs:   Any additional properties required for the interpolation.
 
         :returns:           A GalSim Image of the PSF
@@ -232,26 +233,27 @@ class PSF(object):
             dy = ypix - center[1]
             r2 = dx**2 + dy**2
 
-            # this algorithm is adaptive but for DES we'll fix things
-            # to a constant value for stability
-            # _im = image.copy()
-            # _im.wcs = None
-            # _im.scale = 1.0
-            # hlr = _im.calculateHLR(center=galsim.PositionD(center))
-            # aprad = apodize * hlr
-            # msk_nonzero = _im.array != 0
-            # max_r = min(
-            #     np.abs(dx[(dx < 0) & msk_nonzero].min()),
-            #     np.abs(dx[(dx > 0) & msk_nonzero].max()),
-            #     np.abs(dy[(dy < 0) & msk_nonzero].min()),
-            #     np.abs(dy[(dy > 0) & msk_nonzero].max()),
-            # )
-            # apwidth = np.abs(hlr) / 2.355
-            # apwidth = min(max(apwidth, 0.5), 5.0)
-            # aprad = max(min(aprad, max_r - 6 * apwidth - 1), 2 * apwidth)
-
-            apwidth = 1.0
-            aprad = 4.25
+            if isinstance(apodize, (tuple, list)):
+                apwidth, aprad = apodize
+            else:
+                wcs = image.wcs
+                try:
+                    image.wcs = None
+                    image.scale = 1.0
+                    hlr = image.calculateHLR(center=galsim.PositionD(center))
+                finally:
+                    image.wcs = wcs
+                aprad = apodize * hlr
+                msk_nonzero = image.array != 0
+                max_r = min(
+                    np.abs(dx[(dx < 0) & msk_nonzero].min()),
+                    np.abs(dx[(dx > 0) & msk_nonzero].max()),
+                    np.abs(dy[(dy < 0) & msk_nonzero].min()),
+                    np.abs(dy[(dy > 0) & msk_nonzero].max()),
+                )
+                apwidth = np.abs(hlr) / 2.355
+                apwidth = min(max(apwidth, 0.5), 5.0)
+                aprad = max(min(aprad, max_r - 6 * apwidth - 1), 2 * apwidth)
 
             apim = image._array * _ap_kern_kern(aprad, np.sqrt(r2), apwidth)
             image._array = apim / np.sum(apim) * np.sum(image._array)
