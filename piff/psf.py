@@ -20,9 +20,30 @@ import numpy as np
 import fitsio
 import galsim
 import sys
+from numba import vectorize
 
 from .star import Star, StarData
 from .util import write_kwargs, read_kwargs
+
+
+@vectorize
+def _ap_kern_kern(x, m, h):
+    # cumulative triweight kernel
+    y = (x - m) / h + 3
+    if y < -3:
+        return 0
+    elif y > 3:
+        return 1
+    else:
+        val = (
+            -5 * y ** 7 / 69984
+            + 7 * y ** 5 / 2592
+            - 35 * y ** 3 / 864
+            + 35 * y / 96
+            + 1 / 2
+        )
+        return val
+
 
 class PSF(object):
     """The base class for describing a PSF model across a field of view.
@@ -99,7 +120,7 @@ class PSF(object):
         raise NotImplementedError("Derived classes must define the parseKwargs function")
 
     def draw(self, x, y, chipnum=None, flux=1.0, center=None, offset=None, stamp_size=48,
-             image=None, logger=None, **kwargs):
+             image=None, logger=None, apodize=True, **kwargs):
         r"""Draws an image of the PSF at a given location.
 
         The normal usage would be to specify (chipnum, x, y), in which case Piff will use the
@@ -161,6 +182,10 @@ class PSF(object):
                             [default: 48]
         :param image:       An existing image on which to draw, if desired. [default: None]
         :param logger:      A logger object for logging debug info. [default: None]
+        :param apodize:     Optional float giving the number of half light radii after
+                            which the profile is smoothy apodized to zero at the image edge.
+                            [default: True which uses a default transition width of 1 pixel and
+                            a default apodization radius of 4.25 pixels]
         :param \**kwargs:   Any additional properties required for the interpolation.
 
         :returns:           A GalSim Image of the PSF
@@ -200,6 +225,36 @@ class PSF(object):
             center = (center[0] + offset[0], center[1] + offset[1])
 
         prof.drawImage(image, method=method, center=center)
+
+        if apodize:
+            xpix, ypix = image.get_pixel_centers()
+            dx = xpix - center[0]
+            dy = ypix - center[1]
+            r2 = dx**2 + dy**2
+
+            # this algorithm is adaptive but for DES we'll fix things
+            # to a constant value for stability
+            # _im = image.copy()
+            # _im.wcs = None
+            # _im.scale = 1.0
+            # hlr = _im.calculateHLR(center=galsim.PositionD(center))
+            # aprad = apodize * hlr
+            # msk_nonzero = _im.array != 0
+            # max_r = min(
+            #     np.abs(dx[(dx < 0) & msk_nonzero].min()),
+            #     np.abs(dx[(dx > 0) & msk_nonzero].max()),
+            #     np.abs(dy[(dy < 0) & msk_nonzero].min()),
+            #     np.abs(dy[(dy > 0) & msk_nonzero].max()),
+            # )
+            # apwidth = np.abs(hlr) / 2.355
+            # apwidth = min(max(apwidth, 0.5), 5.0)
+            # aprad = max(min(aprad, max_r - 6 * apwidth - 1), 2 * apwidth)
+
+            apwidth = 1.0
+            aprad = 4.25
+
+            apim = image._array * _ap_kern_kern(aprad, np.sqrt(r2), apwidth)
+            image._array = apim / np.sum(apim) * np.sum(image._array)
 
         return image
 
