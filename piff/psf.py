@@ -20,29 +20,26 @@ import numpy as np
 import fitsio
 import galsim
 import sys
-from numba import vectorize
 
 from .star import Star, StarData
 from .util import write_kwargs, read_kwargs
 
 
-@vectorize
 def _ap_kern_kern(x, m, h):
     # cumulative triweight kernel
     y = (x - m) / h + 3
-    if y < -3:
-        return 0
-    elif y > 3:
-        return 1
-    else:
-        val = (
-            -5 * y ** 7 / 69984
-            + 7 * y ** 5 / 2592
-            - 35 * y ** 3 / 864
-            + 35 * y / 96
-            + 1 / 2
-        )
-        return val
+    apval = np.zeros_like(m)
+    msk = y > 3
+    apval[msk] = 1
+    msk = (y > -3) & (~msk)
+    apval[msk] = (
+        -5 * y[msk] ** 7 / 69984
+        + 7 * y[msk] ** 5 / 2592
+        - 35 * y[msk] ** 3 / 864
+        + 35 * y[msk] / 96
+        + 1 / 2
+    )
+    return apval
 
 
 class PSF(object):
