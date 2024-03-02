@@ -223,63 +223,63 @@ class TwoDHistStats(Stats):
         # make the plots
         logger.info("Creating TwoDHist plots")
         ax = axs[0, 0]
-        IM = ax.pcolor(self.bins_u, self.bins_v, self.twodhists['T'], cmap=cmap__T,
+        IM = ax.pcolormesh(self.bins_u, self.bins_v, self.twodhists['T'], cmap=cmap__T,
                        vmin=vmin__T, vmax=vmax__T)
         ax.set_xlim(min(self.bins_u), max(self.bins_u))
         ax.set_ylim(min(self.bins_v), max(self.bins_v))
         fig.colorbar(IM, ax=ax)
 
         ax = axs[1, 0]
-        IM = ax.pcolor(self.bins_u, self.bins_v, self.twodhists['T_model'], cmap=cmap__T,
+        IM = ax.pcolormesh(self.bins_u, self.bins_v, self.twodhists['T_model'], cmap=cmap__T,
                        vmin=vmin__T, vmax=vmax__T)
         ax.set_xlim(min(self.bins_u), max(self.bins_u))
         ax.set_ylim(min(self.bins_v), max(self.bins_v))
         fig.colorbar(IM, ax=ax)
 
         ax = axs[2, 0]
-        IM = ax.pcolor(self.bins_u, self.bins_v, self.twodhists['dT'], cmap=cmap__dT,
+        IM = ax.pcolormesh(self.bins_u, self.bins_v, self.twodhists['dT'], cmap=cmap__dT,
                        vmin=vmin__dT, vmax=vmax__dT)
         ax.set_xlim(min(self.bins_u), max(self.bins_u))
         ax.set_ylim(min(self.bins_v), max(self.bins_v))
         fig.colorbar(IM, ax=ax)
 
         ax = axs[0, 1]
-        IM = ax.pcolor(self.bins_u, self.bins_v, self.twodhists['g1'], cmap=cmap__g,
+        IM = ax.pcolormesh(self.bins_u, self.bins_v, self.twodhists['g1'], cmap=cmap__g,
                        vmin=vmin__g, vmax=vmax__g)
         ax.set_xlim(min(self.bins_u), max(self.bins_u))
         ax.set_ylim(min(self.bins_v), max(self.bins_v))
         fig.colorbar(IM, ax=ax)
 
         ax = axs[1, 1]
-        IM = ax.pcolor(self.bins_u, self.bins_v, self.twodhists['g1_model'], cmap=cmap__g,
+        IM = ax.pcolormesh(self.bins_u, self.bins_v, self.twodhists['g1_model'], cmap=cmap__g,
                        vmin=vmin__g, vmax=vmax__g)
         ax.set_xlim(min(self.bins_u), max(self.bins_u))
         ax.set_ylim(min(self.bins_v), max(self.bins_v))
         fig.colorbar(IM, ax=ax)
 
         ax = axs[2, 1]
-        IM = ax.pcolor(self.bins_u, self.bins_v, self.twodhists['dg1'], cmap=cmap__dg,
+        IM = ax.pcolormesh(self.bins_u, self.bins_v, self.twodhists['dg1'], cmap=cmap__dg,
                        vmin=vmin__dg, vmax=vmax__dg)
         ax.set_xlim(min(self.bins_u), max(self.bins_u))
         ax.set_ylim(min(self.bins_v), max(self.bins_v))
         fig.colorbar(IM, ax=ax)
 
         ax = axs[0, 2]
-        IM = ax.pcolor(self.bins_u, self.bins_v, self.twodhists['g2'], cmap=cmap__g,
+        IM = ax.pcolormesh(self.bins_u, self.bins_v, self.twodhists['g2'], cmap=cmap__g,
                        vmin=vmin__g, vmax=vmax__g)
         ax.set_xlim(min(self.bins_u), max(self.bins_u))
         ax.set_ylim(min(self.bins_v), max(self.bins_v))
         fig.colorbar(IM, ax=ax)
 
         ax = axs[1, 2]
-        IM = ax.pcolor(self.bins_u, self.bins_v, self.twodhists['g2_model'], cmap=cmap__g,
+        IM = ax.pcolormesh(self.bins_u, self.bins_v, self.twodhists['g2_model'], cmap=cmap__g,
                        vmin=vmin__g, vmax=vmax__g)
         ax.set_xlim(min(self.bins_u), max(self.bins_u))
         ax.set_ylim(min(self.bins_v), max(self.bins_v))
         fig.colorbar(IM, ax=ax)
 
         ax = axs[2, 2]
-        IM = ax.pcolor(self.bins_u, self.bins_v, self.twodhists['dg2'], cmap=cmap__dg,
+        IM = ax.pcolormesh(self.bins_u, self.bins_v, self.twodhists['dg2'], cmap=cmap__dg,
                        vmin=vmin__dg, vmax=vmax__dg)
         ax.set_xlim(min(self.bins_u), max(self.bins_u))
         ax.set_ylim(min(self.bins_v), max(self.bins_v))
