@@ -280,8 +280,8 @@ class DECamInfo(object):
         # now we know that dudx etc, so convert xpix and ypix to uarcsec varcsec
         arcsec_over_pixel = 0.26
         # also a minus sign because the axes also flip
-        uarcsec = ypix * -arcsec_over_pixel
-        varcsec = xpix * -arcsec_over_pixel
+        uarcsec = ypix[0] * -arcsec_over_pixel
+        varcsec = xpix[0] * -arcsec_over_pixel
         world_origin = galsim.PositionD(uarcsec, varcsec)
         wcs = galsim.AffineTransform(0, -arcsec_over_pixel, -arcsec_over_pixel, 0,
                                      world_origin=-world_origin)
