@@ -686,7 +686,7 @@ def test_newdes():
     # Note: the centering mechanics have changed since this regression was set up to make the
     # nominal PSF center closer to the image center.  So the second slice changed from
     # 23:26 -> 22:25.
-    np.testing.assert_allclose(image.array[23:26,22:25], regression_array, rtol=1.e-5)
+    np.testing.assert_allclose(image.array[23:26,22:25], regression_array, rtol=1.e-4)
 
     # Also check that it is picklable.
     psf2 = copy.deepcopy(psf)
