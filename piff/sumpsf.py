@@ -156,7 +156,7 @@ class SumPSF(PSF):
         stars = self.setup_params(stars)
 
         # Now initialize all the components
-        for k, comp in enumerate(self.components):
+        for comp in self.components:
             stars, nremoved1 = comp.initialize_params(stars, logger, default_init=default_init)
             nremoved += nremoved1
             # After the first one, set default_init to 'zero'
@@ -221,7 +221,7 @@ class SumPSF(PSF):
         :returns:           List of Star instances with their fit parameters updated.
         """
         stars = self.setup_params(stars)
-        for k, comp in enumerate(self.components):
+        for comp in self.components:
             stars = comp.interpolateStarList(stars)
         return stars
 
@@ -234,14 +234,14 @@ class SumPSF(PSF):
         :returns:           Star instance with its fit parameters updated.
         """
         star, = self.setup_params([star])
-        for k, comp in enumerate(self.components):
+        for comp in self.components:
             star = comp.interpolateStar(star)
         return star
 
     def _drawStar(self, star, center=None):
         # Draw each component
         comp_stars = []
-        for k, comp in enumerate(self.components):
+        for comp in self.components:
             comp_star = comp._drawStar(star, center=center)
             comp_stars.append(comp_star)
 
@@ -256,7 +256,7 @@ class SumPSF(PSF):
         # Get each component profile
         profiles = []
         methods = []
-        for k, comp in enumerate(self.components):
+        for comp in self.components:
             prof, method = comp._getRawProfile(star)
             profiles.append(prof)
             methods.append(method)
