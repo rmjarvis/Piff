@@ -384,7 +384,7 @@ class Star(object):
 
             # params might need to be flattened
             if stars[0].fit.params_lens is not None:
-                header = {'PARAMS_LENS' : stars[0].fit.params_lens}
+                header = {'PARAMS_LENS' : str(stars[0].fit.params_lens)}
                 params = [ StarFit.flatten_params(p) for p in params ]
 
             dtypes.append( ('params', float, len(params[0])) )

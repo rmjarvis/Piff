@@ -314,7 +314,7 @@ class GSObjectModel(Model):
         if self._centered:
             center = (du, dv)
         else:
-            center = (0.0, 0.0)
+            center = star.fit.center
             params = [du, dv] + params
             params_var = np.concatenate([var[1:3], params_var])
         if self._fit_flux:

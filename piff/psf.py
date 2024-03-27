@@ -101,6 +101,11 @@ class PSF(object):
         # But this is the minimum action that all subclasses need to do.
         self._num = num
 
+    @property
+    def num_components(self):
+        # Subclasses for which this is not true can overwrite this
+        return 1
+
     @classmethod
     def __init_subclass__(cls):
         # Classes that don't want to register a type name can either not define _type_name
@@ -694,7 +699,12 @@ class PSF(object):
         raise NotImplementedError("Derived classes must define the _drawStar function")
 
     def _getProfile(self, star):
-        raise NotImplementedError("Derived classes must define the _getProfile function")
+        prof, method = self._getRawProfile(star)
+        prof = prof.shift(star.fit.center) * star.fit.flux
+        return prof, method
+
+    def _getRawProfile(self, star):
+        raise NotImplementedError("Derived classes must define the _getRawProfile function")
 
     def write(self, file_name, logger=None):
         """Write a PSF object to a file.
@@ -723,10 +733,12 @@ class PSF(object):
         psf_type = self._type_name
         write_kwargs(fits, extname, dict(self.kwargs, type=psf_type, piff_version=piff_version))
         logger.info("Wrote the basic PSF information to extname %s", extname)
-        Star.write(self.stars, fits, extname=extname + '_stars')
-        logger.info("Wrote the PSF stars to extname %s", extname + '_stars')
-        self.writeWCS(fits, extname=extname + '_wcs', logger=logger)
-        logger.info("Wrote the PSF WCS to extname %s", extname + '_wcs')
+        if hasattr(self, 'stars'):
+            Star.write(self.stars, fits, extname=extname + '_stars')
+            logger.info("Wrote the PSF stars to extname %s", extname + '_stars')
+        if hasattr(self, 'wcs'):
+            self.writeWCS(fits, extname=extname + '_wcs', logger=logger)
+            logger.info("Wrote the PSF WCS to extname %s", extname + '_wcs')
         self._finish_write(fits, extname=extname, logger=logger)
 
     @classmethod
@@ -773,17 +785,19 @@ class PSF(object):
             raise ValueError("psf type %s is not a valid Piff PSF"%psf_type)
         psf_cls = PSF.valid_psf_types[psf_type]
 
-        # Read the stars, wcs, pointing values
-        stars = Star.read(fits, extname + '_stars')
-        logger.debug("stars = %s",stars)
-        wcs, pointing = cls.readWCS(fits, extname + '_wcs', logger=logger)
-        logger.debug("wcs = %s, pointing = %s",wcs,pointing)
-
         # Make the PSF instance
         psf = psf_cls(**kwargs)
-        psf.stars = stars
-        psf.wcs = wcs
-        psf.pointing = pointing
+
+        # Read the stars, wcs, pointing values
+        if extname + '_stars' in fits:
+            stars = Star.read(fits, extname + '_stars')
+            logger.debug("stars = %s",stars)
+            psf.stars = stars
+        if extname + '_wcs' in fits:
+            wcs, pointing = cls.readWCS(fits, extname + '_wcs', logger=logger)
+            logger.debug("wcs = %s, pointing = %s",wcs,pointing)
+            psf.wcs = wcs
+            psf.pointing = pointing
 
         # Just in case the class needs to do something else at the end.
         psf._finish_read(fits, extname, logger)
