@@ -509,6 +509,10 @@ def test_starstats_config():
             'cat_file_name' : cat_file,
             'stamp_size' : 48
         },
+        'select' : {
+            'reserve_frac': 0.2,
+            'seed': 12345,
+        },
         'psf' : {
             'model' : { 'type' : 'Gaussian',
                         'fastfit': True,
@@ -547,7 +551,8 @@ def test_starstats_config():
     # check default nplot
     psf = piff.read(psf_file)
     starStats = piff.StarStats()
-    orig_stars, wcs, pointing = piff.Input.process(config['input'], logger)
+    orig_stars, wcs, pointing = piff.Input.process(config['input'], logger=logger)
+    orig_stars = piff.Select.process(config['select'], orig_stars, logger=logger)
     with np.testing.assert_raises(RuntimeError):
         starStats.write()  # Cannot write before compute
     starStats.compute(psf, orig_stars)
@@ -580,8 +585,22 @@ def test_starstats_config():
     np.testing.assert_array_equal(starStats.indices, np.arange(len(orig_stars)))
     starStats.plot()  # Make sure this runs without error.
 
+    # With include_reserve=False, only 8 stars
+    print('All stars: n=',len(starStats.stars))  # 10 stars total
+    assert len(starStats.stars) == 10
+    starStats = piff.StarStats(nplot=0, include_reserve=False)
+    starStats.compute(psf, orig_stars)
+    assert len(starStats.stars) == 8
+    starStats.plot()  # Make sure this runs without error.
+
+    # With only_reserve=True, only 2 stars
+    starStats = piff.StarStats(nplot=0, only_reserve=True)
+    starStats.compute(psf, orig_stars)
+    assert len(starStats.stars) == 2
+    starStats.plot()  # Make sure this runs without error.
+
     # rerun with adjust stars and see if it did the right thing
-    # first with starstats == False
+    # first with adjust_stars == False
     starStats = piff.StarStats(nplot=0, adjust_stars=False)
     starStats.compute(psf, orig_stars, logger=logger)
     fluxs_noadjust = np.array([s.fit.flux for s in starStats.stars])
@@ -591,7 +610,7 @@ def test_starstats_config():
     # check that ds are 0
     np.testing.assert_array_equal(ds_noadjust, 0)
 
-    # now with starstats == True
+    # now with adjust_stars == True
     starStats = piff.StarStats(nplot=0, adjust_stars=True)
     starStats.compute(psf, orig_stars, logger=logger)
     fluxs_adjust = np.array([s.fit.flux for s in starStats.stars])
@@ -772,6 +791,11 @@ def test_bad_hsm():
                 {
                     'type': 'StarImages',
                     'file_name': star_file,
+                },
+                {
+                    'type': 'StarImages',
+                    'file_name': star_file,
+                    'include_flagged': True,
                 },
                 {
                     'type': 'SizeMag',
