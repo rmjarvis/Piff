@@ -41,15 +41,23 @@ class StarStats(Stats):
                             (without replacement). [default: 10]
     :param adjust_stars:    Boolean. If true, when computing, will also fit for best
                             starfit center and flux to match observed star. [default: False]
+    :param include_reserve: Whether to inlude reserve stars. [default: True]
+    :param only_reserve:    Whether to skip plotting non-reserve stars. [default: False]
+    :param include_flaggede: Whether to include plotting flagged stars. [default: False]
     :param file_name:       Name of the file to output to. [default: None]
     :param logger:          A logger object for logging debug info. [default: None]
     """
     _type_name = 'StarImages'
 
-    def __init__(self, nplot=10, adjust_stars=False, file_name=None, logger=None):
+    def __init__(self, nplot=10, adjust_stars=False,
+                 include_reserve=True, only_reserve=False, include_flagged=False,
+                 file_name=None, logger=None):
         self.nplot = nplot
         self.file_name = file_name
         self.adjust_stars = adjust_stars
+        self.include_reserve = include_reserve
+        self.only_reserve = only_reserve
+        self.include_flagged = include_flagged
 
     def compute(self, psf, stars, logger=None):
         """
@@ -58,12 +66,21 @@ class StarStats(Stats):
         :param logger:      A logger object for logging debug info. [default: None]
         """
         logger = galsim.config.LoggerWrapper(logger)
-        # get the shapes
+        # Determine which stars to plot
+        possible_indices = []
+        if self.include_reserve:
+            possible_indices += [i for i,s in enumerate(stars)
+                                 if s.is_reserve and (self.include_flagged or not s.is_flagged)]
+        if not self.only_reserve:
+            possible_indices += [i for i,s in enumerate(stars)
+                                 if not s.is_reserve and (self.include_flagged or not s.is_flagged)]
+        possible_indices = sorted(possible_indices)
+
         if self.nplot == 0 or self.nplot >= len(stars):
-            # select all stars
-            self.indices = np.arange(len(stars))
+            # select all viable stars
+            self.indices = possible_indices
         else:
-            self.indices = np.random.choice(len(stars), self.nplot, replace=False)
+            self.indices = np.random.choice(possible_indices, self.nplot, replace=False)
 
         logger.info("Making {0} Model Stars".format(len(self.indices)))
         self.stars = []
@@ -110,8 +127,13 @@ class StarStats(Stats):
             ii = i // 2
             jj = (i % 2) * 3
 
-            axs[ii][jj+0].set_title('Star {0}'.format(index))
-            axs[ii][jj+1].set_title('PSF at (u,v) = \n ({0:+.02e}, {1:+.02e})'.format(u, v))
+            title = f'Star {index}'
+            if star.is_reserve:
+                title = 'Reserve ' + title
+            if star.is_flagged:
+                title = 'Flagged ' + title
+            axs[ii][jj+0].set_title(title)
+            axs[ii][jj+1].set_title(f'PSF at (u,v) = \n ({u:+.02e}, {v:+.02e})')
             axs[ii][jj+2].set_title('Star - PSF')
 
             star_image = star.image
