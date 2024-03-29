@@ -366,7 +366,7 @@ class PixelGrid(Model):
                 v = v[mask] / self.scale
                 ui,uf = np.divmod(u,1)
                 vi,vf = np.divmod(v,1)
-                xr = self.interp.xrange
+                xr = int(np.ceil(self.interp.xrange))
                 # Note arguments are basis pixel position minus image pixel position.
                 # Hence the minus sign in front of uf.
                 argu = -uf[:,np.newaxis] + np.arange(-xr+1,xr+1)[np.newaxis,:]
