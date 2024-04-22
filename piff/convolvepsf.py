@@ -24,29 +24,29 @@ from .util import write_kwargs, read_kwargs
 from .star import Star, StarFit
 from .outliers import Outliers
 
-class SumPSF(PSF):
-    """A PSF class that is the Sum of two or more other PSF types.
+class ConvolvePSF(PSF):
+    """A PSF class that is the Convolution of two or more other PSF types.
 
-    A SumPSF is built from an ordered list of other PSFs.
+    A ConvolvePSF is built from an ordered list of other PSFs.
 
-    When fitting the Sum, the default pattern is that all components after the first one
-    are initialized to zero, and the first component is fit as usual, but just using a
-    single iteration of the fit.  Then the residuals of this model are fit using the second
-    component, and so on.  Once all components are fit, outliers may be rejected, and then
-    the process is iterated.
+    When fitting the convolution, the default pattern is that all components after the first one
+    are initialized as (approximately) a delta function, and the first component is fit as usual,
+    but just using a single iteration of the fit. Then the residuals of this model are fit using
+    the second component, and so on. Once all components are fit, outliers may be rejected, and
+    then the process is iterated.
 
     This pattern can be tweaked somewhat using the initialization options available to
-    PSF models.  If a component should be initialized to something other than a zero model,
+    PSF models. If a component should be initialized to something other than a delta-function.
     then one should explicitly set it.
 
-    :param components:  A list of PSF instances defining the components to be summed.
+    :param components:  A list of PSF instances defining the components to be convolved.
     :param outliers:    Optionally, an Outliers instance used to remove outliers.
                         [default: None]
     :param chisq_thresh: Change in reduced chisq at which iteration will terminate.
                         [default: 0.1]
     :param max_iter:    Maximum number of iterations to try. [default: 30]
     """
-    _type_name = 'Sum'
+    _type_name = 'Convolve'
 
     def __init__(self, components, outliers=None, chisq_thresh=0.1, max_iter=30):
         self.components = components
@@ -78,7 +78,7 @@ class SumPSF(PSF):
             # This array keeps track of which num to use for each component.
             self._nums = np.empty(len(self.components), dtype=int)
             self._num_components = 0  # It might not be len(self.components) if some of them are
-                                      # in turn composite types.  Figure it out below.
+                                      # in turn composite types. Figure it out below.
 
             k1 = 0 if num is None else num
             for k, comp in enumerate(self.components):
@@ -119,7 +119,7 @@ class SumPSF(PSF):
         kwargs.pop('type',None)
 
         if 'components' not in kwargs:
-            raise ValueError("components field is required in psf field for type=Sum")
+            raise ValueError("components field is required in psf field for type=Convolve")
 
         # make components
         components = kwargs.pop('components')
@@ -150,7 +150,7 @@ class SumPSF(PSF):
     def initialize_params(self, stars, logger, default_init=None):
         nremoved = 0
 
-        logger.debug("Initializing components of SumPSF")
+        logger.debug("Initializing components of ConvolvePSF")
 
         # First make sure the params are the right shape.
         stars = self.setup_params(stars)
@@ -159,10 +159,10 @@ class SumPSF(PSF):
         for comp in self.components:
             stars, nremoved1 = comp.initialize_params(stars, logger, default_init=default_init)
             nremoved += nremoved1
-            # After the first one, set default_init to 'zero'
-            default_init='zero'
+            # After the first one, set default_init to 'delta'
+            default_init='delta'
 
-        # If any components are degenerate, mark the sum as degenerate.
+        # If any components are degenerate, mark the convolution as degenerate.
         self.degenerate_points = any([comp.degenerate_points for comp in self.components])
 
         return stars, nremoved
@@ -170,36 +170,28 @@ class SumPSF(PSF):
     def single_iteration(self, stars, logger, convert_funcs, draw_method):
         nremoved = 0  # For this iteration
 
-        # Draw the current models for each component
-        current_models = [comp.drawStarList(stars) for comp in self.components]
-
         # Fit each component in order
         for k, comp in enumerate(self.components):
             logger.info("Starting work on component %d (%s)", k, comp._type_name)
-            # Update stars to subtract current fit from other components.
-            modified_stars = []
-            for i, star in enumerate(stars):
-                new_image = star.image.copy()
-                for kk in range(len(self.components)):
-                    if kk != k:
-                        new_image -= current_models[kk][i].image
-                modified_star = Star(star.data.withNew(image=new_image), star.fit)
-                modified_stars.append(modified_star)
 
-            # Fit this component
-            new_stars, nremoved1 = comp.single_iteration(modified_stars, logger, convert_funcs,
-                                                         draw_method)
+            # Update the convert_funcs to add a convolution by the other components.
+            new_convert_funcs = []
+            for k, star in enumerate(stars):
+                others, method = self._getRawProfile(star, skip=comp)
 
-            # new_stars now has the updated fit components, but the data parts are corrupted by
-            # subtracting the other components during fitting.
-            # Update the stars by copying the undisturbed data from the original stars and the
-            # updated fits from new_stars.
-            stars = [Star(s1.data, s2.fit) for s1,s2 in zip(stars, new_stars)]
+                if others is None:
+                    cf = convert_funcs[k] if convert_funcs is not None else None
+                elif convert_funcs is None:
+                    cf = lambda prof: galsim.Convolve(prof, others)
+                else:
+                    cf = lambda prof: galsim.Convolve(convert_funcs[k](prof), others)
+                new_convert_funcs.append(cf)
+
+            stars, nremoved1 = comp.single_iteration(stars, logger, new_convert_funcs, draw_method)
             nremoved += nremoved1
 
             # Update the current models for later components
             stars = comp.interpolateStarList(stars)
-            current_models[k] = comp.drawStarList(stars)
 
         return stars, nremoved
 
@@ -246,45 +238,38 @@ class SumPSF(PSF):
         return star
 
     def _drawStar(self, star, center=None):
-        # Draw each component
-        comp_stars = []
-        for comp in self.components:
-            comp_star = comp._drawStar(star, center=center)
-            comp_stars.append(comp_star)
-
-        # Add them up.
-        image = star.image.copy()
-        image.setZero()
-        for comp_star in comp_stars:
-            image += comp_star.image
+        params = star.fit.get_params(self._num)
+        prof, method = self._getRawProfile(star)
+        prof = prof.shift(star.fit.center) * star.fit.flux
+        if center is None:
+            center = star.image_pos
+        else:
+            center = galsim.PositionD(*center)
+        image = prof.drawImage(image=star.image.copy(), method=method, center=center)
         return Star(star.data.withNew(image=image), star.fit)
 
-    def _getRawProfile(self, star):
+    def _getRawProfile(self, star, skip=None):
         # Get each component profile
         profiles = []
         methods = []
         for comp in self.components:
             prof, method = comp._getRawProfile(star)
-            profiles.append(prof)
             methods.append(method)
-        if any([m != methods[0] for m in methods]):
-            assert all([m == 'no_pixel' or m == 'auto' for m in methods])
-            # Then some of these are auto, and others are no_pixel.
-            # Call the whole thing no_pixel, and manually convolve the auto components.
-            pixel = star.data.local_wcs.toWorld(galsim.Pixel(1.0))
-            new_profiles = []
-            for p,m in zip(profiles, methods):
-                if m == 'auto':
-                    new_profiles.append(galsim.Convolve(p, pixel))
-                else:
-                    new_profiles.append(p)
-            profiles = new_profiles
+            if comp is not skip:
+                profiles.append(prof)
+
+        # If any components already include the pixel, then keep no_pixel for the convolution.
+        assert all([m == 'no_pixel' or m == 'auto' for m in methods])
+        if any([m == 'no_pixel' for m in methods]):
             method = 'no_pixel'
         else:
-            method = methods[0]
+            method = 'auto'
 
-        # Add them up.
-        return galsim.Sum(profiles), method
+        # Convolve them.
+        if len(profiles) == 0:
+            return None, method
+        else:
+            return galsim.Convolve(profiles), method
 
     def _finish_write(self, fits, extname, logger):
         """Finish the writing process with any class-specific steps.

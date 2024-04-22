@@ -177,7 +177,7 @@ class PSF(object):
         # behavior is just to return the input stars list.
         return stars, 0
 
-    def single_iteration(self, stars, logger, convert_func):
+    def single_iteration(self, stars, logger, convert_funcs, draw_method):
         """Perform a single iteration of the solver.
 
         Note that some object might fail at some point in the fitting, so some objects can be
@@ -186,8 +186,11 @@ class PSF(object):
 
         :param stars:           The list of stars to use for constraining the PSF.
         :param logger:          A logger object for logging progress.
-        :param convert_func:    An optional function to apply to the profile being fit before
-                                drawing it onto the image.
+        :param convert_funcs:   An optional list of function to apply to the profiles being fit
+                                before drawing it onto the image.  If not None, it should be the
+                                same length as stars.
+        :param draw_method:     The method to use with the GalSim drawImage command. If None,
+                                use the default method for the PSF model being fit.
 
         :returns: an updated list of all_stars, nremoved
         """
@@ -201,7 +204,13 @@ class PSF(object):
         If all component models includes a shift, then this is False.
         Otherwise it is True.
         """
-        raise NotImplementedError("Derived classes must define the single_iteration function")
+        raise NotImplementedError("Derived classes must define the fit_center property")
+
+    @property
+    def include_model_centroid(self):
+        """Whether a model that we want to center can have a non-zero centroid during iterations.
+        """
+        raise NotImplementedError("Derived classes must define the include_model_centroid property")
 
     def reflux(self, star, logger=None):
         """Fit the PSF to the star's data, varying only the flux (and
@@ -284,12 +293,12 @@ class PSF(object):
             AtA = Atw.dot(At.T)
             Atb = Atw.dot(resid)
             x = np.linalg.solve(AtA, Atb)
-            logger.debug('    centroid shift = %s,%s', x[0], x[1])
+            logger.debug('    centroid shift = %s,%s', x[1], x[2])
 
             # Extract the values we want.
             df, duc, dvc = x
 
-            if psf_prof.centroid != galsim.PositionD(0,0):
+            if self.include_model_centroid and psf_prof.centroid != galsim.PositionD(0,0):
                 # In addition to shifting to the best fit center location, also shift
                 # by the centroid of the model itself, so the next next pass through the
                 # fit will be closer to centered.  In practice, this converges pretty quickly.
@@ -357,7 +366,7 @@ class PSF(object):
             nremoved = 0
         return stars, nremoved
 
-    def fit(self, stars, wcs, pointing, logger=None, convert_func=None):
+    def fit(self, stars, wcs, pointing, logger=None, convert_funcs=None, draw_method=None):
         """Fit interpolated PSF model to star data using standard sequence of operations.
 
         :param stars:           A list of Star instances.
@@ -365,9 +374,12 @@ class PSF(object):
         :param pointing:        A galsim.CelestialCoord object giving the telescope pointing.
                                 [Note: pointing should be None if the WCS is not a CelestialWCS]
         :param logger:          A logger object for logging debug info. [default: None]
-        :param convert_func:    An optional function to apply to the profile being fit before
-                                drawing it onto the image.  This is used by composite PSFs to
-                                isolate the effect of just this model component. [default: None]
+        :param convert_funcs:   An optional list of function to apply to the profiles being fit
+                                before drawing it onto the image.  This is used by composite PSFs
+                                to isolate the effect of just this model component.  If provided,
+                                it should be the same length as stars. [default: None]
+        :param draw_method:     The method to use with the GalSim drawImage command. If not given,
+                                use the default method for the PSF model being fit. [default: None]
         """
         logger = galsim.config.LoggerWrapper(logger)
 
@@ -389,7 +401,7 @@ class PSF(object):
 
             # Run a single iteration of the fitter.
             # Different PSF types do different things here.
-            stars, iter_nremoved = self.single_iteration(stars, logger, convert_func)
+            stars, iter_nremoved = self.single_iteration(stars, logger, convert_funcs, draw_method)
 
             # Update estimated poisson noise
             signals = self.drawStarList(stars)

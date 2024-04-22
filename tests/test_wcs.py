@@ -375,6 +375,7 @@ def test_single():
     # SingleChip doesn't use code paths that hit these functions, but they are officially
     # required methods for PSF classes, so just check them directly.
     assert psf.fit_center is True
+    assert psf.include_model_centroid is False
     raw1 = psf._getRawProfile(star)
     raw2 = psf.psf_by_chip[star['chipnum']]._getRawProfile(star)
     assert raw1 == raw2

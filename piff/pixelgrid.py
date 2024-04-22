@@ -158,7 +158,7 @@ class PixelGrid(Model):
         fit = star.fit.newParams(params=params, num=self._num)
         return Star(star.data, fit)
 
-    def fit(self, star, logger=None, convert_func=None):
+    def fit(self, star, logger=None, convert_func=None, draw_method=None):
         """Fit the Model to the star's data to yield iterative improvement on its PSF parameters
         and uncertainties.
 
@@ -167,9 +167,14 @@ class PixelGrid(Model):
         :param convert_func:    An optional function to apply to the profile being fit before
                                 drawing it onto the image.  This is used by composite PSFs to
                                 isolate the effect of just this model component. [default: None]
+        :param draw_method:     The method to use with the GalSim drawImage command to determine
+                                the residuals. [PixelGrid always uses 'no_pixel'; this parameter
+                                is only present for API compatibility.  It must be either None
+                                or 'no_pixel'.]
 
         :returns: a new Star instance with updated fit information
         """
+        assert draw_method in (None, 'no_pixel')
         logger = galsim.config.LoggerWrapper(logger)
         # Get chisq Taylor expansion for linearized model
         star1 = self.chisq(star, logger=logger, convert_func=convert_func)
@@ -216,7 +221,7 @@ class PixelGrid(Model):
         self.normalize(star)
         return star
 
-    def chisq(self, star, logger=None, convert_func=None):
+    def chisq(self, star, logger=None, convert_func=None, draw_method=None):
         """Calculate dependence of chi^2 = -2 log L(D|p) on PSF parameters for single star.
         as a quadratic form chi^2 = dp^T AT A dp - 2 bT A dp + chisq,
         where dp is the *shift* from current parameter values.  Returned Star
@@ -228,9 +233,14 @@ class PixelGrid(Model):
         :param convert_func:    An optional function to apply to the profile being fit before
                                 drawing it onto the image.  This is used by composite PSFs to
                                 isolate the effect of just this model component. [default: None]
+        :param draw_method:     The method to use with the GalSim drawImage command to determine
+                                the residuals. [PixelGrid always uses 'no_pixel'; this parameter
+                                is only present for API compatibility.  It must be either None
+                                or 'no_pixel'.]
 
         :returns: a new Star instance with updated fit parameters. (esp. A,b)
         """
+        assert draw_method in (None, 'no_pixel')
         logger = galsim.config.LoggerWrapper(logger)
         logger.debug('Start chisq function')
         logger.debug('initial params = %s',star.fit.get_params(self._num))
@@ -253,6 +263,7 @@ class PixelGrid(Model):
 
         if convert_func is not None:
             prof = convert_func(prof)
+            logger.debug(f'converted prof = {prof}')
 
         # Adjust the image now so that we can draw it in pixel coordinates, rather than letting
         # galsim.drawImage do the adjustment each time for each component, which would be
@@ -263,10 +274,16 @@ class PixelGrid(Model):
         image.wcs = galsim.PixelScale(1.0)
 
         # Draw the profile.
-        # Be careful here.  If prof was converted to something that isn't analytic in
-        # real space, this will need to be _drawFFT.
         prof = star.data.local_wcs.profileToImage(prof, offset=offset)
-        prof._drawReal(image)
+        if (convert_func is None or
+                (prof.is_analytic_x and not isinstance(prof, galsim.Convolution))):
+            draw_real = True
+            prof._drawReal(image)
+        else:
+            # If the convert func turns this into a Convolution, or something else that isn't
+            # analytic in real space, then use FFT drawing.
+            draw_real = False
+            prof.drawFFT(image)
         logger.debug('drawn flux = %s',image.array.sum())
         model = image.array.ravel() * star.fit.flux
 
@@ -298,6 +315,7 @@ class PixelGrid(Model):
             # In this case we need the basis_profile to have the right scale (rather than
             # incorporate it into the jacobian) so that convert_func will have the right size.
             basis_profile = basis_profile.dilate(self.scale)
+            logger.debug(f'basis_profile = {basis_profile}')
             # Find the net shift from the star.fit.center and the offset.
             jac = star.data.local_wcs.jacobian().inverse().getMatrix()
             dx = jac[0,0]*u0 + jac[0,1]*v0 + offset.x
@@ -305,20 +323,17 @@ class PixelGrid(Model):
             du = du.ravel() * self.scale
             dv = dv.ravel() * self.scale
             for k, duk, dvk in zip(range(self._nparams), du,dv):
-                # This implementation removes most of the overhead, and is still relatively
-                # straightforward.
-                # The one wrinkle is that if the net profile is no longer analytic in real space,
-                # we'll need a call to _drawFFT rather than _drawReal.  That would be a lot slower
-                # I think, so we may want to limit convolutions in conjunction with PixelGrid.
-                # (That's less of an issue for models with few paramters.)
-
-                basis_profile_k = basis_profile._shift(duk,dvk)
-                basis_profile_k = convert_func(basis_profile_k)
-                # TODO: If the convert_func has transformed the profile into something that is
-                # not analytic_x, then we need to do the _drawFFT version here.
-                basis_profile_k._drawReal(image, jac, (dx,dy), 1.)
+                prof = basis_profile._shift(duk,dvk)
+                prof = convert_func(prof)
+                if draw_real:
+                    prof._drawReal(image, jac, (dx,dy), 1.)
+                    # Equivalent to:
+                    #prof = galsim._Transform(prof, jac, (dx,dy), 1.)
+                    #prof.drawReal(image)
+                else:
+                    prof = galsim._Transform(prof, jac, (dx,dy), 1.)
+                    prof.drawFFT(image)
                 A[:,k] = image.array.ravel()[mask]
-
         else:
             if 0:
                 # When we don't have the convert_func step, this calculation can be sped up

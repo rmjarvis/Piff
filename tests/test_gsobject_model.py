@@ -1091,7 +1091,7 @@ def test_fail():
         stars, _ = psf.initialize_params([star3], logger=cl.logger)
         with np.testing.assert_raises(RuntimeError):
             # Raises an error that all stars were flagged
-            psf.single_iteration(stars, logger=cl.logger, convert_func=None)
+            psf.single_iteration(stars, logger=cl.logger, convert_funcs=None, draw_method=None)
     assert "Failed fitting star" in cl.output
     print('5')
 
