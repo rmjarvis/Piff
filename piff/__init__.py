@@ -113,6 +113,7 @@ from .optical_model import Optical, optical_templates
 
 # Composite PSFs
 from .sumpsf import SumPSF
+from .convolvepsf import ConvolvePSF
 
 # Leave these in their own namespaces
 from . import util

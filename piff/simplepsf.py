@@ -157,7 +157,7 @@ class SimplePSF(PSF):
 
         return stars, nremoved
 
-    def single_iteration(self, stars, logger, convert_func):
+    def single_iteration(self, stars, logger, convert_funcs, draw_method):
 
         # Perform the fit or compute design matrix as appropriate using just non-reserve stars
         fit_fn = self.model.chisq if self.quadratic_chisq else self.model.fit
@@ -165,10 +165,12 @@ class SimplePSF(PSF):
         nremoved = 0  # For this iteration
         use_stars = []  # Just the stars we want to use for fitting.
         all_stars = []  # All the stars (with appropriate flags as necessary)
-        for star in stars:
+        for k, star in enumerate(stars):
             if not star.is_flagged and not star.is_reserve:
                 try:
-                    star = fit_fn(star, logger=logger, convert_func=convert_func)
+                    convert_func = None if convert_funcs is None else convert_funcs[k]
+                    star = fit_fn(star, logger=logger, convert_func=convert_func,
+                                  draw_method=draw_method)
                     use_stars.append(star)
                 except Exception as e:
                     logger.warning("Failed fitting star at %s.", star.image_pos)
@@ -199,6 +201,12 @@ class SimplePSF(PSF):
         Otherwise it is True.
         """
         return self.model._centered
+
+    @property
+    def include_model_centroid(self):
+        """Whether a model that we want to center can have a non-zero centroid during iterations.
+        """
+        return self.model._centered and self.model._model_can_be_offset
 
     def interpolateStarList(self, stars):
         """Update the stars to have the current interpolated fit parameters according to the

@@ -780,9 +780,11 @@ def test_psf():
     np.testing.assert_raises(NotImplementedError, psf.drawStarList, [star])
     np.testing.assert_raises(NotImplementedError, psf._drawStar, star)
     np.testing.assert_raises(NotImplementedError, psf._getProfile, star)
-    np.testing.assert_raises(NotImplementedError, psf.single_iteration, [star], None, None)
+    np.testing.assert_raises(NotImplementedError, psf.single_iteration, [star], None, None, None)
     with np.testing.assert_raises(NotImplementedError):
         psf.fit_center
+    with np.testing.assert_raises(NotImplementedError):
+        psf.include_model_centroid
 
     # initialize_params doesn't do anything, but works
     stars, nremove = psf.initialize_params([star], None)
