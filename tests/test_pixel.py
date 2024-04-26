@@ -1703,6 +1703,54 @@ def test_color():
                                   # Anyway, I think the fit is working, just this test doesn't
                                   # seem quite the right thing.
 
+@timer
+def test_convert_func():
+    """Test PixelGrid fitting with a non-trivial convert_func
+    """
+
+    # This is the kind of convert_func that might be used by ConvolvePSF
+    # Start without noise and where the image is exactly representable by the converted PixelGrid.
+
+    optics = galsim.OpticalPSF(lam=500, diam=8,
+                               aberrations=[0.0,0.0,0.0,0.0,0.7,-0.8,0.7,0.5,0.7,-0.6,0.5,0.8],
+                               obscuration=0.4)
+    gauss = galsim.Gaussian(sigma=0.2)
+    delta = galsim.DeltaFunction()
+
+    convert_funcs = [
+        lambda prof: prof,
+        lambda prof: prof.shear(g1=0.2, g2=-0.05),
+        lambda prof: prof.dilate(1.12),
+        lambda prof: prof.shift(dx=0.1, dy=-0.05),
+        lambda prof: galsim.Convolve(prof, delta),
+        lambda prof: galsim.Convolve(prof, gauss),
+        lambda prof: galsim.Convolve(prof, optics),
+        lambda prof: prof + galsim.Convolve(gauss, optics),
+    ]
+
+    size = 5
+    scale = 0.2
+    flux = 1.e5
+    interp = galsim.Lanczos(7)
+    model_im = galsim.Gaussian(sigma=0.3).drawImage(nx=size,ny=size, scale=scale, method='no_pixel')
+    model_im /= model_im.array.sum()
+    model_ii = galsim.InterpolatedImage(model_im, x_interpolant=interp, use_true_center=False)
+
+    for k, convert_func in enumerate(convert_funcs):
+        print('Test convert_func #',k)
+        prof = convert_func(model_ii)
+
+        star = piff.Star.makeTarget(x=0, y=0, u=0, v=0, scale=0.2, stamp_size=32, flux=flux)
+        prof.withFlux(flux).drawImage(image=star.image, center=star.image_pos, method='no_pixel')
+
+        mod = piff.PixelGrid(scale, size, interp)
+        star1 = mod.initialize(star).withFlux(flux=np.sum(star.image.array))
+        star1 = mod.fit(star1, convert_func=convert_func)
+        print('true params = ',model_im.array.ravel())
+        print('fitted params = ',star1.fit.params)
+        np.testing.assert_allclose(star1.fit.params, model_im.array.ravel(), rtol=2.e-3)
+
+
 if __name__ == '__main__':
     #import cProfile, pstats
     #pr = cProfile.Profile()
@@ -1722,6 +1770,7 @@ if __name__ == '__main__':
     test_des2()
     test_var()
     test_color()
+    test_convert_func()
     #pr.disable()
     #ps = pstats.Stats(pr).sort_stats('tottime')
     #ps.print_stats(20)
