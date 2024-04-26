@@ -22,6 +22,7 @@ jobs:
                 py: [ 3.7, 3.8, 3.9, "3.10", 3.11, 3.12 ]
                 CC: [ gcc ]
                 CXX: [ g++ ]
+                FFTW_DIR: [ "/usr/local/lib/" ]
 
                 # Add some other particular combinations to test
                 include:
@@ -30,12 +31,19 @@ jobs:
                       py: "3.10"
                       CC: cc
                       CXX: c++
+                      FFTW_DIR: "/opt/homebrew/lib/"
 
                     # Check one with clang compiler
                     - os: ubuntu-latest
                       py: 3.11
                       CC: clang
                       CXX: clang++
+                      FFTW_DIR: "/usr/local/lib/"
+
+        env:
+            # Need to put this here.  export doesn't work.
+            # cf. https://github.com/orgs/community/discussions/26013
+            FFTW_DIR: ${{ matrix.FFTW_DIR }}
 
         steps:
             - uses: actions/checkout@v3
@@ -63,13 +71,16 @@ jobs:
                 echo ${{ matrix.os }}
                 sudo -H apt-get -qq update
                 sudo -H apt-get install -y libfftw3-dev libeigen3-dev
+                ls $FFTW_DIR
 
             - name: Install libfftw, etc. on MacOS
               if: matrix.os == 'macos-latest'
               run: |
                 echo ${{ matrix.os }}
-                brew update | true
-                brew install fftw eigen | true
+                brew update || true
+                brew install fftw eigen || true
+                brew link --overwrite fftw eigen || true
+                ls $FFTW_DIR
 
             - name: Install dependencies with pip
               run: |
@@ -77,6 +88,10 @@ jobs:
 
                 # Do these first to clarify potential conflicts
                 pip install -U setuptools numpy
+
+                # The prefix is required for recen MacOS, because of System Integrity Protection.
+                # It's not necessary on Linux, but is harmless enough.
+                FFTW_DIR=$FFTW_DIR pip install -U galsim
 
                 # Standard dependencies
                 pip install -U -r requirements.txt
