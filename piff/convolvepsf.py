@@ -187,7 +187,7 @@ class ConvolvePSF(PSF):
                     cf = lambda prof: galsim.Convolve(convert_funcs[k](prof), others)
                 new_convert_funcs.append(cf)
 
-            stars, nremoved1 = comp.single_iteration(stars, logger, new_convert_funcs, draw_method)
+            stars, nremoved1 = comp.single_iteration(stars, logger, new_convert_funcs, method)
             nremoved += nremoved1
 
             # Update the current models for later components
@@ -268,6 +268,8 @@ class ConvolvePSF(PSF):
         # Convolve them.
         if len(profiles) == 0:
             return None, method
+        elif len(profiles) == 1:
+            return profiles[0], method
         else:
             return galsim.Convolve(profiles), method
 
