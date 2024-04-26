@@ -448,9 +448,10 @@ class Optical(Model):
             prof.append(atmopsf)
 
         # optics
-        prof.append(self.getOptics(tuple(aberrations)))
+        optics = self.getOptics(tuple(aberrations))
 
-        # convolve
-        prof = galsim.Convolve(prof,gsparams=self.gsparams)
-
-        return prof
+        if len(prof) == 0:
+            return optics
+        else:
+            prof.append(optics)
+            return galsim.Convolve(prof, gsparams=self.gsparams)
