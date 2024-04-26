@@ -318,6 +318,7 @@ class PixelGrid(Model):
             logger.debug(f'basis_profile = {basis_profile}')
             # Find the net shift from the star.fit.center and the offset.
             jac = star.data.local_wcs.jacobian().inverse().getMatrix()
+            jac_det = abs(jac[0,0]*jac[1,1] - jac[0,1]*jac[1,0])
             dx = jac[0,0]*u0 + jac[0,1]*v0 + offset.x
             dy = jac[1,0]*u0 + jac[1,1]*v0 + offset.y
             du = du.ravel() * self.scale
@@ -328,10 +329,10 @@ class PixelGrid(Model):
                 if draw_real:
                     prof._drawReal(image, jac, (dx,dy), 1.)
                     # Equivalent to:
-                    #prof = galsim._Transform(prof, jac, (dx,dy), 1.)
+                    #prof = galsim._Transform(prof, jac, (dx,dy), 1./jac_det)
                     #prof.drawReal(image)
                 else:
-                    prof = galsim._Transform(prof, jac, (dx,dy), 1.)
+                    prof = galsim._Transform(prof, jac, (dx,dy), 1./jac_det)
                     prof.drawFFT(image)
                 A[:,k] = image.array.ravel()[mask]
         else:
