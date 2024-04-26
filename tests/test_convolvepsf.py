@@ -505,7 +505,231 @@ def test_convolve_pixelgrid():
     assert mean_mse < 2.e-5
 
 
+@timer
+def test_nested_convolve():
+    # Test that ConvolvePSF can be nested inside another composite PSF (in particular one that
+    # would use a convert_func).
+    # This test is essentially the same as test_convolve_optatm, but with an additional convolution
+    # with a DeltaFunction.
+    # It should work whether this is done the straightforward way with a 3-component Convolve
+    # or with two nested Convolves.
+
+    #if __name__ == '__main__':
+    if False:
+        size = 2048
+        nstars = 200
+        noise = 20
+    else:
+        size = 1024
+        nstars = 10
+        noise = 2
+
+    pixel_scale = 0.2
+    im = galsim.ImageF(size, size, scale=pixel_scale)
+
+    screens, aper = make_screens()
+
+    rng = galsim.BaseDeviate(1234)
+    x = rng.np.uniform(25, size-25, size=nstars)
+    y = rng.np.uniform(25, size-25, size=nstars)
+
+    for k in range(nstars):
+        flux = 100000
+        theta = ((x[k] - size/2) * pixel_scale * galsim.arcsec,
+                 (y[k] - size/2) * pixel_scale * galsim.arcsec)
+
+        psf = screens.makePSF(lam=500, aper=aper, exptime=100, flux=flux, theta=theta)
+        psf.drawImage(image=im, center=(x[k],y[k]), method='phot', rng=rng, add_to_image=True)
+        bounds = galsim.BoundsI(int(x[k]-33), int(x[k]+33), int(y[k]-33), int(y[k]+33))
+
+    # Add a little noise
+    noise = 10
+    im.addNoise(galsim.GaussianNoise(rng=rng, sigma=noise))
+    image_file = os.path.join('output', 'convolve_nested_im.fits')
+    im.write(image_file)
+
+    # Write out the catalog to a file
+    dtype = [ ('x','f8'), ('y','f8') ]
+    data = np.empty(len(x), dtype=dtype)
+    data['x'] = x
+    data['y'] = y
+    cat_file = os.path.join('output','convolve_nested_cat.fits')
+    fitsio.write(cat_file, data, clobber=True)
+
+    # First do it as a three-component convolution.
+    psf_file = os.path.join('output','convolve_nested.fits')
+    stamp_size = 48
+    config = {
+        'input': {
+            'image_file_name': image_file,
+            'cat_file_name': cat_file,
+            'stamp_size': 32,
+            'noise': noise**2,
+        },
+        'select': {
+            'max_snr': 1.e6,
+            'max_edge_frac': 0.1,
+            'hsm_size_reject': True,
+        },
+        'psf': {
+            'type': 'Convolve',
+            'components': [
+                {
+                    'model': { 'type': 'Kolmogorov',
+                               'fastfit': True,
+                             },
+                    'interp': { 'type': 'GP',
+                              },
+                },
+                {
+                    'model': { 'type': 'Optical',
+                               'atmo_type': 'None',
+                               'lam': 500,
+                               'diam': 8,
+                               # These are the correct aberrations, not fitted.
+                               'base_aberrations': [0,0,0,0,0.7,-0.8,0.7,0.5,0.7,-0.6,0.5,0.8],
+                               'obscuration': 0.4,
+                             },
+                    'interp': { 'type': 'Mean', },
+                },
+                {
+                    'model': { 'type': 'Gaussian',
+                               'init': 'delta',
+                             },
+                    'interp': { 'type': 'Mean', },
+                },
+            ],
+            'outliers': {
+                'type': 'Chisq',
+                'nsigma': 5,
+                'max_remove': 3,
+            }
+        },
+        'output': {
+            'file_name': psf_file,
+       },
+    }
+
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(verbose=1)
+    else:
+        logger = piff.config.setup_logger(log_file='output/test_convolve_optatm.log')
+        logger = piff.config.setup_logger(verbose=1)
+
+    psf = piff.process(config, logger)
+
+    assert type(psf) is piff.ConvolvePSF
+    assert len(psf.components) == 3
+    assert type(psf.components[0]) is piff.SimplePSF
+    assert type(psf.components[0].model) is piff.Kolmogorov
+    assert type(psf.components[0].interp) is piff.GPInterp
+    assert type(psf.components[1]) is piff.SimplePSF
+    assert type(psf.components[1].model) is piff.Optical
+    assert type(psf.components[1].interp) is piff.Mean
+    assert type(psf.components[2]) is piff.SimplePSF
+    assert type(psf.components[2].model) is piff.Gaussian
+    assert type(psf.components[2].interp) is piff.Mean
+
+    mean_max_rel_err = 0
+    mean_mse = 0
+    count = 0
+    for i, star in enumerate(psf.stars):
+        if star.is_flagged:
+            continue
+        test_star = psf.drawStar(star)
+
+        b = star.image.bounds.withBorder(-8)
+        max_diff = np.max(np.abs(test_star.image[b].array - star.image[b].array))
+        max_val = np.max(np.abs(star.image[b].array))
+        mse = np.sum((test_star.image[b].array - star.image[b].array)**2) / flux**2
+        mean_max_rel_err += max_diff/max_val
+        mean_mse += mse
+        count += 1
+
+    mean_max_rel_err /= count
+    mean_mse /= count
+    print('mean maximum relative error = ',mean_max_rel_err)
+    print('mean mean-squared error = ',mean_mse)
+    assert mean_max_rel_err < 0.04
+    assert mean_mse < 1.5e-5
+
+    # Repeat using nested Convolves
+    config['psf'] = {
+        'type': 'Convolve',
+        'components': [
+            {
+                'type': 'Convolve',
+                'components': [
+                    {
+                        'model': { 'type': 'Kolmogorov',
+                                   'fastfit': True,
+                                 },
+                        'interp': { 'type': 'GP',
+                                  },
+                    },
+                    {
+                        'model': { 'type': 'Optical',
+                                   'atmo_type': 'None',
+                                   'lam': 500,
+                                   'diam': 8,
+                                   # These are the correct aberrations, not fitted.
+                                   'base_aberrations': [0,0,0,0,0.7,-0.8,0.7,0.5,0.7,-0.6,0.5,0.8],
+                                   'obscuration': 0.4,
+                                 },
+                        'interp': { 'type': 'Mean', },
+                    },
+                ],
+            },
+            {
+                'model': { 'type': 'Gaussian' },
+                # Note: default init is delta, so don't need to specify it explicitily.
+                'interp': { 'type': 'Mean', },
+            },
+        ],
+    }
+
+    psf = piff.process(config, logger)
+
+    assert type(psf) is piff.ConvolvePSF
+    assert len(psf.components) == 2
+    assert type(psf.components[0]) is piff.ConvolvePSF
+    assert type(psf.components[0].components[0]) is piff.SimplePSF
+    assert type(psf.components[0].components[0].model) is piff.Kolmogorov
+    assert type(psf.components[0].components[0].interp) is piff.GPInterp
+    assert type(psf.components[0].components[1]) is piff.SimplePSF
+    assert type(psf.components[0].components[1].model) is piff.Optical
+    assert type(psf.components[0].components[1].interp) is piff.Mean
+    assert type(psf.components[1]) is piff.SimplePSF
+    assert type(psf.components[1].model) is piff.Gaussian
+    assert type(psf.components[1].interp) is piff.Mean
+
+    mean_max_rel_err = 0
+    mean_mse = 0
+    count = 0
+    for i, star in enumerate(psf.stars):
+        if star.is_flagged:
+            continue
+        test_star = psf.drawStar(star)
+
+        b = star.image.bounds.withBorder(-8)
+        max_diff = np.max(np.abs(test_star.image[b].array - star.image[b].array))
+        max_val = np.max(np.abs(star.image[b].array))
+        mse = np.sum((test_star.image[b].array - star.image[b].array)**2) / flux**2
+        mean_max_rel_err += max_diff/max_val
+        mean_mse += mse
+        count += 1
+
+    mean_max_rel_err /= count
+    mean_mse /= count
+    print('mean maximum relative error = ',mean_max_rel_err)
+    print('mean mean-squared error = ',mean_mse)
+    assert mean_max_rel_err < 0.04
+    assert mean_mse < 1.5e-5
+
+
+
 if __name__ == '__main__':
     test_trivial_convolve1()
     test_convolve_optatm()
     test_convolve_pixelgrid()
+    test_nested_convolve()
