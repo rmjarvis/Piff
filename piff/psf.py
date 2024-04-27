@@ -24,6 +24,24 @@ import sys
 from .star import Star, StarData
 from .util import write_kwargs, read_kwargs
 
+
+def _ap_kern_kern(x, m, h):
+    # cumulative triweight kernel
+    y = (x - m) / h + 3
+    apval = np.zeros_like(m)
+    msk = y > 3
+    apval[msk] = 1
+    msk = (y > -3) & (~msk)
+    apval[msk] = (
+        -5 * y[msk] ** 7 / 69984
+        + 7 * y[msk] ** 5 / 2592
+        - 35 * y[msk] ** 3 / 864
+        + 35 * y[msk] / 96
+        + 1 / 2
+    )
+    return apval
+
+
 class PSF(object):
     """The base class for describing a PSF model across a field of view.
 
@@ -430,7 +448,7 @@ class PSF(object):
         logger.warning("PSF fit did not converge.  Max iterations = %d reached.",self.max_iter)
 
     def draw(self, x, y, chipnum=None, flux=1.0, center=None, offset=None, stamp_size=48,
-             image=None, logger=None, **kwargs):
+             image=None, logger=None, apodize=None, **kwargs):
         r"""Draws an image of the PSF at a given location.
 
         The normal usage would be to specify (chipnum, x, y), in which case Piff will use the
@@ -492,6 +510,11 @@ class PSF(object):
                             [default: 48]
         :param image:       An existing image on which to draw, if desired. [default: None]
         :param logger:      A logger object for logging debug info. [default: None]
+        :param apodize:     Optional parameter to set apodizatoon. If a float/int, gives the
+                            number of half light radii after which the profile is smoothy apodized
+                            to zero a width of ~2.55 half light radii. If a tuple/list, gives
+                            the apodization width and the apodization radius in pixels.
+                            [default: None, which means no apodization.]
         :param \**kwargs:   Any additional properties required for the interpolation.
 
         :returns:           A GalSim Image of the PSF
@@ -531,6 +554,37 @@ class PSF(object):
             center = (center[0] + offset[0], center[1] + offset[1])
 
         prof.drawImage(image, method=method, center=center)
+
+        if apodize:
+            xpix, ypix = image.get_pixel_centers()
+            dx = xpix - center[0]
+            dy = ypix - center[1]
+            r2 = dx**2 + dy**2
+
+            if isinstance(apodize, (tuple, list)):
+                apwidth, aprad = apodize
+            else:
+                wcs = image.wcs
+                try:
+                    image.wcs = None
+                    image.scale = 1.0
+                    hlr = image.calculateHLR(center=galsim.PositionD(center))
+                finally:
+                    image.wcs = wcs
+                aprad = apodize * hlr
+                msk_nonzero = image.array != 0
+                max_r = min(
+                    np.abs(dx[(dx < 0) & msk_nonzero].min()),
+                    np.abs(dx[(dx > 0) & msk_nonzero].max()),
+                    np.abs(dy[(dy < 0) & msk_nonzero].min()),
+                    np.abs(dy[(dy > 0) & msk_nonzero].max()),
+                )
+                apwidth = np.abs(hlr) / 2.355
+                apwidth = min(max(apwidth, 0.5), 5.0)
+                aprad = max(min(aprad, max_r - 6 * apwidth - 1), 2 * apwidth)
+
+            apim = image._array * _ap_kern_kern(aprad, np.sqrt(r2), apwidth)
+            image._array = apim / np.sum(apim) * np.sum(image._array)
 
         return image
 
