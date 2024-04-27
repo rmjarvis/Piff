@@ -245,11 +245,11 @@ class SumPSF(PSF):
             star = comp.interpolateStar(star)
         return star
 
-    def _drawStar(self, star, center=None):
+    def _drawStar(self, star):
         # Draw each component
         comp_stars = []
         for comp in self.components:
-            comp_star = comp._drawStar(star, center=center)
+            comp_star = comp._drawStar(star)
             comp_stars.append(comp_star)
 
         # Add them up.

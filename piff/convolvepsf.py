@@ -237,15 +237,11 @@ class ConvolvePSF(PSF):
             star = comp.interpolateStar(star)
         return star
 
-    def _drawStar(self, star, center=None):
+    def _drawStar(self, star):
         params = star.fit.get_params(self._num)
         prof, method = self._getRawProfile(star)
         prof = prof.shift(star.fit.center) * star.fit.flux
-        if center is None:
-            center = star.image_pos
-        else:
-            center = galsim.PositionD(*center)
-        image = prof.drawImage(image=star.image.copy(), method=method, center=center)
+        image = prof.drawImage(image=star.image.copy(), method=method, center=star.image_pos)
         return Star(star.data.withNew(image=image), star.fit)
 
     def _getRawProfile(self, star, skip=None):

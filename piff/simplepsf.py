@@ -233,8 +233,8 @@ class SimplePSF(PSF):
         self.model.normalize(star)
         return star
 
-    def _drawStar(self, star, center=None):
-        return self.model.draw(star, center=center)
+    def _drawStar(self, star):
+        return self.model.draw(star)
 
     def _getRawProfile(self, star):
         return self.model.getProfile(star.fit.get_params(self._num)), self.model._method

@@ -310,10 +310,6 @@ def test_single_image():
     assert test_star_nocopy.image.array[1,1] == target_star_copy.image.array[1,1]
     assert test_star_copy.image.array[1,1] == target_star_copy.image.array[1,1]
 
-    test_star_center = psf.model.draw(test_star_copy, copy_image=True, center=(x+1,y+1))
-    np.testing.assert_almost_equal(test_star_center.image.array[1:,1:],
-                                   test_star_copy.image.array[:-1,:-1])
-
     # test that draw works
     test_image = psf.draw(x=target['x'], y=target['y'], stamp_size=config['input']['stamp_size'],
                           flux=target.fit.flux, offset=target.fit.center)
