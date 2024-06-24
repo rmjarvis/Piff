@@ -796,8 +796,14 @@ def test_psf():
         np.testing.assert_raises(ValueError, piff.PSF.read, filename)
 
     # But normally this file can be read...
-    psf = piff.PSF.read(filename)
-    print(psf)
+    try:
+        import pixmappy
+    except ImportError:
+        # Skip this test, since it requires pixmappy.
+        pass
+    else:
+        psf = piff.PSF.read(filename)
+        print(psf)
 
     # Check that registering new types works correctly
     class NoPSF1(piff.PSF):
