@@ -186,7 +186,7 @@ class GSObjectModel(Model):
         g = g1 + 1j * g2
         if np.abs(g) >= 1.:
             # Return "infinity"
-            return np.ones_like(image.array.ravel()) * 1.e300
+            return np.ones_like(image.array.ravel(), dtype=np.float64) * 1.e300
 
         # We shear/dilate/shift the profile as follows.
         #    prof = self.gsobj.dilate(scale).shear(g1=g1, g2=g2).shift(du, dv) * flux

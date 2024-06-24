@@ -144,7 +144,7 @@ class DECamInfo(object):
         :returns xPos, yPos:    Arrays of x and y coordinates in mm on the focal plane.
         """
         # do getPosition but with chipnum instead
-        chipnums = np.array(chipnums, dtype=int, copy=False)
+        chipnums = np.asarray(chipnums, dtype=int)
 
         xpixHalfSize = 1024. * np.ones(chipnums.shape)
         ypixHalfSize = 1024. * np.ones(chipnums.shape)
@@ -166,7 +166,7 @@ class DECamInfo(object):
         :returns ix, iy:    Arrays of x and y coordinates in pixels
         """
         # do getPixel but with chipnum instead
-        chipnums = np.array(chipnums, dtype=int, copy=False)
+        chipnums = np.asarray(chipnums, dtype=int)
 
         xpixHalfSize = 1024. * np.ones(chipnums.shape)
         ypixHalfSize = 1024. * np.ones(chipnums.shape)
