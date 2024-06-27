@@ -4,11 +4,13 @@ on:
     push:
         branches:
             - main
+            - runci
             - releases/*
 
     pull_request:
         branches:
             - main
+            - runci
             - releases/*
 
 jobs:
@@ -89,7 +91,7 @@ jobs:
                 # Do these first to clarify potential conflicts
                 pip install -U setuptools numpy
 
-                # The prefix is required for recen MacOS, because of System Integrity Protection.
+                # The prefix is required for recent MacOS, because of System Integrity Protection.
                 # It's not necessary on Linux, but is harmless enough.
                 FFTW_DIR=$FFTW_DIR pip install -U galsim
 
