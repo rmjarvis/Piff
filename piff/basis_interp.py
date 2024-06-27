@@ -24,6 +24,42 @@ import warnings
 from .interp import Interp
 from .star import Star
 
+import jax
+# If uncommented, the following line will make the code run in double precision
+# and have identical results as running the original code in double precision.
+# jax.config.update("jax_enable_x64", True)
+from jax import jit
+from jax import numpy as jnp
+from jax import vmap
+import time
+
+@jit
+def jax_solve(ATA, ATb):
+    # Original code:
+    # dq = scipy.linalg.solve(ATA, ATb, assume_a='pos', check_finite=False)
+    # New code:
+    dq = jax.scipy.linalg.solve(ATA, ATb, assume_a='pos', check_finite=False)
+    return dq
+
+@jit
+def build_ATA_ATb(alpha, beta, K):
+    ATb = (beta[:, jnp.newaxis] * K).flatten()
+    tmp1 = alpha[:, :, jnp.newaxis] * K
+    tmp2 = K[jnp.newaxis, :, jnp.newaxis, jnp.newaxis] * tmp1[:, jnp.newaxis, :, :]
+    return tmp2, ATb
+
+@jit
+def vmap_build_ATA_ATb(Ks, alphas, betas):
+    # Use vmap to vectorize build_ATA_ATb across the first dimension of Ks, alphas, and betas
+    vmapped_build_ATA_ATb = vmap(build_ATA_ATb, in_axes=(0, 0, 0))
+    # Get the vectorized results
+    tmp2s, ATbs = vmapped_build_ATA_ATb(alphas, betas, Ks)
+    # Sum the results along the first axis
+    ATb = jnp.sum(ATbs, axis=0)
+    tmp2 = jnp.sum(tmp2s, axis=0)
+    return tmp2, ATb
+
+
 class BasisInterp(Interp):
     r"""An Interp class that works whenever the interpolating functions are
     linear sums of basis functions.  Does things the "slow way" to be stable to
@@ -55,6 +91,7 @@ class BasisInterp(Interp):
         self.use_qr = False  # The default.  May be overridden by subclasses.
         self.q = None
         self.set_num(None)
+        self._use_jax = False # The default.  May be overridden by subclasses.
 
     def initialize(self, stars, logger=None):
         """Initialize both the interpolator to some state prefatory to any solve iterations and
@@ -249,26 +286,49 @@ class BasisInterp(Interp):
 
         # Build ATA and ATb by accumulating the chunks for each star as we go.
         nq = np.prod(self.q.shape)
+        logger.info(f'nq = {nq}')
         ATA = np.zeros((nq, nq), dtype=float)
         ATb = np.zeros(nq, dtype=float)
 
-        for s in stars:
-            # Get the basis function values at this star
-            K = self.basis(s)
-            # Sum contributions into ATA, ATb
-            if True:
-                ATb += (s.fit.beta[:,np.newaxis] * K).flatten()
-                tmp1 = s.fit.alpha[:,:,np.newaxis] * K
-                tmp2 = K[np.newaxis,:,np.newaxis,np.newaxis] * tmp1[:,np.newaxis,:,:]
-                ATA += tmp2.reshape(nq,nq)
-            else:  # pragma: no cover
-                # This is equivalent, but slower.
-                # It is here to make more explicit the connection between this calculation
-                # and the corresponding part of the QR code above.
-                A1 = (s.fit.A[:,:,np.newaxis] * K[np.newaxis,:]).reshape(
-                        s.fit.A.shape[0], s.fit.A.shape[1] * len(K))
-                ATb += A1.T.dot(s.fit.b)
-                ATA += A1.T.dot(A1)
+        start = time.time()
+        if self.use_jax:
+            Ks = []
+            alphas = []
+            betas = []
+            for s in stars:
+                # Get the basis function values at this star
+                K = self.basis(s)
+                Ks.append(K)
+                alphas.append(s.fit.alpha)
+                betas.append(s.fit.beta)
+            alphas = np.array(alphas).reshape((len(alphas), alphas[0].shape[0], alphas[0].shape[1]))
+            betas = np.array(betas).reshape((len(betas), betas[0].shape[0]))
+            Ks = np.array(Ks).reshape((len(Ks), Ks[0].shape[0]))
+            tmp2, ATb = vmap_build_ATA_ATb(Ks, alphas, betas)
+            ATA = tmp2.reshape(nq,nq)
+        else:
+            for s in stars:
+                # Get the basis function values at this star
+                K = self.basis(s)
+                # Sum contributions into ATA, ATb
+
+                if True:
+                    alpha = s.fit.alpha
+                    beta = s.fit.beta
+                    ATb += (beta[:,np.newaxis] * K).flatten()
+                    tmp1 = alpha[:,:,np.newaxis] * K
+                    tmp2 = K[np.newaxis,:,np.newaxis,np.newaxis] * tmp1[:,np.newaxis,:,:]
+                    ATA += tmp2.reshape(nq,nq)
+                else:  # pragma: no cover
+                    # This is equivalent, but slower.
+                    # It is here to make more explicit the connection between this calculation
+                    # and the corresponding part of the QR code above.
+                    A1 = (s.fit.A[:,:,np.newaxis] * K[np.newaxis,:]).reshape(
+                            s.fit.A.shape[0], s.fit.A.shape[1] * len(K))
+                    ATb += A1.T.dot(s.fit.b)
+                    ATA += A1.T.dot(A1)
+        end = time.time()
+        logger.info('PF time to compute ATb and ATA: %f | use jax: %s', end-start, str(self.use_jax))
 
         logger.info('Beginning solution of matrix size %s',ATA.shape)
         try:
@@ -278,7 +338,16 @@ class BasisInterp(Interp):
                 # assuming just 'sym' instead (which does an LDL decomposition rather than
                 # Cholesky) would help.  If this fails, the matrix is usually high enough
                 # condition that it is functionally singular, and switching to SVD is warranted.
-                dq = scipy.linalg.solve(ATA, ATb, assume_a='pos', check_finite=False)
+                if self.use_jax:
+                    start = time.time()
+                    dq = jax_solve(ATA, ATb)
+                    end = time.time()
+                    logger.info('PF: Use JAX to solve the linear system | Time: %f', end-start)
+                else:
+                    start = time.time()
+                    dq = scipy.linalg.solve(ATA, ATb, assume_a='pos', check_finite=False)
+                    end = time.time()
+                    logger.info('PF: Not using JAX to solve the linear system | Time: %f', end-start)
 
             if len(w) > 0:
                 # scipy likes to warn about high condition.  They aren't actually a problem
@@ -358,7 +427,7 @@ class BasisPolynomial(BasisInterp):
     """
     _type_name = 'BasisPolynomial'
 
-    def __init__(self, order, keys=('u','v'), max_order=None, use_qr=False, logger=None):
+    def __init__(self, order, keys=('u','v'), max_order=None, use_qr=False, use_jax=False, logger=None):
         super(BasisPolynomial, self).__init__()
 
         self._keys = keys
@@ -375,6 +444,8 @@ class BasisPolynomial(BasisInterp):
             self._max_order = max_order
         self.use_qr = use_qr
 
+        self.use_jax = use_jax
+
         if self._max_order<0 or np.any(np.array(self._orders) < 0):
             # Exception if we have any requests for negative orders
             raise ValueError('Negative polynomial order specified')
@@ -382,7 +453,8 @@ class BasisPolynomial(BasisInterp):
         self.kwargs = {
             'order' : order,
             'keys' : keys,
-            'use_qr' : use_qr
+            'use_qr' : use_qr,
+            'use_jax' : use_jax,
         }
 
         # Now build a mask that picks the desired polynomial products
