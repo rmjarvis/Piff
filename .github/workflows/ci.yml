@@ -129,7 +129,7 @@ jobs:
             - name: Run unit tests
               run: |
                 cd tests
-                coverage run -m pytest -v
+                coverage run -m pytest -v -s
                 coverage combine || true
                 coverage report
                 coverage xml

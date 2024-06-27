@@ -1054,19 +1054,23 @@ def test_fail():
     flux = 15
     noise = 2.
     seed = 1234
+    print('1')
 
     psf = galsim.Moffat(half_light_radius=1.0, beta=2.5, trunc=3.0)
     psf = psf.dilate(scale).shear(g1=g1, g2=g2).withFlux(flux)
     image = psf.drawImage(nx=64, ny=64, scale=0.3)
+    print('2')
 
     weight = image.copy()
     weight.fill(1/noise**2)
     noisy_image = image.copy()
     rng = galsim.BaseDeviate(seed)
     noisy_image.addNoise(galsim.GaussianNoise(sigma=noise, rng=rng))
+    print('3')
 
     star1 = piff.Star(piff.StarData(image, image.true_center, weight), None)
     star2 = piff.Star(piff.StarData(noisy_image, image.true_center, weight), None)
+    print('4')
 
     model1 = piff.Moffat(fastfit=True, beta=2.5)
     star2 = model1.initialize(star2)
@@ -1085,6 +1089,7 @@ def test_fail():
             # Raises an error that all stars were flagged
             psf.single_iteration(stars, logger=cl.logger, convert_func=None)
     assert "Failed fitting star" in cl.output
+    print('5')
 
     # This is contrived to hit the fit failure for the reference.
     # I'm not sure what realistic use case would actually hit it, but at least it's
@@ -1099,6 +1104,7 @@ def test_fail():
     assert "Failed initializing star" in cl.output
     assert stars[0].is_flagged
     assert nremoved == 1
+    print('6')
 
     # The easiest way to make least_squares_fit fail is to give it extra scipy_kwargs
     # that don't let it finish converging.
@@ -1111,6 +1117,7 @@ def test_fail():
     star3 = piff.Star(star2.data, star3.fit)
     with np.testing.assert_raises(RuntimeError):
         model3.fit(star3)
+    print('7')
 
     # reflux is harder to make fail.  Rather than try something even more contrived,
     # just mock np.linalg.solve to simulate the case that AtA ends up singular.
@@ -1120,6 +1127,7 @@ def test_fail():
     assert "Failed trying to reflux star" in cl.output
     assert nremoved == 1
     assert stars[0].is_flagged
+    print('8')
 
     # There is a check for GalSim errors.  The easiest way to make that hit is to
     # use a gsobj with very low maximum_fft_size.
@@ -1135,6 +1143,7 @@ def test_fail():
     star3 = model4.fit(star3)
     print(star3.fit.chisq, star3.fit.dof)
     assert star3.fit.chisq == 1.e300
+    print('9')
 
 
 if __name__ == '__main__':
