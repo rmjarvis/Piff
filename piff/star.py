@@ -372,10 +372,11 @@ class Star(object):
         cols.append( [s.data.image.bounds.ymax for s in stars] )
 
         # Now the easy parts of fit:
-        dtypes.extend( [ ('flux', float), ('center', float, 2), ('chisq', float) ] )
+        dtypes.extend( [ ('flux', float), ('center', float, 2), ('chisq', float), ('dof', float), ] )
         cols.append( [s.fit.flux for s in stars] )
         cols.append( [s.fit.center for s in stars] )
         cols.append( [s.fit.chisq for s in stars] )
+        cols.append( [s.fit.dof for s in stars] )
 
         # params might not be set, so check if it is None
         header = None
@@ -473,6 +474,12 @@ class Star(object):
         center = data['center']
         chisq = data['chisq']
 
+        # We didn't used to write dof.  Be graceful if it's not there.
+        if 'dof' in colnames:
+            dof = data['dof']
+        else:
+            dof = [ None ] * len(data)
+
         if 'params' in colnames:
             params = data['params']
             colnames.remove('params')
@@ -498,8 +505,8 @@ class Star(object):
         else:
             pointing_list = [ None ] * len(data)
 
-        fit_list = [ StarFit(p, flux=f, center=c, chisq=x, params_var=pv)
-                     for (p,f,c,x,pv) in zip(params, flux, center, chisq, params_var) ]
+        fit_list = [ StarFit(p, flux=f, center=c, chisq=x, dof=d, params_var=pv)
+                     for (p,f,c,x,d,pv) in zip(params, flux, center, chisq, dof, params_var) ]
 
         # The rest of the columns are the data properties
         prop_list = [ { c : row[c] for c in colnames } for row in data ]
@@ -935,6 +942,7 @@ class StarFit(object):
     :param b:      Vector portion of design equation. Linear term of chi-squared dependence
                     on params about current values is -2 AT b.
     :param chisq:  chi-squared value at current parameters.
+    :param dof:    The number of degrees of freedom for the given chisq.
     """
     def __init__(self, params, flux=1., center=(0.,0.), params_var=None, A=None, b=None,
                  chisq=None, dof=None):
