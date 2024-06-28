@@ -85,6 +85,9 @@ jobs:
                 brew update || true
                 brew install fftw eigen || true
                 brew link --overwrite fftw eigen || true
+                ls -lF /usr/local
+                ls -lF /usr/local/lib
+                ls -lF /usr/local/Cellar
                 ls $FFTW_DIR
 
             - name: Install dependencies with pip
