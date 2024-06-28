@@ -33,7 +33,8 @@ jobs:
                       py: "3.10"
                       CC: cc
                       CXX: c++
-                      FFTW_DIR: "/opt/homebrew/lib/"
+                      #FFTW_DIR: "/opt/homebrew/lib/"
+                      FFTW_DIR: "/usr/local/lib"
 
                     # Check one with clang compiler
                     - os: ubuntu-latest
