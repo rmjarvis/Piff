@@ -657,6 +657,7 @@ def test_missing():
 def test_gradient():
     """Next: fit spatially-varying PSF to multiple images.
     """
+    print('1')
     if __name__ == '__main__':
         fiducial_list = [fiducial_gaussian, fiducial_kolmogorov, fiducial_moffat]
     else:
@@ -720,14 +721,16 @@ def test_gradient():
                 chisq += s.fit.chisq
                 dof += s.fit.dof
                 stars[i] = s
-                ###print('   chisq=',s.fit.chisq, 'dof=',s.fit.dof)
+                print(i,'   chisq=',s.fit.chisq, 'dof=',s.fit.dof)
             print('iteration',iteration,'chisq=',chisq, 'dof=',dof)
             if oldchisq>0 and np.abs(oldchisq-chisq) < dof/10.:
                 break
             else:
                 oldchisq = chisq
 
+        print('nstars = ',len(stars))
         for i, s in enumerate(stars):
+            print(i)
             print(i, s.fit.center)
 
         # Now use the interpolator to produce a noiseless rendering
