@@ -872,6 +872,16 @@ def test_load_images():
     # Read this file back in.  It has the star data, but the images are blank.
     psf2 = piff.read(psf_file, logger)
     assert len(psf2.stars) == 10
+    print('chisq = ',[s.fit.chisq for s in psf2.stars])
+    print('dof = ',[s.fit.dof for s in psf2.stars])
+    print('true chisq = ',[s.fit.chisq for s in psf.stars])
+    print('true dof = ',[s.fit.dof for s in psf.stars])
+    # chisq and dof should be correct
+    np.testing.assert_allclose([s.fit.chisq for s in psf2.stars],
+                               [s.fit.chisq for s in psf.stars])
+    np.testing.assert_allclose([s.fit.dof for s in psf2.stars],
+                               [s.fit.dof for s in psf.stars])
+    # But the images are blank
     for star in psf2.stars:
         np.testing.assert_array_equal(star.image.array, 0.)
 
