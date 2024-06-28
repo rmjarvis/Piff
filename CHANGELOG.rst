@@ -41,6 +41,8 @@ New features
 - Added ``init`` option for all models. (#155)
 - Added `SumPSF` PSF type. (#157)
 - Added `ConvolvePSF` PSF type. (#162)
+- Added ``dof`` as a column in the stars section of the output file. (#165)
+
 
 Bug fixes
 ---------
