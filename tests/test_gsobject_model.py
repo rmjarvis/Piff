@@ -1048,6 +1048,7 @@ def test_var():
 def test_fail():
     # Some vv noisy images that result in errors in the fit to check the error reporting.
 
+    print('0')
     scale = 1.3
     g1 = 0.33
     g2 = -0.27

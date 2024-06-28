@@ -129,6 +129,7 @@ jobs:
             - name: Run unit tests
               run: |
                 cd tests
+                python test_gsobject_model.py
                 coverage run -m pytest -v -s
                 coverage combine || true
                 coverage report
