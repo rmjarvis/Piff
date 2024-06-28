@@ -1151,12 +1151,13 @@ def test_fail():
 
 
 if __name__ == '__main__':
-    test_simple()
-    test_center()
-    test_interp()
-    test_missing()
-    test_gradient()
-    test_gradient_center()
-    test_direct()
-    test_var()
-    test_fail()
+    with galsim.utilities.single_threaded():
+        test_simple()
+        test_center()
+        test_interp()
+        test_missing()
+        test_gradient()
+        test_gradient_center()
+        test_direct()
+        test_var()
+        test_fail()
