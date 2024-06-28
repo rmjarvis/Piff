@@ -134,6 +134,8 @@ jobs:
               run: |
                 cd tests
                 python test_gsobject_model.py
+                python test_knn_interp.py
+                python test_meanify.py
                 coverage run -m pytest -v -s
                 coverage combine || true
                 coverage report
