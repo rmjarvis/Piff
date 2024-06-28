@@ -115,7 +115,7 @@ def test_config():
             'stamp_size': 31,
         },
         'psf' : {
-            'model' : { 'type': 'GSObjectModel',
+            'model' : { 'type': 'GSObject',
                         'fastfit': True,
                         'gsobj': 'galsim.Gaussian(sigma=1.0)' },
             'interp' : { 'type': 'KNN',
