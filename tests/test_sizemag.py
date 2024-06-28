@@ -150,8 +150,9 @@ def test_smallbright():
     # If sizes are spaced such that the small ones are consistently farther apart than bigger
     # ones, then the median/iqr iteration will keep slowly shifting to a larger size.
     # Having T go as 1/sqrt(i+1) seems to work to make this happen.
+    # Also have fluxes drop slightly to force the biggest ones to be considerd brightest too.
     for i in range(len(objects)):
-        objects[i]._hsm = (1., 0., 0., 1./(i+1.)**0.25, 0., 0., 0)
+        objects[i]._hsm = (1.-i*1.e-6, 0., 0., 1./(i+1.)**0.25, 0., 0., 0)
     select = piff.SmallBrightSelect(config['select'])
     with CaptureLog() as cl:
         stars = select.selectStars(objects, logger=cl.logger)
