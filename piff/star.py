@@ -477,6 +477,7 @@ class Star(object):
         # We didn't used to write dof.  Be graceful if it's not there.
         if 'dof' in colnames:
             dof = data['dof']
+            colnames.remove('dof')
         else:
             dof = [ None ] * len(data)
 
