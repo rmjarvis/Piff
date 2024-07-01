@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Models &mdash; Piff 1.4.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="_static/jquery.js?v=5d32c60e"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="_static/documentation_options.js?v=9172181d"></script>
+        <script src="_static/doctools.js?v=9a2dae69"></script>
+        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Interpolation Schemes" href="interp.html" />
+    <link rel="prev" title="Selecting Good PSF Stars" href="select.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Piff
+          </a>
+              <div class="version">
+                1.4
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="overview.html">PIFF: PSFs In the Full FOV</a></li>
+<li class="toctree-l1"><a class="reference internal" href="piffify.html">The piffify executable</a></li>
+<li class="toctree-l1"><a class="reference internal" href="input.html">Reading in Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="select.html">Selecting Good PSF Stars</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Models</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#the-model-base-class">The Model base class</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#piff.Model"><code class="docutils literal notranslate"><span class="pre">Model</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#piff.Model.draw"><code class="docutils literal notranslate"><span class="pre">Model.draw()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#piff.Model.fit"><code class="docutils literal notranslate"><span class="pre">Model.fit()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#piff.Model.initialize"><code class="docutils literal notranslate"><span class="pre">Model.initialize()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#piff.Model.normalize"><code class="docutils literal notranslate"><span class="pre">Model.normalize()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#piff.Model.parseKwargs"><code class="docutils literal notranslate"><span class="pre">Model.parseKwargs()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#piff.Model.process"><code class="docutils literal notranslate"><span class="pre">Model.process()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#piff.Model.read"><code class="docutils literal notranslate"><span class="pre">Model.read()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#piff.Model.set_num"><code class="docutils literal notranslate"><span class="pre">Model.set_num()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#piff.Model.write"><code class="docutils literal notranslate"><span class="pre">Model.write()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#models-based-on-galsim-objects">Models based on GalSim objects</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#piff.GSObjectModel"><code class="docutils literal notranslate"><span class="pre">GSObjectModel</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#piff.GSObjectModel.fit"><code class="docutils literal notranslate"><span class="pre">GSObjectModel.fit()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#piff.GSObjectModel.getProfile"><code class="docutils literal notranslate"><span class="pre">GSObjectModel.getProfile()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#piff.GSObjectModel.initialize"><code class="docutils literal notranslate"><span class="pre">GSObjectModel.initialize()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#piff.GSObjectModel.least_squares_fit"><code class="docutils literal notranslate"><span class="pre">GSObjectModel.least_squares_fit()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#piff.GSObjectModel.moment_fit"><code class="docutils literal notranslate"><span class="pre">GSObjectModel.moment_fit()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#piff.Gaussian"><code class="docutils literal notranslate"><span class="pre">Gaussian</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#piff.Kolmogorov"><code class="docutils literal notranslate"><span class="pre">Kolmogorov</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#piff.Moffat"><code class="docutils literal notranslate"><span class="pre">Moffat</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#pixel-grid-model">Pixel grid model</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#piff.PixelGrid"><code class="docutils literal notranslate"><span class="pre">PixelGrid</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#piff.PixelGrid.chisq"><code class="docutils literal notranslate"><span class="pre">PixelGrid.chisq()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#piff.PixelGrid.fit"><code class="docutils literal notranslate"><span class="pre">PixelGrid.fit()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#piff.PixelGrid.getProfile"><code class="docutils literal notranslate"><span class="pre">PixelGrid.getProfile()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#piff.PixelGrid.initialize"><code class="docutils literal notranslate"><span class="pre">PixelGrid.initialize()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#piff.PixelGrid.normalize"><code class="docutils literal notranslate"><span class="pre">PixelGrid.normalize()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#optical-model">Optical model</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#piff.Optical"><code class="docutils literal notranslate"><span class="pre">Optical</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#piff.Optical.fit"><code class="docutils literal notranslate"><span class="pre">Optical.fit()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#piff.Optical.getAtmosphere"><code class="docutils literal notranslate"><span class="pre">Optical.getAtmosphere()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#piff.Optical.getOptics"><code class="docutils literal notranslate"><span class="pre">Optical.getOptics()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#piff.Optical.getProfile"><code class="docutils literal notranslate"><span class="pre">Optical.getProfile()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#piff.Optical.initialize"><code class="docutils literal notranslate"><span class="pre">Optical.initialize()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#piff.Optical.kwargs_to_params"><code class="docutils literal notranslate"><span class="pre">Optical.kwargs_to_params()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#piff.Optical.params_to_kwargs"><code class="docutils literal notranslate"><span class="pre">Optical.params_to_kwargs()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="interp.html">Interpolation Schemes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="psf.html">PSF classes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="outliers.html">Removing Outliers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="output.html">Writing the output file</a></li>
+<li class="toctree-l1"><a class="reference internal" href="stats.html">Output statistics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="star.html">Stars</a></li>
+<li class="toctree-l1"><a class="reference internal" href="util.html">Utility Functions</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Piff</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Models</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/model.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="models">
+<h1>Models<a class="headerlink" href="#models" title="Link to this heading"></a></h1>
+<p>Models govern what functional form to use for the PSF at a single location.</p>
+<section id="the-model-base-class">
+<h2>The Model base class<a class="headerlink" href="#the-model-base-class" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="piff.Model">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">piff.</span></span><span class="sig-name descname"><span class="pre">Model</span></span><a class="reference internal" href="_modules/piff/model.html#Model"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Model" title="Link to this definition"></a></dt>
+<dd><p>The base class for modeling a single PSF (i.e. no interpolation yet)</p>
+<p>This is essentially an abstract base class intended to define the methods that should be
+implemented by any derived class.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.Model.draw">
+<span class="sig-name descname"><span class="pre">draw</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">copy_image</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/model.html#Model.draw"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Model.draw" title="Link to this definition"></a></dt>
+<dd><p>Draw the model on the given image.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>star</strong> – A Star instance with the fitted parameters to use for drawing and a
+data field that acts as a template image for the drawn model.</p></li>
+<li><p><strong>copy_image</strong> – If False, will use the same image object.
+If True, will copy the image and then overwrite it.
+[default: True]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>a new Star instance with the data field having an image of the drawn model.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.Model.fit">
+<span class="sig-name descname"><span class="pre">fit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">convert_func</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/model.html#Model.fit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Model.fit" title="Link to this definition"></a></dt>
+<dd><p>Fit the Model to the star’s data to yield iterative improvement on
+its PSF parameters, their uncertainties, and flux (and center, if free).
+The returned star.fit.alpha will be inverse covariance of solution if
+it is estimated, else is None.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>star</strong> – A Star instance</p></li>
+<li><p><strong>convert_func</strong> – An optional function to apply to the profile being fit before
+drawing it onto the image.  This is used by composite PSFs to
+isolate the effect of just this model component. [default: None]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>New Star instance with updated fit information</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.Model.initialize">
+<span class="sig-name descname"><span class="pre">initialize</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default_init</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/model.html#Model.initialize"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Model.initialize" title="Link to this definition"></a></dt>
+<dd><p>Initialize a star to work with the current model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>star</strong> – A Star instance with the raw data.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+<li><p><strong>default_init</strong> – The default initilization method if the user doesn’t specify one.
+[default: None]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Star instance with the appropriate initial fit values</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.Model.normalize">
+<span class="sig-name descname"><span class="pre">normalize</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/model.html#Model.normalize"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Model.normalize" title="Link to this definition"></a></dt>
+<dd><p>Make sure star.fit.params are normalized properly.</p>
+<p>Note: This modifies the input star in place.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.Model.parseKwargs">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">parseKwargs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/model.html#Model.parseKwargs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Model.parseKwargs" title="Link to this definition"></a></dt>
+<dd><p>Parse the model field of a configuration dict and return the kwargs to use for
+initializing an instance of the class.</p>
+<p>The base class implementation just returns the kwargs as they are, but derived classes
+might want to override this if they need to do something more sophisticated with them.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>config_model</strong> – The model field of the configuration dict, config[‘model’]</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>a kwargs dict to pass to the initializer</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.Model.process">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">process</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/model.html#Model.process"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Model.process" title="Link to this definition"></a></dt>
+<dd><p>Parse the model field of the config dict.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>config_model</strong> – The configuration dict for the model field.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>a Model instance</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.Model.read">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">read</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fits</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extname</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/model.html#Model.read"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Model.read" title="Link to this definition"></a></dt>
+<dd><p>Read a Model from a FITS file.</p>
+<p>Note: the returned Model will not have its parameters set.  This just initializes a fresh
+model that can be used to interpret interpolated vectors.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fits</strong> – An open fitsio.FITS object</p></li>
+<li><p><strong>extname</strong> – The name of the extension with the model information.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>a model built with a information in the FITS file.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.Model.set_num">
+<span class="sig-name descname"><span class="pre">set_num</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">num</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/model.html#Model.set_num"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Model.set_num" title="Link to this definition"></a></dt>
+<dd><p>If there are multiple components involved in the fit, set the number to use
+for this model.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.Model.write">
+<span class="sig-name descname"><span class="pre">write</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fits</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extname</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/model.html#Model.write"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Model.write" title="Link to this definition"></a></dt>
+<dd><p>Write a Model to a FITS file.</p>
+<p>Note: this only writes the initialization kwargs to the fits extension, not the parameters.</p>
+<p>The base class implemenation works if the class has a self.kwargs attribute and these
+are all simple values (str, float, or int)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fits</strong> – An open fitsio.FITS object</p></li>
+<li><p><strong>extname</strong> – The name of the extension to write the model information.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="models-based-on-galsim-objects">
+<h2>Models based on GalSim objects<a class="headerlink" href="#models-based-on-galsim-objects" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="piff.GSObjectModel">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">piff.</span></span><span class="sig-name descname"><span class="pre">GSObjectModel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">gsobj</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fastfit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">centered</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_pixel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">init</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fit_flux</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scipy_kwargs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/gsobject_model.html#GSObjectModel"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.GSObjectModel" title="Link to this definition"></a></dt>
+<dd><p>Model that takes a fiducial GalSim.GSObject and dilates, shifts, and shears it to get a
+good match to stars.</p>
+<p>The following initialization methods are available for the <code class="docutils literal notranslate"><span class="pre">init</span></code> parameter.</p>
+<ul class="simple">
+<li><p>hsm           Start with flux and size values that match the hsm moments of the star.</p></li>
+<li><p>zero          Start with flux = 1.e-6 x the hsm flux.</p></li>
+<li><p>delta         Start with size = 1.e-6 x the hsm size.</p></li>
+<li><dl class="simple">
+<dt>(flux,size)   (Note: flux and size here are numeric values.) Start with flux and size</dt><dd><p>scaled by the given values relative to hsm.</p>
+</dd>
+</dl>
+</li>
+</ul>
+<p>All initialization methods start with zero shear and zero centroid offset.</p>
+<p>Use type name “GSObject” in a config field to use this model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>gsobj</strong> – GSObject to use as fiducial profile.</p></li>
+<li><p><strong>fastfit</strong> – Use HSM moments for fitting.  Approximate, but fast.  [default: False]</p></li>
+<li><p><strong>centered</strong> – If True, PSF model centroid is forced to be (0,0), and the
+PSF fitting will marginalize over stellar position.  If False, stellar
+position is fixed at input value and the fitted PSF may be off-center.
+[default: True]</p></li>
+<li><p><strong>include_pixel</strong> – Include integration over pixel when drawing?  [default: True]</p></li>
+<li><p><strong>init</strong> – Initialization method.  [default: None, which uses hsm unless a PSF
+class specifies a different default.]</p></li>
+<li><p><strong>fit_flux</strong> – If True, the PSF model will include the flux value.  This is useful when
+this model is an element of a Sum composite PSF. [default: False]</p></li>
+<li><p><strong>scipy_kwargs</strong> – Optional kwargs to pass to scipy.optimize.least_squares [default: None]</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.GSObjectModel.fit">
+<span class="sig-name descname"><span class="pre">fit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fastfit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">convert_func</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">draw_method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/gsobject_model.html#GSObjectModel.fit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.GSObjectModel.fit" title="Link to this definition"></a></dt>
+<dd><p>Fit the image either using HSM or least-squares minimization.</p>
+<p>If <code class="docutils literal notranslate"><span class="pre">fastfit</span></code> is True, then the galsim.hsm module will be used to estimate the
+transformation parameters that take the fiducial moments into the data moments.
+If <code class="docutils literal notranslate"><span class="pre">fastfit</span></code> is False, then the Levenberg-Marquardt minimization algorithm will be used
+instead.  The latter should generally be more accurate, but slower due to the need to
+iteratively propose model improvements.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>star</strong> – A Star to fit.</p></li>
+<li><p><strong>fastfit</strong> – Use fast HSM moments to fit? [default: None, which means use
+fitting mode specified in the constructor.]</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+<li><p><strong>convert_func</strong> – An optional function to apply to the profile being fit before
+drawing it onto the image.  This is used by composite PSFs to
+isolate the effect of just this model component. [default: None;
+if provided, fastfit is ignored and taken to be False.]</p></li>
+<li><p><strong>draw_method</strong> – The method to use with the GalSim drawImage command to determine
+the residuals. [default: None, which uses ‘auto’ if
+include_pixel = True, else ‘no_pixel’]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>a new Star with the fitted parameters in star.fit</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.GSObjectModel.getProfile">
+<span class="sig-name descname"><span class="pre">getProfile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/gsobject_model.html#GSObjectModel.getProfile"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.GSObjectModel.getProfile" title="Link to this definition"></a></dt>
+<dd><p>Get a version of the model as a GalSim GSObject</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>params</strong> – A numpy array with either  [ size, g1, g2 ]
+or  [ cenu, cenv, size, g1, g2 ]
+depending on if the center of the model is being forced to (0.0, 0.0)
+or not.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>a galsim.GSObject instance</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.GSObjectModel.initialize">
+<span class="sig-name descname"><span class="pre">initialize</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default_init</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/gsobject_model.html#GSObjectModel.initialize"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.GSObjectModel.initialize" title="Link to this definition"></a></dt>
+<dd><p>Initialize the given star’s fit parameters.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>star</strong> – The Star to initialize.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+<li><p><strong>default_init</strong> – The default initilization method if the user doesn’t specify one.
+[default: None]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>a new initialized Star.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.GSObjectModel.least_squares_fit">
+<span class="sig-name descname"><span class="pre">least_squares_fit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">convert_func</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">draw_method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/gsobject_model.html#GSObjectModel.least_squares_fit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.GSObjectModel.least_squares_fit" title="Link to this definition"></a></dt>
+<dd><p>Fit parameters of the given star using least-squares minimization.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>star</strong> – A Star to fit.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+<li><p><strong>convert_func</strong> – An optional function to apply to the profile being fit before
+drawing it onto the image.  This is used by composite PSFs to
+isolate the effect of just this model component. [default: None]</p></li>
+<li><p><strong>draw_method</strong> – The method to use with galsim.DrawImage to determine the residuals.
+[default: ‘auto’ if include_pixel = True, else ‘no_pixel’]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>(flux, dx, dy, scale, g1, g2, flag)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.GSObjectModel.moment_fit">
+<span class="sig-name descname"><span class="pre">moment_fit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/gsobject_model.html#GSObjectModel.moment_fit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.GSObjectModel.moment_fit" title="Link to this definition"></a></dt>
+<dd><p>Estimate transformations needed to bring self.gsobj towards given star.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="piff.Gaussian">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">piff.</span></span><span class="sig-name descname"><span class="pre">Gaussian</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/gsobject_model.html#Gaussian"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Gaussian" title="Link to this definition"></a></dt>
+<dd><p>Model PSFs as elliptical Gaussians.</p>
+<p>Use type name “Gaussian” in a config field to use this model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fastfit</strong> – Use HSM moments for fitting.  Approximate, but fast.  [default: False]</p></li>
+<li><p><strong>centered</strong> – If True, PSF model centroid is forced to be (0,0), and the
+PSF fitting will marginalize over stellar position.  If False, stellar
+position is fixed at input value and the fitted PSF may be off-center.
+[default: True]</p></li>
+<li><p><strong>include_pixel</strong> – Include integration over pixel when drawing?  [default: True]</p></li>
+<li><p><strong>init</strong> – Initialization method.  [default: None, which means to start with size=1,
+flux=1, and not shift or shear]</p></li>
+<li><p><strong>fit_flux</strong> – If True, the PSF model will include the flux value.  This is useful when
+this model is an element of a Sum composite PSF. [default: False]</p></li>
+<li><p><strong>scipy_kwargs</strong> – Optional kwargs to pass to scipy.optimize.least_squares [default: None]</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="piff.Kolmogorov">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">piff.</span></span><span class="sig-name descname"><span class="pre">Kolmogorov</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/gsobject_model.html#Kolmogorov"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Kolmogorov" title="Link to this definition"></a></dt>
+<dd><p>Model PSFs as elliptical Kolmogorovs.</p>
+<p>Use type name “Kolmogorov” in a config field to use this model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fastfit</strong> – Use HSM moments for fitting.  Approximate, but fast.  [default: False]</p></li>
+<li><p><strong>centered</strong> – If True, PSF model centroid is forced to be (0,0), and the
+PSF fitting will marginalize over stellar position.  If False, stellar
+position is fixed at input value and the fitted PSF may be off-center.
+[default: True]</p></li>
+<li><p><strong>include_pixel</strong> – Include integration over pixel when drawing?  [default: True]</p></li>
+<li><p><strong>init</strong> – Initialization method.  [default: None, which means to start with size=1,
+flux=1, and not shift or shear]</p></li>
+<li><p><strong>fit_flux</strong> – If True, the PSF model will include the flux value.  This is useful when
+this model is an element of a Sum composite PSF. [default: False]</p></li>
+<li><p><strong>scipy_kwargs</strong> – Optional kwargs to pass to scipy.optimize.least_squares [default: None]</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="piff.Moffat">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">piff.</span></span><span class="sig-name descname"><span class="pre">Moffat</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">beta</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trunc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/gsobject_model.html#Moffat"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Moffat" title="Link to this definition"></a></dt>
+<dd><p>Model PSFs as elliptical Moffats.</p>
+<p>Use type name “Moffat” in a config field to use this model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>beta</strong> – Moffat shape parameter.</p></li>
+<li><p><strong>trunc</strong> – Optional truncation radius at which profile drops to zero.  Measured in half
+light radii.  [default: 0, indicating no truncation]</p></li>
+<li><p><strong>fastfit</strong> – Use HSM moments for fitting.  Approximate, but fast.  [default: False]</p></li>
+<li><p><strong>centered</strong> – If True, PSF model centroid is forced to be (0,0), and the
+PSF fitting will marginalize over stellar position.  If False, stellar
+position is fixed at input value and the fitted PSF may be off-center.
+[default: True]</p></li>
+<li><p><strong>include_pixel</strong> – Include integration over pixel when drawing?  [default: True]</p></li>
+<li><p><strong>init</strong> – Initialization method.  [default: None, which means to start with size=1,
+flux=1, and not shift or shear]</p></li>
+<li><p><strong>fit_flux</strong> – If True, the PSF model will include the flux value.  This is useful when
+this model is an element of a Sum composite PSF. [default: False]</p></li>
+<li><p><strong>scipy_kwargs</strong> – Optional kwargs to pass to scipy.optimize.least_squares [default: None]</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="pixel-grid-model">
+<h2>Pixel grid model<a class="headerlink" href="#pixel-grid-model" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="piff.PixelGrid">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">piff.</span></span><span class="sig-name descname"><span class="pre">PixelGrid</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">scale</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">size</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">interp</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">centered</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">init</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fit_flux</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/pixelgrid.html#PixelGrid"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PixelGrid" title="Link to this definition"></a></dt>
+<dd><p>A PSF modeled as interpolation between a grid of points.</p>
+<p>The parameters of the model are the values at the grid points, although the sum of the
+values is constrained to be 1/scale**2, to give it unit total flux. The grid is in uv
+space, with the scale and size specified on construction.  Interpolation will always
+assume values of zero outside of grid.</p>
+<p>PixelGrid also needs to specify an interpolant to define how to values between grid points
+are determined from the pixelated model.  Any galsim.Interpolant type is allowed.
+The default interpolant is galsim.Lanczos(7)</p>
+<p>The following initialization methods are available for the <code class="docutils literal notranslate"><span class="pre">init</span></code> parameter.</p>
+<ul class="simple">
+<li><p>hsm           Start with flux and size values that match the hsm moments of the star.</p></li>
+<li><p>zero          Start with flux = 1.e-6 x the hsm flux.</p></li>
+<li><p>delta         Start with size = 1.e-6 x the hsm size.</p></li>
+</ul>
+<p>All initialization methods start with zero shear and zero centroid offset.</p>
+<p>Use type name “PixelGrid” in a config field to use this model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>scale</strong> – Pixel scale of the PSF model (in arcsec)</p></li>
+<li><p><strong>size</strong> – Number of pixels on each side of square grid.</p></li>
+<li><p><strong>interp</strong> – An Interpolant to be used [default: Lanczos(7)]</p></li>
+<li><p><strong>centered</strong> – If True, PSF model centroid is forced to be (0,0), and the
+PSF fitting will marginalize over stellar position.  If False, stellar
+position is fixed at input value and the fitted PSF may be off-center.
+[default: True]</p></li>
+<li><p><strong>init</strong> – Initialization method.  [default: None, which uses hsm unless a PSF
+class specifies a different default.]</p></li>
+<li><p><strong>fit_flux</strong> – If True, the PSF model will include the flux value.  This is useful when
+this model is an element of a Sum composite PSF. [default: False]</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.PixelGrid.chisq">
+<span class="sig-name descname"><span class="pre">chisq</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">convert_func</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">draw_method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/pixelgrid.html#PixelGrid.chisq"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PixelGrid.chisq" title="Link to this definition"></a></dt>
+<dd><p>Calculate dependence of chi^2 = -2 log L(D|p) on PSF parameters for single star.
+as a quadratic form chi^2 = dp^T AT A dp - 2 bT A dp + chisq,
+where dp is the <em>shift</em> from current parameter values.  Returned Star
+instance has the resultant (A, b, chisq) attributes, but params vector has not have
+been updated yet (could be degenerate).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>star</strong> – A Star instance</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+<li><p><strong>convert_func</strong> – An optional function to apply to the profile being fit before
+drawing it onto the image.  This is used by composite PSFs to
+isolate the effect of just this model component. [default: None]</p></li>
+<li><p><strong>draw_method</strong> – The method to use with the GalSim drawImage command to determine
+the residuals. [PixelGrid always uses ‘no_pixel’; this parameter
+is only present for API compatibility.  It must be either None
+or ‘no_pixel’.]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>a new Star instance with updated fit parameters. (esp. A,b)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.PixelGrid.fit">
+<span class="sig-name descname"><span class="pre">fit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">convert_func</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">draw_method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/pixelgrid.html#PixelGrid.fit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PixelGrid.fit" title="Link to this definition"></a></dt>
+<dd><p>Fit the Model to the star’s data to yield iterative improvement on its PSF parameters
+and uncertainties.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>star</strong> – A Star instance</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+<li><p><strong>convert_func</strong> – An optional function to apply to the profile being fit before
+drawing it onto the image.  This is used by composite PSFs to
+isolate the effect of just this model component. [default: None]</p></li>
+<li><p><strong>draw_method</strong> – The method to use with the GalSim drawImage command to determine
+the residuals. [PixelGrid always uses ‘no_pixel’; this parameter
+is only present for API compatibility.  It must be either None
+or ‘no_pixel’.]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>a new Star instance with updated fit information</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.PixelGrid.getProfile">
+<span class="sig-name descname"><span class="pre">getProfile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/pixelgrid.html#PixelGrid.getProfile"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PixelGrid.getProfile" title="Link to this definition"></a></dt>
+<dd><p>Get a version of the model as a GalSim GSObject</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>params</strong> – The fit parameters for a given star.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>a galsim.GSObject instance</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.PixelGrid.initialize">
+<span class="sig-name descname"><span class="pre">initialize</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default_init</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/pixelgrid.html#PixelGrid.initialize"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PixelGrid.initialize" title="Link to this definition"></a></dt>
+<dd><p>Initialize a star to work with the current model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>star</strong> – The Star to initialize.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+<li><p><strong>default_init</strong> – The default initilization method if the user doesn’t specify one.
+[default: None]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>a star instance with the appropriate initial fit values</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.PixelGrid.normalize">
+<span class="sig-name descname"><span class="pre">normalize</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/pixelgrid.html#PixelGrid.normalize"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PixelGrid.normalize" title="Link to this definition"></a></dt>
+<dd><p>Make sure star.fit.params are normalized properly.</p>
+<p>Note: This modifies the input star in place.</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="optical-model">
+<h2>Optical model<a class="headerlink" href="#optical-model" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="piff.Optical">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">piff.</span></span><span class="sig-name descname"><span class="pre">Optical</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">template</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gsparams</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">atmo_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'VonKarman'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/optical_model.html#Optical"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Optical" title="Link to this definition"></a></dt>
+<dd><p>Initialize the Optical+Atmosphere Model</p>
+<p>Use type name “Optical” in a config field to use this model.</p>
+<p>There are four components to this model that are convolved together.</p>
+<p>First, there is an optical component, which uses a galsim.OpticalPSF to model the
+profile. These parameters are passed to GalSim, so
+they have the same definitions as used there.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>diam</strong> – Diameter of telescope aperture in meters. [required (but cf.
+template option)]</p></li>
+<li><p><strong>lam</strong> – Wavelength of observations in nanometers. [required (but cf.
+template option)]</p></li>
+<li><p><strong>obscuration</strong> – Linear dimension of central obscuration as fraction of pupil
+linear dimension, [0., 1.). [default: 0]</p></li>
+<li><p><strong>nstruts</strong> – Number of radial support struts to add to the central obscuration.
+[default: 0]</p></li>
+<li><p><strong>strut_thick</strong> – Thickness of support struts as a fraction of pupil diameter.
+[default: 0.05]</p></li>
+<li><p><strong>strut_angle</strong> – Angle made between the vertical and the strut starting closest to
+it, defined to be positive in the counter-clockwise direction.
+[default: 0. * galsim.degrees]</p></li>
+<li><p><strong>[</strong><strong>default</strong> (<em>oversampling     Numerical factor by which to oversample the FFT</em>) – 1]</p></li>
+<li><p><strong>[</strong><strong>default</strong> – 1]</p></li>
+<li><p><strong>pupil_plane_im</strong> – The name of a file containing the pupil plane image to use instead
+of creating one from obscuration, struts, etc. [default: None]</p></li>
+<li><p><strong>base_aberrations</strong> – A list of aberrations to which any fitted aberrations are added.
+[default: None]</p></li>
+</ul>
+</dd>
+</dl>
+<p>The next two parameters are specific to our treatment of the Optical PSF. If given,
+they are used to create an additional galsim.PhaseScreen describing the mirror’s own
+contribution to the wavefront.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mirror_figure_im</strong> – The name of a file containing an additional phase contribution, for
+example from the figure of the primary mirror. [default: None]</p></li>
+<li><p><strong>mirror_figure_scale</strong> – The pixel scale to use in mirror_figure_im.  If omittited,
+Piff will use the pixel scale in the image itself. [default: None]</p></li>
+</ul>
+</dd>
+</dl>
+<p>Second, there is an atmospheric component, which uses either a galsim.Kolmogorov or
+galsim.VonKarman to model the profile.</p>
+<p>:param atmo_type        The name of the Atmospheric kernel. [default ‘VonKarman’]</p>
+<p>Finally, there is both an additional Gaussian component to describe CCD diffusion and
+separately an applied shear.</p>
+<p>:param sigma            Gaussian CCD diffusion in arcsec [default:0.]</p>
+<p>Since there are a lot of parameters here, we provide the option of setting many of them
+from a template value.  e.g. template = ‘des’ will use the values stored in the dict
+piff.optical_model.optical_templates[‘des’].</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>template</strong> – A key word in the dict piff.optical_model.optical_templates to use
+for setting values of these aperture parameters.  [default: None]</p></li>
+<li><p><strong>gsparams</strong> – A key word in the dict piff.optical_model.gsparams_templates to use
+for setting values of these Galsim parameters.  [default: None]</p></li>
+</ul>
+</dd>
+</dl>
+<p>If you use a template as well as other specific parameters, the specific parameters will
+override the values from the template.  e.g.  to simulate what DES would be like at
+lambda=1000 nm (the default is 700), you could do:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">model</span> <span class="o">=</span> <span class="n">piff</span><span class="o">.</span><span class="n">Optical</span><span class="p">(</span><span class="n">template</span><span class="o">=</span><span class="s1">&#39;des&#39;</span><span class="p">,</span> <span class="n">lam</span><span class="o">=</span><span class="mi">1000</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Note that the Zernike coeffients (zernike_coeff), Atmospheric parameters (ie. r0,L0) and Shear (g1,g2) are
+fitted parameters, passed via the arguments to getProfile.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.Optical.fit">
+<span class="sig-name descname"><span class="pre">fit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">convert_func</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">draw_method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/optical_model.html#Optical.fit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Optical.fit" title="Link to this definition"></a></dt>
+<dd><p>Warning: This method just updates the fit with the chisq and dof!</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>star</strong> – A Star instance</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>a new Star with the fitted parameters in star.fit</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.Optical.getAtmosphere">
+<span class="sig-name descname"><span class="pre">getAtmosphere</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">r0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">L0</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">g1</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">g2</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/optical_model.html#Optical.getAtmosphere"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Optical.getAtmosphere" title="Link to this definition"></a></dt>
+<dd><p>Get the Atmospheric PSF component.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>r0</strong> – Fried parameter</p></li>
+<li><p><strong>L0</strong> – Outer scale</p></li>
+<li><p><strong>g1</strong> – Shear g1 component</p></li>
+<li><p><strong>g2</strong> – Shear g2 component</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>a galsim.GSObject instance</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.Optical.getOptics">
+<span class="sig-name descname"><span class="pre">getOptics</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">zernike_coeff</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/optical_model.html#Optical.getOptics"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Optical.getOptics" title="Link to this definition"></a></dt>
+<dd><p>Get the strictly Optics PSF component.  Use two phase screens, one from
+mirror_figure_im, and the other from zernike aberrations</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>zernike_coeff</strong> – An array or list with Zernike Coefficients, in units of waves.
+Array indexed as [0, 0, z2, z3, z4,…z11…]</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>a galsim.GSObject instance</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.Optical.getProfile">
+<span class="sig-name descname"><span class="pre">getProfile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">params</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">zernike_coeff</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">r0</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">L0</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">g1</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">g2</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/optical_model.html#Optical.getProfile"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Optical.getProfile" title="Link to this definition"></a></dt>
+<dd><p>Get a version of the model as a GalSim GSObject</p>
+<p>:param params          An ndarray with the parameters ordered via idx_PARAM data members
+:param zernike_coeff   A list of the Zernike coefficients in units of [waves]
+:param r0              Atmospheric Fried parameter [meters]
+:param L0              Atmospheric Outer scale [meters]
+:param g1              Atmospheric g1 Shear
+:param g2              Atmospheric g2 Shear</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>a galsim.GSObject instance of the combined optics, atmosphere and diffusion PSF</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.Optical.initialize">
+<span class="sig-name descname"><span class="pre">initialize</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default_init</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/optical_model.html#Optical.initialize"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Optical.initialize" title="Link to this definition"></a></dt>
+<dd><p>Initialize the given star’s fit parameters.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>star</strong> – The Star to initialize.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+<li><p><strong>default_init</strong> – Ignored. [default: None]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>a new initialized Star.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.Optical.kwargs_to_params">
+<span class="sig-name descname"><span class="pre">kwargs_to_params</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">zernike_coeff</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">[0,</span> <span class="pre">0,</span> <span class="pre">0,</span> <span class="pre">0,</span> <span class="pre">0]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">r0</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.15</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">L0</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">g1</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">g2</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/optical_model.html#Optical.kwargs_to_params"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Optical.kwargs_to_params" title="Link to this definition"></a></dt>
+<dd><p>Fill params ndarray from kwargs</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>zernike_coeff</strong> – A ndarray or list with [0, 0, z2, z3, z4, z5, z6…z11..z37]
+[default=[0,0,0,0,0]]</p></li>
+<li><p><strong>r0</strong> – Value of r0 for Atmospheric Kernel. [default=0.15]</p></li>
+<li><p><strong>L0</strong> – Value of L0 for Atmospheric Kernel. [default=10.0]</p></li>
+<li><p><strong>g1</strong> – Value of g1 to Shear PSF [default=0.]</p></li>
+<li><p><strong>g2</strong> – Value of g2 to Shear PSF [default=0.]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>an ndarray of parameters</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.Optical.params_to_kwargs">
+<span class="sig-name descname"><span class="pre">params_to_kwargs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/optical_model.html#Optical.params_to_kwargs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Optical.params_to_kwargs" title="Link to this definition"></a></dt>
+<dd><p>Fill kwarg from params ndarray or list</p>
+<p>:param params               An ndarray or list with parameters in order</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>a dictionary of named parameters</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="select.html" class="btn btn-neutral float-left" title="Selecting Good PSF Stars" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="interp.html" class="btn btn-neutral float-right" title="Interpolation Schemes" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2019.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
