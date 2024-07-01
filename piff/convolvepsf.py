@@ -39,6 +39,8 @@ class ConvolvePSF(PSF):
     PSF models. If a component should be initialized to something other than a delta-function.
     then one should explicitly set it.
 
+    Use type name "Convolve" in a config field to use this psf type.
+
     :param components:  A list of PSF instances defining the components to be convolved.
     :param outliers:    Optionally, an Outliers instance used to remove outliers.
                         [default: None]

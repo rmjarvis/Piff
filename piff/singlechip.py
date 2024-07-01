@@ -42,6 +42,8 @@ def single_chip_run(chipnum, single_psf, stars, wcs, pointing, convert_funcs, dr
 class SingleChipPSF(PSF):
     """A PSF class that uses a separate PSF solution for each chip
 
+    Use type name "SingleChip" in a config field to use this psf type.
+
     :param single_psf:  A PSF instance to use for the PSF solution on each chip.
                         (This will be turned into nchips copies of the provided object.)
     :param nproc:       How many multiprocessing processes to use for running multiple

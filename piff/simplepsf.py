@@ -32,6 +32,9 @@ class SimplePSF(PSF):
     The model defines the functional form of the surface brightness profile, and the
     interpolator defines how the parameters of the model vary across the field of view.
 
+    Use type name "Simple" in a config field to use this psf type, or leave off the type
+    name, as this is the default PSF type.
+
     :param model:       A Model instance used for modeling the surface brightness profile.
     :param interp:      An Interp instance used to interpolate across the field of view.
     :param outliers:    Optionally, an Outliers instance used to remove outliers.
