@@ -27,6 +27,8 @@ class KNNInterp(Interp):
     An interpolator that uses sklearn KNeighborsRegressor to interpolate a
     single surface
 
+    Use type name "KNN" or "KNearestNeighbors" in a config field to use this interpolant.
+
     :param keys:        A list of star attributes to interpolate from [default: ('u', 'v')]
     :param n_neighbors: Number of neighbors used for interpolation. [default: 15]
     :param weights:     Weight function used in prediction. Possible values are 'uniform',

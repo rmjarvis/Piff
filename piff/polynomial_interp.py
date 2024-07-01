@@ -42,6 +42,8 @@ class Polynomial(Interp):
     An interpolator that uses  scipy curve_fit command to fit a polynomial
     surface to each parameter passed in independently.
 
+    Use type name "Polynomial" in a config field to use this interpolant.
+
     :param order:       The maximum order in the polynomial. i.e. the maximum
                         value of i+j where p(u,v) = sum c_{ij} x^i y^j.
                         [required, unless orders is given]

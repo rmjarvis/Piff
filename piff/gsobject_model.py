@@ -39,6 +39,8 @@ class GSObjectModel(Model):
 
     All initialization methods start with zero shear and zero centroid offset.
 
+    Use type name "GSObject" in a config field to use this model.
+
     :param gsobj:       GSObject to use as fiducial profile.
     :param fastfit:     Use HSM moments for fitting.  Approximate, but fast.  [default: False]
     :param centered:    If True, PSF model centroid is forced to be (0,0), and the
@@ -416,6 +418,8 @@ class GSObjectModel(Model):
 class Gaussian(GSObjectModel):
     """ Model PSFs as elliptical Gaussians.
 
+    Use type name "Gaussian" in a config field to use this model.
+
     :param fastfit:     Use HSM moments for fitting.  Approximate, but fast.  [default: False]
     :param centered:    If True, PSF model centroid is forced to be (0,0), and the
                         PSF fitting will marginalize over stellar position.  If False, stellar
@@ -443,6 +447,8 @@ class Gaussian(GSObjectModel):
 class Kolmogorov(GSObjectModel):
     """ Model PSFs as elliptical Kolmogorovs.
 
+    Use type name "Kolmogorov" in a config field to use this model.
+
     :param fastfit:     Use HSM moments for fitting.  Approximate, but fast.  [default: False]
     :param centered:    If True, PSF model centroid is forced to be (0,0), and the
                         PSF fitting will marginalize over stellar position.  If False, stellar
@@ -469,6 +475,8 @@ class Kolmogorov(GSObjectModel):
 
 class Moffat(GSObjectModel):
     """ Model PSFs as elliptical Moffats.
+
+    Use type name "Moffat" in a config field to use this model.
 
     :param beta:        Moffat shape parameter.
     :param trunc:       Optional truncation radius at which profile drops to zero.  Measured in half

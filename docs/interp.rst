@@ -33,7 +33,7 @@ Interpolation using basis functions
 K-Nearest Neighbors
 -------------------
 
-.. autoclass:: piff.kNNInterp
+.. autoclass:: piff.KNNInterp
    :members:
 
 Gaussian process interpolation

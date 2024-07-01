@@ -50,6 +50,8 @@ class GPInterp(Interp):
     or anisotropically.  There are also options to use the traditional maximum likelihood
     optimization or no optimization if preferred.  See the ``optimizer`` parameter below.
 
+    Use type name "GP" or "GaussianProcess" in a config field to use this interpolant.
+
     :param keys:         A list of keys for properties that will be interpolated.  Must be 2
                          properties, which can be used to calculate a 2-point correlation
                          function. [default: ('u','v')]

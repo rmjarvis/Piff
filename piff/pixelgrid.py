@@ -45,6 +45,8 @@ class PixelGrid(Model):
 
     All initialization methods start with zero shear and zero centroid offset.
 
+    Use type name "PixelGrid" in a config field to use this model.
+
     :param scale:       Pixel scale of the PSF model (in arcsec)
     :param size:        Number of pixels on each side of square grid.
     :param interp:      An Interpolant to be used [default: Lanczos(7)]

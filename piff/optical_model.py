@@ -98,6 +98,8 @@ class Optical(Model):
     """
     Initialize the Optical+Atmosphere Model
 
+    Use type name "Optical" in a config field to use this model.
+
     There are four components to this model that are convolved together.
 
     First, there is an optical component, which uses a galsim.OpticalPSF to model the
@@ -147,7 +149,7 @@ class Optical(Model):
     from a template value.  e.g. template = 'des' will use the values stored in the dict
     piff.optical_model.optical_templates['des'].
 
-    :param template :       A key word in the dict piff.optical_model.optical_templates to use
+    :param template:        A key word in the dict piff.optical_model.optical_templates to use
                             for setting values of these aperture parameters.  [default: None]
     :param gsparams:        A key word in the dict piff.optical_model.gsparams_templates to use
                             for setting values of these Galsim parameters.  [default: None]

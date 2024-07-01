@@ -341,6 +341,8 @@ class BasisPolynomial(BasisInterp):
     The maximum order is normally the maximum order of any given key's order, but you may
     specify a larger value.  (e.g. to use 1, x, y, xy, you would specify order=1, max_order=2.)
 
+    Use type name "BasisPolynomial" in a config field to use this interpolant.
+
     :param order:       The order to use for each key.  Can be a single value (applied to all
                         keys) or an array matching number of keys.
     :param keys:        List of keys for properties that will be used as the polynomial arguments.
