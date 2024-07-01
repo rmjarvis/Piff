@@ -38,7 +38,7 @@ jobs:
           python setup.py sdist
           cp wheels/Piff* dist
           ls -l dist
-          tar tvfz dist/Piff-*.tar.gz
+          tar tvfz dist/*.tar.gz
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
