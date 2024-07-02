@@ -419,6 +419,7 @@ class BasisPolynomial(BasisInterp):
                         and is somewhat slower (nearly a factor of 2); however, it is significantly
                         less susceptible to numerical errors from high condition matrices.
                         Therefore, it may be preferred for some use cases. [default: False]
+    :param use_jax:     Use JAX in _solve_direct compared to classic numpy/scipy. [default: False]
     :param logger:      A logger object for logging debug info. [default: None]
     """
     _type_name = 'BasisPolynomial'
