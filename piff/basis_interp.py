@@ -31,7 +31,12 @@ import jax
 from jax import jit
 from jax import numpy as jnp
 from jax import vmap
-import time
+
+
+# Bellow are implementations of _solve_direct using JAX.
+# if jax.config.update("jax_enable_x64", True) it will give the
+# same results as the original code in double precision, but will run
+# slower, but still faster than the numpy/scipy version.
 
 @jit
 def jax_solve(ATA, ATb):
@@ -290,7 +295,6 @@ class BasisInterp(Interp):
         ATA = np.zeros((nq, nq), dtype=float)
         ATb = np.zeros(nq, dtype=float)
 
-        start = time.time()
         if self.use_jax:
             Ks = []
             alphas = []
@@ -327,8 +331,6 @@ class BasisInterp(Interp):
                             s.fit.A.shape[0], s.fit.A.shape[1] * len(K))
                     ATb += A1.T.dot(s.fit.b)
                     ATA += A1.T.dot(A1)
-        end = time.time()
-        logger.info('PF time to compute ATb and ATA: %f | use jax: %s', end-start, str(self.use_jax))
 
         logger.info('Beginning solution of matrix size %s',ATA.shape)
         try:
@@ -339,15 +341,9 @@ class BasisInterp(Interp):
                 # Cholesky) would help.  If this fails, the matrix is usually high enough
                 # condition that it is functionally singular, and switching to SVD is warranted.
                 if self.use_jax:
-                    start = time.time()
                     dq = jax_solve(ATA, ATb)
-                    end = time.time()
-                    logger.info('PF: Use JAX to solve the linear system | Time: %f', end-start)
                 else:
-                    start = time.time()
                     dq = scipy.linalg.solve(ATA, ATb, assume_a='pos', check_finite=False)
-                    end = time.time()
-                    logger.info('PF: Not using JAX to solve the linear system | Time: %f', end-start)
 
             if len(w) > 0:
                 # scipy likes to warn about high condition.  They aren't actually a problem
