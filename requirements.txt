@@ -8,4 +8,4 @@ matplotlib>=3.3
 galsim>=2.3
 treegp>=0.6
 threadpoolctl>=3.1
-jax>=0.3
+jax>=0.4
