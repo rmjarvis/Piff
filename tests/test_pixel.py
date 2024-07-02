@@ -1025,7 +1025,8 @@ def test_single_image():
             },
             'interp' : {
                 'type' : 'BasisPolynomial',
-                'order' : order
+                'order' : order,
+                'use_jax' : True,
             },
         },
     }
