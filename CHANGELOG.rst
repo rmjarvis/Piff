@@ -48,3 +48,11 @@ Bug fixes
 ---------
 
 - Fixed a number of minor errors and inefficiencies in the `Optical` class. (#156)
+
+
+Changes from version 1.4.0 to 1.4.1
+===================================
+
+- Added an image of the average star and model in the StarImages output plot. (#167)
+- Changed the default behavior of the StarImages plot to include the average star and model.
+  To recover the old version without these images, use ``include_ave = False``. (#167)
