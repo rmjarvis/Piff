@@ -293,6 +293,11 @@ class GPInterp(Interp):
         return fitted_stars
 
     def _finish_write(self, fits, extname):
+        """Finish the writing process with any class-specific steps.
+
+        :param fits:        An open fitsio.FITS object
+        :param extname:     The base name of the extension
+        """
         # Note, we're only storing the training data and hyperparameters here, which means the
         # Cholesky decomposition will have to be re-computed when this object is read back from
         # disk.
@@ -318,6 +323,11 @@ class GPInterp(Interp):
         fits.write_table(data, extname=extname+'_kernel')
 
     def _finish_read(self, fits, extname):
+        """Finish the reading process with any class-specific steps.
+
+        :param fits:        An open fitsio.FITS object.
+        :param extname:     The base name of the extension.
+        """
         data = fits[extname+'_kernel'].read()
         # Run fit to set up GP, but don't actually do any hyperparameter optimization. Just
         # set the GP up using the current hyperparameters.
