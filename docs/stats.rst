@@ -16,6 +16,8 @@ used to build the model.  These are specified in a ``stats`` section of the conf
 .. autoclass:: piff.TwoDHistStats
     :members:
 
+    .. automethod:: piff.TwoDHistStats._shiftedColorMap
+
 .. autoclass:: piff.WhiskerStats
     :members:
 

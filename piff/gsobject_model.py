@@ -171,7 +171,7 @@ class GSObjectModel(Model):
     def _resid(self, params, star, convert_func, draw_method):
         """Residual function to use with least_squares.
 
-        Essentially `chi` from `chisq`, but not summed over pixels yet.
+        Essentially "chi" from "chisq", but not summed over pixels yet.
 
         :param params:          A numpy array of model parameters.
         :param star:            A Star instance.
@@ -181,7 +181,7 @@ class GSObjectModel(Model):
         :param draw_method:     The method to use with the GalSim drawImage command to determine
                                 the residuals. [if draw_method is None, use self._method]
 
-        :returns: `chi` as a flattened numpy array.
+        :returns: "chi" as a flattened numpy array.
         """
         image, weight, image_pos = star.data.getImage()
         flux, du, dv, scale, g1, g2 = params
