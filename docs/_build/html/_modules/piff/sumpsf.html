@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>piff.sumpsf &mdash; Piff 1.4.0 documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/sphinx_highlight.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            Piff
+          </a>
+              <div class="version">
+                1.4
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../overview.html">PIFF: PSFs In the Full FOV</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../piffify.html">The piffify executable</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../input.html">Reading in Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../select.html">Selecting Good PSF Stars</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../model.html">Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../interp.html">Interpolation Schemes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../psf.html">PSF classes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../outliers.html">Removing Outliers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../output.html">Writing the output file</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../stats.html">Output statistics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../star.html">Stars</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../util.html">Utility Functions</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Piff</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">piff.sumpsf</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for piff.sumpsf</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright (c) 2016 by Mike Jarvis and the other collaborators on GitHub at</span>
+<span class="c1"># https://github.com/rmjarvis/Piff  All rights reserved.</span>
+<span class="c1">#</span>
+<span class="c1"># Piff is free software: Redistribution and use in source and binary forms</span>
+<span class="c1"># with or without modification, are permitted provided that the following</span>
+<span class="c1"># conditions are met:</span>
+<span class="c1">#</span>
+<span class="c1"># 1. Redistributions of source code must retain the above copyright notice, this</span>
+<span class="c1">#    list of conditions and the disclaimer given in the accompanying LICENSE</span>
+<span class="c1">#    file.</span>
+<span class="c1"># 2. Redistributions in binary form must reproduce the above copyright notice,</span>
+<span class="c1">#    this list of conditions and the disclaimer given in the documentation</span>
+<span class="c1">#    and/or other materials provided with the distribution.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">.. module:: psf</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">galsim</span>
+
+<span class="kn">from</span> <span class="nn">.psf</span> <span class="kn">import</span> <span class="n">PSF</span>
+<span class="kn">from</span> <span class="nn">.util</span> <span class="kn">import</span> <span class="n">write_kwargs</span><span class="p">,</span> <span class="n">read_kwargs</span>
+<span class="kn">from</span> <span class="nn">.star</span> <span class="kn">import</span> <span class="n">Star</span><span class="p">,</span> <span class="n">StarFit</span>
+<span class="kn">from</span> <span class="nn">.outliers</span> <span class="kn">import</span> <span class="n">Outliers</span>
+
+<div class="viewcode-block" id="SumPSF"><a class="viewcode-back" href="../../psf.html#piff.SumPSF">[docs]</a><span class="k">class</span> <span class="nc">SumPSF</span><span class="p">(</span><span class="n">PSF</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A PSF class that is the Sum of two or more other PSF types.</span>
+
+<span class="sd">    A SumPSF is built from an ordered list of other PSFs.</span>
+
+<span class="sd">    When fitting the Sum, the default pattern is that all components after the first one</span>
+<span class="sd">    are initialized to zero, and the first component is fit as usual, but just using a</span>
+<span class="sd">    single iteration of the fit.  Then the residuals of this model are fit using the second</span>
+<span class="sd">    component, and so on.  Once all components are fit, outliers may be rejected, and then</span>
+<span class="sd">    the process is iterated.</span>
+
+<span class="sd">    This pattern can be tweaked somewhat using the initialization options available to</span>
+<span class="sd">    PSF models.  If a component should be initialized to something other than a zero model,</span>
+<span class="sd">    then one should explicitly set it.</span>
+
+<span class="sd">    Use type name &quot;Sum&quot; in a config field to use this psf type.</span>
+
+<span class="sd">    :param components:  A list of PSF instances defining the components to be summed.</span>
+<span class="sd">    :param outliers:    Optionally, an Outliers instance used to remove outliers.</span>
+<span class="sd">                        [default: None]</span>
+<span class="sd">    :param chisq_thresh: Change in reduced chisq at which iteration will terminate.</span>
+<span class="sd">                        [default: 0.1]</span>
+<span class="sd">    :param max_iter:    Maximum number of iterations to try. [default: 30]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">_type_name</span> <span class="o">=</span> <span class="s1">&#39;Sum&#39;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">components</span><span class="p">,</span> <span class="n">outliers</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">chisq_thresh</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">max_iter</span><span class="o">=</span><span class="mi">30</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">components</span> <span class="o">=</span> <span class="n">components</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">outliers</span> <span class="o">=</span> <span class="n">outliers</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">chisq_thresh</span> <span class="o">=</span> <span class="n">chisq_thresh</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_iter</span> <span class="o">=</span> <span class="n">max_iter</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="c1"># If components is a list, mark the number of components here for I/O purposes.</span>
+            <span class="c1"># But if it&#39;s just a number, leave it alone.</span>
+            <span class="s1">&#39;components&#39;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">components</span><span class="p">)</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">components</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="k">else</span> <span class="n">components</span><span class="p">,</span>
+            <span class="s1">&#39;outliers&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="s1">&#39;chisq_thresh&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">chisq_thresh</span><span class="p">,</span>
+            <span class="s1">&#39;max_iter&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_iter</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">chisq</span> <span class="o">=</span> <span class="mf">0.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">last_delta_chisq</span> <span class="o">=</span> <span class="mf">0.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dof</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nremoved</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">niter</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_num</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+
+<div class="viewcode-block" id="SumPSF.set_num"><a class="viewcode-back" href="../../psf.html#piff.SumPSF.set_num">[docs]</a>    <span class="k">def</span> <span class="nf">set_num</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">num</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;If there are multiple components involved in the fit, set the number to use</span>
+<span class="sd">        for this model.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="c1"># Then building components has been completed.</span>
+
+            <span class="c1"># This array keeps track of which num to use for each component.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_nums</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_num_components</span> <span class="o">=</span> <span class="mi">0</span>  <span class="c1"># It might not be len(self.components) if some of them are</span>
+                                      <span class="c1"># in turn composite types.  Figure it out below.</span>
+
+            <span class="n">k1</span> <span class="o">=</span> <span class="mi">0</span> <span class="k">if</span> <span class="n">num</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">num</span>
+            <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">comp</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_nums</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">k1</span>
+                <span class="n">comp</span><span class="o">.</span><span class="n">set_num</span><span class="p">(</span><span class="n">k1</span><span class="p">)</span>
+                <span class="n">k1</span> <span class="o">+=</span> <span class="n">comp</span><span class="o">.</span><span class="n">num_components</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_num_components</span> <span class="o">+=</span> <span class="n">comp</span><span class="o">.</span><span class="n">num_components</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_num</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_nums</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># else components are not yet built. This will be called again when that&#39;s done.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_num</span> <span class="o">=</span> <span class="kc">None</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">num_components</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_num_components</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">interp_property_names</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">names</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">:</span>
+            <span class="n">names</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">interp_property_names</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">names</span>
+
+<div class="viewcode-block" id="SumPSF.parseKwargs"><a class="viewcode-back" href="../../psf.html#piff.SumPSF.parseKwargs">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">parseKwargs</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">config_psf</span><span class="p">,</span> <span class="n">logger</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Parse the psf field of a configuration dict and return the kwargs to use for</span>
+<span class="sd">        initializing an instance of the class.</span>
+
+<span class="sd">        :param config_psf:      The psf field of the configuration dict, config[&#39;psf&#39;]</span>
+<span class="sd">        :param logger:          A logger object for logging debug info. [default: None]</span>
+
+<span class="sd">        :returns: a kwargs dict to pass to the initializer</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">.outliers</span> <span class="kn">import</span> <span class="n">Outliers</span>
+
+        <span class="n">kwargs</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">config_psf</span><span class="p">)</span>
+        <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;type&#39;</span><span class="p">,</span><span class="kc">None</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="s1">&#39;components&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;components field is required in psf field for type=Sum&quot;</span><span class="p">)</span>
+
+        <span class="c1"># make components</span>
+        <span class="n">components</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;components&#39;</span><span class="p">)</span>
+        <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;components&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">comp</span> <span class="ow">in</span> <span class="n">components</span><span class="p">:</span>
+            <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;components&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">PSF</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">comp</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="s1">&#39;outliers&#39;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+            <span class="n">outliers</span> <span class="o">=</span> <span class="n">Outliers</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;outliers&#39;</span><span class="p">),</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
+            <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;outliers&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">outliers</span>
+
+        <span class="k">return</span> <span class="n">kwargs</span></div>
+
+<div class="viewcode-block" id="SumPSF.setup_params"><a class="viewcode-back" href="../../psf.html#piff.SumPSF.setup_params">[docs]</a>    <span class="k">def</span> <span class="nf">setup_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Make sure the stars have the right shape params object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">new_stars</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">star</span> <span class="ow">in</span> <span class="n">stars</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">params</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">fit</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">withNew</span><span class="p">(</span><span class="n">params</span><span class="o">=</span><span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_components</span><span class="p">,</span>
+                                       <span class="n">params_var</span><span class="o">=</span><span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_components</span><span class="p">)</span>
+                <span class="n">star</span> <span class="o">=</span> <span class="n">Star</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">fit</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">params</span><span class="p">)</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_nums</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">new_stars</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">star</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">new_stars</span></div>
+
+<div class="viewcode-block" id="SumPSF.initialize_params"><a class="viewcode-back" href="../../psf.html#piff.SumPSF.initialize_params">[docs]</a>    <span class="k">def</span> <span class="nf">initialize_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="p">,</span> <span class="n">default_init</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">nremoved</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Initializing components of SumPSF&quot;</span><span class="p">)</span>
+
+        <span class="c1"># First make sure the params are the right shape.</span>
+        <span class="n">stars</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">setup_params</span><span class="p">(</span><span class="n">stars</span><span class="p">)</span>
+
+        <span class="c1"># Now initialize all the components</span>
+        <span class="k">for</span> <span class="n">comp</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">:</span>
+            <span class="n">stars</span><span class="p">,</span> <span class="n">nremoved1</span> <span class="o">=</span> <span class="n">comp</span><span class="o">.</span><span class="n">initialize_params</span><span class="p">(</span><span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="p">,</span> <span class="n">default_init</span><span class="o">=</span><span class="n">default_init</span><span class="p">)</span>
+            <span class="n">nremoved</span> <span class="o">+=</span> <span class="n">nremoved1</span>
+            <span class="c1"># After the first one, set default_init to &#39;zero&#39;</span>
+            <span class="n">default_init</span><span class="o">=</span><span class="s1">&#39;zero&#39;</span>
+
+        <span class="c1"># If any components are degenerate, mark the sum as degenerate.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">degenerate_points</span> <span class="o">=</span> <span class="nb">any</span><span class="p">([</span><span class="n">comp</span><span class="o">.</span><span class="n">degenerate_points</span> <span class="k">for</span> <span class="n">comp</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">])</span>
+
+        <span class="k">return</span> <span class="n">stars</span><span class="p">,</span> <span class="n">nremoved</span></div>
+
+<div class="viewcode-block" id="SumPSF.single_iteration"><a class="viewcode-back" href="../../psf.html#piff.SumPSF.single_iteration">[docs]</a>    <span class="k">def</span> <span class="nf">single_iteration</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="p">,</span> <span class="n">convert_funcs</span><span class="p">,</span> <span class="n">draw_method</span><span class="p">):</span>
+        <span class="n">nremoved</span> <span class="o">=</span> <span class="mi">0</span>  <span class="c1"># For this iteration</span>
+
+        <span class="c1"># Draw the current models for each component</span>
+        <span class="n">current_models</span> <span class="o">=</span> <span class="p">[</span><span class="n">comp</span><span class="o">.</span><span class="n">drawStarList</span><span class="p">(</span><span class="n">stars</span><span class="p">)</span> <span class="k">for</span> <span class="n">comp</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">]</span>
+
+        <span class="c1"># Fit each component in order</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">comp</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">):</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Starting work on component </span><span class="si">%d</span><span class="s2"> (</span><span class="si">%s</span><span class="s2">)&quot;</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">comp</span><span class="o">.</span><span class="n">_type_name</span><span class="p">)</span>
+            <span class="c1"># Update stars to subtract current fit from other components.</span>
+            <span class="n">modified_stars</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">star</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">stars</span><span class="p">):</span>
+                <span class="n">new_image</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+                <span class="k">for</span> <span class="n">kk</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">)):</span>
+                    <span class="k">if</span> <span class="n">kk</span> <span class="o">!=</span> <span class="n">k</span><span class="p">:</span>
+                        <span class="n">new_image</span> <span class="o">-=</span> <span class="n">current_models</span><span class="p">[</span><span class="n">kk</span><span class="p">][</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">image</span>
+                <span class="n">modified_star</span> <span class="o">=</span> <span class="n">Star</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">withNew</span><span class="p">(</span><span class="n">image</span><span class="o">=</span><span class="n">new_image</span><span class="p">),</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="p">)</span>
+                <span class="n">modified_stars</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">modified_star</span><span class="p">)</span>
+
+            <span class="c1"># Fit this component</span>
+            <span class="n">new_stars</span><span class="p">,</span> <span class="n">nremoved1</span> <span class="o">=</span> <span class="n">comp</span><span class="o">.</span><span class="n">single_iteration</span><span class="p">(</span><span class="n">modified_stars</span><span class="p">,</span> <span class="n">logger</span><span class="p">,</span> <span class="n">convert_funcs</span><span class="p">,</span>
+                                                         <span class="n">draw_method</span><span class="p">)</span>
+
+            <span class="c1"># new_stars now has the updated fit components, but the data parts are corrupted by</span>
+            <span class="c1"># subtracting the other components during fitting.</span>
+            <span class="c1"># Update the stars by copying the undisturbed data from the original stars and the</span>
+            <span class="c1"># updated fits from new_stars.</span>
+            <span class="n">stars</span> <span class="o">=</span> <span class="p">[</span><span class="n">Star</span><span class="p">(</span><span class="n">s1</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">s2</span><span class="o">.</span><span class="n">fit</span><span class="p">)</span> <span class="k">for</span> <span class="n">s1</span><span class="p">,</span><span class="n">s2</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">stars</span><span class="p">,</span> <span class="n">new_stars</span><span class="p">)]</span>
+            <span class="n">nremoved</span> <span class="o">+=</span> <span class="n">nremoved1</span>
+
+            <span class="c1"># Update the current models for later components</span>
+            <span class="n">stars</span> <span class="o">=</span> <span class="n">comp</span><span class="o">.</span><span class="n">interpolateStarList</span><span class="p">(</span><span class="n">stars</span><span class="p">)</span>
+            <span class="n">current_models</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">comp</span><span class="o">.</span><span class="n">drawStarList</span><span class="p">(</span><span class="n">stars</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">stars</span><span class="p">,</span> <span class="n">nremoved</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">fit_center</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Whether to fit the center of the star in reflux.</span>
+
+<span class="sd">        This is generally set in the model specifications.</span>
+<span class="sd">        If all component models includes a shift, then this is False.</span>
+<span class="sd">        Otherwise it is True.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">any</span><span class="p">([</span><span class="n">comp</span><span class="o">.</span><span class="n">fit_center</span> <span class="k">for</span> <span class="n">comp</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">])</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">include_model_centroid</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Whether a model that we want to center can have a non-zero centroid during iterations.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">any</span><span class="p">([</span><span class="n">comp</span><span class="o">.</span><span class="n">include_model_centroid</span> <span class="k">for</span> <span class="n">comp</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">])</span>
+
+<div class="viewcode-block" id="SumPSF.interpolateStarList"><a class="viewcode-back" href="../../psf.html#piff.SumPSF.interpolateStarList">[docs]</a>    <span class="k">def</span> <span class="nf">interpolateStarList</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Update the stars to have the current interpolated fit parameters according to the</span>
+<span class="sd">        current PSF model.</span>
+
+<span class="sd">        :param stars:       List of Star instances to update.</span>
+
+<span class="sd">        :returns:           List of Star instances with their fit parameters updated.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">stars</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">setup_params</span><span class="p">(</span><span class="n">stars</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">comp</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">:</span>
+            <span class="n">stars</span> <span class="o">=</span> <span class="n">comp</span><span class="o">.</span><span class="n">interpolateStarList</span><span class="p">(</span><span class="n">stars</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">stars</span></div>
+
+<div class="viewcode-block" id="SumPSF.interpolateStar"><a class="viewcode-back" href="../../psf.html#piff.SumPSF.interpolateStar">[docs]</a>    <span class="k">def</span> <span class="nf">interpolateStar</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Update the star to have the current interpolated fit parameters according to the</span>
+<span class="sd">        current PSF model.</span>
+
+<span class="sd">        :param star:        Star instance to update.</span>
+
+<span class="sd">        :returns:           Star instance with its fit parameters updated.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">star</span><span class="p">,</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">setup_params</span><span class="p">([</span><span class="n">star</span><span class="p">])</span>
+        <span class="k">for</span> <span class="n">comp</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">:</span>
+            <span class="n">star</span> <span class="o">=</span> <span class="n">comp</span><span class="o">.</span><span class="n">interpolateStar</span><span class="p">(</span><span class="n">star</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">star</span></div>
+
+    <span class="k">def</span> <span class="nf">_drawStar</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">):</span>
+        <span class="c1"># Draw each component</span>
+        <span class="n">comp_stars</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">comp</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">:</span>
+            <span class="n">comp_star</span> <span class="o">=</span> <span class="n">comp</span><span class="o">.</span><span class="n">_drawStar</span><span class="p">(</span><span class="n">star</span><span class="p">)</span>
+            <span class="n">comp_stars</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">comp_star</span><span class="p">)</span>
+
+        <span class="c1"># Add them up.</span>
+        <span class="n">image</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">image</span><span class="o">.</span><span class="n">setZero</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">comp_star</span> <span class="ow">in</span> <span class="n">comp_stars</span><span class="p">:</span>
+            <span class="n">image</span> <span class="o">+=</span> <span class="n">comp_star</span><span class="o">.</span><span class="n">image</span>
+        <span class="k">return</span> <span class="n">Star</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">withNew</span><span class="p">(</span><span class="n">image</span><span class="o">=</span><span class="n">image</span><span class="p">),</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_getRawProfile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">):</span>
+        <span class="c1"># Get each component profile</span>
+        <span class="n">profiles</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">methods</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">comp</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">:</span>
+            <span class="n">prof</span><span class="p">,</span> <span class="n">method</span> <span class="o">=</span> <span class="n">comp</span><span class="o">.</span><span class="n">_getRawProfile</span><span class="p">(</span><span class="n">star</span><span class="p">)</span>
+            <span class="n">profiles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">prof</span><span class="p">)</span>
+            <span class="n">methods</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">method</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">any</span><span class="p">([</span><span class="n">m</span> <span class="o">!=</span> <span class="n">methods</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">methods</span><span class="p">]):</span>
+            <span class="k">assert</span> <span class="nb">all</span><span class="p">([</span><span class="n">m</span> <span class="o">==</span> <span class="s1">&#39;no_pixel&#39;</span> <span class="ow">or</span> <span class="n">m</span> <span class="o">==</span> <span class="s1">&#39;auto&#39;</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">methods</span><span class="p">])</span>
+            <span class="c1"># Then some of these are auto, and others are no_pixel.</span>
+            <span class="c1"># Call the whole thing no_pixel, and manually convolve the auto components.</span>
+            <span class="n">pixel</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">local_wcs</span><span class="o">.</span><span class="n">toWorld</span><span class="p">(</span><span class="n">galsim</span><span class="o">.</span><span class="n">Pixel</span><span class="p">(</span><span class="mf">1.0</span><span class="p">))</span>
+            <span class="n">new_profiles</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">p</span><span class="p">,</span><span class="n">m</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">profiles</span><span class="p">,</span> <span class="n">methods</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">m</span> <span class="o">==</span> <span class="s1">&#39;auto&#39;</span><span class="p">:</span>
+                    <span class="n">new_profiles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">galsim</span><span class="o">.</span><span class="n">Convolve</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">pixel</span><span class="p">))</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">new_profiles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+            <span class="n">profiles</span> <span class="o">=</span> <span class="n">new_profiles</span>
+            <span class="n">method</span> <span class="o">=</span> <span class="s1">&#39;no_pixel&#39;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">method</span> <span class="o">=</span> <span class="n">methods</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="c1"># Add them up.</span>
+        <span class="k">return</span> <span class="n">galsim</span><span class="o">.</span><span class="n">Sum</span><span class="p">(</span><span class="n">profiles</span><span class="p">),</span> <span class="n">method</span>
+
+<div class="viewcode-block" id="SumPSF._finish_write"><a class="viewcode-back" href="../../psf.html#piff.SumPSF._finish_write">[docs]</a>    <span class="k">def</span> <span class="nf">_finish_write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">,</span> <span class="n">logger</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Finish the writing process with any class-specific steps.</span>
+
+<span class="sd">        :param fits:        An open fitsio.FITS object</span>
+<span class="sd">        :param extname:     The base name of the extension to write to.</span>
+<span class="sd">        :param logger:      A logger object for logging debug info.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">logger</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">LoggerWrapper</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
+        <span class="n">chisq_dict</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;chisq&#39;</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">chisq</span><span class="p">,</span>
+            <span class="s1">&#39;last_delta_chisq&#39;</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_delta_chisq</span><span class="p">,</span>
+            <span class="s1">&#39;dof&#39;</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">dof</span><span class="p">,</span>
+            <span class="s1">&#39;nremoved&#39;</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">nremoved</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="n">write_kwargs</span><span class="p">(</span><span class="n">fits</span><span class="p">,</span> <span class="n">extname</span> <span class="o">+</span> <span class="s1">&#39;_chisq&#39;</span><span class="p">,</span> <span class="n">chisq_dict</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Wrote the chisq info to extension </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">extname</span> <span class="o">+</span> <span class="s1">&#39;_chisq&#39;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">comp</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">):</span>
+            <span class="n">comp</span><span class="o">.</span><span class="n">_write</span><span class="p">(</span><span class="n">fits</span><span class="p">,</span> <span class="n">extname</span> <span class="o">+</span> <span class="s1">&#39;_&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">k</span><span class="p">),</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">outliers</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">outliers</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">fits</span><span class="p">,</span> <span class="n">extname</span> <span class="o">+</span> <span class="s1">&#39;_outliers&#39;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Wrote the PSF outliers to extension </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">extname</span> <span class="o">+</span> <span class="s1">&#39;_outliers&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SumPSF._finish_read"><a class="viewcode-back" href="../../psf.html#piff.SumPSF._finish_read">[docs]</a>    <span class="k">def</span> <span class="nf">_finish_read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">,</span> <span class="n">logger</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Finish the reading process with any class-specific steps.</span>
+
+<span class="sd">        :param fits:        An open fitsio.FITS object</span>
+<span class="sd">        :param extname:     The base name of the extension to write to.</span>
+<span class="sd">        :param logger:      A logger object for logging debug info.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">chisq_dict</span> <span class="o">=</span> <span class="n">read_kwargs</span><span class="p">(</span><span class="n">fits</span><span class="p">,</span> <span class="n">extname</span> <span class="o">+</span> <span class="s1">&#39;_chisq&#39;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">chisq_dict</span><span class="p">:</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">chisq_dict</span><span class="p">[</span><span class="n">key</span><span class="p">])</span>
+
+        <span class="n">ncomponents</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">components</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">components</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">ncomponents</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">PSF</span><span class="o">.</span><span class="n">_read</span><span class="p">(</span><span class="n">fits</span><span class="p">,</span> <span class="n">extname</span> <span class="o">+</span> <span class="s1">&#39;_&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">k</span><span class="p">),</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">extname</span> <span class="o">+</span> <span class="s1">&#39;_outliers&#39;</span> <span class="ow">in</span> <span class="n">fits</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">outliers</span> <span class="o">=</span> <span class="n">Outliers</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">fits</span><span class="p">,</span> <span class="n">extname</span> <span class="o">+</span> <span class="s1">&#39;_outliers&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">outliers</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="c1"># Set up all the num&#39;s properly now that everything is constructed.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_num</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span></div></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2019.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

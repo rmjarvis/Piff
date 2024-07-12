@@ -1,23 +1,21 @@
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" data-content_root="./">
+<html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Writing the output file &mdash; Piff 1.4.0 documentation</title>
-      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
-      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=19f00094" />
-
-  
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <!--[if lt IE 9]>
     <script src="_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
-        <script src="_static/jquery.js?v=5d32c60e"></script>
-        <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-        <script src="_static/documentation_options.js?v=9172181d"></script>
-        <script src="_static/doctools.js?v=9a2dae69"></script>
-        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/sphinx_highlight.js"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -101,19 +99,19 @@
            <div itemprop="articleBody">
              
   <section id="writing-the-output-file">
-<h1>Writing the output file<a class="headerlink" href="#writing-the-output-file" title="Link to this heading"></a></h1>
+<h1>Writing the output file<a class="headerlink" href="#writing-the-output-file" title="Permalink to this heading"></a></h1>
 <p>Output handlers govern how the final solution is handled.  The typical thing to do is to
 write to a FITS file, which is handled by the class <a class="reference internal" href="#piff.OutputFile" title="piff.OutputFile"><code class="xref py py-class docutils literal notranslate"><span class="pre">OutputFile</span></code></a>.  This is
 the default, so if you are using that, you can omit the :type: specification.</p>
 <dl class="py class">
 <dt class="sig sig-object py" id="piff.Output">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">piff.</span></span><span class="sig-name descname"><span class="pre">Output</span></span><a class="reference internal" href="_modules/piff/output.html#Output"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Output" title="Link to this definition"></a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">piff.</span></span><span class="sig-name descname"><span class="pre">Output</span></span><a class="reference internal" href="_modules/piff/output.html#Output"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Output" title="Permalink to this definition"></a></dt>
 <dd><p>The base class for handling the output for writing a Piff model.</p>
 <p>This is essentially an abstract base class intended to define the methods that should be
 implemented by any derived class.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="piff.Output.parseKwargs">
-<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">parseKwargs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_output</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/output.html#Output.parseKwargs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Output.parseKwargs" title="Link to this definition"></a></dt>
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">parseKwargs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_output</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/output.html#Output.parseKwargs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Output.parseKwargs" title="Permalink to this definition"></a></dt>
 <dd><p>Parse the output field of a configuration dict and return the kwargs to use for
 initializing an instance of the class.</p>
 <p>The base class implementation just returns the kwargs as they are, but derived classes
@@ -133,7 +131,7 @@ might want to override this if they need to do something more sophisticated with
 
 <dl class="py method">
 <dt class="sig sig-object py" id="piff.Output.process">
-<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">process</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_output</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/output.html#Output.process"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Output.process" title="Link to this definition"></a></dt>
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">process</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_output</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/output.html#Output.process"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Output.process" title="Permalink to this definition"></a></dt>
 <dd><p>Parse the output field of the config dict.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -150,7 +148,7 @@ might want to override this if they need to do something more sophisticated with
 
 <dl class="py method">
 <dt class="sig sig-object py" id="piff.Output.read">
-<span class="sig-name descname"><span class="pre">read</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/output.html#Output.read"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Output.read" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">read</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/output.html#Output.read"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Output.read" title="Permalink to this definition"></a></dt>
 <dd><p>Read a PSF object that was written to an output file back in.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -164,7 +162,7 @@ might want to override this if they need to do something more sophisticated with
 
 <dl class="py method">
 <dt class="sig sig-object py" id="piff.Output.write">
-<span class="sig-name descname"><span class="pre">write</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psf</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/output.html#Output.write"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Output.write" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">write</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psf</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/output.html#Output.write"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Output.write" title="Permalink to this definition"></a></dt>
 <dd><p>Write a PSF object to the output file.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -180,7 +178,7 @@ might want to override this if they need to do something more sophisticated with
 
 <dl class="py class">
 <dt class="sig sig-object py" id="piff.OutputFile">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">piff.</span></span><span class="sig-name descname"><span class="pre">OutputFile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stats_list</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/output.html#OutputFile"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.OutputFile" title="Link to this definition"></a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">piff.</span></span><span class="sig-name descname"><span class="pre">OutputFile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stats_list</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/output.html#OutputFile"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.OutputFile" title="Permalink to this definition"></a></dt>
 <dd><p>An Output handler that just writes to a FITS file.</p>
 <p>This is the only Output handler we have, so it doesn’t need to be specified by name
 with a <code class="docutils literal notranslate"><span class="pre">type</span></code> field.</p>
@@ -198,7 +196,7 @@ statistics to output as well.</p>
 </dl>
 <dl class="py method">
 <dt class="sig sig-object py" id="piff.OutputFile.parseKwargs">
-<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">parseKwargs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_output</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/output.html#OutputFile.parseKwargs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.OutputFile.parseKwargs" title="Link to this definition"></a></dt>
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">parseKwargs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_output</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/output.html#OutputFile.parseKwargs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.OutputFile.parseKwargs" title="Permalink to this definition"></a></dt>
 <dd><p>Parse the output field of a configuration dict and return the kwargs to use for
 initializing an instance of the class.</p>
 <dl class="field-list simple">
@@ -216,7 +214,7 @@ initializing an instance of the class.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="piff.OutputFile.write">
-<span class="sig-name descname"><span class="pre">write</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psf</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/output.html#OutputFile.write"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.OutputFile.write" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">write</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psf</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/output.html#OutputFile.write"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.OutputFile.write" title="Permalink to this definition"></a></dt>
 <dd><p>Write a PSF object to the output file.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>

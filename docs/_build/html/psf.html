@@ -1,23 +1,21 @@
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" data-content_root="./">
+<html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>PSF classes &mdash; Piff 1.4.0 documentation</title>
-      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
-      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=19f00094" />
-
-  
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <!--[if lt IE 9]>
     <script src="_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
-        <script src="_static/jquery.js?v=5d32c60e"></script>
-        <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-        <script src="_static/documentation_options.js?v=9172181d"></script>
-        <script src="_static/doctools.js?v=9a2dae69"></script>
-        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/sphinx_highlight.js"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -56,6 +54,8 @@
 <li class="toctree-l1"><a class="reference internal" href="interp.html">Interpolation Schemes</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">PSF classes</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#piff.PSF"><code class="docutils literal notranslate"><span class="pre">PSF</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#piff.PSF._write"><code class="docutils literal notranslate"><span class="pre">PSF._write()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#piff.PSF._read"><code class="docutils literal notranslate"><span class="pre">PSF._read()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#piff.PSF.draw"><code class="docutils literal notranslate"><span class="pre">PSF.draw()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#piff.PSF.drawStar"><code class="docutils literal notranslate"><span class="pre">PSF.drawStar()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#piff.PSF.drawStarList"><code class="docutils literal notranslate"><span class="pre">PSF.drawStarList()</span></code></a></li>
@@ -82,6 +82,8 @@
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#the-simple-case-of-one-model-interp">The simple case of one model/interp</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#piff.SimplePSF"><code class="docutils literal notranslate"><span class="pre">SimplePSF</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#piff.SimplePSF._finish_write"><code class="docutils literal notranslate"><span class="pre">SimplePSF._finish_write()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#piff.SimplePSF._finish_read"><code class="docutils literal notranslate"><span class="pre">SimplePSF._finish_read()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#piff.SimplePSF.fit_center"><code class="docutils literal notranslate"><span class="pre">SimplePSF.fit_center</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#piff.SimplePSF.include_model_centroid"><code class="docutils literal notranslate"><span class="pre">SimplePSF.include_model_centroid</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#piff.SimplePSF.initialize_params"><code class="docutils literal notranslate"><span class="pre">SimplePSF.initialize_params()</span></code></a></li>
@@ -96,12 +98,45 @@
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#using-a-separate-solution-for-each-chip">Using a separate solution for each chip</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#piff.SingleChipPSF"><code class="docutils literal notranslate"><span class="pre">SingleChipPSF</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#piff.SingleChipPSF._finish_write"><code class="docutils literal notranslate"><span class="pre">SingleChipPSF._finish_write()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#piff.SingleChipPSF._finish_read"><code class="docutils literal notranslate"><span class="pre">SingleChipPSF._finish_read()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#piff.SingleChipPSF.fit"><code class="docutils literal notranslate"><span class="pre">SingleChipPSF.fit()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#piff.SingleChipPSF.fit_center"><code class="docutils literal notranslate"><span class="pre">SingleChipPSF.fit_center</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#piff.SingleChipPSF.include_model_centroid"><code class="docutils literal notranslate"><span class="pre">SingleChipPSF.include_model_centroid</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#piff.SingleChipPSF.interpolateStar"><code class="docutils literal notranslate"><span class="pre">SingleChipPSF.interpolateStar()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#piff.SingleChipPSF.parseKwargs"><code class="docutils literal notranslate"><span class="pre">SingleChipPSF.parseKwargs()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#piff.SingleChipPSF.set_num"><code class="docutils literal notranslate"><span class="pre">SingleChipPSF.set_num()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#composite-psf-types">Composite PSF types</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#piff.SumPSF"><code class="docutils literal notranslate"><span class="pre">SumPSF</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#piff.SumPSF._finish_write"><code class="docutils literal notranslate"><span class="pre">SumPSF._finish_write()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#piff.SumPSF._finish_read"><code class="docutils literal notranslate"><span class="pre">SumPSF._finish_read()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#piff.SumPSF.fit_center"><code class="docutils literal notranslate"><span class="pre">SumPSF.fit_center</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#piff.SumPSF.include_model_centroid"><code class="docutils literal notranslate"><span class="pre">SumPSF.include_model_centroid</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#piff.SumPSF.initialize_params"><code class="docutils literal notranslate"><span class="pre">SumPSF.initialize_params()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#piff.SumPSF.interpolateStar"><code class="docutils literal notranslate"><span class="pre">SumPSF.interpolateStar()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#piff.SumPSF.interpolateStarList"><code class="docutils literal notranslate"><span class="pre">SumPSF.interpolateStarList()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#piff.SumPSF.parseKwargs"><code class="docutils literal notranslate"><span class="pre">SumPSF.parseKwargs()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#piff.SumPSF.set_num"><code class="docutils literal notranslate"><span class="pre">SumPSF.set_num()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#piff.SumPSF.setup_params"><code class="docutils literal notranslate"><span class="pre">SumPSF.setup_params()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#piff.SumPSF.single_iteration"><code class="docutils literal notranslate"><span class="pre">SumPSF.single_iteration()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#piff.ConvolvePSF"><code class="docutils literal notranslate"><span class="pre">ConvolvePSF</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#piff.ConvolvePSF._finish_write"><code class="docutils literal notranslate"><span class="pre">ConvolvePSF._finish_write()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#piff.ConvolvePSF._finish_read"><code class="docutils literal notranslate"><span class="pre">ConvolvePSF._finish_read()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#piff.ConvolvePSF.fit_center"><code class="docutils literal notranslate"><span class="pre">ConvolvePSF.fit_center</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#piff.ConvolvePSF.include_model_centroid"><code class="docutils literal notranslate"><span class="pre">ConvolvePSF.include_model_centroid</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#piff.ConvolvePSF.initialize_params"><code class="docutils literal notranslate"><span class="pre">ConvolvePSF.initialize_params()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#piff.ConvolvePSF.interpolateStar"><code class="docutils literal notranslate"><span class="pre">ConvolvePSF.interpolateStar()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#piff.ConvolvePSF.interpolateStarList"><code class="docutils literal notranslate"><span class="pre">ConvolvePSF.interpolateStarList()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#piff.ConvolvePSF.parseKwargs"><code class="docutils literal notranslate"><span class="pre">ConvolvePSF.parseKwargs()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#piff.ConvolvePSF.set_num"><code class="docutils literal notranslate"><span class="pre">ConvolvePSF.set_num()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#piff.ConvolvePSF.setup_params"><code class="docutils literal notranslate"><span class="pre">ConvolvePSF.setup_params()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#piff.ConvolvePSF.single_iteration"><code class="docutils literal notranslate"><span class="pre">ConvolvePSF.single_iteration()</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -140,13 +175,13 @@
            <div itemprop="articleBody">
              
   <section id="psf-classes">
-<h1>PSF classes<a class="headerlink" href="#psf-classes" title="Link to this heading"></a></h1>
+<h1>PSF classes<a class="headerlink" href="#psf-classes" title="Permalink to this heading"></a></h1>
 <p>The <a class="reference internal" href="#piff.PSF" title="piff.PSF"><code class="xref any py py-class docutils literal notranslate"><span class="pre">PSF</span></code></a> classes define the interaction between the models and the interpolants.  The
 simplest version <a class="reference internal" href="#piff.SimplePSF" title="piff.SimplePSF"><code class="xref any py py-class docutils literal notranslate"><span class="pre">SimplePSF</span></code></a> has one model and one interpolant, but it is possible to have
 more complicated combinations of these.</p>
 <dl class="py class">
 <dt class="sig sig-object py" id="piff.PSF">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">piff.</span></span><span class="sig-name descname"><span class="pre">PSF</span></span><a class="reference internal" href="_modules/piff/psf.html#PSF"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF" title="Link to this definition"></a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">piff.</span></span><span class="sig-name descname"><span class="pre">PSF</span></span><a class="reference internal" href="_modules/piff/psf.html#PSF"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF" title="Permalink to this definition"></a></dt>
 <dd><p>The base class for describing a PSF model across a field of view.</p>
 <p>The usual way to create a PSF is through one of the two factory functions:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">psf</span> <span class="o">=</span> <span class="n">piff</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">logger</span><span class="p">)</span>
@@ -156,8 +191,40 @@ more complicated combinations of these.</p>
 <p>The first is used to build a PSF model from the data according to a config dict.
 The second is used to read in a PSF model from disk.</p>
 <dl class="py method">
+<dt class="sig sig-object py" id="piff.PSF._write">
+<span class="sig-name descname"><span class="pre">_write</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fits</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extname</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF._write"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF._write" title="Permalink to this definition"></a></dt>
+<dd><p>This is the function that actually does the work for the write function.
+Composite PSF classes that need to iterate can call this multiple times as needed.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fits</strong> – An open fitsio.FITS object</p></li>
+<li><p><strong>extname</strong> – The name of the extension with the psf information.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.PSF._read">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">_read</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fits</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extname</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF._read"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF._read" title="Permalink to this definition"></a></dt>
+<dd><p>This is the function that actually does the work for the read function.
+Composite PSF classes that need to iterate can call this multiple times as needed.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fits</strong> – An open fitsio.FITS object</p></li>
+<li><p><strong>extname</strong> – The name of the extension with the psf information.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="piff.PSF.draw">
-<span class="sig-name descname"><span class="pre">draw</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chipnum</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">flux</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">center</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">offset</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stamp_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">48</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">image</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.draw"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.draw" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">draw</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chipnum</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">flux</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">center</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">offset</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stamp_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">48</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">image</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.draw"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.draw" title="Permalink to this definition"></a></dt>
 <dd><p>Draws an image of the PSF at a given location.</p>
 <p>The normal usage would be to specify (chipnum, x, y), in which case Piff will use the
 stored wcs information for that chip to interpolate to the given position and draw
@@ -231,7 +298,7 @@ center. [default: None]</p></li>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="piff.PSF.drawStar">
-<span class="sig-name descname"><span class="pre">drawStar</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">copy_image</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.drawStar"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.drawStar" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">drawStar</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">copy_image</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.drawStar"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.drawStar" title="Permalink to this definition"></a></dt>
 <dd><p>Generate PSF image for a given star.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
@@ -261,7 +328,7 @@ If True, will copy the image and then overwrite it.
 
 <dl class="py method">
 <dt class="sig sig-object py" id="piff.PSF.drawStarList">
-<span class="sig-name descname"><span class="pre">drawStarList</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">copy_image</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.drawStarList"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.drawStarList" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">drawStarList</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">copy_image</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.drawStarList"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.drawStarList" title="Permalink to this definition"></a></dt>
 <dd><p>Generate PSF images for given stars. Takes advantage of
 interpolateList for significant speedup with some interpolators.</p>
 <div class="admonition note">
@@ -289,7 +356,7 @@ rendered PSF</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="piff.PSF.fit">
-<span class="sig-name descname"><span class="pre">fit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wcs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pointing</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">convert_funcs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">draw_method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.fit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.fit" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">fit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wcs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pointing</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">convert_funcs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">draw_method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.fit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.fit" title="Permalink to this definition"></a></dt>
 <dd><p>Fit interpolated PSF model to star data using standard sequence of operations.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -312,7 +379,7 @@ use the default method for the PSF model being fit. [default: None]</p></li>
 
 <dl class="py property">
 <dt class="sig sig-object py" id="piff.PSF.fit_center">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">fit_center</span></span><a class="headerlink" href="#piff.PSF.fit_center" title="Link to this definition"></a></dt>
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">fit_center</span></span><a class="headerlink" href="#piff.PSF.fit_center" title="Permalink to this definition"></a></dt>
 <dd><p>Whether to fit the center of the star in reflux.</p>
 <p>This is generally set in the model specifications.
 If all component models includes a shift, then this is False.
@@ -321,7 +388,7 @@ Otherwise it is True.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="piff.PSF.get_profile">
-<span class="sig-name descname"><span class="pre">get_profile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chipnum</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">flux</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.get_profile"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.get_profile" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">get_profile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chipnum</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">flux</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.get_profile"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.get_profile" title="Permalink to this definition"></a></dt>
 <dd><p>Get the PSF profile at the given position as a GalSim GSObject.</p>
 <p>The normal usage would be to specify (chipnum, x, y), in which case Piff will use the
 stored wcs information for that chip to interpolate to the given position and draw
@@ -365,13 +432,13 @@ when drawing the profile on an image.</p>
 
 <dl class="py property">
 <dt class="sig sig-object py" id="piff.PSF.include_model_centroid">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">include_model_centroid</span></span><a class="headerlink" href="#piff.PSF.include_model_centroid" title="Link to this definition"></a></dt>
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">include_model_centroid</span></span><a class="headerlink" href="#piff.PSF.include_model_centroid" title="Permalink to this definition"></a></dt>
 <dd><p>Whether a model that we want to center can have a non-zero centroid during iterations.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="piff.PSF.initialize_flux_center">
-<span class="sig-name descname"><span class="pre">initialize_flux_center</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.initialize_flux_center"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.initialize_flux_center" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">initialize_flux_center</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.initialize_flux_center"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.initialize_flux_center" title="Permalink to this definition"></a></dt>
 <dd><p>Initialize the flux and center of the stars.</p>
 <p>The flux is just a simple sum of unmasked pixels.
 The center is a simple centroid relative to the nominal position.  It is only updated
@@ -392,7 +459,7 @@ the PSF.</p></li>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="piff.PSF.initialize_params">
-<span class="sig-name descname"><span class="pre">initialize_params</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default_init</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.initialize_params"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.initialize_params" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">initialize_params</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default_init</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.initialize_params"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.initialize_params" title="Permalink to this definition"></a></dt>
 <dd><p>Initialize the psf solver to begin an iterative solution.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -412,7 +479,7 @@ the PSF.</p></li>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="piff.PSF.interpolateStar">
-<span class="sig-name descname"><span class="pre">interpolateStar</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.interpolateStar"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.interpolateStar" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">interpolateStar</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.interpolateStar"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.interpolateStar" title="Permalink to this definition"></a></dt>
 <dd><p>Update the star to have the current interpolated fit parameters according to the
 current PSF model.</p>
 <dl class="field-list simple">
@@ -427,7 +494,7 @@ current PSF model.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="piff.PSF.interpolateStarList">
-<span class="sig-name descname"><span class="pre">interpolateStarList</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.interpolateStarList"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.interpolateStarList" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">interpolateStarList</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.interpolateStarList"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.interpolateStarList" title="Permalink to this definition"></a></dt>
 <dd><p>Update the stars to have the current interpolated fit parameters according to the
 current PSF model.</p>
 <dl class="field-list simple">
@@ -442,7 +509,7 @@ current PSF model.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="piff.PSF.parseKwargs">
-<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">parseKwargs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_psf</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.parseKwargs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.parseKwargs" title="Link to this definition"></a></dt>
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">parseKwargs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_psf</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.parseKwargs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.parseKwargs" title="Permalink to this definition"></a></dt>
 <dd><p>Parse the psf field of a configuration dict and return the kwargs to use for
 initializing an instance of the class.</p>
 <p>The base class implementation just returns the kwargs as they are, but derived classes
@@ -462,7 +529,7 @@ might want to override this if they need to do something more sophisticated with
 
 <dl class="py method">
 <dt class="sig sig-object py" id="piff.PSF.process">
-<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">process</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_psf</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.process"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.process" title="Link to this definition"></a></dt>
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">process</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_psf</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.process"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.process" title="Permalink to this definition"></a></dt>
 <dd><p>Process the config dict and return a PSF instance.</p>
 <p>As the PSF class is an abstract base class, the returned type will in fact be some
 subclass of PSF according to the contents of the config dict.</p>
@@ -493,7 +560,7 @@ appropriate kwargs for building it.</p></li>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="piff.PSF.read">
-<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">read</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.read"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.read" title="Link to this definition"></a></dt>
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">read</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.read"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.read" title="Permalink to this definition"></a></dt>
 <dd><p>Read a PSF object from a file.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -510,7 +577,7 @@ appropriate kwargs for building it.</p></li>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="piff.PSF.readWCS">
-<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">readWCS</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fits</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extname</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.readWCS"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.readWCS" title="Link to this definition"></a></dt>
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">readWCS</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fits</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extname</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.readWCS"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.readWCS" title="Permalink to this definition"></a></dt>
 <dd><p>Read the WCS information from a FITS file.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -529,7 +596,7 @@ pointing is a galsim.CelestialCoord instance</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="piff.PSF.reflux">
-<span class="sig-name descname"><span class="pre">reflux</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.reflux"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.reflux" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">reflux</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.reflux"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.reflux" title="Permalink to this definition"></a></dt>
 <dd><p>Fit the PSF to the star’s data, varying only the flux (and
 center, if it is free).  Flux and center are updated in the Star’s
 attributes.  This is a single-step solution if only solving for flux,
@@ -550,13 +617,13 @@ only flux (&amp; center) are free parameters.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="piff.PSF.reflux_stars">
-<span class="sig-name descname"><span class="pre">reflux_stars</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.reflux_stars"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.reflux_stars" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">reflux_stars</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.reflux_stars"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.reflux_stars" title="Permalink to this definition"></a></dt>
 <dd><p>Calculate new flux and possibly center for a list of stars</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="piff.PSF.remove_outliers">
-<span class="sig-name descname"><span class="pre">remove_outliers</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">iteration</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.remove_outliers"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.remove_outliers" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">remove_outliers</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">iteration</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.remove_outliers"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.remove_outliers" title="Permalink to this definition"></a></dt>
 <dd><p>Look for and flag outliers from the list of stars</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -574,14 +641,14 @@ only flux (&amp; center) are free parameters.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="piff.PSF.set_num">
-<span class="sig-name descname"><span class="pre">set_num</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">num</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.set_num"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.set_num" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">set_num</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">num</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.set_num"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.set_num" title="Permalink to this definition"></a></dt>
 <dd><p>If there are multiple components involved in the fit, set the number to use
 for this model.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="piff.PSF.single_iteration">
-<span class="sig-name descname"><span class="pre">single_iteration</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">convert_funcs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">draw_method</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.single_iteration"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.single_iteration" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">single_iteration</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">convert_funcs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">draw_method</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.single_iteration"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.single_iteration" title="Permalink to this definition"></a></dt>
 <dd><p>Perform a single iteration of the solver.</p>
 <p>Note that some object might fail at some point in the fitting, so some objects can be
 flagged as bad during this step, prior to the outlier rejection step.  This information
@@ -606,7 +673,7 @@ use the default method for the PSF model being fit.</p></li>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="piff.PSF.write">
-<span class="sig-name descname"><span class="pre">write</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.write"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.write" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">write</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.write"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.write" title="Permalink to this definition"></a></dt>
 <dd><p>Write a PSF object to a file.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -620,7 +687,7 @@ use the default method for the PSF model being fit.</p></li>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="piff.PSF.writeWCS">
-<span class="sig-name descname"><span class="pre">writeWCS</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fits</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extname</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.writeWCS"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.writeWCS" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">writeWCS</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fits</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extname</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/psf.html#PSF.writeWCS"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PSF.writeWCS" title="Permalink to this definition"></a></dt>
 <dd><p>Write the WCS information to a FITS file.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -636,10 +703,10 @@ use the default method for the PSF model being fit.</p></li>
 </dd></dl>
 
 <section id="the-simple-case-of-one-model-interp">
-<h2>The simple case of one model/interp<a class="headerlink" href="#the-simple-case-of-one-model-interp" title="Link to this heading"></a></h2>
+<h2>The simple case of one model/interp<a class="headerlink" href="#the-simple-case-of-one-model-interp" title="Permalink to this heading"></a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="piff.SimplePSF">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">piff.</span></span><span class="sig-name descname"><span class="pre">SimplePSF</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">interp</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outliers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chisq_thresh</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_iter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">30</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/simplepsf.html#SimplePSF"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SimplePSF" title="Link to this definition"></a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">piff.</span></span><span class="sig-name descname"><span class="pre">SimplePSF</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">interp</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outliers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chisq_thresh</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_iter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">30</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/simplepsf.html#SimplePSF"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SimplePSF" title="Permalink to this definition"></a></dt>
 <dd><p>A PSF class that uses a single model and interpolator.</p>
 <p>A SimplePSF is built from a Model and an Interp object.
 The model defines the functional form of the surface brightness profile, and the
@@ -659,9 +726,39 @@ name, as this is the default PSF type.</p>
 </ul>
 </dd>
 </dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.SimplePSF._finish_write">
+<span class="sig-name descname"><span class="pre">_finish_write</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fits</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extname</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/simplepsf.html#SimplePSF._finish_write"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SimplePSF._finish_write" title="Permalink to this definition"></a></dt>
+<dd><p>Finish the writing process with any class-specific steps.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fits</strong> – An open fitsio.FITS object</p></li>
+<li><p><strong>extname</strong> – The base name of the extension to write to.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.SimplePSF._finish_read">
+<span class="sig-name descname"><span class="pre">_finish_read</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fits</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extname</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/simplepsf.html#SimplePSF._finish_read"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SimplePSF._finish_read" title="Permalink to this definition"></a></dt>
+<dd><p>Finish the reading process with any class-specific steps.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fits</strong> – An open fitsio.FITS object</p></li>
+<li><p><strong>extname</strong> – The base name of the extension to write to.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
 <dl class="py property">
 <dt class="sig sig-object py" id="piff.SimplePSF.fit_center">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">fit_center</span></span><a class="headerlink" href="#piff.SimplePSF.fit_center" title="Link to this definition"></a></dt>
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">fit_center</span></span><a class="headerlink" href="#piff.SimplePSF.fit_center" title="Permalink to this definition"></a></dt>
 <dd><p>Whether to fit the center of the star in reflux.</p>
 <p>This is generally set in the model specifications.
 If all component models includes a shift, then this is False.
@@ -670,13 +767,13 @@ Otherwise it is True.</p>
 
 <dl class="py property">
 <dt class="sig sig-object py" id="piff.SimplePSF.include_model_centroid">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">include_model_centroid</span></span><a class="headerlink" href="#piff.SimplePSF.include_model_centroid" title="Link to this definition"></a></dt>
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">include_model_centroid</span></span><a class="headerlink" href="#piff.SimplePSF.include_model_centroid" title="Permalink to this definition"></a></dt>
 <dd><p>Whether a model that we want to center can have a non-zero centroid during iterations.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="piff.SimplePSF.initialize_params">
-<span class="sig-name descname"><span class="pre">initialize_params</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default_init</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/simplepsf.html#SimplePSF.initialize_params"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SimplePSF.initialize_params" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">initialize_params</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default_init</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/simplepsf.html#SimplePSF.initialize_params"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SimplePSF.initialize_params" title="Permalink to this definition"></a></dt>
 <dd><p>Initialize the psf solver to begin an iterative solution.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -696,7 +793,7 @@ the PSF.</p></li>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="piff.SimplePSF.interpolateStar">
-<span class="sig-name descname"><span class="pre">interpolateStar</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/simplepsf.html#SimplePSF.interpolateStar"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SimplePSF.interpolateStar" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">interpolateStar</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/simplepsf.html#SimplePSF.interpolateStar"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SimplePSF.interpolateStar" title="Permalink to this definition"></a></dt>
 <dd><p>Update the star to have the current interpolated fit parameters according to the
 current PSF model.</p>
 <dl class="field-list simple">
@@ -711,7 +808,7 @@ current PSF model.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="piff.SimplePSF.interpolateStarList">
-<span class="sig-name descname"><span class="pre">interpolateStarList</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/simplepsf.html#SimplePSF.interpolateStarList"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SimplePSF.interpolateStarList" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">interpolateStarList</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/simplepsf.html#SimplePSF.interpolateStarList"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SimplePSF.interpolateStarList" title="Permalink to this definition"></a></dt>
 <dd><p>Update the stars to have the current interpolated fit parameters according to the
 current PSF model.</p>
 <dl class="field-list simple">
@@ -726,7 +823,7 @@ current PSF model.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="piff.SimplePSF.parseKwargs">
-<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">parseKwargs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_psf</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/simplepsf.html#SimplePSF.parseKwargs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SimplePSF.parseKwargs" title="Link to this definition"></a></dt>
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">parseKwargs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_psf</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/simplepsf.html#SimplePSF.parseKwargs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SimplePSF.parseKwargs" title="Permalink to this definition"></a></dt>
 <dd><p>Parse the psf field of a configuration dict and return the kwargs to use for
 initializing an instance of the class.</p>
 <dl class="field-list simple">
@@ -744,14 +841,14 @@ initializing an instance of the class.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="piff.SimplePSF.set_num">
-<span class="sig-name descname"><span class="pre">set_num</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">num</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/simplepsf.html#SimplePSF.set_num"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SimplePSF.set_num" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">set_num</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">num</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/simplepsf.html#SimplePSF.set_num"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SimplePSF.set_num" title="Permalink to this definition"></a></dt>
 <dd><p>If there are multiple components involved in the fit, set the number to use
 for this model.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="piff.SimplePSF.single_iteration">
-<span class="sig-name descname"><span class="pre">single_iteration</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">convert_funcs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">draw_method</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/simplepsf.html#SimplePSF.single_iteration"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SimplePSF.single_iteration" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">single_iteration</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">convert_funcs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">draw_method</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/simplepsf.html#SimplePSF.single_iteration"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SimplePSF.single_iteration" title="Permalink to this definition"></a></dt>
 <dd><p>Perform a single iteration of the solver.</p>
 <p>Note that some object might fail at some point in the fitting, so some objects can be
 flagged as bad during this step, prior to the outlier rejection step.  This information
@@ -778,10 +875,10 @@ use the default method for the PSF model being fit.</p></li>
 
 </section>
 <section id="using-a-separate-solution-for-each-chip">
-<h2>Using a separate solution for each chip<a class="headerlink" href="#using-a-separate-solution-for-each-chip" title="Link to this heading"></a></h2>
+<h2>Using a separate solution for each chip<a class="headerlink" href="#using-a-separate-solution-for-each-chip" title="Permalink to this heading"></a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="piff.SingleChipPSF">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">piff.</span></span><span class="sig-name descname"><span class="pre">SingleChipPSF</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">single_psf</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nproc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/singlechip.html#SingleChipPSF"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SingleChipPSF" title="Link to this definition"></a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">piff.</span></span><span class="sig-name descname"><span class="pre">SingleChipPSF</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">single_psf</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nproc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/singlechip.html#SingleChipPSF"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SingleChipPSF" title="Permalink to this definition"></a></dt>
 <dd><p>A PSF class that uses a separate PSF solution for each chip</p>
 <p>Use type name “SingleChip” in a config field to use this psf type.</p>
 <dl class="field-list simple">
@@ -795,8 +892,38 @@ chips at once. [default: 1]</p></li>
 </dd>
 </dl>
 <dl class="py method">
+<dt class="sig sig-object py" id="piff.SingleChipPSF._finish_write">
+<span class="sig-name descname"><span class="pre">_finish_write</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fits</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extname</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/singlechip.html#SingleChipPSF._finish_write"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SingleChipPSF._finish_write" title="Permalink to this definition"></a></dt>
+<dd><p>Finish the writing process with any class-specific steps.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fits</strong> – An open fitsio.FITS object</p></li>
+<li><p><strong>extname</strong> – The base name of the extension to write to.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.SingleChipPSF._finish_read">
+<span class="sig-name descname"><span class="pre">_finish_read</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fits</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extname</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/singlechip.html#SingleChipPSF._finish_read"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SingleChipPSF._finish_read" title="Permalink to this definition"></a></dt>
+<dd><p>Finish the reading process with any class-specific steps.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fits</strong> – An open fitsio.FITS object</p></li>
+<li><p><strong>extname</strong> – The base name of the extension to write to.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="piff.SingleChipPSF.fit">
-<span class="sig-name descname"><span class="pre">fit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wcs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pointing</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">convert_funcs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">draw_method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/singlechip.html#SingleChipPSF.fit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SingleChipPSF.fit" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">fit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wcs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pointing</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">convert_funcs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">draw_method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/singlechip.html#SingleChipPSF.fit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SingleChipPSF.fit" title="Permalink to this definition"></a></dt>
 <dd><p>Fit interpolated PSF model to star data using standard sequence of operations.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -819,7 +946,7 @@ use the default method for the PSF model being fit. [default: None]</p></li>
 
 <dl class="py property">
 <dt class="sig sig-object py" id="piff.SingleChipPSF.fit_center">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">fit_center</span></span><a class="headerlink" href="#piff.SingleChipPSF.fit_center" title="Link to this definition"></a></dt>
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">fit_center</span></span><a class="headerlink" href="#piff.SingleChipPSF.fit_center" title="Permalink to this definition"></a></dt>
 <dd><p>Whether to fit the center of the star in reflux.</p>
 <p>This is generally set in the model specifications.
 If all component models includes a shift, then this is False.
@@ -828,13 +955,13 @@ Otherwise it is True.</p>
 
 <dl class="py property">
 <dt class="sig sig-object py" id="piff.SingleChipPSF.include_model_centroid">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">include_model_centroid</span></span><a class="headerlink" href="#piff.SingleChipPSF.include_model_centroid" title="Link to this definition"></a></dt>
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">include_model_centroid</span></span><a class="headerlink" href="#piff.SingleChipPSF.include_model_centroid" title="Permalink to this definition"></a></dt>
 <dd><p>Whether a model that we want to center can have a non-zero centroid during iterations.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="piff.SingleChipPSF.interpolateStar">
-<span class="sig-name descname"><span class="pre">interpolateStar</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/singlechip.html#SingleChipPSF.interpolateStar"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SingleChipPSF.interpolateStar" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">interpolateStar</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/singlechip.html#SingleChipPSF.interpolateStar"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SingleChipPSF.interpolateStar" title="Permalink to this definition"></a></dt>
 <dd><p>Update the star to have the current interpolated fit parameters according to the
 current PSF model.</p>
 <dl class="field-list simple">
@@ -849,7 +976,7 @@ current PSF model.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="piff.SingleChipPSF.parseKwargs">
-<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">parseKwargs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_psf</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/singlechip.html#SingleChipPSF.parseKwargs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SingleChipPSF.parseKwargs" title="Link to this definition"></a></dt>
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">parseKwargs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_psf</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/singlechip.html#SingleChipPSF.parseKwargs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SingleChipPSF.parseKwargs" title="Permalink to this definition"></a></dt>
 <dd><p>Parse the psf field of a configuration dict and return the kwargs to use for
 initializing an instance of the class.</p>
 <dl class="field-list simple">
@@ -867,9 +994,370 @@ initializing an instance of the class.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="piff.SingleChipPSF.set_num">
-<span class="sig-name descname"><span class="pre">set_num</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">num</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/singlechip.html#SingleChipPSF.set_num"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SingleChipPSF.set_num" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">set_num</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">num</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/singlechip.html#SingleChipPSF.set_num"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SingleChipPSF.set_num" title="Permalink to this definition"></a></dt>
 <dd><p>If there are multiple components involved in the fit, set the number to use
 for this model.</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="composite-psf-types">
+<h2>Composite PSF types<a class="headerlink" href="#composite-psf-types" title="Permalink to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="piff.SumPSF">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">piff.</span></span><span class="sig-name descname"><span class="pre">SumPSF</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">components</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outliers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chisq_thresh</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_iter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">30</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/sumpsf.html#SumPSF"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SumPSF" title="Permalink to this definition"></a></dt>
+<dd><p>A PSF class that is the Sum of two or more other PSF types.</p>
+<p>A SumPSF is built from an ordered list of other PSFs.</p>
+<p>When fitting the Sum, the default pattern is that all components after the first one
+are initialized to zero, and the first component is fit as usual, but just using a
+single iteration of the fit.  Then the residuals of this model are fit using the second
+component, and so on.  Once all components are fit, outliers may be rejected, and then
+the process is iterated.</p>
+<p>This pattern can be tweaked somewhat using the initialization options available to
+PSF models.  If a component should be initialized to something other than a zero model,
+then one should explicitly set it.</p>
+<p>Use type name “Sum” in a config field to use this psf type.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>components</strong> – A list of PSF instances defining the components to be summed.</p></li>
+<li><p><strong>outliers</strong> – Optionally, an Outliers instance used to remove outliers.
+[default: None]</p></li>
+<li><p><strong>chisq_thresh</strong> – Change in reduced chisq at which iteration will terminate.
+[default: 0.1]</p></li>
+<li><p><strong>max_iter</strong> – Maximum number of iterations to try. [default: 30]</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.SumPSF._finish_write">
+<span class="sig-name descname"><span class="pre">_finish_write</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fits</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extname</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/sumpsf.html#SumPSF._finish_write"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SumPSF._finish_write" title="Permalink to this definition"></a></dt>
+<dd><p>Finish the writing process with any class-specific steps.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fits</strong> – An open fitsio.FITS object</p></li>
+<li><p><strong>extname</strong> – The base name of the extension to write to.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.SumPSF._finish_read">
+<span class="sig-name descname"><span class="pre">_finish_read</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fits</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extname</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/sumpsf.html#SumPSF._finish_read"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SumPSF._finish_read" title="Permalink to this definition"></a></dt>
+<dd><p>Finish the reading process with any class-specific steps.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fits</strong> – An open fitsio.FITS object</p></li>
+<li><p><strong>extname</strong> – The base name of the extension to write to.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="piff.SumPSF.fit_center">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">fit_center</span></span><a class="headerlink" href="#piff.SumPSF.fit_center" title="Permalink to this definition"></a></dt>
+<dd><p>Whether to fit the center of the star in reflux.</p>
+<p>This is generally set in the model specifications.
+If all component models includes a shift, then this is False.
+Otherwise it is True.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="piff.SumPSF.include_model_centroid">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">include_model_centroid</span></span><a class="headerlink" href="#piff.SumPSF.include_model_centroid" title="Permalink to this definition"></a></dt>
+<dd><p>Whether a model that we want to center can have a non-zero centroid during iterations.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.SumPSF.initialize_params">
+<span class="sig-name descname"><span class="pre">initialize_params</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default_init</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/sumpsf.html#SumPSF.initialize_params"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SumPSF.initialize_params" title="Permalink to this definition"></a></dt>
+<dd><p>Initialize the psf solver to begin an iterative solution.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>stars</strong> – The initial list of Star instances that will be used to constrain
+the PSF.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging progress. [default: None]</p></li>
+<li><p><strong>default_init</strong> – The default initilization method if the user doesn’t specify one.
+[default: None]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>the initialized stars, nremoved</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.SumPSF.interpolateStar">
+<span class="sig-name descname"><span class="pre">interpolateStar</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/sumpsf.html#SumPSF.interpolateStar"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SumPSF.interpolateStar" title="Permalink to this definition"></a></dt>
+<dd><p>Update the star to have the current interpolated fit parameters according to the
+current PSF model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>star</strong> – Star instance to update.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Star instance with its fit parameters updated.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.SumPSF.interpolateStarList">
+<span class="sig-name descname"><span class="pre">interpolateStarList</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/sumpsf.html#SumPSF.interpolateStarList"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SumPSF.interpolateStarList" title="Permalink to this definition"></a></dt>
+<dd><p>Update the stars to have the current interpolated fit parameters according to the
+current PSF model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>stars</strong> – List of Star instances to update.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>List of Star instances with their fit parameters updated.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.SumPSF.parseKwargs">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">parseKwargs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_psf</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/sumpsf.html#SumPSF.parseKwargs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SumPSF.parseKwargs" title="Permalink to this definition"></a></dt>
+<dd><p>Parse the psf field of a configuration dict and return the kwargs to use for
+initializing an instance of the class.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>config_psf</strong> – The psf field of the configuration dict, config[‘psf’]</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>a kwargs dict to pass to the initializer</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.SumPSF.set_num">
+<span class="sig-name descname"><span class="pre">set_num</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">num</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/sumpsf.html#SumPSF.set_num"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SumPSF.set_num" title="Permalink to this definition"></a></dt>
+<dd><p>If there are multiple components involved in the fit, set the number to use
+for this model.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.SumPSF.setup_params">
+<span class="sig-name descname"><span class="pre">setup_params</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/sumpsf.html#SumPSF.setup_params"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SumPSF.setup_params" title="Permalink to this definition"></a></dt>
+<dd><p>Make sure the stars have the right shape params object</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.SumPSF.single_iteration">
+<span class="sig-name descname"><span class="pre">single_iteration</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">convert_funcs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">draw_method</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/sumpsf.html#SumPSF.single_iteration"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SumPSF.single_iteration" title="Permalink to this definition"></a></dt>
+<dd><p>Perform a single iteration of the solver.</p>
+<p>Note that some object might fail at some point in the fitting, so some objects can be
+flagged as bad during this step, prior to the outlier rejection step.  This information
+is reported in the return tuple as nremoved.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>stars</strong> – The list of stars to use for constraining the PSF.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging progress.</p></li>
+<li><p><strong>convert_funcs</strong> – An optional list of function to apply to the profiles being fit
+before drawing it onto the image.  If not None, it should be the
+same length as stars.</p></li>
+<li><p><strong>draw_method</strong> – The method to use with the GalSim drawImage command. If None,
+use the default method for the PSF model being fit.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>an updated list of all_stars, nremoved</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="piff.ConvolvePSF">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">piff.</span></span><span class="sig-name descname"><span class="pre">ConvolvePSF</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">components</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outliers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chisq_thresh</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_iter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">30</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/convolvepsf.html#ConvolvePSF"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.ConvolvePSF" title="Permalink to this definition"></a></dt>
+<dd><p>A PSF class that is the Convolution of two or more other PSF types.</p>
+<p>A ConvolvePSF is built from an ordered list of other PSFs.</p>
+<p>When fitting the convolution, the default pattern is that all components after the first one
+are initialized as (approximately) a delta function, and the first component is fit as usual,
+but just using a single iteration of the fit. Then the residuals of this model are fit using
+the second component, and so on. Once all components are fit, outliers may be rejected, and
+then the process is iterated.</p>
+<p>This pattern can be tweaked somewhat using the initialization options available to
+PSF models. If a component should be initialized to something other than a delta-function.
+then one should explicitly set it.</p>
+<p>Use type name “Convolve” in a config field to use this psf type.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>components</strong> – A list of PSF instances defining the components to be convolved.</p></li>
+<li><p><strong>outliers</strong> – Optionally, an Outliers instance used to remove outliers.
+[default: None]</p></li>
+<li><p><strong>chisq_thresh</strong> – Change in reduced chisq at which iteration will terminate.
+[default: 0.1]</p></li>
+<li><p><strong>max_iter</strong> – Maximum number of iterations to try. [default: 30]</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.ConvolvePSF._finish_write">
+<span class="sig-name descname"><span class="pre">_finish_write</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fits</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extname</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/convolvepsf.html#ConvolvePSF._finish_write"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.ConvolvePSF._finish_write" title="Permalink to this definition"></a></dt>
+<dd><p>Finish the writing process with any class-specific steps.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fits</strong> – An open fitsio.FITS object</p></li>
+<li><p><strong>extname</strong> – The base name of the extension to write to.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.ConvolvePSF._finish_read">
+<span class="sig-name descname"><span class="pre">_finish_read</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fits</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extname</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/convolvepsf.html#ConvolvePSF._finish_read"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.ConvolvePSF._finish_read" title="Permalink to this definition"></a></dt>
+<dd><p>Finish the reading process with any class-specific steps.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fits</strong> – An open fitsio.FITS object</p></li>
+<li><p><strong>extname</strong> – The base name of the extension to write to.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="piff.ConvolvePSF.fit_center">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">fit_center</span></span><a class="headerlink" href="#piff.ConvolvePSF.fit_center" title="Permalink to this definition"></a></dt>
+<dd><p>Whether to fit the center of the star in reflux.</p>
+<p>This is generally set in the model specifications.
+If all component models includes a shift, then this is False.
+Otherwise it is True.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="piff.ConvolvePSF.include_model_centroid">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">include_model_centroid</span></span><a class="headerlink" href="#piff.ConvolvePSF.include_model_centroid" title="Permalink to this definition"></a></dt>
+<dd><p>Whether a model that we want to center can have a non-zero centroid during iterations.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.ConvolvePSF.initialize_params">
+<span class="sig-name descname"><span class="pre">initialize_params</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default_init</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/convolvepsf.html#ConvolvePSF.initialize_params"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.ConvolvePSF.initialize_params" title="Permalink to this definition"></a></dt>
+<dd><p>Initialize the psf solver to begin an iterative solution.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>stars</strong> – The initial list of Star instances that will be used to constrain
+the PSF.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging progress. [default: None]</p></li>
+<li><p><strong>default_init</strong> – The default initilization method if the user doesn’t specify one.
+[default: None]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>the initialized stars, nremoved</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.ConvolvePSF.interpolateStar">
+<span class="sig-name descname"><span class="pre">interpolateStar</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/convolvepsf.html#ConvolvePSF.interpolateStar"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.ConvolvePSF.interpolateStar" title="Permalink to this definition"></a></dt>
+<dd><p>Update the star to have the current interpolated fit parameters according to the
+current PSF model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>star</strong> – Star instance to update.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Star instance with its fit parameters updated.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.ConvolvePSF.interpolateStarList">
+<span class="sig-name descname"><span class="pre">interpolateStarList</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/convolvepsf.html#ConvolvePSF.interpolateStarList"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.ConvolvePSF.interpolateStarList" title="Permalink to this definition"></a></dt>
+<dd><p>Update the stars to have the current interpolated fit parameters according to the
+current PSF model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>stars</strong> – List of Star instances to update.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>List of Star instances with their fit parameters updated.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.ConvolvePSF.parseKwargs">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">parseKwargs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_psf</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/convolvepsf.html#ConvolvePSF.parseKwargs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.ConvolvePSF.parseKwargs" title="Permalink to this definition"></a></dt>
+<dd><p>Parse the psf field of a configuration dict and return the kwargs to use for
+initializing an instance of the class.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>config_psf</strong> – The psf field of the configuration dict, config[‘psf’]</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>a kwargs dict to pass to the initializer</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.ConvolvePSF.set_num">
+<span class="sig-name descname"><span class="pre">set_num</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">num</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/convolvepsf.html#ConvolvePSF.set_num"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.ConvolvePSF.set_num" title="Permalink to this definition"></a></dt>
+<dd><p>If there are multiple components involved in the fit, set the number to use
+for this model.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.ConvolvePSF.setup_params">
+<span class="sig-name descname"><span class="pre">setup_params</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/convolvepsf.html#ConvolvePSF.setup_params"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.ConvolvePSF.setup_params" title="Permalink to this definition"></a></dt>
+<dd><p>Make sure the stars have the right shape params object</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.ConvolvePSF.single_iteration">
+<span class="sig-name descname"><span class="pre">single_iteration</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">convert_funcs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">draw_method</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/convolvepsf.html#ConvolvePSF.single_iteration"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.ConvolvePSF.single_iteration" title="Permalink to this definition"></a></dt>
+<dd><p>Perform a single iteration of the solver.</p>
+<p>Note that some object might fail at some point in the fitting, so some objects can be
+flagged as bad during this step, prior to the outlier rejection step.  This information
+is reported in the return tuple as nremoved.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>stars</strong> – The list of stars to use for constraining the PSF.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging progress.</p></li>
+<li><p><strong>convert_funcs</strong> – An optional list of function to apply to the profiles being fit
+before drawing it onto the image.  If not None, it should be the
+same length as stars.</p></li>
+<li><p><strong>draw_method</strong> – The method to use with the GalSim drawImage command. If None,
+use the default method for the PSF model being fit.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>an updated list of all_stars, nremoved</p>
+</dd>
+</dl>
 </dd></dl>
 
 </dd></dl>

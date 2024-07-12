@@ -8,6 +8,9 @@ build the PSF model.  This option is specified via an ``outliers`` section of th
 .. autoclass:: piff.Outliers
    :members:
 
+    .. automethod:: piff.Outliers._finish_write
+    .. automethod:: piff.Outliers._finish_read
+
 .. autoclass:: piff.ChisqOutliers
    :members:
 

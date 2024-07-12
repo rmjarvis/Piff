@@ -1,22 +1,20 @@
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" data-content_root="../../">
+<html class="writer-html5" lang="en" >
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>piff.select &mdash; Piff 1.4.0 documentation</title>
-      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=fa44fd50" />
-      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=19f00094" />
-
-  
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
   <!--[if lt IE 9]>
     <script src="../../_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
-        <script src="../../_static/jquery.js?v=5d32c60e"></script>
-        <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-        <script src="../../_static/documentation_options.js?v=9172181d"></script>
-        <script src="../../_static/doctools.js?v=9a2dae69"></script>
-        <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/sphinx_highlight.js"></script>
     <script src="../../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" /> 
@@ -112,9 +110,7 @@
 <span class="kn">from</span> <span class="nn">.star</span> <span class="kn">import</span> <span class="n">Star</span>
 <span class="kn">from</span> <span class="nn">.input</span> <span class="kn">import</span> <span class="n">InputFiles</span>
 
-<div class="viewcode-block" id="Select">
-<a class="viewcode-back" href="../../select.html#piff.Select">[docs]</a>
-<span class="k">class</span> <span class="nc">Select</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<div class="viewcode-block" id="Select"><a class="viewcode-back" href="../../select.html#piff.Select">[docs]</a><span class="k">class</span> <span class="nc">Select</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;The base class for selecting which stars to use for characterizing the PSF.</span>
 
 <span class="sd">    This is essentially an abstract base class intended to define the methods that should be</span>
@@ -160,9 +156,7 @@
                                  <span class="s1">&#39;Maybe you subclassed and forgot to set _type_name?&#39;</span><span class="p">)</span>
             <span class="n">Select</span><span class="o">.</span><span class="n">valid_select_types</span><span class="p">[</span><span class="bp">cls</span><span class="o">.</span><span class="n">_type_name</span><span class="p">]</span> <span class="o">=</span> <span class="bp">cls</span>
 
-<div class="viewcode-block" id="Select.process">
-<a class="viewcode-back" href="../../select.html#piff.Select.process">[docs]</a>
-    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="Select.process"><a class="viewcode-back" href="../../select.html#piff.Select.process">[docs]</a>    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">config_select</span><span class="p">,</span> <span class="n">objects</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">select_only</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Parse the select field of the config dict.</span>
 
@@ -267,10 +261,7 @@
 
         <span class="k">return</span> <span class="n">stars</span></div>
 
-
-<div class="viewcode-block" id="Select.selectStars">
-<a class="viewcode-back" href="../../select.html#piff.Select.selectStars">[docs]</a>
-    <span class="k">def</span> <span class="nf">selectStars</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">objects</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="Select.selectStars"><a class="viewcode-back" href="../../select.html#piff.Select.selectStars">[docs]</a>    <span class="k">def</span> <span class="nf">selectStars</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">objects</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Select which of the input objects should be considered stars.</span>
 
 <span class="sd">        :param objects:     A list of input objects to be considered as potential stars.</span>
@@ -280,10 +271,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Derived classes must define the selectStars function&quot;</span><span class="p">)</span></div>
 
-
-<div class="viewcode-block" id="Select.reserveStars">
-<a class="viewcode-back" href="../../select.html#piff.Select.reserveStars">[docs]</a>
-    <span class="k">def</span> <span class="nf">reserveStars</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="Select.reserveStars"><a class="viewcode-back" href="../../select.html#piff.Select.reserveStars">[docs]</a>    <span class="k">def</span> <span class="nf">reserveStars</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Mark some of the stars as reserve stars.</span>
 
 <span class="sd">        This operates on the star list in place, adding the property ``is_reserve``</span>
@@ -314,10 +302,7 @@
                 <span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s1">&#39;is_reserve&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">reserve_list</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Reserved </span><span class="si">%s</span><span class="s2"> of </span><span class="si">%s</span><span class="s2"> total stars&quot;</span><span class="p">,</span> <span class="n">nreserve_all</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">stars</span><span class="p">))</span></div>
 
-
-<div class="viewcode-block" id="Select.rejectStars">
-<a class="viewcode-back" href="../../select.html#piff.Select.rejectStars">[docs]</a>
-    <span class="k">def</span> <span class="nf">rejectStars</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="Select.rejectStars"><a class="viewcode-back" href="../../select.html#piff.Select.rejectStars">[docs]</a>    <span class="k">def</span> <span class="nf">rejectStars</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Reject some nominal stars that may not be good exemplars of the PSF.</span>
 
 <span class="sd">        :param stars:       A list of Star instances.</span>
@@ -444,14 +429,10 @@
 
         <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Rejected a total of </span><span class="si">%d</span><span class="s2"> stars out of </span><span class="si">%s</span><span class="s2"> total candidates&quot;</span><span class="p">,</span>
                        <span class="nb">len</span><span class="p">(</span><span class="n">stars</span><span class="p">)</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">good_stars</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">stars</span><span class="p">))</span>
-        <span class="k">return</span> <span class="n">good_stars</span></div>
-</div>
+        <span class="k">return</span> <span class="n">good_stars</span></div></div>
 
 
-
-<div class="viewcode-block" id="FlagSelect">
-<a class="viewcode-back" href="../../select.html#piff.FlagSelect">[docs]</a>
-<span class="k">class</span> <span class="nc">FlagSelect</span><span class="p">(</span><span class="n">Select</span><span class="p">):</span>
+<div class="viewcode-block" id="FlagSelect"><a class="viewcode-back" href="../../select.html#piff.FlagSelect">[docs]</a><span class="k">class</span> <span class="nc">FlagSelect</span><span class="p">(</span><span class="n">Select</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;An Select handler that picks stars according to a flag column in the input catalog.</span>
 
 <span class="sd">    The Flag type uses the following parameters, all optional.</span>
@@ -486,9 +467,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">skip_flag</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;skip_flag&#39;</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">use_flag</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;use_flag&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
 
-<div class="viewcode-block" id="FlagSelect.selectStars">
-<a class="viewcode-back" href="../../select.html#piff.FlagSelect.selectStars">[docs]</a>
-    <span class="k">def</span> <span class="nf">selectStars</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">objects</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="FlagSelect.selectStars"><a class="viewcode-back" href="../../select.html#piff.FlagSelect.selectStars">[docs]</a>    <span class="k">def</span> <span class="nf">selectStars</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">objects</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Select which of the input objects should be considered stars.</span>
 
 <span class="sd">        :param objects:     A list of input objects to be considered as potential stars.</span>
@@ -518,13 +497,9 @@
 
         <span class="n">stars</span> <span class="o">=</span> <span class="p">[</span><span class="n">obj</span> <span class="k">for</span> <span class="n">use</span><span class="p">,</span> <span class="n">obj</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">select</span><span class="p">,</span> <span class="n">objects</span><span class="p">)</span> <span class="k">if</span> <span class="n">use</span><span class="p">]</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Seleced </span><span class="si">%d</span><span class="s2"> stars from </span><span class="si">%d</span><span class="s2"> total candidates.&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">stars</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">objects</span><span class="p">))</span>
-        <span class="k">return</span> <span class="n">stars</span></div>
-</div>
+        <span class="k">return</span> <span class="n">stars</span></div></div>
 
-
-<div class="viewcode-block" id="PropertiesSelect">
-<a class="viewcode-back" href="../../select.html#piff.PropertiesSelect">[docs]</a>
-<span class="k">class</span> <span class="nc">PropertiesSelect</span><span class="p">(</span><span class="n">Select</span><span class="p">):</span>
+<div class="viewcode-block" id="PropertiesSelect"><a class="viewcode-back" href="../../select.html#piff.PropertiesSelect">[docs]</a><span class="k">class</span> <span class="nc">PropertiesSelect</span><span class="p">(</span><span class="n">Select</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;A Select handler that picks stars according to any property or combination of properties</span>
 <span class="sd">    in the input catalog.</span>
 
@@ -549,9 +524,7 @@
         <span class="n">params</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">GetAllParams</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">config</span><span class="p">,</span> <span class="n">req</span><span class="o">=</span><span class="n">req</span><span class="p">,</span> <span class="n">ignore</span><span class="o">=</span><span class="n">Select</span><span class="o">.</span><span class="n">base_keys</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">where</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s1">&#39;where&#39;</span><span class="p">]</span>
 
-<div class="viewcode-block" id="PropertiesSelect.eval_where">
-<a class="viewcode-back" href="../../select.html#piff.PropertiesSelect.eval_where">[docs]</a>
-    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="PropertiesSelect.eval_where"><a class="viewcode-back" href="../../select.html#piff.PropertiesSelect.eval_where">[docs]</a>    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">eval_where</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">objects</span><span class="p">,</span> <span class="n">where</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Perform the evaluation of a &quot;where&quot; string using the properties of objects.</span>
 
@@ -583,10 +556,7 @@
                 <span class="n">select</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">eval</span><span class="p">(</span><span class="n">where</span><span class="p">,</span> <span class="n">gdict</span><span class="p">,</span> <span class="n">ldict</span><span class="p">))</span>
         <span class="k">return</span> <span class="n">select</span></div>
 
-
-<div class="viewcode-block" id="PropertiesSelect.selectStars">
-<a class="viewcode-back" href="../../select.html#piff.PropertiesSelect.selectStars">[docs]</a>
-    <span class="k">def</span> <span class="nf">selectStars</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">objects</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="PropertiesSelect.selectStars"><a class="viewcode-back" href="../../select.html#piff.PropertiesSelect.selectStars">[docs]</a>    <span class="k">def</span> <span class="nf">selectStars</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">objects</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Select which of the input objects should be considered stars.</span>
 
 <span class="sd">        :param objects:     A list of input objects to be considered as potential stars.</span>
@@ -602,9 +572,7 @@
 
         <span class="n">stars</span> <span class="o">=</span> <span class="p">[</span><span class="n">obj</span> <span class="k">for</span> <span class="n">use</span><span class="p">,</span> <span class="n">obj</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">select</span><span class="p">,</span> <span class="n">objects</span><span class="p">)</span> <span class="k">if</span> <span class="n">use</span><span class="p">]</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Seleced </span><span class="si">%d</span><span class="s2"> stars from </span><span class="si">%d</span><span class="s2"> total candidates.&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">stars</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">objects</span><span class="p">))</span>
-        <span class="k">return</span> <span class="n">stars</span></div>
-</div>
-
+        <span class="k">return</span> <span class="n">stars</span></div></div>
 </pre></div>
 
            </div>

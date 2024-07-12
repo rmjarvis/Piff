@@ -1,22 +1,20 @@
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" data-content_root="../../">
+<html class="writer-html5" lang="en" >
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>piff.optical_model &mdash; Piff 1.4.0 documentation</title>
-      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=fa44fd50" />
-      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=19f00094" />
-
-  
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
   <!--[if lt IE 9]>
     <script src="../../_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
-        <script src="../../_static/jquery.js?v=5d32c60e"></script>
-        <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-        <script src="../../_static/documentation_options.js?v=9172181d"></script>
-        <script src="../../_static/doctools.js?v=9a2dae69"></script>
-        <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/sphinx_highlight.js"></script>
     <script src="../../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" /> 
@@ -180,9 +178,7 @@
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;File </span><span class="si">%s</span><span class="s2"> not found for </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">key</span><span class="p">))</span>
     <span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_file_name</span>
 
-<div class="viewcode-block" id="Optical">
-<a class="viewcode-back" href="../../model.html#piff.Optical">[docs]</a>
-<span class="k">class</span> <span class="nc">Optical</span><span class="p">(</span><span class="n">Model</span><span class="p">):</span>
+<div class="viewcode-block" id="Optical"><a class="viewcode-back" href="../../model.html#piff.Optical">[docs]</a><span class="k">class</span> <span class="nc">Optical</span><span class="p">(</span><span class="n">Model</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Initialize the Optical+Atmosphere Model</span>
 
@@ -369,9 +365,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">base_aberrations</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="nb">len</span><span class="p">(</span><span class="n">base_aberrations</span><span class="p">)]</span> <span class="o">+=</span> <span class="n">base_aberrations</span>
 
     <span class="c1"># fit is currently a DUMMY routine</span>
-<div class="viewcode-block" id="Optical.fit">
-<a class="viewcode-back" href="../../model.html#piff.Optical.fit">[docs]</a>
-    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">convert_func</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">draw_method</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="Optical.fit"><a class="viewcode-back" href="../../model.html#piff.Optical.fit">[docs]</a>    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">convert_func</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">draw_method</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Warning: This method just updates the fit with the chisq and dof!</span>
 
 <span class="sd">        :param star:    A Star instance</span>
@@ -392,10 +386,7 @@
         <span class="k">return</span> <span class="n">Star</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="p">,</span>
                     <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">newParams</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">params_var</span><span class="o">=</span><span class="n">var</span><span class="p">,</span> <span class="n">num</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_num</span><span class="p">,</span> <span class="n">chisq</span><span class="o">=</span><span class="n">chisq</span><span class="p">,</span> <span class="n">dof</span><span class="o">=</span><span class="n">dof</span><span class="p">))</span></div>
 
-
-<div class="viewcode-block" id="Optical.initialize">
-<a class="viewcode-back" href="../../model.html#piff.Optical.initialize">[docs]</a>
-    <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">default_init</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="Optical.initialize"><a class="viewcode-back" href="../../model.html#piff.Optical.initialize">[docs]</a>    <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">default_init</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize the given star&#39;s fit parameters.</span>
 
 <span class="sd">        :param star:            The Star to initialize.</span>
@@ -410,10 +401,7 @@
         <span class="n">star</span> <span class="o">=</span> <span class="n">Star</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">fit</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">star</span></div>
 
-
-<div class="viewcode-block" id="Optical.getOptics">
-<a class="viewcode-back" href="../../model.html#piff.Optical.getOptics">[docs]</a>
-    <span class="nd">@lru_cache</span><span class="p">(</span><span class="n">maxsize</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>
+<div class="viewcode-block" id="Optical.getOptics"><a class="viewcode-back" href="../../model.html#piff.Optical.getOptics">[docs]</a>    <span class="nd">@lru_cache</span><span class="p">(</span><span class="n">maxsize</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">getOptics</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">zernike_coeff</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Get the strictly Optics PSF component.  Use two phase screens, one from</span>
 <span class="sd">        mirror_figure_im, and the other from zernike aberrations</span>
@@ -438,10 +426,7 @@
 
         <span class="k">return</span> <span class="n">optics_psf</span></div>
 
-
-<div class="viewcode-block" id="Optical.getAtmosphere">
-<a class="viewcode-back" href="../../model.html#piff.Optical.getAtmosphere">[docs]</a>
-    <span class="nd">@lru_cache</span><span class="p">(</span><span class="n">maxsize</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>
+<div class="viewcode-block" id="Optical.getAtmosphere"><a class="viewcode-back" href="../../model.html#piff.Optical.getAtmosphere">[docs]</a>    <span class="nd">@lru_cache</span><span class="p">(</span><span class="n">maxsize</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">getAtmosphere</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">r0</span><span class="p">,</span> <span class="n">L0</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">g1</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">g2</span><span class="o">=</span><span class="mf">0.0</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot; Get the Atmospheric PSF component.</span>
 
@@ -469,10 +454,7 @@
             <span class="n">atm</span> <span class="o">=</span> <span class="n">atm</span><span class="o">.</span><span class="n">shear</span><span class="p">(</span><span class="n">g1</span><span class="o">=</span><span class="n">g1</span><span class="p">,</span> <span class="n">g2</span><span class="o">=</span><span class="n">g2</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">atm</span></div>
 
-
-<div class="viewcode-block" id="Optical.params_to_kwargs">
-<a class="viewcode-back" href="../../model.html#piff.Optical.params_to_kwargs">[docs]</a>
-    <span class="k">def</span> <span class="nf">params_to_kwargs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">params</span><span class="p">):</span>
+<div class="viewcode-block" id="Optical.params_to_kwargs"><a class="viewcode-back" href="../../model.html#piff.Optical.params_to_kwargs">[docs]</a>    <span class="k">def</span> <span class="nf">params_to_kwargs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">params</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Fill kwarg from params ndarray or list</span>
 
 <span class="sd">        :param params               An ndarray or list with parameters in order</span>
@@ -487,10 +469,7 @@
         <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;g2&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">idx_g2</span><span class="p">]</span>
         <span class="k">return</span> <span class="n">kwargs</span></div>
 
-
-<div class="viewcode-block" id="Optical.kwargs_to_params">
-<a class="viewcode-back" href="../../model.html#piff.Optical.kwargs_to_params">[docs]</a>
-    <span class="k">def</span> <span class="nf">kwargs_to_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">zernike_coeff</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span><span class="n">r0</span><span class="o">=</span><span class="mf">0.15</span><span class="p">,</span><span class="n">L0</span><span class="o">=</span><span class="mf">10.</span><span class="p">,</span><span class="n">g1</span><span class="o">=</span><span class="mf">0.</span><span class="p">,</span><span class="n">g2</span><span class="o">=</span><span class="mf">0.</span><span class="p">):</span>
+<div class="viewcode-block" id="Optical.kwargs_to_params"><a class="viewcode-back" href="../../model.html#piff.Optical.kwargs_to_params">[docs]</a>    <span class="k">def</span> <span class="nf">kwargs_to_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">zernike_coeff</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span><span class="n">r0</span><span class="o">=</span><span class="mf">0.15</span><span class="p">,</span><span class="n">L0</span><span class="o">=</span><span class="mf">10.</span><span class="p">,</span><span class="n">g1</span><span class="o">=</span><span class="mf">0.</span><span class="p">,</span><span class="n">g2</span><span class="o">=</span><span class="mf">0.</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Fill params ndarray from kwargs</span>
 
 <span class="sd">        :param zernike_coeff:      A ndarray or list with [0, 0, z2, z3, z4, z5, z6...z11..z37]</span>
@@ -518,10 +497,7 @@
         <span class="k">return</span> <span class="n">params</span></div>
 
 
-
-<div class="viewcode-block" id="Optical.getProfile">
-<a class="viewcode-back" href="../../model.html#piff.Optical.getProfile">[docs]</a>
-    <span class="k">def</span> <span class="nf">getProfile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">params</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">zernike_coeff</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">r0</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">L0</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">g1</span><span class="o">=</span><span class="mf">0.</span><span class="p">,</span><span class="n">g2</span><span class="o">=</span><span class="mf">0.</span><span class="p">):</span>
+<div class="viewcode-block" id="Optical.getProfile"><a class="viewcode-back" href="../../model.html#piff.Optical.getProfile">[docs]</a>    <span class="k">def</span> <span class="nf">getProfile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">params</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">zernike_coeff</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">r0</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">L0</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">g1</span><span class="o">=</span><span class="mf">0.</span><span class="p">,</span><span class="n">g2</span><span class="o">=</span><span class="mf">0.</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Get a version of the model as a GalSim GSObject</span>
 
 <span class="sd">        :param params          An ndarray with the parameters ordered via idx_PARAM data members</span>
@@ -564,9 +540,7 @@
             <span class="k">return</span> <span class="n">optics</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">prof</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">optics</span><span class="p">)</span>
-            <span class="k">return</span> <span class="n">galsim</span><span class="o">.</span><span class="n">Convolve</span><span class="p">(</span><span class="n">prof</span><span class="p">,</span> <span class="n">gsparams</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">gsparams</span><span class="p">)</span></div>
-</div>
-
+            <span class="k">return</span> <span class="n">galsim</span><span class="o">.</span><span class="n">Convolve</span><span class="p">(</span><span class="n">prof</span><span class="p">,</span> <span class="n">gsparams</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">gsparams</span><span class="p">)</span></div></div>
 </pre></div>
 
            </div>

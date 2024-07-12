@@ -1,24 +1,21 @@
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" data-content_root="./">
+<html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Piff Documentation &mdash; Piff 1.4.0 documentation</title>
-      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
-      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=19f00094" />
-
-  
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <!--[if lt IE 9]>
     <script src="_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
-        <script src="_static/jquery.js?v=5d32c60e"></script>
-        <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-        <script src="_static/documentation_options.js?v=9172181d"></script>
-        <script src="_static/doctools.js?v=9a2dae69"></script>
-        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
-        <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/sphinx_highlight.js"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -87,7 +84,7 @@
            <div itemprop="articleBody">
              
   <section id="piff-documentation">
-<h1>Piff Documentation<a class="headerlink" href="#piff-documentation" title="Link to this heading"></a></h1>
+<h1>Piff Documentation<a class="headerlink" href="#piff-documentation" title="Permalink to this heading"></a></h1>
 <div class="toctree-wrapper compound">
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="overview.html">PIFF: PSFs In the Full FOV</a><ul>
@@ -153,6 +150,9 @@
 <li class="toctree-l1"><a class="reference internal" href="model.html">Models</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="model.html#the-model-base-class">The Model base class</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="model.html#piff.Model"><code class="docutils literal notranslate"><span class="pre">Model</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="model.html#piff.Model._finish_write"><code class="docutils literal notranslate"><span class="pre">Model._finish_write()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="model.html#piff.Model._finish_read"><code class="docutils literal notranslate"><span class="pre">Model._finish_read()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="model.html#piff.Model._fix_kwargs"><code class="docutils literal notranslate"><span class="pre">Model._fix_kwargs()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="model.html#piff.Model.draw"><code class="docutils literal notranslate"><span class="pre">Model.draw()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="model.html#piff.Model.fit"><code class="docutils literal notranslate"><span class="pre">Model.fit()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="model.html#piff.Model.initialize"><code class="docutils literal notranslate"><span class="pre">Model.initialize()</span></code></a></li>
@@ -168,6 +168,8 @@
 </li>
 <li class="toctree-l2"><a class="reference internal" href="model.html#models-based-on-galsim-objects">Models based on GalSim objects</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="model.html#piff.GSObjectModel"><code class="docutils literal notranslate"><span class="pre">GSObjectModel</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="model.html#piff.GSObjectModel._resid"><code class="docutils literal notranslate"><span class="pre">GSObjectModel._resid()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="model.html#piff.GSObjectModel._get_params"><code class="docutils literal notranslate"><span class="pre">GSObjectModel._get_params()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="model.html#piff.GSObjectModel.fit"><code class="docutils literal notranslate"><span class="pre">GSObjectModel.fit()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="model.html#piff.GSObjectModel.getProfile"><code class="docutils literal notranslate"><span class="pre">GSObjectModel.getProfile()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="model.html#piff.GSObjectModel.initialize"><code class="docutils literal notranslate"><span class="pre">GSObjectModel.initialize()</span></code></a></li>
@@ -209,6 +211,8 @@
 <li class="toctree-l1"><a class="reference internal" href="interp.html">Interpolation Schemes</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="interp.html#the-interp-base-class">The Interp base class</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="interp.html#piff.Interp"><code class="docutils literal notranslate"><span class="pre">Interp</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="interp.html#piff.Interp._finish_write"><code class="docutils literal notranslate"><span class="pre">Interp._finish_write()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="interp.html#piff.Interp._finish_read"><code class="docutils literal notranslate"><span class="pre">Interp._finish_read()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="interp.html#piff.Interp.getProperties"><code class="docutils literal notranslate"><span class="pre">Interp.getProperties()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="interp.html#piff.Interp.initialize"><code class="docutils literal notranslate"><span class="pre">Interp.initialize()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="interp.html#piff.Interp.interpolate"><code class="docutils literal notranslate"><span class="pre">Interp.interpolate()</span></code></a></li>
@@ -226,6 +230,8 @@
 </li>
 <li class="toctree-l2"><a class="reference internal" href="interp.html#mean-interpolation">Mean interpolation</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="interp.html#piff.Mean"><code class="docutils literal notranslate"><span class="pre">Mean</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="interp.html#piff.Mean._finish_write"><code class="docutils literal notranslate"><span class="pre">Mean._finish_write()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="interp.html#piff.Mean._finish_read"><code class="docutils literal notranslate"><span class="pre">Mean._finish_read()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="interp.html#piff.Mean.interpolate"><code class="docutils literal notranslate"><span class="pre">Mean.interpolate()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="interp.html#piff.Mean.solve"><code class="docutils literal notranslate"><span class="pre">Mean.solve()</span></code></a></li>
 </ul>
@@ -234,6 +240,15 @@
 </li>
 <li class="toctree-l2"><a class="reference internal" href="interp.html#polynomial-interpolation">Polynomial interpolation</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="interp.html#piff.Polynomial"><code class="docutils literal notranslate"><span class="pre">Polynomial</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="interp.html#piff.Polynomial._setup_indices"><code class="docutils literal notranslate"><span class="pre">Polynomial._setup_indices()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="interp.html#piff.Polynomial._set_function"><code class="docutils literal notranslate"><span class="pre">Polynomial._set_function()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="interp.html#piff.Polynomial._generate_indices"><code class="docutils literal notranslate"><span class="pre">Polynomial._generate_indices()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="interp.html#piff.Polynomial._pack_coefficients"><code class="docutils literal notranslate"><span class="pre">Polynomial._pack_coefficients()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="interp.html#piff.Polynomial._unpack_coefficients"><code class="docutils literal notranslate"><span class="pre">Polynomial._unpack_coefficients()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="interp.html#piff.Polynomial._interpolationModel"><code class="docutils literal notranslate"><span class="pre">Polynomial._interpolationModel()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="interp.html#piff.Polynomial._initialGuess"><code class="docutils literal notranslate"><span class="pre">Polynomial._initialGuess()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="interp.html#piff.Polynomial._finish_write"><code class="docutils literal notranslate"><span class="pre">Polynomial._finish_write()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="interp.html#piff.Polynomial._finish_read"><code class="docutils literal notranslate"><span class="pre">Polynomial._finish_read()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="interp.html#piff.Polynomial.initialize"><code class="docutils literal notranslate"><span class="pre">Polynomial.initialize()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="interp.html#piff.Polynomial.interpolate"><code class="docutils literal notranslate"><span class="pre">Polynomial.interpolate()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="interp.html#piff.Polynomial.solve"><code class="docutils literal notranslate"><span class="pre">Polynomial.solve()</span></code></a></li>
@@ -243,6 +258,8 @@
 </li>
 <li class="toctree-l2"><a class="reference internal" href="interp.html#interpolation-using-basis-functions">Interpolation using basis functions</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="interp.html#piff.BasisInterp"><code class="docutils literal notranslate"><span class="pre">BasisInterp</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="interp.html#piff.BasisInterp._solve_qr"><code class="docutils literal notranslate"><span class="pre">BasisInterp._solve_qr()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="interp.html#piff.BasisInterp._solve_direct"><code class="docutils literal notranslate"><span class="pre">BasisInterp._solve_direct()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="interp.html#piff.BasisInterp.basis"><code class="docutils literal notranslate"><span class="pre">BasisInterp.basis()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="interp.html#piff.BasisInterp.constant"><code class="docutils literal notranslate"><span class="pre">BasisInterp.constant()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="interp.html#piff.BasisInterp.initialize"><code class="docutils literal notranslate"><span class="pre">BasisInterp.initialize()</span></code></a></li>
@@ -251,6 +268,8 @@
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="interp.html#piff.BasisPolynomial"><code class="docutils literal notranslate"><span class="pre">BasisPolynomial</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="interp.html#piff.BasisPolynomial._finish_write"><code class="docutils literal notranslate"><span class="pre">BasisPolynomial._finish_write()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="interp.html#piff.BasisPolynomial._finish_read"><code class="docutils literal notranslate"><span class="pre">BasisPolynomial._finish_read()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="interp.html#piff.BasisPolynomial.basis"><code class="docutils literal notranslate"><span class="pre">BasisPolynomial.basis()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="interp.html#piff.BasisPolynomial.constant"><code class="docutils literal notranslate"><span class="pre">BasisPolynomial.constant()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="interp.html#piff.BasisPolynomial.getProperties"><code class="docutils literal notranslate"><span class="pre">BasisPolynomial.getProperties()</span></code></a></li>
@@ -261,6 +280,10 @@
 </li>
 <li class="toctree-l2"><a class="reference internal" href="interp.html#k-nearest-neighbors">K-Nearest Neighbors</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="interp.html#piff.KNNInterp"><code class="docutils literal notranslate"><span class="pre">KNNInterp</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="interp.html#piff.KNNInterp._fit"><code class="docutils literal notranslate"><span class="pre">KNNInterp._fit()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="interp.html#piff.KNNInterp._predict"><code class="docutils literal notranslate"><span class="pre">KNNInterp._predict()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="interp.html#piff.KNNInterp._finish_write"><code class="docutils literal notranslate"><span class="pre">KNNInterp._finish_write()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="interp.html#piff.KNNInterp._finish_read"><code class="docutils literal notranslate"><span class="pre">KNNInterp._finish_read()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="interp.html#piff.KNNInterp.getProperties"><code class="docutils literal notranslate"><span class="pre">KNNInterp.getProperties()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="interp.html#piff.KNNInterp.initialize"><code class="docutils literal notranslate"><span class="pre">KNNInterp.initialize()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="interp.html#piff.KNNInterp.interpolate"><code class="docutils literal notranslate"><span class="pre">KNNInterp.interpolate()</span></code></a></li>
@@ -273,6 +296,10 @@
 </li>
 <li class="toctree-l2"><a class="reference internal" href="interp.html#gaussian-process-interpolation">Gaussian process interpolation</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="interp.html#piff.GPInterp"><code class="docutils literal notranslate"><span class="pre">GPInterp</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="interp.html#piff.GPInterp._fit"><code class="docutils literal notranslate"><span class="pre">GPInterp._fit()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="interp.html#piff.GPInterp._predict"><code class="docutils literal notranslate"><span class="pre">GPInterp._predict()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="interp.html#piff.GPInterp._finish_write"><code class="docutils literal notranslate"><span class="pre">GPInterp._finish_write()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="interp.html#piff.GPInterp._finish_read"><code class="docutils literal notranslate"><span class="pre">GPInterp._finish_read()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="interp.html#piff.GPInterp.getProperties"><code class="docutils literal notranslate"><span class="pre">GPInterp.getProperties()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="interp.html#piff.GPInterp.initialize"><code class="docutils literal notranslate"><span class="pre">GPInterp.initialize()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="interp.html#piff.GPInterp.interpolate"><code class="docutils literal notranslate"><span class="pre">GPInterp.interpolate()</span></code></a></li>
@@ -287,6 +314,8 @@
 </li>
 <li class="toctree-l1"><a class="reference internal" href="psf.html">PSF classes</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="psf.html#piff.PSF"><code class="docutils literal notranslate"><span class="pre">PSF</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="psf.html#piff.PSF._write"><code class="docutils literal notranslate"><span class="pre">PSF._write()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="psf.html#piff.PSF._read"><code class="docutils literal notranslate"><span class="pre">PSF._read()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="psf.html#piff.PSF.draw"><code class="docutils literal notranslate"><span class="pre">PSF.draw()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="psf.html#piff.PSF.drawStar"><code class="docutils literal notranslate"><span class="pre">PSF.drawStar()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="psf.html#piff.PSF.drawStarList"><code class="docutils literal notranslate"><span class="pre">PSF.drawStarList()</span></code></a></li>
@@ -313,6 +342,8 @@
 </li>
 <li class="toctree-l2"><a class="reference internal" href="psf.html#the-simple-case-of-one-model-interp">The simple case of one model/interp</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="psf.html#piff.SimplePSF"><code class="docutils literal notranslate"><span class="pre">SimplePSF</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="psf.html#piff.SimplePSF._finish_write"><code class="docutils literal notranslate"><span class="pre">SimplePSF._finish_write()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="psf.html#piff.SimplePSF._finish_read"><code class="docutils literal notranslate"><span class="pre">SimplePSF._finish_read()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="psf.html#piff.SimplePSF.fit_center"><code class="docutils literal notranslate"><span class="pre">SimplePSF.fit_center</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="psf.html#piff.SimplePSF.include_model_centroid"><code class="docutils literal notranslate"><span class="pre">SimplePSF.include_model_centroid</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="psf.html#piff.SimplePSF.initialize_params"><code class="docutils literal notranslate"><span class="pre">SimplePSF.initialize_params()</span></code></a></li>
@@ -327,6 +358,8 @@
 </li>
 <li class="toctree-l2"><a class="reference internal" href="psf.html#using-a-separate-solution-for-each-chip">Using a separate solution for each chip</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="psf.html#piff.SingleChipPSF"><code class="docutils literal notranslate"><span class="pre">SingleChipPSF</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="psf.html#piff.SingleChipPSF._finish_write"><code class="docutils literal notranslate"><span class="pre">SingleChipPSF._finish_write()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="psf.html#piff.SingleChipPSF._finish_read"><code class="docutils literal notranslate"><span class="pre">SingleChipPSF._finish_read()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="psf.html#piff.SingleChipPSF.fit"><code class="docutils literal notranslate"><span class="pre">SingleChipPSF.fit()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="psf.html#piff.SingleChipPSF.fit_center"><code class="docutils literal notranslate"><span class="pre">SingleChipPSF.fit_center</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="psf.html#piff.SingleChipPSF.include_model_centroid"><code class="docutils literal notranslate"><span class="pre">SingleChipPSF.include_model_centroid</span></code></a></li>
@@ -337,10 +370,43 @@
 </li>
 </ul>
 </li>
+<li class="toctree-l2"><a class="reference internal" href="psf.html#composite-psf-types">Composite PSF types</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="psf.html#piff.SumPSF"><code class="docutils literal notranslate"><span class="pre">SumPSF</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="psf.html#piff.SumPSF._finish_write"><code class="docutils literal notranslate"><span class="pre">SumPSF._finish_write()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="psf.html#piff.SumPSF._finish_read"><code class="docutils literal notranslate"><span class="pre">SumPSF._finish_read()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="psf.html#piff.SumPSF.fit_center"><code class="docutils literal notranslate"><span class="pre">SumPSF.fit_center</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="psf.html#piff.SumPSF.include_model_centroid"><code class="docutils literal notranslate"><span class="pre">SumPSF.include_model_centroid</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="psf.html#piff.SumPSF.initialize_params"><code class="docutils literal notranslate"><span class="pre">SumPSF.initialize_params()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="psf.html#piff.SumPSF.interpolateStar"><code class="docutils literal notranslate"><span class="pre">SumPSF.interpolateStar()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="psf.html#piff.SumPSF.interpolateStarList"><code class="docutils literal notranslate"><span class="pre">SumPSF.interpolateStarList()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="psf.html#piff.SumPSF.parseKwargs"><code class="docutils literal notranslate"><span class="pre">SumPSF.parseKwargs()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="psf.html#piff.SumPSF.set_num"><code class="docutils literal notranslate"><span class="pre">SumPSF.set_num()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="psf.html#piff.SumPSF.setup_params"><code class="docutils literal notranslate"><span class="pre">SumPSF.setup_params()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="psf.html#piff.SumPSF.single_iteration"><code class="docutils literal notranslate"><span class="pre">SumPSF.single_iteration()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="psf.html#piff.ConvolvePSF"><code class="docutils literal notranslate"><span class="pre">ConvolvePSF</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="psf.html#piff.ConvolvePSF._finish_write"><code class="docutils literal notranslate"><span class="pre">ConvolvePSF._finish_write()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="psf.html#piff.ConvolvePSF._finish_read"><code class="docutils literal notranslate"><span class="pre">ConvolvePSF._finish_read()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="psf.html#piff.ConvolvePSF.fit_center"><code class="docutils literal notranslate"><span class="pre">ConvolvePSF.fit_center</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="psf.html#piff.ConvolvePSF.include_model_centroid"><code class="docutils literal notranslate"><span class="pre">ConvolvePSF.include_model_centroid</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="psf.html#piff.ConvolvePSF.initialize_params"><code class="docutils literal notranslate"><span class="pre">ConvolvePSF.initialize_params()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="psf.html#piff.ConvolvePSF.interpolateStar"><code class="docutils literal notranslate"><span class="pre">ConvolvePSF.interpolateStar()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="psf.html#piff.ConvolvePSF.interpolateStarList"><code class="docutils literal notranslate"><span class="pre">ConvolvePSF.interpolateStarList()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="psf.html#piff.ConvolvePSF.parseKwargs"><code class="docutils literal notranslate"><span class="pre">ConvolvePSF.parseKwargs()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="psf.html#piff.ConvolvePSF.set_num"><code class="docutils literal notranslate"><span class="pre">ConvolvePSF.set_num()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="psf.html#piff.ConvolvePSF.setup_params"><code class="docutils literal notranslate"><span class="pre">ConvolvePSF.setup_params()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="psf.html#piff.ConvolvePSF.single_iteration"><code class="docutils literal notranslate"><span class="pre">ConvolvePSF.single_iteration()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="outliers.html">Removing Outliers</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="outliers.html#piff.Outliers"><code class="docutils literal notranslate"><span class="pre">Outliers</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="outliers.html#piff.Outliers._finish_write"><code class="docutils literal notranslate"><span class="pre">Outliers._finish_write()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="outliers.html#piff.Outliers._finish_read"><code class="docutils literal notranslate"><span class="pre">Outliers._finish_read()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="outliers.html#piff.Outliers.parseKwargs"><code class="docutils literal notranslate"><span class="pre">Outliers.parseKwargs()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="outliers.html#piff.Outliers.process"><code class="docutils literal notranslate"><span class="pre">Outliers.process()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="outliers.html#piff.Outliers.read"><code class="docutils literal notranslate"><span class="pre">Outliers.read()</span></code></a></li>
@@ -389,6 +455,7 @@
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="stats.html#piff.TwoDHistStats"><code class="docutils literal notranslate"><span class="pre">TwoDHistStats</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="stats.html#piff.TwoDHistStats._shiftedColorMap"><code class="docutils literal notranslate"><span class="pre">TwoDHistStats._shiftedColorMap()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="stats.html#piff.TwoDHistStats.compute"><code class="docutils literal notranslate"><span class="pre">TwoDHistStats.compute()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="stats.html#piff.TwoDHistStats.plot"><code class="docutils literal notranslate"><span class="pre">TwoDHistStats.plot()</span></code></a></li>
 </ul>
@@ -412,6 +479,7 @@
 </li>
 <li class="toctree-l1"><a class="reference internal" href="star.html">Stars</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="star.html#piff.Star"><code class="docutils literal notranslate"><span class="pre">Star</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="star.html#piff.Star.__getitem__"><code class="docutils literal notranslate"><span class="pre">Star.__getitem__()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="star.html#piff.Star.addPoisson"><code class="docutils literal notranslate"><span class="pre">Star.addPoisson()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="star.html#piff.Star.center_to_offset"><code class="docutils literal notranslate"><span class="pre">Star.center_to_offset()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="star.html#piff.Star.load_images"><code class="docutils literal notranslate"><span class="pre">Star.load_images()</span></code></a></li>

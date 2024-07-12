@@ -1,23 +1,21 @@
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" data-content_root="./">
+<html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Selecting Good PSF Stars &mdash; Piff 1.4.0 documentation</title>
-      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
-      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=19f00094" />
-
-  
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <!--[if lt IE 9]>
     <script src="_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
-        <script src="_static/jquery.js?v=5d32c60e"></script>
-        <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-        <script src="_static/documentation_options.js?v=9172181d"></script>
-        <script src="_static/doctools.js?v=9a2dae69"></script>
-        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/sphinx_highlight.js"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -114,7 +112,7 @@
            <div itemprop="articleBody">
              
   <section id="selecting-good-psf-stars">
-<h1>Selecting Good PSF Stars<a class="headerlink" href="#selecting-good-psf-stars" title="Link to this heading"></a></h1>
+<h1>Selecting Good PSF Stars<a class="headerlink" href="#selecting-good-psf-stars" title="Permalink to this heading"></a></h1>
 <p>It is not uncommon to want to select only a subset of the objects in an input catalog
 to use for PSF estimation.</p>
 <ul class="simple">
@@ -135,13 +133,13 @@ include:</p>
 These are described in <a class="reference internal" href="#piff.Select" title="piff.Select"><code class="xref any py py-class docutils literal notranslate"><span class="pre">Select</span></code></a>.</p>
 <dl class="py class">
 <dt class="sig sig-object py" id="piff.Select">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">piff.</span></span><span class="sig-name descname"><span class="pre">Select</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/select.html#Select"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Select" title="Link to this definition"></a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">piff.</span></span><span class="sig-name descname"><span class="pre">Select</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/select.html#Select"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Select" title="Permalink to this definition"></a></dt>
 <dd><p>The base class for selecting which stars to use for characterizing the PSF.</p>
 <p>This is essentially an abstract base class intended to define the methods that should be
 implemented by any derived class.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="piff.Select.process">
-<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">process</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_select</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">objects</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">select_only</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/select.html#Select.process"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Select.process" title="Link to this definition"></a></dt>
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">process</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_select</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">objects</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">select_only</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/select.html#Select.process"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Select.process" title="Permalink to this definition"></a></dt>
 <dd><p>Parse the select field of the config dict.</p>
 <p>This stage handles three somewhat separate actions:</p>
 <ol class="arabic simple">
@@ -242,7 +240,7 @@ objects to consider as possible stars.</p></li>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="piff.Select.rejectStars">
-<span class="sig-name descname"><span class="pre">rejectStars</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/select.html#Select.rejectStars"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Select.rejectStars" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">rejectStars</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/select.html#Select.rejectStars"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Select.rejectStars" title="Permalink to this definition"></a></dt>
 <dd><p>Reject some nominal stars that may not be good exemplars of the PSF.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -259,7 +257,7 @@ objects to consider as possible stars.</p></li>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="piff.Select.reserveStars">
-<span class="sig-name descname"><span class="pre">reserveStars</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/select.html#Select.reserveStars"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Select.reserveStars" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">reserveStars</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/select.html#Select.reserveStars"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Select.reserveStars" title="Permalink to this definition"></a></dt>
 <dd><p>Mark some of the stars as reserve stars.</p>
 <p>This operates on the star list in place, adding the property <code class="docutils literal notranslate"><span class="pre">is_reserve</span></code>
 to each star (only if some stars are being reserved).</p>
@@ -275,7 +273,7 @@ to each star (only if some stars are being reserved).</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="piff.Select.selectStars">
-<span class="sig-name descname"><span class="pre">selectStars</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">objects</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/select.html#Select.selectStars"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Select.selectStars" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">selectStars</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">objects</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/select.html#Select.selectStars"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Select.selectStars" title="Permalink to this definition"></a></dt>
 <dd><p>Select which of the input objects should be considered stars.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -294,7 +292,7 @@ to each star (only if some stars are being reserved).</p>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="piff.FlagSelect">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">piff.</span></span><span class="sig-name descname"><span class="pre">FlagSelect</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/select.html#FlagSelect"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.FlagSelect" title="Link to this definition"></a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">piff.</span></span><span class="sig-name descname"><span class="pre">FlagSelect</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/select.html#FlagSelect"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.FlagSelect" title="Permalink to this definition"></a></dt>
 <dd><p>An Select handler that picks stars according to a flag column in the input catalog.</p>
 <p>The Flag type uses the following parameters, all optional.</p>
 <blockquote>
@@ -327,7 +325,7 @@ Otherwise, it will select according to the prescriptions given above.</p>
 </dl>
 <dl class="py method">
 <dt class="sig sig-object py" id="piff.FlagSelect.selectStars">
-<span class="sig-name descname"><span class="pre">selectStars</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">objects</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/select.html#FlagSelect.selectStars"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.FlagSelect.selectStars" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">selectStars</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">objects</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/select.html#FlagSelect.selectStars"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.FlagSelect.selectStars" title="Permalink to this definition"></a></dt>
 <dd><p>Select which of the input objects should be considered stars.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -346,7 +344,7 @@ Otherwise, it will select according to the prescriptions given above.</p>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="piff.PropertiesSelect">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">piff.</span></span><span class="sig-name descname"><span class="pre">PropertiesSelect</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/select.html#PropertiesSelect"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PropertiesSelect" title="Link to this definition"></a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">piff.</span></span><span class="sig-name descname"><span class="pre">PropertiesSelect</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/select.html#PropertiesSelect"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PropertiesSelect" title="Permalink to this definition"></a></dt>
 <dd><p>A Select handler that picks stars according to any property or combination of properties
 in the input catalog.</p>
 <p>Parse the config dict (Normally the ‘where’ field in the overall configuration dict).</p>
@@ -371,14 +369,14 @@ the objects.</p>
 </dl>
 <dl class="py method">
 <dt class="sig sig-object py" id="piff.PropertiesSelect.eval_where">
-<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">eval_where</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">objects</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">where</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/select.html#PropertiesSelect.eval_where"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PropertiesSelect.eval_where" title="Link to this definition"></a></dt>
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">eval_where</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">objects</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">where</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/select.html#PropertiesSelect.eval_where"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PropertiesSelect.eval_where" title="Permalink to this definition"></a></dt>
 <dd><p>Perform the evaluation of a “where” string using the properties of objects.</p>
 <p>Used by both PropertiesSelect and the reject_where option.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="piff.PropertiesSelect.selectStars">
-<span class="sig-name descname"><span class="pre">selectStars</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">objects</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/select.html#PropertiesSelect.selectStars"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PropertiesSelect.selectStars" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">selectStars</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">objects</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/select.html#PropertiesSelect.selectStars"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PropertiesSelect.selectStars" title="Permalink to this definition"></a></dt>
 <dd><p>Select which of the input objects should be considered stars.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -397,7 +395,7 @@ the objects.</p>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="piff.SizeMagSelect">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">piff.</span></span><span class="sig-name descname"><span class="pre">SizeMagSelect</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/size_mag.html#SizeMagSelect"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SizeMagSelect" title="Link to this definition"></a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">piff.</span></span><span class="sig-name descname"><span class="pre">SizeMagSelect</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/size_mag.html#SizeMagSelect"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SizeMagSelect" title="Permalink to this definition"></a></dt>
 <dd><p>A Select handler that picks stars by finding where the stellar locus in the size-magnitude
 diagram starts to blend into the galaxy locus.</p>
 <p>By default, the initial selection uses the SmallBright selector, but you can provide
@@ -463,14 +461,14 @@ E.g. to use some column(s) from the input catalog:</p>
 </dl>
 <dl class="py method">
 <dt class="sig sig-object py" id="piff.SizeMagSelect.fit_2d_polynomial">
-<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">fit_2d_polynomial</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">order</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/size_mag.html#SizeMagSelect.fit_2d_polynomial"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SizeMagSelect.fit_2d_polynomial" title="Link to this definition"></a></dt>
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">fit_2d_polynomial</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">order</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/size_mag.html#SizeMagSelect.fit_2d_polynomial"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SizeMagSelect.fit_2d_polynomial" title="Permalink to this definition"></a></dt>
 <dd><p>Fit z = f(x,y) as a 2d polynomial function</p>
 <p>Returns a function object f.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="piff.SizeMagSelect.selectStars">
-<span class="sig-name descname"><span class="pre">selectStars</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">objects</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/size_mag.html#SizeMagSelect.selectStars"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SizeMagSelect.selectStars" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">selectStars</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">objects</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/size_mag.html#SizeMagSelect.selectStars"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SizeMagSelect.selectStars" title="Permalink to this definition"></a></dt>
 <dd><p>Select which of the input objects should be considered stars.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -489,7 +487,7 @@ E.g. to use some column(s) from the input catalog:</p>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="piff.SmallBrightSelect">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">piff.</span></span><span class="sig-name descname"><span class="pre">SmallBrightSelect</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/size_mag.html#SmallBrightSelect"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SmallBrightSelect" title="Link to this definition"></a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">piff.</span></span><span class="sig-name descname"><span class="pre">SmallBrightSelect</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/size_mag.html#SmallBrightSelect"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SmallBrightSelect" title="Permalink to this definition"></a></dt>
 <dd><p>A Select handler that picks stars by looking for a locus of small, bright objects that
 are all about the same size.</p>
 <p>This is a very crude selection.  It is typically used to provide an initial selection to
@@ -533,7 +531,7 @@ erroneously expand to include everything. [default: 0.1]</p>
 </dl>
 <dl class="py method">
 <dt class="sig sig-object py" id="piff.SmallBrightSelect.selectStars">
-<span class="sig-name descname"><span class="pre">selectStars</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">objects</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/size_mag.html#SmallBrightSelect.selectStars"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SmallBrightSelect.selectStars" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">selectStars</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">objects</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/size_mag.html#SmallBrightSelect.selectStars"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SmallBrightSelect.selectStars" title="Permalink to this definition"></a></dt>
 <dd><p>Select which of the input objects should be considered stars.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>

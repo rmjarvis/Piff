@@ -1,22 +1,20 @@
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" data-content_root="../../">
+<html class="writer-html5" lang="en" >
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>piff.output &mdash; Piff 1.4.0 documentation</title>
-      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=fa44fd50" />
-      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=19f00094" />
-
-  
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
   <!--[if lt IE 9]>
     <script src="../../_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
-        <script src="../../_static/jquery.js?v=5d32c60e"></script>
-        <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-        <script src="../../_static/documentation_options.js?v=9172181d"></script>
-        <script src="../../_static/doctools.js?v=9a2dae69"></script>
-        <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/sphinx_highlight.js"></script>
     <script src="../../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" /> 
@@ -107,9 +105,7 @@
 
 <span class="kn">from</span> <span class="nn">.util</span> <span class="kn">import</span> <span class="n">ensure_dir</span>
 
-<div class="viewcode-block" id="Output">
-<a class="viewcode-back" href="../../output.html#piff.Output">[docs]</a>
-<span class="k">class</span> <span class="nc">Output</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<div class="viewcode-block" id="Output"><a class="viewcode-back" href="../../output.html#piff.Output">[docs]</a><span class="k">class</span> <span class="nc">Output</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;The base class for handling the output for writing a Piff model.</span>
 
 <span class="sd">    This is essentially an abstract base class intended to define the methods that should be</span>
@@ -121,9 +117,7 @@
     <span class="c1"># The values in this dict will be the Output sub-classes.</span>
     <span class="n">valid_output_types</span> <span class="o">=</span> <span class="p">{}</span>
 
-<div class="viewcode-block" id="Output.process">
-<a class="viewcode-back" href="../../output.html#piff.Output.process">[docs]</a>
-    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="Output.process"><a class="viewcode-back" href="../../output.html#piff.Output.process">[docs]</a>    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">config_output</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Parse the output field of the config dict.</span>
 
@@ -150,7 +144,6 @@
 
         <span class="k">return</span> <span class="n">output_handler</span></div>
 
-
     <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">__init_subclass__</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
         <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="s1">&#39;_type_name&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_type_name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -159,9 +152,7 @@
                                  <span class="s1">&#39;Maybe you subclassed and forgot to set _type_name?&#39;</span><span class="p">)</span>
             <span class="n">Output</span><span class="o">.</span><span class="n">valid_output_types</span><span class="p">[</span><span class="bp">cls</span><span class="o">.</span><span class="n">_type_name</span><span class="p">]</span> <span class="o">=</span> <span class="bp">cls</span>
 
-<div class="viewcode-block" id="Output.parseKwargs">
-<a class="viewcode-back" href="../../output.html#piff.Output.parseKwargs">[docs]</a>
-    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="Output.parseKwargs"><a class="viewcode-back" href="../../output.html#piff.Output.parseKwargs">[docs]</a>    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">parseKwargs</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">config_output</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Parse the output field of a configuration dict and return the kwargs to use for</span>
 <span class="sd">        initializing an instance of the class.</span>
@@ -177,10 +168,7 @@
         <span class="n">kwargs</span> <span class="o">=</span> <span class="n">config_output</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">kwargs</span></div>
 
-
-<div class="viewcode-block" id="Output.write">
-<a class="viewcode-back" href="../../output.html#piff.Output.write">[docs]</a>
-    <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">psf</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="Output.write"><a class="viewcode-back" href="../../output.html#piff.Output.write">[docs]</a>    <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">psf</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Write a PSF object to the output file.</span>
 
 <span class="sd">        :param psf:         A PSF instance</span>
@@ -188,28 +176,21 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Derived classes must define the write function&quot;</span><span class="p">)</span></div>
 
-
-<div class="viewcode-block" id="Output.read">
-<a class="viewcode-back" href="../../output.html#piff.Output.read">[docs]</a>
-    <span class="k">def</span> <span class="nf">read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="Output.read"><a class="viewcode-back" href="../../output.html#piff.Output.read">[docs]</a>    <span class="k">def</span> <span class="nf">read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Read a PSF object that was written to an output file back in.</span>
 
 <span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
 
 <span class="sd">        :returns: a PSF instance</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Derived classes must define the read function&quot;</span><span class="p">)</span></div>
-</div>
-
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Derived classes must define the read function&quot;</span><span class="p">)</span></div></div>
 
 
 <span class="c1"># Note: I&#39;m having a hard time imagining what other kinds of output handlers we&#39;d want</span>
 <span class="c1">#       here, so this whole idea of an Output base class might be overkill.  For now, I&#39;m</span>
 <span class="c1">#       keeping the code for writing and reading PSF objects to a file in the PSF class,</span>
 <span class="c1">#       so this class is really bare-bones, just farming out the work to PSF.</span>
-<div class="viewcode-block" id="OutputFile">
-<a class="viewcode-back" href="../../output.html#piff.OutputFile">[docs]</a>
-<span class="k">class</span> <span class="nc">OutputFile</span><span class="p">(</span><span class="n">Output</span><span class="p">):</span>
+<div class="viewcode-block" id="OutputFile"><a class="viewcode-back" href="../../output.html#piff.OutputFile">[docs]</a><span class="k">class</span> <span class="nc">OutputFile</span><span class="p">(</span><span class="n">Output</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;An Output handler that just writes to a FITS file.</span>
 
 <span class="sd">    This is the only Output handler we have, so it doesn&#39;t need to be specified by name</span>
@@ -239,9 +220,7 @@
             <span class="k">for</span> <span class="n">stats</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">stats_list</span><span class="p">:</span>
                 <span class="n">stats</span><span class="o">.</span><span class="n">file_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">dir</span><span class="p">,</span> <span class="n">stats</span><span class="o">.</span><span class="n">file_name</span><span class="p">)</span>
 
-<div class="viewcode-block" id="OutputFile.parseKwargs">
-<a class="viewcode-back" href="../../output.html#piff.OutputFile.parseKwargs">[docs]</a>
-    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="OutputFile.parseKwargs"><a class="viewcode-back" href="../../output.html#piff.OutputFile.parseKwargs">[docs]</a>    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">parseKwargs</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">config_output</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Parse the output field of a configuration dict and return the kwargs to use for</span>
 <span class="sd">        initializing an instance of the class.</span>
@@ -259,10 +238,7 @@
             <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;stats_list&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">stats</span>
         <span class="k">return</span> <span class="n">kwargs</span></div>
 
-
-<div class="viewcode-block" id="OutputFile.write">
-<a class="viewcode-back" href="../../output.html#piff.OutputFile.write">[docs]</a>
-    <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">psf</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="OutputFile.write"><a class="viewcode-back" href="../../output.html#piff.OutputFile.write">[docs]</a>    <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">psf</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Write a PSF object to the output file.</span>
 
 <span class="sd">        :param psf:         A PSF instance</span>
@@ -275,9 +251,7 @@
         <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;stats_list = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">stats_list</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">stats</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">stats_list</span><span class="p">:</span>
             <span class="n">stats</span><span class="o">.</span><span class="n">compute</span><span class="p">(</span><span class="n">psf</span><span class="p">,</span><span class="n">psf</span><span class="o">.</span><span class="n">stars</span><span class="p">,</span><span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
-            <span class="n">stats</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span></div>
-</div>
-
+            <span class="n">stats</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span></div></div>
 </pre></div>
 
            </div>

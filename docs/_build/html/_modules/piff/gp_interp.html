@@ -1,22 +1,20 @@
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" data-content_root="../../">
+<html class="writer-html5" lang="en" >
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>piff.gp_interp &mdash; Piff 1.4.0 documentation</title>
-      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=fa44fd50" />
-      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=19f00094" />
-
-  
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
   <!--[if lt IE 9]>
     <script src="../../_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
-        <script src="../../_static/jquery.js?v=5d32c60e"></script>
-        <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-        <script src="../../_static/documentation_options.js?v=9172181d"></script>
-        <script src="../../_static/doctools.js?v=9a2dae69"></script>
-        <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/sphinx_highlight.js"></script>
     <script src="../../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" /> 
@@ -111,9 +109,7 @@
 <span class="kn">from</span> <span class="nn">.interp</span> <span class="kn">import</span> <span class="n">Interp</span>
 <span class="kn">from</span> <span class="nn">.star</span> <span class="kn">import</span> <span class="n">Star</span>
 
-<div class="viewcode-block" id="GPInterp">
-<a class="viewcode-back" href="../../interp.html#piff.GPInterp">[docs]</a>
-<span class="k">class</span> <span class="nc">GPInterp</span><span class="p">(</span><span class="n">Interp</span><span class="p">):</span>
+<div class="viewcode-block" id="GPInterp"><a class="viewcode-back" href="../../interp.html#piff.GPInterp">[docs]</a><span class="k">class</span> <span class="nc">GPInterp</span><span class="p">(</span><span class="n">Interp</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    An interpolator that models the underlying field as a Gaussian process.</span>
 
@@ -244,7 +240,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">keys</span>
 
-    <span class="k">def</span> <span class="nf">_fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">y_err</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="GPInterp._fit"><a class="viewcode-back" href="../../interp.html#piff.GPInterp._fit">[docs]</a>    <span class="k">def</span> <span class="nf">_fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">y_err</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Update the GaussianProcess with data</span>
 
 <span class="sd">        :param X:  The independent covariates.  (n_samples, n_features)</span>
@@ -263,19 +259,17 @@
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nparams</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">gps</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">initialize</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">[:,</span><span class="n">i</span><span class="p">],</span> <span class="n">y_err</span><span class="o">=</span><span class="n">y_err</span><span class="p">[:,</span><span class="n">i</span><span class="p">])</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">gps</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">solve</span><span class="p">()</span>
-        <span class="n">set_max_omp_threads</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+        <span class="n">set_max_omp_threads</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span></div>
 
-    <span class="k">def</span> <span class="nf">_predict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">Xstar</span><span class="p">):</span>
+<div class="viewcode-block" id="GPInterp._predict"><a class="viewcode-back" href="../../interp.html#piff.GPInterp._predict">[docs]</a>    <span class="k">def</span> <span class="nf">_predict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">Xstar</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot; Predict responses given covariates.</span>
 <span class="sd">        :param X:  The independent covariates at which to interpolate.  (n_samples, n_features).</span>
 <span class="sd">        :returns:  Regressed parameters  (n_samples, n_targets)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">ystar</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">gp</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">Xstar</span><span class="p">)</span> <span class="k">for</span> <span class="n">gp</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">gps</span><span class="p">])</span><span class="o">.</span><span class="n">T</span>
-        <span class="k">return</span> <span class="n">ystar</span>
+        <span class="k">return</span> <span class="n">ystar</span></div>
 
-<div class="viewcode-block" id="GPInterp.getProperties">
-<a class="viewcode-back" href="../../interp.html#piff.GPInterp.getProperties">[docs]</a>
-    <span class="k">def</span> <span class="nf">getProperties</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="GPInterp.getProperties"><a class="viewcode-back" href="../../interp.html#piff.GPInterp.getProperties">[docs]</a>    <span class="k">def</span> <span class="nf">getProperties</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Extract the appropriate properties to use as the independent variables for the</span>
 <span class="sd">        interpolation.</span>
 
@@ -287,10 +281,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">keys</span><span class="p">])</span></div>
 
-
-<div class="viewcode-block" id="GPInterp.initialize">
-<a class="viewcode-back" href="../../interp.html#piff.GPInterp.initialize">[docs]</a>
-    <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="GPInterp.initialize"><a class="viewcode-back" href="../../interp.html#piff.GPInterp.initialize">[docs]</a>    <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize both the interpolator to some state prefatory to any solve iterations and</span>
 <span class="sd">        initialize the stars for use with this interpolator.</span>
 
@@ -330,10 +321,7 @@
 
         <span class="k">return</span> <span class="n">stars</span></div>
 
-
-<div class="viewcode-block" id="GPInterp.solve">
-<a class="viewcode-back" href="../../interp.html#piff.GPInterp.solve">[docs]</a>
-    <span class="k">def</span> <span class="nf">solve</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="GPInterp.solve"><a class="viewcode-back" href="../../interp.html#piff.GPInterp.solve">[docs]</a>    <span class="k">def</span> <span class="nf">solve</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Set up this GPInterp object.</span>
 
 <span class="sd">        :param stars:    A list of Star instances to interpolate between</span>
@@ -356,10 +344,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_fit</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">y_err</span><span class="o">=</span><span class="n">y_err</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">kernels</span> <span class="o">=</span> <span class="p">[</span><span class="n">gp</span><span class="o">.</span><span class="n">kernel</span> <span class="k">for</span> <span class="n">gp</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">gps</span><span class="p">]</span></div>
 
-
-<div class="viewcode-block" id="GPInterp.interpolate">
-<a class="viewcode-back" href="../../interp.html#piff.GPInterp.interpolate">[docs]</a>
-    <span class="k">def</span> <span class="nf">interpolate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="GPInterp.interpolate"><a class="viewcode-back" href="../../interp.html#piff.GPInterp.interpolate">[docs]</a>    <span class="k">def</span> <span class="nf">interpolate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Perform the interpolation to find the interpolated parameter vector at some position.</span>
 
 <span class="sd">        :param star:        A Star instance to which one wants to interpolate</span>
@@ -369,10 +354,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">interpolateList</span><span class="p">([</span><span class="n">star</span><span class="p">],</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span></div>
 
-
-<div class="viewcode-block" id="GPInterp.interpolateList">
-<a class="viewcode-back" href="../../interp.html#piff.GPInterp.interpolateList">[docs]</a>
-    <span class="k">def</span> <span class="nf">interpolateList</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="GPInterp.interpolateList"><a class="viewcode-back" href="../../interp.html#piff.GPInterp.interpolateList">[docs]</a>    <span class="k">def</span> <span class="nf">interpolateList</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Perform the interpolation for a list of stars.</span>
 
 <span class="sd">        :param star_list:   A list of Star instances to which to interpolate.</span>
@@ -394,8 +376,12 @@
             <span class="n">fitted_stars</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Star</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">fit</span><span class="p">))</span>
         <span class="k">return</span> <span class="n">fitted_stars</span></div>
 
+<div class="viewcode-block" id="GPInterp._finish_write"><a class="viewcode-back" href="../../interp.html#piff.GPInterp._finish_write">[docs]</a>    <span class="k">def</span> <span class="nf">_finish_write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Finish the writing process with any class-specific steps.</span>
 
-    <span class="k">def</span> <span class="nf">_finish_write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">):</span>
+<span class="sd">        :param fits:        An open fitsio.FITS object</span>
+<span class="sd">        :param extname:     The base name of the extension</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># Note, we&#39;re only storing the training data and hyperparameters here, which means the</span>
         <span class="c1"># Cholesky decomposition will have to be re-computed when this object is read back from</span>
         <span class="c1"># disk.</span>
@@ -418,9 +404,14 @@
         <span class="n">data</span><span class="p">[</span><span class="s1">&#39;ROWS&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rows</span>
         <span class="n">data</span><span class="p">[</span><span class="s1">&#39;OPTIMIZER&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">optimizer</span>
 
-        <span class="n">fits</span><span class="o">.</span><span class="n">write_table</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">extname</span><span class="o">=</span><span class="n">extname</span><span class="o">+</span><span class="s1">&#39;_kernel&#39;</span><span class="p">)</span>
+        <span class="n">fits</span><span class="o">.</span><span class="n">write_table</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">extname</span><span class="o">=</span><span class="n">extname</span><span class="o">+</span><span class="s1">&#39;_kernel&#39;</span><span class="p">)</span></div>
 
-    <span class="k">def</span> <span class="nf">_finish_read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">):</span>
+<div class="viewcode-block" id="GPInterp._finish_read"><a class="viewcode-back" href="../../interp.html#piff.GPInterp._finish_read">[docs]</a>    <span class="k">def</span> <span class="nf">_finish_read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Finish the reading process with any class-specific steps.</span>
+
+<span class="sd">        :param fits:        An open fitsio.FITS object.</span>
+<span class="sd">        :param extname:     The base name of the extension.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">data</span> <span class="o">=</span> <span class="n">fits</span><span class="p">[</span><span class="n">extname</span><span class="o">+</span><span class="s1">&#39;_kernel&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
         <span class="c1"># Run fit to set up GP, but don&#39;t actually do any hyperparameter optimization. Just</span>
         <span class="c1"># set the GP up using the current hyperparameters.</span>
@@ -455,8 +446,7 @@
                                         <span class="n">nbins</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">min_sep</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">max_sep</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
             <span class="n">gp</span><span class="o">.</span><span class="n">kernel_template</span><span class="o">.</span><span class="n">clone_with_theta</span><span class="p">(</span><span class="n">fit_theta</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
             <span class="n">gp</span><span class="o">.</span><span class="n">initialize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_X</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_y</span><span class="p">[:,</span><span class="n">i</span><span class="p">],</span> <span class="n">y_err</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_y_err</span><span class="p">[:,</span><span class="n">i</span><span class="p">])</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">gps</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">gp</span><span class="p">)</span></div>
-
+            <span class="bp">self</span><span class="o">.</span><span class="n">gps</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">gp</span><span class="p">)</span></div></div>
 
 <span class="k">class</span> <span class="nc">GaussianProcess</span><span class="p">(</span><span class="n">GPInterp</span><span class="p">):</span>
     <span class="c1"># An alternate name for GPInterp for people who like clearer, more verbose names</span>

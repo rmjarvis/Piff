@@ -1,22 +1,20 @@
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" data-content_root="../../">
+<html class="writer-html5" lang="en" >
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>piff.interp &mdash; Piff 1.4.0 documentation</title>
-      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=fa44fd50" />
-      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=19f00094" />
-
-  
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
   <!--[if lt IE 9]>
     <script src="../../_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
-        <script src="../../_static/jquery.js?v=5d32c60e"></script>
-        <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-        <script src="../../_static/documentation_options.js?v=9172181d"></script>
-        <script src="../../_static/doctools.js?v=9a2dae69"></script>
-        <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/sphinx_highlight.js"></script>
     <script src="../../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" /> 
@@ -105,9 +103,7 @@
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">from</span> <span class="nn">.util</span> <span class="kn">import</span> <span class="n">write_kwargs</span><span class="p">,</span> <span class="n">read_kwargs</span>
 
-<div class="viewcode-block" id="Interp">
-<a class="viewcode-back" href="../../interp.html#piff.Interp">[docs]</a>
-<span class="k">class</span> <span class="nc">Interp</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<div class="viewcode-block" id="Interp"><a class="viewcode-back" href="../../interp.html#piff.Interp">[docs]</a><span class="k">class</span> <span class="nc">Interp</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;The base class for interpolating a set of data vectors across the field of view.</span>
 
 <span class="sd">    In general, the interpolator is agnostic as to the meaning of the parameter vectors.</span>
@@ -133,9 +129,7 @@
     <span class="c1"># The values in this dict will be the Interp sub-classes.</span>
     <span class="n">valid_interp_types</span> <span class="o">=</span> <span class="p">{}</span>
 
-<div class="viewcode-block" id="Interp.process">
-<a class="viewcode-back" href="../../interp.html#piff.Interp.process">[docs]</a>
-    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="Interp.process"><a class="viewcode-back" href="../../interp.html#piff.Interp.process">[docs]</a>    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">config_interp</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Parse the interp field of the config dict.</span>
 
@@ -163,15 +157,11 @@
 
         <span class="k">return</span> <span class="n">interp</span></div>
 
-
-<div class="viewcode-block" id="Interp.set_num">
-<a class="viewcode-back" href="../../interp.html#piff.Interp.set_num">[docs]</a>
-    <span class="k">def</span> <span class="nf">set_num</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">num</span><span class="p">):</span>
+<div class="viewcode-block" id="Interp.set_num"><a class="viewcode-back" href="../../interp.html#piff.Interp.set_num">[docs]</a>    <span class="k">def</span> <span class="nf">set_num</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">num</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;If there are multiple components involved in the fit, set the number to use</span>
 <span class="sd">        for this model.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_num</span> <span class="o">=</span> <span class="n">num</span></div>
-
 
     <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">__init_subclass__</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
@@ -183,9 +173,7 @@
                                  <span class="s1">&#39;Maybe you subclassed and forgot to set _type_name?&#39;</span><span class="p">)</span>
             <span class="n">Interp</span><span class="o">.</span><span class="n">valid_interp_types</span><span class="p">[</span><span class="bp">cls</span><span class="o">.</span><span class="n">_type_name</span><span class="p">]</span> <span class="o">=</span> <span class="bp">cls</span>
 
-<div class="viewcode-block" id="Interp.parseKwargs">
-<a class="viewcode-back" href="../../interp.html#piff.Interp.parseKwargs">[docs]</a>
-    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="Interp.parseKwargs"><a class="viewcode-back" href="../../interp.html#piff.Interp.parseKwargs">[docs]</a>    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">parseKwargs</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">config_interp</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Parse the interp field of a configuration dict and return the kwargs to use for</span>
 <span class="sd">        initializing an instance of the class.</span>
@@ -204,10 +192,7 @@
         <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;logger&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">logger</span>
         <span class="k">return</span> <span class="n">kwargs</span></div>
 
-
-<div class="viewcode-block" id="Interp.getProperties">
-<a class="viewcode-back" href="../../interp.html#piff.Interp.getProperties">[docs]</a>
-    <span class="k">def</span> <span class="nf">getProperties</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">):</span>
+<div class="viewcode-block" id="Interp.getProperties"><a class="viewcode-back" href="../../interp.html#piff.Interp.getProperties">[docs]</a>    <span class="k">def</span> <span class="nf">getProperties</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Extract the appropriate properties to use as the independent variables for the</span>
 <span class="sd">        interpolation.</span>
 
@@ -219,16 +204,13 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span> <span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;u&#39;</span><span class="p">],</span> <span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;v&#39;</span><span class="p">]</span> <span class="p">])</span></div>
 
-
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">property_names</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;List of properties used by this interpolant.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;u&#39;</span><span class="p">,</span> <span class="s1">&#39;v&#39;</span><span class="p">)</span>
 
-<div class="viewcode-block" id="Interp.initialize">
-<a class="viewcode-back" href="../../interp.html#piff.Interp.initialize">[docs]</a>
-    <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="Interp.initialize"><a class="viewcode-back" href="../../interp.html#piff.Interp.initialize">[docs]</a>    <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize both the interpolator to some state prefatory to any solve iterations and</span>
 <span class="sd">        initialize the stars for use with this interpolator.</span>
 
@@ -244,10 +226,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">interpolateList</span><span class="p">(</span><span class="n">stars</span><span class="p">)</span></div>
 
-
-<div class="viewcode-block" id="Interp.solve">
-<a class="viewcode-back" href="../../interp.html#piff.Interp.solve">[docs]</a>
-    <span class="k">def</span> <span class="nf">solve</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="Interp.solve"><a class="viewcode-back" href="../../interp.html#piff.Interp.solve">[docs]</a>    <span class="k">def</span> <span class="nf">solve</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Solve for the interpolation coefficients given some data.</span>
 
 <span class="sd">        :param stars:       A list of Star instances to interpolate between</span>
@@ -255,10 +234,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Derived classes must define the solve method.&quot;</span><span class="p">)</span></div>
 
-
-<div class="viewcode-block" id="Interp.interpolate">
-<a class="viewcode-back" href="../../interp.html#piff.Interp.interpolate">[docs]</a>
-    <span class="k">def</span> <span class="nf">interpolate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="Interp.interpolate"><a class="viewcode-back" href="../../interp.html#piff.Interp.interpolate">[docs]</a>    <span class="k">def</span> <span class="nf">interpolate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Perform the interpolation to find the interpolated parameter vector at some position.</span>
 
 <span class="sd">        :param star:        A Star instance to which one wants to interpolate</span>
@@ -268,10 +244,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Derived classes must define the interpolate method.&quot;</span><span class="p">)</span></div>
 
-
-<div class="viewcode-block" id="Interp.interpolateList">
-<a class="viewcode-back" href="../../interp.html#piff.Interp.interpolateList">[docs]</a>
-    <span class="k">def</span> <span class="nf">interpolateList</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="Interp.interpolateList"><a class="viewcode-back" href="../../interp.html#piff.Interp.interpolateList">[docs]</a>    <span class="k">def</span> <span class="nf">interpolateList</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Perform the interpolation for a list of stars.</span>
 
 <span class="sd">        The base class just calls interpolate(star) for each star in the list, but in many</span>
@@ -285,10 +258,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="p">[</span> <span class="bp">self</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span><span class="n">star</span><span class="p">)</span> <span class="k">for</span> <span class="n">star</span> <span class="ow">in</span> <span class="n">stars</span> <span class="p">]</span></div>
 
-
-<div class="viewcode-block" id="Interp.write">
-<a class="viewcode-back" href="../../interp.html#piff.Interp.write">[docs]</a>
-    <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">):</span>
+<div class="viewcode-block" id="Interp.write"><a class="viewcode-back" href="../../interp.html#piff.Interp.write">[docs]</a>    <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Write an Interp to a FITS file.</span>
 
 <span class="sd">        Note: this only writes the initialization kwargs to the fits extension, not the parameters.</span>
@@ -309,8 +279,7 @@
         <span class="c1"># Now do the class-specific steps.  Typically, this will write out the solution parameters.</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_finish_write</span><span class="p">(</span><span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">)</span></div>
 
-
-    <span class="k">def</span> <span class="nf">_finish_write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">):</span>
+<div class="viewcode-block" id="Interp._finish_write"><a class="viewcode-back" href="../../interp.html#piff.Interp._finish_write">[docs]</a>    <span class="k">def</span> <span class="nf">_finish_write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Finish the writing process with any class-specific steps.</span>
 
 <span class="sd">        The base class implementation doesn&#39;t do anything, but this will probably always be</span>
@@ -319,11 +288,9 @@
 <span class="sd">        :param fits:        An open fitsio.FITS object</span>
 <span class="sd">        :param extname:     The base name of the extension</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Derived classes must define the _finish_write method.&quot;</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Derived classes must define the _finish_write method.&quot;</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Interp.read">
-<a class="viewcode-back" href="../../interp.html#piff.Interp.read">[docs]</a>
-    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="Interp.read"><a class="viewcode-back" href="../../interp.html#piff.Interp.read">[docs]</a>    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">read</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Read an Interp from a FITS file.</span>
 
@@ -355,8 +322,7 @@
         <span class="n">interp</span><span class="o">.</span><span class="n">_finish_read</span><span class="p">(</span><span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">interp</span></div>
 
-
-    <span class="k">def</span> <span class="nf">_finish_read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">):</span>
+<div class="viewcode-block" id="Interp._finish_read"><a class="viewcode-back" href="../../interp.html#piff.Interp._finish_read">[docs]</a>    <span class="k">def</span> <span class="nf">_finish_read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Finish the reading process with any class-specific steps.</span>
 
 <span class="sd">        The base class implementation doesn&#39;t do anything, but this will probably always be</span>
@@ -365,8 +331,7 @@
 <span class="sd">        :param fits:        An open fitsio.FITS object.</span>
 <span class="sd">        :param extname:     The base name of the extension.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Derived classes must define the _finish_read method.&quot;</span><span class="p">)</span></div>
-
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Derived classes must define the _finish_read method.&quot;</span><span class="p">)</span></div></div>
 </pre></div>
 
            </div>

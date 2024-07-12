@@ -1,22 +1,20 @@
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" data-content_root="../../">
+<html class="writer-html5" lang="en" >
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>piff.singlechip &mdash; Piff 1.4.0 documentation</title>
-      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=fa44fd50" />
-      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=19f00094" />
-
-  
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
   <!--[if lt IE 9]>
     <script src="../../_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
-        <script src="../../_static/jquery.js?v=5d32c60e"></script>
-        <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-        <script src="../../_static/documentation_options.js?v=9172181d"></script>
-        <script src="../../_static/doctools.js?v=9a2dae69"></script>
-        <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/sphinx_highlight.js"></script>
     <script src="../../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" /> 
@@ -125,9 +123,7 @@
 
     <span class="k">return</span> <span class="n">psf_chip</span>
 
-<div class="viewcode-block" id="SingleChipPSF">
-<a class="viewcode-back" href="../../psf.html#piff.SingleChipPSF">[docs]</a>
-<span class="k">class</span> <span class="nc">SingleChipPSF</span><span class="p">(</span><span class="n">PSF</span><span class="p">):</span>
+<div class="viewcode-block" id="SingleChipPSF"><a class="viewcode-back" href="../../psf.html#piff.SingleChipPSF">[docs]</a><span class="k">class</span> <span class="nc">SingleChipPSF</span><span class="p">(</span><span class="n">PSF</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;A PSF class that uses a separate PSF solution for each chip</span>
 
 <span class="sd">    Use type name &quot;SingleChip&quot; in a config field to use this psf type.</span>
@@ -149,9 +145,7 @@
         <span class="p">}</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">set_num</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
 
-<div class="viewcode-block" id="SingleChipPSF.set_num">
-<a class="viewcode-back" href="../../psf.html#piff.SingleChipPSF.set_num">[docs]</a>
-    <span class="k">def</span> <span class="nf">set_num</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">num</span><span class="p">):</span>
+<div class="viewcode-block" id="SingleChipPSF.set_num"><a class="viewcode-back" href="../../psf.html#piff.SingleChipPSF.set_num">[docs]</a>    <span class="k">def</span> <span class="nf">set_num</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">num</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;If there are multiple components involved in the fit, set the number to use</span>
 <span class="sd">        for this model.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -159,14 +153,11 @@
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">single_psf</span><span class="p">,</span> <span class="n">PSF</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">single_psf</span><span class="o">.</span><span class="n">set_num</span><span class="p">(</span><span class="n">num</span><span class="p">)</span></div>
 
-
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">interp_property_names</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_psf</span><span class="o">.</span><span class="n">interp_property_names</span>
 
-<div class="viewcode-block" id="SingleChipPSF.parseKwargs">
-<a class="viewcode-back" href="../../psf.html#piff.SingleChipPSF.parseKwargs">[docs]</a>
-    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="SingleChipPSF.parseKwargs"><a class="viewcode-back" href="../../psf.html#piff.SingleChipPSF.parseKwargs">[docs]</a>    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">parseKwargs</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">config_psf</span><span class="p">,</span> <span class="n">logger</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Parse the psf field of a configuration dict and return the kwargs to use for</span>
 <span class="sd">        initializing an instance of the class.</span>
@@ -188,10 +179,7 @@
 
         <span class="k">return</span> <span class="p">{</span> <span class="s1">&#39;single_psf&#39;</span> <span class="p">:</span> <span class="n">single_psf</span><span class="p">,</span> <span class="s1">&#39;nproc&#39;</span> <span class="p">:</span> <span class="n">nproc</span> <span class="p">}</span></div>
 
-
-<div class="viewcode-block" id="SingleChipPSF.fit">
-<a class="viewcode-back" href="../../psf.html#piff.SingleChipPSF.fit">[docs]</a>
-    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">wcs</span><span class="p">,</span> <span class="n">pointing</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">convert_funcs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">draw_method</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="SingleChipPSF.fit"><a class="viewcode-back" href="../../psf.html#piff.SingleChipPSF.fit">[docs]</a>    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">wcs</span><span class="p">,</span> <span class="n">pointing</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">convert_funcs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">draw_method</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Fit interpolated PSF model to star data using standard sequence of operations.</span>
 
 <span class="sd">        :param stars:           A list of Star instances.</span>
@@ -231,7 +219,6 @@
         <span class="c1"># update stars from psf outlier rejection</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">stars</span> <span class="o">=</span> <span class="p">[</span> <span class="n">star</span> <span class="k">for</span> <span class="n">chipnum</span> <span class="ow">in</span> <span class="n">chipnums</span> <span class="k">for</span> <span class="n">star</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">psf_by_chip</span><span class="p">[</span><span class="n">chipnum</span><span class="p">]</span><span class="o">.</span><span class="n">stars</span> <span class="p">]</span></div>
 
-
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">fit_center</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Whether to fit the center of the star in reflux.</span>
@@ -248,9 +235,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_psf</span><span class="o">.</span><span class="n">include_model_centroid</span>
 
-<div class="viewcode-block" id="SingleChipPSF.interpolateStar">
-<a class="viewcode-back" href="../../psf.html#piff.SingleChipPSF.interpolateStar">[docs]</a>
-    <span class="k">def</span> <span class="nf">interpolateStar</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">):</span>
+<div class="viewcode-block" id="SingleChipPSF.interpolateStar"><a class="viewcode-back" href="../../psf.html#piff.SingleChipPSF.interpolateStar">[docs]</a>    <span class="k">def</span> <span class="nf">interpolateStar</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Update the star to have the current interpolated fit parameters according to the</span>
 <span class="sd">        current PSF model.</span>
 
@@ -262,7 +247,6 @@
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;SingleChip requires the star to have a chipnum property&quot;</span><span class="p">)</span>
         <span class="n">chipnum</span> <span class="o">=</span> <span class="n">star</span><span class="p">[</span><span class="s1">&#39;chipnum&#39;</span><span class="p">]</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">psf_by_chip</span><span class="p">[</span><span class="n">chipnum</span><span class="p">]</span><span class="o">.</span><span class="n">interpolateStar</span><span class="p">(</span><span class="n">star</span><span class="p">)</span></div>
-
 
     <span class="k">def</span> <span class="nf">_drawStar</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">):</span>
         <span class="k">if</span> <span class="s1">&#39;chipnum&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">properties</span><span class="p">:</span>
@@ -278,7 +262,7 @@
         <span class="n">chipnum</span> <span class="o">=</span> <span class="n">star</span><span class="p">[</span><span class="s1">&#39;chipnum&#39;</span><span class="p">]</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">psf_by_chip</span><span class="p">[</span><span class="n">chipnum</span><span class="p">]</span><span class="o">.</span><span class="n">_getRawProfile</span><span class="p">(</span><span class="n">star</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">_finish_write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">,</span> <span class="n">logger</span><span class="p">):</span>
+<div class="viewcode-block" id="SingleChipPSF._finish_write"><a class="viewcode-back" href="../../psf.html#piff.SingleChipPSF._finish_write">[docs]</a>    <span class="k">def</span> <span class="nf">_finish_write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">,</span> <span class="n">logger</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Finish the writing process with any class-specific steps.</span>
 
 <span class="sd">        :param fits:        An open fitsio.FITS object</span>
@@ -297,9 +281,9 @@
 
         <span class="c1"># Add _1, _2, etc. to the extname for the psf model of each chip.</span>
         <span class="k">for</span> <span class="n">chipnum</span> <span class="ow">in</span> <span class="n">chipnums</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">psf_by_chip</span><span class="p">[</span><span class="n">chipnum</span><span class="p">]</span><span class="o">.</span><span class="n">_write</span><span class="p">(</span><span class="n">fits</span><span class="p">,</span> <span class="n">extname</span> <span class="o">+</span> <span class="s1">&#39;_</span><span class="si">%s</span><span class="s1">&#39;</span><span class="o">%</span><span class="n">chipnum</span><span class="p">,</span> <span class="n">logger</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">psf_by_chip</span><span class="p">[</span><span class="n">chipnum</span><span class="p">]</span><span class="o">.</span><span class="n">_write</span><span class="p">(</span><span class="n">fits</span><span class="p">,</span> <span class="n">extname</span> <span class="o">+</span> <span class="s1">&#39;_</span><span class="si">%s</span><span class="s1">&#39;</span><span class="o">%</span><span class="n">chipnum</span><span class="p">,</span> <span class="n">logger</span><span class="p">)</span></div>
 
-    <span class="k">def</span> <span class="nf">_finish_read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">,</span> <span class="n">logger</span><span class="p">):</span>
+<div class="viewcode-block" id="SingleChipPSF._finish_read"><a class="viewcode-back" href="../../psf.html#piff.SingleChipPSF._finish_read">[docs]</a>    <span class="k">def</span> <span class="nf">_finish_read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">,</span> <span class="n">logger</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Finish the reading process with any class-specific steps.</span>
 
 <span class="sd">        :param fits:        An open fitsio.FITS object</span>
@@ -310,8 +294,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">psf_by_chip</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="k">for</span> <span class="n">chipnum</span> <span class="ow">in</span> <span class="n">chipnums</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">psf_by_chip</span><span class="p">[</span><span class="n">chipnum</span><span class="p">]</span> <span class="o">=</span> <span class="n">PSF</span><span class="o">.</span><span class="n">_read</span><span class="p">(</span><span class="n">fits</span><span class="p">,</span> <span class="n">extname</span> <span class="o">+</span> <span class="s1">&#39;_</span><span class="si">%s</span><span class="s1">&#39;</span><span class="o">%</span><span class="n">chipnum</span><span class="p">,</span> <span class="n">logger</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">single_psf</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">psf_by_chip</span><span class="p">[</span><span class="n">chipnums</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span></div>
-
+        <span class="bp">self</span><span class="o">.</span><span class="n">single_psf</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">psf_by_chip</span><span class="p">[</span><span class="n">chipnums</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span></div></div>
 </pre></div>
 
            </div>

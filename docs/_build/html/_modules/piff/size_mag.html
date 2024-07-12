@@ -1,22 +1,20 @@
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" data-content_root="../../">
+<html class="writer-html5" lang="en" >
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>piff.size_mag &mdash; Piff 1.4.0 documentation</title>
-      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=fa44fd50" />
-      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=19f00094" />
-
-  
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
   <!--[if lt IE 9]>
     <script src="../../_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
-        <script src="../../_static/jquery.js?v=5d32c60e"></script>
-        <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-        <script src="../../_static/documentation_options.js?v=9172181d"></script>
-        <script src="../../_static/doctools.js?v=9a2dae69"></script>
-        <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/sphinx_highlight.js"></script>
     <script src="../../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" /> 
@@ -235,9 +233,7 @@
         <span class="k">return</span> <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span>
 
 
-<div class="viewcode-block" id="SmallBrightSelect">
-<a class="viewcode-back" href="../../select.html#piff.SmallBrightSelect">[docs]</a>
-<span class="k">class</span> <span class="nc">SmallBrightSelect</span><span class="p">(</span><span class="n">Select</span><span class="p">):</span>
+<div class="viewcode-block" id="SmallBrightSelect"><a class="viewcode-back" href="../../select.html#piff.SmallBrightSelect">[docs]</a><span class="k">class</span> <span class="nc">SmallBrightSelect</span><span class="p">(</span><span class="n">Select</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;A Select handler that picks stars by looking for a locus of small, bright objects that</span>
 <span class="sd">    are all about the same size.</span>
 
@@ -283,9 +279,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">locus_fraction</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;locus_fraction&#39;</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">max_spread</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;max_spread&#39;</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">)</span>
 
-<div class="viewcode-block" id="SmallBrightSelect.selectStars">
-<a class="viewcode-back" href="../../select.html#piff.SmallBrightSelect.selectStars">[docs]</a>
-    <span class="k">def</span> <span class="nf">selectStars</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">objects</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="SmallBrightSelect.selectStars"><a class="viewcode-back" href="../../select.html#piff.SmallBrightSelect.selectStars">[docs]</a>    <span class="k">def</span> <span class="nf">selectStars</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">objects</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Select which of the input objects should be considered stars.</span>
 
 <span class="sd">        :param objects:     A list of input objects to be considered as potential stars.</span>
@@ -403,13 +397,9 @@
         <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;fluxs of stars = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,[</span><span class="n">s</span><span class="o">.</span><span class="n">hsm</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">stars</span><span class="p">])</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Bright/small selection found </span><span class="si">%d</span><span class="s2"> likely stars&quot;</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="n">stars</span><span class="p">))</span>
 
-        <span class="k">return</span> <span class="n">stars</span></div>
-</div>
+        <span class="k">return</span> <span class="n">stars</span></div></div>
 
-
-<div class="viewcode-block" id="SizeMagSelect">
-<a class="viewcode-back" href="../../select.html#piff.SizeMagSelect">[docs]</a>
-<span class="k">class</span> <span class="nc">SizeMagSelect</span><span class="p">(</span><span class="n">Select</span><span class="p">):</span>
+<div class="viewcode-block" id="SizeMagSelect"><a class="viewcode-back" href="../../select.html#piff.SizeMagSelect">[docs]</a><span class="k">class</span> <span class="nc">SizeMagSelect</span><span class="p">(</span><span class="n">Select</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;A Select handler that picks stars by finding where the stellar locus in the size-magnitude</span>
 <span class="sd">    diagram starts to blend into the galaxy locus.</span>
 
@@ -491,9 +481,7 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">initial_select</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;SmallBright&#39;</span><span class="p">}</span>
 
-<div class="viewcode-block" id="SizeMagSelect.selectStars">
-<a class="viewcode-back" href="../../select.html#piff.SizeMagSelect.selectStars">[docs]</a>
-    <span class="k">def</span> <span class="nf">selectStars</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">objects</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="SizeMagSelect.selectStars"><a class="viewcode-back" href="../../select.html#piff.SizeMagSelect.selectStars">[docs]</a>    <span class="k">def</span> <span class="nf">selectStars</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">objects</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Select which of the input objects should be considered stars.</span>
 
 <span class="sd">        :param objects:     A list of input objects to be considered as potential stars.</span>
@@ -650,10 +638,7 @@
 
         <span class="k">return</span> <span class="n">stars</span></div>
 
-
-<div class="viewcode-block" id="SizeMagSelect.fit_2d_polynomial">
-<a class="viewcode-back" href="../../select.html#piff.SizeMagSelect.fit_2d_polynomial">[docs]</a>
-    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="SizeMagSelect.fit_2d_polynomial"><a class="viewcode-back" href="../../select.html#piff.SizeMagSelect.fit_2d_polynomial">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">fit_2d_polynomial</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">order</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Fit z = f(x,y) as a 2d polynomial function</span>
 
@@ -667,9 +652,7 @@
         <span class="n">A</span> <span class="o">=</span> <span class="n">cheby</span><span class="o">.</span><span class="n">chebvander2d</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="p">(</span><span class="n">order</span><span class="p">,</span><span class="n">order</span><span class="p">))</span>
         <span class="n">coeff</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">lstsq</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">rcond</span><span class="o">=</span><span class="kc">None</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">order</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span><span class="n">order</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span>
         <span class="n">fn</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">:</span> <span class="n">cheby</span><span class="o">.</span><span class="n">chebval2d</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">,</span><span class="n">coeff</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">fn</span></div>
-</div>
-
+        <span class="k">return</span> <span class="n">fn</span></div></div>
 </pre></div>
 
            </div>
