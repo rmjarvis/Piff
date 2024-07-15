@@ -526,7 +526,7 @@ class PSF(object):
                             number of half light radii after which the profile is smoothy apodized
                             to zero a width of ~2.55 half light radii. If a tuple/list, gives
                             the apodization width and the apodization radius in pixels.
-                            [default: None, which means no apodization.]
+                            [default: (1.0, 4.25), which means a width of 1 pixel and radius of 4.25 pixels.]
         :param \**kwargs:   Any additional properties required for the interpolation.
 
         :returns:           A GalSim Image of the PSF
