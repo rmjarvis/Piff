@@ -43,7 +43,8 @@ def jax_solve(ATA, ATb):
     # Original code:
     # dq = scipy.linalg.solve(ATA, ATb, assume_a='pos', check_finite=False)
     # New code:
-    dq = jax.scipy.linalg.solve(ATA, ATb, assume_a='pos', check_finite=False)
+    factor = (jax.scipy.linalg.cholesky(ATA, overwrite_a=True, lower=False), False)
+    dq = jax.scipy.linalg.cho_solve(factor, ATb, overwrite_b=False)
     return dq
 
 @jit
