@@ -144,7 +144,7 @@ class DECamInfo(object):
         :returns xPos, yPos:    Arrays of x and y coordinates in mm on the focal plane.
         """
         # do getPosition but with chipnum instead
-        chipnums = np.array(chipnums, dtype=int, copy=False)
+        chipnums = np.asarray(chipnums, dtype=int)
 
         xpixHalfSize = 1024. * np.ones(chipnums.shape)
         ypixHalfSize = 1024. * np.ones(chipnums.shape)
@@ -166,7 +166,7 @@ class DECamInfo(object):
         :returns ix, iy:    Arrays of x and y coordinates in pixels
         """
         # do getPixel but with chipnum instead
-        chipnums = np.array(chipnums, dtype=int, copy=False)
+        chipnums = np.asarray(chipnums, dtype=int)
 
         xpixHalfSize = 1024. * np.ones(chipnums.shape)
         ypixHalfSize = 1024. * np.ones(chipnums.shape)
@@ -280,8 +280,8 @@ class DECamInfo(object):
         # now we know that dudx etc, so convert xpix and ypix to uarcsec varcsec
         arcsec_over_pixel = 0.26
         # also a minus sign because the axes also flip
-        uarcsec = ypix * -arcsec_over_pixel
-        varcsec = xpix * -arcsec_over_pixel
+        uarcsec = ypix[0] * -arcsec_over_pixel
+        varcsec = xpix[0] * -arcsec_over_pixel
         world_origin = galsim.PositionD(uarcsec, varcsec)
         wcs = galsim.AffineTransform(0, -arcsec_over_pixel, -arcsec_over_pixel, 0,
                                      world_origin=-world_origin)

@@ -24,6 +24,9 @@ from .star import Star
 class Mean(Interp):
     """The simplest possible interpolation scheme.  It just finds the mean of the parameter
     vectors and uses that at every position.
+
+    Use type name "Mean" in a config field to use this interpolant.
+
     """
     _type_name = 'Mean'
 

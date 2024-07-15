@@ -119,6 +119,11 @@ class PSF(object):
         # But this is the minimum action that all subclasses need to do.
         self._num = num
 
+    @property
+    def num_components(self):
+        # Subclasses for which this is not true can overwrite this
+        return 1
+
     @classmethod
     def __init_subclass__(cls):
         # Classes that don't want to register a type name can either not define _type_name
@@ -190,7 +195,7 @@ class PSF(object):
         # behavior is just to return the input stars list.
         return stars, 0
 
-    def single_iteration(self, stars, logger, convert_func):
+    def single_iteration(self, stars, logger, convert_funcs, draw_method):
         """Perform a single iteration of the solver.
 
         Note that some object might fail at some point in the fitting, so some objects can be
@@ -199,8 +204,11 @@ class PSF(object):
 
         :param stars:           The list of stars to use for constraining the PSF.
         :param logger:          A logger object for logging progress.
-        :param convert_func:    An optional function to apply to the profile being fit before
-                                drawing it onto the image.
+        :param convert_funcs:   An optional list of function to apply to the profiles being fit
+                                before drawing it onto the image.  If not None, it should be the
+                                same length as stars.
+        :param draw_method:     The method to use with the GalSim drawImage command. If None,
+                                use the default method for the PSF model being fit.
 
         :returns: an updated list of all_stars, nremoved
         """
@@ -214,7 +222,13 @@ class PSF(object):
         If all component models includes a shift, then this is False.
         Otherwise it is True.
         """
-        raise NotImplementedError("Derived classes must define the single_iteration function")
+        raise NotImplementedError("Derived classes must define the fit_center property")
+
+    @property
+    def include_model_centroid(self):
+        """Whether a model that we want to center can have a non-zero centroid during iterations.
+        """
+        raise NotImplementedError("Derived classes must define the include_model_centroid property")
 
     def reflux(self, star, logger=None):
         """Fit the PSF to the star's data, varying only the flux (and
@@ -297,12 +311,12 @@ class PSF(object):
             AtA = Atw.dot(At.T)
             Atb = Atw.dot(resid)
             x = np.linalg.solve(AtA, Atb)
-            logger.debug('    centroid shift = %s,%s', x[0], x[1])
+            logger.debug('    centroid shift = %s,%s', x[1], x[2])
 
             # Extract the values we want.
             df, duc, dvc = x
 
-            if psf_prof.centroid != galsim.PositionD(0,0):
+            if self.include_model_centroid and psf_prof.centroid != galsim.PositionD(0,0):
                 # In addition to shifting to the best fit center location, also shift
                 # by the centroid of the model itself, so the next next pass through the
                 # fit will be closer to centered.  In practice, this converges pretty quickly.
@@ -370,7 +384,7 @@ class PSF(object):
             nremoved = 0
         return stars, nremoved
 
-    def fit(self, stars, wcs, pointing, logger=None, convert_func=None):
+    def fit(self, stars, wcs, pointing, logger=None, convert_funcs=None, draw_method=None):
         """Fit interpolated PSF model to star data using standard sequence of operations.
 
         :param stars:           A list of Star instances.
@@ -378,9 +392,12 @@ class PSF(object):
         :param pointing:        A galsim.CelestialCoord object giving the telescope pointing.
                                 [Note: pointing should be None if the WCS is not a CelestialWCS]
         :param logger:          A logger object for logging debug info. [default: None]
-        :param convert_func:    An optional function to apply to the profile being fit before
-                                drawing it onto the image.  This is used by composite PSFs to
-                                isolate the effect of just this model component. [default: None]
+        :param convert_funcs:   An optional list of function to apply to the profiles being fit
+                                before drawing it onto the image.  This is used by composite PSFs
+                                to isolate the effect of just this model component.  If provided,
+                                it should be the same length as stars. [default: None]
+        :param draw_method:     The method to use with the GalSim drawImage command. If not given,
+                                use the default method for the PSF model being fit. [default: None]
         """
         logger = galsim.config.LoggerWrapper(logger)
 
@@ -402,7 +419,7 @@ class PSF(object):
 
             # Run a single iteration of the fitter.
             # Different PSF types do different things here.
-            stars, iter_nremoved = self.single_iteration(stars, logger, convert_func)
+            stars, iter_nremoved = self.single_iteration(stars, logger, convert_funcs, draw_method)
 
             # Update estimated poisson noise
             signals = self.drawStarList(stars)
@@ -708,7 +725,7 @@ class PSF(object):
             stars = self.interpolateStarList(stars)
         return [self._drawStar(star) for star in stars]
 
-    def drawStar(self, star, copy_image=True, center=None):
+    def drawStar(self, star, copy_image=True):
         """Generate PSF image for a given star.
 
         .. note::
@@ -726,8 +743,6 @@ class PSF(object):
         :param copy_image:  If False, will use the same image object.
                             If True, will copy the image and then overwrite it.
                             [default: True]
-        :param center:      An optional tuple (x,y) location for where to center the drawn profile
-                            in the image. [default: None, which draws at the star's location.]
 
         :returns:           Star instance with its image filled with rendered PSF
         """
@@ -739,16 +754,21 @@ class PSF(object):
         if star.fit is None or star.fit.get_params(self._num) is None:
             star = self.interpolateStar(star)
         # Render the image
-        return self._drawStar(star, center=center)
+        return self._drawStar(star)
 
-    def _drawStar(self, star, center=None):
+    def _drawStar(self, star):
         # Derived classes may choose to override any of the above functions
         # But they have to at least override this one and interpolateStar to implement
         # their actual PSF model.
         raise NotImplementedError("Derived classes must define the _drawStar function")
 
     def _getProfile(self, star):
-        raise NotImplementedError("Derived classes must define the _getProfile function")
+        prof, method = self._getRawProfile(star)
+        prof = prof.shift(star.fit.center) * star.fit.flux
+        return prof, method
+
+    def _getRawProfile(self, star):
+        raise NotImplementedError("Derived classes must define the _getRawProfile function")
 
     def write(self, file_name, logger=None):
         """Write a PSF object to a file.
@@ -777,10 +797,12 @@ class PSF(object):
         psf_type = self._type_name
         write_kwargs(fits, extname, dict(self.kwargs, type=psf_type, piff_version=piff_version))
         logger.info("Wrote the basic PSF information to extname %s", extname)
-        Star.write(self.stars, fits, extname=extname + '_stars')
-        logger.info("Wrote the PSF stars to extname %s", extname + '_stars')
-        self.writeWCS(fits, extname=extname + '_wcs', logger=logger)
-        logger.info("Wrote the PSF WCS to extname %s", extname + '_wcs')
+        if hasattr(self, 'stars'):
+            Star.write(self.stars, fits, extname=extname + '_stars')
+            logger.info("Wrote the PSF stars to extname %s", extname + '_stars')
+        if hasattr(self, 'wcs'):
+            self.writeWCS(fits, extname=extname + '_wcs', logger=logger)
+            logger.info("Wrote the PSF WCS to extname %s", extname + '_wcs')
         self._finish_write(fits, extname=extname, logger=logger)
 
     @classmethod
@@ -827,17 +849,19 @@ class PSF(object):
             raise ValueError("psf type %s is not a valid Piff PSF"%psf_type)
         psf_cls = PSF.valid_psf_types[psf_type]
 
-        # Read the stars, wcs, pointing values
-        stars = Star.read(fits, extname + '_stars')
-        logger.debug("stars = %s",stars)
-        wcs, pointing = cls.readWCS(fits, extname + '_wcs', logger=logger)
-        logger.debug("wcs = %s, pointing = %s",wcs,pointing)
-
         # Make the PSF instance
         psf = psf_cls(**kwargs)
-        psf.stars = stars
-        psf.wcs = wcs
-        psf.pointing = pointing
+
+        # Read the stars, wcs, pointing values
+        if extname + '_stars' in fits:
+            stars = Star.read(fits, extname + '_stars')
+            logger.debug("stars = %s",stars)
+            psf.stars = stars
+        if extname + '_wcs' in fits:
+            wcs, pointing = cls.readWCS(fits, extname + '_wcs', logger=logger)
+            logger.debug("wcs = %s, pointing = %s",wcs,pointing)
+            psf.wcs = wcs
+            psf.pointing = pointing
 
         # Just in case the class needs to do something else at the end.
         psf._finish_read(fits, extname, logger)

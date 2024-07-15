@@ -973,7 +973,7 @@ class InputFiles(Input):
         if sky_col is not None:
             if sky_col not in cat.dtype.names:
                 raise ValueError("sky_col = %s is not a column in %s"%(sky_col,cat_file_name))
-            extra_props['sky'] = cat[sky_col]
+            extra_props['sky'] = np.float32(cat[sky_col])
         elif sky is not None:
             try:
                 sky = float(sky)
@@ -984,7 +984,7 @@ class InputFiles(Input):
                 if sky not in header:
                     raise KeyError("Key %s not found in FITS header"%sky)
                 sky = float(header[sky])
-            extra_props['sky'] = np.array([sky]*len(cat), dtype=float)
+            extra_props['sky'] = np.array([sky]*len(cat), dtype=np.float32)
 
         # Make the list of gain values:
         # TODO: SV and Y1 DES images have two gain values, GAINA, GAINB.  It would be nice if we

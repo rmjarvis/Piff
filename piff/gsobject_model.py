@@ -39,6 +39,8 @@ class GSObjectModel(Model):
 
     All initialization methods start with zero shear and zero centroid offset.
 
+    Use type name "GSObject" in a config field to use this model.
+
     :param gsobj:       GSObject to use as fiducial profile.
     :param fastfit:     Use HSM moments for fitting.  Approximate, but fast.  [default: False]
     :param centered:    If True, PSF model centroid is forced to be (0,0), and the
@@ -166,18 +168,20 @@ class GSObjectModel(Model):
 
         return prof
 
-    def _resid(self, params, star, convert_func):
+    def _resid(self, params, star, convert_func, draw_method):
         """Residual function to use with least_squares.
 
-        Essentially `chi` from `chisq`, but not summed over pixels yet.
+        Essentially "chi" from "chisq", but not summed over pixels yet.
 
         :param params:          A numpy array of model parameters.
         :param star:            A Star instance.
         :param convert_func:    An optional function to apply to the profile being fit before
                                 drawing it onto the image.  This is used by composite PSFs to
                                 isolate the effect of just this model component.
+        :param draw_method:     The method to use with the GalSim drawImage command to determine
+                                the residuals. [if draw_method is None, use self._method]
 
-        :returns: `chi` as a flattened numpy array.
+        :returns: "chi" as a flattened numpy array.
         """
         image, weight, image_pos = star.data.getImage()
         flux, du, dv, scale, g1, g2 = params
@@ -186,7 +190,7 @@ class GSObjectModel(Model):
         g = g1 + 1j * g2
         if np.abs(g) >= 1.:
             # Return "infinity"
-            return np.ones_like(image.array.ravel()) * 1.e300
+            return np.ones_like(image.array.ravel(), dtype=np.float64) * 1.e300
 
         # We shear/dilate/shift the profile as follows.
         #    prof = self.gsobj.dilate(scale).shear(g1=g1, g2=g2).shift(du, dv) * flux
@@ -203,9 +207,10 @@ class GSObjectModel(Model):
 
         if convert_func is not None:
             prof = convert_func(prof)
-
+        if draw_method is None:
+            draw_method = self._method
         try:
-            prof.drawImage(model_image, method=self._method, center=image_pos)
+            prof.drawImage(model_image, method=draw_method, center=image_pos)
         except galsim.GalSimError:
             # Declare this a *bad* residual if GalSim ran into some kind of error.
             # (Most typically a GalSimFFTSizeError from getting to a place with bad stepk/maxk.)
@@ -241,7 +246,7 @@ class GSObjectModel(Model):
 
         return np.array([flux, du, dv, scale, g1, g2])
 
-    def least_squares_fit(self, star, logger=None, convert_func=None):
+    def least_squares_fit(self, star, logger=None, convert_func=None, draw_method=None):
         """Fit parameters of the given star using least-squares minimization.
 
         :param star:            A Star to fit.
@@ -249,6 +254,8 @@ class GSObjectModel(Model):
         :param convert_func:    An optional function to apply to the profile being fit before
                                 drawing it onto the image.  This is used by composite PSFs to
                                 isolate the effect of just this model component. [default: None]
+        :param draw_method:     The method to use with galsim.DrawImage to determine the residuals.
+                                [default: 'auto' if include_pixel = True, else 'no_pixel']
 
         :returns: (flux, dx, dy, scale, g1, g2, flag)
         """
@@ -262,7 +269,8 @@ class GSObjectModel(Model):
         if params[3]**2 < star.data.local_wcs.pixelArea():
             params[3] = star.data.local_wcs.pixelArea()**0.5
 
-        results = scipy.optimize.least_squares(self._resid, params, args=(star,convert_func),
+        results = scipy.optimize.least_squares(self._resid, params,
+                                               args=(star,convert_func,draw_method),
                                                **self._scipy_kwargs)
         #logger.debug(results)
         logger.debug("results = %s",results.x)
@@ -274,7 +282,7 @@ class GSObjectModel(Model):
 
         return flux, du, dv, scale, g1, g2, var
 
-    def fit(self, star, fastfit=None, logger=None, convert_func=None):
+    def fit(self, star, fastfit=None, logger=None, convert_func=None, draw_method=None):
         """Fit the image either using HSM or least-squares minimization.
 
         If ``fastfit`` is True, then the galsim.hsm module will be used to estimate the
@@ -289,7 +297,11 @@ class GSObjectModel(Model):
         :param logger:          A logger object for logging debug info. [default: None]
         :param convert_func:    An optional function to apply to the profile being fit before
                                 drawing it onto the image.  This is used by composite PSFs to
-                                isolate the effect of just this model component. [default: None]
+                                isolate the effect of just this model component. [default: None;
+                                if provided, fastfit is ignored and taken to be False.]
+        :param draw_method:     The method to use with the GalSim drawImage command to determine
+                                the residuals. [default: None, which uses 'auto' if
+                                include_pixel = True, else 'no_pixel']
 
         :returns: a new Star with the fitted parameters in star.fit
         """
@@ -305,8 +317,8 @@ class GSObjectModel(Model):
         if fastfit:
             flux, du, dv, scale, g1, g2, var = self.moment_fit(star, logger=logger)
         else:
-            flux, du, dv, scale, g1, g2, var = self.least_squares_fit(star, logger=logger,
-                                                                      convert_func=convert_func)
+            flux, du, dv, scale, g1, g2, var = self.least_squares_fit(
+                star, logger=logger, convert_func=convert_func, draw_method=draw_method)
 
         # Make a StarFit object with these parameters
         params = [scale, g1, g2]
@@ -314,7 +326,7 @@ class GSObjectModel(Model):
         if self._centered:
             center = (du, dv)
         else:
-            center = (0.0, 0.0)
+            center = star.fit.center
             params = [du, dv] + params
             params_var = np.concatenate([var[1:3], params_var])
         if self._fit_flux:
@@ -330,9 +342,10 @@ class GSObjectModel(Model):
 
         if convert_func is not None:
             prof = convert_func(prof)
-
+        if draw_method is None:
+            draw_method = self._method
         try:
-            prof.drawImage(model_image, method=self._method, center=star.image_pos)
+            prof.drawImage(model_image, method=draw_method, center=star.image_pos)
         except galsim.GalSimError:
             # If we get the exception here, then set a large chisq, so it gets outlier rejected.
             chisq = 1.e300
@@ -405,6 +418,8 @@ class GSObjectModel(Model):
 class Gaussian(GSObjectModel):
     """ Model PSFs as elliptical Gaussians.
 
+    Use type name "Gaussian" in a config field to use this model.
+
     :param fastfit:     Use HSM moments for fitting.  Approximate, but fast.  [default: False]
     :param centered:    If True, PSF model centroid is forced to be (0,0), and the
                         PSF fitting will marginalize over stellar position.  If False, stellar
@@ -432,6 +447,8 @@ class Gaussian(GSObjectModel):
 class Kolmogorov(GSObjectModel):
     """ Model PSFs as elliptical Kolmogorovs.
 
+    Use type name "Kolmogorov" in a config field to use this model.
+
     :param fastfit:     Use HSM moments for fitting.  Approximate, but fast.  [default: False]
     :param centered:    If True, PSF model centroid is forced to be (0,0), and the
                         PSF fitting will marginalize over stellar position.  If False, stellar
@@ -458,6 +475,8 @@ class Kolmogorov(GSObjectModel):
 
 class Moffat(GSObjectModel):
     """ Model PSFs as elliptical Moffats.
+
+    Use type name "Moffat" in a config field to use this model.
 
     :param beta:        Moffat shape parameter.
     :param trunc:       Optional truncation radius at which profile drops to zero.  Measured in half

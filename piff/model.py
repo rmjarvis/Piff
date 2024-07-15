@@ -134,7 +134,7 @@ class Model(object):
         """
         raise NotImplementedError("Derived classes must define the fit function")
 
-    def draw(self, star, copy_image=True, center=None):
+    def draw(self, star, copy_image=True):
         """Draw the model on the given image.
 
         :param star:        A Star instance with the fitted parameters to use for drawing and a
@@ -142,8 +142,6 @@ class Model(object):
         :param copy_image:  If False, will use the same image object.
                             If True, will copy the image and then overwrite it.
                             [default: True]
-        :param center:      An optional tuple (x,y) location for where to center the drawn profile
-                            in the image. [default: None, which draws at the star's location.]
 
         :returns: a new Star instance with the data field having an image of the drawn model.
         """
@@ -153,11 +151,7 @@ class Model(object):
             image = star.image.copy()
         else:
             image = star.image
-        if center is None:
-            center = star.image_pos
-        else:
-            center = galsim.PositionD(*center)
-        prof.drawImage(image, method=self._method, center=center)
+        prof.drawImage(image, method=self._method, center=star.image_pos)
         return Star(star.data.withNew(image=image), star.fit)
 
     def write(self, fits, extname):

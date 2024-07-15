@@ -4,11 +4,13 @@ on:
     push:
         branches:
             - main
+            - runci
             - releases/*
 
     pull_request:
         branches:
             - main
+            - runci
             - releases/*
 
 jobs:
@@ -19,44 +21,54 @@ jobs:
             matrix:
                 # First all python versions in basic linux
                 os: [ ubuntu-latest ]
-                py: [ 3.7, 3.8, 3.9, "3.10" ]
+                py: [ 3.7, 3.8, 3.9, "3.10", 3.11, 3.12 ]
                 CC: [ gcc ]
                 CXX: [ g++ ]
+                FFTW_DIR: [ "/usr/local/lib/" ]
 
                 # Add some other particular combinations to test
                 include:
                     # A couple in MacOS
-                    - os: macos-latest
-                      py: 3.7
-                      CC: cc
-                      CXX: c++
-
-                    - os: macos-latest
-                      py: 3.9
-                      CC: cc
-                      CXX: c++
+                    # I've been getting random seg faults in macos runs lately.
+                    # Note sure what the problem is, but for now just disable macos CI.
+                    #- os: macos-latest
+                    #- os: macos-13
+                      #py: "3.10"
+                      #CC: cc
+                      #CXX: c++
+                      #FFTW_DIR: "/opt/homebrew/lib/"
+                      #FFTW_DIR: "/usr/local/lib"
 
                     # Check one with clang compiler
                     - os: ubuntu-latest
-                      py: 3.8
+                      py: 3.11
                       CC: clang
                       CXX: clang++
+                      FFTW_DIR: "/usr/local/lib/"
+
+        env:
+            # Need to put this here.  export doesn't work.
+            # cf. https://github.com/orgs/community/discussions/26013
+            FFTW_DIR: ${{ matrix.FFTW_DIR }}
 
         steps:
-            - uses: actions/checkout@v3
+            - uses: actions/checkout@v4
               with:
                 # Helpful for a reliable codecov upload.
                 fetch-depth: 0
 
             - name: Set up Python ${{ matrix.py }}
-              uses: actions/setup-python@v4
+              uses: actions/setup-python@v5
               with:
                 python-version: ${{ matrix.py }}
 
             - name: Cache pip
-              uses: actions/cache@v3
+              uses: actions/cache@v4
               with:
-                path: ~/.cache/pip
+                path: |
+                  ~/.cache/pip
+                  $HOME/Library/Caches/Homebrew
+                  /usr/local/Cellar
                 key: ${{ runner.os }}-${{ matrix.py }}-pip-${{ hashFiles('requirements.txt') }}
                 restore-keys: |
                     ${{ runner.os }}-${{ matrix.py }}-pip-
@@ -66,22 +78,34 @@ jobs:
               if: matrix.os == 'ubuntu-latest'
               run: |
                 echo ${{ matrix.os }}
-                sudo -H apt-get -qq update
-                sudo -H apt-get install -y libfftw3-dev libeigen3-dev
+                sudo -H apt update -y
+                sudo -H apt install -y libfftw3-dev libeigen3-dev
+                ls $FFTW_DIR
 
             - name: Install libfftw, etc. on MacOS
-              if: matrix.os == 'macos-latest'
+              if: matrix.os == 'macos-13'
               run: |
                 echo ${{ matrix.os }}
-                brew update | true
-                brew install fftw eigen | true
+                brew update || true
+                brew install fftw eigen || true
+                brew link --overwrite fftw eigen || true
+                ls -lF /usr/local
+                ls -lF /usr/local/lib
+                ls -lF /usr/local/Cellar
+                ls $FFTW_DIR
 
             - name: Install dependencies with pip
               run: |
                 python -m pip install -U pip
 
                 # Do these first to clarify potential conflicts
-                pip install -U setuptools numpy
+                pip install -U numpy
+                pip install -U setuptools
+                pip install -U wheel
+
+                # The prefix is required for recent MacOS, because of System Integrity Protection.
+                # It's not necessary on Linux, but is harmless enough.
+                FFTW_DIR=$FFTW_DIR pip install -U galsim
 
                 # Standard dependencies
                 pip install -U -r requirements.txt
@@ -89,7 +113,7 @@ jobs:
                 # Extra packages needed for testing
                 # Note: Pin pillow <10 until this bug is fixed:
                 #       https://github.com/python-pillow/Pillow/issues/7259
-                pip install -U nose coverage pytest nbval ipykernel "pillow<10"
+                pip install -U nose coverage "pytest<8" nbval ipykernel "pillow<10"
 
             - name: Install Pixmappy (not on pip)
               run: |
@@ -113,7 +137,8 @@ jobs:
               run: |
                 cd tests
                 coverage run -m pytest -v
-                coverage combine
+                coverage combine || true
+                coverage report
                 coverage xml
                 ls -lsart
                 cd ..  # N.B. This seems to happen automatically if omitted.

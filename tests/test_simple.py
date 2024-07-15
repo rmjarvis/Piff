@@ -310,10 +310,6 @@ def test_single_image():
     assert test_star_nocopy.image.array[1,1] == target_star_copy.image.array[1,1]
     assert test_star_copy.image.array[1,1] == target_star_copy.image.array[1,1]
 
-    test_star_center = psf.model.draw(test_star_copy, copy_image=True, center=(x+1,y+1))
-    np.testing.assert_almost_equal(test_star_center.image.array[1:,1:],
-                                   test_star_copy.image.array[:-1,:-1])
-
     # test that draw works
     test_image = psf.draw(x=target['x'], y=target['y'], stamp_size=config['input']['stamp_size'],
                           flux=target.fit.flux, offset=target.fit.center)
@@ -780,9 +776,11 @@ def test_psf():
     np.testing.assert_raises(NotImplementedError, psf.drawStarList, [star])
     np.testing.assert_raises(NotImplementedError, psf._drawStar, star)
     np.testing.assert_raises(NotImplementedError, psf._getProfile, star)
-    np.testing.assert_raises(NotImplementedError, psf.single_iteration, [star], None, None)
+    np.testing.assert_raises(NotImplementedError, psf.single_iteration, [star], None, None, None)
     with np.testing.assert_raises(NotImplementedError):
         psf.fit_center
+    with np.testing.assert_raises(NotImplementedError):
+        psf.include_model_centroid
 
     # initialize_params doesn't do anything, but works
     stars, nremove = psf.initialize_params([star], None)
@@ -796,8 +794,14 @@ def test_psf():
         np.testing.assert_raises(ValueError, piff.PSF.read, filename)
 
     # But normally this file can be read...
-    psf = piff.PSF.read(filename)
-    print(psf)
+    try:
+        import pixmappy
+    except ImportError:
+        # Skip this test, since it requires pixmappy.
+        pass
+    else:
+        psf = piff.PSF.read(filename)
+        print(psf)
 
     # Check that registering new types works correctly
     class NoPSF1(piff.PSF):
@@ -868,6 +872,16 @@ def test_load_images():
     # Read this file back in.  It has the star data, but the images are blank.
     psf2 = piff.read(psf_file, logger)
     assert len(psf2.stars) == 10
+    print('chisq = ',[s.fit.chisq for s in psf2.stars])
+    print('dof = ',[s.fit.dof for s in psf2.stars])
+    print('true chisq = ',[s.fit.chisq for s in psf.stars])
+    print('true dof = ',[s.fit.dof for s in psf.stars])
+    # chisq and dof should be correct
+    np.testing.assert_allclose([s.fit.chisq for s in psf2.stars],
+                               [s.fit.chisq for s in psf.stars])
+    np.testing.assert_allclose([s.fit.dof for s in psf2.stars],
+                               [s.fit.dof for s in psf.stars])
+    # But the images are blank
     for star in psf2.stars:
         np.testing.assert_array_equal(star.image.array, 0.)
 

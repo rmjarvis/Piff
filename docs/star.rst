@@ -7,6 +7,8 @@ more advanced usage, it may be helpful to use the `Star` objects directly.
 .. autoclass:: piff.Star
     :members:
 
+    .. automethod:: piff.Star.__getitem__
+
 .. autoclass:: piff.StarData
     :members:
 

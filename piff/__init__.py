@@ -83,8 +83,8 @@ from .interp import Interp
 from .mean_interp import Mean
 from .polynomial_interp import Polynomial, polynomial_types
 from .basis_interp import BasisInterp, BasisPolynomial
-from .knn_interp import KNNInterp
-from .gp_interp import GPInterp
+from .knn_interp import KNNInterp, KNearestNeighbors
+from .gp_interp import GPInterp, GaussianProcess
 
 # Outlier handlers are named BlahOutliers where Blah is what they are called in teh config file
 from .outliers import Outliers, ChisqOutliers
@@ -110,6 +110,10 @@ from .size_mag import SizeMagStats, SmallBrightSelect, SizeMagSelect
 
 # Optics
 from .optical_model import Optical, optical_templates
+
+# Composite PSFs
+from .sumpsf import SumPSF
+from .convolvepsf import ConvolvePSF
 
 # Leave these in their own namespaces
 from . import util

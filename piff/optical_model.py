@@ -98,6 +98,8 @@ class Optical(Model):
     """
     Initialize the Optical+Atmosphere Model
 
+    Use type name "Optical" in a config field to use this model.
+
     There are four components to this model that are convolved together.
 
     First, there is an optical component, which uses a galsim.OpticalPSF to model the
@@ -121,6 +123,8 @@ class Optical(Model):
     :param oversampling     Numerical factor by which to oversample the FFT [default: 1]
     :param pupil_plane_im:  The name of a file containing the pupil plane image to use instead
                             of creating one from obscuration, struts, etc. [default: None]
+    :param base_aberrations: A list of aberrations to which any fitted aberrations are added.
+                            [default: None]
 
     The next two parameters are specific to our treatment of the Optical PSF. If given,
     they are used to create an additional galsim.PhaseScreen describing the mirror's own
@@ -145,7 +149,7 @@ class Optical(Model):
     from a template value.  e.g. template = 'des' will use the values stored in the dict
     piff.optical_model.optical_templates['des'].
 
-    :param template :       A key word in the dict piff.optical_model.optical_templates to use
+    :param template:        A key word in the dict piff.optical_model.optical_templates to use
                             for setting values of these aperture parameters.  [default: None]
     :param gsparams:        A key word in the dict piff.optical_model.gsparams_templates to use
                             for setting values of these Galsim parameters.  [default: None]
@@ -161,7 +165,7 @@ class Optical(Model):
     """
     _type_name = 'Optical'
     _method = 'auto'
-    _centered = True
+    _centered = False
     _model_can_be_offset = False
 
     def __init__(self, template=None, gsparams=None, atmo_type='VonKarman', logger=None, **kwargs):
@@ -217,7 +221,7 @@ class Optical(Model):
                 self.gsparams = galsim.GSParams(**gsparams_kwargs)
 
         # Check that no unexpected parameters were passed in:
-        other_keys = ('sigma', 'mirror_figure_im', 'mirror_figure_scale')
+        other_keys = ('sigma', 'mirror_figure_im', 'mirror_figure_scale', 'base_aberrations')
         extra_kwargs = [k for k in kwargs if k not in opt_keys + gsparams_keys + other_keys]
         if len(extra_kwargs) > 0:
             raise TypeError('__init__() got an unexpected keyword argument %r'%extra_kwargs[0])
@@ -271,9 +275,13 @@ class Optical(Model):
         self.idx_g1 = self.idx_L0 + 1
         self.idx_g2 = self.idx_g1 + 1
         self.param_len = self.idx_g2 + 1
+        self.base_aberrations = np.zeros(self.nZ+1)
+        base_aberrations = kwargs.get('base_aberrations', None)
+        if base_aberrations is not None:
+            self.base_aberrations[0:len(base_aberrations)] += base_aberrations
 
     # fit is currently a DUMMY routine
-    def fit(self, star):
+    def fit(self, star, logger=None, convert_func=None, draw_method=None):
         """Warning: This method just updates the fit with the chisq and dof!
 
         :param star:    A Star instance
@@ -293,6 +301,21 @@ class Optical(Model):
         var = np.zeros_like(params)
         return Star(star.data,
                     star.fit.newParams(params, params_var=var, num=self._num, chisq=chisq, dof=dof))
+
+    def initialize(self, star, logger=None, default_init=None):
+        """Initialize the given star's fit parameters.
+
+        :param star:            The Star to initialize.
+        :param logger:          A logger object for logging debug info. [default: None]
+        :param default_init:    Ignored. [default: None]
+
+        :returns: a new initialized Star.
+        """
+        params = self.kwargs_to_params()
+        params_var = np.zeros_like(params)
+        fit = star.fit.newParams(params, params_var=params_var, num=self._num)
+        star = Star(star.data, fit)
+        return star
 
     @lru_cache(maxsize=8)
     def getOptics(self, zernike_coeff):
@@ -407,6 +430,9 @@ class Optical(Model):
         # otherwise parameters are in getProfile argument list
         if params is not None :
             *zernike_coeff,r0,L0,g1,g2 = params
+        aberrations = self.base_aberrations.copy()
+        if zernike_coeff is not None:
+            aberrations[:len(zernike_coeff)] += zernike_coeff
 
         # list of PSF components
         prof = []
@@ -419,13 +445,15 @@ class Optical(Model):
             prof.append(gaussian)
 
         # atmospheric kernel
-        atmopsf = self.getAtmosphere(r0, L0, g1, g2)
-        prof.append(atmopsf)
+        if self.atmo_type not in ['None', None]:
+            atmopsf = self.getAtmosphere(r0, L0, g1, g2)
+            prof.append(atmopsf)
 
         # optics
-        prof.append(self.getOptics(tuple(zernike_coeff)))
+        optics = self.getOptics(tuple(aberrations))
 
-        # convolve
-        prof = galsim.Convolve(prof,gsparams=self.gsparams)
-
-        return prof
+        if len(prof) == 0:
+            return optics
+        else:
+            prof.append(optics)
+            return galsim.Convolve(prof, gsparams=self.gsparams)

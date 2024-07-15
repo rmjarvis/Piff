@@ -24,7 +24,7 @@ from .psf import PSF
 from .util import write_kwargs, read_kwargs, make_dtype, adjust_value, run_multi
 
 # Used by SingleChipPSF.fit
-def single_chip_run(chipnum, single_psf, stars, wcs, pointing, convert_func, logger):
+def single_chip_run(chipnum, single_psf, stars, wcs, pointing, convert_funcs, draw_method, logger):
     # Make a copy of single_psf for each chip
     psf_chip = copy.deepcopy(single_psf)
 
@@ -34,12 +34,15 @@ def single_chip_run(chipnum, single_psf, stars, wcs, pointing, convert_func, log
 
     # Run the psf_chip fit function using this stars and wcs (and the same pointing)
     logger.warning("Building solution for chip %s with %d stars", chipnum, len(stars_chip))
-    psf_chip.fit(stars_chip, wcs_chip, pointing, logger=logger, convert_func=convert_func)
+    psf_chip.fit(stars_chip, wcs_chip, pointing, logger=logger, convert_funcs=convert_funcs,
+                 draw_method=draw_method)
 
     return psf_chip
 
 class SingleChipPSF(PSF):
     """A PSF class that uses a separate PSF solution for each chip
+
+    Use type name "SingleChip" in a config field to use this psf type.
 
     :param single_psf:  A PSF instance to use for the PSF solution on each chip.
                         (This will be turned into nchips copies of the provided object.)
@@ -92,7 +95,7 @@ class SingleChipPSF(PSF):
 
         return { 'single_psf' : single_psf, 'nproc' : nproc }
 
-    def fit(self, stars, wcs, pointing, logger=None, convert_func=None):
+    def fit(self, stars, wcs, pointing, logger=None, convert_funcs=None, draw_method=None):
         """Fit interpolated PSF model to star data using standard sequence of operations.
 
         :param stars:           A list of Star instances.
@@ -100,9 +103,12 @@ class SingleChipPSF(PSF):
         :param pointing:        A galsim.CelestialCoord object giving the telescope pointing.
                                 [Note: pointing should be None if the WCS is not a CelestialWCS]
         :param logger:          A logger object for logging debug info. [default: None]
-        :param convert_func:    An optional function to apply to the profile being fit before
-                                drawing it onto the image.  This is used by composite PSFs to
-                                isolate the effect of just this model component. [default: None]
+        :param convert_funcs:   An optional list of function to apply to the profiles being fit
+                                before drawing it onto the image.  This is used by composite PSFs
+                                to isolate the effect of just this model component.  If provided,
+                                it should be the same length as stars. [default: None]
+        :param draw_method:     The method to use with the GalSim drawImage command. If not given,
+                                use the default method for the PSF model being fit. [default: None]
         """
         logger = galsim.config.LoggerWrapper(logger)
         self.wcs = wcs
@@ -110,7 +116,7 @@ class SingleChipPSF(PSF):
         self.psf_by_chip = {}
 
         chipnums = list(wcs.keys())
-        args = [(chipnum, self.single_psf, stars, wcs, pointing, convert_func)
+        args = [(chipnum, self.single_psf, stars, wcs, pointing, convert_funcs, draw_method)
                 for chipnum in chipnums]
 
         output = run_multi(single_chip_run, self.nproc, raise_except=False,
@@ -139,6 +145,12 @@ class SingleChipPSF(PSF):
         """
         return self.single_psf.fit_center
 
+    @property
+    def include_model_centroid(self):
+        """Whether a model that we want to center can have a non-zero centroid during iterations.
+        """
+        return self.single_psf.include_model_centroid
+
     def interpolateStar(self, star):
         """Update the star to have the current interpolated fit parameters according to the
         current PSF model.
@@ -152,11 +164,11 @@ class SingleChipPSF(PSF):
         chipnum = star['chipnum']
         return self.psf_by_chip[chipnum].interpolateStar(star)
 
-    def _drawStar(self, star, center=None):
+    def _drawStar(self, star):
         if 'chipnum' not in star.data.properties:
             raise ValueError("SingleChip requires the star to have a chipnum property")
         chipnum = star['chipnum']
-        return self.psf_by_chip[chipnum]._drawStar(star, center=center)
+        return self.psf_by_chip[chipnum]._drawStar(star)
 
     def _getProfile(self, star):
         chipnum = star['chipnum']

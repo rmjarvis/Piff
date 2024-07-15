@@ -32,6 +32,9 @@ class SimplePSF(PSF):
     The model defines the functional form of the surface brightness profile, and the
     interpolator defines how the parameters of the model vary across the field of view.
 
+    Use type name "Simple" in a config field to use this psf type, or leave off the type
+    name, as this is the default PSF type.
+
     :param model:       A Model instance used for modeling the surface brightness profile.
     :param interp:      An Interp instance used to interpolate across the field of view.
     :param outliers:    Optionally, an Outliers instance used to remove outliers.
@@ -157,7 +160,7 @@ class SimplePSF(PSF):
 
         return stars, nremoved
 
-    def single_iteration(self, stars, logger, convert_func):
+    def single_iteration(self, stars, logger, convert_funcs, draw_method):
 
         # Perform the fit or compute design matrix as appropriate using just non-reserve stars
         fit_fn = self.model.chisq if self.quadratic_chisq else self.model.fit
@@ -165,10 +168,12 @@ class SimplePSF(PSF):
         nremoved = 0  # For this iteration
         use_stars = []  # Just the stars we want to use for fitting.
         all_stars = []  # All the stars (with appropriate flags as necessary)
-        for star in stars:
+        for k, star in enumerate(stars):
             if not star.is_flagged and not star.is_reserve:
                 try:
-                    star = fit_fn(star, logger=logger, convert_func=convert_func)
+                    convert_func = None if convert_funcs is None else convert_funcs[k]
+                    star = fit_fn(star, logger=logger, convert_func=convert_func,
+                                  draw_method=draw_method)
                     use_stars.append(star)
                 except Exception as e:
                     logger.warning("Failed fitting star at %s.", star.image_pos)
@@ -200,6 +205,12 @@ class SimplePSF(PSF):
         """
         return self.model._centered
 
+    @property
+    def include_model_centroid(self):
+        """Whether a model that we want to center can have a non-zero centroid during iterations.
+        """
+        return self.model._centered and self.model._model_can_be_offset
+
     def interpolateStarList(self, stars):
         """Update the stars to have the current interpolated fit parameters according to the
         current PSF model.
@@ -225,13 +236,8 @@ class SimplePSF(PSF):
         self.model.normalize(star)
         return star
 
-    def _drawStar(self, star, center=None):
-        return self.model.draw(star, center=center)
-
-    def _getProfile(self, star):
-        prof, method = self._getRawProfile(star)
-        prof = prof.shift(star.fit.center) * star.fit.flux
-        return prof, method
+    def _drawStar(self, star):
+        return self.model.draw(star)
 
     def _getRawProfile(self, star):
         return self.model.getProfile(star.fit.get_params(self._num)), self.model._method

@@ -223,63 +223,63 @@ class TwoDHistStats(Stats):
         # make the plots
         logger.info("Creating TwoDHist plots")
         ax = axs[0, 0]
-        IM = ax.pcolor(self.bins_u, self.bins_v, self.twodhists['T'], cmap=cmap__T,
+        IM = ax.pcolormesh(self.bins_u, self.bins_v, self.twodhists['T'], cmap=cmap__T,
                        vmin=vmin__T, vmax=vmax__T)
         ax.set_xlim(min(self.bins_u), max(self.bins_u))
         ax.set_ylim(min(self.bins_v), max(self.bins_v))
         fig.colorbar(IM, ax=ax)
 
         ax = axs[1, 0]
-        IM = ax.pcolor(self.bins_u, self.bins_v, self.twodhists['T_model'], cmap=cmap__T,
+        IM = ax.pcolormesh(self.bins_u, self.bins_v, self.twodhists['T_model'], cmap=cmap__T,
                        vmin=vmin__T, vmax=vmax__T)
         ax.set_xlim(min(self.bins_u), max(self.bins_u))
         ax.set_ylim(min(self.bins_v), max(self.bins_v))
         fig.colorbar(IM, ax=ax)
 
         ax = axs[2, 0]
-        IM = ax.pcolor(self.bins_u, self.bins_v, self.twodhists['dT'], cmap=cmap__dT,
+        IM = ax.pcolormesh(self.bins_u, self.bins_v, self.twodhists['dT'], cmap=cmap__dT,
                        vmin=vmin__dT, vmax=vmax__dT)
         ax.set_xlim(min(self.bins_u), max(self.bins_u))
         ax.set_ylim(min(self.bins_v), max(self.bins_v))
         fig.colorbar(IM, ax=ax)
 
         ax = axs[0, 1]
-        IM = ax.pcolor(self.bins_u, self.bins_v, self.twodhists['g1'], cmap=cmap__g,
+        IM = ax.pcolormesh(self.bins_u, self.bins_v, self.twodhists['g1'], cmap=cmap__g,
                        vmin=vmin__g, vmax=vmax__g)
         ax.set_xlim(min(self.bins_u), max(self.bins_u))
         ax.set_ylim(min(self.bins_v), max(self.bins_v))
         fig.colorbar(IM, ax=ax)
 
         ax = axs[1, 1]
-        IM = ax.pcolor(self.bins_u, self.bins_v, self.twodhists['g1_model'], cmap=cmap__g,
+        IM = ax.pcolormesh(self.bins_u, self.bins_v, self.twodhists['g1_model'], cmap=cmap__g,
                        vmin=vmin__g, vmax=vmax__g)
         ax.set_xlim(min(self.bins_u), max(self.bins_u))
         ax.set_ylim(min(self.bins_v), max(self.bins_v))
         fig.colorbar(IM, ax=ax)
 
         ax = axs[2, 1]
-        IM = ax.pcolor(self.bins_u, self.bins_v, self.twodhists['dg1'], cmap=cmap__dg,
+        IM = ax.pcolormesh(self.bins_u, self.bins_v, self.twodhists['dg1'], cmap=cmap__dg,
                        vmin=vmin__dg, vmax=vmax__dg)
         ax.set_xlim(min(self.bins_u), max(self.bins_u))
         ax.set_ylim(min(self.bins_v), max(self.bins_v))
         fig.colorbar(IM, ax=ax)
 
         ax = axs[0, 2]
-        IM = ax.pcolor(self.bins_u, self.bins_v, self.twodhists['g2'], cmap=cmap__g,
+        IM = ax.pcolormesh(self.bins_u, self.bins_v, self.twodhists['g2'], cmap=cmap__g,
                        vmin=vmin__g, vmax=vmax__g)
         ax.set_xlim(min(self.bins_u), max(self.bins_u))
         ax.set_ylim(min(self.bins_v), max(self.bins_v))
         fig.colorbar(IM, ax=ax)
 
         ax = axs[1, 2]
-        IM = ax.pcolor(self.bins_u, self.bins_v, self.twodhists['g2_model'], cmap=cmap__g,
+        IM = ax.pcolormesh(self.bins_u, self.bins_v, self.twodhists['g2_model'], cmap=cmap__g,
                        vmin=vmin__g, vmax=vmax__g)
         ax.set_xlim(min(self.bins_u), max(self.bins_u))
         ax.set_ylim(min(self.bins_v), max(self.bins_v))
         fig.colorbar(IM, ax=ax)
 
         ax = axs[2, 2]
-        IM = ax.pcolor(self.bins_u, self.bins_v, self.twodhists['dg2'], cmap=cmap__dg,
+        IM = ax.pcolormesh(self.bins_u, self.bins_v, self.twodhists['dg2'], cmap=cmap__dg,
                        vmin=vmin__dg, vmax=vmax__dg)
         ax.set_xlim(min(self.bins_u), max(self.bins_u))
         ax.set_ylim(min(self.bins_v), max(self.bins_v))
@@ -324,32 +324,29 @@ class TwoDHistStats(Stats):
     def _shiftedColorMap(self, cmap, start=0, midpoint=0.5, stop=1.0,
                          name='shiftedcmap'):
         '''
+        Function to offset the "center" of a colormap. Useful for
+        data with a negative min and positive max and you want the
+        middle of the colormap's dynamic range to be at zero
+
         Taken from
 
         https://github.com/olgabot/prettyplotlib/blob/master/prettyplotlib/colors.py
 
         which makes beautiful plots by the way
 
-
-        Function to offset the "center" of a colormap. Useful for
-        data with a negative min and positive max and you want the
-        middle of the colormap's dynamic range to be at zero
-
-        Input
-        -----
-          cmap : The matplotlib colormap to be altered
-          start : Offset from lowest point in the colormap's range.
-              Defaults to 0.0 (no lower ofset). Should be between
-              0.0 and `midpoint`.
-          midpoint : The new center of the colormap. Defaults to
-              0.5 (no shift). Should be between 0.0 and 1.0. In
-              general, this should be  1 - vmax/(vmax + abs(vmin))
-              For example if your data range from -15.0 to +5.0 and
-              you want the center of the colormap at 0.0, `midpoint`
-              should be set to  1 - 5/(5 + 15)) or 0.75
-          stop : Offset from highets point in the colormap's range.
-              Defaults to 1.0 (no upper ofset). Should be between
-              `midpoint` and 1.0.
+        :param cmap:    The matplotlib colormap to be altered
+        :param start:   Offset from lowest point in the colormap's range.
+                        Defaults to 0.0 (no lower ofset). Should be between
+                        0.0 and ``midpoint``.
+        :param midpoint: The new center of the colormap. Defaults to
+                        0.5 (no shift). Should be between 0.0 and 1.0. In
+                        general, this should be  1 - vmax/(vmax + abs(vmin))
+                        For example if your data range from -15.0 to +5.0 and
+                        you want the center of the colormap at 0.0, ``midpoint``
+                        should be set to  1 - 5/(5 + 15)) or 0.75
+        :param stop:    Offset from highets point in the colormap's range.
+                        Defaults to 1.0 (no upper ofset). Should be between
+                        ``midpoint`` and 1.0.
         '''
         from matplotlib.colors import LinearSegmentedColormap
 
